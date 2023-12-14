@@ -12,7 +12,7 @@ use crate::{
     TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, get_name_of_declaration,
     get_object_flags, get_source_file_of_node, is_call_signature_declaration,
     is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
-    try_some, DiagnosticMessage, Diagnostics, HasArena, InferenceContext, InferenceFlags,
+    try_some, DiagnosticMessage, Diagnostics, HasArena, InArena, InferenceContext, InferenceFlags,
     InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags,
     Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
 };
@@ -23,7 +23,7 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         if !(self.is_object_literal_type(type_)
-            && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::FreshLiteral))
+            && get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::FreshLiteral))
         {
             return Ok(type_);
         }
@@ -42,7 +42,7 @@ impl TypeChecker {
         })?;
         let regular_new = self.create_anonymous_type(
             {
-                let symbol = self.type_(resolved).maybe_symbol();
+                let symbol = resolved.ref_(self).maybe_symbol();
                 symbol
             },
             Gc::new(GcCell::new(members)),
@@ -71,15 +71,15 @@ impl TypeChecker {
                 index_infos
             },
         )?;
-        self.type_(regular_new)
-            .set_flags(self.type_(resolved).flags());
-        self.type_(regular_new)
+        regular_new
+            .ref_(self)
+            .set_flags(resolved.ref_(self).flags());
+        regular_new
+            .ref_(self)
             .as_object_flags_type()
             .set_object_flags(
-                self.type_(regular_new)
-                    .as_object_flags_type()
-                    .object_flags()
-                    | self.type_(resolved).as_resolved_type().object_flags()
+                regular_new.ref_(self).as_object_flags_type().object_flags()
+                    | resolved.ref_(self).as_resolved_type().object_flags()
                         & !ObjectFlags::FreshLiteral,
             );
         *self
@@ -138,7 +138,7 @@ impl TypeChecker {
             let mut names: HashMap<__String, Id<Symbol>> = HashMap::new();
             for &t in &self.get_siblings_of_context(context.clone())? {
                 if self.is_object_literal_type(t)
-                    && !get_object_flags(&self.type_(t)).intersects(ObjectFlags::ContainsSpread)
+                    && !get_object_flags(&t.ref_(self)).intersects(ObjectFlags::ContainsSpread)
                 {
                     for prop in self.get_properties_of_type(t)? {
                         names.insert(self.symbol(prop).escaped_name().to_owned(), prop);
@@ -215,7 +215,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             {
-                let symbol = self.type_(type_).maybe_symbol();
+                let symbol = type_.ref_(self).maybe_symbol();
                 symbol
             },
             Gc::new(GcCell::new(members)),
@@ -233,9 +233,9 @@ impl TypeChecker {
                 },
             )?,
         )?;
-        self.type_(result).as_object_flags_type().set_object_flags(
-            self.type_(result).as_object_flags_type().object_flags()
-                | (get_object_flags(&self.type_(type_))
+        result.ref_(self).as_object_flags_type().set_object_flags(
+            result.ref_(self).as_object_flags_type().object_flags()
+                | (get_object_flags(&type_.ref_(self))
                     & (ObjectFlags::JSLiteral | ObjectFlags::NonInferrableType)),
         );
         Ok(result)
@@ -250,9 +250,9 @@ impl TypeChecker {
         type_: Id<Type>,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Id<Type>> {
-        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::RequiresWidening) {
+        if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::RequiresWidening) {
             if context.is_none() {
-                if let Some(type_widened) = self.type_(type_).maybe_widened().clone() {
+                if let Some(type_widened) = type_.ref_(self).maybe_widened().clone() {
                     return Ok(type_widened);
                 }
             }
@@ -265,14 +265,15 @@ impl TypeChecker {
                 result = Some(self.any_type());
             } else if self.is_object_literal_type(type_) {
                 result = Some(self.get_widened_type_of_object_literal(type_, context.clone())?);
-            } else if self.type_(type_).flags().intersects(TypeFlags::Union) {
+            } else if type_.ref_(self).flags().intersects(TypeFlags::Union) {
                 let union_context = context.clone().unwrap_or_else(|| {
                     Rc::new(RefCell::new(
                         self.create_widening_context(
                             None,
                             None,
                             Some(
-                                self.type_(type_)
+                                type_
+                                    .ref_(self)
                                     .as_union_or_intersection_type_interface()
                                     .types()
                                     .to_owned(),
@@ -281,12 +282,13 @@ impl TypeChecker {
                     ))
                 });
                 let widened_types = try_map(
-                    self.type_(type_)
+                    type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned(),
                     |t: Id<Type>, _| -> io::Result<_> {
-                        Ok(if self.type_(t).flags().intersects(TypeFlags::Nullable) {
+                        Ok(if t.ref_(self).flags().intersects(TypeFlags::Nullable) {
                             t
                         } else {
                             self.get_widened_type_with_context(t, Some(union_context.clone()))?
@@ -330,7 +332,7 @@ impl TypeChecker {
                 )?);
             } else if self.is_array_type(type_) || self.is_tuple_type(type_) {
                 result = Some(self.create_type_reference(
-                    self.type_(type_).as_type_reference().target,
+                    type_.ref_(self).as_type_reference().target,
                     Some(try_map(
                         &self.get_type_arguments(type_)?,
                         |&type_: &Id<Type>, _| self.get_widened_type(type_),
@@ -338,7 +340,7 @@ impl TypeChecker {
                 ));
             }
             if result.is_some() && context.is_none() {
-                *self.type_(type_).maybe_widened() = result.clone();
+                *type_.ref_(self).maybe_widened() = result.clone();
             }
             return Ok(result.unwrap_or_else(|| type_));
         }
@@ -347,11 +349,12 @@ impl TypeChecker {
 
     pub(super) fn report_widening_errors_in_type(&self, type_: Id<Type>) -> io::Result<bool> {
         let mut error_reported = false;
-        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::ContainsWideningType) {
-            if self.type_(type_).flags().intersects(TypeFlags::Union) {
+        if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::ContainsWideningType) {
+            if type_.ref_(self).flags().intersects(TypeFlags::Union) {
                 if try_some(
                     Some(
-                        self.type_(type_)
+                        type_
+                            .ref_(self)
                             .as_union_or_intersection_type_interface()
                             .types(),
                     ),
@@ -381,8 +384,7 @@ impl TypeChecker {
             if self.is_object_literal_type(type_) {
                 for p in self.get_properties_of_object_type(type_)? {
                     let t = self.get_type_of_symbol(p)?;
-                    if get_object_flags(&self.type_(t))
-                        .intersects(ObjectFlags::ContainsWideningType)
+                    if get_object_flags(&t.ref_(self)).intersects(ObjectFlags::ContainsWideningType)
                     {
                         if !self.report_widening_errors_in_type(t)? {
                             self.error(
@@ -619,7 +621,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if self.produce_diagnostics
             && self.no_implicit_any
-            && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::ContainsWideningType)
+            && get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::ContainsWideningType)
             && (widening_kind.is_none()
                 || self
                     .get_contextual_signature_for_function_like_declaration(declaration)?
@@ -855,7 +857,7 @@ impl TypeChecker {
     }
 
     pub(super) fn could_contain_type_variables(&self, type_: Id<Type>) -> io::Result<bool> {
-        let object_flags = get_object_flags(&self.type_(type_));
+        let object_flags = get_object_flags(&type_.ref_(self));
         if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
             return Ok(object_flags.intersects(ObjectFlags::CouldContainTypeVariables));
         }
@@ -863,7 +865,7 @@ impl TypeChecker {
             .type_(type_)
             .flags()
             .intersects(TypeFlags::Instantiable)
-            || self.type_(type_).flags().intersects(TypeFlags::Object)
+            || type_.ref_(self).flags().intersects(TypeFlags::Object)
                 && !self.is_non_generic_top_level_type(type_)
                 && (object_flags.intersects(ObjectFlags::Reference)
                     && (self
@@ -879,7 +881,7 @@ impl TypeChecker {
                         )?)
                     || object_flags.intersects(ObjectFlags::Anonymous)
                         && matches!(
-                            self.type_(type_).maybe_symbol(),
+                            type_.ref_(self).maybe_symbol(),
                             Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::Function | SymbolFlags::Method | SymbolFlags::Class | SymbolFlags::TypeLiteral | SymbolFlags::ObjectLiteral) &&
                                 self.symbol(type_symbol).maybe_declarations().is_some()
                         )
@@ -892,11 +894,12 @@ impl TypeChecker {
                 .type_(type_)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
-                && !self.type_(type_).flags().intersects(TypeFlags::EnumLiteral)
+                && !type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral)
                 && !self.is_non_generic_top_level_type(type_)
                 && try_some(
                     Some(
-                        self.type_(type_)
+                        type_
+                            .ref_(self)
                             .as_union_or_intersection_type_interface()
                             .types(),
                     ),
@@ -907,8 +910,8 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::ObjectFlagsType)
         {
-            self.type_(type_).as_object_flags_type().set_object_flags(
-                self.type_(type_).as_object_flags_type().object_flags()
+            type_.ref_(self).as_object_flags_type().set_object_flags(
+                type_.ref_(self).as_object_flags_type().object_flags()
                     | ObjectFlags::CouldContainTypeVariablesComputed
                     | if result {
                         ObjectFlags::CouldContainTypeVariables
@@ -921,8 +924,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_non_generic_top_level_type(&self, type_: Id<Type>) -> bool {
-        if let Some(type_alias_symbol) = self.type_(type_).maybe_alias_symbol() {
-            if self.type_(type_).maybe_alias_type_arguments().is_none() {
+        if let Some(type_alias_symbol) = type_.ref_(self).maybe_alias_symbol() {
+            if type_.ref_(self).maybe_alias_type_arguments().is_none() {
                 let declaration = get_declaration_of_kind(
                     &self.symbol(type_alias_symbol),
                     SyntaxKind::TypeAliasDeclaration,
@@ -959,13 +962,14 @@ impl TypeChecker {
                 .intersects(TypeFlags::UnionOrIntersection)
                 && try_some(
                     Some(
-                        self.type_(type_)
+                        type_
+                            .ref_(self)
                             .as_union_or_intersection_type_interface()
                             .types(),
                     ),
                     Some(|&t: &Id<Type>| self.is_type_parameter_at_top_level(t, type_parameter)),
                 )?
-            || self.type_(type_).flags().intersects(TypeFlags::Conditional)
+            || type_.ref_(self).flags().intersects(TypeFlags::Conditional)
                 && (self.get_true_type_from_conditional_type(type_)? == type_parameter
                     || self.get_false_type_from_conditional_type(type_)? == type_parameter))
     }
@@ -976,10 +980,10 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         self.for_each_type(type_, |t: Id<Type>| -> Option<()> {
-            if !self.type_(t).flags().intersects(TypeFlags::StringLiteral) {
+            if !t.ref_(self).flags().intersects(TypeFlags::StringLiteral) {
                 return None;
             }
-            let name = escape_leading_underscores(&self.type_(t).as_string_literal_type().value)
+            let name = escape_leading_underscores(&t.ref_(self).as_string_literal_type().value)
                 .into_owned();
             let literal_prop = self.alloc_symbol(
                 self.create_symbol(SymbolFlags::Property, name.clone(), None)
@@ -990,7 +994,7 @@ impl TypeChecker {
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.any_type());
-            if let Some(t_symbol) = self.type_(t).maybe_symbol() {
+            if let Some(t_symbol) = t.ref_(self).maybe_symbol() {
                 if let Some(t_symbol_declarations) =
                     self.symbol(t_symbol).maybe_declarations().clone()
                 {
@@ -1007,7 +1011,7 @@ impl TypeChecker {
             members.insert(name, literal_prop);
             None
         });
-        let index_infos = if self.type_(type_).flags().intersects(TypeFlags::String) {
+        let index_infos = if type_.ref_(self).flags().intersects(TypeFlags::String) {
             vec![Gc::new(self.create_index_info(
                 self.string_type(),
                 self.empty_object_type(),
@@ -1037,9 +1041,9 @@ impl TypeChecker {
         }
         let key = format!(
             "{},{},{}",
-            self.type_(source).id(),
-            self.type_(target).id(),
-            self.type_(constraint).id()
+            source.ref_(self).id(),
+            target.ref_(self).id(),
+            constraint.ref_(self).id()
         );
         if self.reverse_mapped_cache().contains_key(&key) {
             return Ok(self
@@ -1057,7 +1061,7 @@ impl TypeChecker {
 
     pub(super) fn is_partially_inferable_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(
-            !get_object_flags(&self.type_(type_)).intersects(ObjectFlags::NonInferrableType)
+            !get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::NonInferrableType)
                 || self.is_object_literal_type(type_)
                     && self
                         .get_properties_of_type(type_)?
@@ -1108,7 +1112,7 @@ impl TypeChecker {
             {
                 same_map(
                     &self
-                        .type_(self.type_(source).as_type_reference().target)
+                        .type_(source.ref_(self).as_type_reference().target)
                         .as_tuple_type()
                         .element_flags,
                     |f: &ElementFlags, _| {
@@ -1120,7 +1124,11 @@ impl TypeChecker {
                     },
                 )
             } else {
-                self.type_(self.type_(source).as_type_reference().target)
+                source
+                    .ref_(self)
+                    .as_type_reference()
+                    .target
+                    .ref_(self)
                     .as_tuple_type()
                     .element_flags
                     .clone()
@@ -1130,11 +1138,19 @@ impl TypeChecker {
                     &element_types,
                     Some(&element_flags),
                     Some(
-                        self.type_(self.type_(source).as_type_reference().target)
+                        source
+                            .ref_(self)
+                            .as_type_reference()
+                            .target
+                            .ref_(self)
                             .as_tuple_type()
                             .readonly,
                     ),
-                    self.type_(self.type_(source).as_type_reference().target)
+                    source
+                        .ref_(self)
+                        .as_type_reference()
+                        .target
+                        .ref_(self)
                         .as_tuple_type()
                         .labeled_element_declarations
                         .as_deref(),

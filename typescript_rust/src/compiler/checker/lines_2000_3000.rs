@@ -28,8 +28,8 @@ use crate::{
     return_ok_default_if_none, should_preserve_const_enums, some, try_find, try_find_last,
     unescape_leading_underscores, AssignmentDeclarationKind, Debug_, Diagnostic, Diagnostics,
     Extension, FindAncestorCallbackReturn, HasArena, HasInitializerInterface, HasTypeInterface,
-    InterfaceTypeInterface, InternalSymbolName, IteratorExt, ModifierFlags, ModuleKind, Node,
-    NodeFlags, NodeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    InArena, InterfaceTypeInterface, InternalSymbolName, IteratorExt, ModifierFlags, ModuleKind,
+    Node, NodeFlags, NodeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TypeChecker, TypeFlags, TypeInterface,
 };
 
@@ -490,7 +490,7 @@ impl TypeChecker {
         if matches!(container, Some(container) if container.as_type_literal_node().members.len() == 1)
         {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
-            return Ok(self.type_(type_).flags().intersects(TypeFlags::Union)
+            return Ok(type_.ref_(self).flags().intersects(TypeFlags::Union)
                 && self.all_types_assignable_to_kind(
                     type_,
                     TypeFlags::StringOrNumberLiteral,

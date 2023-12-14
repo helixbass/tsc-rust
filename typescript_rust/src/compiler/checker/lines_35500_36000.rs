@@ -13,8 +13,9 @@ use crate::{
     is_binding_pattern, is_entity_name, is_identifier, is_jsdoc_construct_signature,
     is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated,
     try_for_each, Debug_, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, HasArena,
-    HasTypeInterface, NamedDeclarationInterface, Node, NodeInterface, OptionTry, ScriptTarget,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    HasTypeInterface, InArena, NamedDeclarationInterface, Node, NodeInterface, OptionTry,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -165,7 +166,7 @@ impl TypeChecker {
         let signature = self.get_resolved_signature_(node, None, None)?;
         self.check_deprecated_signature(signature.clone(), node)?;
         let return_type = self.get_return_type_of_signature(signature.clone())?;
-        if self.type_(return_type).flags().intersects(TypeFlags::Any) {
+        if return_type.ref_(self).flags().intersects(TypeFlags::Any) {
             return Ok(());
         }
 

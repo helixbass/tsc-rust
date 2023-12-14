@@ -24,9 +24,9 @@ use crate::{
     is_qualified_name, is_require_call,
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_static,
     node_is_missing, node_is_present, AssignmentDeclarationKind, Debug_, Diagnostic,
-    FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, HasArena, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface,
+    FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, HasArena, InArena,
+    InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -798,7 +798,8 @@ impl TypeChecker {
                         .maybe_symbol());
                 }
 
-                self.type_(self.get_type_from_this_type_node(node)?)
+                self.get_type_from_this_type_node(node)?
+                    .ref_(self)
                     .maybe_symbol()
             }
 
@@ -948,7 +949,8 @@ impl TypeChecker {
 
             SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => {
                 if is_meta_property(&node.parent()) {
-                    self.type_(self.check_meta_property_keyword(&node.parent())?)
+                    self.check_meta_property_keyword(&node.parent())?
+                        .ref_(self)
                         .maybe_symbol()
                 } else {
                     None

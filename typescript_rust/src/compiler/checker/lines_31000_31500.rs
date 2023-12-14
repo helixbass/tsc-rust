@@ -16,7 +16,7 @@ use crate::{
     NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
     TransientSymbolInterface, __String, has_initializer, maybe_get_source_file_of_node, Node,
     NodeInterface, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, HasArena,
+    TypeInterface, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -192,15 +192,15 @@ impl TypeChecker {
             /*type &&*/
             !self.is_error_type(type_) {
                 let synth_type = type_;
-                if self.type_(synth_type).maybe_default_only_type().is_none() {
+                if synth_type.ref_(self).maybe_default_only_type().is_none() {
                     let type_ = self.create_default_property_wrapper_for_module(
                         symbol,
                         original_symbol,
                         Option::<Id<Symbol>>::None,
                     )?;
-                    *self.type_(synth_type).maybe_default_only_type() = Some(type_);
+                    *synth_type.ref_(self).maybe_default_only_type() = Some(type_);
                 }
-                return Ok(self.type_(synth_type).maybe_default_only_type().clone());
+                return Ok(synth_type.ref_(self).maybe_default_only_type().clone());
             }
         }
         Ok(None)
@@ -215,7 +215,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
             let synth_type = type_;
-            if self.type_(synth_type).maybe_synthetic_type().is_none() {
+            if synth_type.ref_(self).maybe_synthetic_type().is_none() {
                 let file = self
                     .symbol(original_symbol)
                     .maybe_declarations()
@@ -252,7 +252,7 @@ impl TypeChecker {
                         .symbol_links()
                         .borrow_mut()
                         .type_ = Some(default_containing_object.clone());
-                    *self.type_(synth_type).maybe_synthetic_type() =
+                    *synth_type.ref_(self).maybe_synthetic_type() =
                         Some(if self.is_valid_spread_type(type_)? {
                             self.get_spread_type(
                                 type_,
@@ -265,7 +265,7 @@ impl TypeChecker {
                             default_containing_object
                         });
                 } else {
-                    *self.type_(synth_type).maybe_synthetic_type() = Some(type_);
+                    *synth_type.ref_(self).maybe_synthetic_type() = Some(type_);
                 }
             }
             return Ok(self
@@ -413,7 +413,7 @@ impl TypeChecker {
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 let expr = node.as_has_expression().expression();
-                let mut symbol = self.type_(self.get_type_of_node(&expr)?).maybe_symbol();
+                let mut symbol = self.get_type_of_node(&expr)?.ref_(self).maybe_symbol();
                 if let Some(symbol_present) = symbol
                     .filter(|&symbol| self.symbol(symbol).flags().intersects(SymbolFlags::Alias))
                 {
@@ -646,7 +646,7 @@ impl TypeChecker {
         let rest_type =
             override_rest_type.try_unwrap_or_else(|| self.get_type_of_symbol(rest_parameter))?;
         if self.is_tuple_type(rest_type) {
-            let rest_type_target_ref = self.type_(self.type_(rest_type).as_type_reference().target);
+            let rest_type_target_ref = rest_type.ref_(self).as_type_reference().target.ref_(self);
             let associated_names = rest_type_target_ref
                 .as_tuple_type()
                 .labeled_element_declarations
@@ -694,7 +694,7 @@ impl TypeChecker {
 
         let rest_type = self.get_type_of_symbol(rest_parameter)?;
         if self.is_tuple_type(rest_type) {
-            let rest_type_target_ref = self.type_(self.type_(rest_type).as_type_reference().target);
+            let rest_type_target_ref = rest_type.ref_(self).as_type_reference().target.ref_(self);
             let associated_names = rest_type_target_ref
                 .as_tuple_type()
                 .labeled_element_declarations
@@ -767,7 +767,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.unknown_symbol());
         let rest_type = self.get_type_of_symbol(rest_parameter)?;
         if self.is_tuple_type(rest_type) {
-            let rest_type_target_ref = self.type_(self.type_(rest_type).as_type_reference().target);
+            let rest_type_target_ref = rest_type.ref_(self).as_type_reference().target.ref_(self);
             let associated_names = rest_type_target_ref
                 .as_tuple_type()
                 .labeled_element_declarations
@@ -815,11 +815,11 @@ impl TypeChecker {
             let rest_type = self.get_type_of_symbol(signature.parameters()[param_count])?;
             let index = pos - param_count;
             if !self.is_tuple_type(rest_type) || {
-                let rest_type_target = self.type_(rest_type).as_type_reference_interface().target();
-                self.type_(rest_type_target)
+                let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
+                rest_type_target.ref_(self)
                     .as_tuple_type()
                     .has_rest_element
-                    || index < self.type_(rest_type_target).as_tuple_type().fixed_length
+                    || index < rest_type_target.ref_(self).as_tuple_type().fixed_length
             } {
                 return Ok(Some(self.get_indexed_access_type(
                     rest_type,
@@ -898,9 +898,9 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let rest_type = self.get_type_of_symbol(signature.parameters()[length - 1])?;
             if self.is_tuple_type(rest_type) {
-                let rest_type_target = self.type_(rest_type).as_type_reference_interface().target();
+                let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
                 return Ok(
-                    length + self.type_(rest_type_target).as_tuple_type().fixed_length
+                    length + rest_type_target.ref_(self).as_tuple_type().fixed_length
                         - if self
                             .type_(rest_type_target)
                             .as_tuple_type()
@@ -936,14 +936,14 @@ impl TypeChecker {
                     .get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
                 if self.is_tuple_type(rest_type) {
                     let rest_type_target =
-                        self.type_(rest_type).as_type_reference_interface().target();
+                        rest_type.ref_(self).as_type_reference_interface().target();
                     let first_optional_index = find_index(
-                        &self.type_(rest_type_target).as_tuple_type().element_flags,
+                        &rest_type_target.ref_(self).as_tuple_type().element_flags,
                         |f: &ElementFlags, _| !f.intersects(ElementFlags::Required),
                         None,
                     );
                     let required_count = first_optional_index
-                        .unwrap_or(self.type_(rest_type_target).as_tuple_type().fixed_length);
+                        .unwrap_or(rest_type_target.ref_(self).as_tuple_type().fixed_length);
                     if required_count > 0 {
                         min_argument_count =
                             Some(signature.parameters().len() - 1 + required_count);
@@ -999,7 +999,7 @@ impl TypeChecker {
                 self.get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
             return Ok(!self.is_tuple_type(rest_type)
                 || self
-                    .type_(self.type_(rest_type).as_type_reference_interface().target())
+                    .type_(rest_type.ref_(self).as_type_reference_interface().target())
                     .as_tuple_type()
                     .has_rest_element);
         }
@@ -1016,7 +1016,7 @@ impl TypeChecker {
             if !self.is_tuple_type(rest_type) {
                 return Ok(Some(rest_type));
             }
-            let rest_type_target = self.type_(rest_type).as_type_reference_interface().target();
+            let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
             if self
                 .type_(rest_type_target)
                 .as_tuple_type()
@@ -1024,7 +1024,7 @@ impl TypeChecker {
             {
                 return Ok(Some(self.slice_tuple_type(
                     rest_type,
-                    self.type_(rest_type_target).as_tuple_type().fixed_length,
+                    rest_type_target.ref_(self).as_tuple_type().fixed_length,
                     None,
                 )?));
             }

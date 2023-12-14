@@ -12,9 +12,9 @@ use crate::{
     is_valid_es_symbol_declaration, map, maybe_add_range, maybe_is_class_like,
     pseudo_big_int_to_string, return_ok_none_if_none, some, try_map, try_maybe_filter, try_some,
     AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics,
-    FunctionLikeDeclarationInterface, HasArena, IndexInfo, InferenceContext, InferenceInfo,
-    InterfaceTypeInterface, IntrinsicType, LiteralType, LiteralTypeInterface, Node, NodeFlags,
-    NodeInterface, Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface,
+    FunctionLikeDeclarationInterface, HasArena, InArena, IndexInfo, InferenceContext,
+    InferenceInfo, InterfaceTypeInterface, IntrinsicType, LiteralType, LiteralTypeInterface, Node,
+    NodeFlags, NodeInterface, Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface,
     ObjectTypeInterface, OptionTry, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,
     StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
     Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
@@ -113,8 +113,8 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(StringLiteralType::new(type_, value).into());
-        self.type_(type_).set_symbol(symbol);
-        self.type_(type_).as_literal_type().set_regular_type(
+        type_.ref_(self).set_symbol(symbol);
+        type_.ref_(self).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
             } else {
@@ -134,8 +134,8 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(NumberLiteralType::new(type_, value).into());
-        self.type_(type_).set_symbol(symbol);
-        self.type_(type_).as_literal_type().set_regular_type(
+        type_.ref_(self).set_symbol(symbol);
+        type_.ref_(self).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
             } else {
@@ -155,8 +155,8 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(BigIntLiteralType::new(type_, value).into());
-        self.type_(type_).set_symbol(symbol);
-        self.type_(type_).as_literal_type().set_regular_type(
+        type_.ref_(self).set_symbol(symbol);
+        type_.ref_(self).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
             } else {
@@ -167,9 +167,9 @@ impl TypeChecker {
     }
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
-        if self.type_(type_).flags().intersects(TypeFlags::Literal) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Literal) {
             if let Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) =
-                &*self.type_(type_)
+                &*type_.ref_(self)
             {
                 return type_.fresh_type();
             }
@@ -180,24 +180,24 @@ impl TypeChecker {
     }
 
     pub(super) fn get_regular_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
-        if self.type_(type_).flags().intersects(TypeFlags::Literal) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Literal) {
             // TODO: this seems like it should be encapsulated behind an abstraction (also above in
             // get_fresh_type_of_literal_type())?
-            match &*self.type_(type_) {
+            match &*type_.ref_(self) {
                 Type::LiteralType(type_) => type_.regular_type(),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
                     type_.regular_type()
                 }
                 _ => unreachable!(),
             }
-        } else if self.type_(type_).flags().intersects(TypeFlags::Union) {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             if self
                 .type_(type_)
                 .as_union_type()
                 .maybe_regular_type()
                 .is_none()
             {
-                *self.type_(type_).as_union_type().maybe_regular_type() = Some(
+                *type_.ref_(self).as_union_type().maybe_regular_type() = Some(
                     self.map_type(
                         type_,
                         &mut |type_| Some(self.get_regular_type_of_literal_type(type_)),
@@ -206,7 +206,8 @@ impl TypeChecker {
                     .unwrap(),
                 );
             }
-            self.type_(type_)
+            type_
+                .ref_(self)
                 .as_union_type()
                 .maybe_regular_type()
                 .clone()
@@ -217,14 +218,14 @@ impl TypeChecker {
     }
 
     pub(super) fn is_fresh_literal_type(&self, type_: Id<Type>) -> bool {
-        if !self.type_(type_).flags().intersects(TypeFlags::Literal) {
+        if !type_.ref_(self).flags().intersects(TypeFlags::Literal) {
             return false;
         }
         // TODO: should this be using eg a Type.as_has_fresh_type() "unwrapper-helper" instead?
         // (same question in is_type_related_to() and get_normalized_type() below, and in
         // remove_redundant_literal_types()) or maybe this looks like it should be a trait that
         // includes `maybe_fresh_type()` that both of these implement?
-        match &*self.type_(type_) {
+        match &*type_.ref_(self) {
             Type::IntrinsicType(intrinsic_type) => {
                 type_
                     == enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
@@ -934,26 +935,27 @@ impl TypeChecker {
         tp: Id<Type>, /*TypeParameter*/
     ) -> Id<Type> {
         if matches!(
-            self.type_(tp).as_type_parameter().maybe_constraint(),
+            tp.ref_(self).as_type_parameter().maybe_constraint(),
             Some(constraint) if constraint == self.unknown_type()
         ) {
             tp
         } else {
-            if self.type_(tp).maybe_restrictive_instantiation().is_none() {
+            if tp.ref_(self).maybe_restrictive_instantiation().is_none() {
                 let restrictive_instantiation = self.alloc_type(
                     self.create_type_parameter({
-                        let symbol = self.type_(tp).maybe_symbol();
+                        let symbol = tp.ref_(self).maybe_symbol();
                         symbol
                     })
                     .into(),
                 );
-                *self.type_(tp).maybe_restrictive_instantiation() =
+                *tp.ref_(self).maybe_restrictive_instantiation() =
                     Some(restrictive_instantiation.clone());
-                self.type_(restrictive_instantiation)
+                restrictive_instantiation
+                    .ref_(self)
                     .as_type_parameter()
                     .set_constraint(self.unknown_type());
             }
-            self.type_(tp)
+            tp.ref_(self)
                 .maybe_restrictive_instantiation()
                 .clone()
                 .unwrap()
@@ -964,7 +966,7 @@ impl TypeChecker {
         &self,
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> Id<Type /*TypeParameter*/> {
-        let mut result = self.create_type_parameter(Some(self.type_(type_parameter).symbol()));
+        let mut result = self.create_type_parameter(Some(type_parameter.ref_(self).symbol()));
         result.target = Some(type_parameter);
         self.alloc_type(result.into())
     }
@@ -1004,9 +1006,7 @@ impl TypeChecker {
                     mapper,
                 );
                 for &tp in fresh_type_parameters.as_ref().unwrap() {
-                    self.type_(tp)
-                        .as_type_parameter()
-                        .set_mapper(mapper.clone());
+                    tp.ref_(self).as_type_parameter().set_mapper(mapper.clone());
                 }
             }
         }
@@ -1093,13 +1093,14 @@ impl TypeChecker {
             .object_flags()
             .intersects(ObjectFlags::Reference)
         {
-            self.type_(type_)
+            type_
+                .ref_(self)
                 .as_type_reference()
                 .maybe_node()
                 .clone()
                 .unwrap()
         } else {
-            self.symbol(self.type_(type_).symbol())
+            self.symbol(type_.ref_(self).symbol())
                 .maybe_declarations()
                 .clone()
                 .unwrap()[0]
@@ -1119,7 +1120,7 @@ impl TypeChecker {
             .object_flags()
             .intersects(ObjectFlags::Instantiated)
         {
-            self.type_(type_).as_object_type().maybe_target().unwrap()
+            type_.ref_(self).as_object_type().maybe_target().unwrap()
         } else {
             type_
         };
@@ -1146,7 +1147,7 @@ impl TypeChecker {
             {
                 vec![declaration.clone()]
             } else {
-                self.symbol(self.type_(type_).symbol())
+                self.symbol(type_.ref_(self).symbol())
                     .maybe_declarations()
                     .clone()
                     .unwrap()
@@ -1157,14 +1158,14 @@ impl TypeChecker {
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
                 || self
-                    .symbol(self.type_(target).symbol())
+                    .symbol(target.ref_(self).symbol())
                     .flags()
                     .intersects(SymbolFlags::Method)
                 || self
-                    .symbol(self.type_(target).symbol())
+                    .symbol(target.ref_(self).symbol())
                     .flags()
                     .intersects(SymbolFlags::TypeLiteral))
-                && self.type_(target).maybe_alias_type_arguments().is_none()
+                && target.ref_(self).maybe_alias_type_arguments().is_none()
             {
                 try_maybe_filter(type_parameters.as_deref(), |&tp: &Id<Type>| {
                     try_some(
@@ -1181,7 +1182,7 @@ impl TypeChecker {
         let type_parameters = type_parameters.unwrap();
         if !type_parameters.is_empty() {
             let combined_mapper = self.combine_type_mappers(
-                self.type_(type_).as_object_type().maybe_mapper(),
+                type_.ref_(self).as_object_type().maybe_mapper(),
                 mapper.clone(),
             );
             let type_arguments = try_map(&type_parameters, |&t: &Id<Type>, _| {
@@ -1189,12 +1190,12 @@ impl TypeChecker {
             })?;
             let new_alias_symbol = alias_symbol
                 .clone()
-                .or_else(|| self.type_(type_).maybe_alias_symbol().clone());
+                .or_else(|| type_.ref_(self).maybe_alias_symbol().clone());
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
                 self.instantiate_types(
-                    self.type_(type_).maybe_alias_type_arguments().as_deref(),
+                    type_.ref_(self).maybe_alias_type_arguments().as_deref(),
                     Some(mapper),
                 )?
             };
@@ -1209,8 +1210,9 @@ impl TypeChecker {
                 .maybe_instantiations()
                 .is_none()
             {
-                *self.type_(target).as_object_type().maybe_instantiations() = Some(HashMap::new());
-                self.type_(target)
+                *target.ref_(self).as_object_type().maybe_instantiations() = Some(HashMap::new());
+                target
+                    .ref_(self)
                     .as_object_type()
                     .maybe_instantiations()
                     .as_mut()
@@ -1220,8 +1222,8 @@ impl TypeChecker {
                             "{}{}",
                             self.get_type_list_id(Some(&*type_parameters)),
                             self.get_alias_id(
-                                self.type_(target).maybe_alias_symbol(),
-                                self.type_(target).maybe_alias_type_arguments().as_deref()
+                                target.ref_(self).maybe_alias_symbol(),
+                                target.ref_(self).maybe_alias_type_arguments().as_deref()
                             )
                         ),
                         target.clone(),
@@ -1246,7 +1248,7 @@ impl TypeChecker {
                     {
                         self.create_deferred_type_reference(
                             {
-                                let target = self.type_(type_).as_type_reference().target;
+                                let target = type_.ref_(self).as_type_reference().target;
                                 target
                             },
                             &*{
@@ -1283,7 +1285,8 @@ impl TypeChecker {
                         )?
                     },
                 );
-                self.type_(target)
+                target
+                    .ref_(self)
                     .as_object_type()
                     .maybe_instantiations()
                     .as_mut()

@@ -14,7 +14,7 @@ use crate::{
     is_property_declaration, length, map, maybe_append_if_unique_eq, maybe_append_if_unique_gc,
     reduce_left, try_filter, try_map, unescape_leading_underscores, CheckFlags, Debug_,
     DiagnosticMessageChain, Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface,
-    IndexInfo, IteratorExt, ModifierFlags, Node, NodeInterface, ObjectFlags,
+    InArena, IndexInfo, IteratorExt, ModifierFlags, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type,
     TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind,
@@ -34,25 +34,25 @@ impl TypeChecker {
             type_
         };
         Ok(
-            if get_object_flags(&self.type_(t)).intersects(ObjectFlags::Mapped) {
+            if get_object_flags(&t.ref_(self)).intersects(ObjectFlags::Mapped) {
                 self.get_apparent_type_of_mapped_type(t)?
-            } else if self.type_(t).flags().intersects(TypeFlags::Intersection) {
+            } else if t.ref_(self).flags().intersects(TypeFlags::Intersection) {
                 self.get_apparent_type_of_intersection_type(t)?
-            } else if self.type_(t).flags().intersects(TypeFlags::StringLike) {
+            } else if t.ref_(self).flags().intersects(TypeFlags::StringLike) {
                 self.global_string_type()
-            } else if self.type_(t).flags().intersects(TypeFlags::NumberLike) {
+            } else if t.ref_(self).flags().intersects(TypeFlags::NumberLike) {
                 self.global_number_type()
-            } else if self.type_(t).flags().intersects(TypeFlags::BigIntLike) {
+            } else if t.ref_(self).flags().intersects(TypeFlags::BigIntLike) {
                 self.get_global_big_int_type(self.language_version >= ScriptTarget::ES2020)?
-            } else if self.type_(t).flags().intersects(TypeFlags::BooleanLike) {
+            } else if t.ref_(self).flags().intersects(TypeFlags::BooleanLike) {
                 self.global_boolean_type()
-            } else if self.type_(t).flags().intersects(TypeFlags::ESSymbolLike) {
+            } else if t.ref_(self).flags().intersects(TypeFlags::ESSymbolLike) {
                 self.get_global_es_symbol_type(self.language_version >= ScriptTarget::ES2015)?
-            } else if self.type_(t).flags().intersects(TypeFlags::NonPrimitive) {
+            } else if t.ref_(self).flags().intersects(TypeFlags::NonPrimitive) {
                 self.empty_object_type()
-            } else if self.type_(t).flags().intersects(TypeFlags::Index) {
+            } else if t.ref_(self).flags().intersects(TypeFlags::Index) {
                 self.keyof_constraint_type()
-            } else if self.type_(t).flags().intersects(TypeFlags::Unknown)
+            } else if t.ref_(self).flags().intersects(TypeFlags::Unknown)
                 && !self.strict_null_checks
             {
                 self.empty_object_type()
@@ -100,8 +100,7 @@ impl TypeChecker {
             types
         } {
             let type_ = self.get_apparent_type(current)?;
-            if !(self.is_error_type(type_)
-                || self.type_(type_).flags().intersects(TypeFlags::Never))
+            if !(self.is_error_type(type_) || type_.ref_(self).flags().intersects(TypeFlags::Never))
             {
                 let prop =
                     self.get_property_of_type_(type_, name, skip_object_function_property_augment)?;
@@ -210,7 +209,7 @@ impl TypeChecker {
                             }),
                         );
                     } else if self.is_object_literal_type(type_)
-                        && !get_object_flags(&self.type_(type_))
+                        && !get_object_flags(&type_.ref_(self))
                             .intersects(ObjectFlags::ContainsSpread)
                     {
                         check_flags |= CheckFlags::WritePartial;
@@ -307,7 +306,7 @@ impl TypeChecker {
             if self.is_literal_type(type_) || self.is_pattern_literal_type(type_) {
                 check_flags |= CheckFlags::HasLiteralType;
             }
-            if self.type_(type_).flags().intersects(TypeFlags::Never) {
+            if type_.ref_(self).flags().intersects(TypeFlags::Never) {
                 check_flags |= CheckFlags::HasNeverType;
             }
             prop_types.push(type_);
@@ -378,7 +377,8 @@ impl TypeChecker {
             })
             .or_else(|| {
                 if !matches!(skip_object_function_property_augment, Some(true)) {
-                    self.type_(type_)
+                    type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache()
                         .as_ref()
@@ -395,7 +395,7 @@ impl TypeChecker {
             )?;
             if let Some(property) = property.as_ref() {
                 if matches!(skip_object_function_property_augment, Some(true)) {
-                    let type_ref = self.type_(type_);
+                    let type_ref = type_.ref_(self);
                     let mut property_cache_without_object_function_property_augment = type_ref
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache_without_object_function_property_augment();
@@ -409,7 +409,7 @@ impl TypeChecker {
                         .unwrap()
                         .insert(name.to_owned(), property.clone());
                 } else {
-                    let type_ref = self.type_(type_);
+                    let type_ref = type_.ref_(self);
                     let mut property_cache = type_ref
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache();
@@ -446,7 +446,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_reduced_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if self.type_(type_).flags().intersects(TypeFlags::Union)
+        if type_.ref_(self).flags().intersects(TypeFlags::Union)
             && self
                 .type_(type_)
                 .as_union_type()
@@ -482,7 +482,7 @@ impl TypeChecker {
                 .object_flags()
                 .intersects(ObjectFlags::IsNeverIntersectionComputed)
             {
-                let mut object_flags = self.type_(type_).as_intersection_type().object_flags();
+                let mut object_flags = type_.ref_(self).as_intersection_type().object_flags();
                 object_flags |= ObjectFlags::IsNeverIntersectionComputed
                     | if self
                         .get_properties_of_union_or_intersection_type(type_)?
@@ -492,7 +492,8 @@ impl TypeChecker {
                     } else {
                         ObjectFlags::None
                     };
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_intersection_type()
                     .set_object_flags(object_flags);
             }
@@ -517,14 +518,14 @@ impl TypeChecker {
         union_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Id<Type>> {
         let reduced_types = try_map(
-            self.type_(union_type).as_union_type().types(),
+            union_type.ref_(self).as_union_type().types(),
             |&type_: &Id<Type>, _| self.get_reduced_type(type_),
         )?;
-        if &reduced_types == self.type_(union_type).as_union_type().types() {
+        if &reduced_types == union_type.ref_(self).as_union_type().types() {
             return Ok(union_type);
         }
         let reduced = self.get_union_type(&reduced_types, None, None, None, None)?;
-        if self.type_(reduced).flags().intersects(TypeFlags::Union) {
+        if reduced.ref_(self).flags().intersects(TypeFlags::Union) {
             *self
                 .type_(reduced)
                 .as_union_type()
@@ -563,7 +564,7 @@ impl TypeChecker {
             .type_(type_)
             .flags()
             .intersects(TypeFlags::Intersection)
-            && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::IsNeverIntersection)
+            && get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::IsNeverIntersection)
         {
             let never_prop = self
                 .get_properties_of_union_or_intersection_type(type_)?
@@ -606,9 +607,9 @@ impl TypeChecker {
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let type_ = self.get_reduced_apparent_type(type_)?;
-        if self.type_(type_).flags().intersects(TypeFlags::Object) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            let symbol = (*self.type_(resolved).as_resolved_type().members())
+            let symbol = (*resolved.ref_(self).as_resolved_type().members())
                 .borrow()
                 .get(name)
                 .map(Clone::clone);
@@ -673,12 +674,14 @@ impl TypeChecker {
         {
             let resolved = self.resolve_structured_type_members(type_)?;
             return Ok(if kind == SignatureKind::Call {
-                self.type_(resolved)
+                resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .call_signatures()
                     .clone()
             } else {
-                self.type_(resolved)
+                resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .clone()
@@ -771,7 +774,7 @@ impl TypeChecker {
                     .type_(source)
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
-                && self.is_numeric_literal_name(&self.type_(source).as_string_literal_type().value))
+                && self.is_numeric_literal_name(&source.ref_(self).as_string_literal_type().value))
     }
 
     pub(super) fn get_index_infos_of_structured_type(

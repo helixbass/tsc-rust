@@ -17,12 +17,12 @@ use crate::{
     is_element_access_expression, is_in_js_file, last_or_undefined, length, maybe_concatenate,
     maybe_for_each, range_equals, range_equals_gc, return_ok_default_if_none, some, try_map,
     try_map_defined, try_maybe_map, try_some, unescape_leading_underscores,
-    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, HasArena, IndexInfo,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry, Signature,
-    SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags,
-    SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
+    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, HasArena, InArena,
+    IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry,
+    Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
 };
 
 impl TypeChecker {
@@ -68,7 +68,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
         {
-            return match &*self.type_(type_) {
+            return match &*type_.ref_(self) {
                 Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                     escape_leading_underscores(&type_.value.to_string()).into_owned()
                 }
@@ -431,11 +431,12 @@ impl TypeChecker {
         this_argument: Option<Id<Type>>,
         need_apparent_type: Option<bool>,
     ) -> io::Result<Id<Type>> {
-        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
-            let target = self.type_(type_).as_type_reference_interface().target();
+        if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference) {
+            let target = type_.ref_(self).as_type_reference_interface().target();
             let type_arguments = self.get_type_arguments(type_)?;
             if length(
-                self.type_(target)
+                target
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_type_parameters(),
             ) == length(Some(&type_arguments))
@@ -445,7 +446,8 @@ impl TypeChecker {
                     Some(concatenate(
                         type_arguments,
                         vec![this_argument.clone().unwrap_or_else(|| {
-                            self.type_(target)
+                            target
+                                .ref_(self)
                                 .as_interface_type()
                                 .maybe_this_type()
                                 .unwrap()
@@ -509,12 +511,13 @@ impl TypeChecker {
         let mut construct_signatures: Vec<Gc<Signature>>;
         let mut index_infos: Vec<Gc<IndexInfo>>;
         if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
-            members = if let Some(source_symbol) = self.type_(source).maybe_symbol() {
+            members = if let Some(source_symbol) = source.ref_(self).maybe_symbol() {
                 self.get_members_of_symbol(source_symbol)?
             } else {
                 Gc::new(GcCell::new(create_symbol_table(
                     self.arena(),
-                    self.type_(source)
+                    source
+                        .ref_(self)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
@@ -540,7 +543,8 @@ impl TypeChecker {
             mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments.clone())));
             members = Gc::new(GcCell::new(
                 self.create_instantiated_symbol_table(
-                    self.type_(source)
+                    source
+                        .ref_(self)
                         .as_interface_type()
                         .maybe_declared_properties()
                         .as_ref()
@@ -573,18 +577,19 @@ impl TypeChecker {
         }
         let base_types = self.get_base_types(source)?;
         if !base_types.is_empty() {
-            if matches!(self.type_(source).maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(symbol)?))
+            if matches!(source.ref_(self).maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(symbol)?))
             {
                 members = Gc::new(GcCell::new(create_symbol_table(
                     self.arena(),
-                    self.type_(source)
+                    source
+                        .ref_(self)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
                 )));
             }
             self.set_structured_type_members(
-                self.type_(type_).as_object_type(),
+                type_.ref_(self).as_object_type(),
                 members.clone(),
                 call_signatures.clone(),
                 construct_signatures.clone(),
@@ -629,7 +634,7 @@ impl TypeChecker {
             }
         }
         self.set_structured_type_members(
-            self.type_(type_).as_object_type(),
+            type_.ref_(self).as_object_type(),
             members,
             call_signatures,
             construct_signatures,
@@ -658,11 +663,12 @@ impl TypeChecker {
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<()> {
         let source = self.resolve_declared_members({
-            let target = self.type_(type_).as_type_reference_interface().target();
+            let target = type_.ref_(self).as_type_reference_interface().target();
             target
         })?;
         let type_parameters = maybe_concatenate(
-            self.type_(source)
+            source
+                .ref_(self)
                 .as_interface_type()
                 .maybe_type_parameters()
                 .map(|type_parameters| type_parameters.to_owned()),
@@ -817,16 +823,18 @@ impl TypeChecker {
                     sig, rest_type, rest_index,
                 )?]);
             } else if !skip_union_expanding
-                && self.type_(rest_type).flags().intersects(TypeFlags::Union)
+                && rest_type.ref_(self).flags().intersects(TypeFlags::Union)
                 && every(
-                    self.type_(rest_type)
+                    rest_type
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types(),
                     |&type_: &Id<Type>, _| self.is_tuple_type(type_),
                 )
             {
                 return try_map(
-                    self.type_(rest_type)
+                    rest_type
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned(),
@@ -846,8 +854,8 @@ impl TypeChecker {
         rest_index: usize,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let element_types = self.get_type_arguments(rest_type)?;
-        let rest_type_target = self.type_(rest_type).as_type_reference().target;
-        let rest_type_target_ref = self.type_(rest_type_target);
+        let rest_type_target = rest_type.ref_(self).as_type_reference().target;
+        let rest_type_target_ref = rest_type_target.ref_(self);
         let associated_names = rest_type_target_ref
             .as_tuple_type()
             .labeled_element_declarations
@@ -858,7 +866,7 @@ impl TypeChecker {
             let name = tuple_label_name.try_unwrap_or_else(|| {
                 self.get_parameter_name_at_position(sig, rest_index + i, Some(rest_type))
             })?;
-            let flags = self.type_(rest_type_target).as_tuple_type().element_flags[i];
+            let flags = rest_type_target.ref_(self).as_tuple_type().element_flags[i];
             let check_flags = if flags.intersects(ElementFlags::Variable) {
                 CheckFlags::RestParameter
             } else if flags.intersects(ElementFlags::Optional) {
@@ -895,13 +903,14 @@ impl TypeChecker {
         let base_signatures =
             self.get_signatures_of_type(base_constructor_type, SignatureKind::Construct)?;
         let declaration =
-            get_class_like_declaration_of_symbol(&self.symbol(self.type_(class_type).symbol()));
+            get_class_like_declaration_of_symbol(&self.symbol(class_type.ref_(self).symbol()));
         let is_abstract = matches!(declaration.as_ref(), Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract));
         if base_signatures.is_empty() {
             return Ok(vec![Gc::new(
                 self.create_signature(
                     None,
-                    self.type_(class_type)
+                    class_type
+                        .ref_(self)
                         .as_interface_type()
                         .maybe_local_type_parameters()
                         .map(ToOwned::to_owned),

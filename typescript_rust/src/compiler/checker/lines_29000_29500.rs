@@ -20,10 +20,11 @@ use crate::{
     is_jsx_self_closing_element, is_optional_chain, is_optional_chain_root, last, length,
     node_is_missing, set_text_range_pos_end, some, try_map, try_maybe_every, AccessFlags,
     ContextFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    ElementFlags, HasArena, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
-    JsxReferenceKind, Node, NodeArray, NodeInterface, Number, OptionTry, ReadonlyTextRange,
-    RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper,
+    ElementFlags, HasArena, InArena, InferenceContext, InferenceFlags, InferenceInfo,
+    InferencePriority, JsxReferenceKind, Node, NodeArray, NodeInterface, Number, OptionTry,
+    ReadonlyTextRange, RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
+    TypeMapper,
 };
 
 impl TypeChecker {
@@ -50,11 +51,11 @@ impl TypeChecker {
     }
 
     pub(super) fn accepts_void(&self, t: Id<Type>) -> bool {
-        self.type_(t).flags().intersects(TypeFlags::Void)
+        t.ref_(self).flags().intersects(TypeFlags::Void)
     }
 
     pub(super) fn accepts_void_undefined_unknown_or_any(&self, t: Id<Type>) -> bool {
-        self.type_(t).flags().intersects(
+        t.ref_(self).flags().intersects(
             TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Unknown | TypeFlags::Any,
         )
     }
@@ -206,7 +207,7 @@ impl TypeChecker {
         kind: SignatureKind,
         allow_members: bool,
     ) -> io::Result<Option<Gc<Signature>>> {
-        if self.type_(type_).flags().intersects(TypeFlags::Object) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
             if allow_members
                 || self
@@ -234,7 +235,7 @@ impl TypeChecker {
                         .is_empty()
                 {
                     return Ok(Some(
-                        self.type_(resolved).as_resolved_type().call_signatures()[0].clone(),
+                        resolved.ref_(self).as_resolved_type().call_signatures()[0].clone(),
                     ));
                 }
                 if kind == SignatureKind::Construct
@@ -251,7 +252,8 @@ impl TypeChecker {
                         .is_empty()
                 {
                     return Ok(Some(
-                        self.type_(resolved)
+                        resolved
+                            .ref_(self)
                             .as_resolved_type()
                             .construct_signatures()[0]
                             .clone(),
@@ -279,7 +281,7 @@ impl TypeChecker {
         let mapper = inference_context.map(|inference_context| {
             if matches!(
                 rest_type,
-                Some(rest_type) if self.type_(rest_type).flags().intersects(TypeFlags::TypeParameter)
+                Some(rest_type) if rest_type.ref_(self).flags().intersects(TypeFlags::TypeParameter)
             ) {
                 inference_context.non_fixing_mapper().clone()
             } else {
@@ -475,7 +477,8 @@ impl TypeChecker {
             args.len()
         };
         if let Some(rest_type) = rest_type.filter(|&rest_type| {
-            self.type_(rest_type)
+            rest_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
         }) {
@@ -542,14 +545,14 @@ impl TypeChecker {
     }
 
     pub(super) fn get_mutable_array_or_tuple_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        Ok(if self.type_(type_).flags().intersects(TypeFlags::Union) {
+        Ok(if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             self.try_map_type(
                 type_,
                 &mut |type_: Id<Type>| Ok(Some(self.get_mutable_array_or_tuple_type(type_)?)),
                 None,
             )?
             .unwrap()
-        } else if self.type_(type_).flags().intersects(TypeFlags::Any)
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Any)
             || self.is_mutable_array_or_tuple(
                 self.get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| type_),
@@ -561,12 +564,16 @@ impl TypeChecker {
                 &*self.get_type_arguments(type_)?,
                 Some(
                     &self
-                        .type_(self.type_(type_).as_type_reference().target)
+                        .type_(type_.ref_(self).as_type_reference().target)
                         .as_tuple_type()
                         .element_flags,
                 ),
                 Some(false),
-                self.type_(self.type_(type_).as_type_reference().target)
+                type_
+                    .ref_(self)
+                    .as_type_reference()
+                    .target
+                    .ref_(self)
                     .as_tuple_type()
                     .labeled_element_declarations
                     .as_deref(),

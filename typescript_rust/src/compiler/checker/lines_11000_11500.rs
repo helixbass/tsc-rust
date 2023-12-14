@@ -7,11 +7,11 @@ use super::MappedTypeModifiers;
 use crate::{
     add_range, append, concatenate, count_where, create_symbol_table, get_check_flags, index_of,
     try_count_where, try_every, try_map, try_map_defined, try_reduce_left, try_some, CheckFlags,
-    Diagnostics, HasArena, IndexInfo, InternalSymbolName, Node, Number, ObjectTypeInterface,
-    OptionTry, ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, Ternary, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName,
-    UnionOrIntersectionTypeInterface,
+    Diagnostics, HasArena, InArena, IndexInfo, InternalSymbolName, Node, Number,
+    ObjectTypeInterface, OptionTry, ResolvedTypeInterface, Signature, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -270,7 +270,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let call_signatures = self.get_union_signatures(&try_map(
             &{
-                let types = self.type_(type_).as_union_type().types().to_owned();
+                let types = type_.ref_(self).as_union_type().types().to_owned();
                 types
             },
             |&t: &Id<Type>, _| -> io::Result<_> {
@@ -282,14 +282,14 @@ impl TypeChecker {
             },
         )?)?;
         let construct_signatures = self.get_union_signatures(&try_map(
-            self.type_(type_).as_union_type().types(),
+            type_.ref_(self).as_union_type().types(),
             |&t: &Id<Type>, _| -> io::Result<_> {
                 self.get_signatures_of_type(t, SignatureKind::Construct)
             },
         )?)?;
-        let index_infos = self.get_union_index_infos(self.type_(type_).as_union_type().types())?;
+        let index_infos = self.get_union_index_infos(type_.ref_(self).as_union_type().types())?;
         self.set_structured_type_members(
-            self.type_(type_).as_union_type(),
+            type_.ref_(self).as_union_type(),
             self.empty_symbols(),
             call_signatures,
             construct_signatures,
@@ -366,7 +366,7 @@ impl TypeChecker {
         let mut call_signatures: Vec<Gc<Signature>> = vec![];
         let mut construct_signatures: Vec<Gc<Signature>> = vec![];
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
-        let types = &self.type_(type_).as_intersection_type().types().to_owned();
+        let types = &type_.ref_(self).as_intersection_type().types().to_owned();
         let mixin_flags = self.find_mixins(types)?;
         let mixin_count = count_where(Some(&mixin_flags), |b: &bool, _| *b);
         for (i, t) in types.iter().enumerate() {
@@ -403,7 +403,7 @@ impl TypeChecker {
             )?;
         }
         self.set_structured_type_members(
-            self.type_(type_).as_intersection_type(),
+            type_.ref_(self).as_intersection_type(),
             self.empty_symbols(),
             call_signatures,
             construct_signatures,
@@ -488,14 +488,14 @@ impl TypeChecker {
         type_: Id<Type>, /*AnonymousType*/
     ) -> io::Result<()> {
         let symbol = self
-            .get_merged_symbol(self.type_(type_).maybe_symbol())
+            .get_merged_symbol(type_.ref_(self).maybe_symbol())
             .unwrap();
         if let Some(type_target) = {
-            let target = self.type_(type_).as_object_type().maybe_target();
+            let target = type_.ref_(self).as_object_type().maybe_target();
             target
         } {
             self.set_structured_type_members(
-                self.type_(type_).as_object_type(),
+                type_.ref_(self).as_object_type(),
                 self.empty_symbols(),
                 vec![],
                 vec![],
@@ -503,26 +503,26 @@ impl TypeChecker {
             )?;
             let members = self.create_instantiated_symbol_table(
                 self.get_properties_of_object_type(type_target)?,
-                self.type_(type_).as_object_type().maybe_mapper().unwrap(),
+                type_.ref_(self).as_object_type().maybe_mapper().unwrap(),
                 false,
             )?;
             let call_signatures = self.instantiate_signatures(
                 &*self.get_signatures_of_type(type_target, SignatureKind::Call)?,
                 {
-                    let mapper = self.type_(type_).as_object_type().maybe_mapper().unwrap();
+                    let mapper = type_.ref_(self).as_object_type().maybe_mapper().unwrap();
                     mapper
                 },
             )?;
             let construct_signatures = self.instantiate_signatures(
                 &*self.get_signatures_of_type(type_target, SignatureKind::Construct)?,
-                self.type_(type_).as_object_type().maybe_mapper().unwrap(),
+                type_.ref_(self).as_object_type().maybe_mapper().unwrap(),
             )?;
             let index_infos = self.instantiate_index_infos(
                 &self.get_index_infos_of_type(type_target)?,
-                self.type_(type_).as_object_type().maybe_mapper().unwrap(),
+                type_.ref_(self).as_object_type().maybe_mapper().unwrap(),
             )?;
             self.set_structured_type_members(
-                self.type_(type_).as_object_type(),
+                type_.ref_(self).as_object_type(),
                 Gc::new(GcCell::new(members)),
                 call_signatures,
                 construct_signatures,
@@ -534,7 +534,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::TypeLiteral)
         {
             self.set_structured_type_members(
-                self.type_(type_).as_object_type(),
+                type_.ref_(self).as_object_type(),
                 self.empty_symbols(),
                 vec![],
                 vec![],
@@ -549,7 +549,7 @@ impl TypeChecker {
             )?;
             let index_infos = self.get_index_infos_of_symbol(symbol)?;
             self.set_structured_type_members(
-                self.type_(type_).as_object_type(),
+                type_.ref_(self).as_object_type(),
                 members,
                 call_signatures,
                 construct_signatures,
@@ -572,7 +572,7 @@ impl TypeChecker {
             }
             let mut base_constructor_index_info: Option<Gc<IndexInfo>> = None;
             self.set_structured_type_members(
-                self.type_(type_).as_object_type(),
+                type_.ref_(self).as_object_type(),
                 members.clone(),
                 vec![],
                 vec![],
@@ -581,7 +581,7 @@ impl TypeChecker {
             if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
                 let class_type = self.get_declared_type_of_class_or_interface(symbol)?;
                 let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
-                if self.type_(base_constructor_type).flags().intersects(
+                if base_constructor_type.ref_(self).flags().intersects(
                     TypeFlags::Object | TypeFlags::Intersection | TypeFlags::TypeVariable,
                 ) {
                     let members_new = Gc::new(GcCell::new(create_symbol_table(
@@ -616,7 +616,8 @@ impl TypeChecker {
                         .flags()
                         .intersects(TypeFlags::Enum)
                         || try_some(
-                            self.type_(type_)
+                            type_
+                                .ref_(self)
                                 .as_object_type()
                                 .maybe_properties()
                                 .as_deref(),
@@ -632,7 +633,7 @@ impl TypeChecker {
                 }
             }
             self.set_structured_type_members(
-                self.type_(type_).as_object_type(),
+                type_.ref_(self).as_object_type(),
                 members.clone(),
                 vec![],
                 vec![],
@@ -644,7 +645,8 @@ impl TypeChecker {
                 .intersects(SymbolFlags::Function | SymbolFlags::Method)
             {
                 let signatures = self.get_signatures_of_symbol(Some(symbol))?;
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_object_type()
                     .set_call_signatures(signatures);
             }
@@ -671,7 +673,8 @@ impl TypeChecker {
                     add_range(
                         &mut construct_signatures,
                         Some(&try_map_defined(
-                            self.type_(type_)
+                            type_
+                                .ref_(self)
                                 .as_object_type()
                                 .maybe_call_signatures()
                                 .as_deref(),
@@ -699,7 +702,8 @@ impl TypeChecker {
                 if construct_signatures.is_empty() {
                     construct_signatures = self.get_default_construct_signatures(class_type)?;
                 }
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_object_type()
                     .set_construct_signatures(construct_signatures);
             }
@@ -718,8 +722,8 @@ impl TypeChecker {
             instantiable,
             Some(self.create_type_mapper(
                 vec![
-                    self.type_(type_).as_indexed_access_type().index_type.clone(),
-                    self.type_(type_).as_indexed_access_type().object_type.clone(),
+                    type_.ref_(self).as_indexed_access_type().index_type.clone(),
+                    type_.ref_(self).as_indexed_access_type().object_type.clone(),
                 ],
                 Some(vec![
                     self.get_number_literal_type(Number::new(0.0)),
@@ -734,11 +738,11 @@ impl TypeChecker {
         type_: Id<Type>, /*ReverseMappedType*/
     ) -> io::Result<()> {
         let index_info = self.get_index_info_of_type_(
-            self.type_(type_).as_reverse_mapped_type().source,
+            type_.ref_(self).as_reverse_mapped_type().source,
             self.string_type(),
         )?;
         let modifiers =
-            self.get_mapped_type_modifiers(self.type_(type_).as_reverse_mapped_type().mapped_type);
+            self.get_mapped_type_modifiers(type_.ref_(self).as_reverse_mapped_type().mapped_type);
         let readonly_mask = if modifiers.intersects(MappedTypeModifiers::IncludeReadonly) {
             false
         } else {
@@ -754,8 +758,8 @@ impl TypeChecker {
                 self.string_type(),
                 self.infer_reverse_mapped_type(
                     index_info.type_,
-                    self.type_(type_).as_reverse_mapped_type().mapped_type,
-                    self.type_(type_).as_reverse_mapped_type().constraint_type,
+                    type_.ref_(self).as_reverse_mapped_type().mapped_type,
+                    type_.ref_(self).as_reverse_mapped_type().constraint_type,
                 )?,
                 readonly_mask && index_info.is_readonly,
                 None,
@@ -764,9 +768,7 @@ impl TypeChecker {
             vec![]
         };
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
-        for prop in
-            self.get_properties_of_type(self.type_(type_).as_reverse_mapped_type().source)?
-        {
+        for prop in self.get_properties_of_type(type_.ref_(self).as_reverse_mapped_type().source)? {
             let check_flags = CheckFlags::ReverseMapped
                 | if readonly_mask && self.is_readonly_symbol(prop)? {
                     CheckFlags::Readonly
@@ -787,7 +789,7 @@ impl TypeChecker {
             let mapped_type: Id<Type>;
             let constraint_type: Id<Type>;
             let type_constraint_type_type = self
-                .type_(self.type_(type_).as_reverse_mapped_type().constraint_type)
+                .type_(type_.ref_(self).as_reverse_mapped_type().constraint_type)
                 .as_index_type()
                 .type_;
             if self
@@ -796,7 +798,8 @@ impl TypeChecker {
                 .intersects(TypeFlags::IndexedAccess)
                 && self
                     .type_(
-                        self.type_(type_constraint_type_type)
+                        type_constraint_type_type
+                            .ref_(self)
                             .as_indexed_access_type()
                             .object_type,
                     )
@@ -804,7 +807,8 @@ impl TypeChecker {
                     .intersects(TypeFlags::TypeParameter)
                 && self
                     .type_(
-                        self.type_(type_constraint_type_type)
+                        type_constraint_type_type
+                            .ref_(self)
                             .as_indexed_access_type()
                             .index_type,
                     )
@@ -816,7 +820,7 @@ impl TypeChecker {
                     .as_indexed_access_type()
                     .object_type;
                 let new_mapped_type = self.replace_indexed_access(
-                    self.type_(type_).as_reverse_mapped_type().mapped_type,
+                    type_.ref_(self).as_reverse_mapped_type().mapped_type,
                     type_constraint_type_type,
                     new_type_param,
                 )?;
@@ -842,7 +846,7 @@ impl TypeChecker {
             members.insert(self.symbol(prop).escaped_name().to_owned(), inferred_prop);
         }
         self.set_structured_type_members(
-            self.type_(type_).as_reverse_mapped_type(),
+            type_.ref_(self).as_reverse_mapped_type(),
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
@@ -853,31 +857,31 @@ impl TypeChecker {
     }
 
     pub(super) fn get_lower_bound_of_key_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if self.type_(type_).flags().intersects(TypeFlags::Index) {
-            let t = self.get_apparent_type(self.type_(type_).as_index_type().type_)?;
+        if type_.ref_(self).flags().intersects(TypeFlags::Index) {
+            let t = self.get_apparent_type(type_.ref_(self).as_index_type().type_)?;
             return Ok(if self.is_generic_tuple_type(t) {
                 self.get_known_keys_of_tuple_type(t)?
             } else {
                 self.get_index_type(t, None, None)?
             });
         }
-        if self.type_(type_).flags().intersects(TypeFlags::Conditional) {
-            if (*self.type_(type_).as_conditional_type().root)
+        if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
+            if (*type_.ref_(self).as_conditional_type().root)
                 .borrow()
                 .is_distributive
             {
-                let check_type = self.type_(type_).as_conditional_type().check_type;
+                let check_type = type_.ref_(self).as_conditional_type().check_type;
                 let constraint = self.get_lower_bound_of_key_type(check_type)?;
                 if constraint != check_type {
                     return self.get_conditional_type_instantiation(
                         type_,
                         self.prepend_type_mapping(
-                            (*self.type_(type_).as_conditional_type().root)
+                            (*type_.ref_(self).as_conditional_type().root)
                                 .borrow()
                                 .check_type
                                 .clone(),
                             constraint,
-                            self.type_(type_).as_conditional_type().mapper.clone(),
+                            type_.ref_(self).as_conditional_type().mapper.clone(),
                         ),
                         Option::<Id<Symbol>>::None,
                         None,
@@ -886,7 +890,7 @@ impl TypeChecker {
             }
             return Ok(type_);
         }
-        if self.type_(type_).flags().intersects(TypeFlags::Union) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             return Ok(self
                 .try_map_type(
                     type_,
@@ -902,7 +906,8 @@ impl TypeChecker {
         {
             return self.get_intersection_type(
                 &try_map(
-                    self.type_(type_)
+                    type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types(),
                     |&type_: &Id<Type>, _| self.get_lower_bound_of_key_type(type_),
@@ -945,7 +950,7 @@ impl TypeChecker {
         for prop in self.get_properties_of_type(type_)? {
             cb(self.get_literal_type_from_property(prop, include, None)?)?;
         }
-        if self.type_(type_).flags().intersects(TypeFlags::Any) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Any) {
             cb(self.string_type())?;
         } else {
             for info in self.get_index_infos_of_type(type_)? {
@@ -970,7 +975,7 @@ impl TypeChecker {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         self.set_structured_type_members(
-            self.type_(type_).as_mapped_type(),
+            type_.ref_(self).as_mapped_type(),
             self.empty_symbols(),
             vec![],
             vec![],
@@ -979,7 +984,8 @@ impl TypeChecker {
         let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         let name_type = self.get_name_type_from_mapped_type(
-            self.type_(type_)
+            type_
+                .ref_(self)
                 .as_mapped_type()
                 .maybe_target()
                 .unwrap_or_else(|| type_),
@@ -1039,7 +1045,7 @@ impl TypeChecker {
             )?;
         }
         self.set_structured_type_members(
-            self.type_(type_).as_mapped_type(),
+            type_.ref_(self).as_mapped_type(),
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
@@ -1066,7 +1072,7 @@ impl TypeChecker {
                 name_type,
                 Some(self.append_type_mapping(
                     {
-                        let mapper = self.type_(type_).as_mapped_type().maybe_mapper();
+                        let mapper = type_.ref_(self).as_mapped_type().maybe_mapper();
                         mapper
                     },
                     type_parameter,
@@ -1238,7 +1244,7 @@ impl TypeChecker {
             let prop_type = self.instantiate_type(
                 template_type,
                 Some(self.append_type_mapping(
-                    self.type_(type_).as_mapped_type().maybe_mapper(),
+                    type_.ref_(self).as_mapped_type().maybe_mapper(),
                     type_parameter,
                     key_type,
                 )),
@@ -1268,19 +1274,21 @@ impl TypeChecker {
         {
             let mapped_type = symbol_as_mapped_symbol.mapped_type;
             if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::Type) {
-                self.type_(mapped_type)
+                mapped_type
+                    .ref_(self)
                     .as_mapped_type()
                     .set_contains_error(Some(true));
                 return Ok(self.error_type());
             }
             let template_type = self.get_template_type_from_mapped_type(
-                self.type_(mapped_type)
+                mapped_type
+                    .ref_(self)
                     .as_mapped_type()
                     .maybe_target()
                     .unwrap_or_else(|| mapped_type),
             )?;
             let mapper = self.append_type_mapping(
-                self.type_(mapped_type).as_mapped_type().maybe_mapper(),
+                mapped_type.ref_(self).as_mapped_type().maybe_mapper(),
                 self.get_type_parameter_from_mapped_type(mapped_type)?,
                 symbol_as_mapped_symbol.key_type(),
             );
@@ -1347,7 +1355,7 @@ impl TypeChecker {
                 })?
                 .unwrap(),
             );
-            *self.type_(type_).as_mapped_type().maybe_type_parameter() = Some(ret.clone());
+            *type_.ref_(self).as_mapped_type().maybe_type_parameter() = Some(ret.clone());
             Ok(ret)
         })
     }
@@ -1368,7 +1376,7 @@ impl TypeChecker {
             let ret = self
                 .get_constraint_of_type_parameter(self.get_type_parameter_from_mapped_type(type_)?)?
                 .unwrap_or_else(|| self.error_type());
-            *self.type_(type_).as_mapped_type().maybe_constraint_type() = Some(ret.clone());
+            *type_.ref_(self).as_mapped_type().maybe_constraint_type() = Some(ret.clone());
             Ok(ret)
         })
     }

@@ -26,7 +26,7 @@ use crate::{
     Debug_, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
     OptionTry, Signature, SignatureFlags, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
     SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, HasArena,
+    UnionOrIntersectionTypeInterface, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -41,7 +41,7 @@ impl TypeChecker {
             self.every_contained_type(
                 containing_type,
                 |type_: Id<Type>| matches!(
-                    self.type_(type_).maybe_symbol(),
+                    type_.ref_(self).maybe_symbol(),
                     Some(type_symbol) if {
                         lazy_static! {
                             static ref element_regex: Regex = Regex::new("^(EventTarget|Node|((HTML[a-zA-Z]*)?Element))$").unwrap();
@@ -59,7 +59,7 @@ impl TypeChecker {
         containing_type: Id<Type>,
     ) -> io::Result<bool> {
         let prop =
-            self.type_(containing_type)
+            containing_type.ref_(self)
                 .maybe_symbol()
                 .try_and_then(|containing_type_symbol| {
                     self.get_property_of_type_(
@@ -364,16 +364,16 @@ impl TypeChecker {
             .types()
             .into_iter()
             .filter(|&&type_| {
-                self.type_(type_)
+                type_.ref_(self)
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
             })
             .cloned()
             .collect::<Vec<_>>();
         get_spelling_suggestion(
-            &self.type_(source).as_string_literal_type().value,
+            &source.ref_(self).as_string_literal_type().value,
             &candidates,
-            |&type_: &Id<Type>| Some(self.type_(type_).as_string_literal_type().value.clone()),
+            |&type_: &Id<Type>| Some(type_.ref_(self).as_string_literal_type().value.clone()),
         )
     }
 

@@ -20,8 +20,8 @@ use crate::{
     Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
     SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, HasArena,
-    Node, NodeInterface, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    InArena, Node, NodeInterface, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -147,7 +147,8 @@ impl TypeChecker {
                         Some(caller),
                         &Diagnostics::Property_0_does_not_exist_on_type_1,
                         Some(vec![
-                            self.type_(element_type)
+                            element_type
+                                .ref_(self)
                                 .as_string_literal_type()
                                 .value
                                 .clone(),
@@ -176,7 +177,7 @@ impl TypeChecker {
                 .intersects(TypeFlags::Union)
         {
             signatures = self.get_union_signatures(&try_map(
-                self.type_(apparent_elem_type).as_union_type().types(),
+                apparent_elem_type.ref_(self).as_union_type().types(),
                 |&t: &Id<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
             )?)?;
         }
@@ -191,7 +192,7 @@ impl TypeChecker {
         let intrinsic_elements_type =
             self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         if !self.is_error_type(intrinsic_elements_type) {
-            let type_ref = self.type_(type_);
+            let type_ref = type_.ref_(self);
             let string_literal_type_name = &type_ref.as_string_literal_type().value;
             let intrinsic_prop = self.get_property_of_type_(
                 intrinsic_elements_type,
@@ -543,16 +544,16 @@ impl TypeChecker {
     }
 
     pub(super) fn is_excess_property_check_target(&self, type_: Id<Type>) -> bool {
-        (self.type_(type_).flags().intersects(TypeFlags::Object)
-            && !(get_object_flags(&self.type_(type_))
+        (type_.ref_(self).flags().intersects(TypeFlags::Object)
+            && !(get_object_flags(&type_.ref_(self))
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
             || self
                 .type_(type_)
                 .flags()
                 .intersects(TypeFlags::NonPrimitive)
-            || (self.type_(type_).flags().intersects(TypeFlags::Union)
+            || (type_.ref_(self).flags().intersects(TypeFlags::Union)
                 && some(
-                    Some(self.type_(type_).as_union_type().types()),
+                    Some(type_.ref_(self).as_union_type().types()),
                     Some(|&type_: &Id<Type>| self.is_excess_property_check_target(type_)),
                 ))
             || (self
@@ -560,7 +561,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Intersection)
                 && every(
-                    self.type_(type_).as_intersection_type().types(),
+                    type_.ref_(self).as_intersection_type().types(),
                     |&type_: &Id<Type>, _| self.is_excess_property_check_target(type_),
                 ))
     }
@@ -824,17 +825,16 @@ impl TypeChecker {
                     .unwrap(),
             )?;
             enclosing_class = Some(
-                self.type_(
-                    if self
-                        .type_(this_type)
-                        .flags()
-                        .intersects(TypeFlags::TypeParameter)
-                    {
-                        self.get_constraint_of_type_parameter(this_type)?.unwrap()
-                    } else {
-                        this_type
-                    },
-                )
+                if self
+                    .type_(this_type)
+                    .flags()
+                    .intersects(TypeFlags::TypeParameter)
+                {
+                    self.get_constraint_of_type_parameter(this_type)?.unwrap()
+                } else {
+                    this_type
+                }
+                .ref_(self)
                 .as_type_reference_interface()
                 .target(),
             );

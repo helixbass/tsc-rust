@@ -13,9 +13,10 @@ use crate::{
     is_parameter, is_parenthesized_expression, is_property_assignment,
     is_shorthand_property_assignment, is_spread_element, is_template_span, map,
     parse_pseudo_big_int, skip_parentheses, some, try_some, ContextFlags, Diagnostics,
-    ElementFlags, HasArena, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
-    Matches, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, PseudoBigInt,
-    SignatureKind, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    ElementFlags, HasArena, InArena, InferenceContext, InferenceFlags, InferenceInfo,
+    InferencePriority, Matches, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    OptionTry, PseudoBigInt, SignatureKind, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -53,7 +54,7 @@ impl TypeChecker {
                     == SyntaxKind::ArrayBindingPattern
                 && self.is_tuple_type(type_)
                 && !self
-                    .type_(self.type_(type_).as_type_reference().target)
+                    .type_(type_.ref_(self).as_type_reference().target)
                     .as_tuple_type()
                     .has_rest_element
                 && self.get_type_reference_arity(type_)
@@ -78,7 +79,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_)?;
-        let type_target = self.type_(type_).as_type_reference().target;
+        let type_target = type_.ref_(self).as_type_reference().target;
         let mut element_flags = self
             .type_(type_target)
             .as_tuple_type()
@@ -104,7 +105,7 @@ impl TypeChecker {
         self.create_tuple_type(
             &element_types,
             Some(&element_flags),
-            Some(self.type_(type_target).as_tuple_type().readonly),
+            Some(type_target.ref_(self).as_tuple_type().readonly),
             None,
         )
     }
@@ -174,7 +175,7 @@ impl TypeChecker {
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol)
                     || self.is_literal_of_contextual_type(candidate_type, Some(constraint))?);
             }
-            return Ok(self.type_(contextual_type).flags().intersects(
+            return Ok(contextual_type.ref_(self).flags().intersects(
                 TypeFlags::StringLiteral
                     | TypeFlags::Index
                     | TypeFlags::TemplateLiteral
@@ -473,7 +474,7 @@ impl TypeChecker {
         let mut old_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         let mut new_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         for &tp in type_parameters {
-            let tp_symbol = self.type_(tp).symbol();
+            let tp_symbol = tp.ref_(self).symbol();
             let tp_symbol_ref = self.symbol(tp_symbol);
             let name = tp_symbol_ref.escaped_name();
             if self.has_type_parameter_by_name(
@@ -520,9 +521,7 @@ impl TypeChecker {
                 Some(new_type_parameters.clone()),
             );
             for &tp in new_type_parameters {
-                self.type_(tp)
-                    .as_type_parameter()
-                    .set_mapper(mapper.clone());
+                tp.ref_(self).as_type_parameter().set_mapper(mapper.clone());
             }
         }
         result
@@ -535,7 +534,7 @@ impl TypeChecker {
     ) -> bool {
         some(
             type_parameters,
-            Some(|&tp: &Id<Type>| self.symbol(self.type_(tp).symbol()).escaped_name() == name),
+            Some(|&tp: &Id<Type>| self.symbol(tp.ref_(self).symbol()).escaped_name() == name),
         )
     }
 
@@ -739,13 +738,13 @@ impl TypeChecker {
 
         if self.compiler_options.isolated_modules == Some(true) {
             Debug_.assert(
-                self.symbol(self.type_(type_).symbol())
+                self.symbol(type_.ref_(self).symbol())
                     .flags()
                     .intersects(SymbolFlags::ConstEnum),
                 None,
             );
             let const_enum_declaration = self
-                .symbol(self.type_(type_).symbol())
+                .symbol(type_.ref_(self).symbol())
                 .maybe_value_declaration()
                 .unwrap();
             if const_enum_declaration

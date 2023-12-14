@@ -13,9 +13,9 @@ use crate::{
     is_jsx_opening_like_element, is_parameter, is_private_identifier,
     is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like,
     return_ok_none_if_none, try_for_each, walk_up_parenthesized_expressions, AccessFlags,
-    ContextFlags, FunctionFlags, HasArena, HasInitializerInterface, NamedDeclarationInterface,
-    Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    ContextFlags, FunctionFlags, HasArena, HasInitializerInterface, InArena,
+    NamedDeclarationInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -85,8 +85,8 @@ impl TypeChecker {
 
     pub(super) fn get_this_type_argument(&self, type_: Id<Type>) -> io::Result<Option<Id<Type>>> {
         Ok(
-            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
-                && self.type_(type_).as_type_reference().target == self.global_this_type()
+            if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference)
+                && type_.ref_(self).as_type_reference().target == self.global_this_type()
             {
                 self.get_type_arguments(type_)?.get(0).cloned()
             } else {
@@ -103,9 +103,9 @@ impl TypeChecker {
             type_,
             &mut |t: Id<Type>| {
                 Ok(
-                    if self.type_(t).flags().intersects(TypeFlags::Intersection) {
+                    if t.ref_(self).flags().intersects(TypeFlags::Intersection) {
                         try_for_each(
-                            self.type_(t)
+                            t.ref_(self)
                                 .as_union_or_intersection_type_interface()
                                 .types()
                                 .to_owned(),
@@ -692,7 +692,7 @@ impl TypeChecker {
                 let type_ = self.get_contextual_type_(&binary_expression, context_flags)?;
                 if ptr::eq(node, &**right)
                     && match type_ {
-                        Some(type_) => self.type_(type_).maybe_pattern().is_some(),
+                        Some(type_) => type_.ref_(self).maybe_pattern().is_some(),
                         None => !is_defaulted_expando_initializer(&binary_expression),
                     }
                 {

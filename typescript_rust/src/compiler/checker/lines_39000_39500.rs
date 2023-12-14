@@ -18,9 +18,9 @@ use crate::{
     maybe_for_each, maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
     should_preserve_const_enums, AsDoubleDeref, Diagnostics, EnumKind,
     FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
-    HasTypeParametersInterface, InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeCheckFlags, NodeFlags, NodeInterface, Number, OptionTry, ReadonlyTextRange,
-    StringOrNumber, Symbol, SymbolFlags,
+    HasTypeParametersInterface, InArena, InterfaceTypeInterface, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeCheckFlags, NodeFlags, NodeInterface, Number, OptionTry,
+    ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
 };
 
 impl TypeChecker {
@@ -196,7 +196,7 @@ impl TypeChecker {
                                 base_type,
                                 {
                                     let this_type =
-                                        self.type_(type_).as_interface_type().maybe_this_type();
+                                        type_.ref_(self).as_interface_type().maybe_this_type();
                                     this_type
                                 },
                                 None,
@@ -557,7 +557,7 @@ impl TypeChecker {
                     let type_ =
                         self.get_type_of_expression(&ex.as_has_expression().expression())?;
                     if let Some(type_symbol) =
-                        self.type_(type_).maybe_symbol().filter(|&type_symbol| {
+                        type_.ref_(self).maybe_symbol().filter(|&type_symbol| {
                             self.symbol(type_symbol)
                                 .flags()
                                 .intersects(SymbolFlags::Enum)

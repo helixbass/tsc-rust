@@ -15,7 +15,7 @@ use crate::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, LineAndCharacter, NamedDeclarationInterface,
     NodeArray, NodeFlags, ReadonlyTextRange, ScriptTarget, SourceFileLike, SyntaxKind, TypeFlags,
-    TypeInterface, __String, for_each, HasArena, Node, NodeInterface, Type, TypeChecker,
+    TypeInterface, __String, for_each, HasArena, InArena, Node, NodeInterface, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -472,7 +472,7 @@ impl TypeChecker {
         let type_ = self
             .get_type_from_type_node_(&parameter_as_parameter_declaration.maybe_type().unwrap())?;
         if self.some_type(type_, |t: Id<Type>| {
-            self.type_(t)
+            t.ref_(self)
                 .flags()
                 .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
         }) || self.is_generic_type(type_)?

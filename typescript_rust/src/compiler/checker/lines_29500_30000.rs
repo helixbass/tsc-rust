@@ -26,10 +26,10 @@ use crate::{
     set_text_range_pos_end, skip_outer_expressions, some, try_maybe_for_each, try_some,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, HasArena, InferenceContext,
-    InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange, RelationComparisonResult,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
+    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, HasArena, InArena,
+    InferenceContext, InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange,
+    RelationComparisonResult, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
 };
 
 impl TypeChecker {
@@ -185,12 +185,12 @@ impl TypeChecker {
                 if let Some(spread_type) =
                     spread_type.filter(|&spread_type| self.is_tuple_type(spread_type))
                 {
-                    let spread_type_target = self.type_(spread_type).as_type_reference().target;
+                    let spread_type_target = spread_type.ref_(self).as_type_reference().target;
                     for_each(
                         &self.get_type_arguments(spread_type)?,
                         |&t: &Id<Type>, i| -> Option<()> {
                             let flags =
-                                self.type_(spread_type_target).as_tuple_type().element_flags[i];
+                                spread_type_target.ref_(self).as_tuple_type().element_flags[i];
                             let synthetic_arg = self.create_synthetic_expression(
                                 arg,
                                 if flags.intersects(ElementFlags::Rest) {
@@ -199,7 +199,8 @@ impl TypeChecker {
                                     t
                                 },
                                 Some(flags.intersects(ElementFlags::Variable)),
-                                self.type_(spread_type_target)
+                                spread_type_target
+                                    .ref_(self)
                                     .as_tuple_type()
                                     .labeled_element_declarations
                                     .as_ref()

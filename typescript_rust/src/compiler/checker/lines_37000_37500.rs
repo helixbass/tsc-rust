@@ -10,9 +10,10 @@ use crate::{
     append, filter, get_containing_function_or_class_static_block, get_function_flags,
     is_binary_expression, is_binding_pattern, is_class_static_block_declaration, is_identifier,
     try_for_each, try_for_each_child_bool, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FunctionFlags, HasArena, IterationTypeCacheKey, IterationTypes, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
+    FunctionFlags, HasArena, InArena, IterationTypeCacheKey, IterationTypes,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry, ScriptTarget, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -84,7 +85,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_truthiness_of_type(&self, type_: Id<Type>, node: &Node) -> Id<Type> {
-        if self.type_(type_).flags().intersects(TypeFlags::Void) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Void) {
             self.error(
                 Some(node),
                 &Diagnostics::An_expression_of_type_void_cannot_be_tested_for_truthiness,
@@ -445,11 +446,11 @@ impl TypeChecker {
         let mut has_string_constituent = false;
 
         if use_.intersects(IterationUse::AllowsStringInputFlag) {
-            if self.type_(array_type).flags().intersects(TypeFlags::Union) {
-                let input_type_ref = self.type_(input_type);
+            if array_type.ref_(self).flags().intersects(TypeFlags::Union) {
+                let input_type_ref = input_type.ref_(self);
                 let array_types = input_type_ref.as_union_type().types();
                 let filtered_types = filter(array_types, |&t: &Id<Type>| {
-                    !self.type_(t).flags().intersects(TypeFlags::StringLike)
+                    !t.ref_(self).flags().intersects(TypeFlags::StringLike)
                 });
                 if filtered_types.len() != array_types.len() {
                     array_type = self.get_union_type(
@@ -481,7 +482,7 @@ impl TypeChecker {
                     }
                 }
 
-                if self.type_(array_type).flags().intersects(TypeFlags::Never) {
+                if array_type.ref_(self).flags().intersects(TypeFlags::Never) {
                     return Ok(if possible_out_of_bounds {
                         self.include_undefined_in_index_signature(Some(self.string_type()))?
                     } else {
@@ -602,7 +603,8 @@ impl TypeChecker {
         }
 
         if self.is_es2015_or_later_iterable(
-            self.type_(input_type)
+            input_type
+                .ref_(self)
                 .maybe_symbol()
                 .map(|input_type_symbol| self.symbol(input_type_symbol))
                 .as_ref()
@@ -668,14 +670,14 @@ impl TypeChecker {
             .type_(yield_type)
             .flags()
             .intersects(TypeFlags::Intrinsic)
-            && self.type_(return_type).flags().intersects(
+            && return_type.ref_(self).flags().intersects(
                 TypeFlags::Any
                     | TypeFlags::Never
                     | TypeFlags::Unknown
                     | TypeFlags::Void
                     | TypeFlags::Undefined,
             )
-            && self.type_(next_type).flags().intersects(
+            && next_type.ref_(self).flags().intersects(
                 TypeFlags::Any
                     | TypeFlags::Never
                     | TypeFlags::Unknown
@@ -758,7 +760,7 @@ impl TypeChecker {
         type_: Id<Type>,
         cache_key: IterationTypeCacheKey,
     ) -> Option<Gc<IterationTypes>> {
-        self.type_(type_).get_by_iteration_type_cache_key(cache_key)
+        type_.ref_(self).get_by_iteration_type_cache_key(cache_key)
     }
 
     pub(super) fn set_cached_iteration_types(
@@ -767,7 +769,8 @@ impl TypeChecker {
         cache_key: IterationTypeCacheKey,
         cached_types: Gc<IterationTypes>,
     ) -> Gc<IterationTypes> {
-        self.type_(type_)
+        type_
+            .ref_(self)
             .set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
         cached_types
     }
@@ -783,7 +786,7 @@ impl TypeChecker {
         }
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
-        if !self.type_(type_).flags().intersects(TypeFlags::Union) {
+        if !type_.ref_(self).flags().intersects(TypeFlags::Union) {
             let iteration_types =
                 self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref())?;
             if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
@@ -814,7 +817,7 @@ impl TypeChecker {
         }
 
         let mut all_iteration_types: Option<Vec<Gc<IterationTypes>>> = None;
-        for &constituent in self.type_(type_).as_union_type().types() {
+        for &constituent in type_.ref_(self).as_union_type().types() {
             let iteration_types = self.get_iteration_types_of_iterable_worker(
                 constituent,
                 use_,

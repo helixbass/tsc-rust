@@ -10,7 +10,7 @@ use crate::{
     get_jsx_runtime_import, get_jsx_transform_enabled, get_object_flags, get_source_file_of_node,
     id_text, is_identifier, is_intrinsic_jsx_name, is_jsx_attribute, maybe_get_source_file_of_node,
     set_parent, string_contains, try_every, unescape_leading_underscores, Debug_, Diagnostics,
-    HasArena, IndexInfo, JsxFlags, ModuleResolutionKind, Node, NodeArray, NodeInterface,
+    HasArena, InArena, IndexInfo, JsxFlags, ModuleResolutionKind, Node, NodeArray, NodeInterface,
     ObjectFlags, OptionTry, PragmaName, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
 };
@@ -62,25 +62,25 @@ impl TypeChecker {
             vec![],
             index_infos,
         )?;
-        self.type_(result).as_object_flags_type().set_object_flags(
-            self.type_(result).as_object_flags_type().object_flags()
+        result.ref_(self).as_object_flags_type().set_object_flags(
+            result.ref_(self).as_object_flags_type().object_flags()
                 | object_flags
                 | ObjectFlags::ObjectLiteral
                 | ObjectFlags::ContainsObjectOrArrayLiteral,
         );
         if is_js_object_literal {
-            self.type_(result).as_object_flags_type().set_object_flags(
-                self.type_(result).as_object_flags_type().object_flags() | ObjectFlags::JSLiteral,
+            result.ref_(self).as_object_flags_type().set_object_flags(
+                result.ref_(self).as_object_flags_type().object_flags() | ObjectFlags::JSLiteral,
             );
         }
         if pattern_with_computed_properties {
-            self.type_(result).as_object_flags_type().set_object_flags(
-                self.type_(result).as_object_flags_type().object_flags()
+            result.ref_(self).as_object_flags_type().set_object_flags(
+                result.ref_(self).as_object_flags_type().object_flags()
                     | ObjectFlags::ObjectLiteralPatternWithComputedProperties,
             );
         }
         if in_destructuring_pattern {
-            *self.type_(result).maybe_pattern() = Some(node.node_wrapper());
+            *result.ref_(self).maybe_pattern() = Some(node.node_wrapper());
         }
         Ok(result)
     }
@@ -96,7 +96,7 @@ impl TypeChecker {
                 return self.is_valid_spread_type(constraint);
             }
         }
-        Ok(self.type_(type_).flags().intersects(
+        Ok(type_.ref_(self).flags().intersects(
             TypeFlags::Any
                 | TypeFlags::NonPrimitive
                 | TypeFlags::Object
@@ -279,7 +279,7 @@ impl TypeChecker {
             if is_jsx_attribute(attribute_decl) {
                 let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
                 object_flags |=
-                    get_object_flags(&self.type_(expr_type)) & ObjectFlags::PropagatingFlags;
+                    get_object_flags(&expr_type.ref_(self)) & ObjectFlags::PropagatingFlags;
 
                 let member = member.unwrap();
                 let attribute_symbol = self.alloc_symbol(
@@ -563,8 +563,8 @@ impl TypeChecker {
             vec![],
             vec![],
         )?;
-        self.type_(result).as_object_flags_type().set_object_flags(
-            self.type_(result).as_object_flags_type().object_flags()
+        result.ref_(self).as_object_flags_type().set_object_flags(
+            result.ref_(self).as_object_flags_type().object_flags()
                 | *object_flags
                 | ObjectFlags::ObjectLiteral
                 | ObjectFlags::ContainsObjectOrArrayLiteral,
@@ -686,8 +686,8 @@ impl TypeChecker {
                 if index_signature_type.is_some() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
                     links.borrow_mut().resolved_symbol =
-                        Some(self.type_(intrinsic_elements_type).symbol());
-                    return Ok(self.type_(intrinsic_elements_type).symbol());
+                        Some(intrinsic_elements_type.ref_(self).symbol());
+                    return Ok(intrinsic_elements_type.ref_(self).symbol());
                 }
 
                 self.error(

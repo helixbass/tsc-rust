@@ -15,10 +15,10 @@ use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, try_every, ConditionalRoot,
     OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
     get_check_flags, get_selected_effective_modifier_flags, maybe_map, some, try_filter,
-    try_for_each_bool, try_some, CheckFlags, Diagnostics, HasArena, IndexInfo, ModifierFlags, Node,
-    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, Signature, Symbol,
-    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, VarianceFlags,
+    try_for_each_bool, try_some, CheckFlags, Diagnostics, HasArena, InArena, IndexInfo,
+    ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
+    RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -252,7 +252,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        if self.type_(type_).flags().intersects(TypeFlags::Boolean) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Boolean) {
             return Ok(false);
         }
 
@@ -262,7 +262,8 @@ impl TypeChecker {
             .intersects(TypeFlags::UnionOrIntersection)
         {
             return try_for_each_bool(
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types(),
                 |&type_: &Id<Type>, _| self.type_could_have_top_level_singleton_types(type_),
@@ -358,7 +359,7 @@ impl TypeChecker {
         default_value: Option<Id<Type>>,
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
-        let target_ref = self.type_(target);
+        let target_ref = target.ref_(self);
         let target_types = target_ref.as_union_type().types();
         let mut discriminable: Vec<Option<bool>> = target_types
             .into_iter()
@@ -417,7 +418,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_weak_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        if self.type_(type_).flags().intersects(TypeFlags::Object) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
             return Ok(self
                 .type_(resolved)
@@ -440,7 +441,7 @@ impl TypeChecker {
                     .properties()
                     .is_empty()
                 && every(
-                    &*self.type_(resolved).as_resolved_type().properties(),
+                    &*resolved.ref_(self).as_resolved_type().properties(),
                     |&p: &Id<Symbol>, _| self.symbol(p).flags().intersects(SymbolFlags::Optional),
                 ));
         }
@@ -450,7 +451,8 @@ impl TypeChecker {
             .intersects(TypeFlags::Intersection)
         {
             return try_every(
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types(),
                 |&type_: &Id<Type>, _| self.is_weak_type(type_),
@@ -504,8 +506,8 @@ impl TypeChecker {
                 },
             ),
         );
-        self.type_(result).as_type_reference().set_object_flags(
-            self.type_(result).as_type_reference().object_flags() | ObjectFlags::MarkerType,
+        result.ref_(self).as_type_reference().set_object_flags(
+            result.ref_(self).as_type_reference().object_flags() | ObjectFlags::MarkerType,
         );
         result
     }
@@ -534,7 +536,8 @@ impl TypeChecker {
                     Option::<Id<Symbol>>::None,
                     None,
                 )?;
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .set_alias_type_arguments_contains_marker(Some(true));
                 Ok(type_)
             },
@@ -687,7 +690,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_non_deferred_type_reference(&self, type_: Id<Type>) -> bool {
-        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
+        get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference)
             && self
                 .type_(type_)
                 .as_type_reference_interface()
@@ -703,7 +706,7 @@ impl TypeChecker {
             && try_some(
                 Some(&*self.get_type_arguments(type_)?),
                 Some(|&t: &Id<Type>| -> io::Result<_> {
-                    Ok(self.type_(t).flags().intersects(TypeFlags::TypeParameter)
+                    Ok(t.ref_(self).flags().intersects(TypeFlags::TypeParameter)
                         || self.is_type_reference_with_generic_arguments(t)?)
                 }),
             )?)
@@ -717,7 +720,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         let depth = depth.unwrap_or(0);
         let mut result = self
-            .type_(self.type_(type_).as_type_reference_interface().target())
+            .type_(type_.ref_(self).as_type_reference_interface().target())
             .id()
             .to_string();
         for &t in &self.get_type_arguments(type_)? {
@@ -735,7 +738,7 @@ impl TypeChecker {
                     self.get_type_reference_id(t, type_parameters, Some(depth + 1))?
                 ));
             } else {
-                result.push_str(&format!("-{}", self.type_(t).id()));
+                result.push_str(&format!("-{}", t.ref_(self).id()));
             }
         }
         Ok(result)
@@ -749,7 +752,7 @@ impl TypeChecker {
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> io::Result<String> {
         if ptr::eq(relation, &*self.identity_relation())
-            && self.type_(source).id() > self.type_(target).id()
+            && source.ref_(self).id() > target.ref_(self).id()
         {
             let temp = source.clone();
             source = target.clone();
@@ -773,8 +776,8 @@ impl TypeChecker {
         }
         Ok(format!(
             "{},{}{}",
-            self.type_(source).id(),
-            self.type_(target).id(),
+            source.ref_(self).id(),
+            target.ref_(self).id(),
             post_fix
         ))
     }
@@ -945,10 +948,10 @@ impl TypeChecker {
     }
 
     pub(super) fn get_recursion_identity(&self, mut type_: Id<Type>) -> RecursionIdentity {
-        if self.type_(type_).flags().intersects(TypeFlags::Object)
+        if type_.ref_(self).flags().intersects(TypeFlags::Object)
             && !self.is_object_or_array_literal_type(type_)
         {
-            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
+            if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference) {
                 if let Some(type_node) = self
                     .type_(type_)
                     .as_type_reference_interface()
@@ -958,8 +961,8 @@ impl TypeChecker {
                     return type_node.into();
                 }
             }
-            if let Some(type_symbol) = self.type_(type_).maybe_symbol().filter(|&type_symbol| {
-                !(get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
+            if let Some(type_symbol) = type_.ref_(self).maybe_symbol().filter(|&type_symbol| {
+                !(get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Anonymous)
                     && self
                         .symbol(type_symbol)
                         .flags()
@@ -980,7 +983,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
-            return match self.type_(type_).maybe_symbol() {
+            return match type_.ref_(self).maybe_symbol() {
                 None => RecursionIdentity::None,
                 Some(type_symbol) => type_symbol.into(),
             };
@@ -996,14 +999,15 @@ impl TypeChecker {
                     .as_indexed_access_type()
                     .object_type
                     .clone();
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::IndexedAccess)
             } {}
             return type_.into();
         }
-        if self.type_(type_).flags().intersects(TypeFlags::Conditional) {
-            return self.type_(type_).as_conditional_type().root.clone().into();
+        if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
+            return type_.ref_(self).as_conditional_type().root.clone().into();
         }
         type_.into()
     }

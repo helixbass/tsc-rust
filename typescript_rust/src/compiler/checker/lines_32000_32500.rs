@@ -16,7 +16,7 @@ use crate::{
     is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
     skip_outer_expressions, skip_parentheses, token_to_string, try_every, try_some, AssignmentKind,
     CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
-    ExternalEmitHelpers, FunctionFlags, HasArena, LiteralLikeNodeInterface, ModifierFlags,
+    ExternalEmitHelpers, FunctionFlags, HasArena, InArena, LiteralLikeNodeInterface, ModifierFlags,
     ModuleKind, Node, NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OptionTry,
     OuterExpressionKinds, PseudoBigInt, ReadonlyTextRange, ScriptTarget, SignatureFlags,
     SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextSpan, Type, TypeChecker,
@@ -79,10 +79,12 @@ impl TypeChecker {
                         vec![],
                         vec![],
                     )?;
-                    self.type_(return_only_type)
+                    return_only_type
+                        .ref_(self)
                         .as_object_flags_type()
                         .set_object_flags(
-                            self.type_(return_only_type)
+                            return_only_type
+                                .ref_(self)
                                 .as_object_flags_type()
                                 .object_flags()
                                 | ObjectFlags::NonInferrableType,
@@ -851,7 +853,7 @@ impl TypeChecker {
     }
 
     pub(super) fn maybe_type_of_kind(&self, type_: Id<Type>, kind: TypeFlags) -> bool {
-        if self.type_(type_).flags().intersects(kind) {
+        if type_.ref_(self).flags().intersects(kind) {
             return true;
         }
         if self
@@ -859,7 +861,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
-            let type_ref = self.type_(type_);
+            let type_ref = type_.ref_(self);
             let types = type_ref.as_union_or_intersection_type_interface().types();
             for &t in types {
                 if self.maybe_type_of_kind(t, kind) {
@@ -876,11 +878,11 @@ impl TypeChecker {
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> io::Result<bool> {
-        if self.type_(source).flags().intersects(kind) {
+        if source.ref_(self).flags().intersects(kind) {
             return Ok(true);
         }
         if strict == Some(true)
-            && self.type_(source).flags().intersects(
+            && source.ref_(self).flags().intersects(
                 TypeFlags::AnyOrUnknown | TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Null,
             )
         {
@@ -914,9 +916,9 @@ impl TypeChecker {
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> io::Result<bool> {
-        Ok(if self.type_(source).flags().intersects(TypeFlags::Union) {
+        Ok(if source.ref_(self).flags().intersects(TypeFlags::Union) {
             try_every(
-                self.type_(source).as_union_type().types(),
+                source.ref_(self).as_union_type().types(),
                 |&sub_type: &Id<Type>, _| self.all_types_assignable_to_kind(sub_type, kind, strict),
             )?
         } else {
@@ -925,9 +927,9 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_enum_object_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
+        get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Anonymous)
             && matches!(
-                self.type_(type_).maybe_symbol(),
+                type_.ref_(self).maybe_symbol(),
                 Some(type_symbol) if self.is_const_enum_symbol(type_symbol)
             )
     }
@@ -992,7 +994,7 @@ impl TypeChecker {
             {
                 let is_unchecked_js = self.is_unchecked_js_suggestion(
                     Some(left),
-                    self.type_(right_type).maybe_symbol(),
+                    right_type.ref_(self).maybe_symbol(),
                     true,
                 );
                 self.report_nonexistent_property(left, right_type, is_unchecked_js)?;

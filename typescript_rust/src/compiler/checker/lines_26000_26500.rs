@@ -18,7 +18,7 @@ use crate::{
     JsxReferenceKind, Node, NodeFlags, NodeInterface, Number, OptionTry, Signature, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    UnionReduction, HasArena,
+    UnionReduction, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -300,7 +300,7 @@ impl TypeChecker {
                             self.substitute_indexed_mapped_type(t, property_name_type)?,
                         ));
                     }
-                } else if self.type_(t).flags().intersects(TypeFlags::StructuredType) {
+                } else if t.ref_(self).flags().intersects(TypeFlags::StructuredType) {
                     let prop = self.get_property_of_type_(t, name, None)?;
                     if let Some(prop) = prop {
                         return Ok(if self.is_circular_mapped_property(prop) {
@@ -816,10 +816,10 @@ impl TypeChecker {
         {
             return self.instantiate_type(type_, Some(mapper));
         }
-        if self.type_(type_).flags().intersects(TypeFlags::Union) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             return self.get_union_type(
                 &try_map(
-                    self.type_(type_).as_union_type().types().to_owned(),
+                    type_.ref_(self).as_union_type().types().to_owned(),
                     |t: Id<Type>, _| self.instantiate_instantiable_types(t, mapper.clone()),
                 )?,
                 Some(UnionReduction::None),
@@ -835,7 +835,7 @@ impl TypeChecker {
         {
             return self.get_intersection_type(
                 &try_map(
-                    self.type_(type_).as_intersection_type().types().to_owned(),
+                    type_.ref_(self).as_intersection_type().types().to_owned(),
                     |t: Id<Type>, _| self.instantiate_instantiable_types(t, mapper.clone()),
                 )?,
                 Option::<Id<Symbol>>::None,

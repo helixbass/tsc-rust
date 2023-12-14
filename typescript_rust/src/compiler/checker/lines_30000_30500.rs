@@ -12,10 +12,11 @@ use crate::{
     is_in_js_file, is_line_break, is_outermost_optional_chain, last, length, map_defined,
     min_and_max, skip_trivia, text_char_at_index, try_map_defined, AsDoubleDeref, Debug_,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasArena,
-    HasTypeArgumentsInterface, InferenceFlags, IteratorExt, Matches, MinAndMax, ModifierFlags,
-    Node, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
+    HasTypeArgumentsInterface, InArena, InferenceFlags, IteratorExt, Matches, MinAndMax,
+    ModifierFlags, Node, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
+    SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -582,7 +583,8 @@ impl TypeChecker {
                 return self.resolve_error_call(node);
             }
             let value_decl =
-                self.type_(expression_type)
+                expression_type
+                    .ref_(self)
                     .maybe_symbol()
                     .and_then(|expression_type_symbol| {
                         get_class_like_declaration_of_symbol(&self.symbol(expression_type_symbol))
@@ -668,7 +670,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Intersection)
         {
-            let first_base_ref = self.type_(first_base);
+            let first_base_ref = first_base.ref_(self);
             let types = first_base_ref.as_intersection_type().types();
             let mixin_flags = self.find_mixins(types)?;
             let mut i = 0;
@@ -679,11 +681,11 @@ impl TypeChecker {
                 .to_owned()
             {
                 if !mixin_flags[i] {
-                    if get_object_flags(&self.type_(intersection_member))
+                    if get_object_flags(&intersection_member.ref_(self))
                         .intersects(ObjectFlags::Class | ObjectFlags::Interface)
                     {
                         if matches!(
-                            self.type_(intersection_member).maybe_symbol(),
+                            intersection_member.ref_(self).maybe_symbol(),
                             Some(intersection_member_symbol) if intersection_member_symbol == target
                         ) {
                             return Ok(true);
@@ -698,7 +700,7 @@ impl TypeChecker {
             return Ok(false);
         }
         if matches!(
-            self.type_(first_base).maybe_symbol(),
+            first_base.ref_(self).maybe_symbol(),
             Some(first_base_symbol) if first_base_symbol == target
         ) {
             return Ok(true);
@@ -796,7 +798,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Union)
         {
-            let types = self.type_(apparent_type).as_union_type().types().to_owned();
+            let types = apparent_type.ref_(self).as_union_type().types().to_owned();
             let mut has_signatures = false;
             for constituent in types {
                 let signatures = self.get_signatures_of_type(constituent, kind)?;

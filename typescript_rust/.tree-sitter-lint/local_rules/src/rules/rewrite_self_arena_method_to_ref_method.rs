@@ -23,7 +23,7 @@ pub fn rewrite_self_arena_method_to_ref_method_rule() -> Arc<dyn Rule> {
                         fix => |fixer| {
                             fixer.replace_text(
                                 captures["call"],
-                                &format!("({}).ref_(self)", captures["arg"].text(context))
+                                &format!("{}.ref_(self)", captures["arg"].text(context))
                             );
                         }
                     }

@@ -11,7 +11,7 @@ use crate::{
     is_namespace_reexport_declaration, is_umd_export_symbol, length, node_is_present,
     push_if_unique_gc, some, try_for_each_entry, try_maybe_for_each, BaseInterfaceType,
     BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
-    HasArena, IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
+    HasArena, InArena, IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
     ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, Symbol,
     SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface,
     SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
@@ -319,7 +319,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ResolvedType*/
     ) -> io::Result<Id<Type>> {
-        let type_ref = self.type_(type_);
+        let type_ref = type_.ref_(self);
         let type_construct_signatures = type_ref.as_resolved_type().construct_signatures();
         if type_construct_signatures.is_empty() {
             return Ok(type_);
@@ -339,19 +339,22 @@ impl TypeChecker {
             return Ok(type_);
         }
         let type_copy = self.create_anonymous_type(
-            self.type_(type_).maybe_symbol(),
-            self.type_(type_).as_resolved_type().members(),
-            self.type_(type_)
+            type_.ref_(self).maybe_symbol(),
+            type_.ref_(self).as_resolved_type().members(),
+            type_
+                .ref_(self)
                 .as_resolved_type()
                 .call_signatures()
                 .clone(),
             construct_signatures,
-            self.type_(type_).as_resolved_type().index_infos().clone(),
+            type_.ref_(self).as_resolved_type().index_infos().clone(),
         )?;
-        self.type_(type_)
+        type_
+            .ref_(self)
             .as_resolved_type()
             .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
-        self.type_(type_copy)
+        type_copy
+            .ref_(self)
             .as_resolved_type()
             .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
         Ok(type_copy)

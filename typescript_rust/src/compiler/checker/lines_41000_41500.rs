@@ -22,7 +22,7 @@ use crate::{
     CheckFlags, Debug_, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, Node,
     NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface, HasArena,
+    TypeInterface, UnionOrIntersectionTypeInterface, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -38,8 +38,8 @@ impl TypeChecker {
             let object_type = self.get_type_of_expression(
                 &node.parent().as_property_access_expression().expression,
             )?;
-            let object_types = if self.type_(object_type).flags().intersects(TypeFlags::Union) {
-                self.type_(object_type).as_union_type().types().to_owned()
+            let object_types = if object_type.ref_(self).flags().intersects(TypeFlags::Union) {
+                object_type.ref_(self).as_union_type().types().to_owned()
             } else {
                 vec![object_type.clone()]
             };
@@ -141,7 +141,7 @@ impl TypeChecker {
             return Ok(if let Some(class_type) = class_type {
                 self.get_type_with_this_argument(
                     type_from_type_node,
-                    self.type_(class_type).as_interface_type().maybe_this_type(),
+                    class_type.ref_(self).as_interface_type().maybe_this_type(),
                     None,
                 )?
             } else {
@@ -160,7 +160,7 @@ impl TypeChecker {
                 return Ok(if let Some(base_type) = base_type {
                     self.get_type_with_this_argument(
                         base_type,
-                        self.type_(class_type).as_interface_type().maybe_this_type(),
+                        class_type.ref_(self).as_interface_type().maybe_this_type(),
                         None,
                     )?
                 } else {
@@ -422,12 +422,10 @@ impl TypeChecker {
         if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
                 Some(
-                    self.type_(
-                        (*self.get_symbol_links(symbol))
+                    (*self.get_symbol_links(symbol))
                             .borrow()
                             .containing_type
-                            .unwrap(),
-                    )
+                            .unwrap().ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types(),
                 ),

@@ -21,7 +21,7 @@ use crate::{
     is_string_literal_like, is_variable_declaration, last_or_undefined, map,
     return_ok_none_if_none, try_for_each, try_for_each_child_recursively_bool, try_map, CheckFlags,
     Debug_, Diagnostics, ElementFlags, HasArena, HasInitializerInterface, HasStatementsInterface,
-    IndexInfo, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
+    InArena, IndexInfo, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeSystemPropertyName,
@@ -192,13 +192,14 @@ impl TypeChecker {
                 vec![]
             },
         )?;
-        self.type_(result)
+        result
+            .ref_(self)
             .as_object_type()
-            .set_object_flags(self.type_(result).as_object_type().object_flags() | object_flags);
+            .set_object_flags(result.ref_(self).as_object_type().object_flags() | object_flags);
         if include_pattern_in_type {
-            *self.type_(result).maybe_pattern() = Some(pattern.node_wrapper());
-            self.type_(result).as_object_type().set_object_flags(
-                self.type_(result).as_object_type().object_flags()
+            *result.ref_(self).maybe_pattern() = Some(pattern.node_wrapper());
+            result.ref_(self).as_object_type().set_object_flags(
+                result.ref_(self).as_object_type().object_flags()
                     | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
         }
@@ -262,9 +263,9 @@ impl TypeChecker {
             self.create_tuple_type(&element_types, Some(&element_flags), None, None)?;
         if include_pattern_in_type {
             result = self.clone_type_reference(result);
-            *self.type_(result).maybe_pattern() = Some(pattern.node_wrapper());
-            self.type_(result).as_object_type().set_object_flags(
-                self.type_(result).as_object_type().object_flags()
+            *result.ref_(self).maybe_pattern() = Some(pattern.node_wrapper());
+            result.ref_(self).as_object_type().set_object_flags(
+                result.ref_(self).as_object_type().object_flags()
                     | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
         }
@@ -323,7 +324,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let report_errors = report_errors.unwrap_or(false);
         if let Some(mut type_) = type_ {
-            if self.type_(type_).flags().intersects(TypeFlags::ESSymbol)
+            if type_.ref_(self).flags().intersects(TypeFlags::ESSymbol)
                 && self.is_global_symbol_constructor(&declaration.parent())?
             {
                 type_ = self.get_es_symbol_like_type_for_node(declaration)?;
@@ -338,7 +339,7 @@ impl TypeChecker {
                 .intersects(TypeFlags::UniqueESSymbol)
                 && (is_binding_element(declaration)
                     || declaration.as_has_type().maybe_type().is_none())
-                && self.type_(type_).maybe_symbol() != self.get_symbol_of_node(declaration)?
+                && type_.ref_(self).maybe_symbol() != self.get_symbol_of_node(declaration)?
             {
                 type_ = self.es_symbol_type();
             }

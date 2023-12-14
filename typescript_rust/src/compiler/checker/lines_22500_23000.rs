@@ -12,9 +12,9 @@ use crate::{
     is_optional_chain, is_string_or_numeric_literal_like, is_this_in_type_query,
     is_variable_declaration, is_write_only_access, node_is_missing, return_ok_default_if_none,
     try_for_each, try_reduce_left, FindAncestorCallbackReturn, FlowNode, HasArena,
-    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface,
+    HasInitializerInterface, HasTypeInterface, InArena, Node, NodeInterface, Number, ObjectFlags,
+    OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -357,7 +357,7 @@ impl TypeChecker {
         name: &str, /*__String*/
     ) -> io::Result<bool> {
         if let Some(type_) = type_ {
-            if self.type_(type_).flags().intersects(TypeFlags::Union) {
+            if type_.ref_(self).flags().intersects(TypeFlags::Union) {
                 let prop = self.get_union_or_intersection_property(type_, name, None)?;
                 if let Some(prop) = prop.filter(|&prop| {
                     get_check_flags(&self.symbol(prop)).intersects(CheckFlags::SyntheticProperty)
@@ -416,7 +416,7 @@ impl TypeChecker {
         let mut map: HashMap<TypeId, Id<Type>> = HashMap::new();
         let mut count = 0;
         for &type_ in types {
-            if self.type_(type_).flags().intersects(
+            if type_.ref_(self).flags().intersects(
                 TypeFlags::Object | TypeFlags::Intersection | TypeFlags::InstantiableNonPrimitive,
             ) {
                 let discriminant = self.get_type_of_property_of_type_(type_, name)?;
@@ -458,12 +458,12 @@ impl TypeChecker {
         &self,
         union_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Option<__String>> {
-        let union_type_ref = self.type_(union_type);
+        let union_type_ref = union_type.ref_(self);
         let types = union_type_ref.as_union_type().types();
         if types.len() < 10
-            || get_object_flags(&self.type_(union_type)).intersects(ObjectFlags::PrimitiveUnion)
+            || get_object_flags(&union_type.ref_(self)).intersects(ObjectFlags::PrimitiveUnion)
             || count_where(Some(types), |&t: &Id<Type>, _| {
-                self.type_(t)
+                t.ref_(self)
                     .flags()
                     .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
             }) < 10
@@ -648,7 +648,7 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<bool> {
-        if !self.type_(source).flags().intersects(TypeFlags::Union) {
+        if !source.ref_(self).flags().intersects(TypeFlags::Union) {
             return self.is_type_assignable_to(source, target);
         }
         for &t in self
@@ -715,7 +715,7 @@ impl TypeChecker {
                 .as_resolved_type()
                 .construct_signatures()
                 .is_empty()
-            || (*self.type_(resolved).as_resolved_type().members())
+            || (*resolved.ref_(self).as_resolved_type().members())
                 .borrow()
                 .contains_key("bind")
                 && self.is_type_subtype_of(type_, self.global_function_type())?;
@@ -728,7 +728,7 @@ impl TypeChecker {
         ignore_objects: Option<bool>,
     ) -> io::Result<TypeFacts> {
         let mut ignore_objects = ignore_objects.unwrap_or(false);
-        let flags = self.type_(type_).flags();
+        let flags = type_.ref_(self).flags();
         if flags.intersects(TypeFlags::String) {
             return Ok(if self.strict_null_checks {
                 TypeFacts::StringStrictFacts
@@ -737,7 +737,7 @@ impl TypeChecker {
             });
         }
         if flags.intersects(TypeFlags::StringLiteral) {
-            let is_empty = self.type_(type_).as_string_literal_type().value == "";
+            let is_empty = type_.ref_(self).as_string_literal_type().value == "";
             return Ok(if self.strict_null_checks {
                 if is_empty {
                     TypeFacts::EmptyStringStrictFacts
@@ -760,7 +760,7 @@ impl TypeChecker {
             });
         }
         if flags.intersects(TypeFlags::NumberLiteral) {
-            let is_zero = self.type_(type_).as_number_literal_type().value == Number::new(0.0);
+            let is_zero = type_.ref_(self).as_number_literal_type().value == Number::new(0.0);
             return Ok(if self.strict_null_checks {
                 if is_zero {
                     TypeFacts::ZeroNumberStrictFacts
@@ -822,7 +822,7 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Object) && !ignore_objects {
             return Ok(
-                if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
+                if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Anonymous)
                     && self.is_empty_object_type(type_)?
                 {
                     if self.strict_null_checks {
@@ -883,7 +883,8 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Union) {
             return try_reduce_left(
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types(),
                 |facts, &t: &Id<Type>, _| -> io::Result<_> {
@@ -897,7 +898,8 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Intersection) {
             ignore_objects = ignore_objects || self.maybe_type_of_kind(type_, TypeFlags::Primitive);
             return try_reduce_left(
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types(),
                 |facts, &t: &Id<Type>, _| -> io::Result<_> {

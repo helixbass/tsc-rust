@@ -23,7 +23,7 @@ use crate::{
     HasTypeInterface, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     ObjectFlags, OptionTry, ScriptTarget, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
-    TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, HasArena,
+    TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, HasArena, InArena,
 };
 
 impl GetFlowTypeOfReference {
@@ -775,7 +775,7 @@ impl TypeChecker {
                 type_,
                 &mut |t: Id<Type>| {
                     Ok(Some(
-                        if self.type_(t).flags().intersects(TypeFlags::Instantiable) {
+                        if t.ref_(self).flags().intersects(TypeFlags::Instantiable) {
                             self.get_base_constraint_or_type(t)?
                         } else {
                             t

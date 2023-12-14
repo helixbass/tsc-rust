@@ -12,9 +12,9 @@ use crate::{
     skip_parentheses, skip_trivia, text_span_contains_position, token_to_string,
     walk_up_parenthesized_expressions, AccessFlags, AssignmentDeclarationKind,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_,
-    DiagnosticRelatedInformationInterface, Diagnostics, ExternalEmitHelpers, HasArena, LeftOrRight,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ObjectFlags, OptionTry,
-    ReadonlyTextRange, ScriptTarget, SourceFileLike, Symbol, SyntaxKind, TextSpan, Type,
+    DiagnosticRelatedInformationInterface, Diagnostics, ExternalEmitHelpers, HasArena, InArena,
+    LeftOrRight, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ObjectFlags,
+    OptionTry, ReadonlyTextRange, ScriptTarget, SourceFileLike, Symbol, SyntaxKind, TextSpan, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
@@ -114,7 +114,7 @@ impl TypeChecker {
                     let type_ = self.get_rest_type(
                         object_literal_type,
                         &non_rest_names,
-                        self.type_(object_literal_type).maybe_symbol(),
+                        object_literal_type.ref_(self).maybe_symbol(),
                     )?;
                     self.check_grammar_for_disallowed_trailing_comma(
                         all_properties,
@@ -436,7 +436,7 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(self.type_(target).flags().intersects(TypeFlags::Nullable)
+        Ok(target.ref_(self).flags().intersects(TypeFlags::Nullable)
             || self.is_type_comparable_to(source, target)?)
     }
 
@@ -897,14 +897,14 @@ impl TypeChecker {
                 };
                 self.check_assignment_declaration(decl_kind, right_type)?;
                 if self.is_assignment_declaration(left, right, decl_kind)? {
-                    if !self.type_(right_type).flags().intersects(TypeFlags::Object)
+                    if !right_type.ref_(self).flags().intersects(TypeFlags::Object)
                         || !matches!(
                             decl_kind,
                             AssignmentDeclarationKind::ModuleExports
                                 | AssignmentDeclarationKind::Prototype
                         ) && !self.is_empty_object_type(right_type)?
                             && !self.is_function_object_type(right_type)?
-                            && !get_object_flags(&self.type_(right_type))
+                            && !get_object_flags(&right_type.ref_(self))
                                 .intersects(ObjectFlags::Class)
                     {
                         self.check_assignment_operator(

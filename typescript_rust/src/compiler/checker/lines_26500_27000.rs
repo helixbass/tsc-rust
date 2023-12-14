@@ -14,11 +14,11 @@ use crate::{
     parameter_is_this_keyword, return_ok_default_if_none, try_filter, try_map,
     try_reduce_left_no_initial_value_optional, unescape_leading_underscores, CheckFlags,
     ContextFlags, Debug_, Diagnostics, ElementFlags, ExternalEmitHelpers, HasArena,
-    HasInitializerInterface, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, Node,
-    NodeCheckFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, ScriptTarget,
-    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    UnionReduction,
+    HasInitializerInterface, InArena, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface,
+    Node, NodeCheckFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
+    ScriptTarget, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, UnionReduction,
 };
 
 impl TypeChecker {
@@ -57,14 +57,16 @@ impl TypeChecker {
                 }
             }
             if length(
-                self.type_(declared_managed_type)
+                declared_managed_type
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_type_parameters(),
             ) >= 2
             {
                 let args = self.fill_missing_type_arguments(
                     Some(vec![ctor_type, attributes_type]),
-                    self.type_(declared_managed_type)
+                    declared_managed_type
+                        .ref_(self)
                         .as_interface_type()
                         .maybe_type_parameters(),
                     2,
@@ -135,7 +137,7 @@ impl TypeChecker {
             if !self.is_error_type(intrinsic_class_attribs) {
                 let type_params = self
                     .get_local_type_parameters_of_class_or_interface_or_type_alias(
-                        self.type_(intrinsic_class_attribs).symbol(),
+                        intrinsic_class_attribs.ref_(self).symbol(),
                     )?;
                 let host_class_type = self.get_return_type_of_signature(sig.clone())?;
                 apparent_attributes_type = self
@@ -477,7 +479,7 @@ impl TypeChecker {
         let type_ = return_ok_default_if_none!(
             self.get_apparent_type_of_contextual_type(node, Some(ContextFlags::Signature))?
         );
-        if !self.type_(type_).flags().intersects(TypeFlags::Union) {
+        if !type_.ref_(self).flags().intersects(TypeFlags::Union) {
             return self.get_contextual_call_signature(type_, node);
         }
         let mut signature_list: Option<Vec<Gc<Signature>>> = None;
@@ -717,7 +719,7 @@ impl TypeChecker {
     }
 
     pub(super) fn create_array_literal_type(&self, type_: Id<Type>) -> Id<Type> {
-        if !get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
+        if !get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference) {
             return type_;
         }
         if self
@@ -728,7 +730,7 @@ impl TypeChecker {
         {
             let literal_type = self.clone_type_reference(type_);
             {
-                let literal_type = self.type_(literal_type);
+                let literal_type = literal_type.ref_(self);
                 let literal_type_as_type_reference = literal_type.as_type_reference();
                 literal_type_as_type_reference.set_object_flags(
                     literal_type_as_type_reference.object_flags()
@@ -741,7 +743,8 @@ impl TypeChecker {
                 .as_type_reference_interface()
                 .maybe_literal_type_mut() = Some(literal_type);
         }
-        self.type_(type_)
+        type_
+            .ref_(self)
             .as_type_reference_interface()
             .maybe_literal_type()
             .unwrap()
@@ -955,7 +958,7 @@ impl TypeChecker {
         let contextual_type_has_pattern = matches!(
             contextual_type,
             Some(contextual_type) if matches!(
-                self.type_(contextual_type).maybe_pattern().as_ref(),
+                contextual_type.ref_(self).maybe_pattern().as_ref(),
                 Some(contextual_type_pattern) if matches!(
                     contextual_type_pattern.kind(),
                     SyntaxKind::ObjectBindingPattern |
@@ -1063,8 +1066,7 @@ impl TypeChecker {
                         )?;
                     }
                 }
-                object_flags |=
-                    get_object_flags(&self.type_(type_)) & ObjectFlags::PropagatingFlags;
+                object_flags |= get_object_flags(&type_.ref_(self)) & ObjectFlags::PropagatingFlags;
                 let name_type = computed_name_type.filter(|&computed_name_type| {
                     self.is_type_usable_as_property_name(computed_name_type)
                 });
@@ -1109,7 +1111,7 @@ impl TypeChecker {
                             .set_flags(self.symbol(prop).flags() | SymbolFlags::Optional);
                     }
                 } else if contextual_type_has_pattern
-                    && !get_object_flags(&self.type_(contextual_type.unwrap()))
+                    && !get_object_flags(&contextual_type.unwrap().ref_(self))
                         .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)
                 {
                     let implied_prop = self.get_property_of_type_(

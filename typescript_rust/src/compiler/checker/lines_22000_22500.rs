@@ -8,10 +8,10 @@ use peekmore::PeekMore;
 use super::InferTypes;
 use crate::{
     every, find, flat_map, get_object_flags, try_some, DiagnosticMessage, Diagnostics,
-    ElementFlags, HasArena, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
-    Node, NodeInterface, ObjectFlags, OptionTry, PeekMoreExt, PeekableExt, Signature,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction, VecExt,
+    ElementFlags, HasArena, InArena, InferenceContext, InferenceFlags, InferenceInfo,
+    InferencePriority, Node, NodeInterface, ObjectFlags, OptionTry, PeekMoreExt, PeekableExt,
+    Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction, VecExt,
 };
 
 impl InferTypes {
@@ -848,31 +848,31 @@ impl TypeChecker {
                 s == t
             } else {
                 self.is_type_identical_to(s, t)?
-                    || (self.type_(t).flags().intersects(TypeFlags::String)
-                        && self.type_(s).flags().intersects(TypeFlags::StringLiteral)
-                        || self.type_(t).flags().intersects(TypeFlags::Number)
-                            && self.type_(s).flags().intersects(TypeFlags::NumberLiteral))
+                    || (t.ref_(self).flags().intersects(TypeFlags::String)
+                        && s.ref_(self).flags().intersects(TypeFlags::StringLiteral)
+                        || t.ref_(self).flags().intersects(TypeFlags::Number)
+                            && s.ref_(self).flags().intersects(TypeFlags::NumberLiteral))
             },
         )
     }
 
     pub(super) fn is_type_closely_matched_by(&self, s: Id<Type>, t: Id<Type>) -> bool {
-        self.type_(s).flags().intersects(TypeFlags::Object)
-            && self.type_(t).flags().intersects(TypeFlags::Object)
+        s.ref_(self).flags().intersects(TypeFlags::Object)
+            && t.ref_(self).flags().intersects(TypeFlags::Object)
             && matches!(
-                self.type_(s).maybe_symbol(),
+                s.ref_(self).maybe_symbol(),
                 Some(s_symbol) if matches!(
-                    self.type_(t).maybe_symbol(),
+                    t.ref_(self).maybe_symbol(),
                     Some(t_symbol) if s_symbol == t_symbol
                 )
             )
             || matches!(
-                self.type_(s).maybe_alias_symbol(),
+                s.ref_(self).maybe_alias_symbol(),
                 Some(s_alias_symbol) if matches!(
-                    self.type_(t).maybe_alias_symbol(),
+                    t.ref_(self).maybe_alias_symbol(),
                     Some(t_alias_symbol) if s_alias_symbol == t_alias_symbol
                 )
-            ) && self.type_(s).maybe_alias_type_arguments().is_some()
+            ) && s.ref_(self).maybe_alias_type_arguments().is_some()
     }
 
     pub(super) fn has_primitive_constraint(
@@ -883,7 +883,7 @@ impl TypeChecker {
         Ok(matches!(
             constraint,
             Some(constraint) if self.maybe_type_of_kind(
-                if self.type_(constraint).flags().intersects(TypeFlags::Conditional) {
+                if constraint.ref_(self).flags().intersects(TypeFlags::Conditional) {
                     self.get_default_constraint_of_conditional_type(constraint)?
                 } else {
                     constraint.clone()
@@ -894,11 +894,11 @@ impl TypeChecker {
     }
 
     pub(super) fn is_object_literal_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::ObjectLiteral)
+        get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::ObjectLiteral)
     }
 
     pub(super) fn is_object_or_array_literal_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(&self.type_(type_))
+        get_object_flags(&type_.ref_(self))
             .intersects(ObjectFlags::ObjectLiteral | ObjectFlags::ArrayLiteral)
     }
 

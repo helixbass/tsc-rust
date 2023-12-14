@@ -24,7 +24,7 @@ use crate::{
     ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction, HasArena,
+    UnionReduction, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -89,7 +89,7 @@ impl TypeChecker {
             {
                 Some(format!(
                     "{}",
-                    match &*self.type_(type_) {
+                    match &*type_.ref_(self) {
                         Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                             type_.value.to_string()
                         }
@@ -959,7 +959,7 @@ impl TypeChecker {
                 }
                 let source_types = if some(
                     constructor_types.as_deref(),
-                    Some(|&t: &Id<Type>| self.type_(t).flags().intersects(!TypeFlags::Nullable)),
+                    Some(|&t: &Id<Type>| t.ref_(self).flags().intersects(!TypeFlags::Nullable)),
                 ) {
                     constructor_types.unwrap()
                 } else {
@@ -982,7 +982,7 @@ impl TypeChecker {
         )?)?;
         if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration() {
             if self.filter_type(widened, |t| {
-                self.type_(t).flags().intersects(!TypeFlags::Nullable)
+                t.ref_(self).flags().intersects(!TypeFlags::Nullable)
             }) == self.never_type()
             {
                 self.report_implicit_any(&symbol_value_declaration, self.any_type(), None)?;
@@ -1039,8 +1039,8 @@ impl TypeChecker {
             }
         }
         let type_ = self.create_anonymous_type(symbol, exports, vec![], vec![], vec![])?;
-        self.type_(type_).as_object_type().set_object_flags(
-            self.type_(type_).as_object_type().object_flags() | ObjectFlags::JSLiteral,
+        type_.ref_(self).as_object_type().set_object_flags(
+            type_.ref_(self).as_object_type().object_flags() | ObjectFlags::JSLiteral,
         );
         Ok(Some(type_))
     }
@@ -1142,14 +1142,14 @@ impl TypeChecker {
                 self.check_expression_cached(&expression_as_binary_expression.right, None)?,
             )?
         };
-        if self.type_(type_).flags().intersects(TypeFlags::Object)
+        if type_.ref_(self).flags().intersects(TypeFlags::Object)
             && kind == AssignmentDeclarationKind::ModuleExports
             && self.symbol(symbol).escaped_name() == InternalSymbolName::ExportEquals
         {
             let exported_type = self.resolve_structured_type_members(type_)?;
             let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             copy_entries(
-                &*(*self.type_(exported_type).as_resolved_type().members()).borrow(),
+                &*(*exported_type.ref_(self).as_resolved_type().members()).borrow(),
                 &mut members,
             );
             let initial_size = members.len();
@@ -1274,35 +1274,35 @@ impl TypeChecker {
                 if initial_size != members.len() {
                     None
                 } else {
-                    self.type_(exported_type).maybe_symbol()
+                    exported_type.ref_(self).maybe_symbol()
                 },
                 Gc::new(GcCell::new(members)),
-                self.type_(exported_type)
+                exported_type.ref_(self)
                     .as_resolved_type()
                     .call_signatures()
                     .clone(),
-                self.type_(exported_type)
+                exported_type.ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .clone(),
-                self.type_(exported_type)
+                exported_type.ref_(self)
                     .as_resolved_type()
                     .index_infos()
                     .clone(),
             )?;
-            self.type_(result).as_object_type().set_object_flags(
-                self.type_(result).as_object_type().object_flags()
-                    | get_object_flags(&self.type_(type_)) & ObjectFlags::JSLiteral,
+            result.ref_(self).as_object_type().set_object_flags(
+                result.ref_(self).as_object_type().object_flags()
+                    | get_object_flags(&type_.ref_(self)) & ObjectFlags::JSLiteral,
             );
-            if let Some(result_symbol) = self.type_(result).maybe_symbol() {
+            if let Some(result_symbol) = result.ref_(self).maybe_symbol() {
                 if self
                     .symbol(result_symbol)
                     .flags()
                     .intersects(SymbolFlags::Class)
                     && type_ == self.get_declared_type_of_class_or_interface(result_symbol)?
                 {
-                    self.type_(result).as_object_type().set_object_flags(
-                        self.type_(result).as_object_type().object_flags()
+                    result.ref_(self).as_object_type().set_object_flags(
+                        result.ref_(self).as_object_type().object_flags()
                             | ObjectFlags::IsClassInstanceClone,
                     );
                 }

@@ -12,10 +12,10 @@ use crate::{
     get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
     is_transient_symbol, last, node_is_missing, push_if_unique_eq, push_if_unique_gc, some,
     try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
-    FunctionFlags, HasArena, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction,
+    FunctionFlags, HasArena, HasTypeInterface, InArena, InferenceContext,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Signature, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -67,7 +67,8 @@ impl TypeChecker {
         }
         let rest_type = self.get_effective_rest_type(&context)?;
         if let Some(rest_type) = rest_type.filter(|&rest_type| {
-            self.type_(rest_type)
+            rest_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
         }) {
@@ -862,7 +863,7 @@ impl TypeChecker {
                             )?
                         )?;
                     }
-                    if self.type_(type_).flags().intersects(TypeFlags::Never) {
+                    if type_.ref_(self).flags().intersects(TypeFlags::Never) {
                         has_return_of_type_never = true;
                     }
                     push_if_unique_eq(&mut aggregated_types, &type_);
@@ -885,7 +886,7 @@ impl TypeChecker {
             && !(self.is_js_constructor(Some(func))?
                 && aggregated_types
                     .iter()
-                    .any(|&t| self.type_(t).maybe_symbol() == func.maybe_symbol()))
+                    .any(|&t| t.ref_(self).maybe_symbol() == func.maybe_symbol()))
         {
             push_if_unique_eq(&mut aggregated_types, &self.undefined_type());
         }
@@ -941,7 +942,7 @@ impl TypeChecker {
 
         if matches!(
             type_,
-            Some(type_) if self.type_(type_).flags().intersects(TypeFlags::Never)
+            Some(type_) if type_.ref_(self).flags().intersects(TypeFlags::Never)
         ) {
             self.error(
                 Some(&*error_node),

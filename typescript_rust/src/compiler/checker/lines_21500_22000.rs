@@ -12,9 +12,9 @@ use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
     append_if_unique_eq, append_if_unique_gc, arrays_equal, contains, contains_gc, create_scanner,
     filter, get_check_flags, get_object_flags, some, try_every, try_map, try_some, CheckFlags,
-    ElementFlags, HasArena, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction, VarianceFlags,
+    ElementFlags, HasArena, InArena, InferenceInfo, InferencePriority, Node, ObjectFlags,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction, VarianceFlags,
 };
 
 impl TypeChecker {
@@ -25,7 +25,7 @@ impl TypeChecker {
         constraint: Id<Type>, /*IndexType*/
     ) -> io::Result<Id<Type>> {
         let type_parameter = self.get_indexed_access_type(
-            self.type_(constraint).as_index_type().type_,
+            constraint.ref_(self).as_index_type().type_,
             self.get_type_parameter_from_mapped_type(target)?,
             None,
             Option::<&Node>::None,
@@ -78,9 +78,9 @@ impl TypeChecker {
                     Some(source_prop) => {
                         if match_discriminant_properties {
                             let target_type = self.get_type_of_symbol(target_prop)?;
-                            if self.type_(target_type).flags().intersects(TypeFlags::Unit) {
+                            if target_type.ref_(self).flags().intersects(TypeFlags::Unit) {
                                 let source_type = self.get_type_of_symbol(source_prop)?;
-                                if !(self.type_(source_type).flags().intersects(TypeFlags::Any)
+                                if !(source_type.ref_(self).flags().intersects(TypeFlags::Any)
                                     || self.get_regular_type_of_literal_type(source_type)
                                         == self.get_regular_type_of_literal_type(target_type))
                                 {
@@ -116,19 +116,19 @@ impl TypeChecker {
         source: Id<Type>, /*TupleTypeReference*/
         target: Id<Type>, /*TupleTypeReference*/
     ) -> bool {
-        let source_target = self.type_(source).as_type_reference_interface().target();
-        let target_target = self.type_(target).as_type_reference_interface().target();
+        let source_target = source.ref_(self).as_type_reference_interface().target();
+        let target_target = target.ref_(self).as_type_reference_interface().target();
         !self
             .type_(target_target)
             .as_tuple_type()
             .combined_flags
             .intersects(ElementFlags::Variadic)
-            && self.type_(target_target).as_tuple_type().min_length
-                > self.type_(source_target).as_tuple_type().min_length
-            || !self.type_(target_target).as_tuple_type().has_rest_element
-                && (self.type_(source_target).as_tuple_type().has_rest_element
-                    || self.type_(target_target).as_tuple_type().fixed_length
-                        < self.type_(source_target).as_tuple_type().fixed_length)
+            && target_target.ref_(self).as_tuple_type().min_length
+                > source_target.ref_(self).as_tuple_type().min_length
+            || !target_target.ref_(self).as_tuple_type().has_rest_element
+                && (source_target.ref_(self).as_tuple_type().has_rest_element
+                    || target_target.ref_(self).as_tuple_type().fixed_length
+                        < source_target.ref_(self).as_tuple_type().fixed_length)
     }
 
     pub(super) fn types_definitely_unrelated(
@@ -182,7 +182,7 @@ impl TypeChecker {
 
     pub(super) fn is_from_inference_blocked_source(&self, type_: Id<Type>) -> bool {
         matches!(
-            self.type_(type_).maybe_symbol(),
+            type_.ref_(self).maybe_symbol(),
             Some(type_symbol) if some(
                 self.symbol(type_symbol).maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.has_skip_direct_inference_flag(declaration))
@@ -195,14 +195,14 @@ impl TypeChecker {
         source: Id<Type>, /*TemplateLiteralType*/
         target: Id<Type>, /*TemplateLiteralType*/
     ) -> bool {
-        let source_ref = self.type_(source);
+        let source_ref = source.ref_(self);
         let source_start = &source_ref.as_template_literal_type().texts[0];
-        let target_ref = self.type_(target);
+        let target_ref = target.ref_(self);
         let target_start = &target_ref.as_template_literal_type().texts[0];
         let source_end = &source_ref.as_template_literal_type().texts
-            [self.type_(source).as_template_literal_type().texts.len() - 1];
+            [source.ref_(self).as_template_literal_type().texts.len() - 1];
         let target_end = &target_ref.as_template_literal_type().texts
-            [self.type_(target).as_template_literal_type().texts.len() - 1];
+            [target.ref_(self).as_template_literal_type().texts.len() - 1];
         let start_len = cmp::min(source_start.len(), target_start.len());
         let end_len = cmp::min(source_end.len(), target_end.len());
         &source_start[0..start_len] != &target_start[0..start_len]
@@ -249,32 +249,32 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StringLiteral)
         {
-            let source_ref = self.type_(source);
+            let source_ref = source.ref_(self);
             let value = &source_ref.as_string_literal_type().value;
-            return Ok(self.type_(target).flags().intersects(TypeFlags::Number)
+            return Ok(target.ref_(self).flags().intersects(TypeFlags::Number)
                 && value != ""
                 && value.parse::<f64>().is_ok()
-                || self.type_(target).flags().intersects(TypeFlags::BigInt)
+                || target.ref_(self).flags().intersects(TypeFlags::BigInt)
                     && value != ""
                     && self.is_valid_big_int_string(value)
                 || self
                     .type_(target)
                     .flags()
                     .intersects(TypeFlags::BooleanLiteral | TypeFlags::Nullable)
-                    && value == self.type_(target).as_intrinsic_type().intrinsic_name());
+                    && value == target.ref_(self).as_intrinsic_type().intrinsic_name());
         }
         if self
             .type_(source)
             .flags()
             .intersects(TypeFlags::TemplateLiteral)
         {
-            let source_ref = self.type_(source);
+            let source_ref = source.ref_(self);
             let texts = &source_ref.as_template_literal_type().texts;
             return Ok(texts.len() == 2
                 && texts[0] == ""
                 && texts[1] == ""
                 && self.is_type_assignable_to(
-                    self.type_(source).as_template_literal_type().types[0],
+                    source.ref_(self).as_template_literal_type().types[0],
                     target,
                 )?);
         }
@@ -294,7 +294,7 @@ impl TypeChecker {
             {
                 self.infer_from_literal_parts_to_template_literal(
                     &vec![{
-                        let value = self.type_(source).as_string_literal_type().value.clone();
+                        let value = source.ref_(self).as_string_literal_type().value.clone();
                         value
                     }],
                     &vec![],
@@ -306,12 +306,12 @@ impl TypeChecker {
                 .intersects(TypeFlags::TemplateLiteral)
             {
                 if arrays_equal(
-                    &self.type_(source).as_template_literal_type().texts,
-                    &self.type_(target).as_template_literal_type().texts,
+                    &source.ref_(self).as_template_literal_type().texts,
+                    &target.ref_(self).as_template_literal_type().texts,
                 ) {
                     Some(try_map(
                         &{
-                            let types = self.type_(source).as_template_literal_type().types.clone();
+                            let types = source.ref_(self).as_template_literal_type().types.clone();
                             types
                         },
                         |&type_: &Id<Type>, _| self.get_string_like_type_for_type(type_),
@@ -319,11 +319,11 @@ impl TypeChecker {
                 } else {
                     self.infer_from_literal_parts_to_template_literal(
                         &{
-                            let texts = self.type_(source).as_template_literal_type().texts.clone();
+                            let texts = source.ref_(self).as_template_literal_type().texts.clone();
                             texts
                         },
                         &{
-                            let types = self.type_(source).as_template_literal_type().types.clone();
+                            let types = source.ref_(self).as_template_literal_type().types.clone();
                             types
                         },
                         target,
@@ -348,7 +348,7 @@ impl TypeChecker {
                 |&r: &Id<Type>, i| {
                     self.is_valid_type_for_template_literal_placeholder(
                         r,
-                        self.type_(target).as_template_literal_type().types[i],
+                        target.ref_(self).as_template_literal_type().types[i],
                     )
                 }
             )?
@@ -379,7 +379,7 @@ impl TypeChecker {
         let source_start_text = &source_texts[0];
         // TODO: should be using chars for any of this instead?
         let source_end_text = &source_texts[last_source_index];
-        let target_texts = &self.type_(target).as_template_literal_type().texts.clone();
+        let target_texts = &target.ref_(self).as_template_literal_type().texts.clone();
         let last_target_index = target_texts.len() - 1;
         let target_start_text = &target_texts[0];
         let target_end_text = &target_texts[last_target_index];

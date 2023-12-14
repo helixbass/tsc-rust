@@ -10,9 +10,9 @@ use crate::{
     is_element_access_expression, is_identifier, is_jsdoc_typedef_tag, is_jsx_self_closing_element,
     is_object_literal_expression, is_parenthesized_expression, is_property_access_expression,
     token_to_string, unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InferenceContext,
-    Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InArena,
+    InferenceContext, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -36,7 +36,7 @@ impl TypeChecker {
             for prop in self.get_properties_of_object_type(right_type)? {
                 let prop_type = self.get_type_of_symbol(prop)?;
                 if matches!(
-                    self.type_(prop_type).maybe_symbol(),
+                    prop_type.ref_(self).maybe_symbol(),
                     Some(prop_type_symbol) if self.symbol(prop_type_symbol).flags().intersects(SymbolFlags::Class)
                 ) {
                     let prop_ref = self.symbol(prop);

@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     are_option_gcs_equal, get_object_flags, get_symbol_id, symbol_name, try_every, try_some,
-    DiagnosticMessage, Diagnostics, HasArena, IntrinsicType, LiteralTypeInterface, Node,
+    DiagnosticMessage, Diagnostics, HasArena, InArena, IntrinsicType, LiteralTypeInterface, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol,
     SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags,
     TypeInterface, TypePredicate, TypePredicateKind,
@@ -138,7 +138,7 @@ impl TypeChecker {
 
     pub(super) fn is_empty_resolved_type(&self, t: Id<Type> /*ResolvedType*/) -> bool {
         t != self.any_function_type() && {
-            self.type_(t).as_resolved_type().properties().is_empty()
+            t.ref_(self).as_resolved_type().properties().is_empty()
                 && self
                     .type_(t)
                     .as_resolved_type()
@@ -149,12 +149,12 @@ impl TypeChecker {
                     .as_resolved_type()
                     .construct_signatures()
                     .is_empty()
-                && self.type_(t).as_resolved_type().index_infos().is_empty()
+                && t.ref_(self).as_resolved_type().index_infos().is_empty()
         }
     }
 
     pub(super) fn is_empty_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(if self.type_(type_).flags().intersects(TypeFlags::Object) {
+        Ok(if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             !self.is_generic_mapped_type(type_)?
                 && self.is_empty_resolved_type(self.resolve_structured_type_members(type_)?)
         } else if self
@@ -163,10 +163,11 @@ impl TypeChecker {
             .intersects(TypeFlags::NonPrimitive)
         {
             true
-        } else if self.type_(type_).flags().intersects(TypeFlags::Union) {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             try_some(
                 Some(
-                    self.type_(type_)
+                    type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types(),
                 ),
@@ -178,7 +179,8 @@ impl TypeChecker {
             .intersects(TypeFlags::Intersection)
         {
             try_every(
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types(),
                 |&type_: &Id<Type>, _| self.is_empty_object_type(type_),
@@ -190,11 +192,11 @@ impl TypeChecker {
 
     pub(super) fn is_empty_anonymous_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(
-            get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
-                && (self.type_(type_).as_object_type().maybe_members().is_some()
+            get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Anonymous)
+                && (type_.ref_(self).as_object_type().maybe_members().is_some()
                     && self.is_empty_resolved_type(type_)
                     || matches!(
-                        self.type_(type_).maybe_symbol(),
+                        type_.ref_(self).maybe_symbol(),
                         Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::TypeLiteral)
                             && (*self.get_members_of_symbol(type_symbol)?).borrow().len() == 0
                     )),
@@ -202,7 +204,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_string_index_signature_only_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(self.type_(type_).flags().intersects(TypeFlags::Object)
+        Ok(type_.ref_(self).flags().intersects(TypeFlags::Object)
             && !self.is_generic_mapped_type(type_)?
             && self.get_properties_of_type(type_)?.len() == 0
             && self.get_index_infos_of_type(type_)?.len() == 1
@@ -321,8 +323,8 @@ impl TypeChecker {
         relation: &HashMap<String, RelationComparisonResult>,
         mut error_reporter: Option<ErrorReporter>,
     ) -> io::Result<bool> {
-        let s = self.type_(source).flags();
-        let t = self.type_(target).flags();
+        let s = source.ref_(self).flags();
+        let t = target.ref_(self).flags();
         if t.intersects(TypeFlags::AnyOrUnknown)
             || s.intersects(TypeFlags::Never)
             || source == self.wildcard_type()
@@ -339,8 +341,8 @@ impl TypeChecker {
             && s.intersects(TypeFlags::EnumLiteral)
             && t.intersects(TypeFlags::StringLiteral)
             && !t.intersects(TypeFlags::EnumLiteral)
-            && self.type_(source).as_string_literal_type().value
-                == self.type_(target).as_string_literal_type().value
+            && source.ref_(self).as_string_literal_type().value
+                == target.ref_(self).as_string_literal_type().value
         {
             return Ok(true);
         }
@@ -351,8 +353,8 @@ impl TypeChecker {
             && s.intersects(TypeFlags::EnumLiteral)
             && t.intersects(TypeFlags::NumberLiteral)
             && !t.intersects(TypeFlags::EnumLiteral)
-            && self.type_(source).as_number_literal_type().value
-                == self.type_(target).as_number_literal_type().value
+            && source.ref_(self).as_number_literal_type().value
+                == target.ref_(self).as_number_literal_type().value
         {
             return Ok(true);
         }
@@ -368,8 +370,8 @@ impl TypeChecker {
         if s.intersects(TypeFlags::Enum)
             && t.intersects(TypeFlags::Enum)
             && self.is_enum_type_related_to(
-                self.type_(source).symbol(),
-                self.type_(target).symbol(),
+                source.ref_(self).symbol(),
+                target.ref_(self).symbol(),
                 &mut error_reporter,
             )?
         {
@@ -379,8 +381,8 @@ impl TypeChecker {
             if s.intersects(TypeFlags::Union)
                 && t.intersects(TypeFlags::Union)
                 && self.is_enum_type_related_to(
-                    self.type_(source).symbol(),
-                    self.type_(target).symbol(),
+                    source.ref_(self).symbol(),
+                    target.ref_(self).symbol(),
                     &mut error_reporter,
                 )?
             {
@@ -391,11 +393,11 @@ impl TypeChecker {
                 && self
                     .type_(source)
                     .as_literal_type()
-                    .is_value_eq(&self.type_(target))
+                    .is_value_eq(&target.ref_(self))
                 && self.is_enum_type_related_to(
-                    self.get_parent_of_symbol(self.type_(source).symbol())?
+                    self.get_parent_of_symbol(source.ref_(self).symbol())?
                         .unwrap(),
-                    self.get_parent_of_symbol(self.type_(target).symbol())?
+                    self.get_parent_of_symbol(target.ref_(self).symbol())?
                         .unwrap(),
                     &mut error_reporter,
                 )?
@@ -442,7 +444,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     ) -> io::Result<bool> {
         if self.is_fresh_literal_type(source) {
-            source = match &*self.type_(source) {
+            source = match &*source.ref_(self) {
                 Type::IntrinsicType(intrinsic_type) => {
                     enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                         .regular_type()
@@ -452,7 +454,7 @@ impl TypeChecker {
             };
         }
         if self.is_fresh_literal_type(target) {
-            target = match &*self.type_(target) {
+            target = match &*target.ref_(self) {
                 Type::IntrinsicType(intrinsic_type) => {
                     enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                         .regular_type()
@@ -466,22 +468,22 @@ impl TypeChecker {
         }
         if !Rc::ptr_eq(&relation, &self.identity_relation) {
             if Rc::ptr_eq(&relation, &self.comparable_relation)
-                && !self.type_(target).flags().intersects(TypeFlags::Never)
+                && !target.ref_(self).flags().intersects(TypeFlags::Never)
                 && self.is_simple_type_related_to(target, source, &(*relation).borrow(), None)?
                 || self.is_simple_type_related_to(source, target, &(*relation).borrow(), None)?
             {
                 return Ok(true);
             }
         } else {
-            if self.type_(source).flags() != self.type_(target).flags() {
+            if source.ref_(self).flags() != target.ref_(self).flags() {
                 return Ok(false);
             }
-            if self.type_(source).flags().intersects(TypeFlags::Singleton) {
+            if source.ref_(self).flags().intersects(TypeFlags::Singleton) {
                 return Ok(true);
             }
         }
-        if self.type_(source).flags().intersects(TypeFlags::Object)
-            && self.type_(target).flags().intersects(TypeFlags::Object)
+        if source.ref_(self).flags().intersects(TypeFlags::Object)
+            && target.ref_(self).flags().intersects(TypeFlags::Object)
         {
             let related = (*relation)
                 .borrow()
@@ -523,7 +525,7 @@ impl TypeChecker {
         source: Id<Type>,
         source_prop: Id<Symbol>,
     ) -> bool {
-        get_object_flags(&self.type_(source)).intersects(ObjectFlags::JsxAttributes)
+        get_object_flags(&source.ref_(self)).intersects(ObjectFlags::JsxAttributes)
             && self.is_hyphenated_jsx_name(self.symbol(source_prop).escaped_name())
     }
 
@@ -534,7 +536,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         loop {
             let mut t = if self.is_fresh_literal_type(type_) {
-                match &*self.type_(type_) {
+                match &*type_.ref_(self) {
                     Type::IntrinsicType(intrinsic_type) => {
                         enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                             .regular_type()
@@ -542,7 +544,7 @@ impl TypeChecker {
                     Type::LiteralType(literal_type) => literal_type.regular_type(),
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
-            } else if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
+            } else if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference)
                 && self
                     .type_(type_)
                     .as_type_reference_interface()
@@ -551,7 +553,7 @@ impl TypeChecker {
             {
                 self.create_type_reference(
                     {
-                        let target = self.type_(type_).as_type_reference().target;
+                        let target = type_.ref_(self).as_type_reference().target;
                         target
                     },
                     Some(self.get_type_arguments(type_)?),
@@ -568,9 +570,9 @@ impl TypeChecker {
                 .intersects(TypeFlags::Substitution)
             {
                 if writing {
-                    self.type_(type_).as_substitution_type().base_type.clone()
+                    type_.ref_(self).as_substitution_type().base_type.clone()
                 } else {
-                    self.type_(type_).as_substitution_type().substitute.clone()
+                    type_.ref_(self).as_substitution_type().substitute.clone()
                 }
             } else if self
                 .type_(type_)

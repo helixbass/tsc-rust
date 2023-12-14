@@ -21,9 +21,9 @@ use crate::{
     try_get_property_access_or_identifier_to_string, try_maybe_for_each,
     walk_up_parenthesized_expressions, AsDoubleDeref, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics, HasArena,
-    HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    HasInitializerInterface, InArena, Matches, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface,
 };
 
@@ -77,7 +77,7 @@ impl TypeChecker {
         kind: SignatureKind,
         diagnostic: &Diagnostic,
     ) -> io::Result<()> {
-        let apparent_type_symbol = self.type_(apparent_type).maybe_symbol();
+        let apparent_type_symbol = apparent_type.ref_(self).maybe_symbol();
         if apparent_type_symbol.is_none() {
             return Ok(());
         }
@@ -856,7 +856,7 @@ impl TypeChecker {
         if node.kind() == SyntaxKind::CallExpression
             && node.as_call_expression().question_dot_token.is_none()
             && node.parent().kind() == SyntaxKind::ExpressionStatement
-            && self.type_(return_type).flags().intersects(TypeFlags::Void)
+            && return_type.ref_(self).flags().intersects(TypeFlags::Void)
             && self.get_type_predicate_of_signature(&signature)?.is_some()
         {
             let node_as_call_expression = node.as_call_expression();
@@ -893,7 +893,7 @@ impl TypeChecker {
                     vec![],
                 )?;
                 {
-                    let js_assignment_type = self.type_(js_assignment_type);
+                    let js_assignment_type = js_assignment_type.ref_(self);
                     let js_assignment_type_as_object_flags_type =
                         js_assignment_type.as_object_flags_type();
                     js_assignment_type_as_object_flags_type.set_object_flags(

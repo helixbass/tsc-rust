@@ -17,9 +17,9 @@ use crate::{
     is_write_access, maybe_for_each, maybe_get_source_file_of_node, should_preserve_const_enums,
     symbol_name, unescape_leading_underscores, AssignmentDeclarationKind, AssignmentKind, Debug_,
     Diagnostic, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, HasArena, Node, NodeFlags, NodeInterface,
-    OptionTry, ScriptKind, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, HasArena, InArena, Node, NodeFlags,
+    NodeInterface, OptionTry, ScriptKind, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -50,7 +50,7 @@ impl TypeChecker {
         if self.strict_null_checks {
             self.get_falsy_flags(type_)
         } else {
-            self.type_(type_).flags()
+            type_.ref_(self).flags()
         }
         .intersects(TypeFlags::Nullable)
     }
@@ -109,14 +109,14 @@ impl TypeChecker {
         node: &Node,
         mut report_error: impl FnMut(&Node, TypeFlags),
     ) -> io::Result<Id<Type>> {
-        if self.strict_null_checks && self.type_(type_).flags().intersects(TypeFlags::Unknown) {
+        if self.strict_null_checks && type_.ref_(self).flags().intersects(TypeFlags::Unknown) {
             self.error(Some(node), &Diagnostics::Object_is_of_type_unknown, None);
             return Ok(self.error_type());
         }
         let kind = if self.strict_null_checks {
             self.get_falsy_flags(type_)
         } else {
-            self.type_(type_).flags()
+            type_.ref_(self).flags()
         } & TypeFlags::Nullable;
         if kind != TypeFlags::None {
             report_error(node, kind);
@@ -614,14 +614,14 @@ impl TypeChecker {
                 {
                     let is_unchecked_js = self.is_unchecked_js_suggestion(
                         Some(node),
-                        self.type_(left_type).maybe_symbol(),
+                        left_type.ref_(self).maybe_symbol(),
                         true,
                     );
                     if !is_unchecked_js && self.is_js_literal_type(left_type)? {
                         return Ok(self.any_type());
                     }
                     if matches!(
-                        self.type_(left_type).maybe_symbol(),
+                        left_type.ref_(self).maybe_symbol(),
                         Some(left_type_symbol) if left_type_symbol == self.global_this_symbol()
                     ) {
                         let global_this_symbol_exports = self
@@ -849,7 +849,7 @@ impl TypeChecker {
         if matches!(
             prop,
             Some(prop) if !self.symbol(prop).flags().intersects(SymbolFlags::Variable | SymbolFlags::Property | SymbolFlags::Accessor) &&
-                !(self.symbol(prop).flags().intersects(SymbolFlags::Method) && self.type_(prop_type).flags().intersects(TypeFlags::Union)) &&
+                !(self.symbol(prop).flags().intersects(SymbolFlags::Method) && prop_type.ref_(self).flags().intersects(TypeFlags::Union)) &&
                 !self.is_duplicated_common_js_export(self.symbol(prop).maybe_declarations().as_deref())
         ) {
             return Ok(prop_type);
@@ -1042,7 +1042,7 @@ impl TypeChecker {
             Some(self.get_type_of_symbol(self.symbol(prop).maybe_parent().unwrap())?);
         loop {
             let class_type_present = class_type.unwrap();
-            class_type = if self.type_(class_type_present).maybe_symbol().is_some() {
+            class_type = if class_type_present.ref_(self).maybe_symbol().is_some() {
                 self.get_super_class(class_type_present)?
             } else {
                 None
@@ -1098,7 +1098,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Primitive)
         {
-            for &subtype in self.type_(containing_type).as_union_type().types() {
+            for &subtype in containing_type.ref_(self).as_union_type().types() {
                 if self
                     .get_property_of_type_(subtype, &prop_node.as_identifier().escaped_text, None)?
                     .is_none()

@@ -17,7 +17,7 @@ use crate::{
     is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
     push_if_unique_eq, push_if_unique_gc, text_range_contains_position_inclusive, AsDoubleDeref,
     AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
-    HasArena, HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
+    HasArena, HasTypeInterface, InArena, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, OptionTry,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
@@ -503,7 +503,8 @@ impl TypeChecker {
             let type_ = if is_static(&container) {
                 self.get_type_of_symbol(symbol)?
             } else {
-                self.type_(self.get_declared_type_of_symbol(symbol)?)
+                self.get_declared_type_of_symbol(symbol)?
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_this_type()
                     .unwrap()
@@ -553,7 +554,8 @@ impl TypeChecker {
             return Ok(if is_static(&container) {
                 Some(self.get_type_of_symbol(symbol)?)
             } else {
-                self.type_(self.get_declared_type_of_symbol(symbol)?)
+                self.get_declared_type_of_symbol(symbol)?
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_this_type()
             });
@@ -922,7 +924,7 @@ impl TypeChecker {
         } else {
             self.get_type_with_this_argument(
                 base_class_type,
-                self.type_(class_type).as_interface_type().maybe_this_type(),
+                class_type.ref_(self).as_interface_type().maybe_this_type(),
                 None,
             )?
         })

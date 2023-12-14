@@ -22,8 +22,8 @@ use crate::{
     maybe_get_source_file_of_node, no_truncation_maximum_truncation_length,
     pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, symbol_name,
     try_map, try_using_single_line_string_writer, using_single_line_string_writer, Debug_,
-    EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena, IndexInfo, KeywordTypeNode,
-    ModifierFlags, ModuleSpecifierResolutionHost,
+    EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena, InArena, IndexInfo,
+    KeywordTypeNode, ModifierFlags, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
     NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder,
     RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
@@ -478,7 +478,7 @@ impl TypeChecker {
         left: Id<Type>,
         right: Id<Type>,
     ) -> io::Result<(String, String)> {
-        let mut left_str = if let Some(symbol) = self.type_(left).maybe_symbol() {
+        let mut left_str = if let Some(symbol) = left.ref_(self).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
                 let enclosing_declaration =
                     (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
@@ -489,7 +489,7 @@ impl TypeChecker {
         } else {
             self.type_to_string_(left, Option::<&Node>::None, None, None)?
         };
-        let mut right_str = if let Some(symbol) = self.type_(right).maybe_symbol() {
+        let mut right_str = if let Some(symbol) = right.ref_(self).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
                 let enclosing_declaration =
                     (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
@@ -537,10 +537,10 @@ impl TypeChecker {
 
     pub(super) fn is_class_instance_side(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(matches!(
-            self.type_(type_).maybe_symbol(),
+            type_.ref_(self).maybe_symbol(),
             Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::Class) && (
                 type_ == self.get_declared_type_of_class_or_interface(type_symbol)? ||
-                self.type_(type_).flags().intersects(TypeFlags::Object) && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::IsClassInstanceClone)
+                type_.ref_(self).flags().intersects(TypeFlags::Object) && get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::IsClassInstanceClone)
             )
         ))
     }

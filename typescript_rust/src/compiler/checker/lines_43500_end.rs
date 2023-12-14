@@ -26,7 +26,7 @@ use crate::{
     ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget, Signature, SignatureFlags,
     SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
     SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, HasArena,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -752,7 +752,7 @@ impl TypeChecker {
         source: Id<Type>,
         union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> Option<Id<Type>> {
-        let source_object_flags = get_object_flags(&self.type_(source));
+        let source_object_flags = get_object_flags(&source.ref_(self));
         if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
             && self
                 .type_(union_target)
@@ -760,21 +760,21 @@ impl TypeChecker {
                 .intersects(TypeFlags::Union)
         {
             return find(
-                self.type_(union_target)
+                union_target.ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types(),
                 |&target: &Id<Type>, _| {
-                    if self.type_(target).flags().intersects(TypeFlags::Object) {
+                    if target.ref_(self).flags().intersects(TypeFlags::Object) {
                         let overlap_obj_flags =
-                            source_object_flags & get_object_flags(&self.type_(target));
+                            source_object_flags & get_object_flags(&target.ref_(self));
                         if overlap_obj_flags.intersects(ObjectFlags::Reference) {
-                            return self.type_(source).as_type_reference_interface().target()
-                                == self.type_(target).as_type_reference_interface().target();
+                            return source.ref_(self).as_type_reference_interface().target()
+                                == target.ref_(self).as_type_reference_interface().target();
                         }
                         if overlap_obj_flags.intersects(ObjectFlags::Anonymous) {
-                            return self.type_(source).maybe_alias_symbol().is_some()
-                                && self.type_(source).maybe_alias_symbol()
-                                    == self.type_(target).maybe_alias_symbol();
+                            return source.ref_(self).maybe_alias_symbol().is_some()
+                                && source.ref_(self).maybe_alias_symbol()
+                                    == target.ref_(self).maybe_alias_symbol();
                         }
                     }
                     false
@@ -790,7 +790,7 @@ impl TypeChecker {
         source: Id<Type>,
         union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<Option<Id<Type>>> {
-        if get_object_flags(&self.type_(source)).intersects(ObjectFlags::ObjectLiteral)
+        if get_object_flags(&source.ref_(self)).intersects(ObjectFlags::ObjectLiteral)
             && self.try_some_type(union_target, |type_: Id<Type>| {
                 self.is_array_like_type(type_)
             })?
@@ -862,10 +862,10 @@ impl TypeChecker {
                 Option::<Id<Symbol>>::None,
                 None,
             )?;
-            if self.type_(overlap).flags().intersects(TypeFlags::Index) {
+            if overlap.ref_(self).flags().intersects(TypeFlags::Index) {
                 best_match = Some(target.clone());
                 matching_count = usize::MAX;
-            } else if self.type_(overlap).flags().intersects(TypeFlags::Union) {
+            } else if overlap.ref_(self).flags().intersects(TypeFlags::Union) {
                 let len = length(Some(&filter(
                     &self
                         .type_(overlap)
@@ -892,9 +892,9 @@ impl TypeChecker {
     ) -> Id<Type> {
         if self.maybe_type_of_kind(type_, TypeFlags::NonPrimitive) {
             let result = self.filter_type(type_, |t: Id<Type>| {
-                !self.type_(t).flags().intersects(TypeFlags::Primitive)
+                !t.ref_(self).flags().intersects(TypeFlags::Primitive)
             });
-            if !self.type_(result).flags().intersects(TypeFlags::Never) {
+            if !result.ref_(self).flags().intersects(TypeFlags::Never) {
                 return result;
             }
         }
@@ -908,7 +908,7 @@ impl TypeChecker {
         mut is_related_to: impl FnMut(Id<Type>, Id<Type>) -> io::Result<Ternary>,
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
-        if self.type_(target).flags().intersects(TypeFlags::Union)
+        if target.ref_(self).flags().intersects(TypeFlags::Union)
             && self
                 .type_(source)
                 .flags()

@@ -15,7 +15,7 @@ use crate::{
     is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag,
     is_statement, is_type_alias, length, maybe_concatenate, skip_parentheses, try_map,
     walk_up_parenthesized_types_and_get_parent_and_child, AsDoubleDeref, BaseObjectType,
-    CheckFlags, Diagnostics, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface,
+    CheckFlags, Diagnostics, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface, InArena,
     InterfaceTypeInterface, Node, NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
     OptionTry, SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
@@ -28,7 +28,7 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
         let mut inferences: Option<Vec<Id<Type>>> = None;
-        if let Some(type_parameter_symbol) = self.type_(type_parameter).maybe_symbol() {
+        if let Some(type_parameter_symbol) = type_parameter.ref_(self).maybe_symbol() {
             if let Some(type_parameter_symbol_declarations) = self
                 .symbol(type_parameter_symbol)
                 .maybe_declarations()
@@ -206,7 +206,7 @@ impl TypeChecker {
             .is_none()
         {
             if let Some(type_parameter_target) = {
-                let type_parameter_target = self.type_(type_parameter).as_type_parameter().target;
+                let type_parameter_target = type_parameter.ref_(self).as_type_parameter().target;
                 type_parameter_target
             } {
                 let target_constraint =
@@ -221,14 +221,16 @@ impl TypeChecker {
                     })?,
                     None => self.no_constraint_type(),
                 };
-                self.type_(type_parameter)
+                type_parameter
+                    .ref_(self)
                     .as_type_parameter()
                     .set_constraint(constraint);
             } else {
                 let constraint_declaration = self.get_constraint_declaration(type_parameter);
                 match constraint_declaration {
                     None => {
-                        self.type_(type_parameter)
+                        type_parameter
+                            .ref_(self)
                             .as_type_parameter()
                             .set_constraint(
                                 self.get_inferred_type_parameter_constraint(type_parameter)?
@@ -237,7 +239,7 @@ impl TypeChecker {
                     }
                     Some(constraint_declaration) => {
                         let mut type_ = self.get_type_from_type_node_(&constraint_declaration)?;
-                        if self.type_(type_).flags().intersects(TypeFlags::Any)
+                        if type_.ref_(self).flags().intersects(TypeFlags::Any)
                             && !self.is_error_type(type_)
                         {
                             type_ = if constraint_declaration.parent().parent().kind()
@@ -248,7 +250,8 @@ impl TypeChecker {
                                 self.unknown_type()
                             };
                         }
-                        self.type_(type_parameter)
+                        type_parameter
+                            .ref_(self)
                             .as_type_parameter()
                             .set_constraint(type_);
                     }
@@ -273,7 +276,7 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let tp = get_declaration_of_kind(
-            &self.symbol(self.type_(type_parameter).symbol()),
+            &self.symbol(type_parameter.ref_(self).symbol()),
             SyntaxKind::TypeParameter,
         )
         .unwrap();
@@ -291,10 +294,10 @@ impl TypeChecker {
             let length = types.len();
             let mut i = 0;
             while i < length {
-                let start_id = self.type_(types[i]).id();
+                let start_id = types[i].ref_(self).id();
                 let mut count = 1;
                 while i + count < length
-                    && self.type_(types[i + count]).id()
+                    && types[i + count].ref_(self).id()
                         == start_id + TypeId::try_from(count).unwrap()
                 {
                     count += 1;
@@ -339,8 +342,8 @@ impl TypeChecker {
     ) -> ObjectFlags {
         let mut result = ObjectFlags::None;
         for &type_ in types {
-            if !self.type_(type_).flags().intersects(exclude_kinds) {
-                result |= get_object_flags(&self.type_(type_));
+            if !type_.ref_(self).flags().intersects(exclude_kinds) {
+                result |= get_object_flags(&type_.ref_(self));
             }
         }
         result & ObjectFlags::PropagatingFlags
@@ -360,7 +363,7 @@ impl TypeChecker {
             .map(Clone::clone);
         if type_.is_none() {
             let type_ =
-                self.create_object_type(ObjectFlags::Reference, self.type_(target).maybe_symbol());
+                self.create_object_type(ObjectFlags::Reference, target.ref_(self).maybe_symbol());
             type_.set_object_flags(
                 type_.object_flags()
                     | if let Some(type_arguments) = type_arguments.as_ref() {
@@ -370,7 +373,8 @@ impl TypeChecker {
                     },
             );
             let type_ = self.alloc_type(TypeReference::new(type_, target, type_arguments).into());
-            self.type_(target)
+            target
+                .ref_(self)
                 .as_generic_type()
                 .instantiations()
                 .insert(id, type_.clone());
@@ -380,11 +384,12 @@ impl TypeChecker {
     }
 
     pub(super) fn clone_type_reference(&self, source: Id<Type> /*TypeReference*/) -> Id<Type> {
-        let type_ = self.create_type(self.type_(source).flags());
-        type_.set_symbol(self.type_(source).maybe_symbol());
+        let type_ = self.create_type(source.ref_(self).flags());
+        type_.set_symbol(source.ref_(self).maybe_symbol());
         let type_ = BaseObjectType::new(
             type_,
-            self.type_(source)
+            source
+                .ref_(self)
                 .as_type_reference_interface()
                 .object_flags(),
         );
@@ -392,7 +397,7 @@ impl TypeChecker {
             TypeReference::new(
                 type_,
                 {
-                    let target = self.type_(source).as_type_reference_interface().target();
+                    let target = source.ref_(self).as_type_reference_interface().target();
                     target
                 },
                 {
@@ -429,12 +434,12 @@ impl TypeChecker {
             };
         }
         let mut type_ =
-            self.create_object_type(ObjectFlags::Reference, self.type_(target).maybe_symbol());
+            self.create_object_type(ObjectFlags::Reference, target.ref_(self).maybe_symbol());
         type_.mapper = mapper;
         let type_ = self.alloc_type(TypeReference::new(type_, target, None).into());
-        *self.type_(type_).as_type_reference().maybe_node_mut() = Some(node.node_wrapper());
-        *self.type_(type_).maybe_alias_symbol_mut() = alias_symbol;
-        *self.type_(type_).maybe_alias_type_arguments_mut() = alias_type_arguments;
+        *type_.ref_(self).as_type_reference().maybe_node_mut() = Some(node.node_wrapper());
+        *type_.ref_(self).maybe_alias_symbol_mut() = alias_symbol;
+        *type_.ref_(self).maybe_alias_type_arguments_mut() = alias_type_arguments;
         Ok(type_)
     }
 
@@ -452,7 +457,7 @@ impl TypeChecker {
                 .push_type_resolution(&type_.into(), TypeSystemPropertyName::ResolvedTypeArguments)
             {
                 return Ok(self
-                    .type_(self.type_(type_).as_type_reference_interface().target())
+                    .type_(type_.ref_(self).as_type_reference_interface().target())
                     .as_interface_type()
                     .maybe_local_type_parameters()
                     .map_or_else(
@@ -475,7 +480,7 @@ impl TypeChecker {
             } else {
                 let node = node.unwrap();
                 if node.kind() == SyntaxKind::TypeReference {
-                    let target = self.type_(type_).as_type_reference_interface().target();
+                    let target = type_.ref_(self).as_type_reference_interface().target();
                     concatenate(
                         {
                             let outer_type_parameters = self
@@ -527,7 +532,11 @@ impl TypeChecker {
                     .type_(type_)
                     .as_type_reference_interface()
                     .maybe_resolved_type_arguments_mut() = Some(
-                    self.type_(self.type_(type_).as_type_reference_interface().target())
+                    type_
+                        .ref_(self)
+                        .as_type_reference_interface()
+                        .target()
+                        .ref_(self)
                         .as_interface_type()
                         .maybe_local_type_parameters()
                         .map_or_else(
@@ -541,13 +550,14 @@ impl TypeChecker {
                         ),
                 );
                 self.error(
-                    self.type_(type_)
+                    type_
+                        .ref_(self)
                         .as_type_reference_interface()
                         .maybe_node()
                         .clone()
                         .or_else(|| self.maybe_current_node()),
                     if self
-                        .type_(self.type_(type_).as_type_reference_interface().target())
+                        .type_(type_.ref_(self).as_type_reference_interface().target())
                         .maybe_symbol()
                         .is_some()
                     {
@@ -556,7 +566,7 @@ impl TypeChecker {
                         &Diagnostics::Tuple_type_arguments_circularly_reference_themselves
                     },
                     if let Some(type_target_symbol) = self
-                        .type_(self.type_(type_).as_type_reference_interface().target())
+                        .type_(type_.ref_(self).as_type_reference_interface().target())
                         .maybe_symbol()
                     {
                         Some(vec![self.symbol_to_string_(
@@ -582,7 +592,11 @@ impl TypeChecker {
 
     pub(super) fn get_type_reference_arity(&self, type_: Id<Type> /*TypeReference*/) -> usize {
         length(
-            self.type_(self.type_(type_).as_type_reference_interface().target())
+            type_
+                .ref_(self)
+                .as_type_reference_interface()
+                .target()
+                .ref_(self)
                 .as_interface_type()
                 .maybe_type_parameters(),
         )
@@ -764,8 +778,8 @@ impl TypeChecker {
                     ),
                 );
                 let error_type = error_type.unwrap();
-                *self.type_(error_type).maybe_alias_symbol_mut() = Some(symbol);
-                *self.type_(error_type).maybe_alias_type_arguments_mut() = type_arguments;
+                *error_type.ref_(self).maybe_alias_symbol_mut() = Some(symbol);
+                *error_type.ref_(self).maybe_alias_type_arguments_mut() = type_arguments;
                 self.error_types().insert(id, error_type.clone());
             }
             return Ok(error_type.unwrap());
@@ -1007,7 +1021,8 @@ impl TypeChecker {
                 let is_import_type_with_qualifier = node.kind() == SyntaxKind::ImportType
                     && node.as_import_type_node().qualifier.is_some();
                 if let Some(value_type_symbol) =
-                    self.type_(value_type)
+                    value_type
+                        .ref_(self)
                         .maybe_symbol()
                         .filter(|&value_type_symbol| {
                             value_type_symbol != symbol && is_import_type_with_qualifier

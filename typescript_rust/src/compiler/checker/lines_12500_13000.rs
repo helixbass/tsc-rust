@@ -18,7 +18,7 @@ use crate::{
     is_value_signature_declaration, last_or_undefined, length, map_defined, maybe_filter,
     node_is_missing, node_starts_new_lexical_environment, return_ok_default_if_none,
     return_ok_false_if_none, try_for_each_child_bool, try_map, try_maybe_map, try_some, CheckFlags,
-    Debug_, Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, IndexInfo,
+    Debug_, Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, IndexInfo,
     InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
     NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
     SignatureDeclarationInterface, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
@@ -967,7 +967,7 @@ impl TypeChecker {
                 self.create_object_type(ObjectFlags::Anonymous, Option::<Id<Symbol>>::None)
                     .into(),
             );
-            self.type_(type_).as_resolvable_type().resolve(
+            type_.ref_(self).as_resolvable_type().resolve(
                 self.empty_symbols(),
                 // TODO: seems doable to hav per-type "empty vec singletons" for GcVec?
                 vec![].into(),
@@ -1094,7 +1094,8 @@ impl TypeChecker {
                 && !self.is_generic_type(type_)?
                 && try_some(
                     Some(
-                        self.type_(type_)
+                        type_
+                            .ref_(self)
                             .as_union_or_intersection_type_interface()
                             .types(),
                     ),
@@ -1108,7 +1109,8 @@ impl TypeChecker {
     ) -> Option<Gc<Node /*TypeNode*/>> {
         map_defined(
             maybe_filter(
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .maybe_symbol()
                     .and_then(|symbol| self.symbol(symbol).maybe_declarations().clone())
                     .as_deref(),

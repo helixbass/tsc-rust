@@ -10,10 +10,10 @@ use crate::{
     has_syntactic_modifier, is_ambient_module, is_computed_property_name,
     is_entity_name_expression, is_export_assignment, is_private_identifier,
     is_property_name_literal, is_static, node_is_missing, node_is_present, return_ok_none_if_none,
-    try_map, try_maybe_for_each, Debug_, DiagnosticMessage, Diagnostics, HasArena, ModifierFlags,
-    ModuleInstanceState, Node, NodeArray, NodeInterface, OptionTry, ReadonlyTextRange, Signature,
-    SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction,
+    try_map, try_maybe_for_each, Debug_, DiagnosticMessage, Diagnostics, HasArena, InArena,
+    ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, OptionTry,
+    ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -308,14 +308,14 @@ impl TypeChecker {
 
         let type_as_promise = type_;
         if let Some(type_as_promise_promised_type_of_promise) =
-            *self.type_(type_as_promise).maybe_promised_type_of_promise()
+            *type_as_promise.ref_(self).maybe_promised_type_of_promise()
         {
             return Ok(Some(type_as_promise_promised_type_of_promise.clone()));
         }
 
         if self.is_reference_to_type(type_, self.get_global_promise_type(false)?) {
             let ret = self.get_type_arguments(type_)?[0].clone();
-            *self.type_(type_as_promise).maybe_promised_type_of_promise() = Some(ret.clone());
+            *type_as_promise.ref_(self).maybe_promised_type_of_promise() = Some(ret.clone());
             return Ok(Some(ret));
         }
 
@@ -389,7 +389,7 @@ impl TypeChecker {
             None,
             None,
         )?;
-        *self.type_(type_as_promise).maybe_promised_type_of_promise() = Some(ret.clone());
+        *type_as_promise.ref_(self).maybe_promised_type_of_promise() = Some(ret.clone());
         Ok(Some(ret))
     }
 
@@ -429,16 +429,16 @@ impl TypeChecker {
     }
 
     pub(super) fn is_awaited_type_instantiation(&self, type_: Id<Type>) -> io::Result<bool> {
-        if self.type_(type_).flags().intersects(TypeFlags::Conditional) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
             let awaited_symbol = self.get_global_awaited_symbol(false)?;
             return Ok(matches!(
                 awaited_symbol,
                 Some(awaited_symbol) if matches!(
-                    self.type_(type_).maybe_alias_symbol(),
+                    type_.ref_(self).maybe_alias_symbol(),
                     Some(type_alias_symbol) if type_alias_symbol == awaited_symbol
                 )
             ) && matches!(
-                self.type_(type_).maybe_alias_type_arguments().as_ref(),
+                type_.ref_(self).maybe_alias_type_arguments().as_ref(),
                 Some(type_alias_type_arguments) if type_alias_type_arguments.len() == 1
             ));
         }
@@ -446,7 +446,7 @@ impl TypeChecker {
     }
 
     pub(super) fn unwrap_awaited_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        Ok(if self.type_(type_).flags().intersects(TypeFlags::Union) {
+        Ok(if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             self.try_map_type(
                 type_,
                 &mut |type_| Ok(Some(self.unwrap_awaited_type(type_)?)),
@@ -454,7 +454,8 @@ impl TypeChecker {
             )?
             .unwrap()
         } else if self.is_awaited_type_instantiation(type_)? {
-            self.type_(type_)
+            type_
+                .ref_(self)
                 .maybe_alias_type_arguments()
                 .as_ref()
                 .unwrap()[0]
@@ -478,7 +479,8 @@ impl TypeChecker {
             if match base_constraint {
                 None => true,
                 Some(base_constraint) => {
-                    self.type_(base_constraint)
+                    base_constraint
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::AnyOrUnknown)
                         || self.is_empty_object_type(base_constraint)?
@@ -534,13 +536,13 @@ impl TypeChecker {
 
         let type_as_awaitable = type_;
         if let Some(type_as_awaitable_awaited_type_of_type) =
-            *self.type_(type_as_awaitable).maybe_awaited_type_of_type()
+            *type_as_awaitable.ref_(self).maybe_awaited_type_of_type()
         {
             return Ok(Some(type_as_awaitable_awaited_type_of_type.clone()));
         }
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
-        if self.type_(type_).flags().intersects(TypeFlags::Union) {
+        if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             let mut mapper = |constituent_type: Id<Type>| {
                 if error_node.is_some() {
                     self.get_awaited_type_no_alias(
@@ -559,18 +561,18 @@ impl TypeChecker {
                 }
             };
             let ret = self.try_map_type(type_, &mut mapper, None)?;
-            *self.type_(type_as_awaitable).maybe_awaited_type_of_type() = ret.clone();
+            *type_as_awaitable.ref_(self).maybe_awaited_type_of_type() = ret.clone();
             return Ok(ret);
         }
 
         let promised_type = self.get_promised_type_of_promise(type_, Option::<&Node>::None)?;
         if let Some(promised_type) = promised_type {
-            if self.type_(type_).id() == self.type_(promised_type).id()
+            if type_.ref_(self).id() == promised_type.ref_(self).id()
                 || self
                     .awaited_type_stack()
                     .iter()
                     .rev()
-                    .position(|awaited_type_id| *awaited_type_id == self.type_(promised_type).id())
+                    .position(|awaited_type_id| *awaited_type_id == promised_type.ref_(self).id())
                     .is_some()
             {
                 if error_node.is_some() {
@@ -583,7 +585,7 @@ impl TypeChecker {
                 return Ok(None);
             }
 
-            self.awaited_type_stack().push(self.type_(type_).id());
+            self.awaited_type_stack().push(type_.ref_(self).id());
             let awaited_type = self.get_awaited_type_no_alias(
                 promised_type,
                 error_node.as_deref(),
@@ -594,8 +596,7 @@ impl TypeChecker {
 
             let awaited_type = return_ok_none_if_none!(awaited_type);
 
-            *self.type_(type_as_awaitable).maybe_awaited_type_of_type() =
-                Some(awaited_type.clone());
+            *type_as_awaitable.ref_(self).maybe_awaited_type_of_type() = Some(awaited_type.clone());
             return Ok(Some(awaited_type));
         }
 
@@ -608,7 +609,7 @@ impl TypeChecker {
         }
 
         let ret = type_;
-        *self.type_(type_as_awaitable).maybe_awaited_type_of_type() = Some(ret.clone());
+        *type_as_awaitable.ref_(self).maybe_awaited_type_of_type() = Some(ret.clone());
         Ok(Some(ret))
     }
 }

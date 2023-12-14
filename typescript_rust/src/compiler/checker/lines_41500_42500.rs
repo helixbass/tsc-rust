@@ -23,11 +23,11 @@ use crate::{
     return_ok_default_if_none, should_preserve_const_enums, token_to_string, try_cast,
     try_for_each_child_bool, try_some, Debug_, Diagnostic, Diagnostics, EmitResolver,
     ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
-    LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
-    NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName, PragmaName,
-    Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTracker,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
-    UnwrapOrEmpty,
+    InArena, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName,
+    PragmaName, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind, UnwrapOrEmpty,
 };
 
 impl TypeChecker {
@@ -262,7 +262,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_function_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(self.type_(type_).flags().intersects(TypeFlags::Object)
+        Ok(type_.ref_(self).flags().intersects(TypeFlags::Object)
             && !self
                 .get_signatures_of_type(type_, SignatureKind::Call)?
                 .is_empty())
@@ -445,7 +445,7 @@ impl TypeChecker {
             .type_(type_)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
-            && self.type_(type_).maybe_symbol() == symbol
+            && type_.ref_(self).maybe_symbol() == symbol
         {
             flags |= NodeBuilderFlags::AllowUniqueESSymbolType;
         }
@@ -590,9 +590,9 @@ impl TypeChecker {
         enclosing: &Node,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Gc<Node /*Expression*/>> {
-        let enum_result = if self.type_(type_).flags().intersects(TypeFlags::EnumLiteral) {
+        let enum_result = if type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
-                self.type_(type_).symbol(),
+                type_.ref_(self).symbol(),
                 Some(SymbolFlags::Value),
                 Some(enclosing),
                 None,
@@ -608,7 +608,7 @@ impl TypeChecker {
         if let Some(enum_result) = enum_result {
             return Ok(enum_result);
         }
-        Ok(match &*self.type_(type_) {
+        Ok(match &*type_.ref_(self) {
             Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
                 get_factory().create_big_int_literal(type_.value.clone())
             }

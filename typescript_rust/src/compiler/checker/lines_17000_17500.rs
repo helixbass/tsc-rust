@@ -21,10 +21,10 @@ use crate::{
     is_omitted_expression, is_spread_assignment, length, some, try_flat_map, try_map, try_some,
     unescape_leading_underscores, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
     Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface, HasArena,
-    HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface, Number, OptionTry,
-    RelationComparisonResult, Signature, SignatureDeclarationInterface, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeComparer, TypeFlags,
-    TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    HasInitializerInterface, InArena, NamedDeclarationInterface, Node, NodeInterface, Number,
+    OptionTry, RelationComparisonResult, Signature, SignatureDeclarationInterface, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeComparer,
+    TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -88,13 +88,13 @@ impl TypeChecker {
     }
 
     pub(super) fn is_or_has_generic_conditional(&self, type_: Id<Type>) -> bool {
-        self.type_(type_).flags().intersects(TypeFlags::Conditional)
+        type_.ref_(self).flags().intersects(TypeFlags::Conditional)
             || self
                 .type_(type_)
                 .flags()
                 .intersects(TypeFlags::Intersection)
                 && some(
-                    Some(self.type_(type_).as_intersection_type().types()),
+                    Some(type_.ref_(self).as_intersection_type().types()),
                     Some(|&type_: &Id<Type>| self.is_or_has_generic_conditional(type_)),
                 )
     }
@@ -348,7 +348,7 @@ impl TypeChecker {
                 Some(result_obj.clone()),
             )?;
             if result_obj.errors_len() > 0 {
-                if let Some(target_symbol) = self.type_(target).maybe_symbol() {
+                if let Some(target_symbol) = target.ref_(self).maybe_symbol() {
                     let target_symbol_ref = self.symbol(target_symbol);
                     let target_symbol_declarations = target_symbol_ref.maybe_declarations();
                     if let Some(target_symbol_declarations) = target_symbol_declarations
@@ -410,7 +410,7 @@ impl TypeChecker {
         if idx.is_some() {
             return Ok(idx);
         }
-        if self.type_(target).flags().intersects(TypeFlags::Union) {
+        if target.ref_(self).flags().intersects(TypeFlags::Union) {
             let best = self.get_best_matching_type(
                 source,
                 target,
@@ -631,7 +631,7 @@ impl TypeChecker {
                                 target_prop,
                                 Some(target_prop) if length(self.symbol(target_prop).maybe_declarations().as_deref()) > 0
                             ) || matches!(
-                                self.type_(target).maybe_symbol(),
+                                target.ref_(self).maybe_symbol(),
                                 Some(target_symbol) if length(self.symbol(target_symbol).maybe_declarations().as_deref()) > 0
                             ))
                         {
@@ -646,7 +646,7 @@ impl TypeChecker {
                                     .unwrap()[0]
                                     .clone()
                             } else {
-                                self.symbol(self.type_(target).symbol())
+                                self.symbol(target.ref_(self).symbol())
                                     .maybe_declarations()
                                     .as_ref()
                                     .unwrap()[0]
@@ -660,7 +660,7 @@ impl TypeChecker {
                                     &reported_diag,
                                     vec![
                                         create_diagnostic_for_node(&target_node, &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1, Some(vec![
-                                                    if property_name.is_some() && !self.type_(name_type).flags().intersects(TypeFlags::UniqueESSymbol) {
+                                                    if property_name.is_some() && !name_type.ref_(self).flags().intersects(TypeFlags::UniqueESSymbol) {
                                                         unescape_leading_underscores(property_name.as_ref().unwrap()).to_owned()
                                                     } else {
                                                         self.type_to_string_(
@@ -1035,7 +1035,7 @@ impl TypeChecker {
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
-        if self.type_(target).flags().intersects(TypeFlags::Primitive) {
+        if target.ref_(self).flags().intersects(TypeFlags::Primitive) {
             return Ok(false);
         }
         if self.is_tuple_like_type(source)? {
@@ -1088,7 +1088,7 @@ impl TypeChecker {
                 )?;
                 if
                 /* !type ||*/
-                self.type_(type_).flags().intersects(TypeFlags::Never) {
+                type_.ref_(self).flags().intersects(TypeFlags::Never) {
                     return Ok(vec![]);
                 }
                 Ok(match prop.kind() {
@@ -1133,7 +1133,7 @@ impl TypeChecker {
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
-        if self.type_(target).flags().intersects(TypeFlags::Primitive) {
+        if target.ref_(self).flags().intersects(TypeFlags::Primitive) {
             return Ok(false);
         }
         self.elaborate_elementwise(

@@ -10,8 +10,9 @@ use crate::{
     append, is_class_static_block_declaration, some, ObjectTypeInterface, Signature, SignatureKind,
     SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
     get_containing_function_or_class_static_block, get_function_flags, try_map, Diagnostics,
-    FunctionFlags, HasArena, IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node,
-    NodeInterface, OptionTry, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
+    FunctionFlags, HasArena, InArena, IterationTypeCacheKey, IterationTypes,
+    IterationTypesResolver, Node, NodeInterface, OptionTry, Symbol, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -579,13 +580,13 @@ impl TypeChecker {
         }
 
         if let Some(method_type_symbol) =
-            method_type.and_then(|method_type| self.type_(method_type).maybe_symbol())
+            method_type.and_then(|method_type| method_type.ref_(self).maybe_symbol())
         {
             if method_signatures.len() == 1 {
                 let global_generator_type = (resolver.get_global_generator_type)(self, false)?;
                 let global_iterator_type = (resolver.get_global_iterator_type)(self, false)?;
                 let is_generator_method = matches!(
-                    self.type_(global_generator_type).maybe_symbol().and_then(|global_generator_type_symbol| {
+                    global_generator_type.ref_(self).maybe_symbol().and_then(|global_generator_type_symbol| {
                         self.symbol(global_generator_type_symbol).maybe_members().clone()
                     }).and_then(|global_generator_type_symbol_members| {
                         (*global_generator_type_symbol_members).borrow().get(method_name).cloned()
@@ -594,7 +595,7 @@ impl TypeChecker {
                 );
                 let is_iterator_method = !is_generator_method
                     && matches!(
-                        self.type_(global_iterator_type).maybe_symbol().and_then(|global_iterator_type_symbol| {
+                        global_iterator_type.ref_(self).maybe_symbol().and_then(|global_iterator_type_symbol| {
                             self.symbol(global_iterator_type_symbol).maybe_members().clone()
                         }).and_then(|global_iterator_type_symbol_members| {
                             (*global_iterator_type_symbol_members).borrow().get(method_name).cloned()
@@ -608,12 +609,13 @@ impl TypeChecker {
                         global_iterator_type
                     };
                     let method_type = method_type.unwrap();
-                    let mapper = self.type_(method_type).as_object_type().maybe_mapper();
+                    let mapper = method_type.ref_(self).as_object_type().maybe_mapper();
                     return Ok(Some(
                         self.create_iteration_types(
                             Some(
                                 self.get_mapped_type(
-                                    self.type_(global_type)
+                                    global_type
+                                        .ref_(self)
                                         .as_generic_type()
                                         .maybe_type_parameters()
                                         .unwrap()[0],
@@ -622,7 +624,8 @@ impl TypeChecker {
                             ),
                             Some(
                                 self.get_mapped_type(
-                                    self.type_(global_type)
+                                    global_type
+                                        .ref_(self)
                                         .as_generic_type()
                                         .maybe_type_parameters()
                                         .unwrap()[1],
@@ -632,7 +635,8 @@ impl TypeChecker {
                             if method_name == "next" {
                                 Some(
                                     self.get_mapped_type(
-                                        self.type_(global_type)
+                                        global_type
+                                            .ref_(self)
                                             .as_generic_type()
                                             .maybe_type_parameters()
                                             .unwrap()[2],
@@ -899,7 +903,7 @@ impl TypeChecker {
         let node_as_return_statement = node.as_return_statement();
         if self.strict_null_checks
             || node_as_return_statement.expression.is_some()
-            || self.type_(return_type).flags().intersects(TypeFlags::Never)
+            || return_type.ref_(self).flags().intersects(TypeFlags::Never)
         {
             let expr_type = match node_as_return_statement.expression.as_ref() {
                 Some(expression) => self.check_expression_cached(&expression, None)?,

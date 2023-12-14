@@ -9,10 +9,10 @@ use crate::{
     is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, map, some,
     symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref, BaseInterfaceType, CheckFlags,
     DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface, HasArena,
-    HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TransientSymbolInterface, TupleType, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceInterface,
+    HasTypeArgumentsInterface, InArena, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
 };
 
 impl TypeChecker {
@@ -121,7 +121,7 @@ impl TypeChecker {
         }
         let symbol = symbol.unwrap();
         let type_ = self.get_declared_type_of_symbol(symbol)?;
-        if !self.type_(type_).flags().intersects(TypeFlags::Object) {
+        if !type_.ref_(self).flags().intersects(TypeFlags::Object) {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
@@ -134,7 +134,8 @@ impl TypeChecker {
             });
         }
         if length(
-            self.type_(type_)
+            type_
+                .ref_(self)
                 .maybe_as_interface_type()
                 .and_then(|type_| type_.maybe_type_parameters()),
         ) != arity
@@ -1173,7 +1174,8 @@ impl TypeChecker {
             )
             .into(),
         );
-        self.type_(this_type)
+        this_type
+            .ref_(self)
             .as_type_parameter()
             .set_constraint(type_.clone());
         let mut instantiations = HashMap::new();
@@ -1181,26 +1183,32 @@ impl TypeChecker {
             self.get_type_list_id(type_parameters.as_deref()),
             type_.clone(),
         );
-        self.type_(type_)
+        type_
+            .ref_(self)
             .as_interface_type()
             .set_target(type_.clone());
         *self
             .type_(type_)
             .as_interface_type()
             .maybe_resolved_type_arguments_mut() = type_parameters;
-        self.type_(type_)
+        type_
+            .ref_(self)
             .as_interface_type()
             .set_declared_properties(properties);
-        self.type_(type_)
+        type_
+            .ref_(self)
             .as_interface_type()
             .set_declared_call_signatures(vec![]);
-        self.type_(type_)
+        type_
+            .ref_(self)
             .as_interface_type()
             .set_declared_construct_signatures(vec![]);
-        self.type_(type_)
+        type_
+            .ref_(self)
             .as_interface_type()
             .set_declared_index_infos(vec![]);
-        self.type_(type_)
+        type_
+            .ref_(self)
             .as_interface_type()
             .genericize(instantiations);
         Ok(type_)

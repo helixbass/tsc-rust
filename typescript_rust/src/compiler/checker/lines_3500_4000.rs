@@ -17,7 +17,7 @@ use crate::{
     is_type_literal_node, is_variable_declaration, length, mangle_scoped_package_name,
     node_is_synthesized, push_if_unique_eq, push_if_unique_gc, return_ok_default_if_none,
     return_ok_none_if_none, try_for_each_entry, try_map_defined, unescape_leading_underscores,
-    Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InternalSymbolName,
+    Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName,
     ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SymbolTable,
 };
@@ -330,12 +330,11 @@ impl TypeChecker {
         result_links.type_ = Some(
             self.create_anonymous_type(
                 Some(result.clone()),
-                self.type_(resolved_module_type)
-                    .as_resolved_type()
-                    .members(),
+                resolved_module_type.ref_(self).as_resolved_type().members(),
                 vec![],
                 vec![],
-                self.type_(resolved_module_type)
+                resolved_module_type
+                    .ref_(self)
                     .as_resolved_type()
                     .index_infos()
                     .clone(),
@@ -453,7 +452,7 @@ impl TypeChecker {
             .type_(resolved_external_module_type)
             .flags()
             .intersects(TypeFlags::Primitive)
-            || get_object_flags(&self.type_(resolved_external_module_type))
+            || get_object_flags(&resolved_external_module_type.ref_(self))
                 .intersects(ObjectFlags::Class)
             || self.is_array_type(resolved_external_module_type)
             || self.is_tuple_type(resolved_external_module_type))

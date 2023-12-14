@@ -16,10 +16,10 @@ use crate::{
     some, try_for_each, try_for_each_bool, try_for_each_child, try_some, AsDoubleDeref,
     ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
     FindAncestorCallbackReturn, HasArena, HasInitializerInterface, HasTypeArgumentsInterface,
-    IndexInfo, InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
-    NodeArray, NodeFlags, NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, ScriptTarget,
-    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TypeFlags, TypeInterface,
+    InArena, IndexInfo, InterfaceTypeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, OptionTry,
+    ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -227,7 +227,7 @@ impl TypeChecker {
                     let type_ = self.get_type_for_variable_like_declaration(declaration, false)?;
                     if matches!(
                         type_,
-                        Some(type_) if !self.type_(type_).flags().intersects(TypeFlags::AnyOrUnknown)
+                        Some(type_) if !type_.ref_(self).flags().intersects(TypeFlags::AnyOrUnknown)
                     ) {
                         self.grammar_error_on_first_token(
                             type_node,
@@ -364,9 +364,9 @@ impl TypeChecker {
         }
         let index_infos = self.get_applicable_index_infos(type_, prop_name_type)?;
         let interface_declaration =
-            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Interface) {
+            if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
-                    &self.symbol(self.type_(type_).symbol()),
+                    &self.symbol(type_.ref_(self).symbol()),
                     SyntaxKind::InterfaceDeclaration,
                 )
             } else {
@@ -379,7 +379,7 @@ impl TypeChecker {
             name.as_ref(),
             Some(name) if name.kind() == SyntaxKind::ComputedPropertyName
         ) || self.get_parent_of_symbol(prop)?
-            == self.type_(type_).maybe_symbol()
+            == type_.ref_(self).maybe_symbol()
         {
             declaration
         } else {
@@ -392,7 +392,7 @@ impl TypeChecker {
                     .try_filter(|info_declaration| -> io::Result<_> {
                         Ok(self.get_parent_of_symbol(
                             self.get_symbol_of_node(info_declaration)?.unwrap(),
-                        )? == self.type_(type_).maybe_symbol())
+                        )? == type_.ref_(self).maybe_symbol())
                     })?;
             let error_node = local_prop_declaration
                 .clone()
@@ -442,9 +442,9 @@ impl TypeChecker {
         let declaration = check_info.declaration.as_ref();
         let index_infos = self.get_applicable_index_infos(type_, check_info.key_type)?;
         let interface_declaration =
-            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Interface) {
+            if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
-                    &self.symbol(self.type_(type_).symbol()),
+                    &self.symbol(type_.ref_(self).symbol()),
                     SyntaxKind::InterfaceDeclaration,
                 )
             } else {
@@ -454,7 +454,7 @@ impl TypeChecker {
             .try_filter(|declaration| -> io::Result<_> {
                 Ok(
                     self.get_parent_of_symbol(self.get_symbol_of_node(declaration)?.unwrap())?
-                        == self.type_(type_).maybe_symbol(),
+                        == type_.ref_(self).maybe_symbol(),
                 )
             })?
             .cloned();
@@ -468,7 +468,7 @@ impl TypeChecker {
                     .try_filter(|info_declaration| -> io::Result<_> {
                         Ok(self.get_parent_of_symbol(
                             self.get_symbol_of_node(info_declaration)?.unwrap(),
-                        )? == self.type_(type_).maybe_symbol())
+                        )? == type_.ref_(self).maybe_symbol())
                     })?;
             let error_node = local_check_declaration
                 .clone()
@@ -619,7 +619,7 @@ impl TypeChecker {
                 .intersects(TypeFlags::TypeParameter)
             {
                 for i in index..type_parameters.len() {
-                    if self.type_(type_).maybe_symbol()
+                    if type_.ref_(self).maybe_symbol()
                         == self.get_symbol_of_node(&type_parameters[i])?
                     {
                         self.error(
@@ -666,7 +666,8 @@ impl TypeChecker {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
             if !self.are_type_parameters_identical(
                 &declarations,
-                self.type_(type_)
+                type_
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_local_type_parameters(),
             )? {
@@ -712,7 +713,7 @@ impl TypeChecker {
                     .name()
                     .as_identifier()
                     .escaped_text
-                    != self.symbol(self.type_(target).symbol()).escaped_name()
+                    != self.symbol(target.ref_(self).symbol()).escaped_name()
                 {
                     return Ok(false);
                 }
@@ -918,7 +919,7 @@ impl TypeChecker {
                 let base_with_this = self.get_type_with_this_argument(
                     base_type,
                     {
-                        let this_type = self.type_(type_).as_interface_type().maybe_this_type();
+                        let this_type = type_.ref_(self).as_interface_type().maybe_this_type();
                         this_type
                     },
                     None,
@@ -977,7 +978,7 @@ impl TypeChecker {
                 }
 
                 if !matches!(
-                    self.type_(static_base_type).maybe_symbol(),
+                    static_base_type.ref_(self).maybe_symbol(),
                     Some(static_base_type_symbol) if self.symbol(static_base_type_symbol).flags().intersects(SymbolFlags::Class)
                 ) && !self
                     .type_(base_constructor_type)
@@ -1036,7 +1037,7 @@ impl TypeChecker {
                     if !self.is_error_type(t) {
                         if self.is_valid_base_type(t)? {
                             let generic_diag = if matches!(
-                                self.type_(t).maybe_symbol(),
+                                t.ref_(self).maybe_symbol(),
                                 Some(t_symbol) if self.symbol(t_symbol).flags().intersects(SymbolFlags::Class)
                             ) {
                                 &*Diagnostics::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass
@@ -1045,7 +1046,7 @@ impl TypeChecker {
                             };
                             let base_with_this = self.get_type_with_this_argument(
                                 t,
-                                self.type_(type_).as_interface_type().maybe_this_type(),
+                                type_.ref_(self).as_interface_type().maybe_this_type(),
                                 None,
                             )?;
                             if !self.check_type_assignable_to(

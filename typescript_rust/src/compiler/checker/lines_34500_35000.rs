@@ -19,7 +19,7 @@ use crate::{
     Diagnostics, ElementFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
     ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, HasArena,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -343,8 +343,8 @@ impl TypeChecker {
                     None
                 }
                 .or_else(|| {
-                    if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
-                        self.type_(self.type_(type_).as_type_reference_interface().target())
+                    if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference) {
+                        type_.ref_(self).as_type_reference_interface().target().ref_(self)
                             .as_interface_type_interface()
                             .maybe_local_type_parameters()
                             .map(ToOwned::to_owned)
@@ -418,7 +418,7 @@ impl TypeChecker {
                         self.symbol(symbol).escaped_name(),
                     );
                 }
-                if self.type_(type_).flags().intersects(TypeFlags::Enum)
+                if type_.ref_(self).flags().intersects(TypeFlags::Enum)
                     && self
                         .symbol(symbol)
                         .flags()
@@ -497,7 +497,7 @@ impl TypeChecker {
         if self.produce_diagnostics {
             let type_ =
                 self.get_type_from_type_literal_or_function_or_constructor_type_node(node)?;
-            self.check_index_constraints(type_, self.type_(type_).symbol(), None)?;
+            self.check_index_constraints(type_, type_.ref_(self).symbol(), None)?;
             self.check_type_for_duplicate_index_signatures(node)?;
             self.check_object_type_for_duplicate_declarations(node);
         }
@@ -544,7 +544,7 @@ impl TypeChecker {
                 if self.is_array_type(type_)
                     || self.is_tuple_type(type_)
                         && self
-                            .type_(self.type_(type_).as_type_reference_interface().target())
+                            .type_(type_.ref_(self).as_type_reference_interface().target())
                             .as_tuple_type()
                             .combined_flags
                             .intersects(ElementFlags::Rest)
@@ -621,7 +621,7 @@ impl TypeChecker {
             return Ok(type_);
         }
         let (object_type, index_type) = {
-            let type_ = self.type_(type_);
+            let type_ = type_.ref_(self);
             let type_as_indexed_access_type = type_.as_indexed_access_type();
             (
                 type_as_indexed_access_type.object_type,
@@ -634,7 +634,7 @@ impl TypeChecker {
         )? {
             if access_node.kind() == SyntaxKind::ElementAccessExpression
                 && is_assignment_target(access_node)
-                && get_object_flags(&self.type_(object_type)).intersects(ObjectFlags::Mapped)
+                && get_object_flags(&object_type.ref_(self)).intersects(ObjectFlags::Mapped)
                 && self
                     .get_mapped_type_modifiers(object_type)
                     .intersects(MappedTypeModifiers::IncludeReadonly)
