@@ -632,10 +632,13 @@ impl TypeChecker {
                         if (*global_this_symbol_exports)
                             .borrow()
                             .contains_key(right.as_member_name().escaped_text())
-                            && (*global_this_symbol_exports)
-                                .borrow()
-                                .get(right.as_member_name().escaped_text())
-                                .unwrap()
+                            && self
+                                .symbol(
+                                    (*global_this_symbol_exports)
+                                        .borrow()
+                                        .get(right.as_member_name().escaped_text())
+                                        .unwrap(),
+                                )
                                 .flags()
                                 .intersects(SymbolFlags::BlockScoped)
                         {
@@ -799,8 +802,7 @@ impl TypeChecker {
             {
                 let declaration_file = maybe_for_each(
                     suggestion
-                        .as_ref()
-                        .and_then(|suggestion| suggestion.maybe_declarations().clone())
+                        .and_then(|suggestion| self.symbol(suggestion).maybe_declarations().clone())
                         .as_ref(),
                     |declaration: &Gc<Node>, _| maybe_get_source_file_of_node(Some(&**declaration)),
                 );
@@ -812,8 +814,8 @@ impl TypeChecker {
                     ) && self.is_global_source_file(declaration_file)
                 ) && !(exclude_classes
                     && matches!(
-                        suggestion.as_ref(),
-                        Some(suggestion) if suggestion.flags().intersects(SymbolFlags::Class)
+                        suggestion,
+                        Some(suggestion) if self.symbol(suggestion).flags().intersects(SymbolFlags::Class)
                     ))
                     && !(matches!(
                         node.as_ref(),
@@ -839,16 +841,16 @@ impl TypeChecker {
             return Ok(self.remove_missing_type(
                 prop_type,
                 matches!(
-                    prop.as_ref(),
-                    Some(prop) if prop.flags().intersects(SymbolFlags::Optional)
+                    prop,
+                    Some(prop) if self.symbol(prop).flags().intersects(SymbolFlags::Optional)
                 ),
             ));
         }
         if matches!(
-            prop.as_ref(),
-            Some(prop) if !prop.flags().intersects(SymbolFlags::Variable | SymbolFlags::Property | SymbolFlags::Accessor) &&
-                !(prop.flags().intersects(SymbolFlags::Method) && self.type_(prop_type).flags().intersects(TypeFlags::Union)) &&
-                !self.is_duplicated_common_js_export(prop.maybe_declarations().as_deref())
+            prop,
+            Some(prop) if !self.symbol(prop).flags().intersects(SymbolFlags::Variable | SymbolFlags::Property | SymbolFlags::Accessor) &&
+                !(self.symbol(prop).flags().intersects(SymbolFlags::Method) && self.type_(prop_type).flags().intersects(TypeFlags::Union)) &&
+                !self.is_duplicated_common_js_export(self.symbol(prop).maybe_declarations().as_deref())
         ) {
             return Ok(prop_type);
         }
@@ -863,8 +865,7 @@ impl TypeChecker {
             && node.as_has_expression().expression().kind() == SyntaxKind::ThisKeyword
         {
             let declaration = prop
-                .as_ref()
-                .and_then(|prop| prop.maybe_value_declaration());
+                .and_then(|prop| self.symbol(prop).maybe_value_declaration());
             if let Some(declaration) = declaration
                 .as_ref()
                 .filter(|declaration| self.is_property_without_initializer(declaration))
@@ -881,7 +882,7 @@ impl TypeChecker {
             }
         } else if self.strict_null_checks
             && matches!(
-                prop.as_ref().and_then(|prop| prop.maybe_value_declaration()).as_ref(),
+                prop.and_then(|prop| self.symbol(prop).maybe_value_declaration()).as_ref(),
                 Some(prop_value_declaration) if is_property_access_expression(prop_value_declaration) &&
                     get_assignment_declaration_property_access_kind(prop_value_declaration) != AssignmentDeclarationKind::None &&
                     Gc::ptr_eq(
@@ -914,7 +915,7 @@ impl TypeChecker {
                 Some(error_node),
                 &Diagnostics::Property_0_is_used_before_being_assigned,
                 Some(vec![self.symbol_to_string_(
-                    prop.as_ref().unwrap(),
+                    prop.unwrap(),
                     Option::<&Node>::None,
                     None,
                     None,
@@ -1031,17 +1032,17 @@ impl TypeChecker {
         &self,
         prop: Id<Symbol>,
     ) -> io::Result<bool> {
-        if !self
+        if !self.symbol(self
             .symbol(prop)
             .maybe_parent()
-            .unwrap()
+            .unwrap())
             .flags()
             .intersects(SymbolFlags::Class)
         {
             return Ok(false);
         }
         let mut class_type: Option<Id<Type>> =
-            Some(self.get_type_of_symbol(&self.symbol(prop).maybe_parent().unwrap())?);
+            Some(self.get_type_of_symbol(self.symbol(prop).maybe_parent().unwrap())?);
         loop {
             let class_type_present = class_type.unwrap();
             class_type = if self.type_(class_type_present).maybe_symbol().is_some() {

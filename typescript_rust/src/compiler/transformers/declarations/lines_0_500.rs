@@ -152,6 +152,7 @@ pub(super) fn declaration_emit_node_builder_flags() -> NodeBuilderFlags {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformDeclarations {
+    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Gc<Box<dyn TransformationContext>>,
@@ -198,10 +199,14 @@ pub(super) struct TransformDeclarations {
 }
 
 impl TransformDeclarations {
-    pub(super) fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    pub(super) fn new(
+        arena: *const AllArenas,
+        context: Gc<Box<dyn TransformationContext>>,
+    ) -> Gc<Box<Self>> {
         let options = context.get_compiler_options();
         let host = context.get_emit_host();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: Default::default(),
             get_symbol_accessibility_diagnostic: GcCell::new(throw_diagnostic()),
             needs_declare: Cell::new(true),
@@ -243,7 +248,7 @@ impl TransformDeclarations {
     }
 
     pub(super) fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
-        self.arena.symbol(symbol)
+        self.arena().symbol(symbol)
     }
 
     pub(super) fn as_transformer(&self) -> Transformer {

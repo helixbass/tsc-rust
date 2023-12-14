@@ -649,7 +649,7 @@ impl TypeChecker {
                 get_host_signature_from_jsdoc(name),
             )?;
             if symbol.is_none() && is_identifier(name) {
-                if let Some(container) = container.as_ref() {
+                if let Some(container) = container {
                     symbol = self.get_merged_symbol(self.get_symbol(
                         &(*self.get_exports_of_symbol(container)?).borrow(),
                         &name.as_identifier().escaped_text,
@@ -678,8 +678,8 @@ impl TypeChecker {
                 .escaped_text
                 .clone()
         };
-        if let Some(left) = left.as_ref() {
-            let proto = if left.flags().intersects(SymbolFlags::Value) {
+        if let Some(left) = left {
+            let proto = if self.symbol(left).flags().intersects(SymbolFlags::Value) {
                 self.get_property_of_type_(self.get_type_of_symbol(left)?, "prototype", None)?
             } else {
                 None

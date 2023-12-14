@@ -27,13 +27,13 @@ impl TypeChecker {
         let right = right.unwrap();
         let this_type = self.get_intersection_type(
             &vec![
-                self.get_type_of_symbol(&left)?,
-                self.instantiate_type(self.get_type_of_symbol(&right)?, mapper)?,
+                self.get_type_of_symbol(left)?,
+                self.instantiate_type(self.get_type_of_symbol(right)?, mapper)?,
             ],
             Option::<Id<Symbol>>::None,
             None,
         )?;
-        Ok(Some(self.create_symbol_with_type(&left, Some(this_type))))
+        Ok(Some(self.create_symbol_with_type(left, Some(this_type))))
     }
 
     pub(super) fn combine_union_parameters(
@@ -177,8 +177,8 @@ impl TypeChecker {
         let declaration = left.declaration.clone();
         let params = self.combine_union_parameters(&left, &right, param_mapper.clone())?;
         let this_param = self.combine_union_this_param(
-            left.maybe_this_parameter(),
-            right.maybe_this_parameter(),
+            *left.maybe_this_parameter(),
+            *right.maybe_this_parameter(),
             param_mapper.clone(),
         )?;
         let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
@@ -780,7 +780,7 @@ impl TypeChecker {
                 inferred_prop.set_declarations(prop_declarations);
             }
             inferred_prop.symbol_links().borrow_mut().name_type =
-                (*self.get_symbol_links(&prop)).borrow().name_type.clone();
+                (*self.get_symbol_links(prop)).borrow().name_type.clone();
             let property_type = self.get_type_of_symbol(prop)?;
             let mapped_type: Id<Type>;
             let constraint_type: Id<Type>;
@@ -913,7 +913,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_is_late_check_flag(&self, s: Id<Symbol>) -> CheckFlags {
-        get_check_flags(s) & CheckFlags::Late
+        get_check_flags(&self.symbol(s)) & CheckFlags::Late
     }
 
     #[allow(dead_code)]
@@ -1109,7 +1109,7 @@ impl TypeChecker {
         if self.is_type_usable_as_property_name(prop_name_type) {
             let prop_name = self.get_property_name_from_type(prop_name_type);
             let existing_prop = members.get(&*prop_name);
-            if let Some(existing_prop) = existing_prop {
+            if let Some(&existing_prop) = existing_prop {
                 let existing_prop_as_mapped_symbol = self.symbol(existing_prop).as_mapped_symbol();
                 let existing_prop_name_type = (*existing_prop_as_mapped_symbol.symbol_links())
                     .borrow()
@@ -1146,7 +1146,10 @@ impl TypeChecker {
                 let is_optional = template_modifiers
                     .intersects(MappedTypeModifiers::IncludeOptional)
                     || !template_modifiers.intersects(MappedTypeModifiers::ExcludeOptional)
-                        && matches!(modifiers_prop.as_ref(), Some(modifiers_prop) if self.symbol(modifiers_prop).flags().intersects(SymbolFlags::Optional));
+                        && matches!(
+                            modifiers_prop,
+                            Some(modifiers_prop) if self.symbol(modifiers_prop).flags().intersects(SymbolFlags::Optional)
+                        );
                 let is_readonly = template_modifiers
                     .intersects(MappedTypeModifiers::IncludeReadonly)
                     || !template_modifiers.intersects(MappedTypeModifiers::ExcludeReadonly)
@@ -1156,7 +1159,10 @@ impl TypeChecker {
                         );
                 let strip_optional = self.strict_null_checks
                     && !is_optional
-                    && matches!(modifiers_prop.as_ref(), Some(modifiers_prop) if self.symbol(modifiers_prop).flags().intersects(SymbolFlags::Optional));
+                    && matches!(
+                        modifiers_prop,
+                        Some(modifiers_prop) if self.symbol(modifiers_prop).flags().intersects(SymbolFlags::Optional)
+                    );
                 let late_flag = if let Some(modifiers_prop) = modifiers_prop {
                     self.get_is_late_check_flag(modifiers_prop)
                 } else {

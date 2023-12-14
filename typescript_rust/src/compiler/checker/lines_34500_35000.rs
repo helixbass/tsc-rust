@@ -405,7 +405,7 @@ impl TypeChecker {
                 .borrow()
                 .resolved_symbol
                 .clone();
-            if let Some(symbol) = symbol.as_ref() {
+            if let Some(symbol) = symbol {
                 if some(
                     self.symbol(symbol).maybe_declarations().as_deref(),
                     Some(|d: &Gc<Node>| {
@@ -1100,7 +1100,7 @@ impl TypeChecker {
                                         .unwrap_or_else(|| declaration.clone()),
                                 ),
                                 diagnostic,
-                                Some(vec![symbol_name(symbol).into_owned()]),
+                                Some(vec![symbol_name(&self.symbol(symbol)).into_owned()]),
                             ),
                             related_diagnostics.clone(),
                         );

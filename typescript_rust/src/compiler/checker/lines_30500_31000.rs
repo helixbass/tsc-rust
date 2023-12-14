@@ -82,7 +82,7 @@ impl TypeChecker {
             return Ok(());
         }
         let apparent_type_symbol = apparent_type_symbol.unwrap();
-        let import_node = (*self.get_symbol_links(&apparent_type_symbol))
+        let import_node = (*self.get_symbol_links(apparent_type_symbol))
             .borrow()
             .originating_import
             .clone();
@@ -92,7 +92,7 @@ impl TypeChecker {
         {
             let sigs = self.get_signatures_of_type(
                 self.get_type_of_symbol(
-                    &(*self.get_symbol_links(&apparent_type_symbol))
+                    (*self.get_symbol_links(apparent_type_symbol))
                         .borrow()
                         .target
                         .clone()
@@ -558,7 +558,7 @@ impl TypeChecker {
 
             let symbol = self.get_symbol_of_node(func)?;
             return Ok(matches!(
-                symbol.as_ref().and_then(|symbol| self.symbol(symbol).maybe_members().clone()).as_ref(),
+                symbol.and_then(|symbol| self.symbol(symbol).maybe_members().clone()).as_ref(),
                 Some(symbol_members) if !(**symbol_members).borrow().is_empty(),
             ));
         }
@@ -571,7 +571,6 @@ impl TypeChecker {
         source: Option<Id<Symbol>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let source = return_ok_default_if_none!(source);
-        let source = source.borrow();
         let links = self.get_symbol_links(source);
         if !matches!(
             (*links).borrow().inferred_class_symbol.as_ref(),
@@ -583,7 +582,7 @@ impl TypeChecker {
                 self.clone_symbol(target)
             };
             {
-                let mut inferred_exports = inferred.maybe_exports_mut();
+                let mut inferred_exports = self.symbol(inferred).maybe_exports_mut();
                 if inferred_exports.is_none() {
                     *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
@@ -592,7 +591,7 @@ impl TypeChecker {
                 }
             }
             {
-                let mut inferred_members = inferred.maybe_members_mut();
+                let mut inferred_members = self.symbol(inferred).maybe_members_mut();
                 if inferred_members.is_none() {
                     *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
@@ -600,14 +599,15 @@ impl TypeChecker {
                     ))));
                 }
             }
-            inferred
-                .set_flags(inferred.flags() | (self.symbol(source).flags() & SymbolFlags::Class));
+            self.symbol(inferred).set_flags(
+                self.symbol(inferred).flags() | (self.symbol(source).flags() & SymbolFlags::Class),
+            );
             if matches!(
                 self.symbol(source).maybe_exports().as_ref(),
                 Some(source_exports) if !(**source_exports).borrow().is_empty()
             ) {
                 self.merge_symbol_table(
-                    inferred.maybe_exports().clone().unwrap(),
+                    self.symbol(inferred).maybe_exports().clone().unwrap(),
                     &(*self.symbol(source).maybe_exports().clone().unwrap()).borrow(),
                     None,
                 )?;
@@ -631,7 +631,7 @@ impl TypeChecker {
                     .inferred_class_symbol
                     .as_mut()
                     .unwrap()
-                    .insert(get_symbol_id(&inferred), inferred.clone());
+                    .insert(get_symbol_id(&self.symbol(inferred)), inferred.clone());
             }
             return Ok(Some(inferred));
         }
@@ -659,8 +659,7 @@ impl TypeChecker {
                     .cloned()
             });
         let init = prototype
-            .as_ref()
-            .and_then(|prototype| prototype.maybe_value_declaration())
+            .and_then(|prototype| self.symbol(prototype).maybe_value_declaration())
             .and_then(|prototype_value_declaration| {
                 self.get_assigned_js_prototype(&prototype_value_declaration)
             });

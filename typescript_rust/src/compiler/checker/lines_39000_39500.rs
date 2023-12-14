@@ -602,8 +602,8 @@ impl TypeChecker {
             .borrow()
             .get(name)
             .cloned();
-        if let Some(member_symbol) = member_symbol.as_ref() {
-            let declaration = member_symbol.maybe_value_declaration();
+        if let Some(member_symbol) = member_symbol {
+            let declaration = self.symbol(member_symbol).maybe_value_declaration();
             if !matches!(
                 declaration.as_ref(),
                 Some(declaration) if ptr::eq(
@@ -987,8 +987,8 @@ impl TypeChecker {
                     #[allow(unused_assignments)]
                     if !report_error {
                         report_error = matches!(
-                            self.symbol(symbol).maybe_parent().as_ref().and_then(|symbol_parent| {
-                                symbol_parent.maybe_declarations().clone()
+                            self.symbol(symbol).maybe_parent().and_then(|symbol_parent| {
+                                self.symbol(symbol_parent).maybe_declarations().clone()
                             }).as_ref(),
                             Some(symbol_parent_declarations) if is_external_module_augmentation(&symbol_parent_declarations[0])
                         );

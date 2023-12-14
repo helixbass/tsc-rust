@@ -419,7 +419,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
-        if get_check_flags(symbol).intersects(CheckFlags::Synthetic) {
+        if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
                 Some(
                     self.type_(
@@ -464,7 +464,7 @@ impl TypeChecker {
         let mut target: Option<Id<Symbol>> = None;
         let mut next = Some(symbol);
         while {
-            next = (*self.get_symbol_links(next.as_ref().unwrap()))
+            next = (*self.get_symbol_links(next.unwrap()))
                 .borrow()
                 .target
                 .clone();
@@ -572,9 +572,9 @@ impl TypeChecker {
                 Some(self.is_name_of_module_or_enum_declaration(node)),
             )?;
             if let Some(mut symbol) = symbol {
-                if symbol.flags().intersects(SymbolFlags::ExportValue) {
+                if self.symbol(symbol).flags().intersects(SymbolFlags::ExportValue) {
                     let export_symbol = self
-                        .get_merged_symbol(symbol.maybe_export_symbol())
+                        .get_merged_symbol(self.symbol(symbol).maybe_export_symbol())
                         .unwrap();
                     if prefix_locals != Some(true)
                         && self
@@ -745,7 +745,7 @@ impl TypeChecker {
                 if let Some(symbol) = symbol.try_filter(|&symbol| {
                     self.is_symbol_of_declaration_with_colliding_name(symbol)
                 })? {
-                    return Ok(symbol.maybe_value_declaration());
+                    return Ok(self.symbol(symbol).maybe_value_declaration());
                 }
             }
         }

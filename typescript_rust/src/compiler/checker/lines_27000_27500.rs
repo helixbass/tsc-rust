@@ -605,7 +605,7 @@ impl TypeChecker {
         for right in self.get_properties_of_type(type_)? {
             if !self.symbol(right).flags().intersects(SymbolFlags::Optional) {
                 let left = props.get(self.symbol(right).escaped_name());
-                if let Some(left) = left {
+                if let Some(&left) = left {
                     let diagnostic = self.error(
                         self.symbol(left).maybe_value_declaration(),
                         &Diagnostics::_0_is_specified_more_than_once_so_this_usage_will_be_overwritten,
@@ -766,13 +766,13 @@ impl TypeChecker {
             location.as_ref().unwrap(),
             None,
         )?;
-        let result =
-            mod_.filter(|mod_| mod_ != self.unknown_symbol())
-                .try_map(|mod_| -> io::Result<_> {
-                    Ok(self
-                        .get_merged_symbol(self.resolve_symbol(Some(mod_), None)?)
-                        .unwrap())
-                })?;
+        let result = mod_.filter(|&mod_| mod_ != self.unknown_symbol()).try_map(
+            |mod_| -> io::Result<_> {
+                Ok(self
+                    .get_merged_symbol(self.resolve_symbol(Some(mod_), None)?)
+                    .unwrap())
+            },
+        )?;
         if let Some(links) = links.as_ref() {
             links.borrow_mut().jsx_implicit_import_container = Some(result.clone());
         }

@@ -913,7 +913,7 @@ impl TypeChecker {
                             {
                                 self.get_initializer_type_from_assignment_declaration(
                                     symbol,
-                                    resolved_symbol.as_deref(),
+                                    resolved_symbol,
                                     &expression,
                                     kind,
                                 )?
@@ -1068,7 +1068,7 @@ impl TypeChecker {
             }
         }
         if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
-            if let Some(symbol_parent_value_declaration) = symbol_parent.maybe_value_declaration() {
+            if let Some(symbol_parent_value_declaration) = self.symbol(symbol_parent).maybe_value_declaration() {
                 let type_node =
                     get_effective_type_annotation_node(&symbol_parent_value_declaration);
                 if let Some(type_node) = type_node {
@@ -1097,7 +1097,7 @@ impl TypeChecker {
         kind: AssignmentDeclarationKind,
     ) -> io::Result<Id<Type>> {
         if is_call_expression(expression) {
-            if let Some(resolved_symbol) = resolved_symbol.as_ref() {
+            if let Some(resolved_symbol) = resolved_symbol {
                 return self.get_type_of_symbol(resolved_symbol);
             }
             let object_lit_type =
@@ -1129,7 +1129,7 @@ impl TypeChecker {
         )? {
             return Ok(self.any_type());
         }
-        let type_ = if let Some(resolved_symbol) = resolved_symbol.as_ref() {
+        let type_ = if let Some(resolved_symbol) = resolved_symbol {
             self.get_type_of_symbol(resolved_symbol)?
         } else {
             self.get_widened_literal_type(
@@ -1147,8 +1147,8 @@ impl TypeChecker {
                 &mut members,
             );
             let initial_size = members.len();
-            if let Some(resolved_symbol) = resolved_symbol.as_ref() {
-                let mut resolved_symbol_exports = resolved_symbol.maybe_exports_mut();
+            if let Some(resolved_symbol) = resolved_symbol {
+                let mut resolved_symbol_exports = self.symbol(resolved_symbol).maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
                     *resolved_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
@@ -1162,7 +1162,7 @@ impl TypeChecker {
                 if let Some(exported_member) =
                     exported_member.filter(|&exported_member| exported_member != s)
                 {
-                    if s.flags().intersects(SymbolFlags::Value)
+                    if self.symbol(s).flags().intersects(SymbolFlags::Value)
                         && self
                             .symbol(exported_member)
                             .flags()
@@ -1249,13 +1249,13 @@ impl TypeChecker {
                                 .maybe_declarations()
                                 .as_ref()
                                 .map_or_else(|| vec![], |declarations| declarations.clone()),
-                            s.maybe_declarations()
+                            self.symbol(s).maybe_declarations()
                                 .as_ref()
                                 .map_or_else(|| vec![], |declarations| declarations.clone()),
                         ));
                         members.insert(name.clone(), union);
                     } else {
-                        members.insert(name.clone(), self.merge_symbol(s, &exported_member, None)?);
+                        members.insert(name.clone(), self.merge_symbol(s, exported_member, None)?);
                     }
                 } else {
                     members.insert(name.clone(), s.clone());

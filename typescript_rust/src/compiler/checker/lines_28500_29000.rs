@@ -197,7 +197,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name, containing_type)?;
-        Ok(suggestion.map(|suggestion| symbol_name(suggestion).into_owned()))
+        Ok(suggestion.map(|suggestion| symbol_name(&self.symbol(suggestion)).into_owned()))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_symbol_(
@@ -464,7 +464,7 @@ impl TypeChecker {
             }
         }
 
-        if get_check_flags(prop).intersects(CheckFlags::Instantiated) {
+        self.symbol(if get_check_flags(&self.symbol(prop)).intersects(CheckFlags::Instantiated) {
             (*self.get_symbol_links(prop))
                 .borrow()
                 .target
@@ -472,7 +472,7 @@ impl TypeChecker {
                 .unwrap()
         } else {
             prop
-        }
+        })
         .set_is_referenced(Some(SymbolFlags::All));
     }
 

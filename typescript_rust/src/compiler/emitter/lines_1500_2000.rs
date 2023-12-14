@@ -307,7 +307,7 @@ impl Printer {
     pub(super) fn emit_identifier(&self, node: &Node /*Identifier*/) -> io::Result<()> {
         let text_of_node = self.get_text_of_node(node, Some(false));
         if let Some(symbol) = node.maybe_symbol() {
-            self.write_symbol(&text_of_node, &symbol);
+            self.write_symbol(&text_of_node, symbol);
         } else {
             self.write(&text_of_node);
         }
@@ -326,7 +326,7 @@ impl Printer {
     pub(super) fn emit_private_identifier(&self, node: &Node /*PrivateIdentifier*/) {
         let text_of_node = self.get_text_of_node(node, Some(false));
         if let Some(symbol) = node.maybe_symbol() {
-            self.write_symbol(&text_of_node, &symbol);
+            self.write_symbol(&text_of_node, symbol);
         } else {
             self.write(&text_of_node);
         }

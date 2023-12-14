@@ -365,7 +365,7 @@ impl TransformDeclarations {
                         self.arena(),
                         Some(&props),
                     )))));
-                    fakespace.set_symbol(self.symbol(props[0].maybe_parent()).unwrap());
+                    fakespace.set_symbol(self.symbol(props[0]).maybe_parent().unwrap());
                     let mut export_mappings: Vec<(Gc<Node /*Identifier*/>, String)> =
                         Default::default();
                     let mut declarations = try_map_defined(

@@ -44,7 +44,7 @@ impl TypeChecker {
                             Some(
                                 self.instantiate_type(
                                     self.get_type_from_type_node_(overall_annotation)?,
-                                    (*self.get_symbol_links(lhs_symbol.as_ref().unwrap()))
+                                    (*self.get_symbol_links(lhs_symbol.unwrap()))
                                         .borrow()
                                         .mapper
                                         .clone(),
@@ -103,8 +103,8 @@ impl TypeChecker {
                             None,
                         )?;
                         if let Some(parent_symbol) = parent_symbol.as_ref() {
-                            let annotated = parent_symbol
-                                .maybe_value_declaration()
+                            let annotated = self.symbol(parent_symbol
+                                ).maybe_value_declaration()
                                 .as_ref()
                                 .and_then(|parent_symbol_value_declaration| {
                                     get_effective_type_annotation_node(
@@ -223,7 +223,6 @@ impl TypeChecker {
         )?;
         Ok(is_this_initialized_declaration(
             symbol
-                .as_ref()
                 .and_then(|symbol| symbol.maybe_value_declaration()),
         ))
     }
@@ -272,7 +271,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_circular_mapped_property(&self, symbol: Id<Symbol>) -> bool {
-        get_check_flags(symbol).intersects(CheckFlags::Mapped)
+        get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Mapped)
             && (*self.symbol(symbol).as_mapped_symbol().symbol_links())
                 .borrow()
                 .type_
@@ -604,7 +603,7 @@ impl TypeChecker {
                                     )?)
                             }
                         )?,
-                        |s: &Id<Symbol>, _| {
+                        |&s: &Id<Symbol>, _| {
                             (
                                 Box::new({
                                     let type_checker = self.rc_wrapper();
@@ -612,7 +611,7 @@ impl TypeChecker {
                                         Ok(type_checker.undefined_type())
                                     }
                                 }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
-                                s.escaped_name().to_owned(),
+                                self.symbol(s).escaped_name().to_owned(),
                             )
                         }
                     ).into_iter()
@@ -685,7 +684,7 @@ impl TypeChecker {
                                     )?)
                             }
                         )?,
-                        |s: &Id<Symbol>, _| {
+                        |&s: &Id<Symbol>, _| {
                             (
                                 Box::new({
                                     let type_checker = self.rc_wrapper();
@@ -693,7 +692,7 @@ impl TypeChecker {
                                         Ok(type_checker.undefined_type())
                                     }
                                 }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
-                                s.escaped_name().to_owned(),
+                                self.symbol(s).escaped_name().to_owned(),
                             )
                         }
                     ).into_iter()

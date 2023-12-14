@@ -6,7 +6,6 @@ use std::{
 };
 
 use gc::Gc;
-use id_arena::Id;
 
 use crate::{
     maybe_map, unescape_leading_underscores, AssertionLevel, Node, NodeArray, NodeInterface,
@@ -232,13 +231,13 @@ impl DebugType {
         }
     }
 
-    pub fn format_symbol(&self, symbol: Id<Symbol>) -> String {
+    pub fn format_symbol(&self, symbol: &Symbol) -> String {
         format!(
             "{{ name: {}; flags: {}; declarations: {:?} }}",
-            unescape_leading_underscores(self.symbol(symbol).escaped_name()),
-            self.format_symbol_flags(Some(self.symbol(symbol).flags())),
+            unescape_leading_underscores(symbol.escaped_name()),
+            self.format_symbol_flags(Some(symbol.flags())),
             maybe_map(
-                self.symbol(symbol).maybe_declarations().as_deref(),
+                symbol.maybe_declarations().as_deref(),
                 |node: &Gc<Node>, _| self.format_syntax_kind(Some(node.kind()))
             )
         )

@@ -31,15 +31,14 @@ impl TypeChecker {
         jsx_namespace: Option<Id<Symbol>>,
     ) -> io::Result<Option<__String>> {
         let jsx_element_attrib_prop_interface_sym =
-            jsx_namespace.as_ref().try_and_then(|jsx_namespace| {
+            jsx_namespace.try_and_then(|jsx_namespace| {
                 self.get_symbol(
-                    &(**jsx_namespace.maybe_exports().as_ref().unwrap()).borrow(),
+                    &(**self.symbol(jsx_namespace).maybe_exports().as_ref().unwrap()).borrow(),
                     name_of_attrib_prop_container,
                     SymbolFlags::Type,
                 )
             })?;
         let jsx_element_attrib_prop_interface_type = jsx_element_attrib_prop_interface_sym
-            .as_ref()
             .try_map(|jsx_element_attrib_prop_interface_sym| {
                 self.get_declared_type_of_symbol(jsx_element_attrib_prop_interface_sym)
             })?;
@@ -55,18 +54,18 @@ impl TypeChecker {
                     return Some("".to_owned());
                 } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
                     return Some(
-                        properties_of_jsx_element_attrib_prop_interface
+                        self.symbol(properties_of_jsx_element_attrib_prop_interface
                             .next()
-                            .unwrap()
+                            .unwrap())
                             .escaped_name()
                             .to_owned(),
                     );
                 } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
                     let jsx_element_attrib_prop_interface_sym =
-                        jsx_element_attrib_prop_interface_sym.as_ref().unwrap();
+                        jsx_element_attrib_prop_interface_sym.unwrap();
                     if let Some(jsx_element_attrib_prop_interface_sym_declarations) =
-                        jsx_element_attrib_prop_interface_sym
-                            .maybe_declarations()
+                        self.symbol(jsx_element_attrib_prop_interface_sym
+                            ).maybe_declarations()
                             .as_ref()
                     {
                         self.error(
@@ -94,7 +93,6 @@ impl TypeChecker {
             return Ok(None);
         }
         let jsx_namespace = jsx_namespace.unwrap();
-        let jsx_namespace = jsx_namespace.borrow();
         let ret = self.get_symbol(
             &(**self.symbol(jsx_namespace).maybe_exports().as_ref().unwrap()).borrow(),
             &JsxNames::LibraryManagedAttributes,
@@ -659,7 +657,11 @@ impl TypeChecker {
         prop: Id<Symbol>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<bool> {
-        let flags = get_declaration_modifier_flags_from_symbol(self.arena(), prop, Some(writing));
+        let flags = get_declaration_modifier_flags_from_symbol(
+            self.arena(),
+            &self.symbol(prop),
+            Some(writing),
+        );
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if is_super {
@@ -734,7 +736,7 @@ impl TypeChecker {
 
         if flags.intersects(ModifierFlags::Private) {
             let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(self.get_parent_of_symbol(prop)?.unwrap())
+                get_class_like_declaration_of_symbol(&self.symbol(self.get_parent_of_symbol(prop)?.unwrap()))
                     .unwrap();
             if !self.is_node_within_class(location, &declaring_class_declaration) {
                 if error_node.is_some() {

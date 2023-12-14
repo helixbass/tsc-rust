@@ -266,7 +266,7 @@ impl TypeChecker {
             None,
         )?;
         let method_type = method
-            .filter(|method| {
+            .filter(|&method| {
                 !self
                     .symbol(method)
                     .flags()

@@ -138,9 +138,9 @@ impl TypeChecker {
                 &root_name.as_identifier().escaped_text,
                 SymbolFlags::Value,
             )?;
-            if let Some(colliding_symbol) = colliding_symbol.as_ref() {
+            if let Some(colliding_symbol) = colliding_symbol {
                 self.error(
-                    colliding_symbol.maybe_value_declaration(),
+                    self.symbol(colliding_symbol).maybe_value_declaration(),
                     &Diagnostics::Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions,
                     Some(vec![
                         id_text(&root_name).to_owned(),
@@ -272,18 +272,15 @@ impl TypeChecker {
             true,
             None,
         )?;
-        if let Some(root_symbol) =
-            root_symbol
-                .as_ref()
-                .try_filter(|root_symbol| -> io::Result<_> {
-                    Ok(root_symbol.flags().intersects(SymbolFlags::Alias)
-                        && self.symbol_is_value(root_symbol)?
-                        && !self.is_const_enum_or_const_enum_only_module(
-                            self.resolve_alias(root_symbol)?,
-                        )
-                        && self.get_type_only_alias_declaration(root_symbol).is_none())
-                })?
-        {
+        if let Some(root_symbol) = root_symbol.try_filter(|&root_symbol| -> io::Result<_> {
+            Ok(self
+                .symbol(root_symbol)
+                .flags()
+                .intersects(SymbolFlags::Alias)
+                && self.symbol_is_value(root_symbol)?
+                && !self.is_const_enum_or_const_enum_only_module(self.resolve_alias(root_symbol)?)
+                && self.get_type_only_alias_declaration(root_symbol).is_none())
+        })? {
             self.mark_alias_symbol_as_referenced(root_symbol)?;
         }
 
@@ -434,7 +431,7 @@ impl TypeChecker {
                         SyntaxKind::GetAccessor
                     };
                     let other_accessor = get_declaration_of_kind(
-                        self.get_symbol_of_node(node)?.unwrap(),
+                        &self.symbol(self.get_symbol_of_node(node)?.unwrap()),
                         other_kind,
                     );
                     self.mark_decorator_medata_data_type_node_as_referenced(

@@ -220,15 +220,15 @@ impl TypeChecker {
         let right = right.unwrap();
         let this_type = self.get_union_type(
             &[
-                self.get_type_of_symbol(&left)?,
-                self.instantiate_type(self.get_type_of_symbol(&right)?, mapper)?,
+                self.get_type_of_symbol(left)?,
+                self.instantiate_type(self.get_type_of_symbol(right)?, mapper)?,
             ],
             None,
             Option::<Id<Symbol>>::None,
             None,
             None,
         )?;
-        Ok(Some(self.create_symbol_with_type(&left, Some(this_type))))
+        Ok(Some(self.create_symbol_with_type(left, Some(this_type))))
     }
 
     pub(super) fn combine_intersection_parameters(
@@ -365,8 +365,8 @@ impl TypeChecker {
         let declaration = left.declaration.as_ref();
         let params = self.combine_intersection_parameters(&left, &right, param_mapper.clone())?;
         let this_param = self.combine_intersection_this_param(
-            left.maybe_this_parameter(),
-            right.maybe_this_parameter(),
+            *left.maybe_this_parameter(),
+            *right.maybe_this_parameter(),
             param_mapper.clone(),
         )?;
         let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
@@ -868,7 +868,7 @@ impl TypeChecker {
             .maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
-        Ok(is_known_symbol(symbol)
+        Ok(is_known_symbol(&self.symbol(symbol))
             || matches!(
                 first_decl.as_ref(),
                 Some(first_decl) if is_named_declaration(first_decl) && is_computed_property_name(&first_decl.as_named_declaration().name()) &&
@@ -1070,14 +1070,14 @@ impl TypeChecker {
                 });
                 let prop = self.alloc_symbol(if let Some(name_type) = name_type {
                     self.create_symbol(
-                        SymbolFlags::Property | member_present.flags(),
+                        SymbolFlags::Property | self.symbol(member_present).flags(),
                         self.get_property_name_from_type(name_type),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
                 } else {
                     self.create_symbol(
-                        SymbolFlags::Property | member_present.flags(),
+                        SymbolFlags::Property | self.symbol(member_present).flags(),
                         self.symbol(member_present).escaped_name().to_owned(),
                         Some(check_flags | CheckFlags::Late),
                     )
@@ -1117,7 +1117,7 @@ impl TypeChecker {
                         self.symbol(member_present).escaped_name(),
                         None,
                     )?;
-                    if let Some(implied_prop) = implied_prop.as_ref() {
+                    if let Some(implied_prop) = implied_prop {
                         self.symbol(prop).set_flags(
                             self.symbol(prop).flags()
                                 | (self.symbol(implied_prop).flags() & SymbolFlags::Optional),
@@ -1281,7 +1281,7 @@ impl TypeChecker {
         }
 
         if contextual_type_has_pattern && node.parent().kind() != SyntaxKind::SpreadAssignment {
-            for ref prop in self.get_properties_of_type(contextual_type.unwrap())? {
+            for prop in self.get_properties_of_type(contextual_type.unwrap())? {
                 if !properties_table.contains_key(self.symbol(prop).escaped_name())
                     && self
                         .get_property_of_type_(spread, self.symbol(prop).escaped_name(), None)?

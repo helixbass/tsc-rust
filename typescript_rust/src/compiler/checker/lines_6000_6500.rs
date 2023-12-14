@@ -179,7 +179,7 @@ impl NodeBuilder {
             None,
         )?;
         if let Some(result) = result {
-            if result.flags().intersects(SymbolFlags::TypeParameter)
+            if self.type_checker.symbol(result).flags().intersects(SymbolFlags::TypeParameter)
                 && matches!(
                     self.type_checker.type_(type_).maybe_symbol(),
                     Some(type_symbol) if result == type_symbol
@@ -360,7 +360,7 @@ impl NodeBuilder {
 
         if is_single_or_double_quote(first_char)
             && some(
-                self.symbol(symbol).maybe_declarations().as_deref(),
+                self.type_checker.symbol(symbol).maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| {
                     self.type_checker
                         .has_non_global_augmentation_external_module_symbol(declaration)

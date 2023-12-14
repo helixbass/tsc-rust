@@ -655,7 +655,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
             Ok(
-                (*self.get_symbol_links(&self.get_symbol_of_node(declaration)?.unwrap()))
+                (*self.get_symbol_links(self.get_symbol_of_node(declaration)?.unwrap()))
                     .borrow()
                     .const_enum_referenced
                     == Some(true),
@@ -690,7 +690,7 @@ impl TypeChecker {
                     Some(is_referenced) if is_referenced != SymbolFlags::None
                 )
                 && !self.is_referenced_alias_declaration(statement, Some(false))?
-                && (*self.get_symbol_links(&self.get_symbol_of_node(statement)?.unwrap()))
+                && (*self.get_symbol_links(self.get_symbol_of_node(statement)?.unwrap()))
                     .borrow()
                     .const_enum_referenced
                     != Some(true)
@@ -776,8 +776,8 @@ impl TypeChecker {
                 );
             } else {
                 self.mark_export_as_referenced(node)?;
-                let target = symbol.as_ref().try_map(|symbol| -> io::Result<_> {
-                    Ok(if symbol.flags().intersects(SymbolFlags::Alias) {
+                let target = symbol.try_map(|symbol| -> io::Result<_> {
+                    Ok(if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
                         self.resolve_alias(symbol)?
                     } else {
                         symbol.clone()
@@ -943,7 +943,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_exported_members(&self, module_symbol: Id<Symbol>) -> bool {
-        for_each_entry_bool(&*(*module_symbol.exports()).borrow(), |_, id| {
+        for_each_entry_bool(&*(*self.symbol(module_symbol).exports()).borrow(), |_, id| {
             id != "export="
         })
     }
@@ -959,7 +959,7 @@ impl TypeChecker {
                 .borrow()
                 .get("export=")
                 .cloned();
-            if let Some(export_equals_symbol) = export_equals_symbol.as_ref() {
+            if let Some(export_equals_symbol) = export_equals_symbol {
                 if self.has_exported_members(module_symbol) {
                     let declaration = self
                         .get_declaration_of_alias_symbol(export_equals_symbol)?

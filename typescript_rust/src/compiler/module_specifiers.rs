@@ -298,6 +298,7 @@ fn get_module_specifier_worker(
 }
 
 fn try_get_module_specifiers_from_cache_worker(
+    checker: &TypeChecker,
     module_symbol: Id<Symbol>,
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
@@ -308,7 +309,7 @@ fn try_get_module_specifiers_from_cache_worker(
     Option<Vec<ModulePath>>,
     Option<Rc<dyn ModuleSpecifierCache>>,
 ) {
-    let module_source_file = get_source_file_of_module(module_symbol);
+    let module_source_file = get_source_file_of_module(&checker.symbol(module_symbol));
     if module_source_file.is_none() {
         return (None, None, None, None);
     }
@@ -372,6 +373,7 @@ pub fn get_module_specifiers_with_cache_info(
 
     let (specifiers, module_source_file, module_paths, cache) =
         try_get_module_specifiers_from_cache_worker(
+            checker,
             module_symbol,
             importing_source_file,
             host,
@@ -1065,7 +1067,7 @@ fn try_get_module_name_from_ambient_module(
                         .cloned()
                 })
                 .and_then(|top_namespace_parent_parent_symbol_exports_got| {
-                    top_namespace_parent_parent_symbol_exports_got.maybe_value_declaration()
+                    checker.symbol(top_namespace_parent_parent_symbol_exports_got).maybe_value_declaration()
                 })
                 .map(
                     |top_namespace_parent_parent_symbol_exports_got_value_declaration| {

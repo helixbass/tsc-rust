@@ -494,7 +494,7 @@ impl TypeChecker {
                     self.create_symbol(SymbolFlags::TypeParameter, new_name, None)
                         .into(),
                 );
-                let mut new_type_parameter = self.create_type_parameter(Some(&*symbol));
+                let mut new_type_parameter = self.create_type_parameter(Some(symbol));
                 new_type_parameter.target = Some(tp.clone());
                 let new_type_parameter: Id<Type> = self.alloc_type(new_type_parameter.into());
                 if old_type_parameters.is_none() {

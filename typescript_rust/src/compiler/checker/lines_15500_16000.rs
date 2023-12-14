@@ -1044,7 +1044,7 @@ impl TypeChecker {
                     self.symbol(result)
                         .set_declarations(prop_declarations.clone());
                 }
-                result_links.name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
+                result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
                 result_links.synthetic_origin = Some(prop.clone());
                 members.insert(self.symbol(prop).escaped_name().to_owned(), result);
             }
@@ -1097,7 +1097,7 @@ impl TypeChecker {
                         Ok(Some(self.get_spread_type(
                             t,
                             right,
-                            symbol.as_deref(),
+                            symbol,
                             object_flags,
                             readonly,
                         )?))
@@ -1119,7 +1119,7 @@ impl TypeChecker {
                             Ok(Some(self.get_spread_type(
                                 left,
                                 t,
-                                symbol.as_deref(),
+                                symbol,
                                 object_flags,
                                 readonly,
                             )?))
@@ -1161,7 +1161,7 @@ impl TypeChecker {
                             vec![self.get_spread_type(
                                 last_left,
                                 right,
-                                symbol.as_deref(),
+                                symbol,
                                 object_flags,
                                 readonly,
                             )?],
@@ -1248,7 +1248,7 @@ impl TypeChecker {
                     if let Some(declarations) = declarations {
                         self.symbol(result).set_declarations(declarations);
                     }
-                    result_links.name_type = (*self.get_symbol_links(&left_prop))
+                    result_links.name_type = (*self.get_symbol_links(left_prop))
                         .borrow()
                         .name_type
                         .clone();
@@ -1263,7 +1263,7 @@ impl TypeChecker {
         }
 
         let spread = self.create_anonymous_type(
-            symbol.as_deref(),
+            symbol,
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],

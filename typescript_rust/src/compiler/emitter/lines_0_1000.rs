@@ -1778,7 +1778,11 @@ impl PrintHandlers for DummyPrintHandlers {
 }
 
 impl Printer {
-    pub fn new(printer_options: PrinterOptions, handlers: Gc<Box<dyn PrintHandlers>>) -> Self {
+    pub fn new(
+        arena: *const AllArenas,
+        printer_options: PrinterOptions,
+        handlers: Gc<Box<dyn PrintHandlers>>,
+    ) -> Self {
         let extended_diagnostics = printer_options.extended_diagnostics == Some(true);
         let new_line =
             get_new_line_character(printer_options.new_line, Option::<fn() -> String>::None);
@@ -1802,6 +1806,7 @@ impl Printer {
         };
         let record_internal_section = printer_options.record_internal_section;
         Self {
+            arena,
             _rc_wrapper: Default::default(),
             printer_options,
             handlers,
