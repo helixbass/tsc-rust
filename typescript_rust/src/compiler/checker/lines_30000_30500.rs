@@ -587,7 +587,7 @@ impl TypeChecker {
                     .ref_(self)
                     .maybe_symbol()
                     .and_then(|expression_type_symbol| {
-                        get_class_like_declaration_of_symbol(&self.symbol(expression_type_symbol))
+                        get_class_like_declaration_of_symbol(&expression_type_symbol.ref_(self))
                     });
             if value_decl
                 .as_ref()
@@ -730,7 +730,7 @@ impl TypeChecker {
         }
 
         let declaring_class_declaration =
-            get_class_like_declaration_of_symbol(&self.symbol(declaration.parent().symbol()))
+            get_class_like_declaration_of_symbol(&declaration.parent().symbol().ref_(self))
                 .unwrap();
         let declaring_class = self.get_declared_type_of_symbol(declaration.parent().symbol())?;
 
@@ -911,7 +911,7 @@ impl TypeChecker {
                 .clone();
             if matches!(
                 resolved_symbol,
-                Some(resolved_symbol) if self.symbol(resolved_symbol).flags().intersects(SymbolFlags::GetAccessor)
+                Some(resolved_symbol) if resolved_symbol.ref_(self).flags().intersects(SymbolFlags::GetAccessor)
             ) {
                 head_message = &*Diagnostics::This_expression_is_not_callable_because_it_is_a_get_accessor_Did_you_mean_to_use_it_without;
             }

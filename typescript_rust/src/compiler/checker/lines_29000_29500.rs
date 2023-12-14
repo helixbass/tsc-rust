@@ -920,7 +920,7 @@ impl TypeChecker {
             );
             let tag_name_declaration = self
                 .get_symbol_at_location_(&node_as_jsx_opening_like_element.tag_name(), None)?
-                .and_then(|symbol| self.symbol(symbol).maybe_value_declaration());
+                .and_then(|symbol| symbol.ref_(self).maybe_value_declaration());
             if let Some(tag_name_declaration) = tag_name_declaration.as_ref() {
                 add_related_info(
                     &diag,

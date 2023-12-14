@@ -197,7 +197,7 @@ impl TypeChecker {
                     && self.is_empty_resolved_type(type_)
                     || matches!(
                         type_.ref_(self).maybe_symbol(),
-                        Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::TypeLiteral)
+                        Some(type_symbol) if type_symbol.ref_(self).flags().intersects(SymbolFlags::TypeLiteral)
                             && (*self.get_members_of_symbol(type_symbol)?).borrow().len() == 0
                     )),
         )
@@ -240,8 +240,8 @@ impl TypeChecker {
         }
         let id = format!(
             "{},{}",
-            get_symbol_id(&self.symbol(source_symbol)),
-            get_symbol_id(&self.symbol(target_symbol))
+            get_symbol_id(&source_symbol.ref_(self)),
+            get_symbol_id(&target_symbol.ref_(self))
         );
         let entry = self.enum_relation().get(&id).map(Clone::clone);
         if let Some(entry) = entry.filter(|entry| {
@@ -251,7 +251,7 @@ impl TypeChecker {
         }) {
             return Ok(entry.intersects(RelationComparisonResult::Succeeded));
         }
-        if self.symbol(source_symbol).escaped_name() != self.symbol(target_symbol).escaped_name()
+        if source_symbol.ref_(self).escaped_name() != target_symbol.ref_(self).escaped_name()
             || !self
                 .symbol(source_symbol)
                 .flags()
@@ -276,7 +276,7 @@ impl TypeChecker {
             {
                 let target_property = self.get_property_of_type_(
                     target_enum_type,
-                    self.symbol(property).escaped_name(),
+                    property.ref_(self).escaped_name(),
                     None,
                 )?;
                 if match target_property {
@@ -290,7 +290,7 @@ impl TypeChecker {
                         error_reporter(
                             Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1),
                             Some(vec![
-                                symbol_name(&self.symbol(property)).into_owned(),
+                                symbol_name(&property.ref_(self)).into_owned(),
                                 self.type_to_string_(
                                     self.get_declared_type_of_symbol(target_symbol)?,
                                     Option::<&Node>::None,
@@ -526,7 +526,7 @@ impl TypeChecker {
         source_prop: Id<Symbol>,
     ) -> bool {
         get_object_flags(&source.ref_(self)).intersects(ObjectFlags::JsxAttributes)
-            && self.is_hyphenated_jsx_name(self.symbol(source_prop).escaped_name())
+            && self.is_hyphenated_jsx_name(source_prop.ref_(self).escaped_name())
     }
 
     pub(super) fn get_normalized_type(

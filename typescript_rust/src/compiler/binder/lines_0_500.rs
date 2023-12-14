@@ -26,7 +26,7 @@ use crate::{
     SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_gc,
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_property_name_literal, object_allocator, set_parent, set_value_declaration, static_arena,
-    AllArenas, BaseSymbol, HasArena, InternalSymbolName, NamedDeclarationInterface, Node,
+    AllArenas, BaseSymbol, HasArena, InArena, InternalSymbolName, NamedDeclarationInterface, Node,
     NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
@@ -772,11 +772,12 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) {
-        self.symbol(symbol)
-            .set_flags(self.symbol(symbol).flags() | symbol_flags);
+        symbol
+            .ref_(self)
+            .set_flags(symbol.ref_(self).flags() | symbol_flags);
 
         node.set_symbol(symbol);
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let mut symbol_declarations = symbol_ref.maybe_declarations_mut();
         if symbol_declarations.is_none() {
             *symbol_declarations = Some(vec![]);
@@ -786,7 +787,7 @@ impl BinderType {
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,
         ) {
-            let symbol_ref = self.symbol(symbol);
+            let symbol_ref = symbol.ref_(self);
             let mut exports = symbol_ref.maybe_exports_mut();
             if exports.is_none() {
                 *exports = Some(Gc::new(GcCell::new(create_symbol_table(
@@ -802,7 +803,7 @@ impl BinderType {
                 | SymbolFlags::TypeLiteral
                 | SymbolFlags::ObjectLiteral,
         ) {
-            let symbol_ref = self.symbol(symbol);
+            let symbol_ref = symbol.ref_(self);
             let mut members = symbol_ref.maybe_members_mut();
             if members.is_none() {
                 *members = Some(Gc::new(GcCell::new(create_symbol_table(
@@ -812,17 +813,15 @@ impl BinderType {
             }
         }
 
-        if matches!(
-            self.symbol(symbol).maybe_const_enum_only_module(),
-            Some(true)
-        ) && symbol_flags
-            .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum)
+        if matches!(symbol.ref_(self).maybe_const_enum_only_module(), Some(true))
+            && symbol_flags
+                .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum)
         {
-            self.symbol(symbol).set_const_enum_only_module(Some(false));
+            symbol.ref_(self).set_const_enum_only_module(Some(false));
         }
 
         if symbol_flags.intersects(SymbolFlags::Value) {
-            set_value_declaration(&self.symbol(symbol), node);
+            set_value_declaration(&symbol.ref_(self), node);
         }
     }
 
@@ -885,7 +884,7 @@ impl BinderType {
                 let containing_class_symbol = containing_class.symbol();
                 return Some(
                     get_symbol_name_for_private_identifier(
-                        &self.symbol(containing_class_symbol),
+                        &containing_class_symbol.ref_(self),
                         &name.as_private_identifier().escaped_text,
                     )
                     .into(),
@@ -1006,24 +1005,26 @@ impl BinderType {
                         ));
                         symbol_table.insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         if is_replaceable_by_method {
-                            self.symbol(symbol.unwrap())
+                            symbol
+                                .unwrap()
+                                .ref_(self)
                                 .set_is_replaceable_by_method(Some(true));
                         }
                     }
                     Some(symbol)
                         if is_replaceable_by_method
                             && !matches!(
-                                self.symbol(symbol).maybe_is_replaceable_by_method(),
+                                symbol.ref_(self).maybe_is_replaceable_by_method(),
                                 Some(true)
                             ) =>
                     {
                         return symbol.clone();
                     }
                     Some(symbol_present)
-                        if self.symbol(symbol_present).flags().intersects(excludes) =>
+                        if symbol_present.ref_(self).flags().intersects(excludes) =>
                     {
                         if matches!(
-                            self.symbol(symbol_present).maybe_is_replaceable_by_method(),
+                            symbol_present.ref_(self).maybe_is_replaceable_by_method(),
                             Some(true)
                         ) {
                             symbol = Some(self.alloc_symbol(
@@ -1065,8 +1066,7 @@ impl BinderType {
                             }
 
                             let mut multiple_default_exports = false;
-                            if length(self.symbol(symbol_present).maybe_declarations().as_deref())
-                                > 0
+                            if length(symbol_present.ref_(self).maybe_declarations().as_deref()) > 0
                             {
                                 if is_default_export {
                                     message =
@@ -1074,7 +1074,7 @@ impl BinderType {
                                     message_needs_name = false;
                                     multiple_default_exports = true;
                                 } else {
-                                    if matches!(self.symbol(symbol_present).maybe_declarations().as_ref(), Some(declarations) if !declarations.is_empty())
+                                    if matches!(symbol_present.ref_(self).maybe_declarations().as_ref(), Some(declarations) if !declarations.is_empty())
                                         && (node.kind() == SyntaxKind::ExportAssignment
                                             && !matches!(
                                                 node.as_export_assignment().is_export_equals,
@@ -1093,7 +1093,7 @@ impl BinderType {
                             if is_type_alias_declaration(node)
                                 && node_is_missing(Some(&*node.as_type_alias_declaration().type_))
                                 && has_syntactic_modifier(node, ModifierFlags::Export)
-                                && self.symbol(symbol_present).flags().intersects(
+                                && symbol_present.ref_(self).flags().intersects(
                                     SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
                                 )
                             {
@@ -1119,7 +1119,7 @@ impl BinderType {
                             let declaration_name: Gc<Node> = get_name_of_declaration(Some(node))
                                 .unwrap_or_else(|| node.node_wrapper());
                             maybe_for_each(
-                                self.symbol(symbol_present).maybe_declarations().as_ref(),
+                                symbol_present.ref_(self).maybe_declarations().as_ref(),
                                 |declaration: &Gc<Node>, index| {
                                     let decl = get_name_of_declaration(Some(&**declaration))
                                         .unwrap_or_else(|| declaration.node_wrapper());
@@ -1203,7 +1203,7 @@ impl BinderType {
         let symbol = symbol.unwrap();
 
         self.add_declaration_to_symbol(symbol, node, includes);
-        if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
+        if let Some(symbol_parent) = symbol.ref_(self).maybe_parent() {
             Debug_.assert(
                 matches!(
                     parent,
@@ -1212,7 +1212,7 @@ impl BinderType {
                 Some("Existing symbol parent should match new one"),
             );
         } else {
-            self.symbol(symbol).set_parent(parent);
+            symbol.ref_(self).set_parent(parent);
         }
 
         symbol

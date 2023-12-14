@@ -15,7 +15,7 @@ use crate::{
     get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier, id_text,
     is_binding_pattern, is_identifier, is_omitted_expression, is_parameter_property_declaration,
     is_private_identifier, is_static, node_is_present, return_ok_default_if_none, try_for_each,
-    DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena,
+    DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InArena,
     ModifierFlags, NamedDeclarationInterface, Node, NodeInterface, ScriptTarget,
     SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
     TypePredicateKind,
@@ -681,7 +681,7 @@ impl TypeChecker {
                 if names.get(&member_name).cloned() == Some(true) {
                     self.error(
                         get_name_of_declaration(
-                            self.symbol(member.symbol()).maybe_value_declaration(),
+                            member.symbol().ref_(self).maybe_value_declaration(),
                         ),
                         &Diagnostics::Duplicate_identifier_0,
                         Some(vec![member_name.clone()]),
@@ -702,7 +702,7 @@ impl TypeChecker {
         if node.kind() == SyntaxKind::InterfaceDeclaration {
             let node_symbol = self.get_symbol_of_node(node)?.unwrap();
             if matches!(
-                self.symbol(node_symbol).maybe_declarations().as_ref(),
+                node_symbol.ref_(self).maybe_declarations().as_ref(),
                 Some(node_symbol_declarations) if !node_symbol_declarations.is_empty() &&
                     !ptr::eq(
                         &*node_symbol_declarations[0],
@@ -715,7 +715,7 @@ impl TypeChecker {
 
         let index_symbol = self.get_index_symbol(self.get_symbol_of_node(node)?.unwrap());
         if let Some(index_symbol_declarations) = index_symbol
-            .and_then(|index_symbol| self.symbol(index_symbol).maybe_declarations().clone())
+            .and_then(|index_symbol| index_symbol.ref_(self).maybe_declarations().clone())
             .as_ref()
         {
             let mut index_signature_map: HashMap<TypeId, IndexSignatureMapValue> = HashMap::new();

@@ -362,15 +362,15 @@ impl TypeChecker {
                 types
             } {
                 for prop in self.get_properties_of_type(current)? {
-                    if !members.contains_key(self.symbol(prop).escaped_name()) {
+                    if !members.contains_key(prop.ref_(self).escaped_name()) {
                         let combined_prop = self.get_property_of_union_or_intersection_type(
                             type_,
-                            self.symbol(prop).escaped_name(),
+                            prop.ref_(self).escaped_name(),
                             None,
                         )?;
                         if let Some(combined_prop) = combined_prop {
                             members
-                                .insert(self.symbol(prop).escaped_name().to_owned(), combined_prop);
+                                .insert(prop.ref_(self).escaped_name().to_owned(), combined_prop);
                         }
                     }
                 }
@@ -468,7 +468,7 @@ impl TypeChecker {
         let mut props = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for &member_type in types {
             for augmented_property in self.get_augmented_properties_of_type(member_type)? {
-                let augmented_property_ref = self.symbol(augmented_property);
+                let augmented_property_ref = augmented_property.ref_(self);
                 let escaped_name = augmented_property_ref.escaped_name();
                 if !props.contains_key(escaped_name) {
                     let prop =
@@ -1084,7 +1084,7 @@ impl TypeChecker {
                 let default_declaration =
                     type_parameter.ref_(self).maybe_symbol().and_then(|symbol| {
                         maybe_for_each(
-                            self.symbol(symbol).maybe_declarations().as_deref(),
+                            symbol.ref_(self).maybe_declarations().as_deref(),
                             |decl: &Gc<Node>, _| {
                                 if is_type_parameter_declaration(decl) {
                                     decl.as_type_parameter_declaration().default.clone()
@@ -1155,7 +1155,7 @@ impl TypeChecker {
     ) -> bool {
         matches!(
             type_parameter.ref_(self).maybe_symbol(),
-            Some(symbol) if maybe_for_each_bool(self.symbol(symbol).maybe_declarations().as_deref(), |decl: &Gc<Node>, _| {
+            Some(symbol) if maybe_for_each_bool(symbol.ref_(self).maybe_declarations().as_deref(), |decl: &Gc<Node>, _| {
                 is_type_parameter_declaration(decl) && decl.as_type_parameter_declaration().default.is_some()
             })
         )

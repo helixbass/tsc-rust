@@ -163,7 +163,8 @@ impl TypeChecker {
                         SymbolFlags::None
                     };
                 let symbol = self.alloc_symbol(self.create_symbol(flags, text, None).into());
-                self.symbol(symbol)
+                symbol
+                    .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
@@ -172,12 +173,13 @@ impl TypeChecker {
                     Some(include_pattern_in_type),
                     Some(report_errors),
                 )?);
-                self.symbol(symbol)
+                symbol
+                    .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .binding_element = Some(e.clone());
-                members.insert(self.symbol(symbol).escaped_name().to_owned(), symbol);
+                members.insert(symbol.ref_(self).escaped_name().to_owned(), symbol);
                 Ok(Option::<()>::None)
             },
         )?;
@@ -423,45 +425,42 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::ModuleExports)
         {
-            if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration() {
+            if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
                 let file_symbol = self
                     .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))?
                     .unwrap();
                 let result = self.alloc_symbol(
-                    self.create_symbol(
-                        self.symbol(file_symbol).flags(),
-                        "exports".to_owned(),
-                        None,
-                    )
-                    .into(),
+                    self.create_symbol(file_symbol.ref_(self).flags(), "exports".to_owned(), None)
+                        .into(),
                 );
-                self.symbol(result).set_declarations(
-                    self.symbol(file_symbol)
+                result.ref_(self).set_declarations(
+                    file_symbol
+                        .ref_(self)
                         .maybe_declarations()
                         .as_ref()
                         .map_or_else(|| vec![], Clone::clone),
                 );
-                self.symbol(result).set_parent(Some(symbol));
-                self.symbol(result)
+                result.ref_(self).set_parent(Some(symbol));
+                result
+                    .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .target = Some(file_symbol.clone());
                 if let Some(file_symbol_value_declaration) =
-                    self.symbol(file_symbol).maybe_value_declaration()
+                    file_symbol.ref_(self).maybe_value_declaration()
                 {
-                    self.symbol(result)
+                    result
+                        .ref_(self)
                         .set_value_declaration(file_symbol_value_declaration);
                 }
-                if let Some(file_symbol_members) = self.symbol(file_symbol).maybe_members().as_ref()
-                {
-                    *self.symbol(result).maybe_members_mut() = Some(Gc::new(GcCell::new(
+                if let Some(file_symbol_members) = file_symbol.ref_(self).maybe_members().as_ref() {
+                    *result.ref_(self).maybe_members_mut() = Some(Gc::new(GcCell::new(
                         (**file_symbol_members).borrow().clone(),
                     )));
                 }
-                if let Some(file_symbol_exports) = self.symbol(file_symbol).maybe_exports().as_ref()
-                {
-                    *self.symbol(result).maybe_exports_mut() = Some(Gc::new(GcCell::new(
+                if let Some(file_symbol_exports) = file_symbol.ref_(self).maybe_exports().as_ref() {
+                    *result.ref_(self).maybe_exports_mut() = Some(Gc::new(GcCell::new(
                         (**file_symbol_exports).borrow().clone(),
                     )));
                 }
@@ -476,8 +475,8 @@ impl TypeChecker {
                 );
             }
         }
-        Debug_.assert_is_defined(&self.symbol(symbol).maybe_value_declaration(), None);
-        let declaration = self.symbol(symbol).maybe_value_declaration();
+        Debug_.assert_is_defined(&symbol.ref_(self).maybe_value_declaration(), None);
+        let declaration = symbol.ref_(self).maybe_value_declaration();
         let declaration = declaration.as_deref().unwrap();
         if is_catch_clause_variable_declaration_or_binding_element(declaration) {
             let type_node = get_effective_type_annotation_node(declaration);
@@ -565,7 +564,7 @@ impl TypeChecker {
             || is_method_signature(declaration)
             || is_source_file(declaration)
         {
-            if self.symbol(symbol).flags().intersects(
+            if symbol.ref_(self).flags().intersects(
                 SymbolFlags::Function
                     | SymbolFlags::Method
                     | SymbolFlags::Class
@@ -632,7 +631,7 @@ impl TypeChecker {
             Debug_.fail(Some(&format!(
                 "Unhandled declaration kind! {} for {}",
                 Debug_.format_syntax_kind(Some(declaration.kind())),
-                Debug_.format_symbol(&self.symbol(symbol))
+                Debug_.format_symbol(&symbol.ref_(self))
             )));
         }
 
@@ -732,7 +731,7 @@ impl TypeChecker {
         if !self.pop_type_resolution() {
             type_ = Some(self.any_type());
             if self.no_implicit_any {
-                let getter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::GetAccessor);
+                let getter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::GetAccessor);
                 self.error(
                     getter,
                     &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
@@ -751,8 +750,8 @@ impl TypeChecker {
         writing: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let writing = writing.unwrap_or(false);
-        let getter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::GetAccessor);
-        let setter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::SetAccessor);
+        let getter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::GetAccessor);
+        let setter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SetAccessor);
 
         let setter_type = self.get_annotated_accessor_type(setter.as_deref())?;
 
@@ -823,7 +822,7 @@ impl TypeChecker {
         type_: Id<Type>,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Instantiated) {
+        if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
             return self.instantiate_type(type_, (*links).borrow().mapper.clone());
         }

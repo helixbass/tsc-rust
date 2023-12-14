@@ -37,7 +37,7 @@ use crate::{
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeMapperCallback,
-    TypePredicate, TypePredicateKind, VarianceFlags, HasArena,
+    TypePredicate, TypePredicateKind, VarianceFlags, HasArena, InArena,
 };
 
 lazy_static! {
@@ -2069,7 +2069,7 @@ impl TypeChecker {
 
     pub fn get_export_symbol_of_symbol(&self, symbol: Id<Symbol>) -> Id<Symbol> {
         self.get_merged_symbol(Some(
-            self.symbol(symbol)
+            symbol.ref_(self)
                 .maybe_export_symbol()
                 .unwrap_or_else(|| symbol),
         ))

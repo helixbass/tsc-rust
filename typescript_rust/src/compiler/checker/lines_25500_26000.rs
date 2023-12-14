@@ -369,7 +369,9 @@ impl TypeChecker {
         });
         self.get_type_of_property_of_contextual_type(
             parent_type,
-            self.symbol(self.get_symbol_of_node(declaration)?.unwrap())
+            self.get_symbol_of_node(declaration)?
+                .unwrap()
+                .ref_(self)
                 .escaped_name(),
         )
     }

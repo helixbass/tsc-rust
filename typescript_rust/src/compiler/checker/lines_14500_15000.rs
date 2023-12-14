@@ -746,7 +746,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let include_non_public = include_non_public.unwrap_or(false);
         if include_non_public
-            || !get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(prop), None)
+            || !get_declaration_modifier_flags_from_symbol(self.arena(), &prop.ref_(self), None)
                 .intersects(ModifierFlags::NonPublicAccessibilityModifier)
         {
             let mut type_ = (*self.get_symbol_links(self.get_late_bound_symbol(prop)?))
@@ -754,14 +754,14 @@ impl TypeChecker {
                 .name_type
                 .clone();
             if type_.is_none() {
-                let name = get_name_of_declaration(self.symbol(prop).maybe_value_declaration());
-                type_ = if self.symbol(prop).escaped_name() == InternalSymbolName::Default {
+                let name = get_name_of_declaration(prop.ref_(self).maybe_value_declaration());
+                type_ = if prop.ref_(self).escaped_name() == InternalSymbolName::Default {
                     Some(self.get_string_literal_type("default"))
                 } else if let Some(name) = name {
                     Some(self.get_literal_type_from_property_name(&name)?)
                 } else {
-                    if !is_known_symbol(&self.symbol(prop)) {
-                        Some(self.get_string_literal_type(&symbol_name(&self.symbol(prop))))
+                    if !is_known_symbol(&prop.ref_(self)) {
+                        Some(self.get_string_literal_type(&symbol_name(&prop.ref_(self))))
                     } else {
                         None
                     }

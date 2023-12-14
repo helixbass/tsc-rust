@@ -22,7 +22,7 @@ use crate::{
     visit_nodes, AsDoubleDeref, ClassLikeDeclarationInterface, Debug_, Diagnostics,
     GeneratedIdentifierFlags, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     GetSymbolAccessibilityDiagnosticInterface, HasArena, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, Node,
     NodeArray, NodeFlags, NodeInterface, OptionTry, SignatureDeclarationInterface,
     SingleNodeOrVecNode, StringOrNumber, Symbol, SymbolAccessibilityDiagnostic,
@@ -365,7 +365,7 @@ impl TransformDeclarations {
                         self.arena(),
                         Some(&props),
                     )))));
-                    fakespace.set_symbol(self.symbol(props[0]).maybe_parent().unwrap());
+                    fakespace.set_symbol(props[0].ref_(self).maybe_parent().unwrap());
                     let mut export_mappings: Vec<(Gc<Node /*Identifier*/>, String)> =
                         Default::default();
                     let mut declarations = try_map_defined(
@@ -390,7 +390,7 @@ impl TransformDeclarations {
                                 None,
                             )?;
                             self.set_get_symbol_accessibility_diagnostic(old_diag.clone());
-                            let p_ref = self.symbol(p);
+                            let p_ref = p.ref_(self);
                             let name_str = unescape_leading_underscores(p_ref.escaped_name());
                             let is_non_contextual_keyword_name =
                                 is_string_a_non_contextual_keyword(name_str);

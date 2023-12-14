@@ -302,7 +302,7 @@ impl TypeChecker {
                 Ok(self.is_exact_optional_property_mismatch(
                     self.get_type_of_property_of_type_(
                         source,
-                        self.symbol(target_prop).escaped_name(),
+                        target_prop.ref_(self).escaped_name(),
                     )?,
                     Some(self.get_type_of_symbol(target_prop)?),
                 ))
@@ -371,7 +371,7 @@ impl TypeChecker {
             if matches!(skip_partial, Some(true))
                 && matches!(
                     target_prop,
-                    Some(target_prop) if get_check_flags(&self.symbol(target_prop)).intersects(CheckFlags::ReadPartial)
+                    Some(target_prop) if get_check_flags(&target_prop.ref_(self)).intersects(CheckFlags::ReadPartial)
                 )
             {
                 continue;
@@ -442,7 +442,7 @@ impl TypeChecker {
                     .is_empty()
                 && every(
                     &*resolved.ref_(self).as_resolved_type().properties(),
-                    |&p: &Id<Symbol>, _| self.symbol(p).flags().intersects(SymbolFlags::Optional),
+                    |&p: &Id<Symbol>, _| p.ref_(self).flags().intersects(SymbolFlags::Optional),
                 ));
         }
         if self
@@ -470,7 +470,7 @@ impl TypeChecker {
         for prop in self.get_properties_of_type(source)? {
             if self.is_known_property(
                 target,
-                self.symbol(prop).escaped_name(),
+                prop.ref_(self).escaped_name(),
                 is_comparing_jsx_attributes,
             )? {
                 return Ok(true);
@@ -787,10 +787,10 @@ impl TypeChecker {
         prop: Id<Symbol>,
         callback: &mut impl FnMut(Id<Symbol>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
-        if get_check_flags(&self.symbol(prop)).intersects(CheckFlags::Synthetic) {
+        if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Synthetic) {
             for &t in self
                 .type_(
-                    (*self.symbol(prop).as_transient_symbol().symbol_links())
+                    (*prop.ref_(self).as_transient_symbol().symbol_links())
                         .borrow()
                         .containing_type
                         .unwrap(),
@@ -798,7 +798,7 @@ impl TypeChecker {
                 .as_union_or_intersection_type_interface()
                 .types()
             {
-                let p = self.get_property_of_type_(t, self.symbol(prop).escaped_name(), None)?;
+                let p = self.get_property_of_type_(t, prop.ref_(self).escaped_name(), None)?;
                 let result = p.try_and_then(|p| self.for_each_property(p, callback))?;
                 if result.is_some() {
                     return Ok(result);
@@ -825,10 +825,11 @@ impl TypeChecker {
         &self,
         prop: Id<Symbol>,
     ) -> io::Result<Option<Id<Type /*InterfaceType*/>>> {
-        self.symbol(prop)
+        prop.ref_(self)
             .maybe_parent()
             .filter(|&prop_parent| {
-                self.symbol(prop_parent)
+                prop_parent
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Class)
             })
@@ -846,10 +847,7 @@ impl TypeChecker {
             Ok(self.get_base_types(class_type)?.get(0).cloned())
         })?;
         base_class_type.try_and_then(|base_class_type| {
-            self.get_type_of_property_of_type_(
-                base_class_type,
-                self.symbol(property).escaped_name(),
-            )
+            self.get_type_of_property_of_type_(base_class_type, property.ref_(self).escaped_name())
         })
     }
 
@@ -878,7 +876,7 @@ impl TypeChecker {
                 Ok(
                     if get_declaration_modifier_flags_from_symbol(
                         self.arena(),
-                        &self.symbol(tp),
+                        &tp.ref_(self),
                         None,
                     )
                     .intersects(ModifierFlags::Protected)
@@ -906,7 +904,7 @@ impl TypeChecker {
                 Ok(
                     if get_declaration_modifier_flags_from_symbol(
                         self.arena(),
-                        &self.symbol(p),
+                        &p.ref_(self),
                         Some(writing),
                     )
                     .intersects(ModifierFlags::Protected)
@@ -1033,16 +1031,12 @@ impl TypeChecker {
         if source_prop == target_prop {
             return Ok(Ternary::True);
         }
-        let source_prop_accessibility = get_declaration_modifier_flags_from_symbol(
-            self.arena(),
-            &self.symbol(source_prop),
-            None,
-        ) & ModifierFlags::NonPublicAccessibilityModifier;
-        let target_prop_accessibility = get_declaration_modifier_flags_from_symbol(
-            self.arena(),
-            &self.symbol(target_prop),
-            None,
-        ) & ModifierFlags::NonPublicAccessibilityModifier;
+        let source_prop_accessibility =
+            get_declaration_modifier_flags_from_symbol(self.arena(), &source_prop.ref_(self), None)
+                & ModifierFlags::NonPublicAccessibilityModifier;
+        let target_prop_accessibility =
+            get_declaration_modifier_flags_from_symbol(self.arena(), &target_prop.ref_(self), None)
+                & ModifierFlags::NonPublicAccessibilityModifier;
         if source_prop_accessibility != target_prop_accessibility {
             return Ok(Ternary::False);
         }
@@ -1051,8 +1045,8 @@ impl TypeChecker {
                 return Ok(Ternary::False);
             }
         } else {
-            if self.symbol(source_prop).flags() & SymbolFlags::Optional
-                != self.symbol(target_prop).flags() & SymbolFlags::Optional
+            if source_prop.ref_(self).flags() & SymbolFlags::Optional
+                != target_prop.ref_(self).flags() & SymbolFlags::Optional
             {
                 return Ok(Ternary::False);
             }

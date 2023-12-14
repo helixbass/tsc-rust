@@ -24,7 +24,7 @@ use crate::{
     HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange, SignatureDeclarationInterface,
-    SymbolInterface, SyntaxKind, VisitResult,
+    SymbolInterface, SyntaxKind, VisitResult, InArena,
 };
 
 impl TransformDeclarations {
@@ -722,7 +722,7 @@ impl TransformDeclarations {
                 if matches!(
                     input.maybe_symbol(),
                     Some(input_symbol) if matches!(
-                        self.symbol(input_symbol).maybe_declarations().as_ref(),
+                        input_symbol.ref_(self).maybe_declarations().as_ref(),
                         Some(input_symbol_declarations) if !ptr::eq(
                             &*input_symbol_declarations[0],
                             input

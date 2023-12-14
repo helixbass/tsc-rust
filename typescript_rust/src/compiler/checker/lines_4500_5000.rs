@@ -52,7 +52,7 @@ impl TypeChecker {
         > = RefCell::new(None);
         if !every(
             &maybe_filter(
-                self.symbol(symbol).maybe_declarations().as_deref(),
+                symbol.ref_(self).maybe_declarations().as_deref(),
                 |d: &Gc<Node>| d.kind() != SyntaxKind::Identifier,
             )
             .unwrap_or_else(|| vec![]),
@@ -115,7 +115,7 @@ impl TypeChecker {
                     declaration,
                     declaration,
                 );
-            } else if self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
+            } else if symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
                 && is_binding_element(declaration)
                 && is_in_js_file(Some(declaration))
             {
@@ -218,7 +218,7 @@ impl TypeChecker {
         )?;
         if matches!(
             symbol,
-            Some(symbol) if self.symbol(symbol).flags().intersects(SymbolFlags::TypeParameter) && meaning.intersects(SymbolFlags::Type)
+            Some(symbol) if symbol.ref_(self).flags().intersects(SymbolFlags::TypeParameter) && meaning.intersects(SymbolFlags::Type)
         ) {
             return Ok(SymbolVisibilityResult {
                 accessibility: SymbolAccessibility::Accessible,
@@ -481,7 +481,7 @@ impl TypeChecker {
         let mut left_str = if let Some(symbol) = left.ref_(self).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
                 let enclosing_declaration =
-                    (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
+                    (*symbol.ref_(self).maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(left, enclosing_declaration, None, None)?
             } else {
                 self.type_to_string_(left, Option::<&Node>::None, None, None)?
@@ -492,7 +492,7 @@ impl TypeChecker {
         let mut right_str = if let Some(symbol) = right.ref_(self).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
                 let enclosing_declaration =
-                    (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
+                    (*symbol.ref_(self).maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(right, enclosing_declaration, None, None)?
             } else {
                 self.type_to_string_(right, Option::<&Node>::None, None, None)?
@@ -525,7 +525,7 @@ impl TypeChecker {
         }
         let symbol = symbol.unwrap();
         Ok(matches!(
-            self.symbol(symbol).maybe_value_declaration(),
+            symbol.ref_(self).maybe_value_declaration(),
             Some(value_declaration) if is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)?
         ))
     }
@@ -538,7 +538,7 @@ impl TypeChecker {
     pub(super) fn is_class_instance_side(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(matches!(
             type_.ref_(self).maybe_symbol(),
-            Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::Class) && (
+            Some(type_symbol) if type_symbol.ref_(self).flags().intersects(SymbolFlags::Class) && (
                 type_ == self.get_declared_type_of_class_or_interface(type_symbol)? ||
                 type_.ref_(self).flags().intersects(TypeFlags::Object) && get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::IsClassInstanceClone)
             )

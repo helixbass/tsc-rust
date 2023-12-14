@@ -105,19 +105,15 @@ impl TypeChecker {
                 let prop =
                     self.get_property_of_type_(type_, name, skip_object_function_property_augment)?;
                 let modifiers = if let Some(prop) = prop {
-                    get_declaration_modifier_flags_from_symbol(
-                        self.arena(),
-                        &self.symbol(prop),
-                        None,
-                    )
+                    get_declaration_modifier_flags_from_symbol(self.arena(), &prop.ref_(self), None)
                 } else {
                     ModifierFlags::None
                 };
                 if let Some(prop) = prop {
                     if is_union {
-                        optional_flag |= self.symbol(prop).flags() & SymbolFlags::Optional;
+                        optional_flag |= prop.ref_(self).flags() & SymbolFlags::Optional;
                     } else {
-                        optional_flag &= self.symbol(prop).flags();
+                        optional_flag &= prop.ref_(self).flags();
                     }
                     if single_prop.is_none() {
                         single_prop = Some(prop.clone());
@@ -137,7 +133,7 @@ impl TypeChecker {
                             })? == Ternary::True
                         {
                             merged_instantiations = matches!(
-                                self.symbol(single_prop).maybe_parent(),
+                                single_prop.ref_(self).maybe_parent(),
                                 Some(parent) if length(
                                     self.get_local_type_parameters_of_class_or_interface_or_type_alias(parent)?.as_deref()
                                 ) != 0
@@ -146,12 +142,12 @@ impl TypeChecker {
                             if prop_set.is_none() {
                                 prop_set = Some(IndexMap::new());
                                 prop_set.as_mut().unwrap().insert(
-                                    get_symbol_id(&self.symbol(single_prop)),
+                                    get_symbol_id(&single_prop.ref_(self)),
                                     single_prop.clone(),
                                 );
                             }
                             let prop_set = prop_set.as_mut().unwrap();
-                            let id = get_symbol_id(&self.symbol(prop));
+                            let id = get_symbol_id(&prop.ref_(self));
                             if !prop_set.contains_key(&id) {
                                 prop_set.insert(id, prop.clone());
                             }
@@ -237,21 +233,21 @@ impl TypeChecker {
             && index_types.is_none()
         {
             if merged_instantiations {
-                let clone = self.create_symbol_with_type(
-                    single_prop,
-                    self.symbol(single_prop)
-                        .maybe_as_transient_symbol()
-                        .and_then(|single_prop| {
-                            (*single_prop.symbol_links()).borrow().type_.clone()
-                        }),
-                );
-                self.symbol(clone).set_parent(
-                    self.symbol(single_prop)
+                let clone =
+                    self.create_symbol_with_type(
+                        single_prop,
+                        single_prop.ref_(self).maybe_as_transient_symbol().and_then(
+                            |single_prop| (*single_prop.symbol_links()).borrow().type_.clone(),
+                        ),
+                    );
+                clone.ref_(self).set_parent(
+                    single_prop
+                        .ref_(self)
                         .maybe_value_declaration()
                         .and_then(|value_declaration| value_declaration.maybe_symbol())
-                        .and_then(|symbol| self.symbol(symbol).maybe_parent()),
+                        .and_then(|symbol| symbol.ref_(self).maybe_parent()),
                 );
-                let clone_symbol_links = self.symbol(clone).as_transient_symbol().symbol_links();
+                let clone_symbol_links = clone.ref_(self).as_transient_symbol().symbol_links();
                 let mut clone_symbol_links = clone_symbol_links.borrow_mut();
                 clone_symbol_links.containing_type = Some(containing_type);
                 clone_symbol_links.mapper = self
@@ -276,14 +272,14 @@ impl TypeChecker {
         let mut has_non_uniform_value_declaration = false;
         for prop in props {
             if first_value_declaration.is_none() {
-                first_value_declaration = self.symbol(prop).maybe_value_declaration();
+                first_value_declaration = prop.ref_(self).maybe_value_declaration();
             } else if matches!(
-                self.symbol(prop).maybe_value_declaration(),
+                prop.ref_(self).maybe_value_declaration(),
                 Some(value_declaration) if !Gc::ptr_eq(&value_declaration, first_value_declaration.as_ref().unwrap())
             ) {
                 has_non_uniform_value_declaration = true;
             }
-            if let Some(prop_declarations) = self.symbol(prop).maybe_declarations().as_deref() {
+            if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().as_deref() {
                 if !prop_declarations.is_empty() {
                     if declarations.is_none() {
                         declarations = Some(vec![]);
@@ -320,29 +316,31 @@ impl TypeChecker {
             )
             .into(),
         );
-        let result_links = self.symbol(result).as_transient_symbol().symbol_links();
+        let result_links = result.ref_(self).as_transient_symbol().symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.containing_type = Some(containing_type);
         if !has_non_uniform_value_declaration {
             if let Some(first_value_declaration) = first_value_declaration {
-                self.symbol(result)
+                result
+                    .ref_(self)
                     .set_value_declaration(first_value_declaration.clone());
 
                 if let Some(first_value_declaration_symbol_parent) =
-                    self.symbol(first_value_declaration.symbol()).maybe_parent()
+                    first_value_declaration.symbol().ref_(self).maybe_parent()
                 {
-                    self.symbol(result)
+                    result
+                        .ref_(self)
                         .set_parent(Some(first_value_declaration_symbol_parent));
                 }
             }
         }
 
         if let Some(declarations) = declarations {
-            self.symbol(result).set_declarations(declarations);
+            result.ref_(self).set_declarations(declarations);
         }
         result_links.name_type = name_type;
         if prop_types.len() > 2 {
-            let result_ref = self.symbol(result);
+            let result_ref = result.ref_(self);
             let result_as_transient_symbol = result_ref.as_transient_symbol();
             result_as_transient_symbol.set_check_flags(
                 result_as_transient_symbol.check_flags() | CheckFlags::DeferredType,
@@ -441,7 +439,7 @@ impl TypeChecker {
             skip_object_function_property_augment,
         )?;
         Ok(property.filter(|&property| {
-            !get_check_flags(&self.symbol(property)).intersects(CheckFlags::ReadPartial)
+            !get_check_flags(&property.ref_(self)).intersects(CheckFlags::ReadPartial)
         }))
     }
 
@@ -540,8 +538,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_discriminant_with_never_type(&self, prop: Id<Symbol>) -> io::Result<bool> {
-        Ok(!self.symbol(prop).flags().intersects(SymbolFlags::Optional)
-            && get_check_flags(&self.symbol(prop))
+        Ok(!prop.ref_(self).flags().intersects(SymbolFlags::Optional)
+            && get_check_flags(&prop.ref_(self))
                 & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
                 == CheckFlags::Discriminant
             && self
@@ -551,8 +549,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_conflicting_private_property(&self, prop: Id<Symbol>) -> bool {
-        self.symbol(prop).maybe_value_declaration().is_none()
-            && get_check_flags(&self.symbol(prop)).intersects(CheckFlags::ContainsPrivate)
+        prop.ref_(self).maybe_value_declaration().is_none()
+            && get_check_flags(&prop.ref_(self)).intersects(CheckFlags::ContainsPrivate)
     }
 
     pub(super) fn elaborate_never_intersection(

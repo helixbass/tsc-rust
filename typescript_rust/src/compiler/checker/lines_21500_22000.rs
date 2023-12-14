@@ -64,11 +64,11 @@ impl TypeChecker {
                     .symbol(target_prop)
                     .flags()
                     .intersects(SymbolFlags::Optional)
-                    || get_check_flags(&self.symbol(target_prop)).intersects(CheckFlags::Partial))
+                    || get_check_flags(&target_prop.ref_(self)).intersects(CheckFlags::Partial))
             {
                 let source_prop = self.get_property_of_type_(
                     source,
-                    self.symbol(target_prop).escaped_name(),
+                    target_prop.ref_(self).escaped_name(),
                     None,
                 )?;
                 match source_prop {
@@ -184,7 +184,7 @@ impl TypeChecker {
         matches!(
             type_.ref_(self).maybe_symbol(),
             Some(type_symbol) if some(
-                self.symbol(type_symbol).maybe_declarations().as_deref(),
+                type_symbol.ref_(self).maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.has_skip_direct_inference_flag(declaration))
             )
         )

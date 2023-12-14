@@ -293,7 +293,7 @@ impl TypeChecker {
                 return Ok(true);
             }
             if let Some(ref writable_prop_value_declaration) = writable_prop
-                .and_then(|writable_prop| self.symbol(writable_prop).maybe_value_declaration())
+                .and_then(|writable_prop| writable_prop.ref_(self).maybe_value_declaration())
                 .filter(|writable_prop_value_declaration| {
                     is_property_assignment(writable_prop_value_declaration)
                 })
@@ -316,14 +316,14 @@ impl TypeChecker {
 
     pub(super) fn is_readonly_symbol(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         Ok(
-            get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Readonly)
+            get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Readonly)
                 || self
                     .symbol(symbol)
                     .flags()
                     .intersects(SymbolFlags::Property)
                     && get_declaration_modifier_flags_from_symbol(
                         self.arena(),
-                        &self.symbol(symbol),
+                        &symbol.ref_(self),
                         None,
                     )
                     .intersects(ModifierFlags::Readonly)
@@ -347,7 +347,7 @@ impl TypeChecker {
                     .flags()
                     .intersects(SymbolFlags::EnumMember)
                 || try_some(
-                    self.symbol(symbol).maybe_declarations().as_deref(),
+                    symbol.ref_(self).maybe_declarations().as_deref(),
                     Some(|declaration: &Gc<Node>| {
                         self.is_readonly_assignment_declaration(declaration)
                     }),
@@ -381,7 +381,7 @@ impl TypeChecker {
                 }
                 let ctor = ctor.unwrap();
                 if let Some(symbol_value_declaration) =
-                    self.symbol(symbol).maybe_value_declaration().as_ref()
+                    symbol.ref_(self).maybe_value_declaration().as_ref()
                 {
                     let is_assignment_declaration = is_binary_expression(symbol_value_declaration);
                     let is_local_property_declaration = are_option_gcs_equal(
@@ -397,10 +397,11 @@ impl TypeChecker {
                     );
                     let is_local_this_property_assignment = is_assignment_declaration
                         && are_option_gcs_equal(
-                            self.symbol(symbol)
+                            symbol
+                                .ref_(self)
                                 .maybe_parent()
                                 .and_then(|symbol_parent| {
-                                    self.symbol(symbol_parent).maybe_value_declaration()
+                                    symbol_parent.ref_(self).maybe_value_declaration()
                                 })
                                 .as_ref(),
                             ctor.maybe_parent().as_ref(),
@@ -408,7 +409,7 @@ impl TypeChecker {
                     let is_local_this_property_assignment_constructor_function =
                         is_assignment_declaration
                             && matches!(
-                                self.symbol(symbol).maybe_parent().and_then(|symbol_parent| self.symbol(symbol_parent).maybe_value_declaration()).as_ref(),
+                                symbol.ref_(self).maybe_parent().and_then(|symbol_parent| symbol_parent.ref_(self).maybe_value_declaration()).as_ref(),
                                 Some(symbol_parent_value_declaration) if Gc::ptr_eq(
                                     symbol_parent_value_declaration,
                                     &ctor,
@@ -431,7 +432,7 @@ impl TypeChecker {
                     .resolved_symbol
                     .clone()
                     .unwrap();
-                if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+                if symbol.ref_(self).flags().intersects(SymbolFlags::Alias) {
                     let declaration = self.get_declaration_of_alias_symbol(symbol)?;
                     return Ok(matches!(
                         declaration.as_ref(),
@@ -516,9 +517,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Never)
             && !if self.exact_optional_property_types == Some(true) {
-                self.symbol(symbol)
-                    .flags()
-                    .intersects(SymbolFlags::Optional)
+                symbol.ref_(self).flags().intersects(SymbolFlags::Optional)
             } else {
                 self.get_falsy_flags(type_).intersects(TypeFlags::Undefined)
             }
@@ -935,9 +934,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_enum_symbol(&self, symbol: Id<Symbol>) -> bool {
-        self.symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::ConstEnum)
+        symbol.ref_(self).flags().intersects(SymbolFlags::ConstEnum)
     }
 
     pub(super) fn check_instance_of_expression(

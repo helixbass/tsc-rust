@@ -284,23 +284,24 @@ impl TypeChecker {
                 let member = member.unwrap();
                 let attribute_symbol = self.alloc_symbol(
                     self.create_symbol(
-                        SymbolFlags::Property | self.symbol(member).flags(),
-                        self.symbol(member).escaped_name().to_owned(),
+                        SymbolFlags::Property | member.ref_(self).flags(),
+                        member.ref_(self).escaped_name().to_owned(),
                         None,
                     )
                     .into(),
                 );
-                if let Some(member_declarations) = self.symbol(member).maybe_declarations().clone()
-                {
-                    self.symbol(attribute_symbol)
+                if let Some(member_declarations) = member.ref_(self).maybe_declarations().clone() {
+                    attribute_symbol
+                        .ref_(self)
                         .set_declarations(member_declarations);
                 }
-                self.symbol(attribute_symbol)
-                    .set_parent(self.symbol(member).maybe_parent());
-                if let Some(member_value_declaration) =
-                    self.symbol(member).maybe_value_declaration()
+                attribute_symbol
+                    .ref_(self)
+                    .set_parent(member.ref_(self).maybe_parent());
+                if let Some(member_value_declaration) = member.ref_(self).maybe_value_declaration()
                 {
-                    self.symbol(attribute_symbol)
+                    attribute_symbol
+                        .ref_(self)
                         .set_value_declaration(member_value_declaration);
                 }
                 {
@@ -313,12 +314,12 @@ impl TypeChecker {
                     attribute_symbol_links.target = Some(member.clone());
                 }
                 attributes_table.borrow_mut().insert(
-                    self.symbol(attribute_symbol).escaped_name().to_owned(),
+                    attribute_symbol.ref_(self).escaped_name().to_owned(),
                     attribute_symbol.clone(),
                 );
                 if let Some(all_attributes_table) = all_attributes_table.as_mut() {
                     all_attributes_table.insert(
-                        self.symbol(attribute_symbol).escaped_name().to_owned(),
+                        attribute_symbol.ref_(self).escaped_name().to_owned(),
                         attribute_symbol.clone(),
                     );
                 }
@@ -456,7 +457,8 @@ impl TypeChecker {
                         )
                         .into(),
                     );
-                    self.symbol(children_prop_symbol)
+                    children_prop_symbol
+                        .ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
                         .borrow_mut()
@@ -482,7 +484,7 @@ impl TypeChecker {
                             None,
                         )
                     });
-                    self.symbol(children_prop_symbol).set_value_declaration(
+                    children_prop_symbol.ref_(self).set_value_declaration(
                         get_factory().create_property_signature(
                             Option::<Gc<NodeArray>>::None,
                             unescape_leading_underscores(jsx_children_property_name),
@@ -491,13 +493,15 @@ impl TypeChecker {
                         ),
                     );
                     set_parent(
-                        self.symbol(children_prop_symbol)
+                        children_prop_symbol
+                            .ref_(self)
                             .maybe_value_declaration()
                             .as_ref()
                             .unwrap(),
                         Some(&*attributes),
                     );
-                    self.symbol(children_prop_symbol)
+                    children_prop_symbol
+                        .ref_(self)
                         .maybe_value_declaration()
                         .unwrap()
                         .set_symbol(children_prop_symbol.clone());
@@ -603,14 +607,14 @@ impl TypeChecker {
         spread: &Node, /*SpreadAssignment | JsxSpreadAttribute*/
     ) -> io::Result<()> {
         for right in self.get_properties_of_type(type_)? {
-            if !self.symbol(right).flags().intersects(SymbolFlags::Optional) {
-                let left = props.get(self.symbol(right).escaped_name());
+            if !right.ref_(self).flags().intersects(SymbolFlags::Optional) {
+                let left = props.get(right.ref_(self).escaped_name());
                 if let Some(&left) = left {
                     let diagnostic = self.error(
-                        self.symbol(left).maybe_value_declaration(),
+                        left.ref_(self).maybe_value_declaration(),
                         &Diagnostics::_0_is_specified_more_than_once_so_this_usage_will_be_overwritten,
                         Some(vec![
-                            unescape_leading_underscores(self.symbol(left).escaped_name()).to_owned()
+                            unescape_leading_underscores(left.ref_(self).escaped_name()).to_owned()
                         ])
                     );
                     add_related_info(

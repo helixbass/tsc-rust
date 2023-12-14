@@ -53,7 +53,7 @@ impl TypeChecker {
         node: &Node,
     ) -> io::Result<bool> {
         if let Some(tp_symbol) = tp.ref_(self).maybe_symbol() {
-            let tp_symbol_ref = self.symbol(tp_symbol);
+            let tp_symbol_ref = tp_symbol.ref_(self);
             let tp_symbol_declarations = tp_symbol_ref.maybe_declarations();
             if let Some(tp_symbol_declarations) = tp_symbol_declarations.as_ref() {
                 if tp_symbol_declarations.len() == 1 {

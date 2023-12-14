@@ -276,7 +276,7 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let tp = get_declaration_of_kind(
-            &self.symbol(type_parameter.ref_(self).symbol()),
+            &type_parameter.ref_(self).symbol().ref_(self),
             SyntaxKind::TypeParameter,
         )
         .unwrap();
@@ -323,7 +323,7 @@ impl TypeChecker {
         if let Some(alias_symbol) = alias_symbol {
             format!(
                 "@{}{}",
-                get_symbol_id(&self.symbol(alias_symbol)),
+                get_symbol_id(&alias_symbol.ref_(self)),
                 if let Some(alias_type_arguments) = alias_type_arguments {
                     format!(":{}", self.get_type_list_id(Some(alias_type_arguments)))
                 } else {
@@ -717,7 +717,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_ = self.get_declared_type_of_symbol(symbol)?;
         if type_ == self.intrinsic_marker_type()
-            && intrinsic_type_kinds.contains_key(self.symbol(symbol).escaped_name())
+            && intrinsic_type_kinds.contains_key(symbol.ref_(self).escaped_name())
             && matches!(type_arguments, Some(type_arguments) if type_arguments.len() == 1)
         {
             return self.get_string_mapping_type(symbol, type_arguments.unwrap()[0]);
@@ -745,7 +745,7 @@ impl TypeChecker {
                         type_arguments.map(ToOwned::to_owned),
                         Some(&type_parameters),
                         self.get_min_type_argument_count(Some(&type_parameters)),
-                        is_in_js_file(self.symbol(symbol).maybe_value_declaration()),
+                        is_in_js_file(symbol.ref_(self).maybe_value_declaration()),
                     )?,
                 ),
                 alias_symbol,
@@ -766,7 +766,7 @@ impl TypeChecker {
         node: &Node, /*NodeWithTypeArguments*/
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Unresolved) {
+        if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Unresolved) {
             let type_arguments = self.type_arguments_from_type_reference_node(node)?;
             let id = self.get_alias_id(Some(symbol), type_arguments.as_deref());
             let mut error_type = self.error_types().get(&id).map(Clone::clone);
@@ -835,7 +835,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_local_type_alias(&self, symbol: Id<Symbol>) -> bool {
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_declarations = symbol_ref.maybe_declarations();
         let declaration = symbol_declarations.as_ref().and_then(|declarations| {
             declarations
@@ -868,13 +868,13 @@ impl TypeChecker {
     }
 
     pub(super) fn get_symbol_path(&self, symbol: Id<Symbol>) -> String {
-        match self.symbol(symbol).maybe_parent() {
+        match symbol.ref_(self).maybe_parent() {
             Some(symbol_parent) => format!(
                 "{}.{}",
                 self.get_symbol_path(symbol_parent),
-                self.symbol(symbol).escaped_name()
+                symbol.ref_(self).escaped_name()
             ),
-            None => self.symbol(symbol).escaped_name().to_owned(),
+            None => symbol.ref_(self).escaped_name().to_owned(),
         }
     }
 
@@ -919,8 +919,9 @@ impl TypeChecker {
                 );
                 let result = result.unwrap();
                 self.unresolved_symbols().insert(path, result.clone());
-                self.symbol(result).set_parent(parent_symbol);
-                self.symbol(result)
+                result.ref_(self).set_parent(parent_symbol);
+                result
+                    .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
@@ -994,7 +995,7 @@ impl TypeChecker {
                 self.error_type()
             });
         }
-        if self.symbol(symbol).flags().intersects(SymbolFlags::Value)
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Value)
             && self.is_jsdoc_type_reference(node)
         {
             let jsdoc_type = self.get_type_from_jsdoc_value_reference(node, symbol)?;
@@ -1017,7 +1018,7 @@ impl TypeChecker {
         if (*links).borrow().resolved_jsdoc_type.is_none() {
             let value_type = self.get_type_of_symbol(symbol)?;
             let mut type_type = value_type.clone();
-            if self.symbol(symbol).maybe_value_declaration().is_some() {
+            if symbol.ref_(self).maybe_value_declaration().is_some() {
                 let is_import_type_with_qualifier = node.kind() == SyntaxKind::ImportType
                     && node.as_import_type_node().qualifier.is_some();
                 if let Some(value_type_symbol) =

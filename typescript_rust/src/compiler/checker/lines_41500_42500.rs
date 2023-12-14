@@ -43,13 +43,13 @@ impl TypeChecker {
         if target == self.unknown_symbol() {
             return Ok(true);
         }
-        Ok(self.symbol(target).flags().intersects(SymbolFlags::Value)
+        Ok(target.ref_(self).flags().intersects(SymbolFlags::Value)
             && (should_preserve_const_enums(&self.compiler_options)
                 || !self.is_const_enum_or_const_enum_only_module(target)))
     }
 
     pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: Id<Symbol>) -> bool {
-        self.is_const_enum_symbol(s) || self.symbol(s).maybe_const_enum_only_module() == Some(true)
+        self.is_const_enum_symbol(s) || s.ref_(self).maybe_const_enum_only_module() == Some(true)
     }
 
     pub(super) fn is_referenced_alias_declaration(
@@ -73,7 +73,7 @@ impl TypeChecker {
             if matches!(
                 target,
                 Some(target) if get_effective_modifier_flags(node).intersects(ModifierFlags::Export) &&
-                    self.symbol(target).flags().intersects(SymbolFlags::Value) && (
+                    target.ref_(self).flags().intersects(SymbolFlags::Value) && (
                         should_preserve_const_enums(&self.compiler_options) ||
                         !self.is_const_enum_or_const_enum_only_module(target)
                     )
@@ -176,9 +176,9 @@ impl TypeChecker {
         Ok(for_each_entry_bool(
             &*(*self.get_exports_of_symbol(symbol)?).borrow(),
             |&p: &Id<Symbol>, _| {
-                self.symbol(p).flags().intersects(SymbolFlags::Value)
+                p.ref_(self).flags().intersects(SymbolFlags::Value)
                     && matches!(
-                        self.symbol(p).maybe_value_declaration().as_ref(),
+                        p.ref_(self).maybe_value_declaration().as_ref(),
                         Some(p_value_declaration) if is_property_access_expression(p_value_declaration)
                     )
             },
@@ -248,11 +248,12 @@ impl TypeChecker {
             .resolved_symbol
             .clone();
         if let Some(symbol) = symbol.filter(|&symbol| {
-            self.symbol(symbol)
+            symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::EnumMember)
         }) {
-            let ref member = self.symbol(symbol).maybe_value_declaration().unwrap();
+            let ref member = symbol.ref_(self).maybe_value_declaration().unwrap();
             if is_enum_const(&member.parent()) {
                 return self.get_enum_member_value(member);
             }
@@ -299,7 +300,7 @@ impl TypeChecker {
             is_type_only = matches!(
                 root_value_symbol,
                 Some(root_value_symbol) if matches!(
-                    self.symbol(root_value_symbol).maybe_declarations().as_ref(),
+                    root_value_symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(root_value_symbol_declarations) if root_value_symbol_declarations.into_iter().all(
                         |declaration| is_type_only_import_or_export_declaration(declaration)
                     )
@@ -314,7 +315,8 @@ impl TypeChecker {
             location.as_deref(),
         )?;
         let resolved_symbol = if let Some(value_symbol) = value_symbol.filter(|&value_symbol| {
-            self.symbol(value_symbol)
+            value_symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Alias)
         }) {
@@ -326,7 +328,7 @@ impl TypeChecker {
             || matches!(
                 value_symbol,
                 Some(value_symbol) if matches!(
-                    self.symbol(value_symbol).maybe_declarations().as_ref(),
+                    value_symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(value_symbol_declarations) if value_symbol_declarations.into_iter().all(
                         |declaration| is_type_only_import_or_export_declaration(declaration)
                     )
@@ -563,7 +565,7 @@ impl TypeChecker {
                     return Ok(self
                         .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
                         .and_then(|export_symbol| {
-                            self.symbol(export_symbol).maybe_value_declaration()
+                            export_symbol.ref_(self).maybe_value_declaration()
                         }));
                 }
             }
@@ -713,7 +715,7 @@ impl TypeChecker {
             None,
         )?);
         Ok(get_declaration_of_kind(
-            &self.symbol(module_symbol),
+            &module_symbol.ref_(self),
             SyntaxKind::SourceFile,
         ))
     }
@@ -736,7 +738,8 @@ impl TypeChecker {
                 let file_global_this_symbol = (*file.locals()).borrow().get("globalThis").cloned();
                 if let Some(ref file_global_this_symbol_declarations) = file_global_this_symbol
                     .and_then(|file_global_this_symbol| {
-                        self.symbol(file_global_this_symbol)
+                        file_global_this_symbol
+                            .ref_(self)
                             .maybe_declarations()
                             .clone()
                     })
@@ -794,7 +797,7 @@ impl TypeChecker {
             }
             if let Some(file_symbol_global_exports) = file
                 .maybe_symbol()
-                .and_then(|file_symbol| self.symbol(file_symbol).maybe_global_exports().clone())
+                .and_then(|file_symbol| file_symbol.ref_(self).maybe_global_exports().clone())
             {
                 let source = file_symbol_global_exports;
                 let mut globals = self.globals_mut();
@@ -1025,7 +1028,7 @@ impl TypeChecker {
                         if unchecked_helpers.intersects(helper) {
                             let name = self.get_helper_name(helper);
                             let symbol = self.get_symbol(
-                                &(*self.symbol(helpers_module).maybe_exports().clone().unwrap())
+                                &(*helpers_module.ref_(self).maybe_exports().clone().unwrap())
                                     .borrow(),
                                 &escape_leading_underscores(name),
                                 SymbolFlags::Value,

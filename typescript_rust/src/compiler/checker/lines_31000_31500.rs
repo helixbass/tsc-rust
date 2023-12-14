@@ -162,9 +162,9 @@ impl TypeChecker {
             )
             .into(),
         );
-        self.symbol(new_symbol).set_parent(Some(original_symbol));
+        new_symbol.ref_(self).set_parent(Some(original_symbol));
         {
-            let new_symbol_links = self.symbol(new_symbol).as_transient_symbol().symbol_links();
+            let new_symbol_links = new_symbol.ref_(self).as_transient_symbol().symbol_links();
             let mut new_symbol_links = new_symbol_links.borrow_mut();
             new_symbol_links.name_type = Some(self.get_string_literal_type("default"));
             new_symbol_links.target = self.resolve_symbol(Some(symbol), None)?;
@@ -247,7 +247,7 @@ impl TypeChecker {
                             original_symbol,
                             Some(anonymous_symbol),
                         )?;
-                    self.symbol(anonymous_symbol)
+                    anonymous_symbol.ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
                         .borrow_mut()
@@ -328,7 +328,7 @@ impl TypeChecker {
         };
         if target_declaration_kind != SyntaxKind::Unknown {
             let decl =
-                get_declaration_of_kind(&self.symbol(resolved_require), target_declaration_kind);
+                get_declaration_of_kind(&resolved_require.ref_(self), target_declaration_kind);
             return Ok(matches!(
                 decl.as_ref(),
                 Some(decl) if decl.flags().intersects(NodeFlags::Ambient)
@@ -415,13 +415,13 @@ impl TypeChecker {
                 let expr = node.as_has_expression().expression();
                 let mut symbol = self.get_type_of_node(&expr)?.ref_(self).maybe_symbol();
                 if let Some(symbol_present) = symbol
-                    .filter(|&symbol| self.symbol(symbol).flags().intersects(SymbolFlags::Alias))
+                    .filter(|&symbol| symbol.ref_(self).flags().intersects(SymbolFlags::Alias))
                 {
                     symbol = Some(self.resolve_alias(symbol_present)?);
                 }
                 matches!(
                     symbol,
-                    Some(symbol) if self.symbol(symbol).flags().intersects(SymbolFlags::Enum) && self.get_enum_kind(symbol)? == EnumKind::Literal
+                    Some(symbol) if symbol.ref_(self).flags().intersects(SymbolFlags::Enum) && self.get_enum_kind(symbol)? == EnumKind::Literal
                 )
             }
             _ => false,
@@ -600,7 +600,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_parameter(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks {
-            let declaration = self.symbol(symbol).maybe_value_declaration();
+            let declaration = symbol.ref_(self).maybe_value_declaration();
             if matches!(declaration.as_ref(), Some(declaration) if has_initializer(&declaration)) {
                 return self.get_optional_type_(type_, None);
             }
@@ -655,10 +655,10 @@ impl TypeChecker {
             return Ok(associated_names
                 .map(|associated_names| self.get_tuple_element_label(&associated_names[index]))
                 .unwrap_or_else(|| {
-                    format!("{}_{}", self.symbol(rest_parameter).escaped_name(), index)
+                    format!("{}_{}", rest_parameter.ref_(self).escaped_name(), index)
                 }));
         }
-        Ok(self.symbol(rest_parameter).escaped_name().to_owned())
+        Ok(rest_parameter.ref_(self).escaped_name().to_owned())
     }
 
     pub fn get_parameter_identifier_name_at_position(
@@ -676,7 +676,7 @@ impl TypeChecker {
             let param = signature.parameters()[pos];
             return Ok(
                 if self.is_parameter_declaration_with_identifier_name(param) {
-                    Some((self.symbol(param).escaped_name().to_owned(), false))
+                    Some((param.ref_(self).escaped_name().to_owned(), false))
                 } else {
                     None
                 },
@@ -716,7 +716,7 @@ impl TypeChecker {
 
         if pos == param_count {
             return Ok(Some((
-                self.symbol(rest_parameter).escaped_name().to_owned(),
+                rest_parameter.ref_(self).escaped_name().to_owned(),
                 true,
             )));
         }
@@ -725,7 +725,7 @@ impl TypeChecker {
 
     pub(super) fn is_parameter_declaration_with_identifier_name(&self, symbol: Id<Symbol>) -> bool {
         matches!(
-            self.symbol(symbol).maybe_value_declaration().as_ref(),
+            symbol.ref_(self).maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if is_parameter(symbol_value_declaration) &&
                 is_identifier(&symbol_value_declaration.as_parameter_declaration().name())
         )

@@ -600,7 +600,7 @@ impl TypeChecker {
                             ) {
                                 let t = self.get_type_of_property_of_type_(
                                     target,
-                                    self.symbol(key_property).escaped_name(),
+                                    key_property.ref_(self).escaped_name(),
                                 )?;
                                 if matches!(
                                     t,

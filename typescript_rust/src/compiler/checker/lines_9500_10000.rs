@@ -61,14 +61,14 @@ impl TypeChecker {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         if (*links).borrow().type_.is_none() {
-            let expando = self.symbol(symbol).maybe_value_declaration().try_and_then(
+            let expando = symbol.ref_(self).maybe_value_declaration().try_and_then(
                 |value_declaration| self.get_symbol_of_expando(&value_declaration, false),
             )?;
             if let Some(expando) = expando {
                 let merged = self.merge_js_symbols(symbol, Some(expando))?;
                 if let Some(merged) = merged {
                     symbol = merged.clone();
-                    links = self.symbol(merged).as_transient_symbol().symbol_links();
+                    links = merged.ref_(self).as_transient_symbol().symbol_links();
                 }
             }
             let type_ = self.get_type_of_func_class_enum_module_worker(symbol)?;
@@ -83,9 +83,9 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        let declaration = self.symbol(symbol).maybe_value_declaration();
-        if self.symbol(symbol).flags().intersects(SymbolFlags::Module)
-            && is_shorthand_ambient_module_symbol(&self.symbol(symbol))
+        let declaration = symbol.ref_(self).maybe_value_declaration();
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Module)
+            && is_shorthand_ambient_module_symbol(&symbol.ref_(self))
         {
             return Ok(self.any_type());
         } else if matches!(
@@ -114,7 +114,7 @@ impl TypeChecker {
                 }
                 let export_equals = self
                     .get_merged_symbol(
-                        (*self.symbol(symbol).exports())
+                        (*symbol.ref_(self).exports())
                             .borrow()
                             .get(InternalSymbolName::ExportEquals)
                             .cloned(),
@@ -191,7 +191,7 @@ impl TypeChecker {
                 })?;
             let declared_type = export_symbol.try_and_then(|export_symbol| {
                 try_maybe_first_defined(
-                    self.symbol(export_symbol).maybe_declarations().as_deref(),
+                    export_symbol.ref_(self).maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<_> {
                         Ok(if is_export_assignment(d) {
                             self.try_get_type_from_effective_type_node(d)?
@@ -204,16 +204,16 @@ impl TypeChecker {
             links.borrow_mut().type_ = Some(
                 if let Some(export_symbol) = export_symbol.filter(|&export_symbol| {
                     matches!(
-                        self.symbol(export_symbol).maybe_declarations().as_deref(),
+                        export_symbol.ref_(self).maybe_declarations().as_deref(),
                         Some(export_symbol_declarations) if self.is_duplicated_common_js_export(Some(export_symbol_declarations))
-                    ) && !self.symbol(symbol).maybe_declarations().as_ref().unwrap().is_empty()
+                    ) && !symbol.ref_(self).maybe_declarations().as_ref().unwrap().is_empty()
                 }) {
                     self.get_flow_type_from_common_js_export(export_symbol)?
-                } else if self.is_duplicated_common_js_export(self.symbol(symbol).maybe_declarations().as_deref()) {
+                } else if self.is_duplicated_common_js_export(symbol.ref_(self).maybe_declarations().as_deref()) {
                     self.auto_type()
                 } else if let Some(declared_type) = declared_type {
                     declared_type
-                } else if self.symbol(target_symbol).flags().intersects(SymbolFlags::Value) {
+                } else if target_symbol.ref_(self).flags().intersects(SymbolFlags::Value) {
                     self.get_type_of_symbol(target_symbol)?
                 } else {
                     self.error_type()
@@ -254,10 +254,10 @@ impl TypeChecker {
     }
 
     pub(super) fn report_circularity_error(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
-        let declaration = self.symbol(symbol).maybe_value_declaration().unwrap();
+        let declaration = symbol.ref_(self).maybe_value_declaration().unwrap();
         if get_effective_type_annotation_node(&declaration).is_some() {
             self.error(
-                self.symbol(symbol).maybe_value_declaration(),
+                symbol.ref_(self).maybe_value_declaration(),
                 &Diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
                 Some(vec![self.symbol_to_string_(
                     symbol,
@@ -277,7 +277,7 @@ impl TypeChecker {
                     .is_some())
         {
             self.error(
-                self.symbol(symbol).maybe_value_declaration(),
+                symbol.ref_(self).maybe_value_declaration(),
                 &Diagnostics::_0_implicitly_has_type_any_because_it_does_not_have_a_type_annotation_and_is_referenced_directly_or_indirectly_in_its_own_initializer,
                 Some(vec![
                     self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
@@ -339,7 +339,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_of_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
-        let check_flags = get_check_flags(&self.symbol(symbol));
+        let check_flags = get_check_flags(&symbol.ref_(self));
         if check_flags.intersects(CheckFlags::DeferredType) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
         }
@@ -359,7 +359,7 @@ impl TypeChecker {
         {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
         }
-        if self.symbol(symbol).flags().intersects(
+        if symbol.ref_(self).flags().intersects(
             SymbolFlags::Function
                 | SymbolFlags::Method
                 | SymbolFlags::Class
@@ -382,7 +382,7 @@ impl TypeChecker {
         {
             return self.get_type_of_accessors(symbol);
         }
-        if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Alias) {
             return self.get_type_of_alias(symbol);
         }
         Ok(self.error_type())
@@ -394,7 +394,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         Ok(self.remove_missing_type(
             self.get_type_of_symbol(symbol)?,
-            self.symbol(symbol)
+            symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Optional),
         ))
@@ -491,14 +491,14 @@ impl TypeChecker {
                         let symbol =
                             self.get_symbol_of_node(&node_present.as_binary_expression().left)?;
                         if let Some(symbol) = symbol {
-                            if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
+                            if let Some(symbol_parent) = symbol.ref_(self).maybe_parent() {
                                 if find_ancestor(
-                                    self.symbol(symbol_parent).maybe_value_declaration(),
+                                    symbol_parent.ref_(self).maybe_value_declaration(),
                                     |d| ptr::eq(&**node_present, d),
                                 )
                                 .is_none()
                                 {
-                                    node = self.symbol(symbol_parent).maybe_value_declaration();
+                                    node = symbol_parent.ref_(self).maybe_value_declaration();
                                 }
                             }
                         }
@@ -594,7 +594,7 @@ impl TypeChecker {
                 SyntaxKind::JSDocParameterTag => {
                     let param_symbol = get_parameter_symbol_from_jsdoc(node_present);
                     if let Some(param_symbol) = param_symbol {
-                        node = self.symbol(param_symbol).maybe_value_declaration();
+                        node = param_symbol.ref_(self).maybe_value_declaration();
                     }
                 }
                 SyntaxKind::JSDocComment => {
@@ -626,10 +626,10 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
-        let declaration = if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
-            self.symbol(symbol).maybe_value_declaration()
+        let declaration = if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
+            symbol.ref_(self).maybe_value_declaration()
         } else {
-            get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::InterfaceDeclaration)
+            get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::InterfaceDeclaration)
         };
         Debug_.assert(
             declaration.is_some(),
@@ -643,7 +643,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_declarations = symbol_ref.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_ref());
         let mut result: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
@@ -849,7 +849,7 @@ impl TypeChecker {
             }
             if !self.pop_type_resolution() {
                 self.error(
-                    self.symbol(type_.ref_(self).symbol()).maybe_value_declaration(),
+                    type_.ref_(self).symbol().ref_(self).maybe_value_declaration(),
                     &Diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_base_expression,
                     Some(vec![
                         self.symbol_to_string_(type_.ref_(self).symbol(), Option::<&Node>::None, None, None, None)?
@@ -1215,7 +1215,7 @@ impl TypeChecker {
         }
         if type_ == reduced_base_type || self.has_base_type(reduced_base_type, Some(type_))? {
             self.error(
-                self.symbol(type_.ref_(self).symbol())
+                type_.ref_(self).symbol().ref_(self)
                     .maybe_value_declaration(),
                 &Diagnostics::Type_0_recursively_references_itself_as_a_base_type,
                 Some(vec![self.type_to_string_(

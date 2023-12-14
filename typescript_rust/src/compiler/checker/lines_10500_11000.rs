@@ -88,34 +88,37 @@ impl TypeChecker {
         symbol_flags: SymbolFlags,
     ) {
         Debug_.assert(
-            get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Late),
+            get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late),
             Some("Expected a late-bound symbol."),
         );
-        self.symbol(symbol)
-            .set_flags(self.symbol(symbol).flags() | symbol_flags);
+        symbol
+            .ref_(self)
+            .set_flags(symbol.ref_(self).flags() | symbol_flags);
         self.get_symbol_links(member.symbol())
             .borrow_mut()
             .late_symbol = Some(symbol);
-        if self.symbol(symbol).maybe_declarations().is_none() {
-            self.symbol(symbol)
+        if symbol.ref_(self).maybe_declarations().is_none() {
+            symbol
+                .ref_(self)
                 .set_declarations(vec![member.node_wrapper()]);
         } else if !matches!(
-            self.symbol(member.symbol())
-                .maybe_is_replaceable_by_method(),
+            member.symbol().ref_(self).maybe_is_replaceable_by_method(),
             Some(true)
         ) {
-            self.symbol(symbol)
+            symbol
+                .ref_(self)
                 .maybe_declarations_mut()
                 .as_mut()
                 .unwrap()
                 .push(member.node_wrapper());
         }
         if symbol_flags.intersects(SymbolFlags::Value) {
-            if match self.symbol(symbol).maybe_value_declaration().as_ref() {
+            if match symbol.ref_(self).maybe_value_declaration().as_ref() {
                 None => true,
                 Some(value_declaration) => value_declaration.kind() != member.kind(),
             } {
-                self.symbol(symbol)
+                symbol
+                    .ref_(self)
                     .set_value_declaration(member.node_wrapper());
             }
         }
@@ -150,7 +153,7 @@ impl TypeChecker {
             };
             if self.is_type_usable_as_property_name(type_) {
                 let member_name = self.get_property_name_from_type(type_);
-                let symbol_flags = self.symbol(decl.symbol()).flags();
+                let symbol_flags = decl.symbol().ref_(self).flags();
 
                 let mut late_symbol: Option<Id<Symbol>> =
                     late_symbols.get(&*member_name).map(Clone::clone);
@@ -179,11 +182,11 @@ impl TypeChecker {
                 {
                     let declarations = if let Some(&early_symbol) = early_symbol {
                         maybe_concatenate(
-                            self.symbol(early_symbol).maybe_declarations().clone(),
-                            self.symbol(late_symbol).maybe_declarations().clone(),
+                            early_symbol.ref_(self).maybe_declarations().clone(),
+                            late_symbol.ref_(self).maybe_declarations().clone(),
                         )
                     } else {
-                        self.symbol(late_symbol).maybe_declarations().clone()
+                        late_symbol.ref_(self).maybe_declarations().clone()
                     };
                     let name = if !self
                         .type_(type_)
@@ -215,19 +218,20 @@ impl TypeChecker {
                             .into(),
                     );
                 }
-                self.symbol(late_symbol)
+                late_symbol
+                    .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .name_type = Some(type_);
                 self.add_declaration_to_late_bound_symbol(late_symbol, decl, symbol_flags);
-                if let Some(late_symbol_parent) = self.symbol(late_symbol).maybe_parent() {
+                if let Some(late_symbol_parent) = late_symbol.ref_(self).maybe_parent() {
                     Debug_.assert(
                         late_symbol_parent == parent,
                         Some("Existing symbol parent should match new one"),
                     );
                 } else {
-                    self.symbol(late_symbol).set_parent(Some(parent));
+                    late_symbol.ref_(self).set_parent(Some(parent));
                 }
                 links.borrow_mut().resolved_symbol = Some(late_symbol.clone());
                 return Ok(late_symbol);
@@ -249,11 +253,11 @@ impl TypeChecker {
         {
             let is_static = resolution_kind == MembersOrExportsResolutionKind::resolved_exports;
             let early_symbols: Option<Gc<GcCell<SymbolTable>>> = if !is_static {
-                self.symbol(symbol).maybe_members().clone()
-            } else if self.symbol(symbol).flags().intersects(SymbolFlags::Module) {
+                symbol.ref_(self).maybe_members().clone()
+            } else if symbol.ref_(self).flags().intersects(SymbolFlags::Module) {
                 Some(self.get_exports_of_module_worker(symbol)?)
             } else {
-                self.symbol(symbol).maybe_exports().clone()
+                symbol.ref_(self).maybe_exports().clone()
             };
 
             self.set_symbol_links_members_or_exports_resolution_field_value(
@@ -270,7 +274,7 @@ impl TypeChecker {
             let early_symbols_ref = early_symbols
                 .as_ref()
                 .map(|early_symbols| (**early_symbols).borrow());
-            if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
+            if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for decl in symbol_declarations {
                     let members = get_members_of_declaration(decl);
                     if let Some(members) = members {
@@ -288,7 +292,7 @@ impl TypeChecker {
                         }
                     }
                 }
-                let symbol_ref = self.symbol(symbol);
+                let symbol_ref = symbol.ref_(self);
                 let assignments = symbol_ref.maybe_assignment_declaration_members();
                 if let Some(assignments) = assignments.as_ref() {
                     let decls = assignments.values();
@@ -381,7 +385,8 @@ impl TypeChecker {
                     MembersOrExportsResolutionKind::resolved_members,
                 )?
             } else {
-                self.symbol(symbol)
+                symbol
+                    .ref_(self)
                     .maybe_members()
                     .clone()
                     .unwrap_or_else(|| self.empty_symbols())
@@ -394,21 +399,21 @@ impl TypeChecker {
             .symbol(symbol)
             .flags()
             .intersects(SymbolFlags::ClassMember)
-            && self.symbol(symbol).escaped_name() == InternalSymbolName::Computed
+            && symbol.ref_(self).escaped_name() == InternalSymbolName::Computed
         {
             let links = self.get_symbol_links(symbol);
             if {
                 let value = (*links).borrow().late_symbol.is_none();
                 value
             } && try_some(
-                self.symbol(symbol).maybe_declarations().as_deref(),
+                symbol.ref_(self).maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.has_late_bindable_name(declaration)),
             )? {
                 let parent = self
-                    .get_merged_symbol(self.symbol(symbol).maybe_parent())
+                    .get_merged_symbol(symbol.ref_(self).maybe_parent())
                     .unwrap();
                 if some(
-                    self.symbol(symbol).maybe_declarations().as_deref(),
+                    symbol.ref_(self).maybe_declarations().as_deref(),
                     Some(|declaration: &Gc<Node>| has_static_modifier(declaration)),
                 ) {
                     self.get_exports_of_symbol(parent)?;
@@ -878,7 +883,8 @@ impl TypeChecker {
                 self.create_symbol(SymbolFlags::FunctionScopedVariable, name, Some(check_flags))
                     .into(),
             );
-            self.symbol(symbol)
+            symbol
+                .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
@@ -903,7 +909,7 @@ impl TypeChecker {
         let base_signatures =
             self.get_signatures_of_type(base_constructor_type, SignatureKind::Construct)?;
         let declaration =
-            get_class_like_declaration_of_symbol(&self.symbol(class_type.ref_(self).symbol()));
+            get_class_like_declaration_of_symbol(&class_type.ref_(self).symbol().ref_(self));
         let is_abstract = matches!(declaration.as_ref(), Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract));
         if base_signatures.is_empty() {
             return Ok(vec![Gc::new(

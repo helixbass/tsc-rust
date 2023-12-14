@@ -24,9 +24,10 @@ use crate::{
     resolution_extension_is_ts_or_json, return_ok_default_if_none, return_ok_none_if_none,
     starts_with, try_extract_ts_extension, unescape_leading_underscores, AssignmentDeclarationKind,
     CheckFlags, Debug_, DiagnosticMessage, Diagnostics, Extension, FindAncestorCallbackReturn,
-    HasArena, HasInitializerInterface, InternalSymbolName, ModuleKind, ModuleResolutionKind,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolInterface, SymbolLinks, SyntaxKind, TypeChecker, TypeCheckerHost,
+    HasArena, HasInitializerInterface, InArena, InternalSymbolName, ModuleKind,
+    ModuleResolutionKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Symbol,
+    SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolLinks, SyntaxKind, TypeChecker,
+    TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -122,8 +123,8 @@ impl TypeChecker {
             return false;
         }
         let symbol = symbol.unwrap();
-        self.symbol(symbol).flags() & (SymbolFlags::Alias | excludes) == SymbolFlags::Alias
-            || self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
+        symbol.ref_(self).flags() & (SymbolFlags::Alias | excludes) == SymbolFlags::Alias
+            || symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
                 && self
                     .symbol(symbol)
                     .flags()
@@ -148,7 +149,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_alias(&self, symbol: Id<Symbol>) -> io::Result<Id<Symbol>> {
         Debug_.assert(
-            self.symbol(symbol).flags().intersects(SymbolFlags::Alias),
+            symbol.ref_(self).flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
@@ -293,7 +294,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node /*TypeOnlyAliasDeclaration*/>> {
-        if !self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+        if !symbol.ref_(self).flags().intersects(SymbolFlags::Alias) {
             return None;
         }
         let links = self.get_symbol_links(symbol);
@@ -312,7 +313,7 @@ impl TypeChecker {
         let target = self.resolve_alias(symbol)?;
         // if (target) {
         let mark_alias = target == self.unknown_symbol()
-            || self.symbol(target).flags().intersects(SymbolFlags::Value)
+            || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 && !self.is_const_enum_or_const_enum_only_module(target)
                 && self.get_type_only_alias_declaration(symbol).is_none();
 
@@ -336,7 +337,7 @@ impl TypeChecker {
             if is_internal_module_import_equals_declaration(&node) {
                 let target = self.resolve_symbol(Some(symbol), None)?.unwrap();
                 if target == self.unknown_symbol()
-                    || self.symbol(target).flags().intersects(SymbolFlags::Value)
+                    || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(
                         &node.as_import_equals_declaration().module_reference,
@@ -400,7 +401,7 @@ impl TypeChecker {
         containing_location: Option<impl Borrow<Node>>,
     ) -> io::Result<String> {
         Ok(
-            if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
+            if let Some(symbol_parent) = symbol.ref_(self).maybe_parent() {
                 format!(
                     "{}.{}",
                     self.get_fully_qualified_name(symbol_parent, containing_location)?,
@@ -544,7 +545,7 @@ impl TypeChecker {
                 return Ok(Some(namespace));
             }
             if let Some(namespace_value_declaration) =
-                self.symbol(namespace).maybe_value_declaration()
+                namespace.ref_(self).maybe_value_declaration()
             {
                 if is_in_js_file(Some(&*namespace_value_declaration))
                     && is_variable_declaration(&namespace_value_declaration)
@@ -662,12 +663,12 @@ impl TypeChecker {
         }
         let symbol = symbol.unwrap();
         Debug_.assert(
-            !get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Instantiated),
+            !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated),
             Some("Should never get an instantiated symbol here."),
         );
         if !node_is_synthesized(name)
             && is_entity_name(name)
-            && (self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
+            && (symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
                 || name.parent().kind() == SyntaxKind::ExportAssignment)
         {
             self.mark_symbol_of_alias_declaration_if_type_only(
@@ -678,7 +679,7 @@ impl TypeChecker {
             )?;
         }
         Ok(
-            if self.symbol(symbol).flags().intersects(meaning) || dont_resolve_alias {
+            if symbol.ref_(self).flags().intersects(meaning) || dont_resolve_alias {
                 Some(symbol)
             } else {
                 Some(self.resolve_alias(symbol)?)
@@ -759,7 +760,7 @@ impl TypeChecker {
         if let Some(sig) = sig {
             if is_function_like(Some(&*sig)) {
                 let symbol = self.get_symbol_of_node(&sig)?;
-                return Ok(symbol.and_then(|symbol| self.symbol(symbol).maybe_value_declaration()));
+                return Ok(symbol.and_then(|symbol| symbol.ref_(self).maybe_value_declaration()));
             }
         }
         Ok(None)
@@ -770,7 +771,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node>> {
         let decl = self
-            .symbol(self.symbol(symbol).maybe_parent().unwrap())
+            .symbol(symbol.ref_(self).maybe_parent().unwrap())
             .maybe_value_declaration()?;
         let initializer = if is_assignment_declaration(&decl) {
             get_assigned_expando_initializer(Some(&*decl))
@@ -783,7 +784,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_expando_symbol(&self, symbol: Id<Symbol>) -> io::Result<Option<Id<Symbol>>> {
-        let decl = return_ok_default_if_none!(self.symbol(symbol).maybe_value_declaration());
+        let decl = return_ok_default_if_none!(symbol.ref_(self).maybe_value_declaration());
         if !is_in_js_file(Some(&*decl))
             || self
                 .symbol(symbol)

@@ -598,7 +598,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_symbol_assigned(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let symbol_value_declaration = self.symbol(symbol).maybe_value_declaration();
+        let symbol_value_declaration = symbol.ref_(self).maybe_value_declaration();
         if symbol_value_declaration.is_none() {
             return Ok(false);
         }
@@ -618,7 +618,7 @@ impl TypeChecker {
                 self.mark_node_assignments(&parent)?;
             }
         }
-        Ok(self.symbol(symbol).maybe_is_assigned().unwrap_or(false))
+        Ok(symbol.ref_(self).maybe_is_assigned().unwrap_or(false))
     }
 
     pub(super) fn has_parent_with_assignments_marked(&self, node: &Node) -> bool {
@@ -636,8 +636,8 @@ impl TypeChecker {
         if node.kind() == SyntaxKind::Identifier {
             if is_assignment_target(node) {
                 let symbol = self.get_resolved_symbol(node)?;
-                if is_parameter_or_catch_clause_variable(&self.symbol(symbol)) {
-                    self.symbol(symbol).set_is_assigned(Some(true));
+                if is_parameter_or_catch_clause_variable(&symbol.ref_(self)) {
+                    symbol.ref_(self).set_is_assigned(Some(true));
                 }
             }
         } else {
@@ -652,7 +652,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_variable(&self, symbol: Id<Symbol>) -> bool {
-        self.symbol(symbol)
+        symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Variable)
             && self
@@ -829,7 +829,7 @@ impl TypeChecker {
             && self.get_type_only_alias_declaration(symbol).is_none()
         {
             let target = self.resolve_alias(symbol)?;
-            if self.symbol(target).flags().intersects(SymbolFlags::Value) {
+            if target.ref_(self).flags().intersects(SymbolFlags::Value) {
                 if self.compiler_options.isolated_modules == Some(true)
                     || should_preserve_const_enums(&self.compiler_options)
                         && self.is_export_or_export_expression(location)
@@ -909,7 +909,7 @@ impl TypeChecker {
             local_or_export_symbol.clone()
         };
         if let Some(source_symbol_declarations) =
-            self.symbol(source_symbol).maybe_declarations().as_ref()
+            source_symbol.ref_(self).maybe_declarations().as_ref()
         {
             if self
                 .get_declaration_node_flags_from_symbol(source_symbol)

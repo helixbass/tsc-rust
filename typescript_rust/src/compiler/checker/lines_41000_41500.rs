@@ -387,8 +387,8 @@ impl TypeChecker {
             for_each(
                 self.get_properties_of_type(function_type)?,
                 |p: Id<Symbol>, _| -> Option<()> {
-                    if !props_by_name.contains_key(self.symbol(p).escaped_name()) {
-                        props_by_name.insert(self.symbol(p).escaped_name().to_owned(), p.clone());
+                    if !props_by_name.contains_key(p.ref_(self).escaped_name()) {
+                        props_by_name.insert(p.ref_(self).escaped_name().to_owned(), p.clone());
                     }
                     None
                 },
@@ -419,7 +419,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
-        if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Synthetic) {
+        if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
                 Some(
                     (*self.get_symbol_links(symbol))
@@ -430,7 +430,7 @@ impl TypeChecker {
                     .types(),
                 ),
                 |&type_: &Id<Type>, _| {
-                    self.get_property_of_type_(type_, self.symbol(symbol).escaped_name(), None)
+                    self.get_property_of_type_(type_, symbol.ref_(self).escaped_name(), None)
                 },
             )?));
         } else if self
@@ -439,7 +439,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::Transient)
         {
             let (left_spread, right_spread, synthetic_origin) = {
-                let symbol_links = self.symbol(symbol).as_transient_symbol().symbol_links();
+                let symbol_links = symbol.ref_(self).as_transient_symbol().symbol_links();
                 let symbol_links = (*symbol_links).borrow();
                 (
                     symbol_links.left_spread.clone(),
@@ -514,7 +514,7 @@ impl TypeChecker {
         )?;
         if match module_symbol {
             None => true,
-            Some(module_symbol) => is_shorthand_ambient_module_symbol(&self.symbol(module_symbol)),
+            Some(module_symbol) => is_shorthand_ambient_module_symbol(&module_symbol.ref_(self)),
         } {
             return Ok(true);
         }
@@ -528,7 +528,7 @@ impl TypeChecker {
         let symbol_links = self.get_symbol_links(module_symbol);
         if (*symbol_links).borrow().exports_some_value.is_none() {
             symbol_links.borrow_mut().exports_some_value = Some(if has_export_assignment {
-                self.symbol(module_symbol)
+                module_symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Value)
             } else {
@@ -546,7 +546,7 @@ impl TypeChecker {
         let s = self.resolve_symbol(Some(s), None)?;
         Ok(matches!(
             s,
-            Some(s) if self.symbol(s).flags().intersects(SymbolFlags::Value)
+            Some(s) if s.ref_(self).flags().intersects(SymbolFlags::Value)
         ))
     }
 
@@ -576,7 +576,7 @@ impl TypeChecker {
                     .intersects(SymbolFlags::ExportValue)
                 {
                     let export_symbol = self
-                        .get_merged_symbol(self.symbol(symbol).maybe_export_symbol())
+                        .get_merged_symbol(symbol.ref_(self).maybe_export_symbol())
                         .unwrap();
                     if prefix_locals != Some(true)
                         && self
@@ -661,7 +661,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> bool {
         matches!(
-            self.symbol(symbol).maybe_value_declaration().as_ref(),
+            symbol.ref_(self).maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if is_binding_element(symbol_value_declaration) &&
                 walk_up_binding_elements_and_patterns(symbol_value_declaration).parent().kind() == SyntaxKind::CatchClause
         )
@@ -697,7 +697,7 @@ impl TypeChecker {
                         if self
                             .resolve_name_(
                                 container.maybe_parent(),
-                                self.symbol(symbol).escaped_name(),
+                                symbol.ref_(self).escaped_name(),
                                 SymbolFlags::Value,
                                 None,
                                 Option::<Gc<Node>>::None,
@@ -747,7 +747,7 @@ impl TypeChecker {
                 if let Some(symbol) = symbol.try_filter(|&symbol| {
                     self.is_symbol_of_declaration_with_colliding_name(symbol)
                 })? {
-                    return Ok(self.symbol(symbol).maybe_value_declaration());
+                    return Ok(symbol.ref_(self).maybe_value_declaration());
                 }
             }
         }

@@ -931,7 +931,7 @@ impl TypeChecker {
                         (
                             Box::new(move || type_checker.get_type_of_symbol(p_clone))
                                 as Box<dyn Fn() -> io::Result<Id<Type>>>,
-                            self.symbol(p).escaped_name().to_owned(),
+                            p.ref_(self).escaped_name().to_owned(),
                         )
                     }),
                     |source: Id<Type>, target: Id<Type>| {

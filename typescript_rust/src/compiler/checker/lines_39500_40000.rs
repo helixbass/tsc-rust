@@ -19,7 +19,7 @@ use crate::{
     DiagnosticMessage, Diagnostics, ExternalEmitHelpers, HasStatementsInterface,
     LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TypeChecker, HasArena,
+    SyntaxKind, TypeChecker, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -115,7 +115,7 @@ impl TypeChecker {
         if target != self.unknown_symbol() {
             symbol = self
                 .get_merged_symbol(Some(
-                    self.symbol(symbol).maybe_export_symbol().unwrap_or(symbol),
+                    symbol.ref_(self).maybe_export_symbol().unwrap_or(symbol),
                 ))
                 .unwrap();
             let excluded_meanings = if self
@@ -126,7 +126,7 @@ impl TypeChecker {
                 SymbolFlags::Value
             } else {
                 SymbolFlags::None
-            } | if self.symbol(symbol).flags().intersects(SymbolFlags::Type)
+            } | if symbol.ref_(self).flags().intersects(SymbolFlags::Type)
             {
                 SymbolFlags::Type
             } else {
@@ -140,7 +140,7 @@ impl TypeChecker {
             } else {
                 SymbolFlags::None
             };
-            if self.symbol(target).flags().intersects(excluded_meanings) {
+            if target.ref_(self).flags().intersects(excluded_meanings) {
                 let message = if node.kind() == SyntaxKind::ExportSpecifier {
                     &*Diagnostics::Export_declaration_conflicts_with_exported_declaration_of_0
                 } else {
@@ -164,7 +164,7 @@ impl TypeChecker {
                 && !node.flags().intersects(NodeFlags::Ambient)
             {
                 let type_only_alias = self.get_type_only_alias_declaration(symbol);
-                let is_type = !self.symbol(target).flags().intersects(SymbolFlags::Value);
+                let is_type = !target.ref_(self).flags().intersects(SymbolFlags::Value);
                 if is_type || type_only_alias.is_some() {
                     match node.kind() {
                         SyntaxKind::ImportClause
@@ -238,7 +238,7 @@ impl TypeChecker {
 
             if is_import_specifier(node) {
                 if let Some(target_declarations) =
-                    self.symbol(target).maybe_declarations().as_ref().filter(
+                    target.ref_(self).maybe_declarations().as_ref().filter(
                         |target_declarations| {
                             target_declarations.into_iter().all(|d| {
                                 get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
@@ -249,7 +249,7 @@ impl TypeChecker {
                     self.add_deprecated_suggestion(
                         &node.as_named_declaration().name(),
                         target_declarations,
-                        self.symbol(symbol).escaped_name(),
+                        symbol.ref_(self).escaped_name(),
                     );
                 }
             }
@@ -416,7 +416,7 @@ impl TypeChecker {
             {
                 let target = self.resolve_alias(self.get_symbol_of_node(node)?.unwrap())?;
                 if target != self.unknown_symbol() {
-                    if self.symbol(target).flags().intersects(SymbolFlags::Value) {
+                    if target.ref_(self).flags().intersects(SymbolFlags::Value) {
                         let module_name = get_first_identifier(
                             &node_as_import_equals_declaration.module_reference,
                         );
@@ -443,7 +443,7 @@ impl TypeChecker {
                             );
                         }
                     }
-                    if self.symbol(target).flags().intersects(SymbolFlags::Type) {
+                    if target.ref_(self).flags().intersects(SymbolFlags::Type) {
                         self.check_type_name_is_reserved(
                             &node_as_import_equals_declaration.name(),
                             &Diagnostics::Import_name_cannot_be_0,
@@ -686,7 +686,7 @@ impl TypeChecker {
             is_external_module_reference(&statement_as_import_equals_declaration.module_reference)
                 && !statement_as_import_equals_declaration.is_type_only
                 && matches!(
-                    self.symbol(self.get_symbol_of_node(statement)?.unwrap()).maybe_is_referenced(),
+                    self.get_symbol_of_node(statement)?.unwrap().ref_(self).maybe_is_referenced(),
                     Some(is_referenced) if is_referenced != SymbolFlags::None
                 )
                 && !self.is_referenced_alias_declaration(statement, Some(false))?
@@ -759,7 +759,7 @@ impl TypeChecker {
                 Some(symbol) if symbol == self.undefined_symbol()
                     || symbol == self.global_this_symbol()
                     || matches!(
-                        self.symbol(symbol).maybe_declarations().as_ref(),
+                        symbol.ref_(self).maybe_declarations().as_ref(),
                         Some(symbol_declarations) if self.is_global_source_file(
                             &self.get_declaration_container(
                                 &symbol_declarations[0]
@@ -778,7 +778,7 @@ impl TypeChecker {
                 self.mark_export_as_referenced(node)?;
                 let target = symbol.try_map(|symbol| -> io::Result<_> {
                     Ok(
-                        if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+                        if symbol.ref_(self).flags().intersects(SymbolFlags::Alias) {
                             self.resolve_alias(symbol)?
                         } else {
                             symbol.clone()
@@ -789,7 +789,7 @@ impl TypeChecker {
                     None => true,
                     Some(target) => {
                         target == self.unknown_symbol()
-                            || self.symbol(target).flags().intersects(SymbolFlags::Value)
+                            || target.ref_(self).flags().intersects(SymbolFlags::Value)
                     }
                 } {
                     self.check_expression_cached(
@@ -885,13 +885,13 @@ impl TypeChecker {
                 self.resolve_entity_name(id, SymbolFlags::All, Some(true), Some(true), Some(node))?;
             if let Some(sym) = sym {
                 self.mark_alias_referenced(sym, id)?;
-                let target = if self.symbol(sym).flags().intersects(SymbolFlags::Alias) {
+                let target = if sym.ref_(self).flags().intersects(SymbolFlags::Alias) {
                     self.resolve_alias(sym)?
                 } else {
                     sym.clone()
                 };
                 if target == self.unknown_symbol()
-                    || self.symbol(target).flags().intersects(SymbolFlags::Value)
+                    || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(&node_as_export_assignment.expression, None)?;
                 }
@@ -946,7 +946,7 @@ impl TypeChecker {
 
     pub(super) fn has_exported_members(&self, module_symbol: Id<Symbol>) -> bool {
         for_each_entry_bool(
-            &*(*self.symbol(module_symbol).exports()).borrow(),
+            &*(*module_symbol.ref_(self).exports()).borrow(),
             |_, id| id != "export=",
         )
     }
@@ -958,7 +958,7 @@ impl TypeChecker {
         let module_symbol = self.get_symbol_of_node(node)?.unwrap();
         let links = self.get_symbol_links(module_symbol);
         if (*links).borrow().exports_checked != Some(true) {
-            let export_equals_symbol = (*self.symbol(module_symbol).exports())
+            let export_equals_symbol = (*module_symbol.ref_(self).exports())
                 .borrow()
                 .get("export=")
                 .cloned();
@@ -966,7 +966,7 @@ impl TypeChecker {
                 if self.has_exported_members(module_symbol) {
                     let declaration = self
                         .get_declaration_of_alias_symbol(export_equals_symbol)?
-                        .or_else(|| self.symbol(export_equals_symbol).maybe_value_declaration());
+                        .or_else(|| export_equals_symbol.ref_(self).maybe_value_declaration());
                     if let Some(declaration) = declaration.as_ref().filter(|declaration| {
                         !self.is_top_level_in_external_module_augmentation(declaration)
                             && !is_in_js_file(Some(&***declaration))
@@ -983,9 +983,9 @@ impl TypeChecker {
             // if (exports) {
             let exports = (*exports).borrow();
             for (id, &symbol) in &*exports {
-                let symbol_ref = self.symbol(symbol);
+                let symbol_ref = symbol.ref_(self);
                 let declarations = symbol_ref.maybe_declarations();
-                let flags = self.symbol(symbol).flags();
+                let flags = symbol.ref_(self).flags();
                 if id == "__export" {
                     continue;
                 }

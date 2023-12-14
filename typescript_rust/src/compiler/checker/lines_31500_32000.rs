@@ -108,7 +108,7 @@ impl TypeChecker {
             if match parameter {
                 None => true,
                 Some(parameter) => matches!(
-                    self.symbol(parameter).maybe_value_declaration().as_ref(),
+                    parameter.ref_(self).maybe_value_declaration().as_ref(),
                     Some(parameter_value_declaration) if parameter_value_declaration.as_has_type().maybe_type().is_none()
                 ),
             } {
@@ -131,7 +131,7 @@ impl TypeChecker {
         for i in 0..len {
             let parameter = signature.parameters()[i];
             if get_effective_type_annotation_node(
-                &self.symbol(parameter).maybe_value_declaration().unwrap(),
+                &parameter.ref_(self).maybe_value_declaration().unwrap(),
             )
             .is_none()
             {
@@ -141,9 +141,9 @@ impl TypeChecker {
         }
         if signature_has_rest_parameter(signature) {
             let parameter = *last(signature.parameters());
-            if is_transient_symbol(&self.symbol(parameter))
+            if is_transient_symbol(&parameter.ref_(self))
                 || get_effective_type_annotation_node(
-                    &self.symbol(parameter).maybe_value_declaration().unwrap(),
+                    &parameter.ref_(self).maybe_value_declaration().unwrap(),
                 )
                 .is_none()
             {
@@ -176,7 +176,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let links = self.get_symbol_links(parameter);
         if (*links).borrow().type_.is_none() {
-            let declaration = self.symbol(parameter).maybe_value_declaration().unwrap();
+            let declaration = parameter.ref_(self).maybe_value_declaration().unwrap();
             links.borrow_mut().type_ = Some(type_.try_unwrap_or_else(|| {
                 self.get_widened_type_for_variable_like_declaration(&declaration, Some(true))
             })?);
@@ -298,9 +298,11 @@ impl TypeChecker {
             )
             .into(),
         );
-        self.symbol(target_property_symbol)
+        target_property_symbol
+            .ref_(self)
             .set_parent(Some(symbol.clone()));
-        self.symbol(target_property_symbol)
+        target_property_symbol
+            .ref_(self)
             .as_transient_symbol()
             .symbol_links()
             .borrow_mut()
@@ -310,7 +312,7 @@ impl TypeChecker {
             self.arena(),
             Some(&[target_property_symbol]),
         )));
-        *self.symbol(symbol).maybe_members_mut() = Some(members.clone());
+        *symbol.ref_(self).maybe_members_mut() = Some(members.clone());
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
     }
 

@@ -13,8 +13,8 @@ use crate::{
     contains, contains_gc, get_assignment_target_kind, get_declared_expando_initializer,
     get_object_flags, is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const,
     is_variable_declaration, maybe_every, push_if_unique_eq, push_if_unique_gc, skip_parentheses,
-    AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasArena, Node, NodeInterface,
-    ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasArena, InArena, Node,
+    NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     TypePredicateKind, UnionReduction,
 };
 
@@ -90,7 +90,7 @@ impl TypeChecker {
             SyntaxKind::Identifier => {
                 let symbol = self.get_resolved_symbol(node)?;
                 return Ok(self.is_const_variable(symbol)
-                    || is_parameter_or_catch_clause_variable(&self.symbol(symbol))
+                    || is_parameter_or_catch_clause_variable(&symbol.ref_(self))
                         && !self.is_symbol_assigned(symbol)?);
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {

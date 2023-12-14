@@ -51,7 +51,7 @@ impl TypeChecker {
         self.check_source_element(node_as_constructor_declaration.maybe_body())?;
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        let first_declaration = get_declaration_of_kind(&self.symbol(symbol), node.kind());
+        let first_declaration = get_declaration_of_kind(&symbol.ref_(self), node.kind());
 
         if matches!(
             first_declaration.as_ref(),
@@ -181,8 +181,8 @@ impl TypeChecker {
 
             if self.has_bindable_name(node)? {
                 let symbol = self.get_symbol_of_node(node)?.unwrap();
-                let getter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::GetAccessor);
-                let setter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::SetAccessor);
+                let getter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::GetAccessor);
+                let setter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SetAccessor);
                 if let Some(getter) = getter.as_ref() {
                     if let Some(setter) = setter.as_ref() {
                         if !self
@@ -407,15 +407,15 @@ impl TypeChecker {
                 .clone();
             if let Some(symbol) = symbol {
                 if some(
-                    self.symbol(symbol).maybe_declarations().as_deref(),
+                    symbol.ref_(self).maybe_declarations().as_deref(),
                     Some(|d: &Gc<Node>| {
                         self.is_type_declaration(d) && d.flags().intersects(NodeFlags::Deprecated)
                     }),
                 ) {
                     self.add_deprecated_suggestion(
                         &self.get_deprecated_suggestion_node(node),
-                        self.symbol(symbol).maybe_declarations().as_ref().unwrap(),
-                        self.symbol(symbol).escaped_name(),
+                        symbol.ref_(self).maybe_declarations().as_ref().unwrap(),
+                        symbol.ref_(self).escaped_name(),
                     );
                 }
                 if type_.ref_(self).flags().intersects(TypeFlags::Enum)
@@ -670,7 +670,7 @@ impl TypeChecker {
                 if matches!(
                     property_symbol,
                     Some(property_symbol) if get_declaration_modifier_flags_from_symbol(
-                        self.arena(), &self.symbol(property_symbol),
+                        self.arena(), &property_symbol.ref_(self),
                         None,
                     ).intersects(ModifierFlags::NonPublicAccessibilityModifier)
                 ) {
@@ -939,7 +939,7 @@ impl TypeChecker {
             None;
         let mut previous_declaration: Option<Gc<Node /*SignatureDeclaration*/>> = None;
 
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let declarations = symbol_ref.maybe_declarations();
         let is_constructor = self
             .symbol(symbol)
@@ -1101,7 +1101,7 @@ impl TypeChecker {
                                         .unwrap_or_else(|| declaration.clone()),
                                 ),
                                 diagnostic,
-                                Some(vec![symbol_name(&self.symbol(symbol)).into_owned()]),
+                                Some(vec![symbol_name(&symbol.ref_(self)).into_owned()]),
                             ),
                             related_diagnostics.clone(),
                         );

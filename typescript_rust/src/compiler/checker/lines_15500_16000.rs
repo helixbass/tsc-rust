@@ -1004,7 +1004,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for prop in self.get_properties_of_type(type_)? {
-            if get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(prop), None)
+            if get_declaration_modifier_flags_from_symbol(self.arena(), &prop.ref_(self), None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
             } else if self.is_spreadable_property(prop) {
@@ -1020,7 +1020,7 @@ impl TypeChecker {
                 let result = self.alloc_symbol(
                     self.create_symbol(
                         flags,
-                        self.symbol(prop).escaped_name().to_owned(),
+                        prop.ref_(self).escaped_name().to_owned(),
                         Some(
                             self.get_is_late_check_flag(prop)
                                 | if readonly {
@@ -1032,22 +1032,23 @@ impl TypeChecker {
                     )
                     .into(),
                 );
-                let result_links = self.symbol(result).as_transient_symbol().symbol_links();
+                let result_links = result.ref_(self).as_transient_symbol().symbol_links();
                 let mut result_links = result_links.borrow_mut();
                 result_links.type_ = Some(if is_setonly_accessor {
                     self.undefined_type()
                 } else {
                     self.add_optionality(self.get_type_of_symbol(prop)?, Some(true), None)?
                 });
-                let prop_ref = self.symbol(prop);
+                let prop_ref = prop.ref_(self);
                 let prop_declarations = prop_ref.maybe_declarations();
                 if let Some(prop_declarations) = prop_declarations.as_ref() {
-                    self.symbol(result)
+                    result
+                        .ref_(self)
                         .set_declarations(prop_declarations.clone());
                 }
                 result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
                 result_links.synthetic_origin = Some(prop.clone());
-                members.insert(self.symbol(prop).escaped_name().to_owned(), result);
+                members.insert(prop.ref_(self).escaped_name().to_owned(), result);
             }
         }
         let spread = self.create_anonymous_type(
@@ -1190,28 +1191,28 @@ impl TypeChecker {
         for right_prop in self.get_properties_of_type(right)? {
             if get_declaration_modifier_flags_from_symbol(
                 self.arena(),
-                &self.symbol(right_prop),
+                &right_prop.ref_(self),
                 None,
             )
             .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
-                skipped_private_members.insert(self.symbol(right_prop).escaped_name().to_owned());
+                skipped_private_members.insert(right_prop.ref_(self).escaped_name().to_owned());
             } else if self.is_spreadable_property(right_prop) {
                 members.insert(
-                    self.symbol(right_prop).escaped_name().to_owned(),
+                    right_prop.ref_(self).escaped_name().to_owned(),
                     self.get_spread_symbol(right_prop, readonly)?,
                 );
             }
         }
 
         for left_prop in self.get_properties_of_type(left)? {
-            if skipped_private_members.contains(self.symbol(left_prop).escaped_name())
+            if skipped_private_members.contains(left_prop.ref_(self).escaped_name())
                 || !self.is_spreadable_property(left_prop)
             {
                 continue;
             }
-            if members.contains_key(self.symbol(left_prop).escaped_name()) {
-                let right_prop = *members.get(self.symbol(left_prop).escaped_name()).unwrap();
+            if members.contains_key(left_prop.ref_(self).escaped_name()) {
+                let right_prop = *members.get(left_prop.ref_(self).escaped_name()).unwrap();
                 let right_type = self.get_type_of_symbol(right_prop)?;
                 if self
                     .symbol(right_prop)
@@ -1219,20 +1220,20 @@ impl TypeChecker {
                     .intersects(SymbolFlags::Optional)
                 {
                     let declarations = maybe_concatenate(
-                        self.symbol(left_prop).maybe_declarations().clone(),
-                        self.symbol(right_prop).maybe_declarations().clone(),
+                        left_prop.ref_(self).maybe_declarations().clone(),
+                        right_prop.ref_(self).maybe_declarations().clone(),
                     );
                     let flags = SymbolFlags::Property
-                        | (self.symbol(left_prop).flags() & SymbolFlags::Optional);
+                        | (left_prop.ref_(self).flags() & SymbolFlags::Optional);
                     let result = self.alloc_symbol(
                         self.create_symbol(
                             flags,
-                            self.symbol(left_prop).escaped_name().to_owned(),
+                            left_prop.ref_(self).escaped_name().to_owned(),
                             None,
                         )
                         .into(),
                     );
-                    let result_links = self.symbol(result).as_transient_symbol().symbol_links();
+                    let result_links = result.ref_(self).as_transient_symbol().symbol_links();
                     let mut result_links = result_links.borrow_mut();
                     result_links.type_ = Some(self.get_union_type(
                         &[
@@ -1247,17 +1248,17 @@ impl TypeChecker {
                     result_links.left_spread = Some(left_prop.clone());
                     result_links.right_spread = Some(right_prop.clone());
                     if let Some(declarations) = declarations {
-                        self.symbol(result).set_declarations(declarations);
+                        result.ref_(self).set_declarations(declarations);
                     }
                     result_links.name_type = (*self.get_symbol_links(left_prop))
                         .borrow()
                         .name_type
                         .clone();
-                    members.insert(self.symbol(left_prop).escaped_name().to_owned(), result);
+                    members.insert(left_prop.ref_(self).escaped_name().to_owned(), result);
                 }
             } else {
                 members.insert(
-                    self.symbol(left_prop).escaped_name().to_owned(),
+                    left_prop.ref_(self).escaped_name().to_owned(),
                     self.get_spread_symbol(left_prop, readonly)?,
                 );
             }

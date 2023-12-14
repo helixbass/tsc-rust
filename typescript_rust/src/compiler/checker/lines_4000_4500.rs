@@ -45,7 +45,7 @@ impl TypeChecker {
         }
         let exports = self.get_exports_of_symbol(container)?;
         let exports = (*exports).borrow();
-        let quick = exports.get(self.symbol(symbol).escaped_name());
+        let quick = exports.get(symbol.ref_(self).escaped_name());
         if let Some(&quick) = quick {
             if self.get_symbol_if_same_reference(quick, symbol)?.is_some() {
                 return Ok(Some(quick.clone()));
@@ -89,7 +89,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::ExportValue)
             {
-                self.symbol(symbol).maybe_export_symbol()
+                symbol.ref_(self).maybe_export_symbol()
             } else {
                 Some(symbol)
             }
@@ -97,8 +97,8 @@ impl TypeChecker {
     }
 
     pub(super) fn symbol_is_value(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        Ok(self.symbol(symbol).flags().intersects(SymbolFlags::Value)
-            || self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
+        Ok(symbol.ref_(self).flags().intersects(SymbolFlags::Value)
+            || symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
                 && self
                     .symbol(self.resolve_alias(symbol)?)
                     .flags()
@@ -413,7 +413,7 @@ impl TypeChecker {
                     {
                         let sym = self.get_symbol_of_node(&location_unwrapped)?;
                         result = callback(
-                            sym.and_then(|sym| self.symbol(sym).maybe_exports().clone())
+                            sym.and_then(|sym| sym.ref_(self).maybe_exports().clone())
                                 .unwrap_or_else(|| self.empty_symbols()),
                             None,
                             Some(true),
@@ -529,7 +529,7 @@ impl TypeChecker {
             }
         }
 
-        let id = get_symbol_id(&self.symbol(symbol));
+        let id = get_symbol_id(&symbol.ref_(self));
         if !visited_symbol_tables_map.contains_key(&id) {
             visited_symbol_tables_map.insert(id, Gc::new(GcCell::new(vec![])));
         }
@@ -602,7 +602,7 @@ impl TypeChecker {
             !self.needs_qualification(symbol_from_symbol_table, enclosing_declaration, meaning)?
                 || self
                     .get_accessible_symbol_chain(
-                        self.symbol(symbol_from_symbol_table).maybe_parent(),
+                        symbol_from_symbol_table.ref_(self).maybe_parent(),
                         enclosing_declaration,
                         self.get_qualified_left_meaning(meaning),
                         use_only_external_aliasing,
@@ -634,7 +634,9 @@ impl TypeChecker {
                 ),
             Some(value) if self.get_merged_symbol(Some(symbol)).unwrap() == value
         )) && !some(
-            self.symbol(symbol_from_symbol_table.unwrap())
+            symbol_from_symbol_table
+                .unwrap()
+                .ref_(self)
                 .maybe_declarations()
                 .as_deref(),
             Some(|declaration: &Gc<Node>| {
@@ -670,7 +672,7 @@ impl TypeChecker {
             visited_symbol_tables_map,
             (*symbols)
                 .borrow()
-                .get(self.symbol(symbol).escaped_name())
+                .get(symbol.ref_(self).escaped_name())
                 .cloned(),
             Option::<Id<Symbol>>::None,
             ignore_qualification,
@@ -685,15 +687,16 @@ impl TypeChecker {
                     .symbol(symbol_from_symbol_table)
                     .flags()
                     .intersects(SymbolFlags::Alias)
-                    && self.symbol(symbol_from_symbol_table).escaped_name()
+                    && symbol_from_symbol_table.ref_(self).escaped_name()
                         != InternalSymbolName::ExportEquals
-                    && self.symbol(symbol_from_symbol_table).escaped_name()
+                    && symbol_from_symbol_table.ref_(self).escaped_name()
                         != InternalSymbolName::Default
-                    && !(is_umd_export_symbol(Some(&self.symbol(symbol_from_symbol_table)))
+                    && !(is_umd_export_symbol(Some(&symbol_from_symbol_table.ref_(self)))
                         && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(enclosing_declaration))))
                     && (!use_only_external_aliasing
                         || some(
-                            self.symbol(symbol_from_symbol_table)
+                            symbol_from_symbol_table
+                                .ref_(self)
                                 .maybe_declarations()
                                 .as_deref(),
                             Some(|declaration: &Gc<Node>| {
@@ -702,7 +705,8 @@ impl TypeChecker {
                         ))
                     && if matches!(is_local_name_lookup, Some(true)) {
                         !some(
-                            self.symbol(symbol_from_symbol_table)
+                            symbol_from_symbol_table
+                                .ref_(self)
                                 .maybe_declarations()
                                 .as_deref(),
                             Some(|declaration: &Gc<Node>| {
@@ -714,7 +718,7 @@ impl TypeChecker {
                     }
                     && (matches!(ignore_qualification, Some(true))
                         || get_declaration_of_kind(
-                            &self.symbol(symbol_from_symbol_table),
+                            &symbol_from_symbol_table.ref_(self),
                             SyntaxKind::ExportSpecifier,
                         )
                         .is_none())
@@ -735,11 +739,11 @@ impl TypeChecker {
                         return Ok(candidate);
                     }
                 }
-                if self.symbol(symbol_from_symbol_table).escaped_name()
-                    == self.symbol(symbol).escaped_name()
+                if symbol_from_symbol_table.ref_(self).escaped_name()
+                    == symbol.ref_(self).escaped_name()
                 {
                     if let Some(symbol_from_symbol_table_export_symbol) =
-                        self.symbol(symbol_from_symbol_table).maybe_export_symbol()
+                        symbol_from_symbol_table.ref_(self).maybe_export_symbol()
                     {
                         if self.is_accessible(
                             symbol,
@@ -845,7 +849,7 @@ impl TypeChecker {
                 let symbol_from_symbol_table = self.get_merged_symbol(
                     (*symbol_table)
                         .borrow()
-                        .get(self.symbol(symbol).escaped_name())
+                        .get(symbol.ref_(self).escaped_name())
                         .cloned(),
                 );
                 if symbol_from_symbol_table.is_none() {
@@ -861,7 +865,7 @@ impl TypeChecker {
                     .flags()
                     .intersects(SymbolFlags::Alias)
                     && get_declaration_of_kind(
-                        &self.symbol(symbol_from_symbol_table),
+                        &symbol_from_symbol_table.ref_(self),
                         SyntaxKind::ExportSpecifier,
                     )
                     .is_none()
@@ -887,7 +891,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_property_or_method_declaration_symbol(&self, symbol: Id<Symbol>) -> bool {
-        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
+        if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
                 for declaration in symbol_declarations {
                     match declaration.kind() {
@@ -996,7 +1000,7 @@ impl TypeChecker {
             }
             if allow_modules {
                 if some(
-                    self.symbol(symbol).maybe_declarations().as_deref(),
+                    symbol.ref_(self).maybe_declarations().as_deref(),
                     Some(|declaration: &Gc<Node>| {
                         self.has_non_global_augmentation_external_module_symbol(declaration)
                     }),
@@ -1113,7 +1117,7 @@ impl TypeChecker {
                 }
 
                 let symbol_external_module = try_maybe_for_each(
-                    self.symbol(symbol).maybe_declarations().as_deref(),
+                    symbol.ref_(self).maybe_declarations().as_deref(),
                     |declaration: &Gc<Node>, _| self.get_external_module_container(declaration),
                 )?;
                 if let Some(symbol_external_module) = symbol_external_module {

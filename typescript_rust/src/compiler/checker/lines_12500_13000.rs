@@ -125,12 +125,12 @@ impl TypeChecker {
                 };
                 if matches!(
                     param_symbol,
-                    Some(param_symbol) if self.symbol(param_symbol).flags().intersects(SymbolFlags::Property)
+                    Some(param_symbol) if param_symbol.ref_(self).flags().intersects(SymbolFlags::Property)
                 ) && !is_binding_pattern(param.as_named_declaration().maybe_name())
                 {
                     let resolved_symbol = self.resolve_name_(
                         Some(&**param),
-                        self.symbol(param_symbol.unwrap()).escaped_name(),
+                        param_symbol.unwrap().ref_(self).escaped_name(),
                         SymbolFlags::Value,
                         None,
                         Option::<Gc<Node>>::None,
@@ -140,7 +140,7 @@ impl TypeChecker {
                     param_symbol = resolved_symbol;
                 }
                 let param_symbol = param_symbol.unwrap();
-                if i == 0 && self.symbol(param_symbol).escaped_name() == InternalSymbolName::This {
+                if i == 0 && param_symbol.ref_(self).escaped_name() == InternalSymbolName::This {
                     has_this_parameter = true;
                     this_parameter = param.maybe_symbol();
                 } else {
@@ -181,7 +181,7 @@ impl TypeChecker {
                     SyntaxKind::GetAccessor
                 };
                 let other = get_declaration_of_kind(
-                    &self.symbol(self.get_symbol_of_node(declaration)?.unwrap()),
+                    &self.get_symbol_of_node(declaration)?.unwrap().ref_(self),
                     other_kind,
                 );
                 if let Some(other) = other {
@@ -270,7 +270,8 @@ impl TypeChecker {
             )
             .into(),
         );
-        self.symbol(synthetic_args_symbol)
+        synthetic_args_symbol
+            .ref_(self)
             .as_transient_symbol()
             .symbol_links()
             .borrow_mut()
@@ -359,7 +360,7 @@ impl TypeChecker {
         Ok(match node.kind() {
             SyntaxKind::Identifier => {
                 &node.as_identifier().escaped_text
-                    == self.symbol(self.arguments_symbol()).escaped_name()
+                    == self.arguments_symbol().ref_(self).escaped_name()
                     && matches!(
                         self.get_referenced_value_symbol(node, None)?,
                         Some(symbol) if symbol == self.arguments_symbol()
@@ -397,7 +398,7 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> io::Result<Vec<Gc<Signature>>> {
         let symbol = return_ok_default_if_none!(symbol);
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_declarations = symbol_ref.maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(vec![]);
@@ -552,7 +553,7 @@ impl TypeChecker {
                 find_index(
                     signature.parameters(),
                     |&p: &Id<Symbol>, _| {
-                        self.symbol(p).escaped_name() == &parameter_name_as_identifier.escaped_text
+                        p.ref_(self).escaped_name() == &parameter_name_as_identifier.escaped_text
                     },
                     None,
                 ),
@@ -708,7 +709,7 @@ impl TypeChecker {
                 return Ok(js_doc_type);
             }
             let setter = get_declaration_of_kind(
-                &self.symbol(self.get_symbol_of_node(declaration)?.unwrap()),
+                &self.get_symbol_of_node(declaration)?.unwrap().ref_(self),
                 SyntaxKind::SetAccessor,
             );
             let setter_type = self.get_annotated_accessor_type(setter)?;
@@ -989,7 +990,8 @@ impl TypeChecker {
     }
 
     pub(super) fn get_index_symbol(&self, symbol: Id<Symbol>) -> Option<Id<Symbol>> {
-        self.symbol(symbol)
+        symbol
+            .ref_(self)
             .maybe_members()
             .clone()
             .and_then(|members| self.get_index_symbol_from_symbol_table(&(*members).borrow()))
@@ -1034,7 +1036,7 @@ impl TypeChecker {
         index_symbol: Id<Symbol>,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         if let Some(index_symbol_declarations) =
-            self.symbol(index_symbol).maybe_declarations().as_ref()
+            index_symbol.ref_(self).maybe_declarations().as_ref()
         {
             let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
             for declaration in index_symbol_declarations {
@@ -1112,7 +1114,7 @@ impl TypeChecker {
                 type_
                     .ref_(self)
                     .maybe_symbol()
-                    .and_then(|symbol| self.symbol(symbol).maybe_declarations().clone())
+                    .and_then(|symbol| symbol.ref_(self).maybe_declarations().clone())
                     .as_deref(),
                 |node: &Gc<Node>| is_type_parameter_declaration(node),
             ),

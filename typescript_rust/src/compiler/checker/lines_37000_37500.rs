@@ -606,7 +606,7 @@ impl TypeChecker {
             input_type
                 .ref_(self)
                 .maybe_symbol()
-                .map(|input_type_symbol| self.symbol(input_type_symbol))
+                .map(|input_type_symbol| input_type_symbol.ref_(self))
                 .as_ref()
                 .map(|input_type_symbol| input_type_symbol.escaped_name()),
         ) {

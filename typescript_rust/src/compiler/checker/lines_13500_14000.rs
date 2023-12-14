@@ -125,7 +125,7 @@ impl TypeChecker {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
-                Some(vec![symbol_name(&self.symbol(symbol)).into_owned()]),
+                Some(vec![symbol_name(&symbol.ref_(self)).into_owned()]),
             );
             return Ok(if arity != 0 {
                 self.empty_generic_type()
@@ -144,7 +144,7 @@ impl TypeChecker {
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
                 Some(vec![
-                    symbol_name(&self.symbol(symbol)).into_owned(),
+                    symbol_name(&symbol.ref_(self)).into_owned(),
                     arity.to_string(),
                 ]),
             );
@@ -161,7 +161,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node /*Declaration*/>> {
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let declarations = symbol_ref.maybe_declarations();
         declarations.as_ref().and_then(|declarations| {
             for declaration in declarations {
@@ -234,7 +234,7 @@ impl TypeChecker {
                     .as_deref(),
             ) != arity
             {
-                let symbol_ref = self.symbol(symbol);
+                let symbol_ref = symbol.ref_(self);
                 let symbol_declarations = symbol_ref.maybe_declarations();
                 let decl = symbol_declarations
                     .as_deref()
@@ -248,7 +248,7 @@ impl TypeChecker {
                     decl,
                     &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
                     Some(vec![
-                        symbol_name(&self.symbol(symbol)).into_owned(),
+                        symbol_name(&symbol.ref_(self)).into_owned(),
                         arity.to_string(),
                     ]),
                 );
@@ -353,9 +353,11 @@ impl TypeChecker {
                 )
                 .into(),
             );
-            self.symbol(meta_property_symbol)
+            meta_property_symbol
+                .ref_(self)
                 .set_parent(Some(symbol.clone()));
-            self.symbol(meta_property_symbol)
+            meta_property_symbol
+                .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
@@ -365,7 +367,7 @@ impl TypeChecker {
                 self.arena(),
                 Some(&vec![meta_property_symbol]),
             )));
-            *self.symbol(symbol).maybe_members_mut() = Some(members.clone());
+            *symbol.ref_(self).maybe_members_mut() = Some(members.clone());
 
             *self.maybe_deferred_global_import_meta_expression_type() =
                 Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])?);
@@ -1107,7 +1109,7 @@ impl TypeChecker {
                         )
                         .into(),
                     );
-                    let property_links = self.symbol(property).as_transient_symbol().symbol_links();
+                    let property_links = property.ref_(self).as_transient_symbol().symbol_links();
                     let mut property_links = property_links.borrow_mut();
                     property_links.tuple_label_declaration =
                         named_member_declarations.and_then(|named_member_declarations| {
@@ -1124,7 +1126,8 @@ impl TypeChecker {
                 .into(),
         );
         if combined_flags.intersects(ElementFlags::Variable) {
-            self.symbol(length_symbol)
+            length_symbol
+                .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
@@ -1134,7 +1137,8 @@ impl TypeChecker {
             for i in min_length..=arity {
                 literal_types.push(self.get_number_literal_type(Number::new(i as f64)));
             }
-            self.symbol(length_symbol)
+            length_symbol
+                .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()

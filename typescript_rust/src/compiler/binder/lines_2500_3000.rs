@@ -16,8 +16,8 @@ use crate::{
     is_property_access_expression, is_prototype_access, is_shorthand_property_assignment,
     is_source_file, is_special_property_declaration, is_static, is_this_initialized_declaration,
     remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
-    Diagnostics, GetOrInsertDefault, HasArena, HasStatementsInterface, InternalSymbolName, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    Diagnostics, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena, InternalSymbolName,
+    Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
 };
 
 impl BinderType {
@@ -138,9 +138,8 @@ impl BinderType {
                                 &expression.as_identifier().escaped_text,
                             );
                             if is_this_initialized_declaration(
-                                symbol.and_then(|symbol| {
-                                    self.symbol(symbol).maybe_value_declaration()
-                                }),
+                                symbol
+                                    .and_then(|symbol| symbol.ref_(self).maybe_value_declaration()),
                             ) {
                                 self.bind_this_property_assignment(node);
                             } else {
@@ -461,7 +460,7 @@ impl BinderType {
             self.bind_source_file_as_external_module();
             let original_symbol = file.symbol();
             self.declare_symbol(
-                &mut self.symbol(file.symbol()).exports().borrow_mut(),
+                &mut file.symbol().ref_(self).exports().borrow_mut(),
                 Some(file.symbol()),
                 &file,
                 SymbolFlags::Property,
@@ -485,7 +484,7 @@ impl BinderType {
     }
 
     pub(super) fn bind_export_assignment(&self, node: &Node /*ExportAssignment*/) {
-        if !matches!(self.container().maybe_symbol(), Some(symbol) if self.symbol(symbol).maybe_exports().is_some())
+        if !matches!(self.container().maybe_symbol(), Some(symbol) if symbol.ref_(self).maybe_exports().is_some())
         {
             self.bind_anonymous_declaration(
                 node,
@@ -512,7 +511,7 @@ impl BinderType {
             );
 
             if matches!(node.as_export_assignment().is_export_equals, Some(true)) {
-                set_value_declaration(&self.symbol(symbol), node);
+                set_value_declaration(&symbol.ref_(self), node);
             }
         }
     }
@@ -552,7 +551,7 @@ impl BinderType {
                 ));
         } else {
             let file_symbol = self.file().symbol();
-            let file_symbol_ref = self.symbol(file_symbol);
+            let file_symbol_ref = file_symbol.ref_(self);
             let mut global_exports = file_symbol_ref.maybe_global_exports();
             if global_exports.is_none() {
                 *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
@@ -574,7 +573,7 @@ impl BinderType {
 
     pub(super) fn bind_export_declaration(&self, node: &Node /*ExportDeclaration*/) {
         let node_as_export_declaration = node.as_export_declaration();
-        if !matches!(self.container().maybe_symbol(), Some(symbol) if self.symbol(symbol).maybe_exports().is_some())
+        if !matches!(self.container().maybe_symbol(), Some(symbol) if symbol.ref_(self).maybe_exports().is_some())
         {
             self.bind_anonymous_declaration(
                 node,
@@ -662,7 +661,7 @@ impl BinderType {
         if let Some(symbol) = symbol {
             let flags = SymbolFlags::Property | SymbolFlags::ExportValue;
             self.declare_symbol(
-                &mut self.symbol(symbol).exports().borrow_mut(),
+                &mut symbol.ref_(self).exports().borrow_mut(),
                 Some(symbol),
                 node,
                 flags,
@@ -718,7 +717,7 @@ impl BinderType {
             };
             set_parent(&node_as_binary_expression.left, Some(node.node_wrapper()));
             self.declare_symbol(
-                &mut self.symbol(symbol).exports().borrow_mut(),
+                &mut symbol.ref_(self).exports().borrow_mut(),
                 Some(symbol),
                 &node_as_binary_expression.left,
                 flags,
@@ -770,7 +769,7 @@ impl BinderType {
             SymbolFlags::Property | SymbolFlags::ExportValue | SymbolFlags::ValueModule
         };
         let symbol = self.declare_symbol(
-            &mut self.symbol(self.file().symbol()).exports().borrow_mut(),
+            &mut self.file().symbol().ref_(self).exports().borrow_mut(),
             Some(self.file().symbol()),
             node,
             flags | SymbolFlags::Assignment,
@@ -778,7 +777,7 @@ impl BinderType {
             None,
             None,
         );
-        set_value_declaration(&self.symbol(symbol), node);
+        set_value_declaration(&symbol.ref_(self), node);
     }
 
     pub(super) fn bind_export_assigned_object_member_alias(
@@ -786,7 +785,7 @@ impl BinderType {
         node: &Node, /*ShorthandPropertyAssignment*/
     ) {
         self.declare_symbol(
-            &mut self.symbol(self.file().symbol()).exports().borrow_mut(),
+            &mut self.file().symbol().ref_(self).exports().borrow_mut(),
             Some(self.file().symbol()),
             node,
             SymbolFlags::Alias | SymbolFlags::Assignment,
@@ -845,10 +844,10 @@ impl BinderType {
 
                 if let Some(constructor_symbol) = constructor_symbol {
                     if let Some(constructor_symbol_value_declaration) =
-                        self.symbol(constructor_symbol).maybe_value_declaration()
+                        constructor_symbol.ref_(self).maybe_value_declaration()
                     {
                         let constructor_symbol_members = {
-                            let constructor_symbol_ref = self.symbol(constructor_symbol);
+                            let constructor_symbol_ref = constructor_symbol.ref_(self);
                             let mut constructor_symbol_members =
                                 constructor_symbol_ref.maybe_members_mut();
                             if constructor_symbol_members.is_none() {
@@ -898,9 +897,9 @@ impl BinderType {
             | SyntaxKind::ClassStaticBlockDeclaration => {
                 let containing_class = this_container.parent();
                 let symbol_table = if is_static(&this_container) {
-                    self.symbol(containing_class.symbol()).exports()
+                    containing_class.symbol().ref_(self).exports()
                 } else {
-                    self.symbol(containing_class.symbol()).members()
+                    containing_class.symbol().ref_(self).members()
                 };
                 let mut symbol_table = symbol_table.borrow_mut();
                 if has_dynamic_name(node) {
@@ -930,7 +929,7 @@ impl BinderType {
                     .is_some()
                 {
                     self.declare_symbol(
-                        &mut self.symbol(this_container.symbol()).exports().borrow_mut(),
+                        &mut this_container.symbol().ref_(self).exports().borrow_mut(),
                         Some(this_container.symbol()),
                         node,
                         SymbolFlags::Property | SymbolFlags::ExportValue,
@@ -975,7 +974,7 @@ impl BinderType {
         symbol: Option<Id<Symbol>>,
     ) {
         if let Some(symbol) = symbol {
-            let symbol_ref = self.symbol(symbol);
+            let symbol_ref = symbol.ref_(self);
             let mut symbol_assignment_declaration_members =
                 symbol_ref.maybe_assignment_declaration_members();
             if symbol_assignment_declaration_members.is_none() {

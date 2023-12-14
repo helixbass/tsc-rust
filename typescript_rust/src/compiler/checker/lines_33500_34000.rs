@@ -475,7 +475,7 @@ impl TypeChecker {
         let mut new_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         for &tp in type_parameters {
             let tp_symbol = tp.ref_(self).symbol();
-            let tp_symbol_ref = self.symbol(tp_symbol);
+            let tp_symbol_ref = tp_symbol.ref_(self);
             let name = tp_symbol_ref.escaped_name();
             if self.has_type_parameter_by_name(
                 context.maybe_inferred_type_parameters().as_deref(),
@@ -534,7 +534,7 @@ impl TypeChecker {
     ) -> bool {
         some(
             type_parameters,
-            Some(|&tp: &Id<Type>| self.symbol(tp.ref_(self).symbol()).escaped_name() == name),
+            Some(|&tp: &Id<Type>| tp.ref_(self).symbol().ref_(self).escaped_name() == name),
         )
     }
 
@@ -738,7 +738,10 @@ impl TypeChecker {
 
         if self.compiler_options.isolated_modules == Some(true) {
             Debug_.assert(
-                self.symbol(type_.ref_(self).symbol())
+                type_
+                    .ref_(self)
+                    .symbol()
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::ConstEnum),
                 None,

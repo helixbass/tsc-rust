@@ -135,7 +135,7 @@ impl TypeChecker {
         if symbol.is_none() {
             symbol = self.get_symbol_of_node(node)?;
             let symbol = symbol.unwrap();
-            if self.symbol(symbol).maybe_export_symbol().is_none() {
+            if symbol.ref_(self).maybe_export_symbol().is_none() {
                 return Ok(());
             }
         }
@@ -151,7 +151,7 @@ impl TypeChecker {
         let mut exported_declaration_spaces = DeclarationSpaces::None;
         let mut non_exported_declaration_spaces = DeclarationSpaces::None;
         let mut default_exported_declaration_spaces = DeclarationSpaces::None;
-        for d in self.symbol(symbol).maybe_declarations().as_ref().unwrap() {
+        for d in symbol.ref_(self).maybe_declarations().as_ref().unwrap() {
             let declaration_spaces = self.get_declaration_spaces(d)?;
             let effective_declaration_flags = self
                 .get_effective_declaration_flags(d, ModifierFlags::Export | ModifierFlags::Default);
@@ -178,7 +178,7 @@ impl TypeChecker {
         if common_declaration_spaces_for_exports_and_locals != DeclarationSpaces::None
             || common_declaration_spaces_for_default_and_non_default != DeclarationSpaces::None
         {
-            for d in self.symbol(symbol).maybe_declarations().as_ref().unwrap() {
+            for d in symbol.ref_(self).maybe_declarations().as_ref().unwrap() {
                 let declaration_spaces = self.get_declaration_spaces(d)?;
 
                 let name = get_name_of_declaration(Some(&**d));
@@ -252,7 +252,7 @@ impl TypeChecker {
                 let mut result = DeclarationSpaces::None;
                 let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
-                    self.symbol(target).maybe_declarations().as_deref(),
+                    target.ref_(self).maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
                         Ok(None)
@@ -266,7 +266,7 @@ impl TypeChecker {
                 let mut result = DeclarationSpaces::None;
                 let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
-                    self.symbol(target).maybe_declarations().as_deref(),
+                    target.ref_(self).maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
                         Ok(None)

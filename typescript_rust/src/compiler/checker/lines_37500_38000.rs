@@ -587,7 +587,7 @@ impl TypeChecker {
                 let global_iterator_type = (resolver.get_global_iterator_type)(self, false)?;
                 let is_generator_method = matches!(
                     global_generator_type.ref_(self).maybe_symbol().and_then(|global_generator_type_symbol| {
-                        self.symbol(global_generator_type_symbol).maybe_members().clone()
+                        global_generator_type_symbol.ref_(self).maybe_members().clone()
                     }).and_then(|global_generator_type_symbol_members| {
                         (*global_generator_type_symbol_members).borrow().get(method_name).cloned()
                     }),
@@ -596,7 +596,7 @@ impl TypeChecker {
                 let is_iterator_method = !is_generator_method
                     && matches!(
                         global_iterator_type.ref_(self).maybe_symbol().and_then(|global_iterator_type_symbol| {
-                            self.symbol(global_iterator_type_symbol).maybe_members().clone()
+                            global_iterator_type_symbol.ref_(self).maybe_members().clone()
                         }).and_then(|global_iterator_type_symbol_members| {
                             (*global_iterator_type_symbol_members).borrow().get(method_name).cloned()
                         }),

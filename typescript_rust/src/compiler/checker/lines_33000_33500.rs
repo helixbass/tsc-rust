@@ -37,12 +37,12 @@ impl TypeChecker {
                 let prop_type = self.get_type_of_symbol(prop)?;
                 if matches!(
                     prop_type.ref_(self).maybe_symbol(),
-                    Some(prop_type_symbol) if self.symbol(prop_type_symbol).flags().intersects(SymbolFlags::Class)
+                    Some(prop_type_symbol) if prop_type_symbol.ref_(self).flags().intersects(SymbolFlags::Class)
                 ) {
-                    let prop_ref = self.symbol(prop);
+                    let prop_ref = prop.ref_(self);
                     let name = prop_ref.escaped_name();
                     let symbol = self.resolve_name_(
-                        self.symbol(prop).maybe_value_declaration(),
+                        prop.ref_(self).maybe_value_declaration(),
                         name,
                         SymbolFlags::Type,
                         None,
@@ -51,7 +51,7 @@ impl TypeChecker {
                         None,
                     )?;
                     if matches!(
-                        symbol.and_then(|symbol| self.symbol(symbol).maybe_declarations().clone()).as_ref(),
+                        symbol.and_then(|symbol| symbol.ref_(self).maybe_declarations().clone()).as_ref(),
                         Some(symbol_declarations) if symbol_declarations.iter().any(|symbol_declaration| is_jsdoc_typedef_tag(symbol_declaration))
                     ) {
                         self.add_duplicate_declaration_errors_for_symbols(
@@ -190,7 +190,7 @@ impl TypeChecker {
                     init.as_ref(),
                     Some(init) if is_object_literal_expression(init)
                 ) && matches!(
-                    symbol.and_then(|symbol| self.symbol(symbol).maybe_exports().clone()),
+                    symbol.and_then(|symbol| symbol.ref_(self).maybe_exports().clone()),
                     Some(symbol_exports) if !(*symbol_exports).borrow().is_empty()
                 )
             }

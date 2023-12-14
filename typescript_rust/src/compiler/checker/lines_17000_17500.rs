@@ -349,7 +349,7 @@ impl TypeChecker {
             )?;
             if result_obj.errors_len() > 0 {
                 if let Some(target_symbol) = target.ref_(self).maybe_symbol() {
-                    let target_symbol_ref = self.symbol(target_symbol);
+                    let target_symbol_ref = target_symbol.ref_(self);
                     let target_symbol_declarations = target_symbol_ref.maybe_declarations();
                     if let Some(target_symbol_declarations) = target_symbol_declarations
                         .as_ref()
@@ -547,23 +547,19 @@ impl TypeChecker {
                     } else {
                         let target_is_optional = matches!(
                             prop_name.as_ref(),
-                            Some(prop_name) if self.symbol(
-                                self.get_property_of_type_(
+                            Some(prop_name) if self.get_property_of_type_(
                                     target,
                                     prop_name,
                                     None,
-                                )?.unwrap_or_else(|| self.unknown_symbol())
-                            ).flags().intersects(SymbolFlags::Optional)
+                                )?.unwrap_or_else(|| self.unknown_symbol()).ref_(self).flags().intersects(SymbolFlags::Optional)
                         );
                         let source_is_optional = matches!(
                             prop_name.as_ref(),
-                            Some(prop_name) if self.symbol(
-                                self.get_property_of_type_(
+                            Some(prop_name) if self.get_property_of_type_(
                                     source,
                                     prop_name,
                                     None,
-                                )?.unwrap_or_else(|| self.unknown_symbol())
-                            ).flags().intersects(SymbolFlags::Optional)
+                                )?.unwrap_or_else(|| self.unknown_symbol()).ref_(self).flags().intersects(SymbolFlags::Optional)
                         );
                         target_prop_type =
                             self.remove_missing_type(target_prop_type, target_is_optional);
@@ -629,24 +625,28 @@ impl TypeChecker {
                         if !issued_elaboration
                             && (matches!(
                                 target_prop,
-                                Some(target_prop) if length(self.symbol(target_prop).maybe_declarations().as_deref()) > 0
+                                Some(target_prop) if length(target_prop.ref_(self).maybe_declarations().as_deref()) > 0
                             ) || matches!(
                                 target.ref_(self).maybe_symbol(),
-                                Some(target_symbol) if length(self.symbol(target_symbol).maybe_declarations().as_deref()) > 0
+                                Some(target_symbol) if length(target_symbol.ref_(self).maybe_declarations().as_deref()) > 0
                             ))
                         {
                             let target_node = if let Some(target_prop) =
                                 target_prop.filter(|&target_prop| {
-                                    length(self.symbol(target_prop).maybe_declarations().as_deref())
+                                    length(target_prop.ref_(self).maybe_declarations().as_deref())
                                         > 0
                                 }) {
-                                self.symbol(target_prop)
+                                target_prop
+                                    .ref_(self)
                                     .maybe_declarations()
                                     .as_ref()
                                     .unwrap()[0]
                                     .clone()
                             } else {
-                                self.symbol(target.ref_(self).symbol())
+                                target
+                                    .ref_(self)
+                                    .symbol()
+                                    .ref_(self)
                                     .maybe_declarations()
                                     .as_ref()
                                     .unwrap()[0]

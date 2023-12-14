@@ -165,7 +165,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) {
         if get_combined_local_and_export_symbol_flags(symbol).intersects(meaning) {
-            let symbol_ref = self.symbol(symbol);
+            let symbol_ref = symbol.ref_(self);
             let id = symbol_ref.escaped_name();
             if !symbols.contains_key(id) {
                 symbols.insert(id.to_owned(), symbol);
@@ -194,9 +194,9 @@ impl TypeChecker {
     ) {
         if meaning != SymbolFlags::None {
             for &symbol in source.values() {
-                if get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::ExportSpecifier)
+                if get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::ExportSpecifier)
                     .is_none()
-                    && get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::NamespaceExport)
+                    && get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::NamespaceExport)
                         .is_none()
                 {
                     self.copy_symbol(symbols, symbol, meaning);
@@ -680,7 +680,7 @@ impl TypeChecker {
                 .clone()
         };
         if let Some(left) = left {
-            let proto = if self.symbol(left).flags().intersects(SymbolFlags::Value) {
+            let proto = if left.ref_(self).flags().intersects(SymbolFlags::Value) {
                 self.get_property_of_type_(self.get_type_of_symbol(left)?, "prototype", None)?
             } else {
                 None

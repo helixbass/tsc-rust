@@ -405,7 +405,7 @@ impl TypeChecker {
             false,
             None,
         )?;
-        let decl = symbol.and_then(|symbol| self.symbol(symbol).maybe_value_declaration());
+        let decl = symbol.and_then(|symbol| symbol.ref_(self).maybe_value_declaration());
         if decl.is_none() {
             return Ok(false);
         }
@@ -1043,7 +1043,8 @@ impl TypeChecker {
             .as_ref()
             .and_then(|failed_declaration| failed_declaration.maybe_symbol())
             .and_then(|failed_declaration_symbol| {
-                self.symbol(failed_declaration_symbol)
+                failed_declaration_symbol
+                    .ref_(self)
                     .maybe_declarations()
                     .clone()
             })

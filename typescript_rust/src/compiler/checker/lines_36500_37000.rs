@@ -17,9 +17,9 @@ use crate::{
     is_property_access_expression, is_prototype_access, is_require_variable_declaration,
     is_variable_like, node_is_missing, some, try_for_each, try_for_each_child_bool,
     ClassLikeDeclarationInterface, Debug_, Diagnostics, ExternalEmitHelpers, HasArena,
-    HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind, Node, NodeArray,
-    NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, ScriptTarget, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    HasInitializerInterface, InArena, ModifierFlags, ModuleInstanceState, ModuleKind, Node,
+    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, ScriptTarget, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -336,7 +336,8 @@ impl TypeChecker {
                     .intersects(NodeFlags::BlockScoped)
                 {
                     let var_decl_list = get_ancestor(
-                        self.symbol(local_declaration_symbol)
+                        local_declaration_symbol
+                            .ref_(self)
                             .maybe_value_declaration(),
                         SyntaxKind::VariableDeclarationList,
                     )
@@ -543,7 +544,7 @@ impl TypeChecker {
             return Ok(());
         }
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        if self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
             && is_require_variable_declaration(node)
         {
             self.check_alias_symbol(node)?;
@@ -552,7 +553,7 @@ impl TypeChecker {
 
         let type_ = self.convert_auto_to_any(self.get_type_of_symbol(symbol)?);
         if matches!(
-            self.symbol(symbol).maybe_value_declaration().as_ref(),
+            symbol.ref_(self).maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if ptr::eq(
                 node,
                 &**symbol_value_declaration
@@ -568,7 +569,7 @@ impl TypeChecker {
                         .is_empty()
                         || is_prototype_access(&node_name))
                     && matches!(
-                        self.symbol(symbol).maybe_exports().as_ref(),
+                        symbol.ref_(self).maybe_exports().as_ref(),
                         Some(symbol_exports) if !(**symbol_exports).borrow().is_empty()
                     );
                 if !is_js_object_literal_initializer
@@ -621,7 +622,7 @@ impl TypeChecker {
                     .intersects(SymbolFlags::Assignment)
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(
-                    self.symbol(symbol).maybe_value_declaration(),
+                    symbol.ref_(self).maybe_value_declaration(),
                     type_,
                     node,
                     declaration_type,
@@ -638,7 +639,7 @@ impl TypeChecker {
                 )?;
             }
             if matches!(
-                self.symbol(symbol).maybe_value_declaration().as_ref(),
+                symbol.ref_(self).maybe_value_declaration().as_ref(),
                 Some(symbol_value_declaration) if !self.are_declaration_flags_identical(
                     node,
                     symbol_value_declaration

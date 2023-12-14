@@ -102,7 +102,7 @@ impl TypeChecker {
             return Ok(None);
         }
         let module_symbol = module_symbol.unwrap();
-        let module_symbol_ref = self.symbol(module_symbol);
+        let module_symbol_ref = module_symbol.ref_(self);
         let module_symbol_exports = module_symbol_ref.maybe_exports();
         let module_symbol_exports = module_symbol_exports.as_ref();
         if module_symbol_exports.is_none() {
@@ -134,8 +134,8 @@ impl TypeChecker {
         let exported = return_ok_none_if_none!(exported);
         if exported == self.unknown_symbol()
             || exported == module_symbol
-            || (*self.symbol(module_symbol).exports()).borrow().len() == 1
-            || self.symbol(exported).flags().intersects(SymbolFlags::Alias)
+            || (*module_symbol.ref_(self).exports()).borrow().len() == 1
+            || exported.ref_(self).flags().intersects(SymbolFlags::Alias)
         {
             return Ok(Some(exported));
         }
@@ -157,8 +157,9 @@ impl TypeChecker {
         } else {
             self.clone_symbol(exported)
         };
-        self.symbol(merged)
-            .set_flags(self.symbol(merged).flags() | SymbolFlags::ValueModule);
+        merged
+            .ref_(self)
+            .set_flags(merged.ref_(self).flags() | SymbolFlags::ValueModule);
         let merged_exports = self
             .symbol(merged)
             .maybe_exports_mut()
@@ -169,7 +170,7 @@ impl TypeChecker {
                 )))
             })
             .clone();
-        for (name, &s) in &*(*self.symbol(module_symbol).exports()).borrow() {
+        for (name, &s) in &*(*module_symbol.ref_(self).exports()).borrow() {
             if name == InternalSymbolName::ExportEquals {
                 continue;
             }
@@ -205,7 +206,7 @@ impl TypeChecker {
                     .symbol(symbol)
                     .flags()
                     .intersects(SymbolFlags::Module | SymbolFlags::Variable)
-                && get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::SourceFile).is_none()
+                && get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SourceFile).is_none()
             {
                 let compiler_option_name = if self.module_kind >= ModuleKind::ES2015 {
                     "allowSyntheticDefaultImports"
@@ -289,41 +290,40 @@ impl TypeChecker {
     ) -> io::Result<Id<Symbol>> {
         let result = self.alloc_symbol(
             self.create_symbol(
-                self.symbol(symbol).flags(),
-                self.symbol(symbol).escaped_name().to_owned(),
+                symbol.ref_(self).flags(),
+                symbol.ref_(self).escaped_name().to_owned(),
                 None,
             )
             .into(),
         );
-        self.symbol(result).set_declarations(
-            if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_ref() {
+        result.ref_(self).set_declarations(
+            if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_ref() {
                 symbol_declarations.clone()
             } else {
                 vec![]
             },
         );
-        self.symbol(result)
-            .set_parent(self.symbol(symbol).maybe_parent());
-        let result_links = self.symbol(result).as_transient_symbol().symbol_links();
+        result
+            .ref_(self)
+            .set_parent(symbol.ref_(self).maybe_parent());
+        let result_links = result.ref_(self).as_transient_symbol().symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.target = Some(symbol);
         result_links.originating_import = Some(reference_parent.node_wrapper());
-        if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration() {
-            self.symbol(result)
+        if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
+            result
+                .ref_(self)
                 .set_value_declaration(symbol_value_declaration);
         }
-        if matches!(
-            self.symbol(symbol).maybe_const_enum_only_module(),
-            Some(true)
-        ) {
-            self.symbol(result).set_const_enum_only_module(Some(true));
+        if matches!(symbol.ref_(self).maybe_const_enum_only_module(), Some(true)) {
+            result.ref_(self).set_const_enum_only_module(Some(true));
         }
-        if let Some(symbol_members) = self.symbol(symbol).maybe_members().as_ref() {
-            *self.symbol(result).maybe_members_mut() =
+        if let Some(symbol_members) = symbol.ref_(self).maybe_members().as_ref() {
+            *result.ref_(self).maybe_members_mut() =
                 Some(Gc::new(GcCell::new((**symbol_members).borrow().clone())));
         }
-        if let Some(symbol_exports) = self.symbol(symbol).maybe_exports().as_ref() {
-            *self.symbol(result).maybe_exports_mut() =
+        if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
+            *result.ref_(self).maybe_exports_mut() =
                 Some(Gc::new(GcCell::new((**symbol_exports).borrow().clone())));
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type)?;
@@ -344,7 +344,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_export_assignment_symbol(&self, module_symbol: Id<Symbol>) -> bool {
-        (*self.symbol(module_symbol).exports())
+        (*module_symbol.ref_(self).exports())
             .borrow()
             .get(InternalSymbolName::ExportEquals)
             .is_some()
@@ -472,10 +472,11 @@ impl TypeChecker {
                     symbol,
                     MembersOrExportsResolutionKind::resolved_exports,
                 )?
-            } else if self.symbol(symbol).flags().intersects(SymbolFlags::Module) {
+            } else if symbol.ref_(self).flags().intersects(SymbolFlags::Module) {
                 self.get_exports_of_module_(symbol)?
             } else {
-                self.symbol(symbol)
+                symbol
+                    .ref_(self)
                     .maybe_exports()
                     .as_ref()
                     .map_or_else(|| self.empty_symbols(), |exports| exports.clone())
@@ -585,12 +586,12 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> io::Result<Option<SymbolTable>> {
         let symbol = return_ok_default_if_none!(symbol);
-        if !(self.symbol(symbol).maybe_exports().is_some()
+        if !(symbol.ref_(self).maybe_exports().is_some()
             && push_if_unique_eq(visited_symbols, &symbol))
         {
             return Ok(None);
         }
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_exports = symbol_ref.maybe_exports();
         let symbol_exports = symbol_exports.as_ref().unwrap();
         let symbol_exports = (**symbol_exports).borrow();
@@ -601,7 +602,7 @@ impl TypeChecker {
                 create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             let mut lookup_table = ExportCollisionTrackerTable::new();
             if let Some(export_stars_declarations) =
-                self.symbol(export_stars).maybe_declarations().as_ref()
+                export_stars.ref_(self).maybe_declarations().as_ref()
             {
                 for node in export_stars_declarations {
                     let resolved_module = self.resolve_external_module_name_(
@@ -651,7 +652,7 @@ impl TypeChecker {
 
     pub(super) fn get_merged_symbol(&self, symbol: Option<Id<Symbol>>) -> Option<Id<Symbol>> {
         let symbol = symbol?;
-        if let Some(symbol_merge_id) = self.symbol(symbol).maybe_merge_id() {
+        if let Some(symbol_merge_id) = symbol.ref_(self).maybe_merge_id() {
             let merged = self.merged_symbols().get(&symbol_merge_id).cloned();
             Some(merged.unwrap_or_else(|| symbol))
         } else {
@@ -671,7 +672,8 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         Ok(self.get_merged_symbol(
-            self.symbol(symbol)
+            symbol
+                .ref_(self)
                 .maybe_parent()
                 .try_map(|symbol_parent| self.get_late_bound_symbol(symbol_parent))?,
         ))
@@ -773,7 +775,7 @@ impl TypeChecker {
                 .intersects(SymbolFlags::TypeParameter)
             {
                 let mut additional_containers: Vec<Id<Symbol>> = try_map_defined(
-                    self.symbol(container).maybe_declarations().as_ref(),
+                    container.ref_(self).maybe_declarations().as_ref(),
                     |d: &Gc<Node>, _| {
                         self.get_file_symbol_if_file_symbol_export_equals_container(d, container)
                     },
@@ -816,7 +818,7 @@ impl TypeChecker {
                     .symbol(container)
                     .flags()
                     .intersects(self.get_qualified_left_meaning(meaning)))
-                    && self.symbol(container).flags().intersects(SymbolFlags::Type)
+                    && container.ref_(self).flags().intersects(SymbolFlags::Type)
                     && self
                         .type_(self.get_declared_type_of_symbol(container)?)
                         .flags()
@@ -863,7 +865,7 @@ impl TypeChecker {
             }
         }
         let candidates = try_map_defined(
-            self.symbol(symbol).maybe_declarations().as_deref(),
+            symbol.ref_(self).maybe_declarations().as_deref(),
             |d: &Gc<Node>, _| -> io::Result<_> {
                 if !is_ambient_module(d) {
                     if let Some(d_parent) = d.maybe_parent() {
@@ -929,8 +931,8 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
         let first_decl: Option<Gc<Node>> =
-            if length(self.symbol(symbol).maybe_declarations().as_deref()) > 0 {
-                Some(first(self.symbol(symbol).maybe_declarations().as_deref().unwrap()).clone())
+            if length(symbol.ref_(self).maybe_declarations().as_deref()) > 0 {
+                Some(first(symbol.ref_(self).maybe_declarations().as_deref().unwrap()).clone())
             } else {
                 None
             };
@@ -967,7 +969,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let file_symbol = self.get_external_module_container(d)?;
         let exported = return_ok_none_if_none!(file_symbol
-            .and_then(|file_symbol| self.symbol(file_symbol).maybe_exports().clone())
+            .and_then(|file_symbol| file_symbol.ref_(self).maybe_exports().clone())
             .and_then(|exports| {
                 (*exports)
                     .borrow()

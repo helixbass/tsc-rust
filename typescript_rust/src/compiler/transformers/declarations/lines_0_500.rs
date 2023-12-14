@@ -243,10 +243,6 @@ impl TransformDeclarations {
         downcasted
     }
 
-    pub(super) fn arena(&self) -> &AllArenas {
-        unsafe { &*self._arena }
-    }
-
     pub(super) fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
         self.arena().symbol(symbol)
     }
@@ -1216,6 +1212,12 @@ impl TransformDeclarations {
             )?));
         }
         Ok(None)
+    }
+}
+
+impl HasArena for TransformDeclarations {
+    fn arena(&self) -> &AllArenas {
+        unsafe { &*self._arena }
     }
 }
 

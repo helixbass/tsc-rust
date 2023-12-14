@@ -313,7 +313,8 @@ impl TypeChecker {
                 )
                 .into(),
             );
-            self.symbol(param_symbol)
+            param_symbol
+                .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
@@ -331,13 +332,15 @@ impl TypeChecker {
             );
             let rest_param_symbol_type =
                 self.create_array_type(self.get_type_at_position(shorter, longest_count)?, None);
-            self.symbol(rest_param_symbol)
+            rest_param_symbol
+                .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(rest_param_symbol_type.clone());
             if ptr::eq(shorter, right) {
-                self.symbol(rest_param_symbol)
+                rest_param_symbol
+                    .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
@@ -856,7 +859,7 @@ impl TypeChecker {
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
         Ok(
-            self.is_numeric_literal_name(&self.symbol(symbol).escaped_name())
+            self.is_numeric_literal_name(&symbol.ref_(self).escaped_name())
                 || matches!(
                     first_decl.as_ref(),
                     Some(first_decl) if is_named_declaration(first_decl)
@@ -871,7 +874,7 @@ impl TypeChecker {
             .maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
-        Ok(is_known_symbol(&self.symbol(symbol))
+        Ok(is_known_symbol(&symbol.ref_(self))
             || matches!(
                 first_decl.as_ref(),
                 Some(first_decl) if is_named_declaration(first_decl) && is_computed_property_name(&first_decl.as_named_declaration().name()) &&
@@ -919,7 +922,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         Debug_.assert(
-            self.symbol(symbol).flags().intersects(SymbolFlags::Alias),
+            symbol.ref_(self).flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
@@ -1072,21 +1075,21 @@ impl TypeChecker {
                 });
                 let prop = self.alloc_symbol(if let Some(name_type) = name_type {
                     self.create_symbol(
-                        SymbolFlags::Property | self.symbol(member_present).flags(),
+                        SymbolFlags::Property | member_present.ref_(self).flags(),
                         self.get_property_name_from_type(name_type),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
                 } else {
                     self.create_symbol(
-                        SymbolFlags::Property | self.symbol(member_present).flags(),
-                        self.symbol(member_present).escaped_name().to_owned(),
+                        SymbolFlags::Property | member_present.ref_(self).flags(),
+                        member_present.ref_(self).escaped_name().to_owned(),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
                 });
                 if let Some(name_type) = name_type {
-                    self.symbol(prop)
+                    prop.ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
                         .borrow_mut()
@@ -1107,8 +1110,8 @@ impl TypeChecker {
                                 .object_assignment_initializer
                                 .is_some();
                     if is_optional {
-                        self.symbol(prop)
-                            .set_flags(self.symbol(prop).flags() | SymbolFlags::Optional);
+                        prop.ref_(self)
+                            .set_flags(prop.ref_(self).flags() | SymbolFlags::Optional);
                     }
                 } else if contextual_type_has_pattern
                     && !get_object_flags(&contextual_type.unwrap().ref_(self))
@@ -1116,13 +1119,13 @@ impl TypeChecker {
                 {
                     let implied_prop = self.get_property_of_type_(
                         contextual_type.unwrap(),
-                        self.symbol(member_present).escaped_name(),
+                        member_present.ref_(self).escaped_name(),
                         None,
                     )?;
                     if let Some(implied_prop) = implied_prop {
-                        self.symbol(prop).set_flags(
-                            self.symbol(prop).flags()
-                                | (self.symbol(implied_prop).flags() & SymbolFlags::Optional),
+                        prop.ref_(self).set_flags(
+                            prop.ref_(self).flags()
+                                | (implied_prop.ref_(self).flags() & SymbolFlags::Optional),
                         );
                     } else if self.compiler_options.suppress_excess_property_errors != Some(true)
                         && self
@@ -1149,21 +1152,21 @@ impl TypeChecker {
                 }
 
                 if let Some(member_declarations) =
-                    self.symbol(member_present).maybe_declarations().clone()
+                    member_present.ref_(self).maybe_declarations().clone()
                 {
-                    self.symbol(prop).set_declarations(member_declarations);
+                    prop.ref_(self).set_declarations(member_declarations);
                 }
-                self.symbol(prop)
-                    .set_parent(self.symbol(member_present).maybe_parent());
+                prop.ref_(self)
+                    .set_parent(member_present.ref_(self).maybe_parent());
                 if let Some(member_value_declaration) =
-                    self.symbol(member_present).maybe_value_declaration()
+                    member_present.ref_(self).maybe_value_declaration()
                 {
-                    self.symbol(prop)
+                    prop.ref_(self)
                         .set_value_declaration(member_value_declaration);
                 }
 
                 {
-                    let prop_links = self.symbol(prop).as_transient_symbol().symbol_links();
+                    let prop_links = prop.ref_(self).as_transient_symbol().symbol_links();
                     let mut prop_links = prop_links.borrow_mut();
                     prop_links.type_ = Some(type_);
                     prop_links.target = Some(member_present.clone());
@@ -1171,7 +1174,7 @@ impl TypeChecker {
                 member = Some(prop.clone());
                 if let Some(all_properties_table) = all_properties_table.as_mut() {
                     all_properties_table
-                        .insert(self.symbol(prop).escaped_name().to_owned(), prop.clone());
+                        .insert(prop.ref_(self).escaped_name().to_owned(), prop.clone());
                 };
             } else if member_decl.kind() == SyntaxKind::SpreadAssignment {
                 if self.language_version < ScriptTarget::ES2015 {
@@ -1274,32 +1277,30 @@ impl TypeChecker {
                     }
                 }
             } else {
-                properties_table.insert(
-                    self.symbol(member).escaped_name().to_owned(),
-                    member.clone(),
-                );
+                properties_table
+                    .insert(member.ref_(self).escaped_name().to_owned(), member.clone());
             }
             properties_array.push(member);
         }
 
         if contextual_type_has_pattern && node.parent().kind() != SyntaxKind::SpreadAssignment {
             for prop in self.get_properties_of_type(contextual_type.unwrap())? {
-                if !properties_table.contains_key(self.symbol(prop).escaped_name())
+                if !properties_table.contains_key(prop.ref_(self).escaped_name())
                     && self
-                        .get_property_of_type_(spread, self.symbol(prop).escaped_name(), None)?
+                        .get_property_of_type_(spread, prop.ref_(self).escaped_name(), None)?
                         .is_none()
                 {
-                    if !self.symbol(prop).flags().intersects(SymbolFlags::Optional) {
+                    if !prop.ref_(self).flags().intersects(SymbolFlags::Optional) {
                         self.error(
-                            self.symbol(prop).maybe_value_declaration().or_else(|| {
-                                (*self.symbol(prop).as_transient_symbol().symbol_links()).borrow().binding_element.clone()
+                            prop.ref_(self).maybe_value_declaration().or_else(|| {
+                                (*prop.ref_(self).as_transient_symbol().symbol_links()).borrow().binding_element.clone()
                             }),
                             &Diagnostics::Initializer_provides_no_value_for_this_binding_element_and_the_binding_element_has_no_default_value,
                             None,
                         );
                     }
                     properties_table
-                        .insert(self.symbol(prop).escaped_name().to_owned(), prop.clone());
+                        .insert(prop.ref_(self).escaped_name().to_owned(), prop.clone());
                     properties_array.push(prop.clone());
                 }
             }

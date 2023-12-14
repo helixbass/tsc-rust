@@ -255,7 +255,7 @@ impl TypeChecker {
                                 let block_local = block_locals.get(caught_name);
                                 if let Some(&block_local) = block_local {
                                     if let Some(block_local_value_declaration) =
-                                        self.symbol(block_local).maybe_value_declaration().as_ref()
+                                        block_local.ref_(self).maybe_value_declaration().as_ref()
                                     {
                                         if self
                                             .symbol(block_local)
@@ -301,7 +301,7 @@ impl TypeChecker {
         }
         for prop in self.get_properties_of_object_type(type_)? {
             if !(is_static_index == Some(true)
-                && self.symbol(prop).flags().intersects(SymbolFlags::Prototype))
+                && prop.ref_(self).flags().intersects(SymbolFlags::Prototype))
             {
                 self.check_index_constraint_for_property(
                     type_,
@@ -315,7 +315,7 @@ impl TypeChecker {
                 )?;
             }
         }
-        let type_declaration = self.symbol(symbol).maybe_value_declaration();
+        let type_declaration = symbol.ref_(self).maybe_value_declaration();
         if let Some(type_declaration) = type_declaration
             .as_ref()
             .filter(|type_declaration| is_class_like(type_declaration))
@@ -354,7 +354,7 @@ impl TypeChecker {
         prop_name_type: Id<Type>,
         prop_type: Id<Type>,
     ) -> io::Result<()> {
-        let declaration = self.symbol(prop).maybe_value_declaration();
+        let declaration = prop.ref_(self).maybe_value_declaration();
         let name = get_name_of_declaration(declaration.as_deref());
         if matches!(
             name.as_ref(),
@@ -366,7 +366,7 @@ impl TypeChecker {
         let interface_declaration =
             if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
-                    &self.symbol(type_.ref_(self).symbol()),
+                    &type_.ref_(self).symbol().ref_(self),
                     SyntaxKind::InterfaceDeclaration,
                 )
             } else {
@@ -407,7 +407,7 @@ impl TypeChecker {
                                     Ok(self
                                         .get_property_of_object_type(
                                             base,
-                                            self.symbol(prop).escaped_name(),
+                                            prop.ref_(self).escaped_name(),
                                         )?
                                         .is_some()
                                         && self
@@ -444,7 +444,7 @@ impl TypeChecker {
         let interface_declaration =
             if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
-                    &self.symbol(type_.ref_(self).symbol()),
+                    &type_.ref_(self).symbol().ref_(self),
                     SyntaxKind::InterfaceDeclaration,
                 )
             } else {
@@ -645,7 +645,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
         if matches!(
-            self.symbol(symbol).maybe_declarations().as_ref(),
+            symbol.ref_(self).maybe_declarations().as_ref(),
             Some(symbol_declarations) if symbol_declarations.len() == 1
         ) {
             return Ok(());
@@ -713,7 +713,7 @@ impl TypeChecker {
                     .name()
                     .as_identifier()
                     .escaped_text
-                    != self.symbol(target.ref_(self).symbol()).escaped_name()
+                    != target.ref_(self).symbol().ref_(self).escaped_name()
                 {
                     return Ok(false);
                 }
@@ -979,7 +979,7 @@ impl TypeChecker {
 
                 if !matches!(
                     static_base_type.ref_(self).maybe_symbol(),
-                    Some(static_base_type_symbol) if self.symbol(static_base_type_symbol).flags().intersects(SymbolFlags::Class)
+                    Some(static_base_type_symbol) if static_base_type_symbol.ref_(self).flags().intersects(SymbolFlags::Class)
                 ) && !self
                     .type_(base_constructor_type)
                     .flags()
@@ -1038,7 +1038,7 @@ impl TypeChecker {
                         if self.is_valid_base_type(t)? {
                             let generic_diag = if matches!(
                                 t.ref_(self).maybe_symbol(),
-                                Some(t_symbol) if self.symbol(t_symbol).flags().intersects(SymbolFlags::Class)
+                                Some(t_symbol) if t_symbol.ref_(self).flags().intersects(SymbolFlags::Class)
                             ) {
                                 &*Diagnostics::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass
                             } else {

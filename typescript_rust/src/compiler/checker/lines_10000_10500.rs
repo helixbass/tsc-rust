@@ -150,7 +150,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_thisless_interface(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_declarations = symbol_ref.maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(true);
@@ -209,14 +209,15 @@ impl TypeChecker {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         if (*links).borrow().declared_type.is_none() {
-            let kind = if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
+            let kind = if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
                 ObjectFlags::Class
             } else {
                 ObjectFlags::Interface
             };
             let merged = self.merge_js_symbols(
                 symbol,
-                self.symbol(symbol)
+                symbol
+                    .ref_(self)
                     .maybe_value_declaration()
                     .as_ref()
                     .try_and_then(|value_declaration| {
@@ -225,7 +226,7 @@ impl TypeChecker {
             )?;
             if let Some(merged) = merged {
                 symbol = merged.clone();
-                links = self.symbol(merged).as_transient_symbol().symbol_links();
+                links = merged.ref_(self).as_transient_symbol().symbol_links();
             }
 
             let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface =
@@ -328,7 +329,8 @@ impl TypeChecker {
             }
 
             let declaration = Debug_.check_defined(
-                self.symbol(symbol)
+                symbol
+                    .ref_(self)
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|declarations| {
@@ -459,7 +461,7 @@ impl TypeChecker {
             return Ok(links_enum_kind);
         }
         let mut has_non_literal_member = false;
-        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
+        if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             for declaration in symbol_declarations {
                 if declaration.kind() == SyntaxKind::EnumDeclaration {
                     for member in &declaration.as_enum_declaration().members {
@@ -511,7 +513,7 @@ impl TypeChecker {
         if self.get_enum_kind(symbol)? == EnumKind::Literal {
             self.increment_enum_count();
             let mut member_type_list: Vec<Id<Type>> = vec![];
-            if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
+            if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for declaration in symbol_declarations {
                     if declaration.kind() == SyntaxKind::EnumDeclaration {
                         for member in &declaration.as_enum_declaration().members {
@@ -626,7 +628,7 @@ impl TypeChecker {
         {
             return Ok(Some(self.get_declared_type_of_type_parameter(symbol)));
         }
-        if self.symbol(symbol).flags().intersects(SymbolFlags::Enum) {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Enum) {
             return Ok(Some(self.get_declared_type_of_enum(symbol)?));
         }
         if self
@@ -636,7 +638,7 @@ impl TypeChecker {
         {
             return Ok(Some(self.get_declared_type_of_enum_member(symbol)?));
         }
-        if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Alias) {
             return Ok(Some(self.get_declared_type_of_alias(symbol)?));
         }
         Ok(None)
@@ -715,7 +717,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_thisless(&self, symbol: Id<Symbol>) -> bool {
-        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
+        if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             if symbol_declarations.len() == 1 {
                 let declaration = &symbol_declarations[0];
                 // if (declaration) {
@@ -748,7 +750,7 @@ impl TypeChecker {
         for symbol in symbols {
             let &symbol: &Id<Symbol> = symbol.borrow();
             result.insert(
-                self.symbol(symbol).escaped_name().to_owned(),
+                symbol.ref_(self).escaped_name().to_owned(),
                 if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {
@@ -765,17 +767,17 @@ impl TypeChecker {
         base_symbols: impl IntoIterator<Item = Id<Symbol>>,
     ) {
         for s in base_symbols {
-            if !symbols.contains_key(self.symbol(s).escaped_name())
+            if !symbols.contains_key(s.ref_(self).escaped_name())
                 && !self.is_static_private_identifier_property(s)
             {
-                symbols.insert(self.symbol(s).escaped_name().to_owned(), s.clone());
+                symbols.insert(s.ref_(self).escaped_name().to_owned(), s.clone());
             }
         }
     }
 
     pub(super) fn is_static_private_identifier_property(&self, s: Id<Symbol>) -> bool {
         matches!(
-            self.symbol(s).maybe_value_declaration().as_ref(),
+            s.ref_(self).maybe_value_declaration().as_ref(),
             Some(value_declaration) if is_private_identifier_class_element_declaration(value_declaration) && is_static(value_declaration)
         )
     }

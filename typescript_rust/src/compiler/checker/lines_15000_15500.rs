@@ -108,7 +108,7 @@ impl TypeChecker {
     }
 
     pub(super) fn apply_string_mapping(&self, symbol: Id<Symbol>, str_: &str) -> String {
-        match intrinsic_type_kinds.get(self.symbol(symbol).escaped_name()) {
+        match intrinsic_type_kinds.get(symbol.ref_(self).escaped_name()) {
             Some(IntrinsicTypeKind::Uppercase) => str_.to_uppercase(),
             Some(IntrinsicTypeKind::Lowercase) => str_.to_lowercase(),
             Some(IntrinsicTypeKind::Capitalize) => capitalize(str_),
@@ -124,7 +124,7 @@ impl TypeChecker {
     ) -> Id<Type> {
         let id = format!(
             "{},{}",
-            get_symbol_id(&self.symbol(symbol)),
+            get_symbol_id(&symbol.ref_(self)),
             self.get_type_id(type_)
         );
         let mut result = self.string_mapping_types().get(&id).map(Clone::clone);
@@ -235,7 +235,7 @@ impl TypeChecker {
                     && self.has_matching_argument(&parent, node)?);
             }
             return Ok(maybe_every(
-                self.symbol(symbol).maybe_declarations().as_deref(),
+                symbol.ref_(self).maybe_declarations().as_deref(),
                 |d: &Gc<Node>, _| {
                     !is_function_like(Some(&**d))
                         || get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
@@ -278,7 +278,7 @@ impl TypeChecker {
             if let Some(prop) = prop {
                 if access_flags.intersects(AccessFlags::ReportDeprecated) {
                     if let Some(access_node) = access_node.as_ref() {
-                        let prop_ref = self.symbol(prop);
+                        let prop_ref = prop.ref_(self);
                         let prop_declarations = prop_ref.maybe_declarations();
                         if let Some(prop_declarations) = prop_declarations.as_deref() {
                             if self

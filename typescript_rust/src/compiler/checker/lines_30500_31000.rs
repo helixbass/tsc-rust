@@ -337,7 +337,8 @@ impl TypeChecker {
             )
             .into(),
         );
-        self.symbol(parameter_symbol)
+        parameter_symbol
+            .ref_(self)
             .as_transient_symbol()
             .symbol_links()
             .borrow_mut()
@@ -558,7 +559,7 @@ impl TypeChecker {
 
             let symbol = self.get_symbol_of_node(func)?;
             return Ok(matches!(
-                symbol.and_then(|symbol| self.symbol(symbol).maybe_members().clone()).as_ref(),
+                symbol.and_then(|symbol| symbol.ref_(self).maybe_members().clone()).as_ref(),
                 Some(symbol_members) if !(**symbol_members).borrow().is_empty(),
             ));
         }
@@ -574,15 +575,15 @@ impl TypeChecker {
         let links = self.get_symbol_links(source);
         if !matches!(
             (*links).borrow().inferred_class_symbol.as_ref(),
-            Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(&self.symbol(target)))
+            Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(&target.ref_(self)))
         ) {
-            let inferred = if is_transient_symbol(&self.symbol(target)) {
+            let inferred = if is_transient_symbol(&target.ref_(self)) {
                 target
             } else {
                 self.clone_symbol(target)
             };
             {
-                let inferred_ref = self.symbol(inferred);
+                let inferred_ref = inferred.ref_(self);
                 let mut inferred_exports = inferred_ref.maybe_exports_mut();
                 if inferred_exports.is_none() {
                     *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(
@@ -592,7 +593,7 @@ impl TypeChecker {
                 }
             }
             {
-                let inferred_ref = self.symbol(inferred);
+                let inferred_ref = inferred.ref_(self);
                 let mut inferred_members = inferred_ref.maybe_members_mut();
                 if inferred_members.is_none() {
                     *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(
@@ -601,26 +602,26 @@ impl TypeChecker {
                     ))));
                 }
             }
-            self.symbol(inferred).set_flags(
-                self.symbol(inferred).flags() | (self.symbol(source).flags() & SymbolFlags::Class),
+            inferred.ref_(self).set_flags(
+                inferred.ref_(self).flags() | (source.ref_(self).flags() & SymbolFlags::Class),
             );
             if matches!(
-                self.symbol(source).maybe_exports().as_ref(),
+                source.ref_(self).maybe_exports().as_ref(),
                 Some(source_exports) if !(**source_exports).borrow().is_empty()
             ) {
                 self.merge_symbol_table(
-                    self.symbol(inferred).maybe_exports().clone().unwrap(),
-                    &(*self.symbol(source).maybe_exports().clone().unwrap()).borrow(),
+                    inferred.ref_(self).maybe_exports().clone().unwrap(),
+                    &(*source.ref_(self).maybe_exports().clone().unwrap()).borrow(),
                     None,
                 )?;
             }
             if matches!(
-                self.symbol(source).maybe_members().as_ref(),
+                source.ref_(self).maybe_members().as_ref(),
                 Some(source_members) if !(**source_members).borrow().is_empty()
             ) {
                 self.merge_symbol_table(
-                    self.symbol(inferred).maybe_members().clone().unwrap(),
-                    &(*self.symbol(source).maybe_members().clone().unwrap()).borrow(),
+                    inferred.ref_(self).maybe_members().clone().unwrap(),
+                    &(*source.ref_(self).maybe_members().clone().unwrap()).borrow(),
                     None,
                 )?;
             }
@@ -633,7 +634,7 @@ impl TypeChecker {
                     .inferred_class_symbol
                     .as_mut()
                     .unwrap()
-                    .insert(get_symbol_id(&self.symbol(inferred)), inferred.clone());
+                    .insert(get_symbol_id(&inferred.ref_(self)), inferred.clone());
             }
             return Ok(Some(inferred));
         }
@@ -642,7 +643,7 @@ impl TypeChecker {
             .inferred_class_symbol
             .as_ref()
             .unwrap()
-            .get(&get_symbol_id(&self.symbol(target)))
+            .get(&get_symbol_id(&target.ref_(self)))
             .cloned();
         Ok(ret)
     }
@@ -653,7 +654,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true)?;
         let prototype = assignment_symbol
-            .and_then(|assignment_symbol| self.symbol(assignment_symbol).maybe_exports().clone())
+            .and_then(|assignment_symbol| assignment_symbol.ref_(self).maybe_exports().clone())
             .and_then(|assignment_symbol_exports| {
                 (*assignment_symbol_exports)
                     .borrow()
@@ -661,7 +662,7 @@ impl TypeChecker {
                     .cloned()
             });
         let init = prototype
-            .and_then(|prototype| self.symbol(prototype).maybe_value_declaration())
+            .and_then(|prototype| prototype.ref_(self).maybe_value_declaration())
             .and_then(|prototype_value_declaration| {
                 self.get_assigned_js_prototype(&prototype_value_declaration)
             });
@@ -882,7 +883,7 @@ impl TypeChecker {
         if is_in_js_file(Some(node)) {
             let js_symbol = self.get_symbol_of_expando(node, false)?;
             if let Some(js_symbol_exports) = js_symbol
-                .and_then(|js_symbol| self.symbol(js_symbol).maybe_exports().clone())
+                .and_then(|js_symbol| js_symbol.ref_(self).maybe_exports().clone())
                 .filter(|js_symbol_exports| !(**js_symbol_exports).borrow().is_empty())
             {
                 let js_assignment_type = self.create_anonymous_type(

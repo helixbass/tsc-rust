@@ -187,7 +187,7 @@ impl TypeChecker {
                 .intersects(SymbolFlags::TypeLiteral)
             {
                 if let Some(type_symbol_declarations) =
-                    self.symbol(type_symbol).maybe_declarations().as_deref()
+                    type_symbol.ref_(self).maybe_declarations().as_deref()
                 {
                     let node =
                         walk_up_parenthesized_types(&type_symbol_declarations[0].parent()).unwrap();
@@ -270,14 +270,14 @@ impl TypeChecker {
         context: Option<&NodeBuilderContext>,
     ) -> Cow<'static, str> {
         if let Some(context) = context {
-            if self.symbol(symbol).escaped_name() == InternalSymbolName::Default
+            if symbol.ref_(self).escaped_name() == InternalSymbolName::Default
                 && !context
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
                 && (!context
                     .flags()
                     .intersects(NodeBuilderFlags::InInitialEntityName)
-                    || match self.symbol(symbol).maybe_declarations().as_deref() {
+                    || match symbol.ref_(self).maybe_declarations().as_deref() {
                         None => true,
                         Some(symbol_declarations) => matches!(
                             context.maybe_enclosing_declaration().as_deref(),
@@ -291,7 +291,7 @@ impl TypeChecker {
                 return "default".into();
             }
         }
-        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
+        if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
                 let mut declaration = first_defined(symbol_declarations, |d: &Gc<Node>, _| {
                     if get_name_of_declaration(Some(&**d)).is_some() {
@@ -307,10 +307,10 @@ impl TypeChecker {
                         if is_call_expression(declaration)
                             && is_bindable_object_define_property_call(declaration)
                         {
-                            return symbol_name(&self.symbol(symbol)).into_owned().into();
+                            return symbol_name(&symbol.ref_(self)).into_owned().into();
                         }
                         if is_computed_property_name(&name)
-                            && !get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Late)
+                            && !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late)
                         {
                             let name_type =
                                 (*self.get_symbol_links(symbol)).borrow().name_type.clone();
@@ -365,7 +365,7 @@ impl TypeChecker {
         if let Some(name) = name {
             name.into()
         } else {
-            symbol_name(&self.symbol(symbol)).into_owned().into()
+            symbol_name(&symbol.ref_(self)).into_owned().into()
         }
     }
 
@@ -505,12 +505,12 @@ impl TypeChecker {
         let result: RefCell<Option<Vec<Gc<Node>>>> = RefCell::new(None);
         if let Some(export_symbol) = export_symbol {
             let mut visited: HashSet<SymbolId> = HashSet::new();
-            visited.insert(get_symbol_id(&self.symbol(export_symbol)));
+            visited.insert(get_symbol_id(&export_symbol.ref_(self)));
             self.build_visible_node_list(
                 set_visibility.unwrap_or(false),
                 &result,
                 &mut visited,
-                self.symbol(export_symbol).maybe_declarations().as_deref(),
+                export_symbol.ref_(self).maybe_declarations().as_deref(),
             )?;
         }
         Ok(result.into_inner())
@@ -553,12 +553,12 @@ impl TypeChecker {
                 if let Some(import_symbol) = import_symbol
                 /*&& visited*/
                 {
-                    if try_add_to_set(visited, get_symbol_id(&self.symbol(import_symbol))) {
+                    if try_add_to_set(visited, get_symbol_id(&import_symbol.ref_(self))) {
                         self.build_visible_node_list(
                             set_visibility,
                             result,
                             visited,
-                            self.symbol(import_symbol).maybe_declarations().as_deref(),
+                            import_symbol.ref_(self).maybe_declarations().as_deref(),
                         )?;
                     }
                 }
@@ -817,14 +817,14 @@ impl TypeChecker {
                 omit_key_type,
             )? && !get_declaration_modifier_flags_from_symbol(
                 self.arena(),
-                &self.symbol(prop),
+                &prop.ref_(self),
                 None,
             )
             .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(prop)
             {
                 members.insert(
-                    self.symbol(prop).escaped_name().to_owned(),
+                    prop.ref_(self).escaped_name().to_owned(),
                     self.get_spread_symbol(prop, false)?,
                 );
             }

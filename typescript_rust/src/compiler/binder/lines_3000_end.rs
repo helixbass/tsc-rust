@@ -22,8 +22,8 @@ use crate::{
     is_statement, is_statement_but_not_declaration, is_variable_declaration, is_variable_statement,
     maybe_is_function_like_declaration, set_parent, should_preserve_const_enums, slice_after, some,
     symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags, FlowNodeBase, HasArena,
-    HasInitializerInterface, InternalSymbolName, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    HasInitializerInterface, InArena, InternalSymbolName, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {
@@ -57,7 +57,7 @@ impl BinderType {
         );
         if let Some(namespace_symbol) = namespace_symbol {
             if let Some(namespace_symbol_value_declaration) =
-                self.symbol(namespace_symbol).maybe_value_declaration()
+                namespace_symbol.ref_(self).maybe_value_declaration()
             {
                 self.add_declaration_to_symbol(
                     namespace_symbol,
@@ -129,7 +129,7 @@ impl BinderType {
         if !is_in_js_file(Some(node))
             && !is_function_symbol(
                 parent_symbol
-                    .map(|parent_symbol| self.symbol(parent_symbol))
+                    .map(|parent_symbol| parent_symbol.ref_(self))
                     .as_deref(),
             )
         {
@@ -211,7 +211,7 @@ impl BinderType {
     ) -> Option<Id<Symbol>> {
         if matches!(
             namespace_symbol,
-            Some(namespace_symbol) if self.symbol(namespace_symbol).flags().intersects(SymbolFlags::Alias)
+            Some(namespace_symbol) if namespace_symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
         ) {
             return Some(namespace_symbol.unwrap());
         }
@@ -229,7 +229,7 @@ impl BinderType {
                         /*let table =*/
                         if let Some(parent) = parent {
                             Some(self.declare_symbol(
-                                &mut self.symbol(parent).exports().borrow_mut(),
+                                &mut parent.ref_(self).exports().borrow_mut(),
                                 Some(parent),
                                 id,
                                 flags,
@@ -265,7 +265,7 @@ impl BinderType {
         if container_is_class {
             if let Some(namespace_symbol) = namespace_symbol {
                 if let Some(namespace_symbol_value_declaration) =
-                    self.symbol(namespace_symbol).maybe_value_declaration()
+                    namespace_symbol.ref_(self).maybe_value_declaration()
                 {
                     self.add_declaration_to_symbol(
                         namespace_symbol,
@@ -292,7 +292,7 @@ impl BinderType {
         }
         let namespace_symbol = namespace_symbol.unwrap();
 
-        let namespace_symbol_ref = self.symbol(namespace_symbol);
+        let namespace_symbol_ref = namespace_symbol.ref_(self);
         let symbol_table = {
             let symbol_table =
                 if is_prototype_property {
@@ -422,7 +422,7 @@ impl BinderType {
         {
             return true;
         }
-        let node = self.symbol(symbol).maybe_value_declaration();
+        let node = symbol.ref_(self).maybe_value_declaration();
         if let Some(node) = node.as_ref() {
             if is_call_expression(node) {
                 return get_assigned_expando_initializer(Some(&**node)).is_some();
@@ -492,7 +492,7 @@ impl BinderType {
                 Option::<&Node>::None,
             );
             symbol
-                .and_then(|symbol| self.symbol(symbol).maybe_exports().clone())
+                .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
                 .and_then(|exports| {
                     get_element_or_property_access_name(node)
                         .and_then(|name| (*exports).borrow().get(&*name).cloned())
@@ -532,7 +532,7 @@ impl BinderType {
             }
             action(
                 &name,
-                s.and_then(|s| self.symbol(s).maybe_exports().clone())
+                s.and_then(|s| s.ref_(self).maybe_exports().clone())
                     .and_then(|exports| {
                         get_element_or_property_access_name(e)
                             .and_then(|name| (*exports).borrow().get(&*name).cloned())
@@ -581,9 +581,9 @@ impl BinderType {
             SymbolFlags::Property | SymbolFlags::Prototype,
             "prototype".to_owned(),
         ));
-        let symbol_exports = self.symbol(symbol).exports();
+        let symbol_exports = symbol.ref_(self).exports();
         let mut symbol_exports = symbol_exports.borrow_mut();
-        let symbol_export = symbol_exports.get(self.symbol(prototype_symbol).escaped_name());
+        let symbol_export = symbol_exports.get(prototype_symbol.ref_(self).escaped_name());
         if let Some(&symbol_export) = symbol_export {
             if let Some(name) = node.as_named_declaration().maybe_name() {
                 set_parent(&name, Some(node));
@@ -599,18 +599,16 @@ impl BinderType {
                             .as_ref()
                             .unwrap()[0],
                         &Diagnostics::Duplicate_identifier_0,
-                        Some(vec![
-                            symbol_name(&self.symbol(prototype_symbol)).into_owned()
-                        ]),
+                        Some(vec![symbol_name(&prototype_symbol.ref_(self)).into_owned()]),
                     )
                     .into(),
                 ));
         }
         symbol_exports.insert(
-            self.symbol(prototype_symbol).escaped_name().to_owned(),
+            prototype_symbol.ref_(self).escaped_name().to_owned(),
             prototype_symbol.clone(),
         );
-        self.symbol(prototype_symbol).set_parent(Some(symbol));
+        prototype_symbol.ref_(self).set_parent(Some(symbol));
     }
 
     pub(super) fn bind_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {

@@ -141,7 +141,7 @@ impl TypeChecker {
             )?;
             if let Some(colliding_symbol) = colliding_symbol {
                 self.error(
-                    self.symbol(colliding_symbol).maybe_value_declaration(),
+                    colliding_symbol.ref_(self).maybe_value_declaration(),
                     &Diagnostics::Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions,
                     Some(vec![
                         id_text(&root_name).to_owned(),
@@ -432,7 +432,7 @@ impl TypeChecker {
                         SyntaxKind::GetAccessor
                     };
                     let other_accessor = get_declaration_of_kind(
-                        &self.symbol(self.get_symbol_of_node(node)?.unwrap()),
+                        &self.get_symbol_of_node(node)?.unwrap().ref_(self),
                         other_kind,
                     );
                     self.mark_decorator_medata_data_type_node_as_referenced(

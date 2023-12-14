@@ -21,10 +21,10 @@ use crate::{
     is_private_identifier_class_element_declaration, is_type_only_import_or_export_declaration,
     is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
     range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, try_for_each,
-    CharacterCodes, Debug_, Diagnostic, Diagnostics, FunctionFlags, HasArena, JSDocTagInterface,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
-    ScriptTarget, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, SyntaxKind,
-    TextRange, TypeChecker,
+    CharacterCodes, Debug_, Diagnostic, Diagnostics, FunctionFlags, HasArena, InArena,
+    JSDocTagInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    OptionTry, ScriptTarget, SignatureDeclarationInterface, SymbolFlags, SymbolInterface,
+    SyntaxKind, TextRange, TypeChecker,
 };
 
 impl TypeChecker {
@@ -181,7 +181,7 @@ impl TypeChecker {
                 self.check_function_or_constructor_symbol(local_symbol)?;
             }
 
-            if self.symbol(symbol).maybe_parent().is_some() {
+            if symbol.ref_(self).maybe_parent().is_some() {
                 self.check_function_or_constructor_symbol(symbol)?;
             }
         }
@@ -345,7 +345,7 @@ impl TypeChecker {
                             .intersects(SymbolFlags::GetAccessor))
                     {
                         let symbol = self.get_symbol_of_node(member)?.unwrap();
-                        if match self.symbol(symbol).maybe_is_referenced() {
+                        if match symbol.ref_(self).maybe_is_referenced() {
                             None => true,
                             Some(symbol_is_referenced) => symbol_is_referenced == SymbolFlags::None,
                         } && (has_effective_modifier(member, ModifierFlags::Private)
@@ -376,7 +376,7 @@ impl TypeChecker {
                 }
                 SyntaxKind::Constructor => {
                     for parameter in &member.as_constructor_declaration().parameters() {
-                        if match self.symbol(parameter.symbol()).maybe_is_referenced() {
+                        if match parameter.symbol().ref_(self).maybe_is_referenced() {
                             None => true,
                             Some(parameter_symbol_is_referenced) => {
                                 parameter_symbol_is_referenced == SymbolFlags::None
@@ -391,7 +391,7 @@ impl TypeChecker {
                                         &parameter.as_parameter_declaration().name(),
                                         &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
                                         Some(vec![
-                                            symbol_name(&self.symbol(parameter.symbol())).into_owned()
+                                            symbol_name(&parameter.symbol().ref_(self)).into_owned()
                                         ])
                                     ).into()
                                 )
@@ -442,7 +442,7 @@ impl TypeChecker {
         add_diagnostic: &mut impl FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     ) -> io::Result<()> {
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let declarations = symbol_ref.maybe_declarations();
         if match declarations.as_ref() {
             None => true,
@@ -541,7 +541,7 @@ impl TypeChecker {
         type_parameter: &Node, /*TypeParameterDeclaration*/
     ) -> bool {
         !matches!(
-            self.symbol(self.get_merged_symbol(type_parameter.maybe_symbol()).unwrap()).maybe_is_referenced(),
+            self.get_merged_symbol(type_parameter.maybe_symbol()).unwrap().ref_(self).maybe_is_referenced(),
             Some(type_parameter_symbol_is_referenced) if type_parameter_symbol_is_referenced.intersects(SymbolFlags::TypeParameter)
         ) && !self.is_identifier_that_starts_with_underscore(
             &type_parameter.as_type_parameter_declaration().name(),
@@ -627,21 +627,21 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::TypeParameter)
             {
-                !(self.symbol(local).flags().intersects(SymbolFlags::Variable)
+                !(local.ref_(self).flags().intersects(SymbolFlags::Variable)
                     && !matches!(
-                        self.symbol(local).maybe_is_referenced(),
+                        local.ref_(self).maybe_is_referenced(),
                         Some(local_is_referenced) if local_is_referenced.intersects(SymbolFlags::Variable)
                     ))
             } else {
-                (match self.symbol(local).maybe_is_referenced() {
+                (match local.ref_(self).maybe_is_referenced() {
                     None => false,
                     Some(local_is_referenced) => local_is_referenced != SymbolFlags::None,
-                }) || self.symbol(local).maybe_export_symbol().is_some()
+                }) || local.ref_(self).maybe_export_symbol().is_some()
             } {
                 continue;
             }
 
-            if let Some(local_declarations) = self.symbol(local).maybe_declarations().as_ref() {
+            if let Some(local_declarations) = local.ref_(self).maybe_declarations().as_ref() {
                 for declaration in local_declarations {
                     if self.is_valid_unused_local_declaration(declaration) {
                         continue;
@@ -718,7 +718,7 @@ impl TypeChecker {
                                                 name,
                                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                                 Some(vec![
-                                                    symbol_name(&self.symbol(local)).into_owned()
+                                                    symbol_name(&local.ref_(self)).into_owned()
                                                 ])
                                             ).into()
                                         )
@@ -728,7 +728,7 @@ impl TypeChecker {
                         } else {
                             self.error_unused_local(
                                 declaration,
-                                &symbol_name(&self.symbol(local)),
+                                &symbol_name(&local.ref_(self)),
                                 add_diagnostic,
                             );
                         }
@@ -1005,7 +1005,7 @@ impl TypeChecker {
                 if matches!(
                     p.as_parameter_declaration().maybe_name().as_ref(),
                     Some(p_name) if !is_binding_pattern(Some(&**p_name)) &&
-                        &p_name.as_identifier().escaped_text == self.symbol(self.arguments_symbol()).escaped_name()
+                        &p_name.as_identifier().escaped_text == self.arguments_symbol().ref_(self).escaped_name()
                 ) {
                     self.error_skipped_on(
                         "noEmit".to_owned(),

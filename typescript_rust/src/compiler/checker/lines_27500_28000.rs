@@ -33,7 +33,7 @@ impl TypeChecker {
         let jsx_element_attrib_prop_interface_sym =
             jsx_namespace.try_and_then(|jsx_namespace| {
                 self.get_symbol(
-                    &(**self.symbol(jsx_namespace).maybe_exports().as_ref().unwrap()).borrow(),
+                    &(**jsx_namespace.ref_(self).maybe_exports().as_ref().unwrap()).borrow(),
                     name_of_attrib_prop_container,
                     SymbolFlags::Type,
                 )
@@ -54,13 +54,12 @@ impl TypeChecker {
                     return Some("".to_owned());
                 } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
                     return Some(
-                        self.symbol(
-                            properties_of_jsx_element_attrib_prop_interface
-                                .next()
-                                .unwrap(),
-                        )
-                        .escaped_name()
-                        .to_owned(),
+                        properties_of_jsx_element_attrib_prop_interface
+                            .next()
+                            .unwrap()
+                            .ref_(self)
+                            .escaped_name()
+                            .to_owned(),
                     );
                 } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
                     let jsx_element_attrib_prop_interface_sym =
@@ -96,7 +95,7 @@ impl TypeChecker {
         }
         let jsx_namespace = jsx_namespace.unwrap();
         let ret = self.get_symbol(
-            &(**self.symbol(jsx_namespace).maybe_exports().as_ref().unwrap()).borrow(),
+            &(**jsx_namespace.ref_(self).maybe_exports().as_ref().unwrap()).borrow(),
             &JsxNames::LibraryManagedAttributes,
             SymbolFlags::Type,
         )?;
@@ -450,7 +449,8 @@ impl TypeChecker {
             }
 
             if let Some(jsx_factory_sym) = jsx_factory_sym {
-                self.symbol(jsx_factory_sym)
+                jsx_factory_sym
+                    .ref_(self)
                     .set_is_referenced(Some(SymbolFlags::All));
 
                 if self
@@ -594,7 +594,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_declaration_node_flags_from_symbol(&self, s: Id<Symbol>) -> NodeFlags {
-        if let Some(s_value_declaration) = self.symbol(s).maybe_value_declaration() {
+        if let Some(s_value_declaration) = s.ref_(self).maybe_value_declaration() {
             get_combined_node_flags(&s_value_declaration)
         } else {
             NodeFlags::None
@@ -602,12 +602,12 @@ impl TypeChecker {
     }
 
     pub(super) fn is_prototype_property(&self, symbol: Id<Symbol>) -> bool {
-        if self.symbol(symbol).flags().intersects(SymbolFlags::Method)
-            || get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::SyntheticMethod)
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Method)
+            || get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::SyntheticMethod)
         {
             return true;
         }
-        if is_in_js_file(self.symbol(symbol).maybe_value_declaration()) {
+        if is_in_js_file(symbol.ref_(self).maybe_value_declaration()) {
             let parent = self
                 .symbol(symbol)
                 .maybe_value_declaration()
@@ -662,7 +662,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let flags = get_declaration_modifier_flags_from_symbol(
             self.arena(),
-            &self.symbol(prop),
+            &prop.ref_(self),
             Some(writing),
         );
 
@@ -711,7 +711,7 @@ impl TypeChecker {
                     && is_this_initialized_declaration(location.parent().maybe_parent()))
         {
             let declaring_class_declaration = get_class_like_declaration_of_symbol(
-                &self.symbol(self.get_parent_of_symbol(prop)?.unwrap()),
+                &self.get_parent_of_symbol(prop)?.unwrap().ref_(self),
             );
             if let Some(declaring_class_declaration) = declaring_class_declaration.as_ref() {
                 if self.is_node_used_during_class_initialization(location) {
@@ -739,7 +739,7 @@ impl TypeChecker {
 
         if flags.intersects(ModifierFlags::Private) {
             let declaring_class_declaration = get_class_like_declaration_of_symbol(
-                &self.symbol(self.get_parent_of_symbol(prop)?.unwrap()),
+                &self.get_parent_of_symbol(prop)?.unwrap().ref_(self),
             )
             .unwrap();
             if !self.is_node_within_class(location, &declaring_class_declaration) {

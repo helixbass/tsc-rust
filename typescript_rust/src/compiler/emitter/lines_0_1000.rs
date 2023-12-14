@@ -1856,10 +1856,6 @@ impl Printer {
         }
     }
 
-    pub(super) fn arena(&self) -> &AllArenas {
-        unsafe { &*self.arena }
-    }
-
     pub(super) fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
         self.arena().symbol(symbol)
     }
@@ -2418,5 +2414,11 @@ impl Printer {
                     kind, None, pos, end,
                 )));
         }
+    }
+}
+
+impl HasArena for Printer {
+    fn arena(&self) -> &AllArenas {
+        unsafe { &*self.arena }
     }
 }

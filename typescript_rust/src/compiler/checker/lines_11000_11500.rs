@@ -115,7 +115,8 @@ impl TypeChecker {
                 )
                 .into(),
             );
-            self.symbol(param_symbol)
+            param_symbol
+                .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
@@ -131,7 +132,8 @@ impl TypeChecker {
                 self.create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
                     .into(),
             );
-            self.symbol(rest_param_symbol)
+            rest_param_symbol
+                .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
@@ -148,7 +150,8 @@ impl TypeChecker {
                     .type_,
                     mapper,
                 )?;
-                self.symbol(rest_param_symbol)
+                rest_param_symbol
+                    .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
@@ -558,13 +561,13 @@ impl TypeChecker {
         } else {
             let mut members = self.empty_symbols();
             let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
-            if self.symbol(symbol).maybe_exports().is_some() {
+            if symbol.ref_(self).maybe_exports().is_some() {
                 members = self.get_exports_of_symbol(symbol)?;
                 if symbol == self.global_this_symbol() {
                     let mut vars_only = SymbolTable::new();
                     for (_, &p) in &*(*members).borrow() {
-                        if !self.symbol(p).flags().intersects(SymbolFlags::BlockScoped) {
-                            vars_only.insert(self.symbol(p).escaped_name().to_owned(), p.clone());
+                        if !p.ref_(self).flags().intersects(SymbolFlags::BlockScoped) {
+                            vars_only.insert(p.ref_(self).escaped_name().to_owned(), p.clone());
                         }
                     }
                     members = Gc::new(GcCell::new(vars_only));
@@ -578,7 +581,7 @@ impl TypeChecker {
                 vec![],
                 vec![],
             )?;
-            if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
+            if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
                 let class_type = self.get_declared_type_of_class_or_interface(symbol)?;
                 let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
                 if base_constructor_type.ref_(self).flags().intersects(
@@ -610,7 +613,7 @@ impl TypeChecker {
                 if let Some(base_constructor_index_info) = base_constructor_index_info.as_ref() {
                     append(&mut index_infos, Some(base_constructor_index_info.clone()));
                 }
-                if self.symbol(symbol).flags().intersects(SymbolFlags::Enum)
+                if symbol.ref_(self).flags().intersects(SymbolFlags::Enum)
                     && (self
                         .type_(self.get_declared_type_of_symbol(symbol)?)
                         .flags()
@@ -650,9 +653,9 @@ impl TypeChecker {
                     .as_object_type()
                     .set_call_signatures(signatures);
             }
-            if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
+            if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
                 let class_type = self.get_declared_type_of_class_or_interface(symbol)?;
-                let symbol_ref = self.symbol(symbol);
+                let symbol_ref = symbol.ref_(self);
                 let symbol_members = symbol_ref.maybe_members();
                 let mut construct_signatures = if let Some(symbol_members) = symbol_members.as_ref()
                 {
@@ -776,11 +779,11 @@ impl TypeChecker {
                     CheckFlags::None
                 };
             let inferred_prop = self.create_symbol(
-                SymbolFlags::Property | self.symbol(prop).flags() & optional_mask,
-                self.symbol(prop).escaped_name().to_owned(),
+                SymbolFlags::Property | prop.ref_(self).flags() & optional_mask,
+                prop.ref_(self).escaped_name().to_owned(),
                 Some(check_flags),
             );
-            if let Some(prop_declarations) = self.symbol(prop).maybe_declarations().clone() {
+            if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
                 inferred_prop.set_declarations(prop_declarations);
             }
             inferred_prop.symbol_links().borrow_mut().name_type =
@@ -843,7 +846,7 @@ impl TypeChecker {
                     .into_reverse_mapped_symbol(property_type, mapped_type, constraint_type)
                     .into(),
             );
-            members.insert(self.symbol(prop).escaped_name().to_owned(), inferred_prop);
+            members.insert(prop.ref_(self).escaped_name().to_owned(), inferred_prop);
         }
         self.set_structured_type_members(
             type_.ref_(self).as_reverse_mapped_type(),
@@ -920,7 +923,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_is_late_check_flag(&self, s: Id<Symbol>) -> CheckFlags {
-        get_check_flags(&self.symbol(s)) & CheckFlags::Late
+        get_check_flags(&s.ref_(self)) & CheckFlags::Late
     }
 
     #[allow(dead_code)]
@@ -1118,7 +1121,7 @@ impl TypeChecker {
             let prop_name = self.get_property_name_from_type(prop_name_type);
             let existing_prop = members.get(&*prop_name);
             if let Some(&existing_prop) = existing_prop {
-                let existing_prop_ref = self.symbol(existing_prop);
+                let existing_prop_ref = existing_prop.ref_(self);
                 let existing_prop_as_mapped_symbol = existing_prop_ref.as_mapped_symbol();
                 let existing_prop_name_type = (*existing_prop_as_mapped_symbol.symbol_links())
                     .borrow()
@@ -1157,7 +1160,7 @@ impl TypeChecker {
                     || !template_modifiers.intersects(MappedTypeModifiers::ExcludeOptional)
                         && matches!(
                             modifiers_prop,
-                            Some(modifiers_prop) if self.symbol(modifiers_prop).flags().intersects(SymbolFlags::Optional)
+                            Some(modifiers_prop) if modifiers_prop.ref_(self).flags().intersects(SymbolFlags::Optional)
                         );
                 let is_readonly = template_modifiers
                     .intersects(MappedTypeModifiers::IncludeReadonly)
@@ -1170,7 +1173,7 @@ impl TypeChecker {
                     && !is_optional
                     && matches!(
                         modifiers_prop,
-                        Some(modifiers_prop) if self.symbol(modifiers_prop).flags().intersects(SymbolFlags::Optional)
+                        Some(modifiers_prop) if modifiers_prop.ref_(self).flags().intersects(SymbolFlags::Optional)
                     );
                 let late_flag = if let Some(modifiers_prop) = modifiers_prop {
                     self.get_is_late_check_flag(modifiers_prop)
@@ -1201,7 +1204,7 @@ impl TypeChecker {
                     ),
                 );
                 let prop = self.alloc_symbol(prop.into_mapped_symbol(type_, key_type).into());
-                let prop_ref = self.symbol(prop);
+                let prop_ref = prop.ref_(self);
                 let prop_as_mapped_symbol = prop_ref.as_mapped_symbol();
                 prop_as_mapped_symbol.symbol_links().borrow_mut().name_type = Some(prop_name_type);
                 if let Some(modifiers_prop) = modifiers_prop {
@@ -1212,10 +1215,10 @@ impl TypeChecker {
                     let declarations = if name_type.is_some() {
                         None
                     } else {
-                        self.symbol(modifiers_prop).maybe_declarations().clone()
+                        modifiers_prop.ref_(self).maybe_declarations().clone()
                     };
                     if let Some(declarations) = declarations {
-                        self.symbol(prop).set_declarations(declarations);
+                        prop.ref_(self).set_declarations(declarations);
                     }
                 }
                 members.insert(prop_name, prop);
@@ -1265,7 +1268,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>, /*MappedSymbol*/
     ) -> io::Result<Id<Type>> {
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_as_mapped_symbol = symbol_ref.as_mapped_symbol();
         if (*symbol_as_mapped_symbol.symbol_links())
             .borrow()

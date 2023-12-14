@@ -24,7 +24,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn is_spreadable_property(&self, prop: Id<Symbol>) -> bool {
         !some(
-            self.symbol(prop).maybe_declarations().as_deref(),
+            prop.ref_(self).maybe_declarations().as_deref(),
             Some(|declaration: &Gc<Node>| {
                 is_private_identifier_class_element_declaration(declaration)
             }),
@@ -33,7 +33,7 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
-                self.symbol(prop).maybe_declarations().as_ref(),
+                prop.ref_(self).maybe_declarations().as_ref(),
                 Some(prop_declarations) if prop_declarations.iter().any(|decl: &Gc<Node>| maybe_is_class_like(decl.maybe_parent()))
             ))
     }
@@ -54,11 +54,11 @@ impl TypeChecker {
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop)? {
             return Ok(prop);
         }
-        let flags = SymbolFlags::Property | (self.symbol(prop).flags() & SymbolFlags::Optional);
+        let flags = SymbolFlags::Property | (prop.ref_(self).flags() & SymbolFlags::Optional);
         let result = self.alloc_symbol(
             self.create_symbol(
                 flags,
-                self.symbol(prop).escaped_name().to_owned(),
+                prop.ref_(self).escaped_name().to_owned(),
                 Some(
                     self.get_is_late_check_flag(prop)
                         | if readonly {
@@ -70,15 +70,15 @@ impl TypeChecker {
             )
             .into(),
         );
-        let result_links = self.symbol(result).as_transient_symbol().symbol_links();
+        let result_links = result.ref_(self).as_transient_symbol().symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.type_ = Some(if is_setonly_accessor {
             self.undefined_type()
         } else {
             self.get_type_of_symbol(prop)?
         });
-        if let Some(prop_declarations) = self.symbol(prop).maybe_declarations().clone() {
-            self.symbol(result).set_declarations(prop_declarations);
+        if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
+            result.ref_(self).set_declarations(prop_declarations);
         }
         result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
         result_links.synthetic_origin = Some(prop);
@@ -352,8 +352,8 @@ impl TypeChecker {
                 symbol,
                 format!(
                     "__@{}@{}",
-                    self.symbol(symbol).escaped_name(),
-                    get_symbol_id(&self.symbol(symbol))
+                    symbol.ref_(self).escaped_name(),
+                    get_symbol_id(&symbol.ref_(self))
                 ),
             )
             .into(),
@@ -406,12 +406,11 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        self.symbol(
-                            self.get_symbol_of_node(&parent.parent().as_binary_expression().left)?
-                                .unwrap(),
-                        )
-                        .maybe_parent()
-                        .unwrap(),
+                        self.get_symbol_of_node(&parent.parent().as_binary_expression().left)?
+                            .unwrap()
+                            .ref_(self)
+                            .maybe_parent()
+                            .unwrap(),
                     )?,
                 )
                 .as_interface_type()
@@ -432,12 +431,11 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        self.symbol(
-                            self.get_symbol_of_node(&host.parent().as_binary_expression().left)?
-                                .unwrap(),
-                        )
-                        .maybe_parent()
-                        .unwrap(),
+                        self.get_symbol_of_node(&host.parent().as_binary_expression().left)?
+                            .unwrap()
+                            .ref_(self)
+                            .maybe_parent()
+                            .unwrap(),
                     )?,
                 )
                 .as_interface_type()
@@ -1046,32 +1044,32 @@ impl TypeChecker {
                 }
             }
         }
-        if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Instantiated) {
+        if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated) {
             let links = (*links).borrow();
             symbol = links.target.clone().unwrap();
             mapper = self.combine_type_mappers(links.mapper.clone(), mapper);
         }
         let result = self.create_symbol(
-            self.symbol(symbol).flags(),
-            self.symbol(symbol).escaped_name().to_owned(),
+            symbol.ref_(self).flags(),
+            symbol.ref_(self).escaped_name().to_owned(),
             Some(
                 CheckFlags::Instantiated
-                    | get_check_flags(&self.symbol(symbol))
+                    | get_check_flags(&symbol.ref_(self))
                         & (CheckFlags::Readonly
                             | CheckFlags::Late
                             | CheckFlags::OptionalParameter
                             | CheckFlags::RestParameter),
             ),
         );
-        if let Some(declarations) = &*self.symbol(symbol).maybe_declarations() {
+        if let Some(declarations) = &*symbol.ref_(self).maybe_declarations() {
             result.set_declarations(declarations.clone());
         }
-        result.set_parent(self.symbol(symbol).maybe_parent());
+        result.set_parent(symbol.ref_(self).maybe_parent());
         let result_links = result.symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.target = Some(symbol.clone());
         result_links.mapper = Some(mapper);
-        if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration() {
+        if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
             result.set_value_declaration(symbol_value_declaration);
         }
         if let Some(links_name_type) = (*links).borrow().name_type.clone() {
@@ -1100,7 +1098,10 @@ impl TypeChecker {
                 .clone()
                 .unwrap()
         } else {
-            self.symbol(type_.ref_(self).symbol())
+            type_
+                .ref_(self)
+                .symbol()
+                .ref_(self)
                 .maybe_declarations()
                 .clone()
                 .unwrap()[0]
@@ -1147,7 +1148,10 @@ impl TypeChecker {
             {
                 vec![declaration.clone()]
             } else {
-                self.symbol(type_.ref_(self).symbol())
+                type_
+                    .ref_(self)
+                    .symbol()
+                    .ref_(self)
                     .maybe_declarations()
                     .clone()
                     .unwrap()

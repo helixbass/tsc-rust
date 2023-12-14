@@ -178,7 +178,7 @@ impl TypeChecker {
             self.check_type_parameter_lists_identical(symbol)?;
 
             let first_interface_decl =
-                get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::InterfaceDeclaration);
+                get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::InterfaceDeclaration);
             if matches!(
                 first_interface_decl.as_ref(),
                 Some(first_interface_decl) if ptr::eq(node, &**first_interface_decl)
@@ -558,9 +558,7 @@ impl TypeChecker {
                         self.get_type_of_expression(&ex.as_has_expression().expression())?;
                     if let Some(type_symbol) =
                         type_.ref_(self).maybe_symbol().filter(|&type_symbol| {
-                            self.symbol(type_symbol)
-                                .flags()
-                                .intersects(SymbolFlags::Enum)
+                            type_symbol.ref_(self).flags().intersects(SymbolFlags::Enum)
                         })
                     {
                         let name: __String;
@@ -598,12 +596,12 @@ impl TypeChecker {
         enum_symbol: Id<Symbol>,
         name: &str, /*__String*/
     ) -> io::Result<Option<StringOrNumber>> {
-        let member_symbol = (*self.symbol(enum_symbol).maybe_exports().clone().unwrap())
+        let member_symbol = (*enum_symbol.ref_(self).maybe_exports().clone().unwrap())
             .borrow()
             .get(name)
             .cloned();
         if let Some(member_symbol) = member_symbol {
-            let declaration = self.symbol(member_symbol).maybe_value_declaration();
+            let declaration = member_symbol.ref_(self).maybe_value_declaration();
             if !matches!(
                 declaration.as_ref(),
                 Some(declaration) if ptr::eq(
@@ -668,7 +666,7 @@ impl TypeChecker {
         self.compute_enum_member_values(node)?;
 
         let enum_symbol = self.get_symbol_of_node(node)?.unwrap();
-        let first_declaration = get_declaration_of_kind(&self.symbol(enum_symbol), node.kind());
+        let first_declaration = get_declaration_of_kind(&enum_symbol.ref_(self), node.kind());
         if matches!(
             first_declaration.as_ref(),
             Some(first_declaration) if ptr::eq(
@@ -700,7 +698,7 @@ impl TypeChecker {
 
             let mut seen_enum_missing_initial_initializer = false;
             maybe_for_each(
-                self.symbol(enum_symbol).maybe_declarations().as_ref(),
+                enum_symbol.ref_(self).maybe_declarations().as_ref(),
                 |declaration: &Gc<Node>, _| -> Option<()> {
                     if declaration.kind() != SyntaxKind::EnumDeclaration {
                         return None;
@@ -746,7 +744,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node /*Declaration*/>> {
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let declarations = symbol_ref.maybe_declarations();
         if let Some(declarations) = declarations.as_ref() {
             for declaration in declarations {
@@ -828,7 +826,7 @@ impl TypeChecker {
                 .intersects(SymbolFlags::ValueModule)
                 && !in_ambient_context
                 && matches!(
-                    self.symbol(symbol).maybe_declarations().as_ref(),
+                    symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(symbol_declarations) if symbol_declarations.len() > 1
                 )
                 && is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options))
@@ -858,7 +856,7 @@ impl TypeChecker {
                 }
 
                 let merged_class =
-                    get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::ClassDeclaration);
+                    get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::ClassDeclaration);
                 if matches!(
                     merged_class.as_ref(),
                     Some(merged_class) if self.in_same_lexical_scope(
@@ -988,8 +986,8 @@ impl TypeChecker {
                     #[allow(unused_assignments)]
                     if !report_error {
                         report_error = matches!(
-                            self.symbol(symbol).maybe_parent().and_then(|symbol_parent| {
-                                self.symbol(symbol_parent).maybe_declarations().clone()
+                            symbol.ref_(self).maybe_parent().and_then(|symbol_parent| {
+                                symbol_parent.ref_(self).maybe_declarations().clone()
                             }).as_ref(),
                             Some(symbol_parent_declarations) if is_external_module_augmentation(&symbol_parent_declarations[0])
                         );

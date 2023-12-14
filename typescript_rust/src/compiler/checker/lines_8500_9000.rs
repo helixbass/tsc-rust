@@ -410,7 +410,7 @@ impl TypeChecker {
             let func = declaration.parent();
             if func.kind() == SyntaxKind::SetAccessor && self.has_bindable_name(&func)? {
                 let getter = get_declaration_of_kind(
-                    &self.symbol(self.get_symbol_of_node(&declaration.parent())?.unwrap()),
+                    &self.get_symbol_of_node(&declaration.parent())?.unwrap().ref_(self),
                     SyntaxKind::GetAccessor,
                 );
                 if let Some(getter) = getter {
@@ -459,7 +459,7 @@ impl TypeChecker {
                 }
             }
             let type_ =
-                if self.symbol(declaration.symbol()).escaped_name() == InternalSymbolName::This {
+                if declaration.symbol().ref_(self).escaped_name() == InternalSymbolName::This {
                     self.get_contextual_this_parameter_type(&func)?
                 } else {
                     self.get_contextually_typed_parameter_type(declaration)?
@@ -552,7 +552,7 @@ impl TypeChecker {
 
     pub(super) fn is_constructor_declared_property(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         if matches!(
-            self.symbol(symbol).maybe_value_declaration(),
+            symbol.ref_(self).maybe_value_declaration(),
             Some(value_declaration) if is_binary_expression(&value_declaration)
         ) {
             let links = self.get_symbol_links(symbol);
@@ -561,7 +561,7 @@ impl TypeChecker {
                 let is_constructor_declared_property =
                     self.get_declaring_constructor(symbol)?.is_some()
                         && try_maybe_every(
-                            self.symbol(symbol).maybe_declarations().as_deref(),
+                            symbol.ref_(self).maybe_declarations().as_deref(),
                             |declaration: &Gc<Node>, _| -> io::Result<_> {
                                 Ok(is_binary_expression(declaration)
                                     && self.is_possibly_aliased_this_property(declaration, None)?
@@ -596,7 +596,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_auto_typed_property(&self, symbol: Id<Symbol>) -> bool {
-        let declaration = self.symbol(symbol).maybe_value_declaration();
+        let declaration = symbol.ref_(self).maybe_value_declaration();
         matches!(
             declaration,
             Some(declaration) if is_property_declaration(&declaration) && get_effective_type_annotation_node(&declaration).is_none() &&
@@ -608,7 +608,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Gc<Node>>> {
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_declarations = symbol_ref.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_deref());
         for declaration in symbol_declarations {
@@ -629,17 +629,17 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let file = get_source_file_of_node(
-            self.symbol(symbol)
+            symbol.ref_(self)
                 .maybe_declarations()
                 .as_ref()
                 .unwrap()
                 .get(0)
                 .unwrap(),
         );
-        let symbol_ref = self.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let access_name = unescape_leading_underscores(symbol_ref.escaped_name());
         let are_all_module_exports = every(
-            self.symbol(symbol).maybe_declarations().as_deref().unwrap(),
+            symbol.ref_(self).maybe_declarations().as_deref().unwrap(),
             |d: &Gc<Node>, _| {
                 is_in_js_file(Some(&**d))
                     && is_access_expression(d)
@@ -693,13 +693,13 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
     ) -> io::Result<Option<Id<Type>>> {
-        let symbol_ref = self.symbol(symbol);
-        let access_name: StrOrRcNode<'_> = if starts_with(self.symbol(symbol).escaped_name(), "__#")
+        let symbol_ref = symbol.ref_(self);
+        let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#")
         {
             factory.with(|factory_| {
                 factory_
                     .create_private_identifier(
-                        (&*self.symbol(symbol).escaped_name())
+                        (&*symbol.ref_(self).escaped_name())
                             .split("@")
                             .nth(1)
                             .unwrap(),
@@ -729,7 +729,7 @@ impl TypeChecker {
                 && (flow_type == self.auto_type() || flow_type == self.auto_array_type())
             {
                 self.error(
-                    self.symbol(symbol).maybe_value_declaration(),
+                    symbol.ref_(self).maybe_value_declaration(),
                     &Diagnostics::Member_0_implicitly_has_an_1_type,
                     Some(vec![
                         self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?,
@@ -750,13 +750,13 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        let symbol_ref = self.symbol(symbol);
-        let access_name: StrOrRcNode<'_> = if starts_with(self.symbol(symbol).escaped_name(), "__#")
+        let symbol_ref = symbol.ref_(self);
+        let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#")
         {
             factory.with(|factory_| {
                 factory_
                     .create_private_identifier(
-                        (&*self.symbol(symbol).escaped_name())
+                        (&*symbol.ref_(self).escaped_name())
                             .split("@")
                             .nth(1)
                             .unwrap(),
@@ -784,7 +784,7 @@ impl TypeChecker {
             && (flow_type == self.auto_type() || flow_type == self.auto_array_type())
         {
             self.error(
-                self.symbol(symbol).maybe_value_declaration(),
+                symbol.ref_(self).maybe_value_declaration(),
                 &Diagnostics::Member_0_implicitly_has_an_1_type,
                 Some(vec![
                     self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?,
@@ -808,7 +808,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let initial_type = prop.try_and_then(|prop| -> io::Result<_> {
             Ok(if matches!(
-                self.symbol(prop).maybe_value_declaration(),
+                prop.ref_(self).maybe_value_declaration(),
                 Some(value_declaration) if !self.is_auto_typed_property(prop)
                     || get_effective_modifier_flags(&value_declaration).intersects(ModifierFlags::Ambient)
             ) {
@@ -831,7 +831,7 @@ impl TypeChecker {
         resolved_symbol: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
         let container =
-            get_assigned_expando_initializer(self.symbol(symbol).maybe_value_declaration());
+            get_assigned_expando_initializer(symbol.ref_(self).maybe_value_declaration());
         if let Some(container) = container {
             let tag = get_jsdoc_type_tag(&container);
             if let Some(tag) = tag
@@ -865,7 +865,7 @@ impl TypeChecker {
         }
         if type_.is_none() {
             let mut types: Option<Vec<Id<Type>>> = None;
-            if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
+            if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 let mut jsdoc_type: Option<Id<Type>> = None;
                 for declaration in symbol_declarations {
                     let expression =
@@ -935,7 +935,7 @@ impl TypeChecker {
                 }
                 let types = types.unwrap();
                 let mut constructor_types = if defined_in_constructor {
-                    self.symbol(symbol)
+                    symbol.ref_(self)
                         .maybe_declarations()
                         .as_ref()
                         .and_then(|declarations| {
@@ -980,7 +980,7 @@ impl TypeChecker {
             Some(false),
             Some(defined_in_method && !defined_in_constructor),
         )?)?;
-        if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration() {
+        if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
             if self.filter_type(widened, |t| {
                 t.ref_(self).flags().intersects(!TypeFlags::Nullable)
             }) == self.never_type()
@@ -1016,7 +1016,7 @@ impl TypeChecker {
         while is_binary_expression(&decl) || is_property_access_expression(&decl) {
             let s = self.get_symbol_of_node(&decl)?;
             if let Some(s) = s {
-                if let Some(s_exports) = self.symbol(s).maybe_exports().as_deref() {
+                if let Some(s_exports) = s.ref_(self).maybe_exports().as_deref() {
                     let s_exports = (*s_exports).borrow();
                     if !s_exports.is_empty() {
                         self.merge_symbol_table(exports.clone(), &s_exports, None)?;
@@ -1031,7 +1031,7 @@ impl TypeChecker {
         }
         let s = self.get_symbol_of_node(&decl)?;
         if let Some(s) = s {
-            if let Some(s_exports) = self.symbol(s).maybe_exports().as_deref() {
+            if let Some(s_exports) = s.ref_(self).maybe_exports().as_deref() {
                 let s_exports = (*s_exports).borrow();
                 if !s_exports.is_empty() {
                     self.merge_symbol_table(exports.clone(), &s_exports, None)?;
@@ -1071,16 +1071,16 @@ impl TypeChecker {
                 )?;
             }
         }
-        if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
+        if let Some(symbol_parent) = symbol.ref_(self).maybe_parent() {
             if let Some(symbol_parent_value_declaration) =
-                self.symbol(symbol_parent).maybe_value_declaration()
+                symbol_parent.ref_(self).maybe_value_declaration()
             {
                 let type_node =
                     get_effective_type_annotation_node(&symbol_parent_value_declaration);
                 if let Some(type_node) = type_node {
                     let annotation_symbol = self.get_property_of_type_(
                         self.get_type_from_type_node_(&type_node)?,
-                        self.symbol(symbol).escaped_name(),
+                        symbol.ref_(self).escaped_name(),
                         None,
                     )?;
                     if let Some(annotation_symbol) = annotation_symbol {
@@ -1144,7 +1144,7 @@ impl TypeChecker {
         };
         if type_.ref_(self).flags().intersects(TypeFlags::Object)
             && kind == AssignmentDeclarationKind::ModuleExports
-            && self.symbol(symbol).escaped_name() == InternalSymbolName::ExportEquals
+            && symbol.ref_(self).escaped_name() == InternalSymbolName::ExportEquals
         {
             let exported_type = self.resolve_structured_type_members(type_)?;
             let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
@@ -1154,7 +1154,7 @@ impl TypeChecker {
             );
             let initial_size = members.len();
             if let Some(resolved_symbol) = resolved_symbol {
-                let resolved_symbol_ref = self.symbol(resolved_symbol);
+                let resolved_symbol_ref = resolved_symbol.ref_(self);
                 let mut resolved_symbol_exports = resolved_symbol_ref.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
                     *resolved_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
@@ -1163,28 +1163,28 @@ impl TypeChecker {
                     ))));
                 }
             }
-            for (name, &s) in &*(*self.symbol(resolved_symbol.unwrap_or(symbol)).exports()).borrow()
+            for (name, &s) in &*(*resolved_symbol.unwrap_or(symbol).ref_(self).exports()).borrow()
             {
                 let exported_member = members.get(name).cloned();
                 if let Some(exported_member) =
                     exported_member.filter(|&exported_member| exported_member != s)
                 {
-                    if self.symbol(s).flags().intersects(SymbolFlags::Value)
+                    if s.ref_(self).flags().intersects(SymbolFlags::Value)
                         && self
                             .symbol(exported_member)
                             .flags()
                             .intersects(SymbolFlags::Value)
                     {
-                        if let Some(s_value_declaration) = self.symbol(s).maybe_value_declaration()
+                        if let Some(s_value_declaration) = s.ref_(self).maybe_value_declaration()
                         {
                             if let Some(exported_member_value_declaration) =
-                                self.symbol(exported_member).maybe_value_declaration()
+                                exported_member.ref_(self).maybe_value_declaration()
                             {
                                 if !Gc::ptr_eq(
                                     &get_source_file_of_node(&s_value_declaration),
                                     &get_source_file_of_node(&exported_member_value_declaration),
                                 ) {
-                                    let s_ref = self.symbol(s);
+                                    let s_ref = s.ref_(self);
                                     let unescaped_name =
                                         unescape_leading_underscores(s_ref.escaped_name());
                                     let exported_member_name = try_cast(
@@ -1226,13 +1226,13 @@ impl TypeChecker {
                         }
                         let union = self.alloc_symbol(
                             self.create_symbol(
-                                self.symbol(s).flags() | self.symbol(exported_member).flags(),
+                                s.ref_(self).flags() | exported_member.ref_(self).flags(),
                                 name.clone(),
                                 None,
                             )
                             .into(),
                         );
-                        self.symbol(union)
+                        union.ref_(self)
                             .as_transient_symbol()
                             .symbol_links()
                             .borrow_mut()
@@ -1247,17 +1247,17 @@ impl TypeChecker {
                             None,
                         )?);
                         if let Some(exported_member_value_declaration) =
-                            self.symbol(exported_member).maybe_value_declaration()
+                            exported_member.ref_(self).maybe_value_declaration()
                         {
-                            self.symbol(union)
+                            union.ref_(self)
                                 .set_value_declaration(exported_member_value_declaration);
                         }
-                        self.symbol(union).set_declarations(concatenate(
-                            self.symbol(exported_member)
+                        union.ref_(self).set_declarations(concatenate(
+                            exported_member.ref_(self)
                                 .maybe_declarations()
                                 .as_ref()
                                 .map_or_else(|| vec![], |declarations| declarations.clone()),
-                            self.symbol(s)
+                            s.ref_(self)
                                 .maybe_declarations()
                                 .as_ref()
                                 .map_or_else(|| vec![], |declarations| declarations.clone()),

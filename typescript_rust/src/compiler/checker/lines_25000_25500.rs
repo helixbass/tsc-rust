@@ -98,7 +98,7 @@ impl TypeChecker {
                 .symbol(symbol)
                 .flags()
                 .intersects(SymbolFlags::BlockScopedVariable | SymbolFlags::Class)
-            || match self.symbol(symbol).maybe_value_declaration().as_deref() {
+            || match symbol.ref_(self).maybe_value_declaration().as_deref() {
                 None => true,
                 Some(symbol_value_declaration) => {
                     is_source_file(symbol_value_declaration)
@@ -108,7 +108,7 @@ impl TypeChecker {
         {
             return;
         }
-        let symbol_value_declaration = self.symbol(symbol).maybe_value_declaration().unwrap();
+        let symbol_value_declaration = symbol.ref_(self).maybe_value_declaration().unwrap();
 
         let container = get_enclosing_block_scope_container(&symbol_value_declaration).unwrap();
         let is_captured =
@@ -464,7 +464,7 @@ impl TypeChecker {
                         .type_(self.check_expression(class_name, None, None)?)
                         .maybe_symbol();
                     if let Some(class_symbol) = class_symbol.filter(|&class_symbol| {
-                        self.symbol(class_symbol).maybe_members().is_some()
+                        class_symbol.ref_(self).maybe_members().is_some()
                             && self
                                 .symbol(class_symbol)
                                 .flags()

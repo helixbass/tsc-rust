@@ -1147,7 +1147,7 @@ impl TypeChecker {
             } else {
                 matches!(
                     type_.ref_(self).maybe_symbol(),
-                    Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
+                    Some(type_symbol) if type_symbol.ref_(self).flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
                 ) && !self.type_has_call_or_construct_signatures(type_)?
                     || get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::ReverseMapped)
                         && self.is_object_type_with_inferable_index(
@@ -1164,22 +1164,24 @@ impl TypeChecker {
     ) -> Id<Symbol> {
         let symbol = self.alloc_symbol(
             self.create_symbol(
-                self.symbol(source).flags(),
-                self.symbol(source).escaped_name().to_owned(),
-                Some(get_check_flags(&self.symbol(source)) & CheckFlags::Readonly),
+                source.ref_(self).flags(),
+                source.ref_(self).escaped_name().to_owned(),
+                Some(get_check_flags(&source.ref_(self)) & CheckFlags::Readonly),
             )
             .into(),
         );
-        *self.symbol(symbol).maybe_declarations_mut() =
-            self.symbol(source).maybe_declarations().clone();
-        self.symbol(symbol)
-            .set_parent(self.symbol(source).maybe_parent());
-        let symbol_links = self.symbol(symbol).as_transient_symbol().symbol_links();
+        *symbol.ref_(self).maybe_declarations_mut() =
+            source.ref_(self).maybe_declarations().clone();
+        symbol
+            .ref_(self)
+            .set_parent(source.ref_(self).maybe_parent());
+        let symbol_links = symbol.ref_(self).as_transient_symbol().symbol_links();
         let mut symbol_links = symbol_links.borrow_mut();
         symbol_links.type_ = type_;
         symbol_links.target = Some(source);
-        if let Some(source_value_declaration) = self.symbol(source).maybe_value_declaration() {
-            self.symbol(symbol)
+        if let Some(source_value_declaration) = source.ref_(self).maybe_value_declaration() {
+            symbol
+                .ref_(self)
                 .set_value_declaration(source_value_declaration);
         }
         let name_type = (*self.get_symbol_links(source)).borrow().name_type.clone();
@@ -1199,7 +1201,7 @@ impl TypeChecker {
             let original = self.get_type_of_symbol(property)?;
             let updated = f(original)?;
             members.insert(
-                self.symbol(property).escaped_name().to_owned(),
+                property.ref_(self).escaped_name().to_owned(),
                 if updated == original {
                     property.clone()
                 } else {

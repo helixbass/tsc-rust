@@ -21,7 +21,7 @@ use crate::{
     is_left_hand_side_expression, is_property_access_entity_name_expression,
     is_property_access_expression, is_variable_statement, set_parent, AssignmentDeclarationKind,
     Debug_, DiagnosticCategory, DiagnosticMessage, Diagnostics, FlowFlags, FlowStart, HasArena,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    InArena, InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
     ReadonlyTextRange, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
@@ -69,7 +69,7 @@ impl BinderType {
             InternalSymbolName::Type.to_owned(),
         ));
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
-        let type_literal_symbol_ref = self.symbol(type_literal_symbol);
+        let type_literal_symbol_ref = type_literal_symbol.ref_(self);
         let mut type_literal_symbol_members = type_literal_symbol_ref.maybe_members_mut();
         *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
             self.arena(),
@@ -79,7 +79,7 @@ impl BinderType {
             .as_ref()
             .unwrap()
             .borrow_mut()
-            .insert(self.symbol(symbol).escaped_name().to_owned(), symbol);
+            .insert(symbol.ref_(self).escaped_name().to_owned(), symbol);
     }
 
     pub(super) fn bind_object_literal_expression(
@@ -168,7 +168,8 @@ impl BinderType {
     ) -> Id<Symbol> {
         let symbol = self.alloc_symbol(self.create_symbol(symbol_flags, name));
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
-            self.symbol(symbol)
+            symbol
+                .ref_(self)
                 .set_parent(self.container().maybe_symbol());
         }
         self.add_declaration_to_symbol(symbol, node, symbol_flags);

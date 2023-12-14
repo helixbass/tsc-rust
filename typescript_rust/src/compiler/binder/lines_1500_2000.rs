@@ -16,9 +16,9 @@ use crate::{
     is_push_or_unshift_identifier, is_source_file, is_static, set_parent, set_parent_recursive,
     skip_parentheses, try_cast, try_parse_pattern, AsDoubleDeref, BinaryExpressionStateMachine,
     BinaryExpressionTrampoline, Diagnostics, FlowFlags, FlowNode, HasArena,
-    HasInitializerInterface, HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeFlags, NodeInterface, PatternAmbientModule, StringOrNodeArray, StringOrPattern,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    HasInitializerInterface, HasTypeArgumentsInterface, InArena, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, PatternAmbientModule,
+    StringOrNodeArray, StringOrPattern, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {
@@ -655,12 +655,12 @@ impl BinderType {
             let state = self.declare_module_symbol(node);
             if state != ModuleInstanceState::NonInstantiated {
                 let symbol = node.symbol();
-                self.symbol(symbol).set_const_enum_only_module(Some(
-                    !self.symbol(symbol).flags().intersects(
+                symbol.ref_(self).set_const_enum_only_module(Some(
+                    !symbol.ref_(self).flags().intersects(
                         SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum,
                     ) && state == ModuleInstanceState::ConstEnumOnly
                         && !matches!(
-                            self.symbol(symbol).maybe_const_enum_only_module(),
+                            symbol.ref_(self).maybe_const_enum_only_module(),
                             Some(false)
                         ),
                 ));

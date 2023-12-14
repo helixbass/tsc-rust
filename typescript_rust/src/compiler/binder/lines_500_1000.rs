@@ -14,8 +14,9 @@ use crate::{
     is_parenthesized_expression, is_property_access_entity_name_expression,
     is_property_access_expression, is_string_literal_like, is_string_or_numeric_literal_like,
     is_type_of_expression, node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode,
-    FlowNodeBase, FlowReduceLabel, FlowStart, HasArena, HasStatementsInterface, ModifierFlags,
-    Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    FlowNodeBase, FlowReduceLabel, FlowStart, HasArena, HasStatementsInterface, InArena,
+    ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind,
 };
 
 impl BinderType {
@@ -97,7 +98,7 @@ impl BinderType {
                     None,
                     None,
                 );
-                self.symbol(local).set_export_symbol(Some(
+                local.ref_(self).set_export_symbol(Some(
                     self.declare_symbol(
                         &mut self
                             .symbol(self.container().symbol())
