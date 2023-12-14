@@ -19,16 +19,16 @@ impl TransformESNext {
         Self { context }
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
+    fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
             return node.node_wrapper();
         }
 
-        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
-    fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         if !node
             .transform_flags()
             .intersects(TransformFlags::ContainsESNext)
@@ -38,14 +38,14 @@ impl TransformESNext {
         #[allow(clippy::match_single_binding)]
         match node.kind() {
             _ => Some(
-                visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context).into(),
             ),
         }
     }
 }
 
 impl TransformerInterface for TransformESNext {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }

@@ -35,7 +35,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn has_non_global_augmentation_external_module_symbol(
         &self,
-        declaration: &Node,
+        declaration: Id<Node>,
     ) -> bool {
         is_module_with_string_literal_name(declaration)
             || declaration.kind() == SyntaxKind::SourceFile
@@ -80,7 +80,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         should_compute_aliases_to_make_visible: bool,
         aliases_to_make_visible: &RefCell<Option<Vec<Id<Node>>>>,
-        declaration: &Node, /*Declaration*/
+        declaration: Id<Node>, /*Declaration*/
     ) -> bool {
         if !self.is_declaration_visible(declaration) {
             let any_import_syntax = self.get_any_import_syntax(declaration);
@@ -168,8 +168,8 @@ impl TypeChecker {
         &self,
         should_compute_aliases_to_make_visible: bool,
         aliases_to_make_visible: &RefCell<Option<Vec<Id<Node>>>>,
-        declaration: &Node,        /*Declaration*/
-        aliasing_statement: &Node, /*LateVisibilityPaintedStatement*/
+        declaration: Id<Node>,        /*Declaration*/
+        aliasing_statement: Id<Node>, /*LateVisibilityPaintedStatement*/
     ) -> bool {
         if should_compute_aliases_to_make_visible {
             self.get_node_links(declaration).borrow_mut().is_visible = Some(true);
@@ -187,8 +187,8 @@ impl TypeChecker {
 
     pub(super) fn is_entity_name_visible(
         &self,
-        entity_name: &Node, /*EntityNameOrEntityNameExpression*/
-        enclosing_declaration: &Node,
+        entity_name: Id<Node>, /*EntityNameOrEntityNameExpression*/
+        enclosing_declaration: Id<Node>,
     ) -> io::Result<SymbolVisibilityResult> {
         let meaning: SymbolFlags;
         if entity_name.parent().kind() == SyntaxKind::TypeQuery
@@ -484,10 +484,10 @@ impl TypeChecker {
                     (*symbol.ref_(self).maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(left, enclosing_declaration, None, None)?
             } else {
-                self.type_to_string_(left, Option::<&Node>::None, None, None)?
+                self.type_to_string_(left, Option::<Id<Node>>::None, None, None)?
             }
         } else {
-            self.type_to_string_(left, Option::<&Node>::None, None, None)?
+            self.type_to_string_(left, Option::<Id<Node>>::None, None, None)?
         };
         let mut right_str = if let Some(symbol) = right.ref_(self).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
@@ -495,10 +495,10 @@ impl TypeChecker {
                     (*symbol.ref_(self).maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(right, enclosing_declaration, None, None)?
             } else {
-                self.type_to_string_(right, Option::<&Node>::None, None, None)?
+                self.type_to_string_(right, Option::<Id<Node>>::None, None, None)?
             }
         } else {
-            self.type_to_string_(right, Option::<&Node>::None, None, None)?
+            self.type_to_string_(right, Option::<Id<Node>>::None, None, None)?
         };
         if left_str == right_str {
             left_str = self.get_type_name_for_error_display(left)?;
@@ -510,7 +510,7 @@ impl TypeChecker {
     pub(super) fn get_type_name_for_error_display(&self, type_: Id<Type>) -> io::Result<String> {
         self.type_to_string_(
             type_,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
             Some(TypeFormatFlags::UseFullyQualifiedType),
             None,
         )
@@ -600,7 +600,7 @@ impl NodeBuilder {
                 self.index_info_to_index_signature_declaration_helper(
                     index_info,
                     context,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )?,
             ))
         })
@@ -1712,7 +1712,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
     fn report_nonlocal_augmentation(
         &self,
-        containing_file: &Node, /*SourceFile*/
+        containing_file: Id<Node>, /*SourceFile*/
         parent_symbol: Id<Symbol>,
         augmenting_symbol: Id<Symbol>,
     ) {
@@ -1806,7 +1806,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
     fn track_referenced_ambient_module(
         &self,
-        decl: &Node, /*ModuleDeclaration*/
+        decl: Id<Node>, /*ModuleDeclaration*/
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
         self.tracker.track_referenced_ambient_module(decl, symbol)

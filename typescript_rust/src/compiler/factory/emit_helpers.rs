@@ -1081,8 +1081,8 @@ pub fn advanced_async_super_helper() -> Gc<EmitHelper> {
 }
 
 pub fn is_call_to_helper(
-    first_segment: &Node, /*Expression*/
-    helper_name: &str,    /*__String*/
+    first_segment: Id<Node>, /*Expression*/
+    helper_name: &str,       /*__String*/
 ) -> bool {
     is_call_expression(first_segment) && {
         let first_segment_as_call_expression = first_segment.as_call_expression();

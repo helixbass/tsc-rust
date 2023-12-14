@@ -2,6 +2,7 @@
 use std::{cell::RefCell, collections::HashMap, fs, path::Path};
 
 use gc::Gc;
+use id_arena::Id;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use pretty_assertions::assert_str_eq;
@@ -5587,7 +5588,7 @@ fn run_compiler_baseline(#[case] case_filename: &str) {
         config_file_parsing_diagnostics: None,
     });
     // let emit_result = program.emit(None, None, None, None, None, None);
-    let errors = get_pre_emit_diagnostics(&program.clone().into(), Option::<&Node>::None, None);
+    let errors = get_pre_emit_diagnostics(&program.clone().into(), Option::<Id<Node>>::None, None);
     compare_baselines(
         Path::new(case_filename)
             .file_stem()

@@ -2,6 +2,7 @@ use std::{borrow::Borrow, cell::RefCell};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
@@ -126,14 +127,14 @@ pub fn with_parse_base_node_factory_and_factory<TReturn>(
     })
 }
 
-pub(super) fn visit_node(cb_node: &mut impl FnMut(&Node), node: Option<impl Borrow<Node>>) {
+pub(super) fn visit_node(cb_node: &mut impl FnMut(Id<Node>), node: Option<impl Borrow<Node>>) {
     if let Some(node) = node {
         cb_node(node.borrow());
     }
 }
 
 pub(super) fn try_visit_node<TError>(
-    cb_node: &mut impl FnMut(&Node) -> Result<(), TError>,
+    cb_node: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
     node: Option<impl Borrow<Node>>,
 ) -> Result<(), TError> {
     if let Some(node) = node {
@@ -146,7 +147,7 @@ pub(super) fn try_visit_node<TError>(
 pub(super) fn visit_node_returns<
     TNodeRef: Borrow<Node>,
     TReturn,
-    TNodeCallback: FnMut(&Node) -> Option<TReturn>,
+    TNodeCallback: FnMut(Id<Node>) -> Option<TReturn>,
 >(
     cb_node: &mut TNodeCallback,
     node: Option<TNodeRef>,
@@ -158,7 +159,7 @@ pub(super) fn try_visit_node_returns<
     TNodeRef: Borrow<Node>,
     TReturn,
     TError,
-    TNodeCallback: FnMut(&Node) -> Result<Option<TReturn>, TError>,
+    TNodeCallback: FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
 >(
     cb_node: &mut TNodeCallback,
     node: Option<TNodeRef>,
@@ -167,7 +168,7 @@ pub(super) fn try_visit_node_returns<
 }
 
 pub(super) fn visit_nodes(
-    cb_node: &mut impl FnMut(&Node),
+    cb_node: &mut impl FnMut(Id<Node>),
     cb_nodes: Option<&mut impl FnMut(&NodeArray)>,
     nodes: Option<&NodeArray>,
 ) {
@@ -186,7 +187,7 @@ pub(super) fn visit_nodes(
 }
 
 pub(super) fn try_visit_nodes<TError>(
-    cb_node: &mut impl FnMut(&Node) -> Result<(), TError>,
+    cb_node: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
     cb_nodes: Option<&mut impl FnMut(&NodeArray) -> Result<(), TError>>,
     nodes: Option<&NodeArray>,
 ) -> Result<(), TError> {
@@ -208,7 +209,7 @@ pub(super) fn try_visit_nodes<TError>(
 
 pub(super) fn visit_nodes_returns<
     TReturn,
-    TNodeCallback: FnMut(&Node) -> Option<TReturn>,
+    TNodeCallback: FnMut(Id<Node>) -> Option<TReturn>,
     TNodesCallback: FnMut(&NodeArray) -> Option<TReturn>,
 >(
     cb_node: &mut TNodeCallback,
@@ -236,7 +237,7 @@ pub(super) fn visit_nodes_returns<
 pub(super) fn try_visit_nodes_returns<
     TReturn,
     TError,
-    TNodeCallback: FnMut(&Node) -> Result<Option<TReturn>, TError>,
+    TNodeCallback: FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
     TNodesCallback: FnMut(&NodeArray) -> Result<Option<TReturn>, TError>,
 >(
     cb_node: &mut TNodeCallback,

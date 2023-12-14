@@ -247,13 +247,13 @@ impl CheckTypeRelatedTo {
                 Some(vec![
                     self.type_checker.type_to_string_(
                         self.source,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?,
                     self.type_checker.type_to_string_(
                         self.target,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?,
@@ -294,7 +294,7 @@ impl CheckTypeRelatedTo {
                                     .get_type_of_symbol((*links).borrow().target.unwrap())?,
                                 self.target,
                                 self.relation.clone(),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,
@@ -577,7 +577,7 @@ impl CheckTypeRelatedTo {
                         target_type.clone(),
                         self.type_checker.type_to_string_(
                             constraint,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
@@ -630,7 +630,7 @@ impl CheckTypeRelatedTo {
                                 target_type.clone(),
                                 self.type_checker.type_to_string_(
                                     suggested_type,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?,
@@ -682,7 +682,7 @@ impl CheckTypeRelatedTo {
             )?
         } else {
             self.type_checker
-                .type_to_string_(source, Option::<&Node>::None, None, None)?
+                .type_to_string_(source, Option::<Id<Node>>::None, None, None)?
         };
         let target_type = if self
             .type_checker
@@ -698,7 +698,7 @@ impl CheckTypeRelatedTo {
             )?
         } else {
             self.type_checker
-                .type_to_string_(target, Option::<&Node>::None, None, None)?
+                .type_to_string_(target, Option::<Id<Node>>::None, None, None)?
         };
 
         if (self.type_checker.global_string_type() == source
@@ -740,13 +740,13 @@ impl CheckTypeRelatedTo {
                         Some(vec![
                             self.type_checker.type_to_string_(
                                 source,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?,
                             self.type_checker.type_to_string_(
                                 target,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?,
@@ -768,13 +768,13 @@ impl CheckTypeRelatedTo {
                     Some(vec![
                         self.type_checker.type_to_string_(
                             source,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
                         self.type_checker.type_to_string_(
                             target,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
@@ -998,7 +998,7 @@ impl CheckTypeRelatedTo {
                     } else {
                         source
                     },
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                 )?;
@@ -1011,7 +1011,7 @@ impl CheckTypeRelatedTo {
                     } else {
                         target
                     },
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                 )?;
@@ -1566,7 +1566,7 @@ impl CheckTypeRelatedTo {
                             }
                             let prop_name = self.type_checker.symbol_to_string_(
                                 prop,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,
@@ -1580,7 +1580,7 @@ impl CheckTypeRelatedTo {
                             let suggestion = suggestion_symbol.try_map(|suggestion_symbol| {
                                 self.type_checker.symbol_to_string_(
                                     suggestion_symbol,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                     None,
@@ -1593,7 +1593,7 @@ impl CheckTypeRelatedTo {
                                         prop_name,
                                         self.type_checker.type_to_string_(
                                             error_target,
-                                            Option::<&Node>::None,
+                                            Option::<Id<Node>>::None,
                                             None, None,
                                         )?,
                                         suggestion
@@ -1608,7 +1608,7 @@ impl CheckTypeRelatedTo {
                                         prop_name,
                                         self.type_checker.type_to_string_(
                                             error_target,
-                                            Option::<&Node>::None,
+                                            Option::<Id<Node>>::None,
                                             None,
                                             None,
                                         )?,
@@ -1644,7 +1644,7 @@ impl CheckTypeRelatedTo {
                                 )
                             ) {
                                 let prop_declaration = prop_value_declaration;
-                                Debug_.assert_node(Some(&*prop_declaration), Some(|node: &Node| is_object_literal_element_like(node)), None);
+                                Debug_.assert_node(Some(&*prop_declaration), Some(|node: Id<Node>| is_object_literal_element_like(node)), None);
 
                                 self.set_error_node(Some(prop_declaration.clone()));
 
@@ -1662,12 +1662,12 @@ impl CheckTypeRelatedTo {
                                     Some(vec![
                                         self.type_checker.symbol_to_string_(
                                             prop,
-                                            Option::<&Node>::None,
+                                            Option::<Id<Node>>::None,
                                             None, None, None,
                                         )?,
                                         self.type_checker.type_to_string_(
                                             error_target,
-                                            Option::<&Node>::None,
+                                            Option::<Id<Node>>::None,
                                             None, None,
                                         )?,
                                         suggestion
@@ -1678,8 +1678,8 @@ impl CheckTypeRelatedTo {
                                     Cow::Borrowed(&Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1),
                                     Some(
                                         vec![
-                                            self.type_checker.symbol_to_string_(prop, Option::<&Node>::None, None, None, None)?,
-                                            self.type_checker.type_to_string_(error_target, Option::<&Node>::None, None, None)?
+                                            self.type_checker.symbol_to_string_(prop, Option::<Id<Node>>::None, None, None, None)?,
+                                            self.type_checker.type_to_string_(error_target, Option::<Id<Node>>::None, None, None)?
                                         ]
                                     )
                                 )?;
@@ -1703,7 +1703,7 @@ impl CheckTypeRelatedTo {
                             &Diagnostics::Types_of_property_0_are_incompatible,
                             Some(vec![self.type_checker.symbol_to_string_(
                                 prop,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,

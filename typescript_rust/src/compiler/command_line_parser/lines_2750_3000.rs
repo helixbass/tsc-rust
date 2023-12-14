@@ -339,7 +339,7 @@ pub(super) fn parse_own_config_of_json(
 }
 
 pub(super) fn parse_own_config_of_json_source_file(
-    source_file: &Node, /*TsConfigSourceFile*/
+    source_file: Id<Node>, /*TsConfigSourceFile*/
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     config_file_name: Option<&str>,
@@ -437,7 +437,7 @@ struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost 
     extended_config_path: &'a RefCell<Option<String>>,
     host: &'a THost,
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
-    source_file: &'a Node,
+    source_file: Id<Node>,
     root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
 }
 
@@ -452,7 +452,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> ParseOwnConfigOfJsonSourceFileOptionsI
         extended_config_path: &'a RefCell<Option<String>>,
         host: &'a THost,
         errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
-        source_file: &'a Node,
+        source_file: Id<Node>,
         root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
     ) -> Self {
         Self {
@@ -531,9 +531,9 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
     fn on_set_valid_option_key_value_in_root(
         &self,
         key: &str,
-        _key_node: &Node, /*PropertyName*/
+        _key_node: Id<Node>, /*PropertyName*/
         value: Option<&serde_json::Value>,
-        value_node: &Node, /*Expression*/
+        value_node: Id<Node>, /*Expression*/
     ) -> io::Result<()> {
         match key {
             "extends" => {
@@ -572,9 +572,9 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
     fn on_set_unknown_option_key_value_in_root(
         &self,
         key: &str,
-        key_node: &Node, /*PropertyName*/
+        key_node: Id<Node>, /*PropertyName*/
         _value: Option<&serde_json::Value>,
-        _value_node: &Node, /*Expression*/
+        _value_node: Id<Node>, /*Expression*/
     ) {
         if key == "excludes" {
             self.errors.borrow_mut().push(Gc::new(

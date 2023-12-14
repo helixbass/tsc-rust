@@ -438,7 +438,7 @@ impl NodeBuilder {
         Ok(result)
     }
 
-    pub(super) fn deep_clone_or_reuse_node(&self, node: &Node) -> Id<Node> {
+    pub(super) fn deep_clone_or_reuse_node(&self, node: Id<Node>) -> Id<Node> {
         if !node_is_synthesized(node)
             && matches!(get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None), Some(parse_tree_node) if ptr::eq(&*parse_tree_node, node))
         {
@@ -447,7 +447,7 @@ impl NodeBuilder {
         let ret = factory.with(|factory_| {
             factory_.clone_node(&visit_each_child(
                 node,
-                |node: &Node| Some(self.deep_clone_or_reuse_node(node).into()),
+                |node: Id<Node>| Some(self.deep_clone_or_reuse_node(node).into()),
                 &*null_transformation_context,
             ))
         });
@@ -873,8 +873,8 @@ impl NodeBuilder {
 
     pub(super) fn append_reference_to_type(
         &self,
-        root: &Node, /*TypeReferenceNode | ImportTypeNode*/
-        ref_: &Node, /*TypeReferenceNode*/
+        root: Id<Node>, /*TypeReferenceNode | ImportTypeNode*/
+        ref_: Id<Node>, /*TypeReferenceNode*/
     ) -> Id<Node /*TypeReferenceNode | ImportTypeNode*/> {
         if is_import_type_node(root) {
             let root_as_import_type_node = root.as_import_type_node();
@@ -955,7 +955,7 @@ impl NodeBuilder {
 
     pub(super) fn get_access_stack(
         &self,
-        ref_: &Node, /*TypeReferenceNode*/
+        ref_: Id<Node>, /*TypeReferenceNode*/
     ) -> Vec<Id<Node /*Identifier*/>> {
         let mut state: &Id<Node> = &ref_.as_type_reference_node().type_name;
         let mut ids = vec![];
@@ -1187,7 +1187,7 @@ impl NodeBuilder {
                 context.tracker().report_non_serializable_property(
                     &self.type_checker.symbol_to_string_(
                         property_symbol,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                         None,

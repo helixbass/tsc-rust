@@ -24,7 +24,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_type_from_indexed_access_type_node(
         &self,
-        node: &Node, /*IndexedAccessTypeNode*/
+        node: Id<Node>, /*IndexedAccessTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -65,7 +65,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_mapped_type_node(
         &self,
-        node: &Node, /*MappedTypeNode*/
+        node: Id<Node>, /*MappedTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -114,7 +114,7 @@ impl TypeChecker {
                         type_.ref_(self).as_indexed_access_type().index_type,
                     )?,
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Id<Symbol>>::None,
                     None,
                 );
@@ -146,7 +146,7 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn is_singleton_tuple_type(&self, node: &Node /*TypeNode*/) -> bool {
+    pub(super) fn is_singleton_tuple_type(&self, node: Id<Node> /*TypeNode*/) -> bool {
         is_tuple_type_node(node) && {
             let node_as_tuple_type_node = node.as_tuple_type_node();
             length(Some(&*node_as_tuple_type_node.elements)) == 1
@@ -572,7 +572,7 @@ impl TypeChecker {
 
     pub(super) fn get_infer_type_parameters(
         &self,
-        node: &Node, /*ConditionalTypeNode*/
+        node: Id<Node>, /*ConditionalTypeNode*/
     ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
         let mut result: Option<Vec<Id<Type>>> = None;
         if let Some(node_locals) = node.maybe_locals().clone() {
@@ -612,7 +612,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_conditional_type_node(
         &self,
-        node: &Node, /*ConditionalTypeNode*/
+        node: Id<Node>, /*ConditionalTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -664,7 +664,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_infer_type_node(
         &self,
-        node: &Node, /*InferTypeNode*/
+        node: Id<Node>, /*InferTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -681,7 +681,7 @@ impl TypeChecker {
 
     pub(super) fn get_identifier_chain(
         &self,
-        node: &Node, /*EntityName*/
+        node: Id<Node>, /*EntityName*/
     ) -> Vec<Id<Node /*Identifier*/>> {
         if is_identifier(node) {
             vec![node.node_wrapper()]
@@ -695,7 +695,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_import_type_node(
         &self,
-        node: &Node, /*ImportTypeNode*/
+        node: Id<Node>, /*ImportTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -794,7 +794,7 @@ impl TypeChecker {
                             Some(vec![
                                 self.get_fully_qualified_name(
                                     current_namespace,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                 )?,
                                 declaration_name_to_string(Some(&*current)).into_owned(),
                             ]),
@@ -855,7 +855,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_import_symbol_type(
         &self,
-        node: &Node, /*ImportTypeNode*/
+        node: Id<Node>, /*ImportTypeNode*/
         links: &GcCell<NodeLinks>,
         symbol: Id<Symbol>,
         meaning: SymbolFlags,
@@ -871,7 +871,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_type_literal_or_function_or_constructor_type_node(
         &self,
-        node: &Node, /*TypeNode*/
+        node: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -902,7 +902,7 @@ impl TypeChecker {
 
     pub(super) fn get_alias_symbol_for_type_node(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let mut host = node.parent();
         while is_parenthesized_type_node(&host)

@@ -635,7 +635,7 @@ impl TypeChecker {
                     Ok(if is_async {
                         self.get_promised_type_of_promise(
                             contextual_signature_return_type,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                         )?
                     } else {
                         Some(contextual_signature_return_type)
@@ -767,7 +767,7 @@ impl TypeChecker {
                             t,
                             self.number_type(),
                             None,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             Option::<Id<Symbol>>::None,
                             None,
                         )?
@@ -1070,7 +1070,7 @@ impl TypeChecker {
     pub(super) fn propagate_optional_type_marker(
         &self,
         type_: Id<Type>,
-        node: &Node, /*OptionalChain*/
+        node: Id<Node>, /*OptionalChain*/
         was_optional: bool,
     ) -> io::Result<Id<Type>> {
         Ok(if was_optional {
@@ -1087,7 +1087,7 @@ impl TypeChecker {
     pub(super) fn get_optional_expression_type(
         &self,
         expr_type: Id<Type>,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         Ok(if is_expression_of_optional_chain_root(expression) {
             self.get_non_nullable_type(expr_type)?

@@ -23,8 +23,8 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn check_if_this_is_captured_in_enclosing_scope(&self, node: &Node) {
-        find_ancestor(Some(node), |current: &Node| {
+    pub(super) fn check_if_this_is_captured_in_enclosing_scope(&self, node: Id<Node>) {
+        find_ancestor(Some(node), |current: Id<Node>| {
             if self
                 .get_node_check_flags(current)
                 .intersects(NodeCheckFlags::CaptureThis)
@@ -49,8 +49,8 @@ impl TypeChecker {
         });
     }
 
-    pub(super) fn check_if_new_target_is_captured_in_enclosing_scope(&self, node: &Node) {
-        find_ancestor(Some(node), |current: &Node| {
+    pub(super) fn check_if_new_target_is_captured_in_enclosing_scope(&self, node: Id<Node>) {
+        find_ancestor(Some(node), |current: Id<Node>| {
             if self
                 .get_node_check_flags(current)
                 .intersects(NodeCheckFlags::CaptureNewTarget)
@@ -77,7 +77,7 @@ impl TypeChecker {
 
     pub(super) fn check_collision_with_require_exports_in_generated_code(
         &self,
-        node: &Node,
+        node: Id<Node>,
         name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if self.module_kind >= ModuleKind::ES2015
@@ -94,7 +94,7 @@ impl TypeChecker {
             return;
         }
         let name = name.unwrap();
-        let name: &Node = name.borrow();
+        let name: Id<Node> = name.borrow();
         if !self.need_collision_check_for_identifier(node, Some(name), "require")
             && !self.need_collision_check_for_identifier(node, Some(name), "exports")
         {
@@ -123,14 +123,14 @@ impl TypeChecker {
 
     pub(super) fn check_collision_with_global_promise_in_generated_code(
         &self,
-        node: &Node,
+        node: Id<Node>,
         name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
         }
         let name = name.unwrap();
-        let name: &Node = name.borrow();
+        let name: Id<Node> = name.borrow();
         if self.language_version >= ScriptTarget::ES2017
             || !self.need_collision_check_for_identifier(node, Some(name), "Promise")
         {
@@ -162,8 +162,8 @@ impl TypeChecker {
 
     pub(super) fn record_potential_collision_with_weak_map_set_in_generated_code(
         &self,
-        node: &Node,
-        name: &Node, /*Identifier*/
+        node: Id<Node>,
+        name: Id<Node>, /*Identifier*/
     ) {
         if self.language_version <= ScriptTarget::ES2021
             && (self.need_collision_check_for_identifier(node, Some(name), "WeakMap")
@@ -174,7 +174,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_weak_map_set_collision(&self, node: &Node) {
+    pub(super) fn check_weak_map_set_collision(&self, node: Id<Node>) {
         let enclosing_block_scope = get_enclosing_block_scope_container(node).unwrap();
         if self
             .get_node_check_flags(&enclosing_block_scope)
@@ -201,14 +201,14 @@ impl TypeChecker {
 
     pub(super) fn record_potential_collision_with_reflect_in_generated_code(
         &self,
-        node: &Node,
+        node: Id<Node>,
         name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
         }
         let name = name.unwrap();
-        let name: &Node = name.borrow();
+        let name: Id<Node> = name.borrow();
         if self.language_version >= ScriptTarget::ES2015
             && self.language_version <= ScriptTarget::ES2021
             && self.need_collision_check_for_identifier(node, Some(name), "Reflect")
@@ -218,7 +218,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_reflect_collision(&self, node: &Node) {
+    pub(super) fn check_reflect_collision(&self, node: Id<Node>) {
         let mut has_collision = false;
         if is_class_expression(node) {
             for member in &node.as_class_expression().members() {
@@ -265,14 +265,14 @@ impl TypeChecker {
 
     pub(super) fn check_collisions_for_declaration_name(
         &self,
-        node: &Node,
+        node: Id<Node>,
         name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
         }
         let name = name.unwrap();
-        let name: &Node = name.borrow();
+        let name: Id<Node> = name.borrow();
         self.check_collision_with_require_exports_in_generated_code(node, Some(name));
         self.check_collision_with_global_promise_in_generated_code(node, Some(name));
         self.record_potential_collision_with_weak_map_set_in_generated_code(node, name);
@@ -289,7 +289,7 @@ impl TypeChecker {
 
     pub(super) fn check_var_declared_names_not_shadowed(
         &self,
-        node: &Node, /*VariableDeclaration | BindingElement*/
+        node: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) -> io::Result<()> {
         if get_combined_node_flags(node).intersects(NodeFlags::BlockScoped)
             || is_parameter_declaration(node)
@@ -363,7 +363,7 @@ impl TypeChecker {
                     if !names_share_scope {
                         let name = self.symbol_to_string_(
                             local_declaration_symbol,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
@@ -396,7 +396,7 @@ impl TypeChecker {
 
     pub(super) fn check_variable_like_declaration(
         &self,
-        node: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement*/
+        node: Id<Node>, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement*/
     ) -> io::Result<()> {
         self.check_decorators(node)?;
         if !is_binding_element(node) {
@@ -451,7 +451,7 @@ impl TypeChecker {
                         if let Some(property) = property {
                             self.mark_property_as_referenced(
                                 property,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 false,
                             );
                             self.check_property_accessibility(
@@ -675,7 +675,7 @@ impl TypeChecker {
         &self,
         first_declaration: Option<impl Borrow<Node> /*Declaration*/>,
         first_type: Id<Type>,
-        next_declaration: &Node, /*Declaration*/
+        next_declaration: Id<Node>, /*Declaration*/
         next_type: Id<Type>,
     ) -> io::Result<()> {
         let next_declaration_name = get_name_of_declaration(Some(next_declaration));
@@ -693,12 +693,12 @@ impl TypeChecker {
             message,
             Some(vec![
                 decl_name.clone(),
-                self.type_to_string_(first_type, Option::<&Node>::None, None, None)?,
-                self.type_to_string_(next_type, Option::<&Node>::None, None, None)?,
+                self.type_to_string_(first_type, Option::<Id<Node>>::None, None, None)?,
+                self.type_to_string_(next_type, Option::<Id<Node>>::None, None, None)?,
             ]),
         );
         if let Some(first_declaration) = first_declaration {
-            let first_declaration: &Node = first_declaration.borrow();
+            let first_declaration: Id<Node> = first_declaration.borrow();
             add_related_info(
                 &err,
                 vec![Gc::new(
@@ -717,8 +717,8 @@ impl TypeChecker {
 
     pub(super) fn are_declaration_flags_identical(
         &self,
-        left: &Node,  /*Declaration*/
-        right: &Node, /*Declaration*/
+        left: Id<Node>,  /*Declaration*/
+        right: Id<Node>, /*Declaration*/
     ) -> bool {
         if left.kind() == SyntaxKind::Parameter && right.kind() == SyntaxKind::VariableDeclaration
             || left.kind() == SyntaxKind::VariableDeclaration
@@ -744,7 +744,7 @@ impl TypeChecker {
 
     pub(super) fn check_variable_declaration(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Check, "checkVariableDeclaration", { kind: node.kind, pos: node.pos, end: node.end });
         self.check_grammar_variable_declaration(node)?;
@@ -756,7 +756,7 @@ impl TypeChecker {
 
     pub(super) fn check_binding_element(
         &self,
-        node: &Node, /*BindingElement*/
+        node: Id<Node>, /*BindingElement*/
     ) -> io::Result<()> {
         self.check_grammar_binding_element(node);
         self.check_variable_like_declaration(node)?;
@@ -766,7 +766,7 @@ impl TypeChecker {
 
     pub(super) fn check_variable_statement(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<()> {
         let node_as_variable_statement = node.as_variable_statement();
         if !self.check_grammar_decorators_and_modifiers(node)
@@ -792,7 +792,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_statement(
         &self,
-        node: &Node, /*ExpressionStatement*/
+        node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
@@ -801,7 +801,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) -> io::Result<()> {
+    pub(super) fn check_if_statement(&self, node: Id<Node> /*IfStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let node_as_if_statement = node.as_if_statement();
         let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None)?;
@@ -827,7 +827,7 @@ impl TypeChecker {
 
     pub(super) fn check_testing_known_truthy_callable_or_awaitable_type(
         &self,
-        cond_expr: &Node, /*Expression*/
+        cond_expr: Id<Node>, /*Expression*/
         type_: Id<Type>,
         body: Option<impl Borrow<Node> /*Statement | Expression*/>,
     ) -> io::Result<()> {
@@ -863,7 +863,7 @@ impl TypeChecker {
 
         let call_signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
         let is_promise = self
-            .get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
+            .get_awaited_type_of_promise(type_, Option::<Id<Node>>::None, None, None)?
             .is_some();
         if call_signatures.is_empty() && !is_promise {
             return Ok(());
@@ -914,9 +914,9 @@ impl TypeChecker {
 
     pub(super) fn is_symbol_used_in_condition_body(
         &self,
-        expr: &Node, /*Expression*/
-        body: &Node, /*Statement | Expression*/
-        tested_node: &Node,
+        expr: Id<Node>, /*Expression*/
+        body: Id<Node>, /*Statement | Expression*/
+        tested_node: Id<Node>,
         tested_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         try_for_each_child_bool(
@@ -935,10 +935,10 @@ impl TypeChecker {
 
     pub(super) fn is_symbol_used_in_condition_body_check(
         &self,
-        expr: &Node,
-        tested_node: &Node,
+        expr: Id<Node>,
+        tested_node: Id<Node>,
         tested_symbol: Id<Symbol>,
-        child_node: &Node,
+        child_node: Id<Node>,
     ) -> io::Result<bool> {
         if is_identifier(child_node) {
             let child_symbol = self.get_symbol_at_location_(child_node, None)?;

@@ -55,7 +55,7 @@ fn get_preferences(
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     user_preferences: &UserPreferences,
     compiler_options: Gc<CompilerOptions>,
-    importing_source_file: &Node, /*SourceFile*/
+    importing_source_file: Id<Node>, /*SourceFile*/
 ) -> Preferences {
     let import_module_specifier_preference = user_preferences
         .import_module_specifier_preference
@@ -79,7 +79,7 @@ fn get_preferences(
 
 fn get_ending(
     import_module_specifier_ending: Option<&str>,
-    importing_source_file: &Node, /*SourceFile*/
+    importing_source_file: Id<Node>, /*SourceFile*/
     compiler_options: Gc<CompilerOptions>,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
 ) -> Ending {
@@ -252,7 +252,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
 pub fn get_module_specifier(
     compiler_options: Gc<CompilerOptions>,
-    importing_source_file: &Node, /*SourceFile*/
+    importing_source_file: Id<Node>, /*SourceFile*/
     importing_source_file_name: &Path,
     to_file_name: &str,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
@@ -300,7 +300,7 @@ fn get_module_specifier_worker(
 fn try_get_module_specifiers_from_cache_worker(
     checker: &TypeChecker,
     module_symbol: Id<Symbol>,
-    importing_source_file: &Node, /*SourceFile*/
+    importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
 ) -> (
@@ -339,7 +339,7 @@ pub fn get_module_specifiers(
     module_symbol: Id<Symbol>,
     checker: &TypeChecker,
     compiler_options: Gc<CompilerOptions>,
-    importing_source_file: &Node, /*SourceFile*/
+    importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
 ) -> io::Result<Vec<String>> {
@@ -358,7 +358,7 @@ pub fn get_module_specifiers_with_cache_info(
     module_symbol: Id<Symbol>,
     checker: &TypeChecker,
     compiler_options: Gc<CompilerOptions>,
-    importing_source_file: &Node, /*SourceFile*/
+    importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
 ) -> io::Result<ModuleSpecifiersWithCacheInfo> {
@@ -428,7 +428,7 @@ pub fn get_module_specifiers_with_cache_info(
 fn compute_module_specifiers(
     module_paths: &[ModulePath],
     compiler_options: Gc<CompilerOptions>,
-    importing_source_file: &Node, /*SourceFile*/
+    importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
 ) -> io::Result<Vec<String>> {
@@ -706,7 +706,7 @@ pub fn count_path_components(path: &str) -> usize {
     count
 }
 
-fn uses_js_extensions_on_imports(node: &Node /*SourceFile*/) -> bool {
+fn uses_js_extensions_on_imports(node: Id<Node> /*SourceFile*/) -> bool {
     let imports = node.as_source_file().maybe_imports();
     imports
         .as_ref()

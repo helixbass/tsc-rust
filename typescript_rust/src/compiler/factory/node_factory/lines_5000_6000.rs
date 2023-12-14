@@ -57,7 +57,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(super) fn finish_update_property_assignment(
         &self,
         mut updated: PropertyAssignment,
-        original: &Node, /*PropertyAssignment*/
+        original: Id<Node>, /*PropertyAssignment*/
     ) -> Id<Node> {
         if let Some(original_decorators) = original.maybe_decorators() {
             updated.set_decorators(Some(original_decorators));
@@ -81,7 +81,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_property_assignment(
         &self,
-        node: &Node,    /*PropertyAssignment*/
+        node: Id<Node>, /*PropertyAssignment*/
         name: Id<Node>, /*PropertyName*/
         initializer: Id<Node /*Expression*/>,
     ) -> Id<Node> {
@@ -130,7 +130,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(super) fn finish_update_shorthand_property_assignment(
         &self,
         mut updated: ShorthandPropertyAssignment,
-        original: &Node, /*ShorthandPropertyAssignment*/
+        original: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> Id<Node> {
         if let Some(original_decorators) = original.maybe_decorators() {
             updated.set_decorators(Some(original_decorators));
@@ -162,7 +162,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_shorthand_property_assignment(
         &self,
-        node: &Node,    /*ShorthandPropertyAssignment*/
+        node: Id<Node>, /*ShorthandPropertyAssignment*/
         name: Id<Node>, /*Identifier*/
         object_assignment_initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
@@ -205,7 +205,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_spread_assignment(
         &self,
-        node: &Node, /*SpreadAssignment*/
+        node: Id<Node>, /*SpreadAssignment*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_spread_assignment = node.as_spread_assignment();
@@ -241,7 +241,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_enum_member(
         &self,
-        node: &Node, /*EnumMember*/
+        node: Id<Node>, /*EnumMember*/
         name: Id<Node>,
         initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
@@ -290,7 +290,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn clone_source_file_with_changes(
         &self,
-        source: &Node, /*SourceFile*/
+        source: Id<Node>, /*SourceFile*/
         statements: NodeArrayOrVec,
         is_declaration_file: bool,
         referenced_files: Rc<RefCell<Vec<FileReference>>>,
@@ -328,7 +328,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_source_file(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
         statements: impl Into<NodeArrayOrVec>,
         is_declaration_file: Option<bool>,
         referenced_files: Option<Rc<RefCell<Vec<FileReference>>>>,
@@ -506,7 +506,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_partially_emitted_expression(
         &self,
-        node: &Node, /*PartiallyEmittedExpression*/
+        node: Id<Node>, /*PartiallyEmittedExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
@@ -528,7 +528,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     fn flatten_comma_elements(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> SingleOrVec<Id<Node /*Expression*/>> {
         if node_is_synthesized(node)
             && !is_parse_tree_node(node)
@@ -577,7 +577,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_comma_list_expression(
         &self,
-        node: &Node, /*CommaListExpression*/
+        node: Id<Node>, /*CommaListExpression*/
         elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> Id<Node> {
         let node_as_comma_list_expression = node.as_comma_list_expression();
@@ -622,7 +622,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.wrap()
     }
 
-    pub fn clone_node(&self, node: &Node) -> Id<Node> {
+    pub fn clone_node(&self, node: Id<Node>) -> Id<Node> {
         // if (node === undefined) {
         //     return node;
         //  }
@@ -893,7 +893,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(super) fn update_outer_expression(
         &self,
-        outer_expression: &Node, /*OuterExpression*/
+        outer_expression: Id<Node>, /*OuterExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         match outer_expression.kind() {
@@ -920,7 +920,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
+    fn is_ignorable_paren(&self, node: Id<Node> /*Expression*/) -> bool {
         is_parenthesized_expression(node)
             && node_is_synthesized(node)
             && node_is_synthesized(&ReadonlyTextRangeConcrete::from_text_range(
@@ -934,7 +934,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn restore_outer_expressions(
         &self,
         outer_expression: Option<impl Borrow<Node> /*Expression*/>,
-        inner_expression: &Node, /*Expression*/
+        inner_expression: Id<Node>, /*Expression*/
         kinds: Option<OuterExpressionKinds>,
     ) -> Id<Node /*Expression*/> {
         let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
@@ -958,15 +958,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn restore_enclosing_label(
         &self,
-        node: &Node, /*Statement*/
+        node: Id<Node>, /*Statement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
-        after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
+        after_restore_label_callback: Option<impl FnMut(Id<Node> /*LabeledStatement*/)>,
     ) -> Id<Node /*Statement*/> {
         if outermost_labeled_statement.is_none() {
             return node.node_wrapper();
         }
         let outermost_labeled_statement = outermost_labeled_statement.unwrap();
-        let outermost_labeled_statement: &Node = outermost_labeled_statement.borrow();
+        let outermost_labeled_statement: Id<Node> = outermost_labeled_statement.borrow();
         let outermost_labeled_statement_as_labeled_statement =
             outermost_labeled_statement.as_labeled_statement();
         let updated = self.update_labeled_statement(
@@ -978,7 +978,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 self.restore_enclosing_label(
                     node,
                     Some(&*outermost_labeled_statement_as_labeled_statement.statement),
-                    Option::<fn(&Node)>::None,
+                    Option::<fn(Id<Node>)>::None,
                 )
             } else {
                 node.node_wrapper()
@@ -992,7 +992,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(super) fn should_be_captured_in_temp_variable(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         cache_identifiers: bool,
     ) -> bool {
         let target = skip_parentheses(node, None);
@@ -1018,8 +1018,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_call_binding(
         &self,
-        expression: &Node, /*Expression*/
-        mut record_temp_variable: impl FnMut(&Node /*Identifier*/),
+        expression: Id<Node>, /*Expression*/
+        mut record_temp_variable: impl FnMut(Id<Node> /*Identifier*/),
         language_version: Option<ScriptTarget>,
         cache_identifiers: Option<bool>,
     ) -> CallBinding {
@@ -1052,7 +1052,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 cache_identifiers,
             ) {
                 this_arg = self.create_temp_variable(
-                    Some(|node: &Node| {
+                    Some(|node: Id<Node>| {
                         record_temp_variable(node);
                     }),
                     None,
@@ -1078,7 +1078,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 cache_identifiers,
             ) {
                 this_arg = self.create_temp_variable(
-                    Some(|node: &Node| {
+                    Some(|node: Id<Node>| {
                         record_temp_variable(node);
                     }),
                     None,
@@ -1188,7 +1188,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_internal_name(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Id<Node> {
@@ -1202,7 +1202,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_local_name(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Id<Node> {
@@ -1216,7 +1216,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_export_name(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Id<Node /*Identifier*/> {
@@ -1239,8 +1239,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_namespace_member_name(
         &self,
-        ns: &Node,   /*Identifier*/
-        name: &Node, /*Identifier*/
+        ns: Id<Node>,   /*Identifier*/
+        name: Id<Node>, /*Identifier*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Id<Node /*PropertyAccessExpression*/> {
@@ -1270,7 +1270,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn get_external_module_or_namespace_export_name(
         &self,
         ns: Option<impl Borrow<Node> /*Identifier*/>,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Id<Node /*Identifier | PropertyAccessExpression*/> {
@@ -1291,13 +1291,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         source: &[Id<Node /*Statement*/>],
         target: &mut Vec<Id<Node /*Statement*/>>,
         ensure_use_strict: Option<bool>,
-        visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
+        visitor: Option<impl FnMut(Id<Node>) -> VisitResult /*<Node>*/>,
     ) -> usize {
         self.try_copy_prologue(
             source,
             target,
             ensure_use_strict,
-            visitor.map(|mut visitor| move |a: &Node| Ok(visitor(a))),
+            visitor.map(|mut visitor| move |a: Id<Node>| Ok(visitor(a))),
         )
         .unwrap()
     }
@@ -1307,7 +1307,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         source: &[Id<Node /*Statement*/>],
         target: &mut Vec<Id<Node /*Statement*/>>,
         ensure_use_strict: Option<bool>,
-        visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
+        visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult /*<Node>*/>>,
     ) -> io::Result<usize> {
         let offset = self.copy_standard_prologue(source, target, ensure_use_strict);
         Ok(self
@@ -1316,12 +1316,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 target,
                 Some(offset),
                 visitor,
-                Option::<fn(&Node) -> bool>::None,
+                Option::<fn(Id<Node>) -> bool>::None,
             )?
             .unwrap())
     }
 
-    pub fn is_use_strict_prologue(&self, node: &Node /*ExpressionStatement*/) -> bool {
+    pub fn is_use_strict_prologue(&self, node: Id<Node> /*ExpressionStatement*/) -> bool {
         let node_as_expression_statement = node.as_expression_statement();
         is_string_literal(&node_as_expression_statement.expression)
             && *node_as_expression_statement
@@ -1373,14 +1373,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         source: &[Id<Node /*Statement*/>],
         target: &mut Vec<Id<Node /*Statement*/>>,
         statement_offset: Option<usize>,
-        visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
-        filter: Option<impl FnMut(&Node) -> bool>,
+        visitor: Option<impl FnMut(Id<Node>) -> VisitResult /*<Node>*/>,
+        filter: Option<impl FnMut(Id<Node>) -> bool>,
     ) -> Option<usize> {
         self.try_copy_custom_prologue(
             source,
             target,
             statement_offset,
-            visitor.map(|mut visitor| move |node: &Node| Ok(visitor(node))),
+            visitor.map(|mut visitor| move |node: Id<Node>| Ok(visitor(node))),
             filter,
         )
         .unwrap()
@@ -1391,10 +1391,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         source: &[Id<Node /*Statement*/>],
         target: &mut Vec<Id<Node /*Statement*/>>,
         statement_offset: Option<usize>,
-        mut visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
-        mut filter: Option<impl FnMut(&Node) -> bool>,
+        mut visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult /*<Node>*/>>,
+        mut filter: Option<impl FnMut(Id<Node>) -> bool>,
     ) -> io::Result<Option<usize>> {
-        let mut filter_or_default = |node: &Node| {
+        let mut filter_or_default = |node: Id<Node>| {
             if let Some(filter) = filter.as_mut() {
                 filter(node)
             } else {
@@ -1412,7 +1412,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     |visitor| {
                         try_visit_node(
                             statement,
-                            Some(|node: &Node| visitor(node)),
+                            Some(|node: Id<Node>| visitor(node)),
                             Some(is_statement),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )

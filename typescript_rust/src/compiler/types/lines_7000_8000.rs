@@ -70,45 +70,45 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
     fn parenthesize_left_side_of_binary(
         &self,
         binary_operator: SyntaxKind,
-        left_side: &Node, /*Expression*/
+        left_side: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/>;
     fn parenthesize_right_side_of_binary(
         &self,
         binary_operator: SyntaxKind,
         left_side: Option<Id<Node /*Expression*/>>,
-        right_side: &Node, /*Expression*/
+        right_side: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/>;
     fn parenthesize_expression_of_computed_property_name(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/>;
     fn parenthesize_condition_of_conditional_expression(
         &self,
-        condition: &Node, /*Expression*/
+        condition: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/>;
     fn parenthesize_branch_of_conditional_expression(
         &self,
-        branch: &Node, /*Expression*/
+        branch: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/>;
     fn parenthesize_expression_of_export_default(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/>;
     fn parenthesize_expression_of_new(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> Id<Node /*LeftHandSideExpression*/>;
     fn parenthesize_left_side_of_access(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> Id<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_postfix_unary(
         &self,
-        operand: &Node, /*Expression*/
+        operand: Id<Node>, /*Expression*/
     ) -> Id<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_prefix_unary(
         &self,
-        operand: &Node, /*Expression*/
+        operand: Id<Node>, /*Expression*/
     ) -> Id<Node /*UnaryExpression*/>;
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
@@ -116,27 +116,27 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
     ) -> Gc<NodeArray> /*<Expression>*/;
     fn parenthesize_expression_for_disallowed_comma(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/>;
     fn parenthesize_expression_of_expression_statement(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/>;
     fn parenthesize_concise_body_of_arrow_function(
         &self,
-        expression: &Node, /*Expression | ConciseBody*/
+        expression: Id<Node>, /*Expression | ConciseBody*/
     ) -> Id<Node /*Expression | ConciseBody*/>;
     fn parenthesize_member_of_conditional_type(
         &self,
-        member: &Node, /*TypeNode*/
+        member: Id<Node>, /*TypeNode*/
     ) -> Id<Node /*TypeNode*/>;
     fn parenthesize_member_of_element_type(
         &self,
-        member: &Node, /*TypeNode*/
+        member: Id<Node>, /*TypeNode*/
     ) -> Id<Node /*TypeNode*/>;
     fn parenthesize_element_type_of_array_type(
         &self,
-        member: &Node, /*TypeNode*/
+        member: Id<Node>, /*TypeNode*/
     ) -> Id<Node /*TypeNode*/>;
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
@@ -151,36 +151,36 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
 pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
     fn convert_to_function_block(
         &self,
-        node: &Node, /*ConciseBody*/
+        node: Id<Node>, /*ConciseBody*/
         multi_line: Option<bool>,
     ) -> Id<Node /*Block*/>;
     fn convert_to_function_expression(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> Id<Node /*FunctionExpression*/>;
     fn convert_to_array_assignment_element(
         &self,
-        element: &Node, /*ArrayBindingOrAssignmentElement*/
+        element: Id<Node>, /*ArrayBindingOrAssignmentElement*/
     ) -> Id<Node /*Expression*/>;
     fn convert_to_object_assignment_element(
         &self,
-        element: &Node, /*ObjectBindingOrAssignmentElement*/
+        element: Id<Node>, /*ObjectBindingOrAssignmentElement*/
     ) -> Id<Node /*ObjectLiteralElementLike*/>;
     fn convert_to_assignment_pattern(
         &self,
-        node: &Node, /*BindingOrAssignmentPattern*/
+        node: Id<Node>, /*BindingOrAssignmentPattern*/
     ) -> Id<Node /*AssignmentPattern*/>;
     fn convert_to_object_assignment_pattern(
         &self,
-        node: &Node, /*ObjectBindingOrAssignmentPattern*/
+        node: Id<Node>, /*ObjectBindingOrAssignmentPattern*/
     ) -> Id<Node /*ObjectLiteralExpression*/>;
     fn convert_to_array_assignment_pattern(
         &self,
-        node: &Node, /*ArrayBindingOrAssignmentPattern*/
+        node: Id<Node>, /*ArrayBindingOrAssignmentPattern*/
     ) -> Id<Node /*ArrayLiteralExpression*/>;
     fn convert_to_assignment_element_target(
         &self,
-        node: &Node, /*BindingOrAssignmentElementTarget*/
+        node: Id<Node>, /*BindingOrAssignmentElementTarget*/
     ) -> Id<Node /*Expression*/>;
 }
 
@@ -220,17 +220,17 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + 
 
     fn end_lexical_environment(&self) -> Option<Vec<Id<Node /*Statement*/>>>;
 
-    fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/);
+    fn hoist_function_declaration(&self, node: Id<Node> /*FunctionDeclaration*/);
 
-    fn hoist_variable_declaration(&self, node: &Node /*Identifier*/);
+    fn hoist_variable_declaration(&self, node: Id<Node> /*Identifier*/);
 
     fn start_block_scope(&self);
 
     fn end_block_scope(&self) -> Option<Vec<Id<Node /*Statement*/>>>;
 
-    fn add_block_scoped_variable(&self, node: &Node /*Identifier*/);
+    fn add_block_scoped_variable(&self, node: Id<Node> /*Identifier*/);
 
-    fn add_initialization_statement(&self, node: &Node /*Statement*/);
+    fn add_initialization_statement(&self, node: Id<Node> /*Statement*/);
 }
 
 pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {
@@ -244,9 +244,9 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn enable_substitution(&self, kind: SyntaxKind);
 
-    fn is_substitution_enabled(&self, node: &Node) -> bool;
+    fn is_substitution_enabled(&self, node: Id<Node>) -> bool;
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>>;
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>>;
     fn override_on_substitute_node(
         &self,
         overrider: &mut dyn FnMut(
@@ -260,13 +260,13 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn enable_emit_notification(&self, kind: SyntaxKind);
 
-    fn is_emit_notification_enabled(&self, node: &Node) -> bool;
+    fn is_emit_notification_enabled(&self, node: Id<Node>) -> bool;
 
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()>;
     fn override_on_emit_node(
         &self,
@@ -283,13 +283,13 @@ pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()>;
 }
 
 pub trait TransformationContextOnSubstituteNodeOverrider: Trace + Finalize {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>>;
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>>;
 }
 
 pub trait TransformationResult {
@@ -297,16 +297,16 @@ pub trait TransformationResult {
 
     fn diagnostics(&self) -> Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>;
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>>;
+    fn substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>>;
 
     fn emit_node_with_notification(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()>;
 
-    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool>;
+    fn is_emit_notification_enabled(&self, node: Id<Node>) -> Option<bool>;
 
     fn dispose(&self);
 }
@@ -320,18 +320,18 @@ pub trait TransformerFactoryInterface: Trace + Finalize {
 pub type Transformer = Gc<Box<dyn TransformerInterface>>;
 
 pub trait TransformerInterface: Trace + Finalize {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>>;
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>>;
 }
 
 pub type VisitResult = Option<SingleNodeOrVecNode>;
 
 pub trait VisitResultInterface {
-    fn ptr_eq_node(&self, node: &Node) -> bool;
+    fn ptr_eq_node(&self, node: Id<Node>) -> bool;
     fn into_single_node(self) -> Id<Node>;
 }
 
 impl VisitResultInterface for VisitResult {
-    fn ptr_eq_node(&self, node: &Node) -> bool {
+    fn ptr_eq_node(&self, node: Id<Node>) -> bool {
         matches!(
             self,
             Some(single_node_or_vec_node) if single_node_or_vec_node.ptr_eq_node(node)
@@ -378,7 +378,7 @@ impl SingleNodeOrVecNode {
         SingleNodeOrVecNodeIter::new(self)
     }
 
-    pub fn ptr_eq_node(&self, node: &Node) -> bool {
+    pub fn ptr_eq_node(&self, node: Id<Node>) -> bool {
         matches!(
             self,
             SingleNodeOrVecNode::SingleNode(single_node) if ptr::eq(

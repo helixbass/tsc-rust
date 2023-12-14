@@ -21,7 +21,7 @@ use crate::{
 impl TransformES2015 {
     pub(super) fn visit_source_file(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node /*SourceFile*/>> {
         let node_as_source_file = node.as_source_file();
         let ancestor_facts = self.enter_subtree(
@@ -35,13 +35,13 @@ impl TransformES2015 {
             &node_as_source_file.statements(),
             &mut prologue,
             Some(false),
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
         )?;
         add_range(
             &mut statements,
             Some(&try_visit_nodes(
                 &node_as_source_file.statements(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_statement),
                 Some(statement_offset),
                 None,
@@ -81,7 +81,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_switch_statement(
         &self,
-        node: &Node, /*SwitchStatement*/
+        node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<Id<Node /*SwitchStatement*/>> {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             let saved_allowed_non_labeled_jumps = (*converted_loop_state)
@@ -98,29 +98,29 @@ impl TransformES2015 {
                 );
             }
             let result =
-                try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?;
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
             converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
                 saved_allowed_non_labeled_jumps;
             return Ok(result);
         }
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_case_block(
         &self,
-        node: &Node, /*CaseBlock*/
+        node: Id<Node>, /*CaseBlock*/
     ) -> io::Result<Id<Node /*CaseBlock*/>> {
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::BlockScopeExcludes,
             HierarchyFacts::BlockScopeIncludes,
         );
         let updated =
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?;
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
         Ok(updated)
     }
 
-    pub(super) fn return_captured_this(&self, node: &Node) -> Id<Node /*ReturnStatement*/> {
+    pub(super) fn return_captured_this(&self, node: Id<Node>) -> Id<Node /*ReturnStatement*/> {
         self.factory
             .create_return_statement(Some(self.factory.create_unique_name(
                 "_this",
@@ -131,7 +131,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_return_statement(
         &self,
-        node: &Node, /*ReturnStatement*/
+        node: Id<Node>, /*ReturnStatement*/
     ) -> io::Result<Id<Node /*Statement*/>> {
         let mut node = node.node_wrapper();
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
@@ -155,7 +155,7 @@ impl TransformES2015 {
                                 |node_expression| {
                                     try_visit_node(
                                         node_expression,
-                                        Some(|node: &Node| self.visitor(node)),
+                                        Some(|node: Id<Node>| self.visitor(node)),
                                         Some(is_expression),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     )
@@ -168,10 +168,10 @@ impl TransformES2015 {
         } else if self.is_return_void_statement_in_constructor_with_captured_super(&node) {
             return Ok(self.return_captured_this(&node));
         }
-        try_visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(&node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
-    pub(super) fn visit_this_keyword(&self, node: &Node) -> Id<Node> {
+    pub(super) fn visit_this_keyword(&self, node: Id<Node>) -> Id<Node> {
         if self
             .maybe_hierarchy_facts()
             .unwrap_or_default()
@@ -209,18 +209,18 @@ impl TransformES2015 {
 
     pub(super) fn visit_void_expression(
         &self,
-        node: &Node, /*VoidExpression*/
+        node: Id<Node>, /*VoidExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         try_visit_each_child(
             &node,
-            |node: &Node| self.visitor_with_unused_expression_result(node),
+            |node: Id<Node>| self.visitor_with_unused_expression_result(node),
             &**self.context,
         )
     }
 
     pub(super) fn visit_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Identifier*/>> {
         if self.maybe_converted_loop_state().is_none() {
             return Ok(node.node_wrapper());
@@ -238,7 +238,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_break_or_continue_statement(
         &self,
-        node: &Node, /*BreakOrContinueStatement*/
+        node: Id<Node>, /*BreakOrContinueStatement*/
     ) -> io::Result<Id<Node /*Statement*/>> {
         let node_as_has_label = node.as_has_label();
         if self.maybe_converted_loop_state().is_some() {
@@ -336,12 +336,12 @@ impl TransformES2015 {
                     .create_return_statement(Some(return_expression)));
             }
         }
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_class_declaration(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let variable = self
             .factory
@@ -395,14 +395,14 @@ impl TransformES2015 {
 
     pub(super) fn visit_class_expression(
         &self,
-        node: &Node, /*ClassExpression*/
+        node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         self.transform_class_like_declaration_to_expression(node)
     }
 
     pub(super) fn transform_class_like_declaration_to_expression(
         &self,
-        node: &Node, /*ClassExpression | ClassDeclaration*/
+        node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         if node_as_class_like_declaration.maybe_name().is_some() {
@@ -470,7 +470,7 @@ impl TransformES2015 {
                             &extends_clause_element
                                 .as_expression_with_type_arguments()
                                 .expression,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?])
@@ -482,7 +482,7 @@ impl TransformES2015 {
 
     pub(super) fn transform_class_body(
         &self,
-        node: &Node, /*ClassExpression | ClassDeclaration*/
+        node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<Id<Node /*Block*/>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
@@ -547,11 +547,11 @@ impl TransformES2015 {
     pub(super) fn add_extends_helper_if_needed(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        node: &Node, /*ClassExpression | ClassDeclaration*/
+        node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
     ) {
         if let Some(extends_clause_element) = extends_clause_element {
-            let extends_clause_element: &Node = extends_clause_element.borrow();
+            let extends_clause_element: Id<Node> = extends_clause_element.borrow();
             statements.push(
                 self.factory
                     .create_expression_statement(
@@ -567,8 +567,8 @@ impl TransformES2015 {
     pub(super) fn add_constructor(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        node: &Node, /*ClassExpression | ClassDeclaration*/
-        name: &Node, /*Identifier*/
+        node: Id<Node>, /*ClassExpression | ClassDeclaration*/
+        name: Id<Node>, /*Identifier*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
         let saved_converted_loop_state = self.maybe_converted_loop_state();
@@ -630,7 +630,7 @@ impl TransformES2015 {
                 .filter(|_| !has_synthesized_super)
                 .map(|constructor| constructor.as_constructor_declaration().parameters())
                 .as_deref(),
-            |node: &Node| self.visitor(node),
+            |node: Id<Node>| self.visitor(node),
             &**self.context,
         )?
         .map_or_else(|| vec![].into(), Into::into))
@@ -638,7 +638,7 @@ impl TransformES2015 {
 
     pub(super) fn create_default_constructor_body(
         &self,
-        node: &Node, /*ClassExpression | ClassDeclaration*/
+        node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         is_derived_class: bool,
     ) -> Id<Node> {
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
@@ -672,7 +672,7 @@ impl TransformES2015 {
     pub(super) fn transform_constructor_body(
         &self,
         constructor: Option<impl Borrow<Node>>, /*ConstructorDeclaration & { body: FunctionBody } */
-        node: &Node,                            /*ClassExpression | ClassDeclaration*/
+        node: Id<Node>,                         /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
         has_synthesized_super: bool,
     ) -> io::Result<Id<Node>> {
@@ -694,7 +694,7 @@ impl TransformES2015 {
             return Ok(self.create_default_constructor_body(node, is_derived_class));
         }
         let constructor = constructor.unwrap();
-        let constructor: &Node = constructor.borrow();
+        let constructor: Id<Node> = constructor.borrow();
         let constructor_as_constructor_declaration = constructor.as_constructor_declaration();
         let constructor_body = constructor_as_constructor_declaration.maybe_body().unwrap();
         let constructor_body_as_block = constructor_body.as_block();
@@ -720,8 +720,8 @@ impl TransformES2015 {
                     &constructor_body_as_block.statements,
                     &mut statements,
                     Some(statement_offset),
-                    Some(|node: &Node| self.visitor(node)),
-                    Option::<fn(&Node) -> bool>::None,
+                    Some(|node: Id<Node>| self.visitor(node)),
+                    Option::<fn(Id<Node>) -> bool>::None,
                 )?
                 .unwrap();
         }
@@ -753,7 +753,7 @@ impl TransformES2015 {
             &mut statements,
             Some(&try_visit_nodes(
                 &constructor_body_as_block.statements,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_statement),
                 None,
                 None,

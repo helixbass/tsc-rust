@@ -24,7 +24,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_jsx_managed_attributes_from_located_attributes(
         &self,
-        context: &Node, /*JsxOpeningLikeElement*/
+        context: Id<Node>, /*JsxOpeningLikeElement*/
         ns: Option<Id<Symbol>>,
         attributes_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
@@ -81,7 +81,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_props_type_from_class_type(
         &self,
         sig: Gc<Signature>,
-        context: &Node, /*JsxOpeningLikeElement*/
+        context: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         let ns = self.get_jsx_namespace_at(Some(context))?;
         let forced_lookup_location = self.get_jsx_element_properties_name(ns)?;
@@ -413,7 +413,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_call_signature(
         &self,
         type_: Id<Type>,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Gc<Signature>>> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
         let applicable_by_arity = try_filter(&signatures, |s| -> io::Result<_> {
@@ -429,7 +429,7 @@ impl TypeChecker {
     pub(super) fn is_arity_smaller(
         &self,
         signature: &Signature,
-        target: &Node, /*SignatureDeclaration*/
+        target: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         let mut target_parameter_count = 0;
         let target_as_signature_declaration = target.as_signature_declaration();
@@ -456,7 +456,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_signature_for_function_like_declaration(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<Option<Gc<Signature>>> {
         Ok(
             if is_function_expression_or_arrow_function(node) || is_object_literal_method(node) {
@@ -469,7 +469,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_signature(
         &self,
-        node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
+        node: Id<Node>, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
     ) -> io::Result<Option<Gc<Signature>>> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
@@ -528,7 +528,7 @@ impl TypeChecker {
 
     pub(super) fn check_spread_expression(
         &self,
-        node: &Node, /*SpreadElement*/
+        node: Id<Node>, /*SpreadElement*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         if self.language_version < ScriptTarget::ES2015 {
@@ -554,7 +554,7 @@ impl TypeChecker {
 
     pub(super) fn check_synthetic_expression(
         &self,
-        node: &Node, /*SyntheticExpression*/
+        node: Id<Node>, /*SyntheticExpression*/
     ) -> io::Result<Id<Type>> {
         let node_as_synthetic_expression = node.as_synthetic_expression();
         Ok(if node_as_synthetic_expression.is_spread {
@@ -562,7 +562,7 @@ impl TypeChecker {
                 node_as_synthetic_expression.type_,
                 self.number_type(),
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 Option::<Id<Symbol>>::None,
                 None,
             )?
@@ -573,7 +573,7 @@ impl TypeChecker {
 
     pub(super) fn has_default_value(
         &self,
-        node: &Node, /*BindingElement | Expression*/
+        node: Id<Node>, /*BindingElement | Expression*/
     ) -> bool {
         node.kind() == SyntaxKind::BindingElement
             && node.as_binding_element().maybe_initializer().is_some()
@@ -583,7 +583,7 @@ impl TypeChecker {
 
     pub(super) fn check_array_literal(
         &self,
-        node: &Node, /*ArrayLiteralExpression*/
+        node: Id<Node>, /*ArrayLiteralExpression*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -624,7 +624,7 @@ impl TypeChecker {
                                 IterationUse::Destructuring,
                                 spread_type,
                                 self.undefined_type(),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 false,
                             )
                         })?
@@ -698,7 +698,7 @@ impl TypeChecker {
                                 t,
                                 self.number_type(),
                                 None,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 Option::<Id<Symbol>>::None,
                                 None,
                             )?
@@ -753,7 +753,10 @@ impl TypeChecker {
             .unwrap()
     }
 
-    pub(super) fn is_numeric_name(&self, name: &Node /*DeclarationName*/) -> io::Result<bool> {
+    pub(super) fn is_numeric_name(
+        &self,
+        name: Id<Node>, /*DeclarationName*/
+    ) -> io::Result<bool> {
         Ok(match name.kind() {
             SyntaxKind::ComputedPropertyName => self.is_numeric_computed_name(name)?,
             SyntaxKind::Identifier => {
@@ -768,7 +771,7 @@ impl TypeChecker {
 
     pub(super) fn is_numeric_computed_name(
         &self,
-        name: &Node, /*ComputedPropertyName*/
+        name: Id<Node>, /*ComputedPropertyName*/
     ) -> io::Result<bool> {
         self.is_type_assignable_to_kind(
             self.check_computed_property_name(name)?,
@@ -786,7 +789,7 @@ impl TypeChecker {
 
     pub(super) fn check_computed_property_name(
         &self,
-        node: &Node, /*ComputedPropertyName*/
+        node: Id<Node>, /*ComputedPropertyName*/
     ) -> io::Result<Id<Type>> {
         let node_as_computed_property_name = node.as_computed_property_name();
         let links = self.get_node_links(&node_as_computed_property_name.expression);
@@ -888,7 +891,7 @@ impl TypeChecker {
 
     pub(super) fn get_object_literal_index_info(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
+        node: Id<Node>, /*ObjectLiteralExpression*/
         offset: usize,
         properties: &[Id<Symbol>],
         key_type: Id<Type>,
@@ -938,7 +941,7 @@ impl TypeChecker {
 
     pub(super) fn check_object_literal(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
+        node: Id<Node>, /*ObjectLiteralExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let in_destructuring_pattern = is_assignment_target(node);
@@ -1138,12 +1141,12 @@ impl TypeChecker {
                             Some(vec![
                                 self.symbol_to_string_(
                                     member_present,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None, None, None,
                                 )?,
                                 self.type_to_string_(
                                     contextual_type.unwrap(),
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None, None,
                                 )?,
                             ])

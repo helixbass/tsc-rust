@@ -21,7 +21,7 @@ use crate::{
 };
 
 impl TransformModule {
-    pub(super) fn top_level_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn top_level_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(match node.kind() {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node)?,
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node)?,
@@ -38,7 +38,7 @@ impl TransformModule {
 
     pub(super) fn visitor_worker(
         &self,
-        node: &Node,
+        node: Id<Node>,
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> /*<Node>*/ {
         if !node.transform_flags().intersects(
@@ -84,22 +84,23 @@ impl TransformModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+                .into(),
         ))
     }
 
-    pub(super) fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         self.visitor_worker(node, false)
     }
 
-    pub(super) fn discarded_value_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    pub(super) fn discarded_value_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
         self.visitor_worker(node, true)
     }
 
     pub(super) fn destructuring_needs_flattening(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         if is_object_literal_expression(node) {
             for elem in &node.as_object_literal_expression().properties {
@@ -150,27 +151,29 @@ impl TransformModule {
 
     pub(super) fn visit_destructuring_assignment(
         &self,
-        node: &Node, /*DestructuringAssignment*/
+        node: Id<Node>, /*DestructuringAssignment*/
         value_is_discarded: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
         if self.destructuring_needs_flattening(&node.as_binary_expression().left)? {
             return try_flatten_destructuring_assignment(
                 node,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 self.context.clone(),
                 FlattenLevel::All,
                 Some(!value_is_discarded),
-                Some(|a: &Node, b: &Node, c: Option<&dyn ReadonlyTextRange>| {
-                    self.create_all_export_expressions(a, b.node_wrapper(), c)
-                }),
+                Some(
+                    |a: Id<Node>, b: Id<Node>, c: Option<&dyn ReadonlyTextRange>| {
+                        self.create_all_export_expressions(a, b.node_wrapper(), c)
+                    },
+                ),
             );
         }
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_for_statement(
         &self,
-        node: &Node, /*ForStatement*/
+        node: Id<Node>, /*ForStatement*/
     ) -> io::Result<VisitResult> {
         let node_as_for_statement = node.as_for_statement();
         Ok(Some(
@@ -179,25 +182,25 @@ impl TransformModule {
                     node,
                     try_maybe_visit_node(
                         node_as_for_statement.initializer.as_deref(),
-                        Some(|node: &Node| self.discarded_value_visitor(node)),
+                        Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(is_for_initializer),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_maybe_visit_node(
                         node_as_for_statement.condition.as_deref(),
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_maybe_visit_node(
                         node_as_for_statement.incrementor.as_deref(),
-                        Some(|node: &Node| self.discarded_value_visitor(node)),
+                        Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_iteration_body(
                         &node_as_for_statement.statement,
-                        |node: &Node| self.visitor(node),
+                        |node: Id<Node>| self.visitor(node),
                         &**self.context,
                     )?,
                 )
@@ -207,7 +210,7 @@ impl TransformModule {
 
     pub(super) fn visit_expression_statement(
         &self,
-        node: &Node, /*ExpressionStatement*/
+        node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<VisitResult> {
         let node_as_expression_statement = node.as_expression_statement();
         Ok(Some(
@@ -216,7 +219,7 @@ impl TransformModule {
                     node,
                     try_visit_node(
                         &node_as_expression_statement.expression,
-                        Some(|node: &Node| self.discarded_value_visitor(node)),
+                        Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
@@ -227,7 +230,7 @@ impl TransformModule {
 
     pub(super) fn visit_parenthesized_expression(
         &self,
-        node: &Node, /*ParenthesizedExpression*/
+        node: Id<Node>, /*ParenthesizedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
@@ -237,7 +240,7 @@ impl TransformModule {
                     node,
                     try_visit_node(
                         &node_as_parenthesized_expression.expression,
-                        Some(|node: &Node| {
+                        Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
                             } else {
@@ -254,7 +257,7 @@ impl TransformModule {
 
     pub(super) fn visit_partially_emitted_expression(
         &self,
-        node: &Node, /*PartiallyEmittedExpression*/
+        node: Id<Node>, /*PartiallyEmittedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
         let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
@@ -264,7 +267,7 @@ impl TransformModule {
                     node,
                     try_visit_node(
                         &node_as_partially_emitted_expression.expression,
-                        Some(|node: &Node| {
+                        Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
                             } else {
@@ -281,7 +284,7 @@ impl TransformModule {
 
     pub(super) fn visit_pre_or_postfix_unary_expression(
         &self,
-        node: &Node, /*PrefixUnaryExpression | PostfixUnaryExpression*/
+        node: Id<Node>, /*PrefixUnaryExpression | PostfixUnaryExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
         let node_as_unary_expression = node.as_unary_expression();
@@ -298,7 +301,7 @@ impl TransformModule {
                 let mut temp: Option<Id<Node /*Identifier*/>> = _d();
                 let mut expression/*: Expression*/ = try_visit_node(
                     &node_as_unary_expression.operand(),
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?;
@@ -312,7 +315,7 @@ impl TransformModule {
                         .update_postfix_unary_expression(node, expression);
                     if !value_is_discarded {
                         temp = Some(self.factory.create_temp_variable(
-                            Some(|node: &Node| {
+                            Some(|node: Id<Node>| {
                                 self.context.hoist_variable_declaration(node);
                             }),
                             None,
@@ -331,7 +334,7 @@ impl TransformModule {
                         .create_export_expression(
                             export_name,
                             &expression,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                         )
                         .set_text_range(Some(node));
@@ -350,13 +353,14 @@ impl TransformModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+                .into(),
         ))
     }
 
     pub(super) fn visit_import_call_expression(
         &self,
-        node: &Node, /*ImportCall*/
+        node: Id<Node>, /*ImportCall*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_call_expression = node.as_call_expression();
         let external_module_name = get_external_module_name_literal(
@@ -369,8 +373,8 @@ impl TransformModule {
         )?;
         let first_argument = try_maybe_visit_node(
             first_or_undefined(&node_as_call_expression.arguments).cloned(),
-            Some(|node: &Node| self.visitor(node)),
-            Option::<fn(&Node) -> bool>::None,
+            Some(|node: Id<Node>| self.visitor(node)),
+            Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let argument = external_module_name
@@ -424,7 +428,7 @@ impl TransformModule {
             )
         } else {
             let temp = self.factory.create_temp_variable(
-                Some(|node: &Node| {
+                Some(|node: Id<Node>| {
                     self.context.hoist_variable_declaration(node);
                 }),
                 None,
@@ -599,7 +603,7 @@ impl TransformModule {
 
     pub(super) fn get_helper_expression_for_export(
         &self,
-        node: &Node, /*ExportDeclaration*/
+        node: Id<Node>, /*ExportDeclaration*/
         inner_expr: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         if get_es_module_interop(&self.compiler_options) != Some(true)
@@ -615,7 +619,7 @@ impl TransformModule {
 
     pub(super) fn get_helper_expression_for_import(
         &self,
-        node: &Node, /*ImportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration*/
         inner_expr: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         if get_es_module_interop(&self.compiler_options) != Some(true)
@@ -634,7 +638,7 @@ impl TransformModule {
 
     pub(super) fn visit_import_declaration(
         &self,
-        node: &Node, /*ImportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_declaration = node.as_import_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
@@ -758,7 +762,7 @@ impl TransformModule {
 
     pub(super) fn create_require_call(
         &self,
-        import_node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+        import_node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
     ) -> io::Result<Id<Node>> {
         let module_name = get_external_module_name_literal(
             &self.factory,

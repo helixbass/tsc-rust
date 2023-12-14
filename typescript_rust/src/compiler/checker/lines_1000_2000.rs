@@ -75,8 +75,8 @@ impl TypeChecker {
                         );
                         maybe_visit_node(
                             file_local_jsx_fragment_factory.as_deref(),
-                            Some(|node: &Node| self.mark_as_synthetic(node)),
-                            Option::<fn(&Node) -> bool>::None,
+                            Some(|node: Id<Node>| self.mark_as_synthetic(node)),
+                            Option::<fn(Id<Node>) -> bool>::None,
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         );
                         if let Some(file_local_jsx_fragment_factory) =
@@ -124,8 +124,8 @@ impl TypeChecker {
                 );
                 maybe_visit_node(
                     _jsx_factory_entity.as_deref(),
-                    Some(|node: &Node| self.mark_as_synthetic(node)),
-                    Option::<fn(&Node) -> bool>::None,
+                    Some(|node: Id<Node>| self.mark_as_synthetic(node)),
+                    Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
                 if let Some(_jsx_factory_entity) = _jsx_factory_entity.as_ref() {
@@ -158,7 +158,7 @@ impl TypeChecker {
 
     pub(super) fn get_local_jsx_namespace(
         &self,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
     ) -> Option<__String> {
         let file_as_source_file = file.as_source_file();
         if let Some(file_local_jsx_namespace) =
@@ -182,8 +182,8 @@ impl TypeChecker {
             );
             maybe_visit_node(
                 file_local_jsx_factory.as_deref(),
-                Some(|node: &Node| self.mark_as_synthetic(node)),
-                Option::<fn(&Node) -> bool>::None,
+                Some(|node: Id<Node>| self.mark_as_synthetic(node)),
+                Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
             if let Some(file_local_jsx_factory) = file_local_jsx_factory.as_ref() {
@@ -198,11 +198,11 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn mark_as_synthetic(&self, node: &Node) -> VisitResult {
+    pub(super) fn mark_as_synthetic(&self, node: Id<Node>) -> VisitResult {
         set_text_range_pos_end(node, -1, -1);
         maybe_visit_each_child(
             Some(node),
-            |node: &Node| self.mark_as_synthetic(node),
+            |node: Id<Node>| self.mark_as_synthetic(node),
             &*null_transformation_context,
         )
         .map(Into::into)
@@ -210,7 +210,7 @@ impl TypeChecker {
 
     pub fn get_emit_resolver(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Gc<Box<dyn EmitResolver>>> {
         self.get_diagnostics(source_file, cancellation_token)?;
@@ -286,7 +286,7 @@ impl TypeChecker {
     pub(super) fn error_or_suggestion(
         &self,
         is_error: bool,
-        location: &Node,
+        location: Id<Node>,
         message: impl Into<DiagnosticMessageOrDiagnosticMessageChain>,
         args: Option<Vec<String>>,
     ) {
@@ -324,7 +324,7 @@ impl TypeChecker {
 
     pub(super) fn error_and_maybe_suggest_await(
         &self,
-        location: &Node,
+        location: Id<Node>,
         maybe_missing_await: bool,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
@@ -367,7 +367,7 @@ impl TypeChecker {
 
     pub(super) fn add_deprecated_suggestion(
         &self,
-        location: &Node,
+        location: Id<Node>,
         declarations: &[Id<Node>],
         deprecated_entity: &str,
     ) -> Gc<Diagnostic> {
@@ -382,8 +382,8 @@ impl TypeChecker {
 
     pub(super) fn add_deprecated_suggestion_with_signature(
         &self,
-        location: &Node,
-        declaration: &Node,
+        location: Id<Node>,
+        declaration: Id<Node>,
         deprecated_entity: Option<&str>,
         signature_string: &str,
     ) -> Gc<Diagnostic> {
@@ -629,7 +629,7 @@ impl TypeChecker {
                 self.error(
                     source.ref_(self).maybe_declarations().as_ref().and_then(|source_declarations| get_name_of_declaration(source_declarations.get(0).map(Clone::clone))),
                     &Diagnostics::Cannot_augment_module_0_with_value_exports_because_it_resolves_to_a_non_module_entity,
-                    Some(vec![self.symbol_to_string_(target, Option::<&Node>::None, None, None, None)?])
+                    Some(vec![self.symbol_to_string_(target, Option::<Id<Node>>::None, None, None, None)?])
                 );
             }
         } else {
@@ -663,7 +663,7 @@ impl TypeChecker {
                         maybe_get_source_file_of_node(target_declarations.get(0).cloned())
                     });
             let symbol_name =
-                self.symbol_to_string_(source, Option::<&Node>::None, None, None, None)?;
+                self.symbol_to_string_(source, Option::<Id<Node>>::None, None, None, None)?;
 
             if source_symbol_file.is_some()
                 && target_symbol_file.is_some()
@@ -777,7 +777,7 @@ impl TypeChecker {
 
     pub(super) fn add_duplicate_declaration_error(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         message: &DiagnosticMessage,
         symbol_name: &str,
         related_nodes: Option<&[Id<Node /*Declaration*/>]>,
@@ -895,7 +895,7 @@ impl TypeChecker {
 
     pub(super) fn merge_module_augmentation(
         &self,
-        module_name: &Node, /*StringLiteral | Identifier*/
+        module_name: Id<Node>, /*StringLiteral | Identifier*/
     ) -> io::Result<()> {
         let module_augmentation = module_name.parent();
         if !matches!(
@@ -1048,7 +1048,7 @@ impl TypeChecker {
         symbol_links
     }
 
-    pub(super) fn get_node_links(&self, node: &Node) -> Gc<GcCell<NodeLinks>> {
+    pub(super) fn get_node_links(&self, node: Id<Node>) -> Gc<GcCell<NodeLinks>> {
         let id = get_node_id(node);
         let mut node_links_table = self.node_links.borrow_mut();
         if let Some(node_links) = node_links_table.get(&id) {
@@ -1059,7 +1059,7 @@ impl TypeChecker {
         node_links
     }
 
-    pub(super) fn is_global_source_file(&self, node: &Node) -> bool {
+    pub(super) fn is_global_source_file(&self, node: Id<Node>) -> bool {
         node.kind() == SyntaxKind::SourceFile && !is_external_or_common_js_module(node)
     }
 
@@ -1094,7 +1094,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbols_of_parameter_property_declaration_(
         &self,
-        parameter: &Node,     /*ParameterDeclaration*/
+        parameter: Id<Node>,     /*ParameterDeclaration*/
         parameter_name: &str, /*__String*/
     ) -> io::Result<Vec<Id<Symbol>>> {
         let constructor_declaration = parameter.parent();
@@ -1119,8 +1119,8 @@ impl TypeChecker {
 
     pub(super) fn is_block_scoped_name_declared_before_use(
         &self,
-        declaration: &Node, /*Declaration*/
-        usage: &Node,
+        declaration: Id<Node>, /*Declaration*/
+        usage: Id<Node>,
     ) -> io::Result<bool> {
         let declaration_file = get_source_file_of_node(declaration);
         let use_file = get_source_file_of_node(usage);
@@ -1248,7 +1248,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn usage_in_type_declaration(&self, usage: &Node) -> bool {
+    pub(super) fn usage_in_type_declaration(&self, usage: Id<Node>) -> bool {
         find_ancestor(Some(usage), |node| {
             is_interface_declaration(node) || is_type_alias_declaration(node)
         })
@@ -1257,9 +1257,9 @@ impl TypeChecker {
 
     pub(super) fn is_immediately_used_in_initializer_of_block_scoped_variable(
         &self,
-        decl_container: &Node,
-        declaration: &Node, /*VariableDeclaration*/
-        usage: &Node,
+        decl_container: Id<Node>,
+        declaration: Id<Node>, /*VariableDeclaration*/
+        usage: Id<Node>,
     ) -> bool {
         match declaration.parent().parent().kind() {
             SyntaxKind::VariableStatement
@@ -1283,9 +1283,9 @@ impl TypeChecker {
 
     pub(super) fn is_used_in_function_or_instance_property(
         &self,
-        decl_container: &Node,
-        usage: &Node,
-        declaration: &Node,
+        decl_container: Id<Node>,
+        usage: Id<Node>,
+        declaration: Id<Node>,
     ) -> io::Result<bool> {
         Ok(try_find_ancestor(Some(usage), |current| -> io::Result<_> {
             if ptr::eq(current, decl_container) {
@@ -1361,8 +1361,8 @@ impl TypeChecker {
 
     pub(super) fn is_property_immediately_referenced_within_declaration(
         &self,
-        declaration: &Node, /*PropertyDeclaration | ParameterPropertyDeclaration*/
-        usage: &Node,
+        declaration: Id<Node>, /*PropertyDeclaration | ParameterPropertyDeclaration*/
+        usage: Id<Node>,
         stop_at_any_property_declaration: bool,
     ) -> bool {
         if usage.end() > declaration.end() {
@@ -1407,8 +1407,8 @@ impl TypeChecker {
     pub(super) fn use_outer_variable_scope_in_parameter(
         &self,
         result: Id<Symbol>,
-        location: &Node,
-        last_location: &Node,
+        location: Id<Node>,
+        last_location: Id<Node>,
     ) -> bool {
         let target = get_emit_script_target(&self.compiler_options);
         let function_location = location.maybe_as_function_like_declaration();
@@ -1445,13 +1445,13 @@ impl TypeChecker {
     pub(super) fn requires_scope_change(
         &self,
         target: ScriptTarget,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> bool {
         self.requires_scope_change_worker(target, node)
             || matches!(node.as_parameter_declaration().maybe_initializer(), Some(initializer) if self.requires_scope_change_worker(target, &initializer))
     }
 
-    pub(super) fn requires_scope_change_worker(&self, target: ScriptTarget, node: &Node) -> bool {
+    pub(super) fn requires_scope_change_worker(&self, target: ScriptTarget, node: Id<Node>) -> bool {
         match node.kind() {
             SyntaxKind::ArrowFunction
             | SyntaxKind::FunctionExpression
@@ -2048,7 +2048,7 @@ impl TypeChecker {
                         if let Some(suggestion) = suggestion {
                             let suggestion_name = self.symbol_to_string_(
                                 suggestion,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,

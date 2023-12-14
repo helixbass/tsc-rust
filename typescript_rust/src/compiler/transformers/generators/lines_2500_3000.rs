@@ -8,12 +8,16 @@ use crate::{
 
 impl TransformGenerators {
     pub(super) fn emit_nop(&self) {
-        self.emit_worker(OpCode::Nop, None, Option::<&Node>::None);
+        self.emit_worker(OpCode::Nop, None, Option::<Id<Node>>::None);
     }
 
     pub(super) fn emit_statement(&self, node: Id<Node /*Statement*/>) {
         // if (node) {
-        self.emit_worker(OpCode::Statement, Some(node.into()), Option::<&Node>::None);
+        self.emit_worker(
+            OpCode::Statement,
+            Some(node.into()),
+            Option::<Id<Node>>::None,
+        );
         // } else {
         //     emitNop();
         // }
@@ -91,7 +95,7 @@ impl TransformGenerators {
     }
 
     pub(super) fn emit_end_finally(&self) {
-        self.emit_worker(OpCode::Endfinally, None, Option::<&Node>::None);
+        self.emit_worker(OpCode::Endfinally, None, Option::<Id<Node>>::None);
     }
 
     pub(super) fn emit_worker(
@@ -200,7 +204,7 @@ impl TransformGenerators {
         if self.is_final_label_reachable(operation_index) {
             self.try_enter_label(operation_index);
             self.set_with_block_stack(None);
-            self.write_return(None, Option::<&Node>::None);
+            self.write_return(None, Option::<Id<Node>>::None);
         }
 
         if self.maybe_statements().is_some() && self.maybe_clauses().is_some() {

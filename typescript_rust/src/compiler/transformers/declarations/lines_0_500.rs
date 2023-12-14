@@ -43,7 +43,7 @@ use crate::{
 pub fn get_declaration_diagnostics(
     host: Gc<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
-    file: Option<&Node /*SourceFile*/>,
+    file: Option<Id<Node> /*SourceFile*/>,
 ) -> io::Result<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>> {
     let compiler_options = ScriptReferenceHost::get_compiler_options(&**host);
     let result = transform_nodes(
@@ -67,7 +67,7 @@ pub fn get_declaration_diagnostics(
 
 pub(super) fn has_internal_annotation(
     range: &CommentRange,
-    current_source_file: &Node, /*SourceFile*/
+    current_source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
     let current_source_file_text = current_source_file.as_source_file().text();
     let comment =
@@ -76,10 +76,10 @@ pub(super) fn has_internal_annotation(
 }
 
 pub fn is_internal_declaration(
-    node: &Node,
-    current_source_file: &Node, /*SourceFile*/
+    node: Id<Node>,
+    current_source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
-    let parse_tree_node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+    let parse_tree_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
     if let Some(parse_tree_node) = parse_tree_node
         .as_ref()
         .filter(|parse_tree_node| parse_tree_node.kind() == SyntaxKind::Parameter)
@@ -554,7 +554,7 @@ impl TransformDeclarations {
 
     pub(super) fn transform_declarations_for_js(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let old_diag = self.get_symbol_accessibility_diagnostic();
@@ -575,7 +575,7 @@ impl TransformDeclarations {
 
     pub(super) fn transform_root(
         &self,
-        node: &Node, /*SourceFile | Bundle*/
+        node: Id<Node>, /*SourceFile | Bundle*/
     ) -> io::Result<Id<Node>> {
         if node.kind() == SyntaxKind::SourceFile && node.as_source_file().is_declaration_file() {
             return Ok(node.node_wrapper());
@@ -634,8 +634,8 @@ impl TransformDeclarations {
                                 } else {
                                     try_visit_nodes(
                                         &source_file_as_source_file.statements(),
-                                        Some(|node: &Node| self.visit_declaration_statements(node)),
-                                        Option::<fn(&Node) -> bool>::None,
+                                        Some(|node: Id<Node>| self.visit_declaration_statements(node)),
+                                        Option::<fn(Id<Node>) -> bool>::None,
                                         None,
                                         None,
                                     )?
@@ -655,7 +655,7 @@ impl TransformDeclarations {
                                                     get_resolved_external_module_name(
                                                         &**self.context.get_emit_host(),
                                                         source_file,
-                                                        Option::<&Node>::None,
+                                                        Option::<Id<Node>>::None,
                                                     ),
                                                     None,
                                                     None,
@@ -695,8 +695,8 @@ impl TransformDeclarations {
                             } else {
                                 try_visit_nodes(
                                     &source_file_as_source_file.statements(),
-                                    Some(|node: &Node| self.visit_declaration_statements(node)),
-                                    Option::<fn(&Node) -> bool>::None,
+                                    Some(|node: Id<Node>| self.visit_declaration_statements(node)),
+                                    Option::<fn(Id<Node>) -> bool>::None,
                                     None,
                                     None,
                                 )?
@@ -824,8 +824,8 @@ impl TransformDeclarations {
         } else {
             let statements = try_visit_nodes(
                 &node_as_source_file.statements(),
-                Some(|node: &Node| self.visit_declaration_statements(node)),
-                Option::<fn(&Node) -> bool>::None,
+                Some(|node: Id<Node>| self.visit_declaration_statements(node)),
+                Option::<fn(Id<Node>) -> bool>::None,
                 None,
                 None,
             )?;
@@ -942,11 +942,11 @@ impl TransformDeclarations {
 
     pub(super) fn map_references_into_array<'arg>(
         &'arg self,
-        node: &'arg Node,
+        node: Id<Node>,
         references: &'arg mut Vec<FileReference>,
         output_file_path: &'arg str,
-    ) -> impl FnMut(&Node /*SourceFile*/) -> io::Result<()> + 'arg {
-        |file: &Node| {
+    ) -> impl FnMut(Id<Node> /*SourceFile*/) -> io::Result<()> + 'arg {
+        |file: Id<Node>| {
             let file_as_source_file = file.as_source_file();
             let decl_file_name: String;
             if file_as_source_file.is_declaration_file() {
@@ -1019,7 +1019,7 @@ impl TransformDeclarations {
 
     pub(super) fn collect_references(
         &self,
-        source_file: &Node, /*SourceFile | UnparsedSource*/
+        source_file: Id<Node>, /*SourceFile | UnparsedSource*/
         ret: &mut HashMap<NodeId, Id<Node /*SourceFile*/>>,
     ) -> io::Result<()> {
         if self.no_resolve == Some(true)
@@ -1049,7 +1049,7 @@ impl TransformDeclarations {
 
     pub(super) fn collect_libs(
         &self,
-        source_file: &Node, /*SourceFile | UnparsedSource*/
+        source_file: Id<Node>, /*SourceFile | UnparsedSource*/
         ret: &mut HashMap<String, bool>,
     ) {
         // TODO: expose some trait for unifying this?
@@ -1092,7 +1092,7 @@ impl TransformDeclarations {
 
     pub(super) fn filter_binding_pattern_initializers(
         &self,
-        name: &Node, /*BindingName*/
+        name: Id<Node>, /*BindingName*/
     ) -> io::Result<Id<Node>> {
         Ok(if name.kind() == SyntaxKind::Identifier {
             name.node_wrapper()
@@ -1102,10 +1102,10 @@ impl TransformDeclarations {
                     name,
                     try_visit_nodes(
                         &name.as_array_binding_pattern().elements,
-                        Some(|node: &Node| -> io::Result<_> {
+                        Some(|node: Id<Node>| -> io::Result<_> {
                             Ok(Some(self.visit_binding_element(node)?.into()))
                         }),
-                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
                     )?,
@@ -1115,10 +1115,10 @@ impl TransformDeclarations {
                     name,
                     try_visit_nodes(
                         &name.as_object_binding_pattern().elements,
-                        Some(|node: &Node| -> io::Result<_> {
+                        Some(|node: Id<Node>| -> io::Result<_> {
                             Ok(Some(self.visit_binding_element(node)?.into()))
                         }),
-                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
                     )?,
@@ -1129,7 +1129,7 @@ impl TransformDeclarations {
 
     pub(super) fn visit_binding_element(
         &self,
-        elem: &Node, /*ArrayBindingElement*/
+        elem: Id<Node>, /*ArrayBindingElement*/
     ) -> io::Result<Id<Node>> {
         if elem.kind() == SyntaxKind::OmittedExpression {
             return Ok(elem.node_wrapper());
@@ -1150,9 +1150,9 @@ impl TransformDeclarations {
 
     pub(super) fn ensure_parameter(
         &self,
-        p: &Node, /*ParameterDeclaration*/
+        p: Id<Node>, /*ParameterDeclaration*/
         modifier_mask: Option<ModifierFlags>,
-        type_: Option<&Node /*TypeNode*/>,
+        type_: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Id<Node /*ParameterDeclaration*/>> {
         let p_as_parameter_declaration = p.as_parameter_declaration();
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
@@ -1194,20 +1194,20 @@ impl TransformDeclarations {
         Ok(new_param)
     }
 
-    pub(super) fn should_print_with_initializer(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn should_print_with_initializer(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(can_have_literal_initializer(node)
             && self.resolver.is_literal_const_declaration(
-                &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
+                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
             )?)
     }
 
     pub(super) fn ensure_no_initializer(
         &self,
-        node: &Node, /*CanHaveLiteralInitializer*/
+        node: Id<Node>, /*CanHaveLiteralInitializer*/
     ) -> io::Result<Option<Id<Node>>> {
         if self.should_print_with_initializer(node)? {
             return Ok(Some(self.resolver.create_literal_const_value(
-                &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
+                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
                 self.symbol_tracker(),
             )?));
         }
@@ -1222,7 +1222,7 @@ impl HasArena for TransformDeclarations {
 }
 
 impl TransformerInterface for TransformDeclarations {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_root(node)
     }
 }
@@ -1482,7 +1482,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn track_referenced_ambient_module(
         &self,
-        node: &Node, /*ModuleDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration*/
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
         let directives = self
@@ -1517,7 +1517,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn report_nonlocal_augmentation(
         &self,
-        containing_file: &Node, /*SourceFile*/
+        containing_file: Id<Node>, /*SourceFile*/
         parent_symbol: Id<Symbol>,
         symbol: Id<Symbol>,
     ) {

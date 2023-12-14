@@ -810,7 +810,7 @@ pub trait ResolveModuleNameResolutionHost {
 
 pub fn get_resolved_external_module_name(
     host: &(impl ResolveModuleNameResolutionHost + ?Sized),
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
     reference_file: Option<impl Borrow<Node /*SourceFile*/>>,
 ) -> String {
     let file_as_source_file = file.as_source_file();
@@ -846,7 +846,7 @@ pub(super) fn get_canonical_absolute_path(
 pub fn get_external_module_name_from_declaration(
     host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     resolver: &(impl EmitResolver + ?Sized),
-    declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
+    declaration: Id<Node>, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
 ) -> io::Result<Option<String>> {
     let file = resolver.get_external_module_file_from_declaration(declaration)?;
     if match file.as_ref() {
@@ -873,7 +873,7 @@ pub fn get_external_module_name_from_declaration(
     Ok(Some(get_resolved_external_module_name(
         host,
         &file,
-        Option::<&Node>::None,
+        Option::<Id<Node>>::None,
     )))
 }
 
@@ -1060,7 +1060,7 @@ pub fn get_source_files_to_emit(
 }
 
 pub fn source_file_may_be_emitted(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     host: &dyn SourceFileMayBeEmittedHost,
     force_dts_emit: Option<bool>,
 ) -> bool {
@@ -1177,7 +1177,7 @@ pub fn write_file_ensuring_directories(
     }
 }
 
-pub fn get_line_of_local_position(source_file: &Node /*SourceFile*/, pos: usize) -> usize {
+pub fn get_line_of_local_position(source_file: Id<Node> /*SourceFile*/, pos: usize) -> usize {
     let line_starts = get_line_starts(source_file.as_source_file());
     compute_line_of_position(&line_starts, pos.try_into().unwrap(), None)
 }
@@ -1187,7 +1187,7 @@ pub fn get_line_of_local_position_from_line_map(line_map: &[usize], pos: usize) 
 }
 
 pub fn get_first_constructor_with_body(
-    node: &Node, /*ClassLikeDeclaration*/
+    node: Id<Node>, /*ClassLikeDeclaration*/
 ) -> Option<Id<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
     find(&node.as_class_like_declaration().members(), |member, _| {
         is_constructor_declaration(member)
@@ -1197,7 +1197,7 @@ pub fn get_first_constructor_with_body(
 }
 
 pub fn get_set_accessor_value_parameter(
-    accessor: &Node, /*SetAccessorDeclaration*/
+    accessor: Id<Node>, /*SetAccessorDeclaration*/
 ) -> Option<Id<Node /*ParameterDeclaration*/>> {
     let accessor_as_set_accessor_declaration = accessor.as_set_accessor_declaration();
     let accessor_parameters = accessor_as_set_accessor_declaration.parameters();
@@ -1212,14 +1212,14 @@ pub fn get_set_accessor_value_parameter(
 }
 
 pub fn get_set_accessor_type_annotation_node(
-    accessor: &Node, /*SetAccessorDeclaration*/
+    accessor: Id<Node>, /*SetAccessorDeclaration*/
 ) -> Option<Id<Node /*TypeNode*/>> {
     let parameter = get_set_accessor_value_parameter(accessor);
     parameter.and_then(|parameter| parameter.as_parameter_declaration().maybe_type())
 }
 
 pub fn get_this_parameter(
-    signature: &Node, /*SignatureDeclaration | JSDocSignature*/
+    signature: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
 ) -> Option<Id<Node /*ParameterDeclaration*/>> {
     let signature_as_signature_declaration = signature.as_signature_declaration();
     if !signature_as_signature_declaration.parameters().is_empty() && !is_jsdoc_signature(signature)
@@ -1232,7 +1232,7 @@ pub fn get_this_parameter(
     None
 }
 
-pub fn parameter_is_this_keyword(parameter: &Node /*ParameterDeclaration*/) -> bool {
+pub fn parameter_is_this_keyword(parameter: Id<Node> /*ParameterDeclaration*/) -> bool {
     is_this_identifier(Some(parameter.as_parameter_declaration().name()))
 }
 
@@ -1245,7 +1245,7 @@ pub fn is_this_identifier<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     node.kind() == SyntaxKind::Identifier && identifier_is_this_keyword(node)
 }
 
-pub fn is_this_in_type_query(node: &Node) -> bool {
+pub fn is_this_in_type_query(node: Id<Node>) -> bool {
     if !is_this_identifier(Some(node)) {
         return false;
     }
@@ -1260,7 +1260,7 @@ pub fn is_this_in_type_query(node: &Node) -> bool {
     node.parent().kind() == SyntaxKind::TypeQuery
 }
 
-pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
+pub fn identifier_is_this_keyword(id: Id<Node> /*Identifier*/) -> bool {
     matches!(
         id.as_identifier().original_keyword_kind,
         Some(SyntaxKind::ThisKeyword)
@@ -1269,7 +1269,7 @@ pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
 
 pub fn get_all_accessor_declarations(
     declarations: &[Id<Node /*Declaration*/>],
-    accessor: &Node, /*AccessorDeclaration*/
+    accessor: Id<Node>, /*AccessorDeclaration*/
 ) -> AllAccessorDeclarations {
     let mut first_accessor: Option<Id<Node>> = None;
     let mut second_accessor: Option<Id<Node>> = None;

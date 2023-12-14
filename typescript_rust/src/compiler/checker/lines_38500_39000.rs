@@ -25,7 +25,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_members_for_override_modifier(
         &self,
-        node: &Node,     /*ClassLikeDeclaration*/
+        node: Id<Node>,  /*ClassLikeDeclaration*/
         type_: Id<Type>, /*InterfaceType*/
         type_with_this: Id<Type>,
         static_type: Id<Type>, /*ObjectType*/
@@ -92,13 +92,13 @@ impl TypeChecker {
 
     pub(super) fn check_existing_member_for_override_modifier(
         &self,
-        node: &Node,           /*ClassLikeDeclaration*/
+        node: Id<Node>,        /*ClassLikeDeclaration*/
         static_type: Id<Type>, /*ObjectType*/
         base_static_type: Id<Type>,
         base_with_this: Option<Id<Type>>,
         type_: Id<Type>, /*InterfaceType*/
         type_with_this: Id<Type>,
-        member: &Node, /*ClassElement | ParameterPropertyDeclaration*/
+        member: Id<Node>, /*ClassElement | ParameterPropertyDeclaration*/
         member_is_parameter_property: bool,
         report_errors: Option<bool>,
     ) -> io::Result<MemberOverrideStatus> {
@@ -132,7 +132,7 @@ impl TypeChecker {
 
     pub(super) fn check_member_for_override_modifier(
         &self,
-        node: &Node,           /*ClassLikeDeclaration*/
+        node: Id<Node>,        /*ClassLikeDeclaration*/
         static_type: Id<Type>, /*ObjectType*/
         base_static_type: Id<Type>,
         base_with_this: Option<Id<Type>>,
@@ -165,7 +165,7 @@ impl TypeChecker {
             let base_prop = self.get_property_of_type_(base_type, &member_escaped_name, None)?;
 
             let base_class_name =
-                self.type_to_string_(base_with_this, Option::<&Node>::None, None, None)?;
+                self.type_to_string_(base_with_this, Option::<Id<Node>>::None, None, None)?;
             if prop
                 .as_ref()
                 .matches(|_| base_prop.is_none() && member_has_override_modifier)
@@ -222,7 +222,8 @@ impl TypeChecker {
             }
         } else if member_has_override_modifier {
             if error_node.is_some() {
-                let class_name = self.type_to_string_(type_, Option::<&Node>::None, None, None)?;
+                let class_name =
+                    self.type_to_string_(type_, Option::<Id<Node>>::None, None, None)?;
                 self.error(
                     error_node,
                     if is_js {
@@ -243,7 +244,7 @@ impl TypeChecker {
 
     pub(super) fn issue_member_specific_error(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
         type_with_this: Id<Type>,
         base_with_this: Id<Type>,
         broad_diag: &'static DiagnosticMessage,
@@ -317,7 +318,7 @@ impl TypeChecker {
     pub(super) fn check_base_type_accessibility(
         &self,
         type_: Id<Type>,
-        node: &Node, /*ExpressionWithTypeArguments*/
+        node: Id<Node>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if !signatures.is_empty() {
@@ -336,7 +337,7 @@ impl TypeChecker {
                         Some(vec![
                             self.get_fully_qualified_name(
                                 type_.ref_(self).symbol(),
-                                Option::<&Node>::None
+                                Option::<Id<Node>>::None
                             )?
                         ])
                     );
@@ -349,8 +350,8 @@ impl TypeChecker {
 
     pub fn get_member_override_modifier_status(
         &self,
-        node: &Node,   /*ClassLikeDeclaration*/
-        member: &Node, /*ClassElement*/
+        node: Id<Node>,   /*ClassLikeDeclaration*/
+        member: Id<Node>, /*ClassElement*/
     ) -> io::Result<MemberOverrideStatus> {
         let member_name = member.as_named_declaration().maybe_name();
         if member_name.is_none() {
@@ -402,7 +403,7 @@ impl TypeChecker {
             is_static(member),
             false,
             &member_name,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )
     }
 
@@ -486,12 +487,12 @@ impl TypeChecker {
                             Some(vec![
                                 self.symbol_to_string_(
                                     base_property,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None, None, None
                                 )?,
                                 self.type_to_string_(
                                     base_type,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None, None,
                                 )?,
                             ])
@@ -503,17 +504,17 @@ impl TypeChecker {
                             Some(vec![
                                 self.type_to_string_(
                                     type_,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None, None,
                                 )?,
                                 self.symbol_to_string_(
                                     base_property,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None, None, None
                                 )?,
                                 self.type_to_string_(
                                     base_type,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None, None,
                                 )?,
                             ])
@@ -574,13 +575,18 @@ impl TypeChecker {
                             Some(vec![
                                 self.symbol_to_string_(
                                     base,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                     None,
                                 )?,
-                                self.type_to_string_(base_type, Option::<&Node>::None, None, None)?,
-                                self.type_to_string_(type_, Option::<&Node>::None, None, None)?,
+                                self.type_to_string_(
+                                    base_type,
+                                    Option::<Id<Node>>::None,
+                                    None,
+                                    None,
+                                )?,
+                                self.type_to_string_(type_, Option::<Id<Node>>::None, None, None)?,
                             ]),
                         );
                     } else if self.use_define_for_class_fields {
@@ -641,14 +647,14 @@ impl TypeChecker {
                                         Some(vec![
                                             self.symbol_to_string_(
                                                 base,
-                                                Option::<&Node>::None,
+                                                Option::<Id<Node>>::None,
                                                 None,
                                                 None,
                                                 None,
                                             )?,
                                             self.type_to_string_(
                                                 base_type,
-                                                Option::<&Node>::None,
+                                                Option::<Id<Node>>::None,
                                                 None,
                                                 None,
                                             )?,
@@ -683,9 +689,9 @@ impl TypeChecker {
                         .or_else(|| derived.ref_(self).maybe_value_declaration()),
                     error_message,
                     Some(vec![
-                        self.type_to_string_(base_type, Option::<&Node>::None, None, None)?,
-                        self.symbol_to_string_(base, Option::<&Node>::None, None, None, None)?,
-                        self.type_to_string_(type_, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(base_type, Option::<Id<Node>>::None, None, None)?,
+                        self.symbol_to_string_(base, Option::<Id<Node>>::None, None, None, None)?,
+                        self.type_to_string_(type_, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
             }
@@ -744,7 +750,7 @@ impl TypeChecker {
     pub(super) fn check_inherited_properties_are_identical(
         &self,
         type_: Id<Type>, /*InterfaceType*/
-        type_node: &Node,
+        type_node: Id<Node>,
     ) -> io::Result<bool> {
         let base_types = self.get_base_types(type_)?;
         if base_types.len() < 2 {
@@ -801,12 +807,12 @@ impl TypeChecker {
 
                             let type_name1 = self.type_to_string_(
                                 existing.containing_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?;
                             let type_name2 =
-                                self.type_to_string_(base, Option::<&Node>::None, None, None)?;
+                                self.type_to_string_(base, Option::<Id<Node>>::None, None, None)?;
 
                             let mut error_info = chain_diagnostic_messages(
                                 None,
@@ -814,7 +820,7 @@ impl TypeChecker {
                                 Some(vec![
                                     self.symbol_to_string_(
                                         prop,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                         None,
@@ -829,7 +835,7 @@ impl TypeChecker {
                                 Some(vec![
                                     self.type_to_string_(
                                         type_,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None, None,
                                     )?,
                                     type_name1,
@@ -885,17 +891,17 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                 Some(vec![
                     self.type_checker.symbol_to_string_(
                         self.declared_prop,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None, None, None,
                     )?,
                     self.type_checker.type_to_string_(
                         self.type_with_this,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None, None,
                     )?,
                     self.type_checker.type_to_string_(
                         self.base_with_this,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None, None,
                     )?,
                 ])

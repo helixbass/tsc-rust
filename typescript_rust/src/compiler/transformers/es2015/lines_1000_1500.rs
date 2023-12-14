@@ -15,7 +15,7 @@ use crate::{
 impl TransformES2015 {
     pub(super) fn is_sufficiently_covered_by_return_statements(
         &self,
-        statement: &Node, /*Statement*/
+        statement: Id<Node>, /*Statement*/
     ) -> bool {
         if statement.kind() == SyntaxKind::ReturnStatement {
             return true;
@@ -77,7 +77,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_parameter(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> Option<Id<Node /*ParameterDeclaration*/>> {
         let node_as_parameter_declaration = node.as_parameter_declaration();
         if node_as_parameter_declaration.dot_dot_dot_token.is_some() {
@@ -119,7 +119,7 @@ impl TransformES2015 {
 
     pub(super) fn has_default_value_or_binding_pattern(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> bool {
         let node_as_parameter_declaration = node.as_parameter_declaration();
         node_as_parameter_declaration.maybe_initializer().is_some()
@@ -129,7 +129,7 @@ impl TransformES2015 {
     pub(super) fn add_default_value_assignments_if_needed(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         if !some(
@@ -175,8 +175,8 @@ impl TransformES2015 {
     pub(super) fn insert_default_value_assignment_for_binding_pattern(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        parameter: &Node,                       /*ParameterDeclaration*/
-        name: &Node,                            /*BindingPattern*/
+        parameter: Id<Node>,                    /*ParameterDeclaration*/
+        name: Id<Node>,                         /*BindingPattern*/
         initializer: Option<impl Borrow<Node>>, /*Expression*/
     ) -> io::Result<bool> {
         let name_as_has_elements = name.as_has_elements();
@@ -190,7 +190,7 @@ impl TransformES2015 {
                             self.factory.create_variable_declaration_list(
                                 try_flatten_destructuring_binding(
                                     parameter,
-                                    |node: &Node| self.visitor(node),
+                                    |node: Id<Node>| self.visitor(node),
                                     self.context.clone(),
                                     FlattenLevel::All,
                                     Some(
@@ -219,7 +219,7 @@ impl TransformES2015 {
                                     .get_generated_name_for_node(Some(parameter), None),
                                 try_visit_node(
                                     initializer,
-                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(|node: Id<Node>| self.visitor(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?,
@@ -236,13 +236,13 @@ impl TransformES2015 {
     pub(super) fn insert_default_value_assignment_for_initializer(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        parameter: &Node,   /*ParameterDeclaration*/
-        name: &Node,        /*Identifier*/
-        initializer: &Node, /*Expression*/
+        parameter: Id<Node>,   /*ParameterDeclaration*/
+        name: Id<Node>,        /*Identifier*/
+        initializer: Id<Node>, /*Expression*/
     ) -> io::Result<()> {
         let initializer = try_visit_node(
             initializer,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
@@ -300,7 +300,7 @@ impl TransformES2015 {
         in_constructor_with_synthesized_super: bool,
     ) -> bool {
         node.matches(|node| {
-            let node: &Node = node.borrow();
+            let node: Id<Node> = node.borrow();
             node.as_parameter_declaration().dot_dot_dot_token.is_some()
         }) && !in_constructor_with_synthesized_super
     }
@@ -308,7 +308,7 @@ impl TransformES2015 {
     pub(super) fn add_rest_parameter_if_needed(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
         in_constructor_with_synthesized_super: bool,
     ) -> io::Result<bool> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
@@ -330,7 +330,7 @@ impl TransformES2015 {
                 .and_set_parent(parameter_name.maybe_parent())
         } else {
             self.factory
-                .create_temp_variable(Option::<fn(&Node)>::None, None)
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
         }
         .set_emit_flags(EmitFlags::NoSourceMap);
 
@@ -439,7 +439,7 @@ impl TransformES2015 {
                         self.factory.create_variable_declaration_list(
                             try_flatten_destructuring_binding(
                                 &parameter,
-                                |node: &Node| self.visitor(node),
+                                |node: Id<Node>| self.visitor(node),
                                 self.context.clone(),
                                 FlattenLevel::All,
                                 Some(expression_name.clone()),

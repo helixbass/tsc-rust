@@ -321,7 +321,7 @@ impl TransformES2015 {
         self.context.get_emit_helper_factory()
     }
 
-    pub(super) fn record_tagged_template_string(&self, temp: &Node /*Identifier*/) {
+    pub(super) fn record_tagged_template_string(&self, temp: Id<Node> /*Identifier*/) {
         self.maybe_tagged_template_string_declarations_mut()
             .get_or_insert_default_()
             .push(self.factory.create_variable_declaration(
@@ -334,7 +334,7 @@ impl TransformES2015 {
 
     pub(super) fn transform_source_file(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
@@ -383,7 +383,7 @@ impl TransformES2015 {
 
     pub(super) fn is_return_void_statement_in_constructor_with_captured_super(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> bool {
         self.maybe_hierarchy_facts()
             .unwrap_or_default()
@@ -392,7 +392,7 @@ impl TransformES2015 {
             && node.as_return_statement().expression.is_none()
     }
 
-    pub(super) fn is_or_may_contain_return_completion(&self, node: &Node) -> bool {
+    pub(super) fn is_or_may_contain_return_completion(&self, node: Id<Node>) -> bool {
         node.transform_flags()
             .intersects(TransformFlags::ContainsHoistedDeclarationOrCompletion)
             && (is_return_statement(node)
@@ -409,7 +409,7 @@ impl TransformES2015 {
                 || is_block(node))
     }
 
-    pub(super) fn should_visit_node(&self, node: &Node) -> bool {
+    pub(super) fn should_visit_node(&self, node: Id<Node>) -> bool {
         node.transform_flags()
             .intersects(TransformFlags::ContainsES2015)
             || self.maybe_converted_loop_state().is_some()
@@ -422,7 +422,7 @@ impl TransformES2015 {
             || get_emit_flags(node).intersects(EmitFlags::TypeScriptClassWrapper)
     }
 
-    pub(super) fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(if self.should_visit_node(node) {
             self.visitor_worker(node, false)?
         } else {
@@ -432,7 +432,7 @@ impl TransformES2015 {
 
     pub(super) fn visitor_with_unused_expression_result(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(if self.should_visit_node(node) {
             self.visitor_worker(node, true)?
@@ -441,8 +441,10 @@ impl TransformES2015 {
         })
     }
 
-    pub(super) fn class_wrapper_statement_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
-    {
+    pub(super) fn class_wrapper_statement_visitor(
+        &self,
+        node: Id<Node>,
+    ) -> io::Result<VisitResult> /*<Node>*/ {
         if self.should_visit_node(node) {
             let ref original = get_original_node(node);
             if is_property_declaration(original) && has_static_modifier(original) {
@@ -463,7 +465,7 @@ impl TransformES2015 {
         Ok(Some(node.node_wrapper().into()))
     }
 
-    pub(super) fn call_expression_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    pub(super) fn call_expression_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
         if node.kind() == SyntaxKind::SuperKeyword {
             return Ok(Some(self.visit_super_keyword(true).into()));
@@ -473,7 +475,7 @@ impl TransformES2015 {
 
     pub(super) fn visitor_worker(
         &self,
-        node: &Node,
+        node: Id<Node>,
         expression_result_is_unused: bool,
     ) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(match node.kind() {
@@ -497,12 +499,14 @@ impl TransformES2015 {
             }
             SyntaxKind::LabeledStatement => self.visit_labeled_statement(node)?,
             SyntaxKind::DoStatement | SyntaxKind::WhileStatement => {
-                self.visit_do_or_while_statement(node, Option::<&Node>::None)
+                self.visit_do_or_while_statement(node, Option::<Id<Node>>::None)
             }
-            SyntaxKind::ForStatement => self.visit_for_statement(node, Option::<&Node>::None),
-            SyntaxKind::ForInStatement => self.visit_for_in_statement(node, Option::<&Node>::None),
+            SyntaxKind::ForStatement => self.visit_for_statement(node, Option::<Id<Node>>::None),
+            SyntaxKind::ForInStatement => {
+                self.visit_for_in_statement(node, Option::<Id<Node>>::None)
+            }
             SyntaxKind::ForOfStatement => {
-                self.visit_for_of_statement(node, Option::<&Node>::None)?
+                self.visit_for_of_statement(node, Option::<Id<Node>>::None)?
             }
             SyntaxKind::ExpressionStatement => Some(self.visit_expression_statement(node)?.into()),
             SyntaxKind::ObjectLiteralExpression => {
@@ -552,7 +556,7 @@ impl TransformES2015 {
             SyntaxKind::VoidExpression => Some(self.visit_void_expression(node)?.into()),
             _ => try_maybe_visit_each_child(
                 Some(node),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
             .map(Into::into),
@@ -561,7 +565,7 @@ impl TransformES2015 {
 }
 
 impl TransformerInterface for TransformES2015 {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
 }
@@ -588,8 +592,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if self
             .transform_es2015
@@ -640,7 +644,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
 
     pub(super) fn substitute_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> {
         if self
             .transform_es2015
@@ -666,7 +670,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
 
     pub(super) fn is_name_of_declaration_with_colliding_name(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<bool> {
         Ok(match node.parent().kind() {
             SyntaxKind::BindingElement
@@ -685,7 +689,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
 
     pub(super) fn substitute_expression(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> {
         match node.kind() {
             SyntaxKind::Identifier => {
@@ -702,7 +706,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
 
     pub(super) fn substitute_expression_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Identifier*/>> {
         if self
             .transform_es2015
@@ -731,10 +735,11 @@ impl TransformES2015OnSubstituteNodeOverrider {
 
     pub(super) fn is_part_of_class_body(
         &self,
-        declaration: &Node, /*ClassLikeDeclaration*/
-        node: &Node,        /*Identifier*/
+        declaration: Id<Node>, /*ClassLikeDeclaration*/
+        node: Id<Node>,        /*Identifier*/
     ) -> bool {
-        let mut current_node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+        let mut current_node =
+            get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
         if current_node.as_ref().is_none_or_matches(|current_node| {
             ptr::eq(&**current_node, declaration)
                 || current_node.end() <= declaration.pos()
@@ -761,7 +766,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
 
     pub(super) fn substitute_this_keyword(
         &self,
-        node: &Node, /*PrimaryExpression*/
+        node: Id<Node>, /*PrimaryExpression*/
     ) -> Id<Node /*PrimaryExpression*/> {
         if self
             .transform_es2015
@@ -790,7 +795,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2015OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let ref node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

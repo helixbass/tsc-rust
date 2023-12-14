@@ -28,7 +28,7 @@ impl TypeChecker {
             constraint.ref_(self).as_index_type().type_,
             self.get_type_parameter_from_mapped_type(target)?,
             None,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
             Option::<Id<Symbol>>::None,
             None,
         )?;
@@ -176,7 +176,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn has_skip_direct_inference_flag(&self, node: &Node) -> bool {
+    pub(super) fn has_skip_direct_inference_flag(&self, node: Id<Node>) -> bool {
         (*self.get_node_links(node)).borrow().skip_direct_inference == Some(true)
     }
 

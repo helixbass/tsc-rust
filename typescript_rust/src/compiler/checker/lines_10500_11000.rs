@@ -28,7 +28,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn has_late_bindable_name(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
         let name = get_name_of_declaration(Some(node));
         Ok(match name {
@@ -37,13 +37,16 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn has_bindable_name(&self, node: &Node /*Declaration*/) -> io::Result<bool> {
+    pub(super) fn has_bindable_name(
+        &self,
+        node: Id<Node>, /*Declaration*/
+    ) -> io::Result<bool> {
         Ok(!has_dynamic_name(node) || self.has_late_bindable_name(node)?)
     }
 
     pub(super) fn is_non_bindable_dynamic_name(
         &self,
-        node: &Node, /*DeclarationName*/
+        node: Id<Node>, /*DeclarationName*/
     ) -> io::Result<bool> {
         Ok(is_dynamic_name(node) && !self.is_late_bindable_name(node)?)
     }
@@ -84,7 +87,7 @@ impl TypeChecker {
     pub(super) fn add_declaration_to_late_bound_symbol(
         &self,
         symbol: Id<Symbol>,
-        member: &Node, /*LateBoundDeclaration | BinaryExpression*/
+        member: Id<Node>, /*LateBoundDeclaration | BinaryExpression*/
         symbol_flags: SymbolFlags,
     ) {
         Debug_.assert(
@@ -129,7 +132,7 @@ impl TypeChecker {
         parent: Id<Symbol>,
         early_symbols: Option<&SymbolTable>,
         late_symbols: &mut SymbolTable,
-        decl: &Node, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
+        decl: Id<Node>, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
     ) -> io::Result<Id<Symbol>> {
         Debug_.assert(
             decl.maybe_symbol().is_some(),

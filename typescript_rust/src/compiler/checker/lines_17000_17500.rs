@@ -115,7 +115,7 @@ impl TypeChecker {
             source,
             target,
             relation.clone(),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
             None,
             None,
             None,
@@ -206,7 +206,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_did_you_mean_to_call_or_construct(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -232,7 +232,7 @@ impl TypeChecker {
                             return_type,
                             target,
                             relation.clone(),
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
@@ -274,7 +274,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_arrow_function(
         &self,
-        node: &Node, /*ArrowFunction*/
+        node: Id<Node>, /*ArrowFunction*/
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -315,7 +315,7 @@ impl TypeChecker {
             source_return,
             target_return,
             relation.clone(),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
             None,
             None,
             None,
@@ -368,7 +368,7 @@ impl TypeChecker {
                         self.create_promise_type(source_return)?,
                         target_return,
                         relation,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                         None,
@@ -400,7 +400,7 @@ impl TypeChecker {
             target,
             name_type,
             None,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
             Option::<Id<Symbol>>::None,
             None,
         )?;
@@ -418,7 +418,7 @@ impl TypeChecker {
                     best,
                     name_type,
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Id<Symbol>>::None,
                     None,
                 );
@@ -429,7 +429,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_for_mutable_location_with_contextual_type(
         &self,
-        next: &Node, /*Expression*/
+        next: Id<Node>, /*Expression*/
         source_prop_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         *next.maybe_contextual_type() = Some(source_prop_type);
@@ -475,16 +475,16 @@ impl TypeChecker {
                     source,
                     name_type,
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Id<Symbol>>::None,
                     None,
                 )?);
-            let prop_name = self.get_property_name_from_index(name_type, Option::<&Node>::None);
+            let prop_name = self.get_property_name_from_index(name_type, Option::<Id<Node>>::None);
             if !self.check_type_related_to(
                 source_prop_type,
                 target_prop_type,
                 relation.clone(),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 None,
                 None,
                 None,
@@ -527,13 +527,13 @@ impl TypeChecker {
                             Some(vec![
                                 self.type_to_string_(
                                     specific_source,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?,
                                 self.type_to_string_(
                                     target_prop_type,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?,
@@ -662,14 +662,14 @@ impl TypeChecker {
                                                     } else {
                                                         self.type_to_string_(
                                                             name_type,
-                                                            Option::<&Node>::None,
+                                                            Option::<Id<Node>>::None,
                                                             None,
                                                             None,
                                                         )?
                                                     },
                                                     self.type_to_string_(
                                                         target,
-                                                        Option::<&Node>::None,
+                                                        Option::<Id<Node>>::None,
                                                         None,
                                                         None,
                                                     )?
@@ -687,7 +687,7 @@ impl TypeChecker {
 
     pub(super) fn generate_jsx_attributes(
         &self,
-        node: &Node, /*JsxAttributes*/
+        node: Id<Node>, /*JsxAttributes*/
     ) -> Vec<ElaborationIteratorItem> {
         let node_as_jsx_attributes = node.as_jsx_attributes();
         if length(Some(&node_as_jsx_attributes.properties)) == 0 {
@@ -715,7 +715,7 @@ impl TypeChecker {
 
     pub(super) fn generate_jsx_children(
         &self,
-        node: &Node, /*JsxElement*/
+        node: Id<Node>, /*JsxElement*/
         mut get_invalid_text_diagnostic: impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_as_jsx_element = node.as_jsx_element();
@@ -745,7 +745,7 @@ impl TypeChecker {
 
     pub(super) fn get_elaboration_element_for_jsx_child(
         &self,
-        child: &Node,        /*JsxChild*/
+        child: Id<Node>,     /*JsxChild*/
         name_type: Id<Type>, /*LiteralType*/
         get_invalid_text_diagnostic: &mut impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
     ) -> io::Result<Option<ElaborationIteratorItem>> {
@@ -788,7 +788,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_jsx_components(
         &self,
-        node: &Node, /*JsxAttributes*/
+        node: Id<Node>, /*JsxAttributes*/
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -817,7 +817,7 @@ impl TypeChecker {
                 target,
                 children_name_type,
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 Option::<Id<Symbol>>::None,
                 None,
             )?;
@@ -854,7 +854,7 @@ impl TypeChecker {
                             target,
                             self.get_string_literal_type(&children_prop_name),
                             None,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             Option::<Id<Symbol>>::None,
                             None,
                         )?;
@@ -871,7 +871,7 @@ impl TypeChecker {
                                     children_prop_name,
                                     self.type_to_string_(
                                         children_target_type,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                     )?,
@@ -910,7 +910,7 @@ impl TypeChecker {
                         source,
                         children_name_type,
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         Option::<Id<Symbol>>::None,
                         None,
                     )?,
@@ -925,7 +925,7 @@ impl TypeChecker {
                             children_prop_name,
                             self.type_to_string_(
                                 children_target_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?
                         ])
@@ -959,7 +959,7 @@ impl TypeChecker {
                         source,
                         children_name_type,
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         Option::<Id<Symbol>>::None,
                         None,
                     )?,
@@ -974,7 +974,7 @@ impl TypeChecker {
                             children_prop_name,
                             self.type_to_string_(
                                 children_target_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?
                         ])
@@ -992,7 +992,7 @@ impl TypeChecker {
 
     pub(super) fn generate_limited_tuple_elements(
         &self,
-        node: &Node, /*ArrayLiteralExpression*/
+        node: Id<Node>, /*ArrayLiteralExpression*/
         target: Id<Type>,
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
@@ -1025,7 +1025,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_array_literal(
         &self,
-        node: &Node, /*ArrayLiteralExpression*/
+        node: Id<Node>, /*ArrayLiteralExpression*/
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -1065,8 +1065,8 @@ impl TypeChecker {
 
     pub(super) fn generate_object_literal_elements(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
-                     // ) -> impl Iterator<Item = ElaborationIteratorItem> {
+        node: Id<Node>, /*ObjectLiteralExpression*/
+                        // ) -> impl Iterator<Item = ElaborationIteratorItem> {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_as_object_literal_expression = node.as_object_literal_expression();
         if length(Some(&node_as_object_literal_expression.properties)) == 0 {
@@ -1123,7 +1123,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_object_literal(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
+        node: Id<Node>, /*ObjectLiteralExpression*/
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -1147,7 +1147,7 @@ impl TypeChecker {
         &self,
         source: Id<Type>,
         target: Id<Type>,
-        error_node: &Node,
+        error_node: Id<Node>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> io::Result<bool> {
@@ -1487,7 +1487,7 @@ impl TypeChecker {
                             Cow::Borrowed(&Diagnostics::Signature_0_must_be_a_type_predicate),
                             Some(vec![self.signature_to_string_(
                                 source.clone(),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,

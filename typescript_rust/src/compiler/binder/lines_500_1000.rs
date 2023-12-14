@@ -22,7 +22,7 @@ use crate::{
 impl BinderType {
     pub(super) fn declare_module_member(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Id<Symbol> {
@@ -117,7 +117,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn jsdoc_treat_as_exported(&self, node: &Node) -> bool {
+    pub(super) fn jsdoc_treat_as_exported(&self, node: Id<Node>) -> bool {
         let mut node = node.node_wrapper();
         if node.maybe_parent().is_some() && is_module_declaration(&node) {
             node = node.parent();
@@ -152,7 +152,7 @@ impl BinderType {
         false
     }
 
-    pub(super) fn bind_container(&self, node: &Node, container_flags: ContainerFlags) {
+    pub(super) fn bind_container(&self, node: Id<Node>, container_flags: ContainerFlags) {
         let save_container = self.maybe_container();
         let save_this_parent_container = self.maybe_this_parent_container();
         let saved_block_scope_container = self.maybe_block_scope_container();
@@ -333,7 +333,7 @@ impl BinderType {
         });
     }
 
-    pub(super) fn bind_each_callback<TNodeCallback: FnMut(&Node)>(
+    pub(super) fn bind_each_callback<TNodeCallback: FnMut(Id<Node>)>(
         &self,
         nodes: Option<&[Id<Node>] /*NodeArray*/>,
         mut bind_function: TNodeCallback,
@@ -349,7 +349,7 @@ impl BinderType {
         });
     }
 
-    pub(super) fn bind_each_child(&self, node: &Node) {
+    pub(super) fn bind_each_child(&self, node: Id<Node>) {
         for_each_child(
             node,
             |node| self.bind(Some(node)),
@@ -357,7 +357,7 @@ impl BinderType {
         );
     }
 
-    pub(super) fn bind_children(&self, node: &Node) {
+    pub(super) fn bind_children(&self, node: Id<Node>) {
         let save_in_assignment_pattern = self.in_assignment_pattern();
         self.set_in_assignment_pattern(false);
         if self.check_unreachable(node) {
@@ -437,7 +437,7 @@ impl BinderType {
         self.set_in_assignment_pattern(save_in_assignment_pattern);
     }
 
-    pub(super) fn is_narrowing_expression(&self, expr: &Node /*Expression*/) -> bool {
+    pub(super) fn is_narrowing_expression(&self, expr: Id<Node> /*Expression*/) -> bool {
         match expr.kind() {
             SyntaxKind::Identifier
             | SyntaxKind::PrivateIdentifier
@@ -461,7 +461,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn is_narrowable_reference(&self, expr: &Node /*Expression*/) -> bool {
+    pub(super) fn is_narrowable_reference(&self, expr: Id<Node> /*Expression*/) -> bool {
         is_dotted_name(expr)
             || (is_property_access_expression(expr)
                 || is_non_null_expression(expr)
@@ -482,13 +482,13 @@ impl BinderType {
                 && self.is_narrowable_reference(&expr.as_binary_expression().left)
     }
 
-    pub(super) fn contains_narrowable_reference(&self, expr: &Node /*Expression*/) -> bool {
+    pub(super) fn contains_narrowable_reference(&self, expr: Id<Node> /*Expression*/) -> bool {
         self.is_narrowable_reference(expr)
             || is_optional_chain(expr)
                 && self.contains_narrowable_reference(&expr.as_has_expression().expression())
     }
 
-    pub(super) fn has_narrowable_argument(&self, expr: &Node /*CallExpression*/) -> bool {
+    pub(super) fn has_narrowable_argument(&self, expr: Id<Node> /*CallExpression*/) -> bool {
         let expr_as_call_expression = expr.as_call_expression();
         // if (expr.arguments) {
         for argument in &expr_as_call_expression.arguments {
@@ -512,8 +512,8 @@ impl BinderType {
 
     pub(super) fn is_narrowing_typeof_operands(
         &self,
-        expr1: &Node, /*Expression*/
-        expr2: &Node, /*Expression*/
+        expr1: Id<Node>, /*Expression*/
+        expr2: Id<Node>, /*Expression*/
     ) -> bool {
         is_type_of_expression(expr1)
             && self.is_narrowable_operand(&expr1.as_type_of_expression().expression)
@@ -522,7 +522,7 @@ impl BinderType {
 
     pub(super) fn is_narrowing_binary_expression(
         &self,
-        expr: &Node, /*BinaryExpression*/
+        expr: Id<Node>, /*BinaryExpression*/
     ) -> bool {
         let expr_as_binary_expression = expr.as_binary_expression();
         match expr_as_binary_expression.operator_token.kind() {
@@ -558,7 +558,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn is_narrowable_operand(&self, expr: &Node /*Expression*/) -> bool {
+    pub(super) fn is_narrowable_operand(&self, expr: Id<Node> /*Expression*/) -> bool {
         match expr.kind() {
             SyntaxKind::ParenthesizedExpression => {
                 return self.is_narrowable_operand(&expr.as_parenthesized_expression().expression);

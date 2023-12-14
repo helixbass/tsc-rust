@@ -38,7 +38,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         name: &str, /*__String*/
-        use_site: &Node,
+        use_site: Id<Node>,
     ) {
         if !is_valid_type_only_alias_use_site(use_site) {
             let type_only_declaration = self.get_type_only_alias_declaration(symbol);
@@ -93,7 +93,7 @@ impl TypeChecker {
 
     pub(super) fn get_is_deferred_context<TLastLocation: Borrow<Node>>(
         &self,
-        location: &Node,
+        location: Id<Node>,
         last_location: Option<TLastLocation>,
     ) -> bool {
         let last_location =
@@ -134,7 +134,7 @@ impl TypeChecker {
         get_immediately_invoked_function_expression(location).is_none()
     }
 
-    pub(super) fn is_self_reference_location(&self, node: &Node) -> bool {
+    pub(super) fn is_self_reference_location(&self, node: Id<Node>) -> bool {
         matches!(
             node.kind(),
             SyntaxKind::FunctionDeclaration
@@ -159,7 +159,7 @@ impl TypeChecker {
     pub(super) fn is_type_parameter_symbol_declared_in_container(
         &self,
         symbol: Id<Symbol>,
-        container: &Node,
+        container: Id<Node>,
     ) -> bool {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             for decl in symbol_declarations {
@@ -187,7 +187,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_report_error_for_missing_prefix<'name_arg>(
         &self,
-        error_location: &Node,
+        error_location: Id<Node>,
         name: &str, /*__String*/
         name_arg: ResolveNameNameArg<'name_arg>,
     ) -> io::Result<bool> {
@@ -215,7 +215,7 @@ impl TypeChecker {
                             self.diagnostic_name(name_arg).into_owned(),
                             self.symbol_to_string_(
                                 class_symbol,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,
@@ -250,7 +250,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_report_error_for_extending_interface(
         &self,
-        error_location: &Node,
+        error_location: Id<Node>,
     ) -> io::Result<bool> {
         let expression = self.get_entity_name_for_extending_interface(error_location);
         if let Some(expression) = expression {
@@ -260,7 +260,7 @@ impl TypeChecker {
                     SymbolFlags::Interface,
                     Some(true),
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )?
                 .is_some()
             {
@@ -277,7 +277,7 @@ impl TypeChecker {
 
     pub(super) fn get_entity_name_for_extending_interface(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> Option<Id<Node /*EntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression => node
@@ -297,7 +297,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_report_error_for_using_type_as_namespace(
         &self,
-        error_location: &Node,
+        error_location: Id<Node>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
@@ -359,7 +359,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_report_error_for_using_value_as_type(
         &self,
-        error_location: &Node,
+        error_location: Id<Node>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
@@ -398,7 +398,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_report_error_for_exporting_primitive_type(
         &self,
-        error_location: &Node,
+        error_location: Id<Node>,
         name: &str, /*__String*/
     ) -> bool {
         if self.is_primitive_type_name(name)
@@ -416,7 +416,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_report_error_for_using_type_as_value(
         &self,
-        error_location: &Node,
+        error_location: Id<Node>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
@@ -475,7 +475,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn maybe_mapped_type(&self, node: &Node, symbol: Id<Symbol>) -> io::Result<bool> {
+    pub(super) fn maybe_mapped_type(&self, node: Id<Node>, symbol: Id<Symbol>) -> io::Result<bool> {
         let container = find_ancestor(node.maybe_parent(), |n| {
             if is_computed_property_name(n) || is_property_signature(n) {
                 false.into()
@@ -509,7 +509,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_report_error_for_using_namespace_module_as_value(
         &self,
-        error_location: &Node,
+        error_location: Id<Node>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
@@ -566,7 +566,7 @@ impl TypeChecker {
     pub(super) fn check_resolved_block_scoped_variable(
         &self,
         result: Id<Symbol>,
-        error_location: &Node,
+        error_location: Id<Node>,
     ) -> io::Result<()> {
         Debug_.assert(
             result
@@ -665,9 +665,9 @@ impl TypeChecker {
 
     pub(super) fn is_same_scope_descendent_of<TParent: Borrow<Node>>(
         &self,
-        initial: &Node,
+        initial: Id<Node>,
         parent: Option<TParent>,
-        stop_at: &Node,
+        stop_at: Id<Node>,
     ) -> bool {
         if parent.is_none() {
             return false;
@@ -686,7 +686,7 @@ impl TypeChecker {
 
     pub(super) fn get_any_import_syntax(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> Option<Id<Node /*AnyImportSyntax*/>> {
         match node.kind() {
             SyntaxKind::ImportEqualsDeclaration => Some(node.node_wrapper()),
@@ -713,7 +713,7 @@ impl TypeChecker {
             .cloned())
     }
 
-    pub(super) fn is_alias_symbol_declaration(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_alias_symbol_declaration(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(matches!(
             node.kind(),
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::NamespaceExportDeclaration
@@ -748,7 +748,7 @@ impl TypeChecker {
 
     pub(super) fn is_aliasable_or_js_expression(
         &self,
-        e: &Node, /*Expression*/
+        e: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         Ok(is_aliasable_expression(e)
             || is_function_expression(e) && self.is_js_constructor(Some(e))?)
@@ -756,7 +756,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_import_equals_declaration(
         &self,
-        node: &Node, /*ImportEqualsDeclaration | VariableDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration | VariableDeclaration*/
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let common_js_property_access = self.get_common_js_property_access(node);
@@ -814,7 +814,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_report_error_for_resolving_import_alias_to_type_only_symbol(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
         resolved: Option<Id<Symbol>>,
     ) -> io::Result<()> {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
@@ -887,7 +887,7 @@ impl TypeChecker {
         Ok(resolved)
     }
 
-    pub(super) fn is_syntactic_default(&self, node: &Node) -> bool {
+    pub(super) fn is_syntactic_default(&self, node: Id<Node>) -> bool {
         is_export_assignment(node)
             && !matches!(node.as_export_assignment().is_export_equals, Some(true))
             || has_syntactic_modifier(node, ModifierFlags::Default)
@@ -896,7 +896,7 @@ impl TypeChecker {
 
     pub(super) fn get_usage_mode_for_expression(
         &self,
-        usage: &Node, /*Expression*/
+        usage: Id<Node>, /*Expression*/
     ) -> Option<ModuleKind> {
         if is_string_literal_like(usage) {
             get_mode_for_usage_location(
@@ -919,7 +919,7 @@ impl TypeChecker {
             && matches!(target_mode, Some(ModuleKind::CommonJS))
     }
 
-    pub(super) fn is_only_imported_as_default(&self, usage: &Node /*Expression*/) -> bool {
+    pub(super) fn is_only_imported_as_default(&self, usage: Id<Node> /*Expression*/) -> bool {
         let usage_mode = self.get_usage_mode_for_expression(usage);
         matches!(usage_mode, Some(ModuleKind::ESNext))
             && ends_with(
@@ -933,7 +933,7 @@ impl TypeChecker {
         file: Option<impl Borrow<Node> /*SourceFile*/>,
         module_symbol: Id<Symbol>,
         dont_resolve_alias: bool,
-        usage: &Node, /*Expression*/
+        usage: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         let file = file.map(|file| file.borrow().node_wrapper());
         let usage_mode = file
@@ -960,7 +960,7 @@ impl TypeChecker {
             let default_export_symbol = self.resolve_export_by_name(
                 module_symbol,
                 InternalSymbolName::Default,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 true,
             )?;
             if matches!(
@@ -976,7 +976,7 @@ impl TypeChecker {
                 .resolve_export_by_name(
                     module_symbol,
                     &escape_leading_underscores("__esModule"),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     dont_resolve_alias,
                 )?
                 .is_some()
@@ -997,7 +997,7 @@ impl TypeChecker {
                 .resolve_export_by_name(
                     module_symbol,
                     &escape_leading_underscores("__esModule"),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     dont_resolve_alias,
                 )?
                 .is_none())
@@ -1005,7 +1005,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_import_clause(
         &self,
-        node: &Node, /*ImportClause*/
+        node: Id<Node>, /*ImportClause*/
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let node_parent = node.parent();
@@ -1064,7 +1064,7 @@ impl TypeChecker {
                     Some(vec![
                         self.symbol_to_string_(
                             module_symbol,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
@@ -1118,7 +1118,7 @@ impl TypeChecker {
     pub(super) fn report_non_default_export(
         &self,
         module_symbol: Id<Symbol>,
-        node: &Node, /*ImportClause*/
+        node: Id<Node>, /*ImportClause*/
     ) -> io::Result<()> {
         let node_as_import_clause = node.as_import_clause();
         if matches!(
@@ -1129,8 +1129,8 @@ impl TypeChecker {
                 node_as_import_clause.name.as_deref(),
                 &Diagnostics::Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_0_instead,
                 Some(vec![
-                    self.symbol_to_string_(module_symbol, Option::<&Node>::None, None, None, None)?,
-                    self.symbol_to_string_(node.symbol(), Option::<&Node>::None, None, None, None)?,
+                    self.symbol_to_string_(module_symbol, Option::<Id<Node>>::None, None, None, None)?,
+                    self.symbol_to_string_(node.symbol(), Option::<Id<Node>>::None, None, None, None)?,
                 ])
             );
         } else {
@@ -1139,7 +1139,7 @@ impl TypeChecker {
                 &Diagnostics::Module_0_has_no_default_export,
                 Some(vec![self.symbol_to_string_(
                     module_symbol,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                     None,
@@ -1193,7 +1193,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_namespace_import(
         &self,
-        node: &Node, /*NamespaceImport*/
+        node: Id<Node>, /*NamespaceImport*/
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let module_specifier = node
@@ -1211,7 +1211,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_namespace_export(
         &self,
-        node: &Node, /*NamespaceExport*/
+        node: Id<Node>, /*NamespaceExport*/
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let module_specifier = node
@@ -1295,8 +1295,8 @@ impl TypeChecker {
     pub(super) fn get_export_of_module(
         &self,
         symbol: Id<Symbol>,
-        name: &Node,      /*Identifier*/
-        specifier: &Node, /*Declaration*/
+        name: Id<Node>,      /*Identifier*/
+        specifier: Id<Node>, /*Declaration*/
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         if symbol.ref_(self).flags().intersects(SymbolFlags::Module) {
@@ -1344,8 +1344,8 @@ impl TypeChecker {
 
     pub(super) fn get_external_module_member(
         &self,
-        node: &Node,      /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
-        specifier: &Node, /*ImportOrExportSpecifier | BindingElement | PropertyAccessExpression*/
+        node: Id<Node>, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
+        specifier: Id<Node>, /*ImportOrExportSpecifier | BindingElement | PropertyAccessExpression*/
         dont_resolve_alias: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
@@ -1467,7 +1467,7 @@ impl TypeChecker {
                 if let Some(suggestion) = suggestion {
                     let suggestion_name = self.symbol_to_string_(
                         suggestion,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                         None,
@@ -1525,8 +1525,8 @@ impl TypeChecker {
 
     pub(super) fn report_non_exported_member(
         &self,
-        node: &Node, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
-        name: &Node, /*Identifier*/
+        node: Id<Node>, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
+        name: Id<Node>, /*Identifier*/
         declaration_name: String,
         module_symbol: Id<Symbol>,
         module_name: String,
@@ -1595,7 +1595,7 @@ impl TypeChecker {
                             declaration_name.clone(),
                             self.symbol_to_string_(
                                 exported_symbol,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,
@@ -1642,8 +1642,8 @@ impl TypeChecker {
 
     pub(super) fn report_invalid_import_equals_export_member(
         &self,
-        node: &Node, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
-        name: &Node, /*Identifier*/
+        node: Id<Node>, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
+        name: Id<Node>, /*Identifier*/
         declaration_name: String,
         module_name: String,
     ) {
@@ -1685,7 +1685,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_import_specifier(
         &self,
-        node: &Node, /*ImportSpecifier | BindingElement*/
+        node: Id<Node>, /*ImportSpecifier | BindingElement*/
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let root = if is_binding_element(node) {
@@ -1729,7 +1729,7 @@ impl TypeChecker {
 
     pub(super) fn get_common_js_property_access(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> Option<Id<Node /*PropertyAccessExpression*/>> {
         if is_variable_declaration(node) {
             if let Some(node_initializer) = node.as_variable_declaration().maybe_initializer() {
@@ -1743,7 +1743,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_namespace_export_declaration(
         &self,
-        node: &Node, /*NamespaceExportDeclaration*/
+        node: Id<Node>, /*NamespaceExportDeclaration*/
         dont_resolve_alias: bool,
     ) -> io::Result<Id<Symbol>> {
         let resolved = self
@@ -1760,7 +1760,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_export_specifier(
         &self,
-        node: &Node, /*ExportSpecifier*/
+        node: Id<Node>, /*ExportSpecifier*/
         meaning: SymbolFlags,
         dont_resolve_alias: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
@@ -1782,7 +1782,7 @@ impl TypeChecker {
                 meaning,
                 Some(false),
                 dont_resolve_alias,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?
         };
         self.mark_symbol_of_alias_declaration_if_type_only(
@@ -1796,7 +1796,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_export_assignment(
         &self,
-        node: &Node, /*ExportAssignment | BinaryExpression*/
+        node: Id<Node>, /*ExportAssignment | BinaryExpression*/
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let expression = if is_export_assignment(node) {
@@ -1816,7 +1816,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_alias_like_expression(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         if is_class_expression(expression) {
@@ -1833,7 +1833,7 @@ impl TypeChecker {
             SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
             Some(true),
             Some(dont_resolve_alias),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )?;
         if alias_like.is_some() {
             return Ok(alias_like);

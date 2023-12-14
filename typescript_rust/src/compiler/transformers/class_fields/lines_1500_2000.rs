@@ -26,7 +26,7 @@ use crate::{
 impl TransformClassFields {
     pub(super) fn visit_invalid_super_property(
         &self,
-        node: &Node, /*SuperProperty*/
+        node: Id<Node>, /*SuperProperty*/
     ) -> Id<Node> {
         if is_property_access_expression(node) {
             self.factory.update_property_access_expression(
@@ -40,7 +40,7 @@ impl TransformClassFields {
                 self.factory.create_void_zero(),
                 visit_node(
                     &node.as_element_access_expression().argument_expression,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
@@ -50,13 +50,13 @@ impl TransformClassFields {
 
     pub(super) fn get_property_name_expression_if_needed(
         &self,
-        name: &Node, /*PropertyName*/
+        name: Id<Node>, /*PropertyName*/
         should_hoist: bool,
     ) -> Option<Id<Node /*Expression*/>> {
         if is_computed_property_name(name) {
             let expression = visit_node(
                 &name.as_computed_property_name().expression,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
@@ -122,7 +122,7 @@ impl TransformClassFields {
 
     pub(super) fn add_private_identifier_to_environment(
         &self,
-        node: &Node, /*PrivateClassElementDeclaration*/
+        node: Id<Node>, /*PrivateClassElementDeclaration*/
     ) {
         let node_as_named_declaration = node.as_named_declaration();
         let ref node_name = node_as_named_declaration.name();
@@ -345,7 +345,7 @@ impl TransformClassFields {
     pub(super) fn create_hoisted_variable_for_class(
         &self,
         name: &str,
-        node: &Node, /*PrivateIdentifier | ClassStaticBlockDeclaration*/
+        node: Id<Node>, /*PrivateIdentifier | ClassStaticBlockDeclaration*/
     ) -> Id<Node /*Identifier*/> {
         let private_identifier_environment = self.get_private_identifier_environment();
         let private_identifier_environment = (*private_identifier_environment).borrow();
@@ -376,7 +376,7 @@ impl TransformClassFields {
     pub(super) fn create_hoisted_variable_for_private_name(
         &self,
         private_name: &str,
-        node: &Node, /*PrivateClassElementDeclaration*/
+        node: Id<Node>, /*PrivateClassElementDeclaration*/
     ) -> Id<Node /*Identifier*/> {
         self.create_hoisted_variable_for_class(
             &private_name[1..],
@@ -386,7 +386,7 @@ impl TransformClassFields {
 
     pub(super) fn access_private_identifier(
         &self,
-        name: &Node, /*PrivateIdentifier*/
+        name: Id<Node>, /*PrivateIdentifier*/
     ) -> Option<Gc<GcCell<PrivateIdentifierInfo>>> {
         let name_as_private_identifier = name.as_private_identifier();
         if let Some(current_class_lexical_environment_private_identifier_environment) = self
@@ -429,13 +429,13 @@ impl TransformClassFields {
 
     pub(super) fn wrap_private_identifier_for_destructuring_target(
         &self,
-        node: &Node, /*PrivateIdentifierPropertyAccessExpression*/
+        node: Id<Node>, /*PrivateIdentifierPropertyAccessExpression*/
     ) -> Id<Node> {
         let node_as_property_access_expression = node.as_property_access_expression();
         let parameter = self.factory.get_generated_name_for_node(Some(node), None);
         let info = self.access_private_identifier(&node_as_property_access_expression.name());
         if info.is_none() {
-            return visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
+            return visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context);
         }
         let info = info.unwrap();
         let mut receiver = node_as_property_access_expression.expression.clone();
@@ -444,7 +444,7 @@ impl TransformClassFields {
             || !is_simple_copiable_expression(&node_as_property_access_expression.expression)
         {
             receiver = self.factory.create_temp_variable(
-                Some(|node: &Node| {
+                Some(|node: Id<Node>| {
                     self.context.hoist_variable_declaration(node);
                 }),
                 Some(true),
@@ -455,7 +455,7 @@ impl TransformClassFields {
                     SyntaxKind::EqualsToken,
                     visit_node(
                         &node_as_property_access_expression.expression,
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
@@ -475,7 +475,7 @@ impl TransformClassFields {
 
     pub(super) fn visit_array_assignment_target(
         &self,
-        node: &Node, /*BindingOrAssignmentElement*/
+        node: Id<Node>, /*BindingOrAssignmentElement*/
     ) -> VisitResult {
         let target = get_target_of_binding_or_assignment_element(node);
         if let Some(ref target) = target {
@@ -507,7 +507,7 @@ impl TransformClassFields {
                         let name = if is_element_access_expression(target) {
                             Some(visit_node(
                                 &target.as_element_access_expression().argument_expression,
-                                Some(|node: &Node| self.visitor(node)),
+                                Some(|node: Id<Node>| self.visitor(node)),
                                 Some(is_expression),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ))
@@ -521,7 +521,7 @@ impl TransformClassFields {
                         if let Some(name) = name {
                             let temp = self
                                 .factory
-                                .create_temp_variable(Option::<fn(&Node)>::None, None);
+                                .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
                             wrapped = Some(self.factory.create_assignment_target_wrapper(
                                 temp.clone(),
                                 self.factory.create_reflect_set_call(
@@ -545,7 +545,7 @@ impl TransformClassFields {
                             node_as_binary_expression.operator_token.clone(),
                             visit_node(
                                 &node_as_binary_expression.right,
-                                Some(|node: &Node| self.visitor(node)),
+                                Some(|node: Id<Node>| self.visitor(node)),
                                 Some(is_expression),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
@@ -562,8 +562,8 @@ impl TransformClassFields {
         Some(
             visit_node(
                 node,
-                Some(|node: &Node| self.visitor_destructuring_target(node)),
-                Option::<fn(&Node) -> bool>::None,
+                Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
+                Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )
             .into(),
@@ -572,7 +572,7 @@ impl TransformClassFields {
 
     pub(super) fn visit_object_assignment_target(
         &self,
-        node: &Node, /*ObjectLiteralElementLike*/
+        node: Id<Node>, /*ObjectLiteralElementLike*/
     ) -> VisitResult {
         if is_object_binding_or_assignment_element(node) && !is_shorthand_property_assignment(node)
         {
@@ -606,7 +606,7 @@ impl TransformClassFields {
                             let name = if is_element_access_expression(target) {
                                 Some(visit_node(
                                     &target.as_element_access_expression().argument_expression,
-                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(|node: Id<Node>| self.visitor(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ))
@@ -621,7 +621,7 @@ impl TransformClassFields {
                             if let Some(name) = name {
                                 let temp = self
                                     .factory
-                                    .create_temp_variable(Option::<fn(&Node)>::None, None);
+                                    .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
                                 wrapped = Some(self.factory.create_assignment_target_wrapper(
                                     temp.clone(),
                                     self.factory.create_reflect_set_call(
@@ -645,7 +645,7 @@ impl TransformClassFields {
                             node,
                             visit_node(
                                 &node_as_property_assignment.name(),
-                                Some(|node: &Node| self.visitor(node)),
+                                Some(|node: Id<Node>| self.visitor(node)),
                                 Some(is_property_name),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
@@ -655,8 +655,8 @@ impl TransformClassFields {
                                         wrapped,
                                         visit_node(
                                             &initializer,
-                                            Some(|node: &Node| self.visitor(node)),
-                                            Option::<fn(&Node) -> bool>::None,
+                                            Some(|node: Id<Node>| self.visitor(node)),
+                                            Option::<fn(Id<Node>) -> bool>::None,
                                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                         ),
                                     )
@@ -666,7 +666,7 @@ impl TransformClassFields {
                             } else {
                                 visit_node(
                                     &node_as_property_assignment.initializer,
-                                    Some(|node: &Node| self.visitor_destructuring_target(node)),
+                                    Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
@@ -684,7 +684,7 @@ impl TransformClassFields {
                             wrapped.unwrap_or_else(|| {
                                 visit_node(
                                     &node_as_spread_assignment.expression,
-                                    Some(|node: &Node| self.visitor_destructuring_target(node)),
+                                    Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
@@ -701,8 +701,8 @@ impl TransformClassFields {
         Some(
             visit_node(
                 node,
-                Some(|node: &Node| self.visitor(node)),
-                Option::<fn(&Node) -> bool>::None,
+                Some(|node: Id<Node>| self.visitor(node)),
+                Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )
             .into(),

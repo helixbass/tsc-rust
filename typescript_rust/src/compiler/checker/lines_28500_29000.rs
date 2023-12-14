@@ -280,7 +280,7 @@ impl TypeChecker {
 
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
         target_module: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         Ok(if target_module.ref_(self).maybe_exports().is_some() {
@@ -296,7 +296,7 @@ impl TypeChecker {
 
     pub fn get_suggestion_for_nonexistent_export(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
         target_module: Id<Symbol>,
     ) -> io::Result<Option<String>> {
         let suggestion = self.get_suggested_symbol_for_nonexistent_module(name, target_module)?;
@@ -306,7 +306,7 @@ impl TypeChecker {
     pub(super) fn get_suggestion_for_nonexistent_index_signature(
         &self,
         object_type: Id<Type>,
-        expr: &Node, /*ElementAccessExpression*/
+        expr: Id<Node>, /*ElementAccessExpression*/
         keyed_type: Id<Type>,
     ) -> io::Result<Option<String>> {
         let suggested_method = if is_assignment_target(expr) {
@@ -476,7 +476,7 @@ impl TypeChecker {
 
     pub(super) fn is_self_type_access(
         &self,
-        name: &Node, /*Expression | QualifiedName*/
+        name: Id<Node>, /*Expression | QualifiedName*/
         parent: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
         Ok(name.kind() == SyntaxKind::ThisKeyword
@@ -491,7 +491,7 @@ impl TypeChecker {
 
     pub(super) fn is_valid_property_access_(
         &self,
-        node: &Node,         /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
+        node: Id<Node>,         /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         property_name: &str, /*__String*/
     ) -> io::Result<bool> {
         Ok(match node.kind() {
@@ -531,7 +531,7 @@ impl TypeChecker {
 
     pub fn is_valid_property_access_for_completions_(
         &self,
-        node: &Node, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
+        node: Id<Node>, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
         type_: Id<Type>,
         property: Id<Symbol>,
     ) -> io::Result<bool> {
@@ -548,7 +548,7 @@ impl TypeChecker {
 
     pub(super) fn is_valid_property_access_with_type(
         &self,
-        node: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
+        node: Id<Node>, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         is_super: bool,
         property_name: &str, /*__String*/
         type_: Id<Type>,
@@ -572,7 +572,7 @@ impl TypeChecker {
 
     pub(super) fn is_property_accessible(
         &self,
-        node: &Node,
+        node: Id<Node>,
         is_super: bool,
         is_write: bool,
         containing_type: Id<Type>,
@@ -591,7 +591,7 @@ impl TypeChecker {
         {
             let decl_class = get_containing_class(property_value_declaration);
             return Ok(!is_optional_chain(node)
-                && find_ancestor(Some(node), |parent: &Node| {
+                && find_ancestor(Some(node), |parent: Id<Node>| {
                     matches!(
                         decl_class.as_ref(),
                         Some(decl_class) if ptr::eq(
@@ -609,7 +609,7 @@ impl TypeChecker {
             is_write,
             containing_type,
             property,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )
     }
 

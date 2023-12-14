@@ -21,8 +21,8 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_async_function_return_type(
         &self,
-        node: &Node,             /*FunctionLikeDeclaration | MethodSignature*/
-        return_type_node: &Node, /*TypeNode*/
+        node: Id<Node>,             /*FunctionLikeDeclaration | MethodSignature*/
+        return_type_node: Id<Node>, /*TypeNode*/
     ) -> io::Result<()> {
         let return_type = self.get_type_from_type_node_(return_type_node)?;
 
@@ -41,10 +41,10 @@ impl TypeChecker {
                         self.type_to_string_(
                             self.get_awaited_type_no_alias(
                                 return_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?.unwrap_or_else(|| self.void_type()),
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?
                     ])
@@ -66,7 +66,7 @@ impl TypeChecker {
                     Some(vec![
                         self.type_to_string_(
                             return_type,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None
                         )?
                     ])
@@ -80,7 +80,7 @@ impl TypeChecker {
                 SymbolFlags::Value,
                 Some(true),
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?;
             let promise_constructor_type =
                 if let Some(promise_constructor_symbol) = promise_constructor_symbol {
@@ -162,7 +162,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_decorator(&self, node: &Node /*Decorator*/) -> io::Result<()> {
+    pub(super) fn check_decorator(&self, node: Id<Node> /*Decorator*/) -> io::Result<()> {
         let signature = self.get_resolved_signature_(node, None, None)?;
         self.check_deprecated_signature(signature.clone(), node)?;
         let return_type = self.get_return_type_of_signature(signature.clone())?;
@@ -239,7 +239,7 @@ impl TypeChecker {
 
     pub(super) fn mark_type_node_as_referenced(
         &self,
-        node: &Node, /*TypeNode*/
+        node: Id<Node>, /*TypeNode*/
     ) -> io::Result<()> {
         self.mark_entity_name_or_entity_expression_as_reference(
             /*node &&*/ get_entity_name_from_type_node(node),
@@ -308,7 +308,7 @@ impl TypeChecker {
         node: Option<TNode /*TypeNode*/>,
     ) -> Option<Id<Node /*EntityName*/>> {
         let node = node?;
-        let node: &Node = node.borrow();
+        let node: Id<Node> = node.borrow();
         match node.kind() {
             SyntaxKind::IntersectionType | SyntaxKind::UnionType => self
                 .get_entity_name_for_decorator_metadata_from_type_list(
@@ -375,7 +375,7 @@ impl TypeChecker {
 
     pub(super) fn get_parameter_type_node_for_decorator_check(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> Option<Id<Node /*TypeNode*/>> {
         let type_node = get_effective_type_annotation_node(node);
         if is_rest_parameter(node) {
@@ -385,7 +385,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_decorators(&self, node: &Node) -> io::Result<()> {
+    pub(super) fn check_decorators(&self, node: Id<Node>) -> io::Result<()> {
         let node_decorators = node.maybe_decorators();
         if node_decorators.is_none() {
             return Ok(());
@@ -490,7 +490,7 @@ impl TypeChecker {
 
     pub(super) fn check_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<()> {
         if self.produce_diagnostics {
             self.check_function_or_method_declaration(node)?;
@@ -506,7 +506,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsdoc_type_alias_tag(
         &self,
-        node: &Node, /*JSDocTypedefTag | JSDocCallbackTag*/
+        node: Id<Node>, /*JSDocTypedefTag | JSDocCallbackTag*/
     ) -> io::Result<()> {
         let node_as_jsdoc_type_like_tag = node.as_jsdoc_type_like_tag();
         let node_as_named_declaration = node.maybe_as_named_declaration();
@@ -535,7 +535,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsdoc_template_tag(
         &self,
-        node: &Node, /*JSDocTemplateTag*/
+        node: Id<Node>, /*JSDocTemplateTag*/
     ) -> io::Result<()> {
         let node_as_jsdoc_template_tag = node.as_jsdoc_template_tag();
         self.check_source_element(node_as_jsdoc_template_tag.constraint.as_deref())?;
@@ -546,7 +546,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_jsdoc_type_tag(&self, node: &Node /*JSDocTypeTag*/) -> io::Result<()> {
+    pub(super) fn check_jsdoc_type_tag(
+        &self,
+        node: Id<Node>, /*JSDocTypeTag*/
+    ) -> io::Result<()> {
         self.check_source_element(node.as_jsdoc_type_like_tag().maybe_type_expression())?;
 
         Ok(())
@@ -554,7 +557,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsdoc_parameter_tag(
         &self,
-        node: &Node, /*JSDocParameterTag*/
+        node: Id<Node>, /*JSDocParameterTag*/
     ) -> io::Result<()> {
         let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
         self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref())?;
@@ -629,7 +632,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsdoc_property_tag(
         &self,
-        node: &Node, /*JSDocPropertyTag*/
+        node: Id<Node>, /*JSDocPropertyTag*/
     ) -> io::Result<()> {
         let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
         self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref())?;
@@ -639,7 +642,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsdoc_function_type(
         &self,
-        node: &Node, /*JSDocFunctionType*/
+        node: Id<Node>, /*JSDocFunctionType*/
     ) -> io::Result<()> {
         if self.produce_diagnostics
             && node.as_jsdoc_function_type().maybe_type().is_none()

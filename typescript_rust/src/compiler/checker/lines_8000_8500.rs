@@ -199,7 +199,7 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn is_top_level_in_external_module_augmentation(&self, node: &Node) -> bool {
+    pub(super) fn is_top_level_in_external_module_augmentation(&self, node: Id<Node>) -> bool {
         /*node &&*/
         matches!(
             node.maybe_parent(),
@@ -207,7 +207,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_default_binding_context(&self, location: &Node) -> bool {
+    pub(super) fn is_default_binding_context(&self, location: Id<Node>) -> bool {
         location.kind() == SyntaxKind::SourceFile || is_ambient_module(location)
     }
 
@@ -368,7 +368,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_declaration_visible(&self, node: &Node) -> bool {
+    pub(super) fn is_declaration_visible(&self, node: Id<Node>) -> bool {
         // if (node) {
         let links = self.get_node_links(node);
         if (*links).borrow().is_visible.is_none() {
@@ -381,7 +381,7 @@ impl TypeChecker {
         // return false;
     }
 
-    pub(super) fn determine_if_declaration_is_visible(&self, node: &Node) -> bool {
+    pub(super) fn determine_if_declaration_is_visible(&self, node: Id<Node>) -> bool {
         match node.kind() {
             SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocTypedefTag
@@ -472,7 +472,7 @@ impl TypeChecker {
 
     pub(super) fn collect_linked_aliases(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
         set_visibility: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut export_symbol: Option<Id<Symbol>> = None;
@@ -671,7 +671,7 @@ impl TypeChecker {
         self.resolution_results().pop().unwrap()
     }
 
-    pub(super) fn get_declaration_container(&self, node: &Node) -> Id<Node> {
+    pub(super) fn get_declaration_container(&self, node: Id<Node>) -> Id<Node> {
         find_ancestor(Some(get_root_declaration(node)), |node| {
             !matches!(
                 node.kind(),
@@ -749,7 +749,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_for_binding_element_parent(
         &self,
-        node: &Node, /*BindingElementGrandparent*/
+        node: Id<Node>, /*BindingElementGrandparent*/
     ) -> io::Result<Option<Id<Type>>> {
         let symbol = self.get_symbol_of_node(node)?;
         symbol
@@ -882,12 +882,17 @@ impl TypeChecker {
 
     pub(super) fn get_flow_type_of_destructuring(
         &self,
-        node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
+        node: Id<Node>, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
         declared_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let reference = self.get_synthetic_element_access(node)?;
         Ok(if let Some(reference) = reference {
-            self.get_flow_type_of_reference(&reference, declared_type, None, Option::<&Node>::None)?
+            self.get_flow_type_of_reference(
+                &reference,
+                declared_type,
+                None,
+                Option::<Id<Node>>::None,
+            )?
         } else {
             declared_type
         })
@@ -895,7 +900,7 @@ impl TypeChecker {
 
     pub(super) fn get_synthetic_element_access(
         &self,
-        node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
+        node: Id<Node>, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> io::Result<Option<Id<Node /*ElementAccessExpression*/>>> {
         let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node)?);
         let ret = parent_access.maybe_flow_node().clone().try_and_then(

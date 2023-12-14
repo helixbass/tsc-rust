@@ -983,7 +983,7 @@ impl CheckTypeRelatedTo {
                         self.type_checker
                             .get_type_parameter_from_mapped_type(source)?,
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         Option::<Id<Symbol>>::None,
                         None,
                     )?;
@@ -1180,7 +1180,7 @@ impl CheckTypeRelatedTo {
                         base_object_type,
                         base_index_type,
                         Some(access_flags),
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         Option::<Id<Symbol>>::None,
                         None,
                     )?;
@@ -1341,7 +1341,7 @@ impl CheckTypeRelatedTo {
                                 source,
                                 indexing_type,
                                 None,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 Option::<Id<Symbol>>::None,
                                 None,
                             )?;

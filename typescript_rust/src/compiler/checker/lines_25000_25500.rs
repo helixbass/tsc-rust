@@ -26,10 +26,10 @@ use crate::{
 impl TypeChecker {
     pub(super) fn is_inside_function_or_instance_property_initializer(
         &self,
-        node: &Node,
-        threshold: &Node,
+        node: Id<Node>,
+        threshold: Id<Node>,
     ) -> bool {
-        find_ancestor(Some(node), |n: &Node| {
+        find_ancestor(Some(node), |n: Id<Node>| {
             if ptr::eq(n, threshold) {
                 FindAncestorCallbackReturn::Quit
             } else {
@@ -53,11 +53,11 @@ impl TypeChecker {
 
     pub(super) fn get_part_of_for_statement_containing_node(
         &self,
-        node: &Node,
-        container: &Node, /*ForStatement*/
+        node: Id<Node>,
+        container: Id<Node>, /*ForStatement*/
     ) -> Option<Id<Node>> {
         let container_as_for_statement = container.as_for_statement();
-        find_ancestor(Some(node), |n: &Node| {
+        find_ancestor(Some(node), |n: Id<Node>| {
             if ptr::eq(n, container) {
                 FindAncestorCallbackReturn::Quit
             } else {
@@ -76,8 +76,8 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_enclosing_iteration_statement(&self, node: &Node) -> Option<Id<Node>> {
-        find_ancestor(Some(node), |n: &Node| {
+    pub(super) fn get_enclosing_iteration_statement(&self, node: Id<Node>) -> Option<Id<Node>> {
+        find_ancestor(Some(node), |n: Id<Node>| {
             if
             /* !n ||*/
             node_starts_new_lexical_environment(n) {
@@ -90,7 +90,7 @@ impl TypeChecker {
 
     pub(super) fn check_nested_block_scoped_binding(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
         symbol: Id<Symbol>,
     ) {
         if self.language_version >= ScriptTarget::ES2015
@@ -198,8 +198,8 @@ impl TypeChecker {
 
     pub(super) fn is_binding_captured_by_node(
         &self,
-        node: &Node,
-        decl: &Node, /*VariableDeclaration | BindingElement*/
+        node: Id<Node>,
+        decl: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) -> io::Result<bool> {
         let links = self.get_node_links(node);
         /* !!links &&*/
@@ -212,8 +212,8 @@ impl TypeChecker {
 
     pub(super) fn is_assigned_in_body_of_for_statement(
         &self,
-        node: &Node,      /*Identifier*/
-        container: &Node, /*ForStatement*/
+        node: Id<Node>,      /*Identifier*/
+        container: Id<Node>, /*ForStatement*/
     ) -> bool {
         let mut current = node.node_wrapper();
         while current.parent().kind() == SyntaxKind::ParenthesizedExpression {
@@ -239,7 +239,7 @@ impl TypeChecker {
         }
 
         let container_as_for_statement = container.as_for_statement();
-        find_ancestor(Some(current), |n: &Node| {
+        find_ancestor(Some(current), |n: Id<Node>| {
             if ptr::eq(n, container) {
                 FindAncestorCallbackReturn::Quit
             } else {
@@ -249,7 +249,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn capture_lexical_this(&self, node: &Node, container: &Node) {
+    pub(super) fn capture_lexical_this(&self, node: Id<Node>, container: Id<Node>) {
         self.get_node_links(node).borrow_mut().flags |= NodeCheckFlags::LexicalThis;
         if matches!(
             container.kind(),
@@ -262,7 +262,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn find_first_super_call(&self, node: &Node) -> Option<Id<Node /*SuperCall*/>> {
+    pub(super) fn find_first_super_call(&self, node: Id<Node>) -> Option<Id<Node /*SuperCall*/>> {
         if is_super_call(node) {
             Some(node.node_wrapper())
         } else if is_function_like(Some(node)) {
@@ -270,7 +270,7 @@ impl TypeChecker {
         } else {
             for_each_child_returns(
                 node,
-                |node: &Node| self.find_first_super_call(node),
+                |node: Id<Node>| self.find_first_super_call(node),
                 Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
             )
         }
@@ -278,7 +278,7 @@ impl TypeChecker {
 
     pub(super) fn class_declaration_extends_null(
         &self,
-        class_decl: &Node, /*ClassDeclaration*/
+        class_decl: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<bool> {
         let class_symbol = self.get_symbol_of_node(class_decl)?.unwrap();
         let class_instance_type = self.get_declared_type_of_symbol(class_symbol)?;
@@ -289,8 +289,8 @@ impl TypeChecker {
 
     pub(super) fn check_this_before_super(
         &self,
-        node: &Node,
-        container: &Node,
+        node: Id<Node>,
+        container: Id<Node>,
         diagnostic_message: &DiagnosticMessage,
     ) -> io::Result<()> {
         let containing_class_decl = container.parent();
@@ -312,8 +312,8 @@ impl TypeChecker {
 
     pub(super) fn check_this_in_static_class_field_initializer_in_decorated_class(
         &self,
-        this_expression: &Node,
-        container: &Node,
+        this_expression: Id<Node>,
+        container: Id<Node>,
     ) {
         if is_property_declaration(container)
             && has_static_modifier(container)
@@ -331,7 +331,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_this_expression(&self, node: &Node) -> io::Result<Id<Type>> {
+    pub(super) fn check_this_expression(&self, node: Id<Node>) -> io::Result<Id<Type>> {
         let is_node_in_type_query = self.is_in_type_query(node);
         let mut container = get_this_container(node, true);
         let mut captured_by_arrow_function = false;
@@ -408,7 +408,7 @@ impl TypeChecker {
                 );
                 if !is_source_file(&container) {
                     let outside_this =
-                        self.try_get_this_type_at_(&container, None, Option::<&Node>::None)?;
+                        self.try_get_this_type_at_(&container, None, Option::<Id<Node>>::None)?;
                     if matches!(
                         outside_this,
                         Some(outside_this) if outside_this != global_this_type
@@ -434,7 +434,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_this_type_at_(
         &self,
-        node: &Node,
+        node: Id<Node>,
         include_global_this: Option<bool>,
         container: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
@@ -496,7 +496,7 @@ impl TypeChecker {
                     node,
                     this_type,
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )?));
             }
         }
@@ -516,7 +516,7 @@ impl TypeChecker {
                 node,
                 type_,
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?));
         }
 
@@ -542,7 +542,7 @@ impl TypeChecker {
 
     pub(super) fn get_explicit_this_type(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         let container = get_this_container(node, false);
         if is_function_like(Some(&*container)) {
@@ -568,7 +568,7 @@ impl TypeChecker {
 
     pub(super) fn get_class_name_from_prototype_method(
         &self,
-        container: &Node,
+        container: Id<Node>,
     ) -> Option<Id<Node>> {
         if container.kind() == SyntaxKind::FunctionExpression
             && is_binary_expression(&container.parent())
@@ -705,7 +705,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_for_this_expression_from_jsdoc(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<Option<Id<Type>>> {
         let jsdoc_type = get_jsdoc_type(node);
         if let Some(jsdoc_type) = jsdoc_type
@@ -746,10 +746,10 @@ impl TypeChecker {
 
     pub(super) fn is_in_constructor_argument_initializer(
         &self,
-        node: &Node,
-        constructor_decl: &Node,
+        node: Id<Node>,
+        constructor_decl: Id<Node>,
     ) -> bool {
-        find_ancestor(Some(node), |n: &Node| {
+        find_ancestor(Some(node), |n: Id<Node>| {
             if is_function_like_declaration(n) {
                 FindAncestorCallbackReturn::Quit
             } else {
@@ -760,7 +760,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn check_super_expression(&self, node: &Node) -> io::Result<Id<Type>> {
+    pub(super) fn check_super_expression(&self, node: Id<Node>) -> io::Result<Id<Type>> {
         let is_call_expression = node.parent().kind() == SyntaxKind::CallExpression
             && ptr::eq(&*node.parent().as_call_expression().expression, node);
 
@@ -783,7 +783,7 @@ impl TypeChecker {
         let node_check_flag: NodeCheckFlags;
 
         if !can_use_super_expression {
-            let current = find_ancestor(Some(node), |n: &Node| {
+            let current = find_ancestor(Some(node), |n: Id<Node>| {
                 if matches!(
                     container.as_deref(),
                     Some(container) if ptr::eq(n, container)
@@ -848,7 +848,7 @@ impl TypeChecker {
                 && (is_property_declaration(container.as_ref().unwrap())
                     || is_class_static_block_declaration(container.as_ref().unwrap()))
             {
-                for_each_enclosing_block_scope_container(&node.parent(), |current: &Node| {
+                for_each_enclosing_block_scope_container(&node.parent(), |current: Id<Node>| {
                     if !is_source_file(current) || is_external_or_common_js_module(current) {
                         self.get_node_links(current).borrow_mut().flags |=
                             NodeCheckFlags::ContainsSuperPropertyInStaticInitializer;

@@ -63,8 +63,8 @@ pub trait CustomTransformerFactoryInterface: Trace + Finalize {
 pub type CustomTransformer = Gc<Box<dyn CustomTransformerInterface>>;
 
 pub trait CustomTransformerInterface: Trace + Finalize {
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node /*SourceFile*/>;
-    fn transform_bundle(&self, node: &Node /*Bundle*/) -> Id<Node /*Bundle*/>;
+    fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node /*SourceFile*/>;
+    fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> Id<Node /*Bundle*/>;
 }
 
 #[derive(Trace, Finalize)]
@@ -694,124 +694,127 @@ pub trait EmitResolver: Trace + Finalize {
     fn has_global_name(&self, name: &str) -> bool;
     fn get_referenced_export_container(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
         prefix_locals: Option<bool>,
     ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>>;
     fn get_referenced_import_declaration(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>>;
     fn get_referenced_declaration_with_colliding_name(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>>;
     fn is_declaration_with_colliding_name(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> io::Result<bool>;
-    fn is_value_alias_declaration(&self, node: &Node) -> io::Result<bool>;
+    fn is_value_alias_declaration(&self, node: Id<Node>) -> io::Result<bool>;
     fn is_referenced_alias_declaration(
         &self,
-        node: &Node,
+        node: Id<Node>,
         check_children: Option<bool>,
     ) -> io::Result<bool>;
     fn is_top_level_value_import_equals_with_entity_name(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<bool>;
-    fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags;
-    fn is_declaration_visible(&self, node: &Node /*Declaration | AnyImportSyntax*/) -> bool;
-    fn is_late_bound(&self, node: &Node /*Declaration*/) -> io::Result<bool>;
+    fn get_node_check_flags(&self, node: Id<Node>) -> NodeCheckFlags;
+    fn is_declaration_visible(&self, node: Id<Node> /*Declaration | AnyImportSyntax*/) -> bool;
+    fn is_late_bound(&self, node: Id<Node> /*Declaration*/) -> io::Result<bool>;
     fn collect_linked_aliases(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
         set_visibility: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node>>>>;
     fn is_implementation_of_overload(
         &self,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<bool>>;
     fn is_required_initialized_parameter(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool>;
     fn is_optional_uninitialized_parameter_property(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool>;
     fn is_expando_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<bool>;
     fn get_properties_of_container_function(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> io::Result<Vec<Id<Symbol>>>;
     fn create_type_of_declaration(
         &self,
-        declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
-        enclosing_declaration: &Node,
+        declaration: Id<Node>, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
+        enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_return_type_of_signature_declaration(
         &self,
-        signature_declaration: &Node, /*SignatureDeclaration*/
-        enclosing_declaration: &Node,
+        signature_declaration: Id<Node>, /*SignatureDeclaration*/
+        enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_type_of_expression(
         &self,
-        expr: &Node, /*Expression*/
-        enclosing_declaration: &Node,
+        expr: Id<Node>, /*Expression*/
+        enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_literal_const_value(
         &self,
-        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+        node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>>;
     fn is_symbol_accessible(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<&Node>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: Option<SymbolFlags>,
         should_compute_alias_to_mark_visible: bool,
     ) -> io::Result<SymbolAccessibilityResult>;
     fn is_entity_name_visible(
         &self,
-        entity_name: &Node, /*EntityNameOrEntityNameExpression*/
-        enclosing_declaration: &Node,
+        entity_name: Id<Node>, /*EntityNameOrEntityNameExpression*/
+        enclosing_declaration: Id<Node>,
     ) -> io::Result<SymbolVisibilityResult>;
     fn get_constant_value(
         &self,
-        node: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
+        node: Id<Node>, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
     ) -> io::Result<Option<StringOrNumber>>;
     fn get_referenced_value_declaration(
         &self,
-        reference: &Node, /*Identifier*/
+        reference: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>>;
     fn get_type_reference_serialization_kind(
         &self,
-        type_name: &Node, /*EntityName*/
-        location: Option<&Node>,
+        type_name: Id<Node>, /*EntityName*/
+        location: Option<Id<Node>>,
     ) -> io::Result<TypeReferenceSerializationKind>;
-    fn is_optional_parameter(&self, node: &Node /*ParameterDeclaration*/) -> io::Result<bool>;
+    fn is_optional_parameter(
+        &self,
+        node: Id<Node>, /*ParameterDeclaration*/
+    ) -> io::Result<bool>;
     fn module_exports_some_value(
         &self,
-        module_reference_expression: &Node, /*Expression*/
+        module_reference_expression: Id<Node>, /*Expression*/
     ) -> io::Result<bool>;
-    fn is_arguments_local_binding(&self, node: &Node /*Identifier*/) -> io::Result<bool>;
+    fn is_arguments_local_binding(&self, node: Id<Node> /*Identifier*/) -> io::Result<bool>;
     fn get_external_module_file_from_declaration(
         &self,
-        declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
+        declaration: Id<Node>, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>>;
     fn get_type_reference_directives_for_entity_name(
         &self,
-        name: &Node, /*EntityNameOrEntityNameExpression*/
+        name: Id<Node>, /*EntityNameOrEntityNameExpression*/
     ) -> io::Result<Option<Vec<String>>>;
     fn get_type_reference_directives_for_symbol(
         &self,
@@ -820,36 +823,37 @@ pub trait EmitResolver: Trace + Finalize {
     ) -> io::Result<Option<Vec<String>>>;
     fn is_literal_const_declaration(
         &self,
-        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+        node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> io::Result<bool>;
-    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Id<Node /*EntityName*/>>;
+    fn get_jsx_factory_entity(&self, location: Option<Id<Node>>)
+        -> Option<Id<Node /*EntityName*/>>;
     fn get_jsx_fragment_factory_entity(
         &self,
-        location: Option<&Node>,
+        location: Option<Id<Node>>,
     ) -> Option<Id<Node /*EntityName*/>>;
     fn get_all_accessor_declarations(
         &self,
-        declaration: &Node, /*AccessorDeclaration*/
+        declaration: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<AllAccessorDeclarations>;
     fn get_symbol_of_external_module_specifier(
         &self,
-        node: &Node, /*StringLiteralLike*/
+        node: Id<Node>, /*StringLiteralLike*/
     ) -> io::Result<Option<Id<Symbol>>>;
     fn is_binding_captured_by_node(
         &self,
-        node: &Node,
-        decl: &Node, /*VariableDeclaration | BindingElement*/
+        node: Id<Node>,
+        decl: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) -> io::Result<bool>;
     fn get_declaration_statements_for_source_file(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>>;
     fn is_import_required_by_augmentation(
         &self,
-        decl: &Node, /*ImportDeclaration*/
+        decl: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<bool>;
 }
 

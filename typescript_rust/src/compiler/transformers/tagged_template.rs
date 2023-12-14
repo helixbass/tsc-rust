@@ -13,16 +13,16 @@ pub enum ProcessLevel {
 
 pub fn process_tagged_template_expression(
     context: &(impl TransformationContext + ?Sized),
-    node: &Node, /*TaggedTemplateExpression*/
-    mut visitor: impl FnMut(&Node) -> VisitResult,
-    current_source_file: &Node, /*SourceFile*/
-    record_tagged_template_string: impl FnMut(&Node /*Identifier*/),
+    node: Id<Node>, /*TaggedTemplateExpression*/
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
+    current_source_file: Id<Node>, /*SourceFile*/
+    record_tagged_template_string: impl FnMut(Id<Node> /*Identifier*/),
     level: ProcessLevel,
 ) -> Id<Node> {
     try_process_tagged_template_expression(
         context,
         node,
-        |node: &Node| Ok(visitor(node)),
+        |node: Id<Node>| Ok(visitor(node)),
         current_source_file,
         record_tagged_template_string,
         level,
@@ -32,10 +32,10 @@ pub fn process_tagged_template_expression(
 
 pub fn try_process_tagged_template_expression(
     _context: &(impl TransformationContext + ?Sized),
-    _node: &Node, /*TaggedTemplateExpression*/
-    _visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
-    _current_source_file: &Node, /*SourceFile*/
-    _record_tagged_template_string: impl FnMut(&Node /*Identifier*/),
+    _node: Id<Node>, /*TaggedTemplateExpression*/
+    _visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
+    _current_source_file: Id<Node>, /*SourceFile*/
+    _record_tagged_template_string: impl FnMut(Id<Node> /*Identifier*/),
     _level: ProcessLevel,
 ) -> io::Result<Id<Node>> {
     unimplemented!()

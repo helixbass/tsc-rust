@@ -20,7 +20,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_resolved_symbol(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Symbol>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_symbol.is_none() {
@@ -43,8 +43,8 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn is_in_type_query(&self, node: &Node) -> bool {
-        find_ancestor(Some(node), |n: &Node| {
+    pub(super) fn is_in_type_query(&self, node: Id<Node>) -> bool {
+        find_ancestor(Some(node), |n: Id<Node>| {
             if n.kind() == SyntaxKind::TypeQuery {
                 true.into()
             } else if matches!(n.kind(), SyntaxKind::Identifier | SyntaxKind::QualifiedName) {
@@ -58,7 +58,7 @@ impl TypeChecker {
 
     pub(super) fn get_flow_cache_key(
         &self,
-        node: &Node,
+        node: Id<Node>,
         declared_type: Id<Type>,
         initial_type: Id<Type>,
         flow_container: Option<impl Borrow<Node>>,
@@ -149,7 +149,11 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn is_matching_reference(&self, source: &Node, target: &Node) -> io::Result<bool> {
+    pub(super) fn is_matching_reference(
+        &self,
+        source: Id<Node>,
+        target: Id<Node>,
+    ) -> io::Result<bool> {
         match target.kind() {
             SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
                 return self
@@ -236,7 +240,7 @@ impl TypeChecker {
 
     pub(super) fn get_property_access(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Node>>> {
         if is_access_expression(expr) {
             return Ok(Some(expr.node_wrapper()));
@@ -284,7 +288,7 @@ impl TypeChecker {
 
     pub(super) fn get_accessed_property_name(
         &self,
-        access: &Node, /*AccessExpression | BindingElement */
+        access: Id<Node>, /*AccessExpression | BindingElement */
     ) -> io::Result<Option<__String>> {
         let mut property_name: Option<String> = None;
         Ok(if access.kind() == SyntaxKind::PropertyAccessExpression {
@@ -323,8 +327,8 @@ impl TypeChecker {
 
     pub(super) fn contains_matching_reference(
         &self,
-        source: &Node,
-        target: &Node,
+        source: Id<Node>,
+        target: Id<Node>,
     ) -> io::Result<bool> {
         let mut source = source.node_wrapper();
         while is_access_expression(&source) {
@@ -338,8 +342,8 @@ impl TypeChecker {
 
     pub(super) fn optional_chain_contains_reference(
         &self,
-        source: &Node,
-        target: &Node,
+        source: Id<Node>,
+        target: Id<Node>,
     ) -> io::Result<bool> {
         let mut source = source.node_wrapper();
         while is_optional_chain(&source) {
@@ -564,7 +568,7 @@ impl TypeChecker {
     pub(super) fn get_matching_union_constituent_for_object_literal(
         &self,
         union_type: Id<Type>, /*UnionType*/
-        node: &Node,          /*ObjectLiteralExpression*/
+        node: Id<Node>,       /*ObjectLiteralExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let key_property_name = self.get_key_property_name(union_type)?;
         let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
@@ -598,8 +602,8 @@ impl TypeChecker {
 
     pub(super) fn is_or_contains_matching_reference(
         &self,
-        source: &Node,
-        target: &Node,
+        source: Id<Node>,
+        target: Id<Node>,
     ) -> io::Result<bool> {
         Ok(self.is_matching_reference(source, target)?
             || self.contains_matching_reference(source, target)?)
@@ -607,8 +611,8 @@ impl TypeChecker {
 
     pub(super) fn has_matching_argument(
         &self,
-        expression: &Node, /*CallExpression | NewExpression*/
-        reference: &Node,
+        expression: Id<Node>, /*CallExpression | NewExpression*/
+        reference: Id<Node>,
     ) -> io::Result<bool> {
         if let Some(expression_arguments) = expression.as_has_arguments().maybe_arguments() {
             for argument in &expression_arguments {
@@ -924,7 +928,7 @@ impl TypeChecker {
     pub(super) fn get_type_with_default(
         &self,
         type_: Id<Type>,
-        default_expression: &Node, /*Expression*/
+        default_expression: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         /*defaultExpression ? */
         self.get_union_type(
@@ -943,7 +947,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_destructured_property(
         &self,
         type_: Id<Type>,
-        name: &Node, /*PropertyName*/
+        name: Id<Node>, /*PropertyName*/
     ) -> io::Result<Id<Type>> {
         let name_type = self.get_literal_type_from_property_name(name)?;
         if !self.is_type_usable_as_property_name(name_type) {
@@ -978,7 +982,7 @@ impl TypeChecker {
                         IterationUse::Destructuring,
                         type_,
                         self.undefined_type(),
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     )?,
                 ))
             })?
@@ -1015,7 +1019,7 @@ impl TypeChecker {
                 IterationUse::Destructuring,
                 type_,
                 self.undefined_type(),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?, /* || errorType */
             None,
         ))
@@ -1023,7 +1027,7 @@ impl TypeChecker {
 
     pub(super) fn get_assigned_type_of_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Id<Type>> {
         let is_destructuring_default_assignment = node.parent().kind()
             == SyntaxKind::ArrayLiteralExpression
@@ -1040,7 +1044,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_destructuring_assignment_target(&self, parent: &Node) -> bool {
+    pub(super) fn is_destructuring_assignment_target(&self, parent: Id<Node>) -> bool {
         parent.parent().kind() == SyntaxKind::BinaryExpression
             && ptr::eq(&*parent.parent().as_binary_expression().left, parent)
             || parent.parent().kind() == SyntaxKind::ForOfStatement
@@ -1049,8 +1053,8 @@ impl TypeChecker {
 
     pub(super) fn get_assigned_type_of_array_literal_element(
         &self,
-        node: &Node,    /*ArrayLiteralExpression*/
-        element: &Node, /*Expression*/
+        node: Id<Node>,    /*ArrayLiteralExpression*/
+        element: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         self.get_type_of_destructured_array_element(
             self.get_assigned_type(node)?,
@@ -1064,14 +1068,14 @@ impl TypeChecker {
 
     pub(super) fn get_assigned_type_of_spread_expression(
         &self,
-        node: &Node, /*SpreadElement*/
+        node: Id<Node>, /*SpreadElement*/
     ) -> io::Result<Id<Type>> {
         self.get_type_of_destructured_spread_expression(self.get_assigned_type(&node.parent())?)
     }
 
     pub(super) fn get_assigned_type_of_property_assignment(
         &self,
-        node: &Node, /*PropertyAssignment | ShorthandPropertyAssignment*/
+        node: Id<Node>, /*PropertyAssignment | ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Type>> {
         self.get_type_of_destructured_property(
             self.get_assigned_type(&node.parent())?,
@@ -1081,7 +1085,7 @@ impl TypeChecker {
 
     pub(super) fn get_assigned_type_of_shorthand_property_assignment(
         &self,
-        node: &Node, /*ShorthandPropertyAssignment*/
+        node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Type>> {
         self.get_type_with_default(
             self.get_assigned_type_of_property_assignment(node)?,
@@ -1094,7 +1098,7 @@ impl TypeChecker {
 
     pub(super) fn get_assigned_type(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let parent = node.parent();
         Ok(match parent.kind() {

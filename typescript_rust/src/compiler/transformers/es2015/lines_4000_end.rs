@@ -28,12 +28,12 @@ impl TransformES2015 {
 
     pub(super) fn visit_expression_of_spread(
         &self,
-        node: &Node, /*SpreadElement*/
+        node: Id<Node>, /*SpreadElement*/
     ) -> io::Result<SpreadSegment> {
         let node_as_spread_element = node.as_spread_element();
         let mut expression = try_visit_node(
             &node_as_spread_element.expression,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
@@ -70,7 +70,7 @@ impl TransformES2015 {
                 &self
                     .factory
                     .create_node_array(Some(chunk), Some(has_trailing_comma)),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 None,
                 None,
@@ -83,13 +83,13 @@ impl TransformES2015 {
 
     pub(super) fn visit_spread_element(
         &self,
-        node: &Node, /*SpreadElement*/
+        node: Id<Node>, /*SpreadElement*/
     ) -> io::Result<VisitResult> {
         let node_as_spread_element = node.as_spread_element();
         Ok(Some(
             try_visit_node(
                 &node_as_spread_element.expression,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?
@@ -99,14 +99,17 @@ impl TransformES2015 {
 
     pub(super) fn visit_template_literal(
         &self,
-        node: &Node, /*LiteralExpression*/
+        node: Id<Node>, /*LiteralExpression*/
     ) -> Id<Node /*LeftHandSideExpression*/> {
         self.factory
             .create_string_literal(node.as_literal_like_node().text().clone(), None, None)
             .set_text_range(Some(node))
     }
 
-    pub(super) fn visit_string_literal(&self, node: &Node /*StringLiteral*/) -> VisitResult {
+    pub(super) fn visit_string_literal(
+        &self,
+        node: Id<Node>, /*StringLiteral*/
+    ) -> VisitResult {
         let node_as_string_literal = node.as_string_literal();
         if node_as_string_literal.has_extended_unicode_escape() == Some(true) {
             return Some(
@@ -119,7 +122,10 @@ impl TransformES2015 {
         Some(node.node_wrapper().into())
     }
 
-    pub(super) fn visit_numeric_literal(&self, node: &Node /*NumericLiteral*/) -> VisitResult {
+    pub(super) fn visit_numeric_literal(
+        &self,
+        node: Id<Node>, /*NumericLiteral*/
+    ) -> VisitResult {
         let node_as_numeric_literal = node.as_numeric_literal();
         if node_as_numeric_literal
             .numeric_literal_flags
@@ -137,15 +143,15 @@ impl TransformES2015 {
 
     pub(super) fn visit_tagged_template_expression(
         &self,
-        node: &Node, /*TaggedTemplateExpression*/
+        node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<VisitResult> {
         Ok(Some(
             try_process_tagged_template_expression(
                 &**self.context,
                 node,
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &self.current_source_file(),
-                |node: &Node| self.record_tagged_template_string(node),
+                |node: Id<Node>| self.record_tagged_template_string(node),
                 ProcessLevel::All,
             )?
             .into(),
@@ -154,7 +160,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_template_expression(
         &self,
-        node: &Node, /*TemplateExpression*/
+        node: Id<Node>, /*TemplateExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_template_expression = node.as_template_expression();
         let mut expression: Id<Node /*Expression*/> = self.factory.create_string_literal(
@@ -170,7 +176,7 @@ impl TransformES2015 {
             let span_as_template_span = span.as_template_span();
             let mut args = vec![try_visit_node(
                 &span_as_template_span.expression,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?];
@@ -232,7 +238,7 @@ impl TransformES2015 {
         }
     }
 
-    pub(super) fn visit_meta_property(&self, node: &Node /*MetaProperty*/) -> VisitResult {
+    pub(super) fn visit_meta_property(&self, node: Id<Node> /*MetaProperty*/) -> VisitResult {
         let node_as_meta_property = node.as_meta_property();
         if node_as_meta_property.keyword_token == SyntaxKind::NewKeyword
             && node_as_meta_property.name.as_identifier().escaped_text == "target"
@@ -299,8 +305,8 @@ impl TransformES2015 {
 
     pub(super) fn get_class_member_prefix(
         &self,
-        node: &Node,   /*ClassExpression | ClassDeclaration*/
-        member: &Node, /*ClassElement*/
+        node: Id<Node>,   /*ClassExpression | ClassDeclaration*/
+        member: Id<Node>, /*ClassElement*/
     ) -> Id<Node> {
         if is_static(member) {
             self.factory.get_internal_name(node, None, None)
@@ -318,7 +324,7 @@ impl TransformES2015 {
         has_extends_clause: bool,
     ) -> bool {
         let constructor = return_default_if_none!(constructor);
-        let constructor: &Node = constructor.borrow();
+        let constructor: Id<Node> = constructor.borrow();
         let constructor_as_constructor_declaration = constructor.as_constructor_declaration();
         if !has_extends_clause {
             return false;

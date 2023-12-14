@@ -20,7 +20,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn is_type_assertion(&self, node: &Node /*Expression*/) -> bool {
+    pub(super) fn is_type_assertion(&self, node: Id<Node> /*Expression*/) -> bool {
         let node = skip_parentheses(node, Some(true));
         matches!(
             node.kind(),
@@ -30,7 +30,7 @@ impl TypeChecker {
 
     pub(super) fn check_declaration_initializer(
         &self,
-        declaration: &Node, /*HasExpressionInitializer*/
+        declaration: Id<Node>, /*HasExpressionInitializer*/
         contextual_type: Option<Id<Type>>,
     ) -> io::Result<Id<Type>> {
         let initializer = get_effective_initializer(declaration).unwrap();
@@ -77,8 +77,8 @@ impl TypeChecker {
 
     pub(super) fn pad_tuple_type(
         &self,
-        type_: Id<Type>, /*TupleTypeReference*/
-        pattern: &Node,  /*ArrayBindingPattern*/
+        type_: Id<Type>,   /*TupleTypeReference*/
+        pattern: Id<Node>, /*ArrayBindingPattern*/
     ) -> io::Result<Id<Type>> {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_)?;
@@ -111,7 +111,7 @@ impl TypeChecker {
 
     pub(super) fn widen_type_inferred_from_initializer(
         &self,
-        declaration: &Node, /*HasExpressionInitializer*/
+        declaration: Id<Node>, /*HasExpressionInitializer*/
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const)
@@ -204,7 +204,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_const_context(&self, node: &Node /*Expression*/) -> bool {
+    pub(super) fn is_const_context(&self, node: Id<Node> /*Expression*/) -> bool {
         let parent = node.parent();
         is_assertion_expression(&parent)
             && is_const_type_reference(&parent.as_has_type().maybe_type().unwrap())
@@ -222,7 +222,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_for_mutable_location(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         check_mode: Option<CheckMode>,
         contextual_type: Option<Id<Type>>,
         force_tuple: Option<bool>,
@@ -250,7 +250,7 @@ impl TypeChecker {
 
     pub(super) fn check_property_assignment(
         &self,
-        node: &Node, /*PropertyAssignment*/
+        node: Id<Node>, /*PropertyAssignment*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_property_assignment = node.as_property_assignment();
@@ -267,7 +267,7 @@ impl TypeChecker {
 
     pub(super) fn check_object_literal_method(
         &self,
-        node: &Node, /*MethodDeclaration*/
+        node: Id<Node>, /*MethodDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.check_grammar_method(node)?;
@@ -288,7 +288,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_type_with_single_generic_call_signature(
         &self,
-        node: &Node, /*Expression | MethodDeclaration | QualifiedName*/
+        node: Id<Node>, /*Expression | MethodDeclaration | QualifiedName*/
         type_: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
@@ -426,7 +426,7 @@ impl TypeChecker {
         Ok(type_)
     }
 
-    pub(super) fn skipped_generic_function(&self, node: &Node, check_mode: CheckMode) {
+    pub(super) fn skipped_generic_function(&self, node: Id<Node>, check_mode: CheckMode) {
         if check_mode.intersects(CheckMode::Inferential) {
             let context = self.get_inference_context(node).unwrap();
             context.set_flags(context.flags() | InferenceFlags::SkippedGenericFunction);
@@ -573,7 +573,7 @@ impl TypeChecker {
 
     pub(super) fn get_return_type_of_single_non_generic_signature_of_call_chain(
         &self,
-        expr: &Node, /*CallChain*/
+        expr: Id<Node>, /*CallChain*/
     ) -> io::Result<Option<Id<Type>>> {
         let expr_as_call_expression = expr.as_call_expression();
         let func_type = self.check_expression(&expr_as_call_expression.expression, None, None)?;
@@ -587,7 +587,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_expression(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let quick_type = self.get_quick_type_of_expression(node)?;
         if let Some(quick_type) = quick_type {
@@ -617,7 +617,7 @@ impl TypeChecker {
 
     pub(super) fn get_quick_type_of_expression(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         let mut expr = skip_parentheses(node, Some(true));
         if is_jsdoc_type_assertion(&expr) {
@@ -662,7 +662,7 @@ impl TypeChecker {
 
     pub(super) fn get_context_free_type_of_expression(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if let Some(links_context_free_type) = (*links).borrow().context_free_type.clone() {
@@ -682,7 +682,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression(
         &self,
-        node: &Node, /*Expression | QualifiedName*/
+        node: Id<Node>, /*Expression | QualifiedName*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -706,7 +706,7 @@ impl TypeChecker {
 
     pub(super) fn check_const_enum_access(
         &self,
-        node: &Node, /*Expression | QualifiedName*/
+        node: Id<Node>, /*Expression | QualifiedName*/
         type_: Id<Type>,
     ) {
         let ok = (node.parent().kind() == SyntaxKind::PropertyAccessExpression
@@ -766,7 +766,7 @@ impl TypeChecker {
 
     pub(super) fn check_parenthesized_expression(
         &self,
-        node: &Node, /*ParenthesizedExpression*/
+        node: Id<Node>, /*ParenthesizedExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
@@ -788,7 +788,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_worker(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
     ) -> io::Result<Id<Type>> {

@@ -26,7 +26,7 @@ impl TypeChecker {
     pub(super) fn error_on_implicit_any_module(
         &self,
         is_error: bool,
-        error_node: &Node,
+        error_node: Id<Node>,
         resolved_module: &ResolvedModuleFull,
         module_reference: &str,
     ) {
@@ -189,7 +189,7 @@ impl TypeChecker {
     pub(super) fn resolve_es_module_symbol(
         &self,
         module_symbol: Option<Id<Symbol>>,
-        referencing_location: &Node,
+        referencing_location: Id<Node>,
         dont_resolve_alias: bool,
         suppress_interop_error: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
@@ -286,7 +286,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         module_type: Id<Type>,
-        reference_parent: &Node, /*ImportDeclaration | ImportCall*/
+        reference_parent: Id<Node>, /*ImportDeclaration | ImportCall*/
     ) -> io::Result<Id<Symbol>> {
         let result = self.alloc_symbol(
             self.create_symbol(
@@ -644,7 +644,7 @@ impl TypeChecker {
                 &mut symbols,
                 Some(&nested_symbols),
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?;
         }
         Ok(Some(symbols))
@@ -660,7 +660,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_symbol_of_node(&self, node: &Node) -> io::Result<Option<Id<Symbol>>> {
+    pub(super) fn get_symbol_of_node(&self, node: Id<Node>) -> io::Result<Option<Id<Symbol>>> {
         Ok(self.get_merged_symbol(
             node.maybe_symbol()
                 .try_map(|node_symbol| self.get_late_bound_symbol(node_symbol))?,
@@ -682,7 +682,7 @@ impl TypeChecker {
     pub(super) fn get_alternative_containing_modules(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: &Node,
+        enclosing_declaration: Id<Node>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let containing_file = get_source_file_of_node(enclosing_declaration);
         let id = get_node_id(&containing_file);
@@ -964,7 +964,7 @@ impl TypeChecker {
 
     pub(super) fn get_file_symbol_if_file_symbol_export_equals_container(
         &self,
-        d: &Node, /*Declaration*/
+        d: Id<Node>, /*Declaration*/
         container: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let file_symbol = self.get_external_module_container(d)?;

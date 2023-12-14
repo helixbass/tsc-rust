@@ -46,13 +46,13 @@ impl TypeChecker {
             let error_node = error_node.borrow();
             if report_errors && error_output_container.errors_len() > 0 {
                 if self
-                    .get_awaited_type_of_promise(target, Option::<&Node>::None, None, None)?
+                    .get_awaited_type_of_promise(target, Option::<Id<Node>>::None, None, None)?
                     .is_some()
                 {
                     return Ok(());
                 }
                 let awaited_type_of_source =
-                    self.get_awaited_type_of_promise(source, Option::<&Node>::None, None, None)?;
+                    self.get_awaited_type_of_promise(source, Option::<Id<Node>>::None, None, None)?;
                 if matches!(
                     awaited_type_of_source,
                     Some(awaited_type_of_source) if self.is_type_related_to(
@@ -81,7 +81,7 @@ impl TypeChecker {
 
     pub(super) fn get_this_argument_of_call(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
     ) -> Option<Id<Node /*LeftHandSideExpression*/>> {
         let expression = if node.kind() == SyntaxKind::CallExpression {
             Some(node.as_call_expression().expression.clone())
@@ -101,7 +101,7 @@ impl TypeChecker {
 
     pub(super) fn create_synthetic_expression<TTupleNameSource: Borrow<Node>>(
         &self,
-        parent: &Node,
+        parent: Id<Node>,
         type_: Id<Type>,
         is_spread: Option<bool>,
         tuple_name_source: Option<
@@ -123,7 +123,7 @@ impl TypeChecker {
 
     pub(super) fn get_effective_call_arguments(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<Vec<Id<Node /*Expression*/>>> {
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
             let template = &node.as_tagged_template_expression().template;
@@ -131,7 +131,7 @@ impl TypeChecker {
                 template,
                 self.get_global_template_strings_array_type()?,
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )];
             if template.kind() == SyntaxKind::TemplateExpression {
                 for_each(
@@ -225,7 +225,7 @@ impl TypeChecker {
 
     pub(super) fn get_effective_decorator_arguments(
         &self,
-        node: &Node, /*Decorator*/
+        node: Id<Node>, /*Decorator*/
     ) -> io::Result<Vec<Id<Node /*Expression*/>>> {
         let parent = node.parent();
         let expr = &node.as_decorator().expression;
@@ -235,7 +235,7 @@ impl TypeChecker {
                     expr,
                     self.get_type_of_symbol(self.get_symbol_of_node(&parent)?.unwrap())?,
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )]
             }
             SyntaxKind::Parameter => {
@@ -249,19 +249,19 @@ impl TypeChecker {
                             self.error_type()
                         },
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
                         self.any_type(),
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
                         self.number_type(),
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     ),
                 ]
             }
@@ -276,13 +276,13 @@ impl TypeChecker {
                         expr,
                         self.get_parent_type_of_class_element(&parent)?,
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
                         self.get_class_element_property_key_type(&parent)?,
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
@@ -294,7 +294,7 @@ impl TypeChecker {
                             self.any_type()
                         },
                         None,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     ),
                 ]
             }
@@ -304,7 +304,7 @@ impl TypeChecker {
 
     pub(super) fn get_decorator_argument_count(
         &self,
-        node: &Node, /*Decorator*/
+        node: Id<Node>, /*Decorator*/
         signature: &Signature,
     ) -> usize {
         match node.parent().kind() {
@@ -324,7 +324,7 @@ impl TypeChecker {
 
     pub(super) fn get_diagnostic_span_for_call_node(
         &self,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
         do_not_include_arguments: Option<bool>,
     ) -> GetDiagnosticSpanForCallNodeReturn {
         let start: isize;
@@ -365,7 +365,7 @@ impl TypeChecker {
 
     pub(super) fn get_diagnostic_for_call_node(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic /*DiagnosticWithLocation*/> {
@@ -383,7 +383,7 @@ impl TypeChecker {
 
     pub(super) fn is_promise_resolve_arity_error(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<bool> {
         if !is_call_expression(node) {
             return Ok(false);
@@ -433,7 +433,7 @@ impl TypeChecker {
 
     pub(super) fn get_argument_arity_error(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         signatures: &[Gc<Signature>],
         args: &[Id<Node /*Expression*/>],
     ) -> io::Result<Gc<Diagnostic>> {
@@ -603,7 +603,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_argument_arity_error(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         signatures: &[Gc<Signature>],
         type_arguments: &NodeArray, /*<TypeNode>*/
     ) -> Gc<Diagnostic> {
@@ -681,7 +681,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_call(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         signatures: &[Gc<Signature>],
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
@@ -1028,7 +1028,7 @@ impl TypeChecker {
         candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
         candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
         type_arguments: Option<&NodeArray>,
-        node: &Node,
+        node: Id<Node>,
         args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
         failed: &Signature,
@@ -1106,7 +1106,7 @@ impl TypeChecker {
         candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
         candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
         type_arguments: Option<&NodeArray>,
-        node: &Node,
+        node: Id<Node>,
         args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
         candidates: &mut Vec<Gc<Signature>>,
@@ -1373,7 +1373,7 @@ impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageCha
                 self.candidates_len.to_string(),
                 self.type_checker.signature_to_string_(
                     self.c.clone(),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                     None,

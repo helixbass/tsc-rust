@@ -84,7 +84,7 @@ impl TypeChecker {
 
     pub(super) fn get_signature_from_declaration_(
         &self,
-        declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
+        declaration: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
     ) -> io::Result<Gc<Signature>> {
         let links = self.get_node_links(declaration);
         if (*links).borrow().resolved_signature.is_none() {
@@ -238,7 +238,7 @@ impl TypeChecker {
 
     pub(super) fn maybe_add_js_synthetic_rest_parameter(
         &self,
-        declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
+        declaration: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
         parameters: &mut Vec<Id<Symbol>>,
     ) -> io::Result<bool> {
         if is_jsdoc_signature(declaration) || !self.contains_arguments_reference(declaration)? {
@@ -300,7 +300,7 @@ impl TypeChecker {
 
     pub(super) fn get_signature_of_type_tag(
         &self,
-        node: &Node, /*SignatureDeclaration | JSDocSignature*/
+        node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
     ) -> io::Result<Option<Gc<Signature>>> {
         if !(is_in_js_file(Some(node)) && is_function_like_declaration(node)) {
             return Ok(None);
@@ -320,7 +320,7 @@ impl TypeChecker {
 
     pub(super) fn get_return_type_of_type_tag(
         &self,
-        node: &Node, /*SignatureDeclaration | JSDocSignature*/
+        node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
     ) -> io::Result<Option<Id<Type>>> {
         let signature = self.get_signature_of_type_tag(node)?;
         signature.try_map(|signature| self.get_return_type_of_signature(signature))
@@ -328,7 +328,7 @@ impl TypeChecker {
 
     pub(super) fn contains_arguments_reference(
         &self,
-        declaration: &Node, /*SignatureDeclaration*/
+        declaration: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         let links = self.get_node_links(declaration);
         if (*links).borrow().contains_arguments_reference.is_none() {
@@ -430,7 +430,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_external_module_type_by_literal(
         &self,
-        name: &Node, /*StringLiteral*/
+        name: Id<Node>, /*StringLiteral*/
     ) -> io::Result<Id<Type>> {
         let module_sym = self.resolve_external_module_name_(name, name, None)?;
         if let Some(module_sym) = module_sym {
@@ -521,7 +521,7 @@ impl TypeChecker {
 
     pub(super) fn create_type_predicate_from_type_predicate_node(
         &self,
-        node: &Node, /*TypePredicateNode*/
+        node: Id<Node>, /*TypePredicateNode*/
         signature: &Signature,
     ) -> io::Result<TypePredicate> {
         let node_as_type_predicate_node = node.as_type_predicate_node();
@@ -675,7 +675,7 @@ impl TypeChecker {
 
     pub(super) fn get_return_type_from_annotation(
         &self,
-        declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
+        declaration: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
     ) -> io::Result<Option<Id<Type>>> {
         if declaration.kind() == SyntaxKind::Constructor {
             return Ok(Some(

@@ -453,7 +453,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_intersection_type_node(
         &self,
-        node: &Node, /*IntersectionTypeNode*/
+        node: Id<Node>, /*IntersectionTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -715,7 +715,7 @@ impl TypeChecker {
 
     pub(super) fn get_literal_type_from_property_name(
         &self,
-        name: &Node, /*PropertyName*/
+        name: Id<Node>, /*PropertyName*/
     ) -> io::Result<Id<Type>> {
         if is_private_identifier(name) {
             return Ok(self.never_type());
@@ -928,7 +928,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_type_operator_node(
         &self,
-        node: &Node, /*TypeOperatorNode*/
+        node: Id<Node>, /*TypeOperatorNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -967,7 +967,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_template_type_node(
         &self,
-        node: &Node, /*TemplateLiteralTypeNode*/
+        node: Id<Node>, /*TemplateLiteralTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {

@@ -29,7 +29,7 @@ impl BinderType {
         BindBinaryExpressionFlow::new(trampoline)
     }
 
-    pub(super) fn bind_delete_expression_flow(&self, node: &Node /*DeleteExpression*/) {
+    pub(super) fn bind_delete_expression_flow(&self, node: Id<Node> /*DeleteExpression*/) {
         self.bind_each_child(node);
         let node_as_delete_expression = node.as_delete_expression();
         if node_as_delete_expression.expression.kind() == SyntaxKind::PropertyAccessExpression {
@@ -39,7 +39,7 @@ impl BinderType {
 
     pub(super) fn bind_conditional_expression_flow(
         &self,
-        node: &Node, /*ConditionalExpression*/
+        node: Id<Node>, /*ConditionalExpression*/
     ) {
         let true_label = self.create_branch_label();
         let false_label = self.create_branch_label();
@@ -63,7 +63,7 @@ impl BinderType {
 
     pub(super) fn bind_initialized_variable_flow(
         &self,
-        node: &Node, /*VariableDeclaration | ArrayBindingElement*/
+        node: Id<Node>, /*VariableDeclaration | ArrayBindingElement*/
     ) {
         let name: Option<Id<Node>> = if !is_omitted_expression(node) {
             node.as_named_declaration().maybe_name()
@@ -83,7 +83,10 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_variable_declaration_flow(&self, node: &Node /*VariableDeclaration*/) {
+    pub(super) fn bind_variable_declaration_flow(
+        &self,
+        node: Id<Node>, /*VariableDeclaration*/
+    ) {
         self.bind_each_child(node);
         if node.as_variable_declaration().maybe_initializer().is_some()
             || is_for_in_or_of_statement(&node.parent().parent())
@@ -92,7 +95,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_binding_element_flow(&self, node: &Node /*BindingElement*/) {
+    pub(super) fn bind_binding_element_flow(&self, node: Id<Node> /*BindingElement*/) {
         let node_as_binding_element = node.as_binding_element();
         if is_binding_pattern(node_as_binding_element.maybe_name()) {
             self.bind_each(node_as_binding_element.maybe_decorators().as_double_deref());
@@ -108,7 +111,7 @@ impl BinderType {
 
     pub(super) fn bind_jsdoc_type_alias(
         &self,
-        node: &Node, /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/
+        node: Id<Node>, /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/
     ) {
         let node_as_jsdoc_tag = node.as_jsdoc_tag();
         self.bind(Some(node_as_jsdoc_tag.tag_name()));
@@ -125,7 +128,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_jsdoc_class_tag(&self, node: &Node /*JSDocClassTag*/) {
+    pub(super) fn bind_jsdoc_class_tag(&self, node: Id<Node> /*JSDocClassTag*/) {
         self.bind_each_child(node);
         let host = get_host_signature_from_jsdoc(node);
         if let Some(host) = host.filter(|host| host.kind() != SyntaxKind::MethodDeclaration) {
@@ -135,7 +138,7 @@ impl BinderType {
 
     pub(super) fn bind_optional_expression(
         &self,
-        node: &Node, /*expression*/
+        node: Id<Node>, /*expression*/
         true_target: Gc<FlowNode /*FlowLabel*/>,
         false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
@@ -165,7 +168,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_optional_chain_rest(&self, node: &Node /*OptionalChain*/) {
+    pub(super) fn bind_optional_chain_rest(&self, node: Id<Node> /*OptionalChain*/) {
         match node.kind() {
             SyntaxKind::PropertyAccessExpression => {
                 let node_as_property_access_expression = node.as_property_access_expression();
@@ -199,7 +202,7 @@ impl BinderType {
 
     pub(super) fn bind_optional_chain(
         &self,
-        node: &Node, /*OptionalChain*/
+        node: Id<Node>, /*OptionalChain*/
         true_target: Gc<FlowNode /*FlowLabel*/>,
         false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
@@ -244,7 +247,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_optional_chain_flow(&self, node: &Node /*OptionalChain*/) {
+    pub(super) fn bind_optional_chain_flow(&self, node: Id<Node> /*OptionalChain*/) {
         if self.is_top_level_logical_expression(node) {
             let post_expression_label = self.create_branch_label();
             self.bind_optional_chain(
@@ -264,7 +267,7 @@ impl BinderType {
 
     pub(super) fn bind_non_null_expression_flow(
         &self,
-        node: &Node, /*NonNullExpression | NonNullChain*/
+        node: Id<Node>, /*NonNullExpression | NonNullChain*/
     ) {
         if is_optional_chain(node) {
             self.bind_optional_chain_flow(node);
@@ -275,7 +278,7 @@ impl BinderType {
 
     pub(super) fn bind_access_expression_flow(
         &self,
-        node: &Node, /*AccessExpression | PropertyAccessChain | ElementAccessChain*/
+        node: Id<Node>, /*AccessExpression | PropertyAccessChain | ElementAccessChain*/
     ) {
         if is_optional_chain(node) {
             self.bind_optional_chain_flow(node);
@@ -286,7 +289,7 @@ impl BinderType {
 
     pub(super) fn bind_call_expression_flow(
         &self,
-        node: &Node, /*CallExpression | CallChain*/
+        node: Id<Node>, /*CallExpression | CallChain*/
     ) {
         let node_as_call_expression = node.as_call_expression();
         if is_optional_chain(node) {
@@ -328,7 +331,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn get_container_flags(&self, node: &Node) -> ContainerFlags {
+    pub(super) fn get_container_flags(&self, node: Id<Node>) -> ContainerFlags {
         match node.kind() {
             SyntaxKind::ClassExpression
             | SyntaxKind::ClassDeclaration
@@ -419,7 +422,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn add_to_container_chain(&self, next: &Node) {
+    pub(super) fn add_to_container_chain(&self, next: Id<Node>) {
         if let Some(last_container) = self.maybe_last_container() {
             last_container.set_next_container(Some(next.node_wrapper()));
         }
@@ -429,7 +432,7 @@ impl BinderType {
 
     pub(super) fn declare_symbol_and_add_to_symbol_table(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Option<Id<Symbol>> {
@@ -504,7 +507,7 @@ impl BinderType {
 
     pub(super) fn declare_class_member(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Id<Symbol> {
@@ -533,7 +536,7 @@ impl BinderType {
 
     pub(super) fn declare_source_file_member(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Id<Symbol> {
@@ -554,7 +557,7 @@ impl BinderType {
 
     pub(super) fn has_export_declarations(
         &self,
-        node: &Node, /*ModuleDeclaration | SourceFile*/
+        node: Id<Node>, /*ModuleDeclaration | SourceFile*/
     ) -> bool {
         let body: Option<Id<Node>> = if is_source_file(node) {
             Some(node.node_wrapper())
@@ -577,7 +580,7 @@ impl BinderType {
 
     pub(super) fn set_export_context_flag(
         &self,
-        node: &Node, /*ModuleDeclaration | SourceFile*/
+        node: Id<Node>, /*ModuleDeclaration | SourceFile*/
     ) {
         if node.flags().intersects(NodeFlags::Ambient) && !self.has_export_declarations(node) {
             node.set_flags(node.flags() | NodeFlags::ExportContext);
@@ -586,7 +589,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_module_declaration(&self, node: &Node /*ModuleDeclaration*/) {
+    pub(super) fn bind_module_declaration(&self, node: Id<Node> /*ModuleDeclaration*/) {
         self.set_export_context_flag(node);
         if is_ambient_module(node) {
             if has_syntactic_modifier(node, ModifierFlags::Export) {
@@ -665,7 +668,7 @@ impl BindBinaryExpressionFlow {
         Self { trampoline }
     }
 
-    pub fn call(&self, node: &Node /*BinaryExpression*/) {
+    pub fn call(&self, node: Id<Node> /*BinaryExpression*/) {
         self.trampoline.call(node, ()).expect("infallible?");
     }
 }
@@ -689,7 +692,7 @@ impl BindBinaryExpressionFlowStateMachine {
 
     pub fn maybe_bind(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> Option<Id<Node /*BinaryExpression*/>> {
         if
         /*node &&*/
@@ -708,7 +711,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
 
     fn on_enter(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         mut state: Option<Rc<RefCell<WorkArea>>>,
         _: (),
     ) -> io::Result<Rc<RefCell<WorkArea>>> {
@@ -764,9 +767,9 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
 
     fn on_left(
         &self,
-        left: &Node, /*Expression*/
+        left: Id<Node>, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
-        _node: &Node, /*BinaryExpression*/
+        _node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return Ok(self.maybe_bind(left));
@@ -776,9 +779,9 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
 
     fn on_operator(
         &self,
-        operator_token: &Node, /*BinaryOperatorToken*/
+        operator_token: Id<Node>, /*BinaryOperatorToken*/
         state: Rc<RefCell<WorkArea>>,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<()> {
         if !(*state).borrow().skip {
             if operator_token.kind() == SyntaxKind::CommaToken {
@@ -793,9 +796,9 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
 
     fn on_right(
         &self,
-        right: &Node, /*Expression*/
+        right: Id<Node>, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
-        _node: &Node, /*BinaryExpression*/
+        _node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return Ok(self.maybe_bind(right));
@@ -805,7 +808,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
 
     fn on_exit(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         state: Rc<RefCell<WorkArea>>,
     ) -> io::Result<()> {
         if !(*state).borrow().skip {

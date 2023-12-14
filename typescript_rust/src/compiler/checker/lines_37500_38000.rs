@@ -156,7 +156,7 @@ impl TypeChecker {
                 self.get_iteration_types_of_iterable_slow(
                     global_type,
                     resolver,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )
             })?;
         Ok(
@@ -306,7 +306,7 @@ impl TypeChecker {
 
     pub(super) fn report_type_not_iterable_error(
         &self,
-        error_node: &Node,
+        error_node: Id<Node>,
         type_: Id<Type>,
         allow_async_iterables: bool,
     ) -> io::Result<()> {
@@ -317,12 +317,12 @@ impl TypeChecker {
         };
         self.error_and_maybe_suggest_await(
             error_node,
-            self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
+            self.get_awaited_type_of_promise(type_, Option::<Id<Node>>::None, None, None)?
                 .is_some(),
             message,
             Some(vec![self.type_to_string_(
                 type_,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 None,
                 None,
             )?]),
@@ -378,7 +378,7 @@ impl TypeChecker {
                     self.get_iteration_types_of_iterator_slow(
                         global_type,
                         resolver,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     )
                 })?;
             let iteration_types = if Gc::ptr_eq(&global_iteration_types, &self.no_iteration_types())
@@ -807,15 +807,15 @@ impl TypeChecker {
         } else {
             &self.sync_iteration_types_resolver
         };
-        self.get_iteration_types_of_iterable(type_, use_, Option::<&Node>::None)?
+        self.get_iteration_types_of_iterable(type_, use_, Option::<Id<Node>>::None)?
             .try_or_else(|| {
-                self.get_iteration_types_of_iterator(type_, resolver, Option::<&Node>::None)
+                self.get_iteration_types_of_iterator(type_, resolver, Option::<Id<Node>>::None)
             })
     }
 
     pub(super) fn check_break_or_continue_statement(
         &self,
-        node: &Node, /*BreakOrContinueStatement*/
+        node: Id<Node>, /*BreakOrContinueStatement*/
     ) {
         if !self.check_grammar_statement_in_ambient_context(node) {
             self.check_grammar_break_or_continue_statement(node);
@@ -837,7 +837,7 @@ impl TypeChecker {
             )?
             .unwrap_or_else(|| self.error_type())
         } else if is_async {
-            self.get_awaited_type_no_alias(return_type, Option::<&Node>::None, None, None)?
+            self.get_awaited_type_no_alias(return_type, Option::<Id<Node>>::None, None, None)?
                 .unwrap_or_else(|| self.error_type())
         } else {
             return_type
@@ -846,7 +846,7 @@ impl TypeChecker {
 
     pub(super) fn is_unwrapped_return_type_void_or_any(
         &self,
-        func: &Node, /*SignatureDeclaration*/
+        func: Id<Node>, /*SignatureDeclaration*/
         return_type: Id<Type>,
     ) -> io::Result<bool> {
         let unwrapped_return_type =
@@ -860,7 +860,7 @@ impl TypeChecker {
 
     pub(super) fn check_return_statement(
         &self,
-        node: &Node, /*ReturnStatement*/
+        node: Id<Node>, /*ReturnStatement*/
     ) -> io::Result<()> {
         if self.check_grammar_statement_in_ambient_context(node) {
             return Ok(());

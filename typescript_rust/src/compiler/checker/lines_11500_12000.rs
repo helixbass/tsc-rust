@@ -438,7 +438,7 @@ impl TypeChecker {
     pub fn is_type_invalid_due_to_union_discriminant(
         &self,
         contextual_type: Id<Type>,
-        obj: &Node, /*ObjectLiteralExpression | JsxAttributes*/
+        obj: Id<Node>, /*ObjectLiteralExpression | JsxAttributes*/
     ) -> io::Result<bool> {
         let list = obj.as_has_properties().properties();
         let ret = list.iter().try_any(|property| -> io::Result<_> {
@@ -559,7 +559,7 @@ impl TypeChecker {
                     let access_flags = type_.ref_(self).as_indexed_access_type().access_flags;
                     access_flags
                 }),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 Option::<Id<Symbol>>::None,
                 None,
             )?;
@@ -583,7 +583,7 @@ impl TypeChecker {
                     let access_flags = type_.ref_(self).as_indexed_access_type().access_flags;
                     access_flags
                 }),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 Option::<Id<Symbol>>::None,
                 None,
             );
@@ -833,7 +833,7 @@ impl TypeChecker {
                             &Diagnostics::Type_parameter_0_has_a_circular_constraint,
                             Some(vec![self.type_to_string_(
                                 t,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?]),
@@ -994,7 +994,7 @@ impl TypeChecker {
                         let access_flags = t.ref_(self).as_indexed_access_type().access_flags;
                         access_flags
                     }),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Id<Symbol>>::None,
                     None,
                 )?

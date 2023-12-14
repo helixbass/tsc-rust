@@ -40,7 +40,7 @@ impl Program {
     pub(super) fn resolve_module_names_worker(
         &self,
         module_names: &[String],
-        containing_file: &Node, /*SourceFile*/
+        containing_file: Id<Node>, /*SourceFile*/
         reused_names: Option<&[String]>,
     ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
         if module_names.is_empty() {
@@ -106,7 +106,7 @@ impl Program {
 
     pub(super) fn get_redirect_reference_for_resolution(
         &self,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
     ) -> Option<Gc<ResolvedProjectReference>> {
         let file_as_source_file = file.as_source_file();
         let redirect = self
@@ -177,8 +177,8 @@ impl Program {
 
     pub(super) fn compare_default_lib_files(
         &self,
-        a: &Node, /*SourceFile*/
-        b: &Node, /*SourceFile*/
+        a: Id<Node>, /*SourceFile*/
+        b: Id<Node>, /*SourceFile*/
     ) -> Comparison {
         compare_values(
             Some(self.get_default_lib_file_priority(a)),
@@ -186,7 +186,7 @@ impl Program {
         )
     }
 
-    pub(super) fn get_default_lib_file_priority(&self, a: &Node /*SourceFile*/) -> usize {
+    pub(super) fn get_default_lib_file_priority(&self, a: Id<Node> /*SourceFile*/) -> usize {
         let a_file_name = a.as_source_file().file_name();
         if contains_path(
             &self.default_library_path(),
@@ -253,7 +253,7 @@ impl Program {
 
     pub fn get_syntactic_diagnostics(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(
@@ -267,7 +267,7 @@ impl Program {
 
     pub fn get_semantic_diagnostics(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
         self.try_get_diagnostics_helper(
@@ -281,7 +281,7 @@ impl Program {
 
     pub fn emit(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         emit_only_dts_files: Option<bool>,
@@ -311,7 +311,7 @@ impl Program {
 
     pub(super) fn emit_worker(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         emit_only_dts_files: Option<bool>,
@@ -409,7 +409,7 @@ impl Program {
     pub(super) fn resolve_module_names_reusing_old_state(
         &self,
         module_names: &[String],
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
     ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
         let file_as_source_file = file.as_source_file();
         if self.structure_is_reused() == StructureIsReused::Not
@@ -587,7 +587,7 @@ impl Program {
 
     pub(super) fn module_name_resolves_to_ambient_module_in_non_modified_file(
         &self,
-        old_source_file: Option<&Node>,
+        old_source_file: Option<Id<Node>>,
         module_name: &str,
         index: usize,
     ) -> bool {
@@ -1209,14 +1209,14 @@ impl Program {
         )
     }
 
-    pub fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
+    pub fn is_source_file_from_external_library(&self, file: Id<Node> /*SourceFile*/) -> bool {
         self.source_files_found_searching_node_modules()
             .get(&**file.as_source_file().path())
             .copied()
             == Some(true)
     }
 
-    pub fn is_source_file_default_library(&self, _file: &Node /*SourceFile*/) -> bool {
+    pub fn is_source_file_default_library(&self, _file: Id<Node> /*SourceFile*/) -> bool {
         unimplemented!()
     }
 
@@ -1244,9 +1244,9 @@ impl Program {
 
     pub(super) fn get_diagnostics_helper(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         mut get_diagnostics: impl FnMut(
-            &Node, /*SourceFile*/
+            Id<Node>, /*SourceFile*/
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> Vec<Gc<Diagnostic>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
@@ -1261,9 +1261,9 @@ impl Program {
 
     pub(super) fn try_get_diagnostics_helper(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         mut get_diagnostics: impl FnMut(
-            &Node, /*SourceFile*/
+            Id<Node>, /*SourceFile*/
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> io::Result<Vec<Gc<Diagnostic>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
@@ -1285,7 +1285,7 @@ impl Program {
 
     pub(super) fn get_program_diagnostics(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Gc<Diagnostic>> {
         if skip_type_checking(source_file, &self.options, |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
@@ -1317,7 +1317,7 @@ impl Program {
 
     pub fn get_declaration_diagnostics(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         let ref options = self.get_compiler_options();
@@ -1345,7 +1345,7 @@ impl Program {
 
     pub(super) fn get_syntactic_diagnostics_for_file(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
         // refactor eg get_diagnostics_helper() to use closures instead?
         _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
@@ -1371,7 +1371,7 @@ impl Program {
 
     pub(super) fn get_semantic_diagnostics_for_file(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
         Ok(concatenate(
@@ -1492,7 +1492,7 @@ impl EmitHost for ProgramEmitHost {
 
     fn get_source_file_from_reference(
         &self,
-        file: &Node, /*SourceFile | UnparsedSource*/
+        file: Id<Node>, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         self.program.get_source_file_from_reference(file, ref_)
@@ -1602,7 +1602,7 @@ impl SourceFileMayBeEmittedHost for ProgramEmitHost {
         self.program.get_compiler_options()
     }
 
-    fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
+    fn is_source_file_from_external_library(&self, file: Id<Node> /*SourceFile*/) -> bool {
         self.program.is_source_file_from_external_library(file)
     }
 

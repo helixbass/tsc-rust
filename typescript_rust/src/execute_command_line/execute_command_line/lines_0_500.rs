@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io, ptr, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     create_watch_of_config_file, create_watch_of_files_and_compiler_options, perform_compilation,
@@ -65,7 +66,7 @@ pub(super) fn get_counts_map() -> HashMap<&'static str, usize> {
     counts
 }
 
-pub(super) fn get_count_key(program: &Program, file: &Node /*SourceFile*/) -> &'static str {
+pub(super) fn get_count_key(program: &Program, file: Id<Node> /*SourceFile*/) -> &'static str {
     let file_as_source_file = file.as_source_file();
     if program.is_source_file_default_library(file) {
         return "Library";

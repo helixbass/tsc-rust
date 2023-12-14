@@ -1308,8 +1308,8 @@ impl TypeChecker {
                     self.maybe_current_node(),
                     &Diagnostics::Type_of_property_0_circularly_references_itself_in_mapped_type_1,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?,
-                        self.type_to_string_(mapped_type, Option::<&Node>::None, None, None)?,
+                        self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?,
+                        self.type_to_string_(mapped_type, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
                 type_ = self.error_type();

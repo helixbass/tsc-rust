@@ -29,7 +29,7 @@ use crate::{
 };
 
 pub fn create_diagnostic_for_node(
-    node: &Node,
+    node: Id<Node>,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
@@ -38,7 +38,7 @@ pub fn create_diagnostic_for_node(
 }
 
 pub fn create_diagnostic_for_node_array(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     nodes: &NodeArray,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
@@ -54,8 +54,8 @@ pub fn create_diagnostic_for_node_array(
 }
 
 pub fn create_diagnostic_for_node_in_source_file(
-    source_file: &Node, /*SourceFile*/
-    node: &Node,
+    source_file: Id<Node>, /*SourceFile*/
+    node: Id<Node>,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
@@ -64,7 +64,7 @@ pub fn create_diagnostic_for_node_in_source_file(
 }
 
 pub fn create_diagnostic_for_node_from_message_chain(
-    node: &Node,
+    node: Id<Node>,
     message_chain: DiagnosticMessageChain,
     related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
@@ -110,7 +110,7 @@ fn assert_diagnostic_location<TFile: Borrow<Node>>(
 }
 
 pub fn create_file_diagnostic_from_message_chain(
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
@@ -135,7 +135,7 @@ pub fn create_file_diagnostic_from_message_chain(
 }
 
 pub fn create_diagnostic_for_file_from_message_chain(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     message_chain: DiagnosticMessageChain,
     related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
@@ -157,7 +157,7 @@ pub fn create_diagnostic_for_file_from_message_chain(
 }
 
 pub fn create_diagnostic_for_range<TRange: TextRange>(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     range: &TRange,
     message: &DiagnosticMessage,
 ) -> DiagnosticWithLocation {
@@ -175,7 +175,7 @@ pub fn create_diagnostic_for_range<TRange: TextRange>(
 }
 
 pub fn get_span_of_token_at_position(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     pos: usize,
 ) -> TextSpan {
     let source_file_as_source_file = source_file.as_source_file();
@@ -198,8 +198,8 @@ pub fn get_span_of_token_at_position(
 }
 
 fn get_error_span_for_arrow_function(
-    source_file: &Node, /*SourceFile*/
-    node: &Node,        /*ArrowFunction*/
+    source_file: Id<Node>, /*SourceFile*/
+    node: Id<Node>,        /*ArrowFunction*/
 ) -> TextSpan {
     let source_file_as_source_file = source_file.as_source_file();
     let pos = skip_trivia(
@@ -239,7 +239,10 @@ fn get_error_span_for_arrow_function(
     create_text_span_from_bounds(pos, node.end())
 }
 
-pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -> TextSpan {
+pub fn get_error_span_for_node(
+    source_file: Id<Node>, /*SourceFile*/
+    node: Id<Node>,
+) -> TextSpan {
     let mut error_node: Option<Id<Node>> = Some(node.node_wrapper());
     let source_file_as_source_file = source_file.as_source_file();
     match node.kind() {
@@ -357,7 +360,7 @@ pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -
     create_text_span_from_bounds(pos, error_node.end())
 }
 
-pub fn is_external_or_common_js_module(file: &Node /*SourceFile*/) -> bool {
+pub fn is_external_or_common_js_module(file: Id<Node> /*SourceFile*/) -> bool {
     let file_as_source_file = file.as_source_file();
     file_as_source_file
         .maybe_external_module_indicator()
@@ -367,33 +370,33 @@ pub fn is_external_or_common_js_module(file: &Node /*SourceFile*/) -> bool {
             .is_some()
 }
 
-pub fn is_json_source_file(file: &Node /*SourceFile*/) -> bool {
+pub fn is_json_source_file(file: Id<Node> /*SourceFile*/) -> bool {
     file.as_source_file().script_kind() == ScriptKind::JSON
 }
 
-pub fn is_enum_const(node: &Node /*EnumDeclaration*/) -> bool {
+pub fn is_enum_const(node: Id<Node> /*EnumDeclaration*/) -> bool {
     get_combined_modifier_flags(node).intersects(ModifierFlags::Const)
 }
 
-pub fn is_declaration_readonly(declaration: &Node /*Declaration*/) -> bool {
+pub fn is_declaration_readonly(declaration: Id<Node> /*Declaration*/) -> bool {
     get_combined_modifier_flags(declaration).intersects(ModifierFlags::Readonly)
         && !is_parameter_property_declaration(declaration, &declaration.parent())
 }
 
-pub fn is_var_const(node: &Node /*VariableDeclaration | VariableDeclarationList*/) -> bool {
+pub fn is_var_const(node: Id<Node> /*VariableDeclaration | VariableDeclarationList*/) -> bool {
     get_combined_node_flags(node).intersects(NodeFlags::Const)
 }
 
-pub fn is_let(node: &Node) -> bool {
+pub fn is_let(node: Id<Node>) -> bool {
     get_combined_node_flags(node).intersects(NodeFlags::Let)
 }
 
-pub fn is_super_call(n: &Node) -> bool {
+pub fn is_super_call(n: Id<Node>) -> bool {
     n.kind() == SyntaxKind::CallExpression
         && n.as_call_expression().expression.kind() == SyntaxKind::SuperKeyword
 }
 
-pub fn is_import_call(n: &Node) -> bool {
+pub fn is_import_call(n: Id<Node>) -> bool {
     match n {
         Node::CallExpression(call_expression) => {
             call_expression.expression.kind() == SyntaxKind::ImportKeyword
@@ -402,7 +405,7 @@ pub fn is_import_call(n: &Node) -> bool {
     }
 }
 
-pub fn is_import_meta(n: &Node) -> bool {
+pub fn is_import_meta(n: Id<Node>) -> bool {
     if !is_meta_property(n) {
         return false;
     }
@@ -411,7 +414,7 @@ pub fn is_import_meta(n: &Node) -> bool {
         && n.as_meta_property().name.as_identifier().escaped_text == "meta"
 }
 
-pub fn is_literal_import_type_node(n: &Node) -> bool {
+pub fn is_literal_import_type_node(n: Id<Node>) -> bool {
     if !is_import_type_node(n) {
         return false;
     }
@@ -423,26 +426,26 @@ pub fn is_literal_import_type_node(n: &Node) -> bool {
     is_string_literal(&n_argument_as_literal_type_node.literal)
 }
 
-pub fn is_prologue_directive(node: &Node) -> bool {
+pub fn is_prologue_directive(node: Id<Node>) -> bool {
     node.kind() == SyntaxKind::ExpressionStatement
         && node.as_expression_statement().expression.kind() == SyntaxKind::StringLiteral
 }
 
-pub fn is_custom_prologue(node: &Node /*Statement*/) -> bool {
+pub fn is_custom_prologue(node: Id<Node> /*Statement*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
 }
 
-pub fn is_hoisted_function(node: &Node /*Statement*/) -> bool {
+pub fn is_hoisted_function(node: Id<Node> /*Statement*/) -> bool {
     is_custom_prologue(node) && is_function_declaration(node)
 }
 
-fn is_hoisted_variable(node: &Node /*VariableDeclaration*/) -> bool {
+fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/) -> bool {
     let node_as_variable_declaration = node.as_variable_declaration();
     is_identifier(&node_as_variable_declaration.name())
         && node_as_variable_declaration.maybe_initializer().is_none()
 }
 
-pub fn is_hoisted_variable_statement(node: &Node /*Statement*/) -> bool {
+pub fn is_hoisted_variable_statement(node: Id<Node> /*Statement*/) -> bool {
     is_custom_prologue(node)
         && is_variable_statement(node)
         && every(
@@ -456,8 +459,8 @@ pub fn is_hoisted_variable_statement(node: &Node /*Statement*/) -> bool {
 }
 
 pub fn get_leading_comment_ranges_of_node(
-    node: &Node,
-    source_file_of_node: &Node, /*SourceFile*/
+    node: Id<Node>,
+    source_file_of_node: Id<Node>, /*SourceFile*/
 ) -> Option<Vec<CommentRange>> {
     if node.kind() != SyntaxKind::JsxText {
         get_leading_comment_ranges(
@@ -524,7 +527,7 @@ lazy_static! {
             .unwrap();
 }
 
-pub fn is_part_of_type_node(node: &Node) -> bool {
+pub fn is_part_of_type_node(node: Id<Node>) -> bool {
     if SyntaxKind::FirstTypeNode <= node.kind() && node.kind() <= SyntaxKind::LastTypeNode {
         return true;
     }
@@ -643,7 +646,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
     false
 }
 
-pub fn is_child_of_node_with_kind(node: &Node, kind: SyntaxKind) -> bool {
+pub fn is_child_of_node_with_kind(node: Id<Node>, kind: SyntaxKind) -> bool {
     let mut node: Option<Id<Node>> = Some(node.node_wrapper());
     while let Some(node_present) = node {
         if node_present.kind() == kind {
@@ -655,23 +658,25 @@ pub fn is_child_of_node_with_kind(node: &Node, kind: SyntaxKind) -> bool {
 }
 
 pub fn for_each_return_statement(
-    body: &Node, /*Block | Statement*/
-    mut visitor: impl FnMut(&Node),
+    body: Id<Node>, /*Block | Statement*/
+    mut visitor: impl FnMut(Id<Node>),
 ) {
-    try_for_each_return_statement(body, |node: &Node| -> Result<_, ()> { Ok(visitor(node)) })
-        .unwrap()
+    try_for_each_return_statement(body, |node: Id<Node>| -> Result<_, ()> {
+        Ok(visitor(node))
+    })
+    .unwrap()
 }
 
 pub fn try_for_each_return_statement<TError>(
-    body: &Node, /*Block | Statement*/
-    mut visitor: impl FnMut(&Node) -> Result<(), TError>,
+    body: Id<Node>, /*Block | Statement*/
+    mut visitor: impl FnMut(Id<Node>) -> Result<(), TError>,
 ) -> Result<(), TError> {
     try_for_each_return_statement_traverse(body, &mut visitor)
 }
 
 fn try_for_each_return_statement_traverse<TError>(
-    node: &Node,
-    visitor: &mut impl FnMut(&Node) -> Result<(), TError>,
+    node: Id<Node>,
+    visitor: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
 ) -> Result<(), TError> {
     match node.kind() {
         SyntaxKind::ReturnStatement => {
@@ -705,15 +710,15 @@ fn try_for_each_return_statement_traverse<TError>(
 }
 
 pub fn for_each_return_statement_bool(
-    body: &Node, /*Block | Statement*/
-    mut visitor: impl FnMut(&Node) -> bool,
+    body: Id<Node>, /*Block | Statement*/
+    mut visitor: impl FnMut(Id<Node>) -> bool,
 ) -> bool {
     for_each_return_statement_bool_traverse(body, &mut visitor)
 }
 
 fn for_each_return_statement_bool_traverse(
-    node: &Node,
-    visitor: &mut impl FnMut(&Node) -> bool,
+    node: Id<Node>,
+    visitor: &mut impl FnMut(Id<Node>) -> bool,
 ) -> bool {
     match node.kind() {
         SyntaxKind::ReturnStatement => visitor(node),
@@ -740,21 +745,23 @@ fn for_each_return_statement_bool_traverse(
     }
 }
 
-pub fn for_each_yield_expression(body: &Node /*Block*/, mut visitor: impl FnMut(&Node)) {
-    try_for_each_yield_expression(body, |node: &Node| -> Result<(), ()> { Ok(visitor(node)) })
-        .unwrap()
+pub fn for_each_yield_expression(body: Id<Node> /*Block*/, mut visitor: impl FnMut(Id<Node>)) {
+    try_for_each_yield_expression(body, |node: Id<Node>| -> Result<(), ()> {
+        Ok(visitor(node))
+    })
+    .unwrap()
 }
 
 pub fn try_for_each_yield_expression<TError>(
-    body: &Node, /*Block*/
-    mut visitor: impl FnMut(&Node) -> Result<(), TError>,
+    body: Id<Node>, /*Block*/
+    mut visitor: impl FnMut(Id<Node>) -> Result<(), TError>,
 ) -> Result<(), TError> {
     try_for_each_yield_expression_traverse(body, &mut visitor)
 }
 
 fn try_for_each_yield_expression_traverse<TError>(
-    node: &Node,
-    visitor: &mut impl FnMut(&Node) -> Result<(), TError>,
+    node: Id<Node>,
+    visitor: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
 ) -> Result<(), TError> {
     match node.kind() {
         SyntaxKind::YieldExpression => {
@@ -816,7 +823,7 @@ pub fn get_rest_parameter_element_type(
 }
 
 pub fn get_members_of_declaration(
-    node: &Node, /*Declaration*/
+    node: Id<Node>, /*Declaration*/
 ) -> Option<Gc<NodeArray> /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
     match node.kind() {
         SyntaxKind::InterfaceDeclaration => Some(node.as_interface_declaration().members.clone()),
@@ -830,7 +837,7 @@ pub fn get_members_of_declaration(
     }
 }
 
-pub fn is_variable_like(node: &Node) -> bool {
+pub fn is_variable_like(node: Id<Node>) -> bool {
     /* if node {*/
     match node.kind() {
         SyntaxKind::BindingElement
@@ -846,16 +853,18 @@ pub fn is_variable_like(node: &Node) -> bool {
     /*}*/
 }
 
-pub fn is_variable_like_or_accessor(node: &Node) -> bool {
+pub fn is_variable_like_or_accessor(node: Id<Node>) -> bool {
     is_variable_like(node) || is_accessor(node)
 }
 
-pub fn is_variable_declaration_in_variable_statement(node: &Node, /*VariableDeclaration*/) -> bool {
+pub fn is_variable_declaration_in_variable_statement(
+    node: Id<Node>, /*VariableDeclaration*/
+) -> bool {
     node.parent().kind() == SyntaxKind::VariableDeclarationList
         && node.parent().parent().kind() == SyntaxKind::VariableStatement
 }
 
-pub fn is_valid_es_symbol_declaration(node: &Node) -> bool {
+pub fn is_valid_es_symbol_declaration(node: Id<Node>) -> bool {
     if is_variable_declaration(node) {
         is_var_const(node)
             && is_identifier(&node.as_variable_declaration().name())

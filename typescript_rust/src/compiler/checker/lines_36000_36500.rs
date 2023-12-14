@@ -29,7 +29,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn check_jsdoc_implements_tag(&self, node: &Node /*JSDocImplementsTag*/) {
+    pub(super) fn check_jsdoc_implements_tag(&self, node: Id<Node> /*JSDocImplementsTag*/) {
         let node_as_jsdoc_implements_tag = node.as_jsdoc_implements_tag();
         let class_like = get_effective_jsdoc_host(node);
         if match class_like.as_ref() {
@@ -48,7 +48,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_jsdoc_augments_tag(&self, node: &Node /*JSDocAugmentsTag*/) {
+    pub(super) fn check_jsdoc_augments_tag(&self, node: Id<Node> /*JSDocAugmentsTag*/) {
         let node_as_jsdoc_augments_tag = node.as_jsdoc_augments_tag();
         let class_like = get_effective_jsdoc_host(node);
         if match class_like.as_ref() {
@@ -112,7 +112,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsdoc_accessibility_modifiers(
         &self,
-        node: &Node, /*JSDocPublicTag | JSDocProtectedTag | JSDocPrivateTag*/
+        node: Id<Node>, /*JSDocPublicTag | JSDocProtectedTag | JSDocPrivateTag*/
     ) {
         let host = get_jsdoc_host(node);
         if matches!(
@@ -129,7 +129,7 @@ impl TypeChecker {
 
     pub(super) fn get_identifier_from_entity_name_expression(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> Option<Id<Node /*Identifier | PrivateIdentifier*/>> {
         match node.kind() {
             SyntaxKind::Identifier => Some(node.node_wrapper()),
@@ -142,7 +142,7 @@ impl TypeChecker {
 
     pub(super) fn check_function_or_method_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
+        node: Id<Node>, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
     ) -> io::Result<()> {
         self.check_decorators(node)?;
         self.check_signature_declaration(node)?;
@@ -238,7 +238,7 @@ impl TypeChecker {
 
     pub(super) fn register_for_unused_identifiers_check(
         &self,
-        node: &Node, /*PotentiallyUnusedIdentifier*/
+        node: Id<Node>, /*PotentiallyUnusedIdentifier*/
     ) {
         if self.produce_diagnostics {
             let source_file = get_source_file_of_node(node);
@@ -253,7 +253,7 @@ impl TypeChecker {
     pub(super) fn check_unused_identifiers(
         &self,
         potentially_unused_identifiers: &[Id<Node /*PotentiallyUnusedIdentifier*/>],
-        mut add_diagnostic: impl FnMut(&Node, UnusedKind, Gc<Diagnostic>), /*AddUnusedDiagnostic*/
+        mut add_diagnostic: impl FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>), /*AddUnusedDiagnostic*/
     ) -> io::Result<()> {
         for node in potentially_unused_identifiers {
             match node.kind() {
@@ -304,9 +304,11 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn error_unused_local<TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>)>(
+    pub(super) fn error_unused_local<
+        TAddDiagnostic: FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
+    >(
         &self,
-        declaration: &Node, /*Declaration*/
+        declaration: Id<Node>, /*Declaration*/
         name: &str,
         add_diagnostic: &mut TAddDiagnostic,
     ) {
@@ -324,14 +326,14 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn is_identifier_that_starts_with_underscore(&self, node: &Node) -> bool {
+    pub(super) fn is_identifier_that_starts_with_underscore(&self, node: Id<Node>) -> bool {
         is_identifier(node) && id_text(node).chars().next() == Some(CharacterCodes::underscore)
     }
 
     pub(super) fn check_unused_class_members(
         &self,
-        node: &Node, /*ClassDeclaration | ClassExpression*/
-        add_diagnostic: &mut impl FnMut(&Node, UnusedKind, Gc<Diagnostic>),
+        node: Id<Node>, /*ClassDeclaration | ClassExpression*/
+        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
     ) -> io::Result<()> {
         for member in &node.as_class_like_declaration().members() {
             match member.kind() {
@@ -364,7 +366,7 @@ impl TypeChecker {
                                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                         Some(vec![self.symbol_to_string_(
                                             symbol,
-                                            Option::<&Node>::None,
+                                            Option::<Id<Node>>::None,
                                             None,
                                             None,
                                             None,
@@ -412,10 +414,10 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_infer_type_parameter<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
+        TAddDiagnostic: FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
-        node: &Node, /*InferTypeNode*/
+        node: Id<Node>, /*InferTypeNode*/
         add_diagnostic: &mut TAddDiagnostic,
     ) {
         let type_parameter = &node.as_infer_type_node().type_parameter;
@@ -440,8 +442,8 @@ impl TypeChecker {
 
     pub(super) fn check_unused_type_parameters(
         &self,
-        node: &Node, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
-        add_diagnostic: &mut impl FnMut(&Node, UnusedKind, Gc<Diagnostic>),
+        node: Id<Node>, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
+        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
     ) -> io::Result<()> {
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let symbol_ref = symbol.ref_(self);
@@ -540,7 +542,7 @@ impl TypeChecker {
 
     pub(super) fn is_type_parameter_unused(
         &self,
-        type_parameter: &Node, /*TypeParameterDeclaration*/
+        type_parameter: Id<Node>, /*TypeParameterDeclaration*/
     ) -> bool {
         !matches!(
             self.get_merged_symbol(type_parameter.maybe_symbol()).unwrap().ref_(self).maybe_is_referenced(),
@@ -564,7 +566,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_root_parameter_declaration(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> Option<Id<Node /*ParameterDeclaration*/>> {
         try_cast(get_root_declaration(node), |root_declaration: &Id<Node>| {
             is_parameter(root_declaration)
@@ -573,7 +575,7 @@ impl TypeChecker {
 
     pub(super) fn is_valid_unused_local_declaration(
         &self,
-        declaration: &Node, /*Declaration*/
+        declaration: Id<Node>, /*Declaration*/
     ) -> bool {
         if is_binding_element(declaration) {
             let declaration_as_binding_element = declaration.as_binding_element();
@@ -596,10 +598,10 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_locals_and_parameters<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
+        TAddDiagnostic: FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
-        node_with_locals: &Node,
+        node_with_locals: Id<Node>,
         add_diagnostic: &mut TAddDiagnostic,
     ) {
         let mut unused_imports: HashMap<
@@ -913,7 +915,7 @@ impl TypeChecker {
 
     pub(super) fn binding_name_text<'name>(
         &self,
-        name: &'name Node, /*BindingName*/
+        name: Id<Node>, /*BindingName*/
     ) -> Cow<'name, str> {
         match name.kind() {
             SyntaxKind::Identifier => id_text(name).into(),
@@ -932,7 +934,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_imported_declaration(&self, node: &Node) -> bool {
+    pub(super) fn is_imported_declaration(&self, node: Id<Node>) -> bool {
         matches!(
             node.kind(),
             SyntaxKind::ImportClause | SyntaxKind::ImportSpecifier | SyntaxKind::NamespaceImport
@@ -941,7 +943,7 @@ impl TypeChecker {
 
     pub(super) fn import_clause_from_imported(
         &self,
-        decl: &Node, /*ImportedDeclaration*/
+        decl: Id<Node>, /*ImportedDeclaration*/
     ) -> Id<Node /*ImportClause*/> {
         if decl.kind() == SyntaxKind::ImportClause {
             decl.node_wrapper()
@@ -954,7 +956,7 @@ impl TypeChecker {
 
     pub(super) fn check_block(
         &self,
-        node: &Node, /*Block (actually | ModuleBlock)*/
+        node: Id<Node>, /*Block (actually | ModuleBlock)*/
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::Block {
             self.check_grammar_statement_in_ambient_context(node);
@@ -988,7 +990,7 @@ impl TypeChecker {
 
     pub(super) fn check_collision_with_arguments_in_generated_code(
         &self,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) {
         if self.language_version >= ScriptTarget::ES2015
             || !has_rest_parameter(node)
@@ -1023,7 +1025,7 @@ impl TypeChecker {
 
     pub(super) fn need_collision_check_for_identifier<TIdentifier: Borrow<Node>>(
         &self,
-        node: &Node,
+        node: Id<Node>,
         identifier: Option<TIdentifier /*Identifier*/>,
         name: &str,
     ) -> bool {
@@ -1031,7 +1033,7 @@ impl TypeChecker {
             return false;
         }
         let identifier = identifier.unwrap();
-        let identifier: &Node = identifier.borrow();
+        let identifier: Id<Node> = identifier.borrow();
         if identifier.as_identifier().escaped_text != name {
             return false;
         }

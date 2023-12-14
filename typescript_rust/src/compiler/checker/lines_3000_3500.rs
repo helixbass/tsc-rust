@@ -33,7 +33,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_target_of_property_assignment(
         &self,
-        node: &Node, /*PropertyAssignment*/
+        node: Id<Node>, /*PropertyAssignment*/
         dont_recursively_resolve: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let expression = &node.as_property_assignment().initializer;
@@ -42,7 +42,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_access_expression(
         &self,
-        node: &Node, /*AccessExpression*/
+        node: Id<Node>, /*AccessExpression*/
         dont_recursively_resolve: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let node_parent = node.parent();
@@ -64,7 +64,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_of_alias_declaration(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         dont_recursively_resolve: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let dont_recursively_resolve = dont_recursively_resolve.unwrap_or(false);
@@ -100,7 +100,7 @@ impl TypeChecker {
                 SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                 Some(true),
                 Some(dont_recursively_resolve),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?,
             SyntaxKind::PropertyAssignment => {
                 self.get_target_of_property_assignment(node, dont_recursively_resolve)?
@@ -169,7 +169,7 @@ impl TypeChecker {
                     &Diagnostics::Circular_definition_of_import_alias_0,
                     Some(vec![self.symbol_to_string_(
                         symbol,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                         None,
@@ -307,7 +307,7 @@ impl TypeChecker {
 
     pub(super) fn mark_export_as_referenced(
         &self,
-        node: &Node, /*ImportEqualsDeclaration | ExportSpecifier*/
+        node: Id<Node>, /*ImportEqualsDeclaration | ExportSpecifier*/
     ) -> io::Result<()> {
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let target = self.resolve_alias(symbol)?;
@@ -359,7 +359,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_of_part_of_right_hand_side_of_import_equals(
         &self,
-        entity_name: &Node, /*EntityName*/
+        entity_name: Id<Node>, /*EntityName*/
         dont_resolve_alias: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let mut entity_name = entity_name.node_wrapper();
@@ -377,7 +377,7 @@ impl TypeChecker {
                     SymbolFlags::Namespace,
                     Some(false),
                     dont_resolve_alias,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )?
             } else {
                 Debug_.assert(
@@ -389,7 +389,7 @@ impl TypeChecker {
                     SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                     Some(false),
                     dont_resolve_alias,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )?
             },
         )
@@ -405,7 +405,7 @@ impl TypeChecker {
                 format!(
                     "{}.{}",
                     self.get_fully_qualified_name(symbol_parent, containing_location)?,
-                    self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
+                    self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?
                 )
             } else {
                 self.symbol_to_string_(
@@ -424,7 +424,7 @@ impl TypeChecker {
 
     pub(super) fn get_containing_qualified_name_node(
         &self,
-        node: &Node, /*QualifiedName*/
+        node: Id<Node>, /*QualifiedName*/
     ) -> Id<Node> {
         let mut node = node.node_wrapper();
         while is_qualified_name(&node.parent()) {
@@ -435,7 +435,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_qualified_name_as_value(
         &self,
-        node: &Node, /*QualifiedName*/
+        node: Id<Node>, /*QualifiedName*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let mut left = get_first_identifier(node);
         let mut symbol = return_ok_none_if_none!(self.resolve_name_(
@@ -466,7 +466,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_entity_name(
         &self,
-        name: &Node, /*EntityNameOrEntityNameExpression*/
+        name: Id<Node>, /*EntityNameOrEntityNameExpression*/
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
         dont_resolve_alias: Option<bool>,
@@ -583,7 +583,7 @@ impl TypeChecker {
             if symbol.is_none() {
                 if !ignore_errors_unwrapped {
                     let namespace_name =
-                        self.get_fully_qualified_name(namespace, Option::<&Node>::None)?;
+                        self.get_fully_qualified_name(namespace, Option::<Id<Node>>::None)?;
                     let declaration_name = declaration_name_to_string(Some(&**right));
                     let suggestion_for_nonexistent_module =
                         self.get_suggested_symbol_for_nonexistent_module(right, namespace)?;
@@ -598,7 +598,7 @@ impl TypeChecker {
                                 declaration_name.into_owned(),
                                 self.symbol_to_string_(
                                     suggestion_for_nonexistent_module,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                     None,
@@ -642,7 +642,7 @@ impl TypeChecker {
                                 Some(&*name.parent().as_qualified_name().right),
                                 &Diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
                                 Some(vec![
-                                    self.symbol_to_string_(exported_type_symbol, Option::<&Node>::None, None, None, None)?,
+                                    self.symbol_to_string_(exported_type_symbol, Option::<Id<Node>>::None, None, None, None)?,
                                     unescape_leading_underscores(&name.parent().as_qualified_name().right.as_identifier().escaped_text).to_owned()
                                 ])
                             );
@@ -689,7 +689,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_entity_name_from_assignment_declaration(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
         if self.is_jsdoc_type_reference(&name.parent()) {
@@ -711,7 +711,7 @@ impl TypeChecker {
 
     pub(super) fn get_assignment_declaration_location(
         &self,
-        node: &Node, /*TypeReferenceNode*/
+        node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Option<Id<Node>>> {
         let type_alias = find_ancestor(Some(node), |node| {
             if !(is_jsdoc_node(node) || node.flags().intersects(NodeFlags::JSDoc)) {
@@ -810,8 +810,8 @@ impl TypeChecker {
 
     pub(super) fn resolve_external_module_name_(
         &self,
-        location: &Node,
-        module_reference_expression: &Node, /*Expression*/
+        location: Id<Node>,
+        module_reference_expression: Id<Node>, /*Expression*/
         ignore_errors: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
@@ -835,8 +835,8 @@ impl TypeChecker {
 
     pub(super) fn resolve_external_module_name_worker(
         &self,
-        location: &Node,
-        module_reference_expression: &Node, /*Expression*/
+        location: Id<Node>,
+        module_reference_expression: Id<Node>, /*Expression*/
         module_not_found_error: Option<&DiagnosticMessage>,
         is_for_augmentation: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
@@ -856,10 +856,10 @@ impl TypeChecker {
 
     pub(super) fn resolve_external_module(
         &self,
-        location: &Node,
+        location: Id<Node>,
         module_reference: &str,
         module_not_found_error: Option<&DiagnosticMessage>,
-        error_node: &Node,
+        error_node: Id<Node>,
         is_for_augmentation: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let is_for_augmentation = is_for_augmentation.unwrap_or(false);

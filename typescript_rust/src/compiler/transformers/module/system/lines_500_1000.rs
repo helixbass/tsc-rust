@@ -19,7 +19,7 @@ use crate::{
 };
 
 impl TransformSystemModule {
-    pub(super) fn top_level_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn top_level_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(match node.kind() {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
@@ -31,7 +31,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_import_declaration(
         &self,
-        node: &Node, /*ImportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
         let node_as_import_declaration = node.as_import_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
@@ -61,7 +61,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_export_declaration(
         &self,
-        _node: &Node, /*ExportDeclaration*/
+        _node: Id<Node>, /*ExportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
         // Debug.assertIsDefined(node);
         None
@@ -69,7 +69,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_import_equals_declaration(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
         Debug_.assert(
             is_external_module_import_equals_declaration(node),
@@ -97,7 +97,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_export_assignment(
         &self,
-        node: &Node, /*ExportAssignment*/
+        node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_export_assignment = node.as_export_assignment();
         if node_as_export_assignment.is_export_equals == Some(true) {
@@ -106,7 +106,7 @@ impl TransformSystemModule {
 
         let expression = try_visit_node(
             &node_as_export_assignment.expression,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
@@ -135,7 +135,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
@@ -147,7 +147,7 @@ impl TransformSystemModule {
                         node.maybe_decorators(),
                         maybe_visit_nodes(
                             node.maybe_modifiers().as_deref(),
-                            Some(|node: &Node| self.modifier_visitor(node)),
+                            Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(is_modifier),
                             None,
                             None,
@@ -160,7 +160,7 @@ impl TransformSystemModule {
                         Option::<Gc<NodeArray>>::None,
                         try_visit_nodes(
                             &node_as_function_declaration.parameters(),
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_parameter_declaration),
                             None,
                             None,
@@ -168,7 +168,7 @@ impl TransformSystemModule {
                         None,
                         try_maybe_visit_node(
                             node_as_function_declaration.maybe_body(),
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_block),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
@@ -179,7 +179,7 @@ impl TransformSystemModule {
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
                     node,
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?);
         }
@@ -202,7 +202,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_class_declaration(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
@@ -219,7 +219,7 @@ impl TransformSystemModule {
                             .create_class_expression(
                                 try_maybe_visit_nodes(
                                     node.maybe_decorators().as_deref(),
-                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(|node: Id<Node>| self.visitor(node)),
                                     Some(is_decorator),
                                     None,
                                     None,
@@ -231,14 +231,14 @@ impl TransformSystemModule {
                                     node_as_class_declaration
                                         .maybe_heritage_clauses()
                                         .as_deref(),
-                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(|node: Id<Node>| self.visitor(node)),
                                     Some(is_heritage_clause),
                                     None,
                                     None,
                                 )?,
                                 try_visit_nodes(
                                     &node_as_class_declaration.members(),
-                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(|node: Id<Node>| self.visitor(node)),
                                     Some(is_class_element),
                                     None,
                                     None,
@@ -265,7 +265,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_variable_statement(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_variable_statement = node.as_variable_statement();
         if !self
@@ -274,7 +274,7 @@ impl TransformSystemModule {
             return Ok(Some(
                 try_visit_node(
                     node,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_statement),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
@@ -331,7 +331,7 @@ impl TransformSystemModule {
 
     pub(super) fn hoist_binding_element(
         &self,
-        node: &Node, /*VariableDeclaration | BindingElement*/
+        node: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) {
         let node_as_named_declaration = node.as_named_declaration();
         let node_name = node_as_named_declaration.name();
@@ -349,7 +349,7 @@ impl TransformSystemModule {
 
     pub(super) fn should_hoist_variable_declaration_list(
         &self,
-        node: &Node, /*VariableDeclarationList*/
+        node: Id<Node>, /*VariableDeclarationList*/
     ) -> bool {
         !get_emit_flags(node).intersects(EmitFlags::NoHoisting)
             && (self.enclosing_block_scoped_container().kind() == SyntaxKind::SourceFile
@@ -360,12 +360,12 @@ impl TransformSystemModule {
 
     pub(super) fn transform_initialized_variable(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
         is_exported_declaration: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let create_assignment =
-            |name: &Node, value: &Node, location: Option<&dyn ReadonlyTextRange>| {
+            |name: Id<Node>, value: Id<Node>, location: Option<&dyn ReadonlyTextRange>| {
                 Ok(if is_exported_declaration {
                     self.create_exported_variable_assignment(name, value, location)
                 } else {
@@ -376,7 +376,7 @@ impl TransformSystemModule {
             if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
                 try_flatten_destructuring_assignment(
                     node,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     self.context.clone(),
                     FlattenLevel::All,
                     Some(false),
@@ -388,7 +388,7 @@ impl TransformSystemModule {
                     &node_as_variable_declaration.name(),
                     &*try_visit_node(
                         &node_initializer,
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
@@ -402,8 +402,8 @@ impl TransformSystemModule {
 
     pub(super) fn create_exported_variable_assignment(
         &self,
-        name: &Node,  /*Identifier*/
-        value: &Node, /*Expression*/
+        name: Id<Node>,  /*Identifier*/
+        value: Id<Node>, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     ) -> Id<Node> {
         self.create_variable_assignment(name, value, location, true)
@@ -411,8 +411,8 @@ impl TransformSystemModule {
 
     pub(super) fn create_non_exported_variable_assignment(
         &self,
-        name: &Node,  /*Identifier*/
-        value: &Node, /*Expression*/
+        name: Id<Node>,  /*Identifier*/
+        value: Id<Node>, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     ) -> Id<Node> {
         self.create_variable_assignment(name, value, location, false)
@@ -420,8 +420,8 @@ impl TransformSystemModule {
 
     pub(super) fn create_variable_assignment(
         &self,
-        name: &Node,  /*Identifier*/
-        value: &Node, /*Expression*/
+        name: Id<Node>,  /*Identifier*/
+        value: Id<Node>, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
         is_exported_declaration: bool,
     ) -> Id<Node> {
@@ -447,7 +447,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_merge_declaration_marker(
         &self,
-        node: &Node, /*MergeDeclarationMarker*/
+        node: Id<Node>, /*MergeDeclarationMarker*/
     ) -> VisitResult /*<Statement>*/ {
         if self.has_associated_end_of_declaration_marker(node)
             && node.maybe_original().unwrap().kind() == SyntaxKind::VariableStatement
@@ -465,13 +465,13 @@ impl TransformSystemModule {
         Some(node.node_wrapper().into())
     }
 
-    pub(super) fn has_associated_end_of_declaration_marker(&self, node: &Node) -> bool {
+    pub(super) fn has_associated_end_of_declaration_marker(&self, node: Id<Node>) -> bool {
         get_emit_flags(node).intersects(EmitFlags::HasEndOfDeclarationMarker)
     }
 
     pub(super) fn visit_end_of_declaration_marker(
         &self,
-        node: &Node, /*EndOfDeclarationMarker*/
+        node: Id<Node>, /*EndOfDeclarationMarker*/
     ) -> VisitResult /*<Statement>*/ {
         let id = get_original_node_id(node);
         let mut statements = self.deferred_exports().get(&id).cloned().flatten();
@@ -496,7 +496,7 @@ impl TransformSystemModule {
     pub(super) fn append_exports_of_import_declaration(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        decl: &Node, /*ImportDeclaration*/
+        decl: Id<Node>, /*ImportDeclaration*/
     ) {
         let decl_as_import_declaration = decl.as_import_declaration();
         if self.module_info().export_equals.is_some() {
@@ -530,7 +530,7 @@ impl TransformSystemModule {
     pub(super) fn append_exports_of_import_equals_declaration(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        decl: &Node, /*ImportEqualsDeclaration*/
+        decl: Id<Node>, /*ImportEqualsDeclaration*/
     ) /*: Statement[] | undefined*/
     {
         if self.module_info().export_equals.is_some() {
@@ -543,7 +543,7 @@ impl TransformSystemModule {
     pub(super) fn append_exports_of_variable_statement(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
         export_self: bool,
     ) /*: Statement[] | undefined*/
     {

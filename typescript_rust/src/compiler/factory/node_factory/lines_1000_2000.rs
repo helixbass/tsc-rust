@@ -112,7 +112,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_qualified_name(
         &self,
-        node: &Node, /*QualifiedName*/
+        node: Id<Node>, /*QualifiedName*/
         left: Id<Node /*EntityName*/>,
         right: Id<Node /*Identifier*/>,
     ) -> Id<Node> {
@@ -147,7 +147,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_computed_property_name(
         &self,
-        node: &Node, /*ComputedPropertyName*/
+        node: Id<Node>, /*ComputedPropertyName*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_computed_property_name = node.as_computed_property_name();
@@ -178,7 +178,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_parameter_declaration(
         &self,
-        node: &Node, /*TypeParameterDeclaration*/
+        node: Id<Node>, /*TypeParameterDeclaration*/
         name: Id<Node>,
         constraint: Option<Id<Node /*TypeNode*/>>,
         default_type: Option<Id<Node /*TypeNode*/>>,
@@ -253,7 +253,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_parameter_declaration<'name>(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
@@ -322,7 +322,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_decorator(
         &self,
-        node: &Node, /*Decorator*/
+        node: Id<Node>, /*Decorator*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_decorator = node.as_decorator();
@@ -354,7 +354,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_property_signature(
         &self,
-        node: &Node, /*PropertySignature*/
+        node: Id<Node>, /*PropertySignature*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node>,
         question_token: Option<Id<Node>>,
@@ -435,7 +435,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_property_declaration<'name>(
         &self,
-        node: &Node, /*PropertyDeclaration*/
+        node: Id<Node>, /*PropertyDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
@@ -523,7 +523,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update_method_signature(
         &self,
-        node: &Node, /*MethodSignature*/
+        node: Id<Node>, /*MethodSignature*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node /*PropertyName*/>,
         question_token: Option<Id<Node /*QuestionToken*/>>,
@@ -617,7 +617,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_method_declaration(
         &self,
-        node: &Node, /*MethodDeclaration*/
+        node: Id<Node>, /*MethodDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
@@ -702,7 +702,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_class_static_block_declaration(
         &self,
-        node: &Node, /*ClassStaticBlockDeclaration*/
+        node: Id<Node>, /*ClassStaticBlockDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         body: Id<Node /*Block*/>,
@@ -748,7 +748,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_constructor_declaration(
         &self,
-        node: &Node, /*ConstructorDeclaration*/
+        node: Id<Node>, /*ConstructorDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
@@ -800,7 +800,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_get_accessor_declaration(
         &self,
-        node: &Node, /*GetAccessorDeclaration*/
+        node: Id<Node>, /*GetAccessorDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node /*PropertyName*/>,
@@ -860,7 +860,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_set_accessor_declaration(
         &self,
-        node: &Node, /*SetAccessorDeclaration*/
+        node: Id<Node>, /*SetAccessorDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node /*PropertyName*/>,
@@ -912,7 +912,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_call_signature(
         &self,
-        node: &Node, /*CallSignatureDeclaration*/
+        node: Id<Node>, /*CallSignatureDeclaration*/
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
@@ -962,7 +962,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_construct_signature(
         &self,
-        node: &Node, /*ConstructSignatureDeclaration*/
+        node: Id<Node>, /*ConstructSignatureDeclaration*/
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
@@ -1015,7 +1015,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_index_signature(
         &self,
-        node: &Node, /*IndexSignatureDeclaration*/
+        node: Id<Node>, /*IndexSignatureDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
@@ -1064,7 +1064,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_template_literal_type_span(
         &self,
-        node: &Node, /*TemplateLiteralTypeSpan*/
+        node: Id<Node>, /*TemplateLiteralTypeSpan*/
         type_: Id<Node /*TypeNode*/>,
         literal: Id<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> Id<Node> {
@@ -1103,7 +1103,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_predicate_node(
         &self,
-        node: &Node, /*TypePredicateNode*/
+        node: Id<Node>, /*TypePredicateNode*/
         asserts_modifier: Option<Id<Node /*AssertsKeyword*/>>,
         parameter_name: Id<Node>,
         type_: Option<Id<Node /*TypeNode*/>>,
@@ -1146,7 +1146,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_reference_node(
         &self,
-        node: &Node, /*TypeReferenceNode*/
+        node: Id<Node>, /*TypeReferenceNode*/
         type_name: Id<Node /*EntityName*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
     ) -> Id<Node> {
@@ -1191,7 +1191,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_function_type_node(
         &self,
-        node: &Node, /*FunctionTypeNode*/
+        node: Id<Node>, /*FunctionTypeNode*/
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
@@ -1239,7 +1239,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_constructor_type_node(
         &self,
-        node: &Node, /*ConstructorTypeNode*/
+        node: Id<Node>, /*ConstructorTypeNode*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
@@ -1279,7 +1279,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_query_node(
         &self,
-        node: &Node, /*TypeQueryNode*/
+        node: Id<Node>, /*TypeQueryNode*/
         expr_name: Id<Node /*EntityName*/>,
     ) -> Id<Node> {
         let node_as_type_query_node = node.as_type_query_node();
@@ -1303,7 +1303,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_literal_node(
         &self,
-        node: &Node, /*TypeLiteralNode*/
+        node: Id<Node>, /*TypeLiteralNode*/
         members: Gc<NodeArray>,
     ) -> Id<Node> {
         let node_as_type_literal_node = node.as_type_literal_node();
@@ -1328,7 +1328,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_array_type_node(
         &self,
-        node: &Node, /*ArrayTypeNode*/
+        node: Id<Node>, /*ArrayTypeNode*/
         element_type: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
         let node_as_array_type_node = node.as_array_type_node();
@@ -1352,7 +1352,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_tuple_type_node(
         &self,
-        node: &Node, /*TupleTypeNode*/
+        node: Id<Node>, /*TupleTypeNode*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
         let node_as_tuple_type_node = node.as_tuple_type_node();
@@ -1380,7 +1380,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_named_tuple_member(
         &self,
-        node: &Node, /*NamedTupleMember*/
+        node: Id<Node>, /*NamedTupleMember*/
         dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
         name: Id<Node /*Identifier*/>,
         question_token: Option<Id<Node /*QuestionToken*/>>,
@@ -1420,7 +1420,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_optional_type_node(
         &self,
-        node: &Node, /*OptionalTypeNode*/
+        node: Id<Node>, /*OptionalTypeNode*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
         let node_as_optional_type_node = node.as_optional_type_node();
@@ -1441,7 +1441,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_rest_type_node(
         &self,
-        node: &Node, /*RestTypeNode*/
+        node: Id<Node>, /*RestTypeNode*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
         let node_as_rest_type_node = node.as_rest_type_node();
@@ -1473,7 +1473,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_union_or_intersection_type_node(
         &self,
-        node: &Node, /*UnionOrIntersectionTypeNode*/
+        node: Id<Node>, /*UnionOrIntersectionTypeNode*/
         types: Gc<NodeArray /*<TypeNode>*/>,
     ) -> Id<Node> {
         let node_as_union_or_intersection_type = node.as_union_or_intersection_type_node();
@@ -1497,7 +1497,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_union_type_node(
         &self,
-        node: &Node, /*UnionTypeNode*/
+        node: Id<Node>, /*UnionTypeNode*/
         types: Gc<NodeArray /*<TypeNode>*/>,
     ) -> Id<Node> {
         self.update_union_or_intersection_type_node(node, types)
@@ -1513,7 +1513,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_intersection_type_node(
         &self,
-        node: &Node, /*IntersectionTypeNode*/
+        node: Id<Node>, /*IntersectionTypeNode*/
         types: Gc<NodeArray /*<TypeNode>*/>,
     ) -> Id<Node> {
         self.update_union_or_intersection_type_node(node, types)
@@ -1543,7 +1543,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_conditional_type_node(
         &self,
-        node: &Node, /*ConditionalTypeNode*/
+        node: Id<Node>, /*ConditionalTypeNode*/
         check_type: Id<Node /*TypeNode*/>,
         extends_type: Id<Node /*TypeNode*/>,
         true_type: Id<Node /*TypeNode*/>,

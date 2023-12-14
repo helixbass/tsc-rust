@@ -78,7 +78,7 @@ impl TransformNodeModule {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
-    fn get_module_transform_for_file(&self, file: &Node /*SourceFile*/) -> Transformer {
+    fn get_module_transform_for_file(&self, file: Id<Node> /*SourceFile*/) -> Transformer {
         if file.as_source_file().maybe_implied_node_format() == Some(ModuleKind::ESNext) {
             self.esm_transform.clone()
         } else {
@@ -86,7 +86,7 @@ impl TransformNodeModule {
         }
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Id<Node>> {
+    fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
             return Ok(node.node_wrapper());
@@ -101,7 +101,7 @@ impl TransformNodeModule {
 
     fn transform_source_file_or_bundle(
         &self,
-        node: &Node, /*SourceFile | Bundle*/
+        node: Id<Node>, /*SourceFile | Bundle*/
     ) -> io::Result<Id<Node>> {
         Ok(match node.kind() {
             SyntaxKind::SourceFile => self.transform_source_file(node)?,
@@ -109,7 +109,7 @@ impl TransformNodeModule {
         })
     }
 
-    fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Id<Node>> {
+    fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> io::Result<Id<Node>> {
         let node_as_bundle = node.as_bundle();
         Ok(self.context.factory().create_bundle(
             try_map(
@@ -126,7 +126,7 @@ impl TransformNodeModule {
 }
 
 impl TransformerInterface for TransformNodeModule {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file_or_bundle(node)
     }
 }
@@ -153,8 +153,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if is_source_file(node) {
             self.transform_node_module
@@ -205,7 +205,7 @@ impl TransformNodeModuleOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformNodeModuleOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         if is_source_file(node) {
             self.transform_node_module
                 .set_current_source_file(Some(node.node_wrapper()));

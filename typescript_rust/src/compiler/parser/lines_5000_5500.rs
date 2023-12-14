@@ -57,7 +57,7 @@ impl ParserType {
         &self,
         in_expression_context: bool,
         top_invalid_node_position: Option<isize>,
-        opening_tag: Option<&Node /*JsxOpeningElement | JsxOpeningFragment*/>,
+        opening_tag: Option<Id<Node> /*JsxOpeningElement | JsxOpeningFragment*/>,
     ) -> Node /*JsxElement | JsxSelfClosingElement | JsxFragment*/ {
         let pos = self.get_node_pos();
         let opening = self
@@ -249,8 +249,8 @@ impl ParserType {
 
     pub(super) fn parse_jsx_child(
         &self,
-        opening_tag: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
-        token: SyntaxKind,  /*JsxTokenSyntaxKind*/
+        opening_tag: Id<Node>, /*JsxOpeningElement | JsxOpeningFragment*/
+        token: SyntaxKind,     /*JsxTokenSyntaxKind*/
     ) -> Option<Node /*JsxChild*/> {
         match token {
             SyntaxKind::EndOfFileToken => {
@@ -297,7 +297,7 @@ impl ParserType {
 
     pub(super) fn parse_jsx_children(
         &self,
-        opening_tag: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
+        opening_tag: Id<Node>, /*JsxOpeningElement | JsxOpeningFragment*/
     ) -> Gc<NodeArray> /*<JsxChild>*/ {
         let mut list: Vec<Id<Node>> = vec![];
         let list_pos = self.get_node_pos();
@@ -508,7 +508,7 @@ impl ParserType {
 
     pub(super) fn parse_jsx_closing_element(
         &self,
-        open: &Node, /*JsxOpeningElement*/
+        open: Id<Node>, /*JsxOpeningElement*/
         in_expression_context: bool,
     ) -> JsxClosingElement {
         let pos = self.get_node_pos();
@@ -586,7 +586,10 @@ impl ParserType {
             })
     }
 
-    pub(super) fn try_reparse_optional_chain(&self, mut node: &Node /*Expression*/) -> bool {
+    pub(super) fn try_reparse_optional_chain(
+        &self,
+        mut node: Id<Node>, /*Expression*/
+    ) -> bool {
         if node.flags().intersects(NodeFlags::OptionalChain) {
             return true;
         }

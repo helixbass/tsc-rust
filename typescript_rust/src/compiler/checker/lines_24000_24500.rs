@@ -55,7 +55,7 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn get_discriminant_property_access(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
         computed_type: Id<Type>,
     ) -> io::Result<Option<Id<Node>>> {
         let mut access: Option<Id<Node>> = None;
@@ -112,7 +112,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_discriminant(
         &self,
         type_: Id<Type>,
-        access: &Node, /*AccessExpression | BindingElement*/
+        access: Id<Node>, /*AccessExpression | BindingElement*/
         mut narrow_type: impl FnMut(Id<Type>) -> Id<Type>,
     ) -> Id<Type> {
         self.try_narrow_type_by_discriminant(type_, access, |type_: Id<Type>| {
@@ -124,7 +124,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn try_narrow_type_by_discriminant(
         &self,
         type_: Id<Type>,
-        access: &Node, /*AccessExpression | BindingElement*/
+        access: Id<Node>, /*AccessExpression | BindingElement*/
         mut narrow_type: impl FnMut(Id<Type>) -> io::Result<Id<Type>>,
     ) -> io::Result<Id<Type>> {
         let prop_name = self.type_checker.get_accessed_property_name(access)?;
@@ -173,9 +173,9 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_discriminant_property(
         &self,
         type_: Id<Type>,
-        access: &Node, /*AccessExpression | BindingElement*/
+        access: Id<Node>, /*AccessExpression | BindingElement*/
         operator: SyntaxKind,
-        value: &Node, /*Expression*/
+        value: Id<Node>, /*Expression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if matches!(
@@ -227,8 +227,8 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_switch_on_discriminant_property(
         &self,
         type_: Id<Type>,
-        access: &Node,           /*AccessExpression | BindingElement*/
-        switch_statement: &Node, /*SwitchStatement*/
+        access: Id<Node>,           /*AccessExpression | BindingElement*/
+        switch_statement: Id<Node>, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
     ) -> io::Result<Id<Type>> {
@@ -269,7 +269,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_truthiness(
         &self,
         mut type_: Id<Type>,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if self
@@ -380,7 +380,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_binary_expression(
         &self,
         mut type_: Id<Type>,
-        expr: &Node, /*BinaryExpression*/
+        expr: Id<Node>, /*BinaryExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         let expr_as_binary_expression = expr.as_binary_expression();
@@ -580,7 +580,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_private_identifier_in_in_expression(
         &self,
         type_: Id<Type>,
-        expr: &Node, /*BinaryExpression*/
+        expr: Id<Node>, /*BinaryExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         let expr_as_binary_expression = expr.as_binary_expression();
@@ -630,7 +630,7 @@ impl GetFlowTypeOfReference {
         &self,
         type_: Id<Type>,
         operator: SyntaxKind,
-        value: &Node, /*Expression*/
+        value: Id<Node>, /*Expression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         let equals_operator = matches!(
@@ -668,7 +668,7 @@ impl GetFlowTypeOfReference {
         &self,
         type_: Id<Type>,
         operator: SyntaxKind,
-        value: &Node, /*Expression*/
+        value: Id<Node>, /*Expression*/
         mut assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Any) {
@@ -788,9 +788,9 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_typeof(
         &self,
         type_: Id<Type>,
-        type_of_expr: &Node, /*TypeOfExpression*/
+        type_of_expr: Id<Node>, /*TypeOfExpression*/
         operator: SyntaxKind,
-        literal: &Node, /*LiteralExpression*/
+        literal: Id<Node>, /*LiteralExpression*/
         mut assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if matches!(
@@ -880,7 +880,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_switch_optional_chain_containment(
         &self,
         type_: Id<Type>,
-        switch_statement: &Node, /*SwitchStatement*/
+        switch_statement: Id<Node>, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
         mut clause_check: impl FnMut(Id<Type>) -> bool,
@@ -903,7 +903,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_switch_on_discriminant(
         &self,
         type_: Id<Type>,
-        switch_statement: &Node, /*SwitchStatement*/
+        switch_statement: Id<Node>, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
     ) -> io::Result<Id<Type>> {
@@ -1066,7 +1066,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_by_switch_on_type_of(
         &self,
         type_: Id<Type>,
-        switch_statement: &Node, /*SwitchStatement*/
+        switch_statement: Id<Node>, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
     ) -> io::Result<Id<Type>> {
@@ -1164,7 +1164,7 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn is_matching_constructor_reference(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         Ok((is_property_access_expression(expr)
             && id_text(&expr.as_property_access_expression().name) == "constructor"

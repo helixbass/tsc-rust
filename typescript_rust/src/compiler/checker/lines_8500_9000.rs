@@ -30,7 +30,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_parent_element_access(
         &self,
-        node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
+        node: Id<Node>, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> io::Result<Option<Id<Node>>> {
         let ancestor = node.parent().parent();
         Ok(match ancestor.kind() {
@@ -50,7 +50,7 @@ impl TypeChecker {
 
     pub(super) fn get_destructuring_property_name(
         &self,
-        node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
+        node: Id<Node>, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> io::Result<Option<String>> {
         let parent = node.parent();
         if node.kind() == SyntaxKind::BindingElement
@@ -78,7 +78,7 @@ impl TypeChecker {
 
     pub(super) fn get_literal_property_name_text(
         &self,
-        name: &Node, /*PropertyName*/
+        name: Id<Node>, /*PropertyName*/
     ) -> io::Result<Option<String>> {
         let type_ = self.get_literal_type_from_property_name(name)?;
         Ok(
@@ -106,7 +106,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_for_binding_element(
         &self,
-        declaration: &Node, /*BindingElement*/
+        declaration: Id<Node>, /*BindingElement*/
     ) -> io::Result<Option<Id<Type>>> {
         let pattern = declaration.parent();
         let mut parent_type =
@@ -269,7 +269,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_for_declaration_from_jsdoc_comment(
         &self,
-        declaration: &Node,
+        declaration: Id<Node>,
     ) -> io::Result<Option<Id<Type>>> {
         let jsdoc_type = get_jsdoc_type(declaration);
         if jsdoc_type.is_none() {
@@ -279,14 +279,14 @@ impl TypeChecker {
         Ok(Some(self.get_type_from_type_node_(&jsdoc_type)?))
     }
 
-    pub(super) fn is_null_or_undefined(&self, node: &Node /*Expression*/) -> io::Result<bool> {
+    pub(super) fn is_null_or_undefined(&self, node: Id<Node> /*Expression*/) -> io::Result<bool> {
         let expr = skip_parentheses(node, Some(true));
         Ok(expr.kind() == SyntaxKind::NullKeyword
             || expr.kind() == SyntaxKind::Identifier
                 && self.get_resolved_symbol(&expr)? == self.undefined_symbol())
     }
 
-    pub(super) fn is_empty_array_literal(&self, node: &Node /*Expression*/) -> bool {
+    pub(super) fn is_empty_array_literal(&self, node: Id<Node> /*Expression*/) -> bool {
         let expr = skip_parentheses(node, Some(true));
         expr.kind() == SyntaxKind::ArrayLiteralExpression
             && expr.as_array_literal_expression().elements.is_empty()
@@ -309,7 +309,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_for_variable_like_declaration(
         &self,
-        declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
+        declaration: Id<Node>, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         include_optionality: bool,
     ) -> io::Result<Option<Id<Type>>> {
         if is_variable_declaration(declaration)
@@ -681,7 +681,7 @@ impl TypeChecker {
             &reference,
             self.auto_type(),
             Some(self.undefined_type()),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )
     }
 
@@ -729,8 +729,8 @@ impl TypeChecker {
                     symbol.ref_(self).maybe_value_declaration(),
                     &Diagnostics::Member_0_implicitly_has_an_1_type,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?,
-                        self.type_to_string_(flow_type, Option::<&Node>::None, None, None)?,
+                        self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?,
+                        self.type_to_string_(flow_type, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
             }
@@ -784,8 +784,8 @@ impl TypeChecker {
                 symbol.ref_(self).maybe_value_declaration(),
                 &Diagnostics::Member_0_implicitly_has_an_1_type,
                 Some(vec![
-                    self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?,
-                    self.type_to_string_(flow_type, Option::<&Node>::None, None, None)?,
+                    self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?,
+                    self.type_to_string_(flow_type, Option::<Id<Node>>::None, None, None)?,
                 ]),
             );
         }
@@ -818,7 +818,7 @@ impl TypeChecker {
             reference,
             self.auto_type(),
             Some(initial_type),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )
     }
 
@@ -1060,7 +1060,7 @@ impl TypeChecker {
                 && !self.is_type_identical_to(declared_type, type_)?
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     declared_type,
                     declaration,
                     type_,

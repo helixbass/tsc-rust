@@ -187,7 +187,7 @@ impl TransformES2017 {
         self.context_flags.set(flags);
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Id<Node>> {
+    fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<Id<Node>> {
         if node.as_source_file().is_declaration_file() {
             return Ok(node.node_wrapper());
         }
@@ -198,7 +198,7 @@ impl TransformES2017 {
             !is_effective_strict_mode_source_file(node, &self.compiler_options),
         );
         let visited =
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?;
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
         add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
         Ok(visited)
     }
@@ -250,16 +250,16 @@ impl TransformES2017 {
         cb(value)
     }
 
-    fn visit_default(&self, node: &Node) -> io::Result<VisitResult> {
+    fn visit_default(&self, node: Id<Node>) -> io::Result<VisitResult> {
         Ok(try_maybe_visit_each_child(
             Some(node),
-            |node: &Node| self.visitor(node),
+            |node: Id<Node>| self.visitor(node),
             &**self.context,
         )?
         .map(Into::into))
     }
 
-    fn visitor(&self, node: &Node) -> io::Result<VisitResult> {
+    fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> {
         if !node
             .transform_flags()
             .intersects(TransformFlags::ContainsES2017)
@@ -274,7 +274,7 @@ impl TransformES2017 {
             SyntaxKind::MethodDeclaration => Some(
                 self.try_do_with_context(
                     ContextFlags::NonTopLevel | ContextFlags::HasLexicalThis,
-                    |node: &Node| self.visit_method_declaration(node),
+                    |node: Id<Node>| self.visit_method_declaration(node),
                     node,
                 )?
                 .into(),
@@ -282,14 +282,14 @@ impl TransformES2017 {
 
             SyntaxKind::FunctionDeclaration => self.try_do_with_context(
                 ContextFlags::NonTopLevel | ContextFlags::HasLexicalThis,
-                |node: &Node| self.visit_function_declaration(node),
+                |node: Id<Node>| self.visit_function_declaration(node),
                 node,
             )?,
 
             SyntaxKind::FunctionExpression => Some(
                 self.try_do_with_context(
                     ContextFlags::NonTopLevel | ContextFlags::HasLexicalThis,
-                    |node: &Node| self.visit_function_expression(node),
+                    |node: Id<Node>| self.visit_function_expression(node),
                     node,
                 )?
                 .into(),
@@ -298,7 +298,7 @@ impl TransformES2017 {
             SyntaxKind::ArrowFunction => Some(
                 self.try_do_with_context(
                     ContextFlags::NonTopLevel,
-                    |node: &Node| self.visit_arrow_function(node),
+                    |node: Id<Node>| self.visit_arrow_function(node),
                     node,
                 )?
                 .into(),
@@ -326,7 +326,7 @@ impl TransformES2017 {
                 }
                 try_maybe_visit_each_child(
                     Some(node),
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
                 .map(Into::into)
@@ -341,7 +341,7 @@ impl TransformES2017 {
                 }
                 try_maybe_visit_each_child(
                     Some(node),
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
                 .map(Into::into)
@@ -353,20 +353,20 @@ impl TransformES2017 {
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::ClassExpression => self.try_do_with_context(
                 ContextFlags::NonTopLevel | ContextFlags::HasLexicalThis,
-                |node: &Node| self.visit_default(node),
+                |node: Id<Node>| self.visit_default(node),
                 node,
             )?,
 
             _ => try_maybe_visit_each_child(
                 Some(node),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
             .map(Into::into),
         })
     }
 
-    fn async_body_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    fn async_body_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         if is_node_with_possible_hoisted_declaration(node) {
             return Ok(match node.kind() {
                 SyntaxKind::VariableStatement => self
@@ -396,7 +396,7 @@ impl TransformES2017 {
                 | SyntaxKind::WithStatement
                 | SyntaxKind::LabeledStatement => try_maybe_visit_each_child(
                     Some(node),
-                    |node: &Node| self.async_body_visitor(node),
+                    |node: Id<Node>| self.async_body_visitor(node),
                     &**self.context,
                 )?
                 .map(Into::into),
@@ -408,7 +408,7 @@ impl TransformES2017 {
 
     fn visit_catch_clause_in_async_body(
         &self,
-        node: &Node, /*CatchClause*/
+        node: Id<Node>, /*CatchClause*/
     ) -> io::Result<Id<Node>> {
         let mut catch_clause_names: HashSet<__String> = Default::default();
         let node_as_catch_clause = node.as_catch_clause();
@@ -438,7 +438,7 @@ impl TransformES2017 {
                 self.set_enclosing_function_parameter_names(Some(catch_clause_unshadowed_names));
                 let result = try_visit_each_child(
                     node,
-                    |node: &Node| self.async_body_visitor(node),
+                    |node: Id<Node>| self.async_body_visitor(node),
                     &**self.context,
                 )?;
                 self.set_enclosing_function_parameter_names(
@@ -448,7 +448,7 @@ impl TransformES2017 {
             } else {
                 try_visit_each_child(
                     node,
-                    |node: &Node| self.async_body_visitor(node),
+                    |node: Id<Node>| self.async_body_visitor(node),
                     &**self.context,
                 )?
             },
@@ -457,7 +457,7 @@ impl TransformES2017 {
 
     fn visit_variable_statement_in_async_body(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<Option<Id<Node>>> {
         let node_as_variable_statement = node.as_variable_statement();
         if self.is_variable_declaration_list_with_colliding_name(Some(
@@ -473,14 +473,14 @@ impl TransformES2017 {
         }
         try_maybe_visit_each_child(
             Some(node),
-            |node: &Node| self.visitor(node),
+            |node: Id<Node>| self.visitor(node),
             &**self.context,
         )
     }
 
     fn visit_for_in_statement_in_async_body(
         &self,
-        node: &Node, /*ForInStatement*/
+        node: Id<Node>, /*ForInStatement*/
     ) -> io::Result<Id<Node>> {
         let node_as_for_in_statement = node.as_for_in_statement();
         Ok(self.factory.update_for_in_statement(
@@ -496,20 +496,20 @@ impl TransformES2017 {
             } else {
                 try_visit_node(
                     &node_as_for_in_statement.initializer,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
                 &node_as_for_in_statement.expression,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_in_statement.statement,
-                |node: &Node| self.async_body_visitor(node),
+                |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
             )?,
         ))
@@ -517,14 +517,14 @@ impl TransformES2017 {
 
     fn visit_for_of_statement_in_async_body(
         &self,
-        node: &Node, /*ForOfStatement*/
+        node: Id<Node>, /*ForOfStatement*/
     ) -> io::Result<Id<Node>> {
         let node_as_for_of_statement = node.as_for_of_statement();
         Ok(self.factory.update_for_of_statement(
             node,
             try_maybe_visit_node(
                 node_as_for_of_statement.await_modifier.as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_token),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
@@ -539,20 +539,20 @@ impl TransformES2017 {
             } else {
                 try_visit_node(
                     &node_as_for_of_statement.initializer,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
                 &node_as_for_of_statement.expression,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_of_statement.statement,
-                |node: &Node| self.async_body_visitor(node),
+                |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
             )?,
         ))
@@ -560,7 +560,7 @@ impl TransformES2017 {
 
     fn visit_for_statement_in_async_body(
         &self,
-        node: &Node, /*ForStatement*/
+        node: Id<Node>, /*ForStatement*/
     ) -> io::Result<Id<Node>> {
         let node_as_for_statement = node.as_for_statement();
         let initializer = node_as_for_statement.initializer.as_deref();
@@ -574,26 +574,26 @@ impl TransformES2017 {
             } else {
                 try_maybe_visit_node(
                     initializer,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_statement.statement,
-                |node: &Node| self.async_body_visitor(node),
+                |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
             )?,
         ))
@@ -601,10 +601,14 @@ impl TransformES2017 {
 
     fn visit_await_expression(
         &self,
-        node: &Node, /*AwaitExpression*/
+        node: Id<Node>, /*AwaitExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         if self.in_top_level_context() {
-            return try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
+            return try_visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &**self.context,
+            );
         }
         Ok(set_original_node(
             set_text_range_rc_node(
@@ -612,7 +616,7 @@ impl TransformES2017 {
                     None,
                     try_maybe_visit_node(
                         Some(&*node.as_await_expression().expression),
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
@@ -625,7 +629,7 @@ impl TransformES2017 {
 
     fn visit_method_declaration(
         &self,
-        node: &Node, /*MethodDeclaration*/
+        node: Id<Node>, /*MethodDeclaration*/
     ) -> io::Result<Id<Node>> {
         let node_as_method_declaration = node.as_method_declaration();
         Ok(self.factory.update_method_declaration(
@@ -633,7 +637,7 @@ impl TransformES2017 {
             Option::<Gc<NodeArray>>::None,
             try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_modifier),
                 None,
                 None,
@@ -644,7 +648,7 @@ impl TransformES2017 {
             Option::<Gc<NodeArray>>::None,
             try_visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
             .unwrap(),
@@ -654,7 +658,7 @@ impl TransformES2017 {
             } else {
                 try_visit_function_body(
                     node_as_method_declaration.maybe_body().as_deref(),
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
             },
@@ -663,7 +667,7 @@ impl TransformES2017 {
 
     fn visit_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
         Ok(Some(
@@ -673,7 +677,7 @@ impl TransformES2017 {
                     Option::<Gc<NodeArray>>::None,
                     try_maybe_visit_nodes(
                         node.maybe_modifiers().as_deref(),
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_modifier),
                         None,
                         None,
@@ -683,7 +687,7 @@ impl TransformES2017 {
                     Option::<Gc<NodeArray>>::None,
                     try_visit_parameter_list(
                         Some(&node_as_function_declaration.parameters()),
-                        |node: &Node| self.visitor(node),
+                        |node: Id<Node>| self.visitor(node),
                         &**self.context,
                     )?
                     .unwrap(),
@@ -693,7 +697,7 @@ impl TransformES2017 {
                     } else {
                         try_visit_function_body(
                             node_as_function_declaration.maybe_body().as_deref(),
-                            |node: &Node| self.visitor(node),
+                            |node: Id<Node>| self.visitor(node),
                             &**self.context,
                         )?
                     },
@@ -704,14 +708,14 @@ impl TransformES2017 {
 
     fn visit_function_expression(
         &self,
-        node: &Node, /*FunctionExpression*/
+        node: Id<Node>, /*FunctionExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_function_expression = node.as_function_expression();
         Ok(self.factory.update_function_expression(
             node,
             try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_modifier),
                 None,
                 None,
@@ -721,7 +725,7 @@ impl TransformES2017 {
             Option::<Gc<NodeArray>>::None,
             try_visit_parameter_list(
                 Some(&node_as_function_expression.parameters()),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
             .unwrap(),
@@ -731,7 +735,7 @@ impl TransformES2017 {
             } else {
                 try_visit_function_body(
                     node_as_function_expression.maybe_body().as_deref(),
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
                 .unwrap()
@@ -739,13 +743,13 @@ impl TransformES2017 {
         ))
     }
 
-    fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> io::Result<Id<Node>> {
+    fn visit_arrow_function(&self, node: Id<Node> /*ArrowFunction*/) -> io::Result<Id<Node>> {
         let node_as_arrow_function = node.as_arrow_function();
         Ok(self.factory.update_arrow_function(
             node,
             try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_modifier),
                 None,
                 None,
@@ -753,7 +757,7 @@ impl TransformES2017 {
             Option::<Gc<NodeArray>>::None,
             try_visit_parameter_list(
                 Some(&node_as_arrow_function.parameters()),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
             .unwrap(),
@@ -764,7 +768,7 @@ impl TransformES2017 {
             } else {
                 try_visit_function_body(
                     node_as_arrow_function.maybe_body().as_deref(),
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
                 .unwrap()
@@ -774,7 +778,7 @@ impl TransformES2017 {
 
     fn record_declaration_name(
         &self,
-        node: &Node, /*ParameterDeclaration | VariableDeclaration | BindingElement*/
+        node: Id<Node>, /*ParameterDeclaration | VariableDeclaration | BindingElement*/
         names: &mut HashSet<__String>,
     ) {
         let name = &node.as_named_declaration().name();
@@ -791,7 +795,7 @@ impl TransformES2017 {
 
     fn is_variable_declaration_list_with_colliding_name(
         &self,
-        node: Option<&Node /*ForInitializer*/>,
+        node: Option<Id<Node> /*ForInitializer*/>,
     ) -> bool {
         if node.is_none() {
             return false;
@@ -810,7 +814,7 @@ impl TransformES2017 {
 
     fn visit_variable_declaration_list_with_colliding_names(
         &self,
-        node: &Node, /*VariableDeclarationList*/
+        node: Id<Node>, /*VariableDeclarationList*/
         has_receiver: bool,
     ) -> io::Result<Option<Id<Node>>> {
         let node_as_variable_declaration_list = node.as_variable_declaration_list();
@@ -829,7 +833,7 @@ impl TransformES2017 {
                                     .name(),
                             ),
                     ),
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
@@ -843,7 +847,7 @@ impl TransformES2017 {
         )?)))
     }
 
-    fn hoist_variable_declaration_list(&self, node: &Node /*VariableDeclarationList*/) {
+    fn hoist_variable_declaration_list(&self, node: Id<Node> /*VariableDeclarationList*/) {
         for_each(
             &node.as_variable_declaration_list().declarations,
             |declaration: &Id<Node>, _| -> Option<()> {
@@ -853,7 +857,7 @@ impl TransformES2017 {
         );
     }
 
-    fn hoist_variable(&self, name: &Node) {
+    fn hoist_variable(&self, name: Id<Node>) {
         if is_identifier(name) {
             self.context.hoist_variable_declaration(name);
         } else {
@@ -867,7 +871,7 @@ impl TransformES2017 {
 
     fn transform_initialized_variable(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<Id<Node>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let converted = set_source_map_range(
@@ -881,13 +885,13 @@ impl TransformES2017 {
         );
         Ok(try_visit_node(
             &converted,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?)
     }
 
-    fn collides_with_parameter_name(&self, name: &Node) -> bool {
+    fn collides_with_parameter_name(&self, name: Id<Node>) -> bool {
         if is_identifier(name) {
             return self
                 .enclosing_function_parameter_names()
@@ -904,7 +908,7 @@ impl TransformES2017 {
 
     fn transform_async_function_body(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<Id<Node /*ConciseBody*/>> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         self.context.resume_lexical_environment();
@@ -950,7 +954,7 @@ impl TransformES2017 {
                     .statements,
                 &mut statements,
                 Some(false),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
             )?;
             statements.push(
                 self.factory.create_return_statement(Some(
@@ -1071,7 +1075,7 @@ impl TransformES2017 {
 
     fn transform_async_function_body_worker(
         &self,
-        body: &Node, /*ConciseBody*/
+        body: Id<Node>, /*ConciseBody*/
         start: Option<usize>,
     ) -> io::Result<Id<Node>> {
         Ok(if is_block(body) {
@@ -1079,7 +1083,7 @@ impl TransformES2017 {
                 body,
                 try_visit_nodes(
                     &body.as_block().statements,
-                    Some(|node: &Node| self.async_body_visitor(node)),
+                    Some(|node: Id<Node>| self.async_body_visitor(node)),
                     Some(is_statement),
                     start,
                     None,
@@ -1089,7 +1093,7 @@ impl TransformES2017 {
             self.factory.converters().convert_to_function_block(
                 &*try_visit_node(
                     body,
-                    Some(|node: &Node| self.async_body_visitor(node)),
+                    Some(|node: Id<Node>| self.async_body_visitor(node)),
                     Some(is_concise_body),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
@@ -1100,7 +1104,7 @@ impl TransformES2017 {
 
     fn get_promise_constructor(
         &self,
-        type_: Option<&Node /*TypeNode*/>,
+        type_: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Option<Id<Node>>> {
         type_
             .and_then(get_entity_name_from_type_node)
@@ -1156,7 +1160,7 @@ impl TransformES2017 {
         }
     }
 
-    fn substitute_expression(&self, node: &Node /*Expression*/) -> Id<Node> {
+    fn substitute_expression(&self, node: Id<Node> /*Expression*/) -> Id<Node> {
         match node.kind() {
             SyntaxKind::PropertyAccessExpression => {
                 self.substitute_property_access_expression(node)
@@ -1169,7 +1173,7 @@ impl TransformES2017 {
 
     fn substitute_property_access_expression(
         &self,
-        node: &Node, /*PropertyAccessExpression*/
+        node: Id<Node>, /*PropertyAccessExpression*/
     ) -> Id<Node> {
         let node_as_property_access_expression = node.as_property_access_expression();
         if node_as_property_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
@@ -1192,7 +1196,7 @@ impl TransformES2017 {
 
     fn substitute_element_access_expression(
         &self,
-        node: &Node, /*ElementAccessExpression*/
+        node: Id<Node>, /*ElementAccessExpression*/
     ) -> Id<Node> {
         let node_as_element_access_expression = node.as_element_access_expression();
         if node_as_element_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
@@ -1204,7 +1208,7 @@ impl TransformES2017 {
         node.node_wrapper()
     }
 
-    fn substitute_call_expression(&self, node: &Node /*CallExpression*/) -> Id<Node> {
+    fn substitute_call_expression(&self, node: Id<Node> /*CallExpression*/) -> Id<Node> {
         let node_as_call_expression = node.as_call_expression();
         let expression = &node_as_call_expression.expression;
         if is_super_property(expression) {
@@ -1229,7 +1233,7 @@ impl TransformES2017 {
         node.node_wrapper()
     }
 
-    fn is_super_container(&self, node: &Node) -> bool {
+    fn is_super_container(&self, node: Id<Node>) -> bool {
         let kind = node.kind();
         matches!(
             kind,
@@ -1243,7 +1247,7 @@ impl TransformES2017 {
 
     fn create_super_element_access_in_async_method(
         &self,
-        argument_expression: &Node,        /*Expression*/
+        argument_expression: Id<Node>,     /*Expression*/
         location: &impl ReadonlyTextRange, /*TextRange*/
     ) -> Id<Node /*LeftHandSideExpression*/> {
         if self
@@ -1287,7 +1291,7 @@ impl TransformES2017 {
 }
 
 impl TransformerInterface for TransformES2017 {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
 }
@@ -1314,8 +1318,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2017OnEmitNodeOverr
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if matches!(
             self.transform_es2017.maybe_enabled_substitutions(),
@@ -1382,7 +1386,7 @@ impl TransformES2017OnSubstituteNodeOverrider {
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2017OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
@@ -1421,7 +1425,7 @@ pub fn transform_es2017() -> TransformerFactory {
 pub fn create_super_access_variable_statement(
     factory: &NodeFactory<BaseNodeFactorySynthetic>,
     resolver: &dyn EmitResolver,
-    node: &Node, /*FunctionLikeDeclaration*/
+    node: Id<Node>, /*FunctionLikeDeclaration*/
     names: &HashSet<__String>,
 ) -> Id<Node> {
     let has_binding = resolver

@@ -454,7 +454,7 @@ pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) 
 }
 
 pub fn explain_if_file_is_redirect<TFileNameConvertor: Fn(&str) -> String>(
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
     file_name_convertor: Option<TFileNameConvertor>,
 ) -> Option<Vec<DiagnosticMessageChain>> {
     let mut result: Option<Vec<DiagnosticMessageChain>> = None;

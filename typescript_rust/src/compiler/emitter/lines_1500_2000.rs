@@ -16,7 +16,7 @@ use crate::{
 impl Printer {
     pub(super) fn emit_mapped_type_parameter(
         &self,
-        node: &Node, /*TypeParameterDeclaration*/
+        node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> io::Result<()> {
         let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
         self.emit(
@@ -37,7 +37,7 @@ impl Printer {
     pub(super) fn pipeline_emit_with_substitution(
         &self,
         hint: EmitHint,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<()> {
         let pipeline_phase =
             self.get_next_pipeline_phase(PipelinePhase::Substitution, hint, node)?;
@@ -51,7 +51,7 @@ impl Printer {
 
     pub(super) fn get_helpers_from_bundled_source_files(
         &self,
-        bundle: &Node, /*Bundle*/
+        bundle: Id<Node>, /*Bundle*/
     ) -> Option<Vec<String>> {
         let mut result: Option<Vec<String>> = None;
         if self.module_kind == ModuleKind::None
@@ -84,7 +84,7 @@ impl Printer {
         result
     }
 
-    pub(super) fn emit_helpers(&self, node: &Node) -> bool {
+    pub(super) fn emit_helpers(&self, node: Id<Node>) -> bool {
         let mut helpers_emitted = false;
         let bundle: Option<Id<Node>> = if node.kind() == SyntaxKind::Bundle {
             Some(node.node_wrapper())
@@ -179,7 +179,7 @@ impl Printer {
 
     pub(super) fn get_sorted_emit_helpers(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> Option<SortedArray<Gc<EmitHelper>>> {
         let helpers = get_emit_helpers(node);
         helpers.map(|helpers| {
@@ -191,14 +191,14 @@ impl Printer {
 
     pub(super) fn emit_numeric_or_big_int_literal(
         &self,
-        node: &Node, /*NumericLiteral | BigIntLiteral*/
+        node: Id<Node>, /*NumericLiteral | BigIntLiteral*/
     ) {
         self.emit_literal(node, false);
     }
 
     pub(super) fn emit_literal(
         &self,
-        node: &Node, /*LiteralLikeNode*/
+        node: Id<Node>, /*LiteralLikeNode*/
         jsx_attribute_escape: bool,
     ) {
         let ref text = self.get_literal_text_of_node(
@@ -218,7 +218,7 @@ impl Printer {
 
     pub(super) fn emit_unparsed_source_or_prepend(
         &self,
-        unparsed: &Node, /*UnparsedSource | UnparsedPrepend*/
+        unparsed: Id<Node>, /*UnparsedSource | UnparsedPrepend*/
     ) -> io::Result<()> {
         for text in unparsed.as_has_texts().texts() {
             self.write_line(None);
@@ -228,7 +228,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn write_unparsed_node(&self, unparsed: &Node /*UnparsedNode*/) {
+    pub(super) fn write_unparsed_node(&self, unparsed: Id<Node> /*UnparsedNode*/) {
         self.writer().raw_write(
             &(*unparsed.parent().as_unparsed_source().text())[TryInto::<usize>::try_into(
                 unparsed.pos(),
@@ -238,7 +238,7 @@ impl Printer {
         );
     }
 
-    pub(super) fn emit_unparsed_text_like(&self, unparsed: &Node /*UnparsedTextLike*/) {
+    pub(super) fn emit_unparsed_text_like(&self, unparsed: Id<Node> /*UnparsedTextLike*/) {
         let pos = self.get_text_pos_with_write_line();
         self.write_unparsed_node(unparsed);
         if self.maybe_bundle_file_info().is_some() {
@@ -256,7 +256,7 @@ impl Printer {
 
     pub(super) fn emit_unparsed_synthetic_reference(
         &self,
-        unparsed: &Node, /*UnparsedSyntheticReference*/
+        unparsed: Id<Node>, /*UnparsedSyntheticReference*/
     ) {
         let pos = self.get_text_pos_with_write_line();
         self.write_unparsed_node(unparsed);
@@ -274,7 +274,7 @@ impl Printer {
     pub(super) fn emit_snippet_node(
         &self,
         hint: EmitHint,
-        node: &Node,
+        node: Id<Node>,
         snippet: SnippetElement,
     ) -> io::Result<()> {
         Ok(match snippet.kind {
@@ -291,7 +291,7 @@ impl Printer {
     pub(super) fn emit_placeholder(
         &self,
         hint: EmitHint,
-        node: &Node,
+        node: Id<Node>,
         snippet: SnippetElement, /*Placeholder*/
     ) -> io::Result<()> {
         self.non_escaping_write(&format!("${{{}:", snippet.order));
@@ -305,7 +305,7 @@ impl Printer {
         self.non_escaping_write(&format!("${}", snippet.order));
     }
 
-    pub(super) fn emit_identifier(&self, node: &Node /*Identifier*/) -> io::Result<()> {
+    pub(super) fn emit_identifier(&self, node: Id<Node> /*Identifier*/) -> io::Result<()> {
         let text_of_node = self.get_text_of_node(node, Some(false));
         if let Some(symbol) = node.maybe_symbol() {
             self.write_symbol(&text_of_node, symbol);
@@ -324,7 +324,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_private_identifier(&self, node: &Node /*PrivateIdentifier*/) {
+    pub(super) fn emit_private_identifier(&self, node: Id<Node> /*PrivateIdentifier*/) {
         let text_of_node = self.get_text_of_node(node, Some(false));
         if let Some(symbol) = node.maybe_symbol() {
             self.write_symbol(&text_of_node, symbol);
@@ -333,7 +333,10 @@ impl Printer {
         }
     }
 
-    pub(super) fn emit_qualified_name(&self, node: &Node /*QualifiedName*/) -> io::Result<()> {
+    pub(super) fn emit_qualified_name(
+        &self,
+        node: Id<Node>, /*QualifiedName*/
+    ) -> io::Result<()> {
         let node_as_qualified_name = node.as_qualified_name();
         self.emit_entity_name(&node_as_qualified_name.left)?;
         self.write_punctuation(".");
@@ -342,7 +345,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_entity_name(&self, node: &Node /*EntityName*/) -> io::Result<()> {
+    pub(super) fn emit_entity_name(&self, node: Id<Node> /*EntityName*/) -> io::Result<()> {
         Ok(if node.kind() == SyntaxKind::Identifier {
             self.emit_expression(Some(node), None)?;
         } else {
@@ -352,7 +355,7 @@ impl Printer {
 
     pub(super) fn emit_computed_property_name(
         &self,
-        node: &Node, /*ComputedPropertyName*/
+        node: Id<Node>, /*ComputedPropertyName*/
     ) -> io::Result<()> {
         self.write_punctuation("[");
         self.emit_expression(

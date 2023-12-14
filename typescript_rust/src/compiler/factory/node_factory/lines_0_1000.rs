@@ -86,7 +86,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         factory_
     }
 
-    pub(crate) fn update(&self, updated: Id<Node>, original: &Node) -> Id<Node> {
+    pub(crate) fn update(&self, updated: Id<Node>, original: Id<Node>) -> Id<Node> {
         if self.flags.intersects(NodeFactoryFlags::NoOriginalNode) {
             update_without_original(updated, original)
         } else {
@@ -749,7 +749,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(crate) fn update_base_signature_declaration(
         &self,
         updated: Id<Node>,
-        original: &Node,
+        original: Id<Node>,
     ) -> Id<Node> {
         // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet (looks
         // like this logic is duplicated on updateBaseFunctionLikeDeclaration())
@@ -793,7 +793,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(crate) fn update_base_function_like_declaration(
         &self,
         updated: Id<Node>,
-        original: &Node,
+        original: Id<Node>,
     ) -> Id<Node> {
         let updated_as_function_like_declaration = updated.as_function_like_declaration();
         let original_as_function_like_declaration = original.as_function_like_declaration();
@@ -989,7 +989,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_string_literal_from_node_raw(
         &self,
-        source_node: &Node, /*PropertyNameLiteral*/
+        source_node: Id<Node>, /*PropertyNameLiteral*/
     ) -> StringLiteral {
         let mut node = self.create_base_string_literal(
             get_text_of_identifier_or_literal(source_node).into_owned(),
@@ -1093,7 +1093,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
         type_arguments: Option<
             impl Into<NodeArrayOrVec>, /*<TypeNode | TypeParameterDeclaration>*/
         >,
@@ -1112,7 +1112,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_temp_variable(
         &self,
-        record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
+        record_temp_variable: Option<impl FnMut(Id<Node> /*Identifier*/)>,
         reserved_in_nested_scopes: Option<bool>,
     ) -> Id<Node /*GeneratedIdentifier*/> {
         let mut flags = GeneratedIdentifierFlags::Auto;

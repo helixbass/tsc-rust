@@ -54,7 +54,7 @@ impl TypeChecker {
 
     pub(super) fn is_referenced_alias_declaration(
         &self,
-        node: &Node,
+        node: Id<Node>,
         check_children: Option<bool>,
     ) -> io::Result<bool> {
         if self.is_alias_symbol_declaration(node)? {
@@ -94,7 +94,7 @@ impl TypeChecker {
 
     pub(super) fn is_implementation_of_overload_(
         &self,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         if node_is_present(
             node.maybe_as_function_like_declaration()
@@ -120,7 +120,7 @@ impl TypeChecker {
 
     pub(super) fn is_required_initialized_parameter(
         &self,
-        parameter: &Node, /*ParameterDeclaration | JSDocParameterTag*/
+        parameter: Id<Node>, /*ParameterDeclaration | JSDocParameterTag*/
     ) -> io::Result<bool> {
         Ok(self.strict_null_checks
             && !self.is_optional_parameter_(parameter)?
@@ -134,7 +134,7 @@ impl TypeChecker {
 
     pub(super) fn is_optional_uninitialized_parameter_property(
         &self,
-        parameter: &Node, /*ParameterDeclaration*/
+        parameter: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
         Ok(self.strict_null_checks
             && self.is_optional_parameter_(parameter)?
@@ -147,7 +147,7 @@ impl TypeChecker {
 
     pub(super) fn is_optional_uninitialized_parameter_(
         &self,
-        parameter: &Node, /*ParameterDeclaration*/
+        parameter: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
         Ok(self.strict_null_checks
             && self.is_optional_parameter_(parameter)?
@@ -159,7 +159,7 @@ impl TypeChecker {
 
     pub(super) fn is_expando_function_declaration(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
         let ref declaration = return_ok_default_if_none!(get_parse_tree_node(
             Some(node),
@@ -183,7 +183,7 @@ impl TypeChecker {
 
     pub(super) fn get_properties_of_container_function(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> io::Result<impl Iterator<Item = Id<Symbol>>> {
         let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
         if declaration.is_none() {
@@ -199,7 +199,7 @@ impl TypeChecker {
         .unwrap_or_empty())
     }
 
-    pub(super) fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags {
+    pub(super) fn get_node_check_flags(&self, node: Id<Node>) -> NodeCheckFlags {
         let node_id = node.maybe_id().unwrap_or(0);
         /*if (nodeId < 0 || nodeId >= nodeLinks.length) return 0;*/
         self.node_links()
@@ -212,7 +212,7 @@ impl TypeChecker {
 
     pub(super) fn get_enum_member_value(
         &self,
-        node: &Node, /*EnumMember*/
+        node: Id<Node>, /*EnumMember*/
     ) -> io::Result<Option<StringOrNumber>> {
         self.compute_enum_member_values(&node.parent())?;
         let ret = (*self.get_node_links(node))
@@ -222,7 +222,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn can_have_constant_value(&self, node: &Node) -> bool {
+    pub(super) fn can_have_constant_value(&self, node: Id<Node>) -> bool {
         matches!(
             node.kind(),
             SyntaxKind::EnumMember
@@ -233,7 +233,7 @@ impl TypeChecker {
 
     pub(super) fn get_constant_value_(
         &self,
-        node: &Node, /*EnumMember | AccessExpression*/
+        node: Id<Node>, /*EnumMember | AccessExpression*/
     ) -> io::Result<Option<StringOrNumber>> {
         if node.kind() == SyntaxKind::EnumMember {
             return self.get_enum_member_value(node);
@@ -267,7 +267,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_reference_serialization_kind(
         &self,
-        type_name_in: &Node, /*EntityName*/
+        type_name_in: Id<Node>, /*EntityName*/
         location: Option<impl Borrow<Node>>,
     ) -> io::Result<TypeReferenceSerializationKind> {
         let type_name = get_parse_tree_node(Some(type_name_in), Some(is_entity_name));
@@ -278,7 +278,8 @@ impl TypeChecker {
 
         let mut location = location.map(|location| location.borrow().node_wrapper());
         if location.is_some() {
-            location = get_parse_tree_node(location.as_deref(), Option::<fn(&Node) -> bool>::None);
+            location =
+                get_parse_tree_node(location.as_deref(), Option::<fn(Id<Node>) -> bool>::None);
             if location.is_none() {
                 return Ok(TypeReferenceSerializationKind::Unknown);
             }
@@ -410,15 +411,15 @@ impl TypeChecker {
 
     pub(super) fn create_type_of_declaration(
         &self,
-        declaration_in: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
-        enclosing_declaration: &Node,
+        declaration_in: Id<Node>, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
+        enclosing_declaration: Id<Node>,
         mut flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let declaration = get_parse_tree_node(
             Some(declaration_in),
-            Some(|node: &Node| is_variable_like_or_accessor(node)),
+            Some(|node: Id<Node>| is_variable_like_or_accessor(node)),
         );
         if declaration.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
@@ -456,14 +457,14 @@ impl TypeChecker {
 
     pub(super) fn create_return_type_of_signature_declaration(
         &self,
-        signature_declaration_in: &Node, /*SignatureDeclaration*/
-        enclosing_declaration: &Node,
+        signature_declaration_in: Id<Node>, /*SignatureDeclaration*/
+        enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let signature_declaration = get_parse_tree_node(
             Some(signature_declaration_in),
-            Some(|node: &Node| is_function_like(Some(node))),
+            Some(|node: Id<Node>| is_function_like(Some(node))),
         );
         if signature_declaration.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
@@ -480,12 +481,12 @@ impl TypeChecker {
 
     pub(super) fn create_type_of_expression(
         &self,
-        expr_in: &Node, /*Expression*/
-        enclosing_declaration: &Node,
+        expr_in: Id<Node>, /*Expression*/
+        enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
+        let expr = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node)));
         if expr.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         }
@@ -506,7 +507,7 @@ impl TypeChecker {
 
     pub(super) fn get_referenced_value_symbol(
         &self,
-        reference: &Node, /*Identifier*/
+        reference: Id<Node>, /*Identifier*/
         start_in_declaration_container: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let resolved_symbol = (*self.get_node_links(reference))
@@ -546,11 +547,13 @@ impl TypeChecker {
 
     pub(super) fn get_referenced_value_declaration(
         &self,
-        reference_in: &Node, /*Identifier*/
+        reference_in: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         if !is_generated_identifier(reference_in) {
-            let reference =
-                get_parse_tree_node(Some(reference_in), Some(|node: &Node| is_identifier(node)));
+            let reference = get_parse_tree_node(
+                Some(reference_in),
+                Some(|node: Id<Node>| is_identifier(node)),
+            );
             if let Some(reference) = reference.as_ref() {
                 let symbol = self.get_referenced_value_symbol(reference, None)?;
                 if let Some(symbol) = symbol {
@@ -568,7 +571,7 @@ impl TypeChecker {
 
     pub(super) fn is_literal_const_declaration(
         &self,
-        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+        node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> io::Result<bool> {
         if is_declaration_readonly(node) || is_variable_declaration(node) && is_var_const(node) {
             return Ok(self.is_fresh_literal_type(
@@ -581,7 +584,7 @@ impl TypeChecker {
     pub(super) fn literal_type_to_node(
         &self,
         type_: Id<Type>, /*FreshableType*/
-        enclosing: &Node,
+        enclosing: Id<Node>,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>> {
         let enum_result = if type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral) {
@@ -618,7 +621,7 @@ impl TypeChecker {
 
     pub(super) fn create_literal_const_value(
         &self,
-        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+        node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node>> {
         let type_ = self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?;
@@ -627,7 +630,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_factory_entity(
         &self,
-        location: &Node,
+        location: Id<Node>,
     ) -> Option<Id<Node /*EntityName*/>> {
         /*location ?*/
         self.get_jsx_namespace_(Some(location));
@@ -641,7 +644,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_fragment_factory_entity(
         &self,
-        location: &Node,
+        location: Id<Node>,
     ) -> Option<Id<Node /*EntityName*/>> {
         // if (location) {
         let file = maybe_get_source_file_of_node(Some(location));
@@ -690,7 +693,7 @@ impl TypeChecker {
 
     pub(super) fn get_external_module_file_from_declaration(
         &self,
-        declaration: &Node, /*AnyImportOrReExport | ModuleDeclaration | ImportTypeNode | ImportCall*/
+        declaration: Id<Node>, /*AnyImportOrReExport | ModuleDeclaration | ImportTypeNode | ImportCall*/
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         let specifier = if declaration.kind() == SyntaxKind::ModuleDeclaration {
             try_cast(
@@ -1002,7 +1005,7 @@ impl TypeChecker {
 
     pub(super) fn check_external_emit_helpers(
         &self,
-        location: &Node,
+        location: Id<Node>,
         helpers: ExternalEmitHelpers,
     ) -> io::Result<()> {
         if self.requested_external_emit_helpers() & helpers != helpers
@@ -1143,8 +1146,8 @@ impl TypeChecker {
 
     pub(super) fn resolve_helpers_module(
         &self,
-        node: &Node, /*SourceFile*/
-        error_node: &Node,
+        node: Id<Node>, /*SourceFile*/
+        error_node: Id<Node>,
     ) -> io::Result<Id<Symbol>> {
         let mut external_helpers_module = self.maybe_external_helpers_module();
         if external_helpers_module.is_none() {
@@ -1161,11 +1164,11 @@ impl TypeChecker {
         Ok(external_helpers_module.clone().unwrap())
     }
 
-    pub(super) fn check_grammar_decorators_and_modifiers(&self, node: &Node) -> bool {
+    pub(super) fn check_grammar_decorators_and_modifiers(&self, node: Id<Node>) -> bool {
         self.check_grammar_decorators(node) || self.check_grammar_modifiers(node)
     }
 
-    pub(super) fn check_grammar_decorators(&self, node: &Node) -> bool {
+    pub(super) fn check_grammar_decorators(&self, node: Id<Node>) -> bool {
         if node.maybe_decorators().is_none() {
             return false;
         }
@@ -1212,7 +1215,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_grammar_modifiers(&self, node: &Node) -> bool {
+    pub(super) fn check_grammar_modifiers(&self, node: Id<Node>) -> bool {
         let quick_result = self.report_obvious_modifier_errors(node);
         if let Some(quick_result) = quick_result {
             return quick_result;

@@ -74,7 +74,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn is_eval_node(&self, node: &Node /*Expression*/) -> bool {
+    pub(super) fn is_eval_node(&self, node: Id<Node> /*Expression*/) -> bool {
         node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text == "eval"
     }
 
@@ -82,8 +82,8 @@ impl TypeChecker {
         &self,
         left_type: Id<Type>,
         right_type: Id<Type>,
-        left: &Node,
-        right: &Node,
+        left: Id<Node>,
+        right: Id<Node>,
         operator: SyntaxKind,
     ) -> bool {
         let offending_symbol_operand =
@@ -126,9 +126,9 @@ impl TypeChecker {
     pub(super) fn check_assignment_operator(
         &self,
         operator: SyntaxKind,
-        left: &Node,
+        left: Id<Node>,
         left_type: Id<Type>,
-        right: &Node,
+        right: Id<Node>,
         value_type: Id<Type>,
     ) -> io::Result<()> {
         if self.produce_diagnostics && is_assignment_operator(operator) {
@@ -173,8 +173,8 @@ impl TypeChecker {
 
     pub(super) fn is_assignment_declaration(
         &self,
-        left: &Node,
-        right: &Node,
+        left: Id<Node>,
+        right: Id<Node>,
         kind: AssignmentDeclarationKind,
     ) -> io::Result<bool> {
         Ok(match kind {
@@ -202,7 +202,7 @@ impl TypeChecker {
         &self,
         left_type: Id<Type>,
         right_type: Id<Type>,
-        operator_token: &Node,
+        operator_token: Id<Node>,
         error_node: Option<impl Borrow<Node>>,
         mut types_are_compatible: impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
     ) -> io::Result<bool> {
@@ -222,7 +222,7 @@ impl TypeChecker {
     pub(super) fn report_operator_error(
         &self,
         error_node: Option<impl Borrow<Node>>,
-        operator_token: &Node,
+        operator_token: Id<Node>,
         left_type: Id<Type>,
         right_type: Id<Type>,
         mut is_related: Option<impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>>,
@@ -234,9 +234,9 @@ impl TypeChecker {
         );
         if let Some(is_related) = is_related.as_mut() {
             let awaited_left_type =
-                self.get_awaited_type_no_alias(left_type, Option::<&Node>::None, None, None)?;
+                self.get_awaited_type_no_alias(left_type, Option::<Id<Node>>::None, None, None)?;
             let awaited_right_type =
-                self.get_awaited_type_no_alias(right_type, Option::<&Node>::None, None, None)?;
+                self.get_awaited_type_no_alias(right_type, Option::<Id<Node>>::None, None, None)?;
             would_work_with_await = !(awaited_left_type == Some(left_type)
                 && awaited_right_type == Some(right_type))
                 && awaited_left_type.is_some()
@@ -281,8 +281,8 @@ impl TypeChecker {
 
     pub(super) fn try_give_better_primary_error(
         &self,
-        operator_token: &Node,
-        err_node: &Node,
+        operator_token: Id<Node>,
+        err_node: Id<Node>,
         maybe_missing_await: bool,
         left_str: &str,
         right_str: &str,
@@ -333,7 +333,7 @@ impl TypeChecker {
 
     pub(super) fn check_yield_expression(
         &self,
-        node: &Node, /*YieldExpression*/
+        node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Id<Type>> {
         if self.produce_diagnostics {
             if !node.flags().intersects(NodeFlags::YieldContext) {
@@ -395,7 +395,7 @@ impl TypeChecker {
             .map(|iteration_types| iteration_types.next_type())
             .unwrap_or_else(|| self.any_type());
         let resolved_signature_next_type = if is_async {
-            self.get_awaited_type_(signature_next_type, Option::<&Node>::None, None, None)?
+            self.get_awaited_type_(signature_next_type, Option::<Id<Node>>::None, None, None)?
                 .unwrap_or_else(|| self.any_type())
         } else {
             signature_next_type
@@ -478,7 +478,7 @@ impl TypeChecker {
 
     pub(super) fn check_conditional_expression(
         &self,
-        node: &Node, /*ConditionalExpression*/
+        node: Id<Node>, /*ConditionalExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_conditional_expression = node.as_conditional_expression();
@@ -502,7 +502,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_template_literal_context(&self, node: &Node) -> bool {
+    pub(super) fn is_template_literal_context(&self, node: Id<Node>) -> bool {
         let parent = node.parent();
         is_parenthesized_expression(node) && self.is_template_literal_context(&parent)
             || is_element_access_expression(&parent)
@@ -514,7 +514,7 @@ impl TypeChecker {
 
     pub(super) fn check_template_expression(
         &self,
-        node: &Node, /*TemplateExpression*/
+        node: Id<Node>, /*TemplateExpression*/
     ) -> io::Result<Id<Type>> {
         let node_as_template_expression = node.as_template_expression();
         let mut texts = vec![node_as_template_expression
@@ -579,7 +579,7 @@ impl TypeChecker {
                 ))
     }
 
-    pub(super) fn get_context_node(&self, node: &Node /*Expression*/) -> Id<Node> {
+    pub(super) fn get_context_node(&self, node: Id<Node> /*Expression*/) -> Id<Node> {
         if node.kind() == SyntaxKind::JsxAttributes && !is_jsx_self_closing_element(&node.parent())
         {
             return node.parent().parent();
@@ -589,7 +589,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_with_contextual_type(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         contextual_type: Id<Type>,
         inference_context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
@@ -632,7 +632,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_cached(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);

@@ -62,7 +62,7 @@ impl TypeChecker {
 
     pub(super) fn has_correct_arity(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         args: &[Id<Node /*Expression*/>],
         signature: &Signature,
         signature_help_trailing_comma: Option<bool>,
@@ -328,7 +328,7 @@ impl TypeChecker {
 
     pub(super) fn infer_jsx_type_arguments(
         &self,
-        node: &Node, /*JsxOpeningLikeElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement*/
         signature: Gc<Signature>,
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
@@ -372,7 +372,7 @@ impl TypeChecker {
 
     pub(super) fn infer_type_arguments(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         signature: Gc<Signature>,
         args: &[Id<Node /*Expression*/>],
         check_mode: CheckMode,
@@ -645,7 +645,7 @@ impl TypeChecker {
                     rest_type,
                     self.get_number_literal_type(Number::new((i - index) as f64)),
                     Some(AccessFlags::Contextual),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Id<Symbol>>::None,
                     None,
                 )?;
@@ -756,7 +756,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_reference_kind(
         &self,
-        node: &Node, /*JsxOpeningLikeElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<JsxReferenceKind> {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()) {
@@ -784,7 +784,7 @@ impl TypeChecker {
 
     pub(super) fn check_applicable_signature_for_jsx_opening_like_element(
         &self,
-        node: &Node, /*JsxOpeningLikeElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement*/
         signature: Gc<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
@@ -823,7 +823,7 @@ impl TypeChecker {
 
     pub(super) fn check_tag_name_does_not_expect_too_many_arguments(
         &self,
-        node: &Node, /*JsxOpeningLikeElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement*/
         report_errors: bool,
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> io::Result<bool> {
@@ -955,7 +955,7 @@ impl TypeChecker {
 
     pub(super) fn get_signature_applicability_error(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         args: &[Id<Node /*Expression*/>],
         signature: Gc<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -1086,7 +1086,7 @@ impl TypeChecker {
                     node,
                     spread_type,
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 );
                 set_text_range_pos_end(
                     &*error_node,

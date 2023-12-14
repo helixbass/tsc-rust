@@ -442,7 +442,7 @@ impl ParserType {
         self.parse_expression_or_labeled_statement()
     }
 
-    pub(super) fn is_declare_modifier(&self, modifier: &Node /*Modifier*/) -> bool {
+    pub(super) fn is_declare_modifier(&self, modifier: Id<Node> /*Modifier*/) -> bool {
         modifier.kind() == SyntaxKind::DeclareKeyword
     }
 

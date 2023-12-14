@@ -21,7 +21,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_object_literal_assignment(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
+        node: Id<Node>, /*ObjectLiteralExpression*/
         source_type: Id<Type>,
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -43,7 +43,7 @@ impl TypeChecker {
 
     pub(super) fn check_object_literal_destructuring_property_assignment(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
+        node: Id<Node>, /*ObjectLiteralExpression*/
         object_literal_type: Id<Type>,
         property_index: usize,
         all_properties: Option<&NodeArray /*<ObjectLiteralElementLike>*/>,
@@ -141,7 +141,7 @@ impl TypeChecker {
 
     pub(super) fn check_array_literal_assignment(
         &self,
-        node: &Node, /*ArrayLiteralExpression*/
+        node: Id<Node>, /*ArrayLiteralExpression*/
         source_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
@@ -190,7 +190,7 @@ impl TypeChecker {
 
     pub(super) fn check_array_literal_destructuring_element_assignment(
         &self,
-        node: &Node, /*ArrayLiteralExpression*/
+        node: Id<Node>, /*ArrayLiteralExpression*/
         source_type: Id<Type>,
         element_index: usize,
         element_type: Id<Type>,
@@ -218,7 +218,7 @@ impl TypeChecker {
                                 element,
                                 index_type,
                                 None,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                             )),
                             Option::<Id<Symbol>>::None,
                             None,
@@ -291,7 +291,7 @@ impl TypeChecker {
 
     pub(super) fn check_destructuring_assignment(
         &self,
-        expr_or_assignment: &Node, /*Expression | ShorthandPropertyAssignment*/
+        expr_or_assignment: Id<Node>, /*Expression | ShorthandPropertyAssignment*/
         mut source_type: Id<Type>,
         check_mode: Option<CheckMode>,
         right_is_this: Option<bool>,
@@ -318,7 +318,7 @@ impl TypeChecker {
                     prop.equals_token.as_ref().unwrap(),
                     prop_object_assignment_initializer,
                     check_mode,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )?;
             }
             target = expr_or_assignment.as_shorthand_property_assignment().name();
@@ -343,7 +343,7 @@ impl TypeChecker {
 
     pub(super) fn check_reference_assignment(
         &self,
-        target: &Node, /*Expression*/
+        target: Id<Node>, /*Expression*/
         source_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
@@ -377,7 +377,7 @@ impl TypeChecker {
         Ok(source_type)
     }
 
-    pub(super) fn is_side_effect_free(&self, node: &Node) -> bool {
+    pub(super) fn is_side_effect_free(&self, node: Id<Node>) -> bool {
         let node = skip_parentheses(node, None);
         match node.kind() {
             SyntaxKind::Identifier
@@ -449,7 +449,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_nullish_coalesce_with_logical_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) {
         let node_as_binary_expression = node.as_binary_expression();
         let left = &node_as_binary_expression.left;
@@ -495,9 +495,9 @@ impl TypeChecker {
 
     pub(super) fn check_binary_like_expression(
         &self,
-        left: &Node, /*Expression*/
-        operator_token: &Node,
-        right: &Node, /*Expression*/
+        left: Id<Node>, /*Expression*/
+        operator_token: Id<Node>,
+        right: Id<Node>, /*Expression*/
         check_mode: Option<CheckMode>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Id<Type>> {
@@ -540,9 +540,9 @@ impl TypeChecker {
 
     pub(super) fn check_binary_like_expression_worker(
         &self,
-        left: &Node, /*Expression*/
-        operator_token: &Node,
-        right: &Node, /*Expression*/
+        left: Id<Node>, /*Expression*/
+        operator_token: Id<Node>,
+        right: Id<Node>, /*Expression*/
         mut left_type: Id<Type>,
         mut right_type: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
@@ -971,7 +971,7 @@ impl CheckBinaryExpression {
 
     pub fn call(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let result = self.trampoline.call(node, check_mode)?;
@@ -1000,7 +1000,7 @@ impl CheckBinaryExpressionStateMachine {
     pub fn maybe_check_expression(
         &self,
         state: Rc<RefCell<WorkArea>>,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if is_binary_expression(node) {
             return Ok(Some(node.node_wrapper()));
@@ -1054,7 +1054,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
     fn on_enter(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         mut state: Option<Rc<RefCell<WorkArea>>>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Rc<RefCell<WorkArea>>> {
@@ -1126,9 +1126,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
     fn on_left(
         &self,
-        left: &Node, /*Expression*/
+        left: Id<Node>, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
-        _node: &Node, /*BinaryExpression*/
+        _node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return self.maybe_check_expression(state, left);
@@ -1138,9 +1138,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
     fn on_operator(
         &self,
-        operator_token: &Node, /*BinaryOperatorToken*/
+        operator_token: Id<Node>, /*BinaryOperatorToken*/
         state: Rc<RefCell<WorkArea>>,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<()> {
         if !(*state).borrow().skip {
             let left_type = self.get_last_result(state.clone());
@@ -1179,9 +1179,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
     fn on_right(
         &self,
-        right: &Node, /*Expression*/
+        right: Id<Node>, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
-        _node: &Node, /*BinaryExpression*/
+        _node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return self.maybe_check_expression(state, right);
@@ -1191,7 +1191,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
     fn on_exit(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         state: Rc<RefCell<WorkArea>>,
     ) -> io::Result<Option<Id<Type>>> {
         let result: Option<Id<Type>>;

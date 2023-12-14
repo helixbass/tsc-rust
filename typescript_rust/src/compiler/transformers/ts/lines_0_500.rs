@@ -268,7 +268,7 @@ impl TransformTypeScript {
 
     pub(super) fn transform_source_file_or_bundle(
         &self,
-        node: &Node, /*SourceFile | Bundle*/
+        node: Id<Node>, /*SourceFile | Bundle*/
     ) -> io::Result<Id<Node>> {
         if node.kind() == SyntaxKind::Bundle {
             return self.transform_bundle(node);
@@ -276,7 +276,7 @@ impl TransformTypeScript {
         self.transform_source_file(node)
     }
 
-    pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Id<Node>> {
+    pub(super) fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> io::Result<Id<Node>> {
         let node_as_bundle = node.as_bundle();
         Ok(self.factory.create_bundle(
             node_as_bundle
@@ -306,7 +306,7 @@ impl TransformTypeScript {
 
     pub(super) fn transform_source_file(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
         if node.as_source_file().is_declaration_file() {
             return Ok(node.node_wrapper());
@@ -315,7 +315,7 @@ impl TransformTypeScript {
         self.set_current_source_file(Some(node.node_wrapper()));
 
         let visited =
-            self.try_save_state_and_invoke(node, |node: &Node| self.visit_source_file(node))?;
+            self.try_save_state_and_invoke(node, |node: Id<Node>| self.visit_source_file(node))?;
         add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
 
         self.set_current_source_file(None);
@@ -325,16 +325,16 @@ impl TransformTypeScript {
     #[allow(dead_code)]
     pub(super) fn save_state_and_invoke<TReturn>(
         &self,
-        node: &Node,
-        mut f: impl FnMut(&Node) -> TReturn,
+        node: Id<Node>,
+        mut f: impl FnMut(Id<Node>) -> TReturn,
     ) -> TReturn {
         self.try_save_state_and_invoke(node, |a| Ok(f(a))).unwrap()
     }
 
     pub(super) fn try_save_state_and_invoke<TReturn>(
         &self,
-        node: &Node,
-        mut f: impl FnMut(&Node) -> io::Result<TReturn>,
+        node: Id<Node>,
+        mut f: impl FnMut(Id<Node>) -> io::Result<TReturn>,
     ) -> io::Result<TReturn> {
         let saved_current_scope = self.maybe_current_lexical_scope();
         let saved_current_name_scope = self.maybe_current_name_scope();
@@ -365,7 +365,7 @@ impl TransformTypeScript {
         Ok(visited)
     }
 
-    pub(super) fn on_before_visit_node(&self, node: &Node) {
+    pub(super) fn on_before_visit_node(&self, node: Id<Node>) {
         match node.kind() {
             SyntaxKind::SourceFile
             | SyntaxKind::CaseBlock
@@ -397,11 +397,11 @@ impl TransformTypeScript {
         }
     }
 
-    pub(super) fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
-        self.try_save_state_and_invoke(node, |node: &Node| self.visitor_worker(node))
+    pub(super) fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
+        self.try_save_state_and_invoke(node, |node: Id<Node>| self.visitor_worker(node))
     }
 
-    pub(super) fn visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn visitor_worker(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         if node
             .transform_flags()
             .intersects(TransformFlags::ContainsTypeScript)
@@ -411,11 +411,14 @@ impl TransformTypeScript {
         Ok(Some(node.node_wrapper().into()))
     }
 
-    pub(super) fn source_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
-        self.try_save_state_and_invoke(node, |node: &Node| self.source_element_visitor_worker(node))
+    pub(super) fn source_element_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
+    {
+        self.try_save_state_and_invoke(node, |node: Id<Node>| {
+            self.source_element_visitor_worker(node)
+        })
     }
 
-    pub(super) fn source_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    pub(super) fn source_element_visitor_worker(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
         Ok(match node.kind() {
             SyntaxKind::ImportDeclaration
@@ -428,9 +431,9 @@ impl TransformTypeScript {
 
     pub(super) fn visit_elidable_statement(
         &self,
-        node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportAssignment | ExportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportAssignment | ExportDeclaration*/
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        let parsed = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+        let parsed = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
         if !parsed.matches(|parsed| ptr::eq(&*parsed, node)) {
             if node
                 .transform_flags()
@@ -438,7 +441,7 @@ impl TransformTypeScript {
             {
                 return Ok(try_maybe_visit_each_child(
                     Some(node),
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
                 .map(Into::into));
@@ -454,15 +457,17 @@ impl TransformTypeScript {
         })
     }
 
-    pub(super) fn namespace_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    pub(super) fn namespace_element_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
-        self.try_save_state_and_invoke(node, |node: &Node| {
+        self.try_save_state_and_invoke(node, |node: Id<Node>| {
             self.namespace_element_visitor_worker(node)
         })
     }
 
-    pub(super) fn namespace_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
-    {
+    pub(super) fn namespace_element_visitor_worker(
+        &self,
+        node: Id<Node>,
+    ) -> io::Result<VisitResult> /*<Node>*/ {
         if matches!(
             node.kind(),
             SyntaxKind::ExportDeclaration
@@ -484,11 +489,14 @@ impl TransformTypeScript {
         Ok(Some(node.node_wrapper().into()))
     }
 
-    pub(super) fn class_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
-        self.try_save_state_and_invoke(node, |node: &Node| self.class_element_visitor_worker(node))
+    pub(super) fn class_element_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
+    {
+        self.try_save_state_and_invoke(node, |node: Id<Node>| {
+            self.class_element_visitor_worker(node)
+        })
     }
 
-    pub(super) fn class_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    pub(super) fn class_element_visitor_worker(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
         Ok(match node.kind() {
             SyntaxKind::Constructor => self.visit_constructor(node)?,
@@ -503,7 +511,7 @@ impl TransformTypeScript {
         })
     }
 
-    pub(super) fn modifier_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn modifier_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         #[allow(clippy::if_same_then_else)]
         if modifier_to_flag(node.kind()).intersects(ModifierFlags::TypeScriptModifier) {
             return None;
@@ -516,7 +524,7 @@ impl TransformTypeScript {
         Some(node.node_wrapper().into())
     }
 
-    pub(super) fn visit_type_script(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn visit_type_script(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         if is_statement(node) && has_syntactic_modifier(node, ModifierFlags::Ambient) {
             return Ok(Some(
                 self.factory
@@ -616,7 +624,7 @@ impl TransformTypeScript {
             SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node)?,
             _ => try_maybe_visit_each_child(
                 Some(node),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
             .map(Into::into),
@@ -625,7 +633,7 @@ impl TransformTypeScript {
 }
 
 impl TransformerInterface for TransformTypeScript {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file_or_bundle(node)
     }
 }
@@ -647,11 +655,11 @@ impl TransformTypeScriptOnEmitNodeOverrider {
         }
     }
 
-    pub(super) fn is_transformed_module_declaration(&self, node: &Node) -> bool {
+    pub(super) fn is_transformed_module_declaration(&self, node: Id<Node>) -> bool {
         get_original_node(node).kind() == SyntaxKind::ModuleDeclaration
     }
 
-    pub(super) fn is_transformed_enum_declaration(&self, node: &Node) -> bool {
+    pub(super) fn is_transformed_enum_declaration(&self, node: Id<Node>) -> bool {
         get_original_node(node).kind() == SyntaxKind::EnumDeclaration
     }
 }
@@ -660,8 +668,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeO
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         let saved_applicable_substitutions = self.transform_type_script.applicable_substitutions();
         let saved_current_source_file = self.transform_type_script.maybe_current_source_file();
@@ -726,7 +734,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 
     fn substitute_shorthand_property_assignment(
         &self,
-        node: &Node, /*ShorthandPropertyAssignment*/
+        node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         if self
@@ -762,7 +770,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         Ok(node.node_wrapper())
     }
 
-    fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Id<Node>> {
+    fn substitute_expression(&self, node: Id<Node> /*Expression*/) -> io::Result<Id<Node>> {
         match node.kind() {
             SyntaxKind::Identifier => {
                 return self.substitute_expression_identifier(node);
@@ -781,7 +789,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 
     fn substitute_expression_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         Ok(self
             .try_substitute_class_alias(node)?
@@ -791,7 +799,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 
     fn try_substitute_class_alias(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         if self
             .transform_type_script
@@ -829,7 +837,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 
     fn try_substitute_namespace_exported_name(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         if self.transform_type_script.enabled_substitutions()
             & self.transform_type_script.applicable_substitutions()
@@ -875,21 +883,21 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 
     fn substitute_property_access_expression(
         &self,
-        node: &Node, /*PropertyAccessExpression*/
+        node: Id<Node>, /*PropertyAccessExpression*/
     ) -> io::Result<Id<Node>> {
         self.substitute_constant_value(node)
     }
 
     fn substitute_element_access_expression(
         &self,
-        node: &Node, /*ElementAccessExpression*/
+        node: Id<Node>, /*ElementAccessExpression*/
     ) -> io::Result<Id<Node>> {
         self.substitute_constant_value(node)
     }
 
     fn substitute_constant_value(
         &self,
-        node: &Node, /*PropertyAccessExpression | ElementAccessExpression*/
+        node: Id<Node>, /*PropertyAccessExpression | ElementAccessExpression*/
     ) -> io::Result<Id<Node /*LeftHandSideExpression*/>> {
         let constant_value = self.try_get_const_enum_value(node)?;
 
@@ -942,7 +950,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         Ok(node.node_wrapper())
     }
 
-    fn try_get_const_enum_value(&self, node: &Node) -> io::Result<Option<StringOrNumber>> {
+    fn try_get_const_enum_value(&self, node: Id<Node>) -> io::Result<Option<StringOrNumber>> {
         if self.transform_type_script.compiler_options.isolated_modules == Some(true) {
             return Ok(None);
         }
@@ -955,7 +963,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformTypeScriptOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

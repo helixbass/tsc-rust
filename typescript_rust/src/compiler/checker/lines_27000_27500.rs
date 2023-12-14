@@ -19,7 +19,7 @@ impl TypeChecker {
     pub(super) fn create_object_literal_type(
         &self,
         has_computed_string_property: bool,
-        node: &Node,
+        node: Id<Node>,
         offset: usize,
         properties_array: &[Id<Symbol>],
         has_computed_number_property: bool,
@@ -116,7 +116,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_self_closing_element_deferred(
         &self,
-        node: &Node, /*JsxSelfClosingElement*/
+        node: Id<Node>, /*JsxSelfClosingElement*/
     ) -> io::Result<()> {
         self.check_jsx_opening_like_element_or_opening_fragment(node)?;
 
@@ -125,7 +125,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_self_closing_element(
         &self,
-        node: &Node, /*JsxSelfClosingElement*/
+        node: Id<Node>, /*JsxSelfClosingElement*/
         _check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.check_node_deferred(node);
@@ -134,7 +134,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_element_deferred(
         &self,
-        node: &Node, /*JsxElement*/
+        node: Id<Node>, /*JsxElement*/
     ) -> io::Result<()> {
         let node_as_jsx_element = node.as_jsx_element();
         self.check_jsx_opening_like_element_or_opening_fragment(
@@ -166,7 +166,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_element(
         &self,
-        node: &Node, /*JsxElement*/
+        node: Id<Node>, /*JsxElement*/
         _check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.check_node_deferred(node);
@@ -176,7 +176,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_fragment(
         &self,
-        node: &Node, /*JsxFragment*/
+        node: Id<Node>, /*JsxFragment*/
     ) -> io::Result<Id<Type>> {
         let node_as_jsx_fragment = node.as_jsx_fragment();
         self.check_jsx_opening_like_element_or_opening_fragment(
@@ -216,7 +216,7 @@ impl TypeChecker {
 
     pub(super) fn is_jsx_intrinsic_identifier(
         &self,
-        tag_name: &Node, /*JsxTagNameExpression*/
+        tag_name: Id<Node>, /*JsxTagNameExpression*/
     ) -> bool {
         tag_name.kind() == SyntaxKind::Identifier
             && is_intrinsic_jsx_name(&tag_name.as_identifier().escaped_text)
@@ -224,7 +224,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_attribute(
         &self,
-        node: &Node, /*JsxAttribute*/
+        node: Id<Node>, /*JsxAttribute*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         Ok(
@@ -243,7 +243,7 @@ impl TypeChecker {
 
     pub(super) fn create_jsx_attributes_type_from_attributes_property(
         &self,
-        opening_like_element: &Node, /*JsxOpeningLikeElement*/
+        opening_like_element: Id<Node>, /*JsxOpeningLikeElement*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let opening_like_element_as_jsx_opening_like_element =
@@ -552,7 +552,7 @@ impl TypeChecker {
     pub(super) fn create_jsx_attributes_type(
         &self,
         object_flags: &mut ObjectFlags,
-        attributes: &Node,
+        attributes: Id<Node>,
         attributes_table: Gc<GcCell<SymbolTable>>,
     ) -> io::Result<Id<Type>> {
         *object_flags |= self.fresh_object_literal_flag;
@@ -574,7 +574,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_children(
         &self,
-        node: &Node, /*JsxElement | JsxFragment*/
+        node: Id<Node>, /*JsxElement | JsxFragment*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut children_types: Vec<Id<Type>> = vec![];
@@ -600,7 +600,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         props: &SymbolTable,
-        spread: &Node, /*SpreadAssignment | JsxSpreadAttribute*/
+        spread: Id<Node>, /*SpreadAssignment | JsxSpreadAttribute*/
     ) -> io::Result<()> {
         for right in self.get_properties_of_type(type_)? {
             if !right.ref_(self).flags().intersects(SymbolFlags::Optional) {
@@ -633,7 +633,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_attributes(
         &self,
-        node: &Node, /*JsxAttributes*/
+        node: Id<Node>, /*JsxAttributes*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.create_jsx_attributes_type_from_attributes_property(&node.parent(), check_mode)
@@ -659,7 +659,7 @@ impl TypeChecker {
 
     pub(super) fn get_intrinsic_tag_symbol(
         &self,
-        node: &Node, /*JsxOpeningLikeElement | JsxClosingElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement | JsxClosingElement*/
     ) -> io::Result<Id<Symbol>> {
         let links = self.get_node_links(node);
         let node_as_has_tag_name = node.as_has_tag_name();

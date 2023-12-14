@@ -6,6 +6,7 @@ use std::{
 };
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::PipelinePhase;
 use crate::{
@@ -21,7 +22,7 @@ use crate::{
 impl Printer {
     pub(super) fn record_bundle_file_internal_section_start(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> Option<BundleFileSectionKind> {
         if self.record_internal_section == Some(true)
             && self.maybe_bundle_file_info().is_some()
@@ -71,7 +72,7 @@ impl Printer {
 
     pub fn write_bundle(
         &self,
-        bundle: &Node, /*Bundle*/
+        bundle: Id<Node>, /*Bundle*/
         output: Gc<Box<dyn EmitTextWriter>>,
         source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) -> io::Result<()> {
@@ -160,7 +161,7 @@ impl Printer {
 
     pub fn write_unparsed_source(
         &self,
-        unparsed: &Node, /*UnparsedSource*/
+        unparsed: Id<Node>, /*UnparsedSource*/
         output: Gc<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
         let previous_writer = self.maybe_writer();
@@ -174,7 +175,7 @@ impl Printer {
 
     pub fn write_file(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         output: Gc<Box<dyn EmitTextWriter>>,
         source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) -> io::Result<()> {
@@ -208,8 +209,8 @@ impl Printer {
     pub(super) fn print(
         &self,
         hint: EmitHint,
-        node: &Node,
-        source_file: Option<&Node /*SourceFile*/>,
+        node: Id<Node>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
     ) -> io::Result<()> {
         if let Some(source_file) = source_file {
             self.set_source_file(Some(source_file));
@@ -220,7 +221,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn set_source_file(&self, source_file: Option<&Node /*SourceFile*/>) {
+    pub(super) fn set_source_file(&self, source_file: Option<Id<Node> /*SourceFile*/>) {
         *self.current_source_file.borrow_mut() =
             source_file.map(|source_file| source_file.node_wrapper());
         self.set_current_line_map(None);
@@ -271,7 +272,7 @@ impl Printer {
 
     pub(super) fn emit(
         &self,
-        node: Option<&Node>,
+        node: Option<Id<Node>>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         if node.is_none() {
@@ -287,7 +288,7 @@ impl Printer {
 
     pub(super) fn emit_identifier_name(
         &self,
-        node: Option<&Node /*Identifier*/>,
+        node: Option<Id<Node> /*Identifier*/>,
     ) -> io::Result<()> {
         if node.is_none() {
             return Ok(());
@@ -300,7 +301,7 @@ impl Printer {
 
     pub(super) fn emit_expression(
         &self,
-        node: Option<&Node /*Expression*/>,
+        node: Option<Id<Node> /*Expression*/>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         if node.is_none() {
@@ -314,7 +315,7 @@ impl Printer {
 
     pub(super) fn emit_jsx_attribute_value(
         &self,
-        node: &Node, /*StringLiteral | JsxExpression*/
+        node: Id<Node>, /*StringLiteral | JsxExpression*/
     ) -> io::Result<()> {
         self.pipeline_emit(
             if is_string_literal(node) {
@@ -329,7 +330,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn before_emit_node(&self, node: &Node) {
+    pub(super) fn before_emit_node(&self, node: Id<Node>) {
         if self.maybe_preserve_source_newlines() == Some(true)
             && get_emit_flags(node).intersects(EmitFlags::IgnoreSourceNewlines)
         {
@@ -344,7 +345,7 @@ impl Printer {
     pub(super) fn pipeline_emit(
         &self,
         emit_hint: EmitHint,
-        node: &Node,
+        node: Id<Node>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         self.set_current_parenthesizer_rule(parenthesizer_rule);
@@ -356,11 +357,11 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn should_emit_comments(&self, node: &Node) -> bool {
+    pub(super) fn should_emit_comments(&self, node: Id<Node>) -> bool {
         !self.comments_disabled() && !is_source_file(node)
     }
 
-    pub(super) fn should_emit_source_maps(&self, node: &Node) -> bool {
+    pub(super) fn should_emit_source_maps(&self, node: Id<Node>) -> bool {
         !self.source_maps_disabled()
             && !is_source_file(node)
             && !is_in_json_file(Some(node))
@@ -372,8 +373,8 @@ impl Printer {
         &self,
         phase: PipelinePhase,
         emit_hint: EmitHint,
-        node: &Node,
-    ) -> io::Result<fn(&Printer, EmitHint, &Node) -> io::Result<()>> {
+        node: Id<Node>,
+    ) -> io::Result<fn(&Printer, EmitHint, Id<Node>) -> io::Result<()>> {
         if phase == PipelinePhase::Notification {
             if !self.is_on_emit_node_no_emit_notification()
                 && match self.is_emit_notification_enabled(node) {
@@ -441,26 +442,26 @@ impl Printer {
         &self,
         current_phase: PipelinePhase,
         emit_hint: EmitHint,
-        node: &Node,
-    ) -> io::Result<fn(&Printer, EmitHint, &Node) -> io::Result<()>> {
+        node: Id<Node>,
+    ) -> io::Result<fn(&Printer, EmitHint, Id<Node>) -> io::Result<()>> {
         self.get_pipeline_phase(current_phase.incremented(), emit_hint, node)
     }
 
     pub(super) fn pipeline_emit_with_notification(
         &self,
         hint: EmitHint,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<()> {
         let pipeline_phase =
             self.get_next_pipeline_phase(PipelinePhase::Notification, hint, node)?;
-        self.on_emit_node(hint, node, &|hint: EmitHint, node: &Node| {
+        self.on_emit_node(hint, node, &|hint: EmitHint, node: Id<Node>| {
             pipeline_phase(self, hint, node)
         })?;
 
         Ok(())
     }
 
-    pub(super) fn pipeline_emit_with_hint(&self, hint: EmitHint, node: &Node) -> io::Result<()> {
+    pub(super) fn pipeline_emit_with_hint(&self, hint: EmitHint, node: Id<Node>) -> io::Result<()> {
         self.on_before_emit_node(Some(node));
         if self.maybe_preserve_source_newlines() == Some(true) {
             let saved_preserve_source_newlines = self.maybe_preserve_source_newlines();
@@ -479,7 +480,7 @@ impl Printer {
     pub(super) fn pipeline_emit_with_hint_worker(
         &self,
         mut hint: EmitHint,
-        node: &Node,
+        node: Id<Node>,
         allow_snippets: Option<bool>,
     ) -> io::Result<()> {
         let allow_snippets = allow_snippets.unwrap_or(true);
@@ -490,19 +491,20 @@ impl Printer {
             }
         }
         if hint == EmitHint::SourceFile {
-            return self.emit_source_file(cast_present(node, |node: &&Node| is_source_file(node)));
+            return self
+                .emit_source_file(cast_present(node, |node: &Id<Node>| is_source_file(node)));
         }
         if hint == EmitHint::IdentifierName {
-            return self.emit_identifier(cast_present(node, |node: &&Node| is_identifier(node)));
+            return self.emit_identifier(cast_present(node, |node: &Id<Node>| is_identifier(node)));
         }
         if hint == EmitHint::JsxAttributeValue {
             return Ok(self.emit_literal(
-                cast_present(node, |node: &&Node| is_string_literal(node)),
+                cast_present(node, |node: &Id<Node>| is_string_literal(node)),
                 true,
             ));
         }
         if hint == EmitHint::MappedTypeParameter {
-            return self.emit_mapped_type_parameter(cast_present(node, |node: &&Node| {
+            return self.emit_mapped_type_parameter(cast_present(node, |node: &Id<Node>| {
                 is_type_parameter_declaration(node)
             }));
         }

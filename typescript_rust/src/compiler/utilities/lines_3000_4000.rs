@@ -33,13 +33,13 @@ use crate::{
     DiagnosticRelatedInformationInterface,
 };
 
-pub fn is_literal_computed_property_declaration_name(node: &Node) -> bool {
+pub fn is_literal_computed_property_declaration_name(node: Id<Node>) -> bool {
     is_string_or_numeric_literal_like(node)
         && node.parent().kind() == SyntaxKind::ComputedPropertyName
         && is_declaration(&node.parent().parent())
 }
 
-pub fn is_identifier_name(node: &Node /*Identifier*/) -> bool {
+pub fn is_identifier_name(node: Id<Node> /*Identifier*/) -> bool {
     let parent = node.parent();
     match parent.kind() {
         SyntaxKind::PropertyDeclaration
@@ -65,7 +65,7 @@ pub fn is_identifier_name(node: &Node /*Identifier*/) -> bool {
     }
 }
 
-pub fn is_alias_symbol_declaration(node: &Node) -> bool {
+pub fn is_alias_symbol_declaration(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ImportEqualsDeclaration | SyntaxKind::NamespaceExportDeclaration
@@ -94,7 +94,7 @@ pub fn is_alias_symbol_declaration(node: &Node) -> bool {
 }
 
 pub fn get_alias_declaration_from_name(
-    node: &Node, /*EntityName*/
+    node: Id<Node>, /*EntityName*/
 ) -> Option<Id<Node /*Declaration*/>> {
     match node.parent().kind() {
         SyntaxKind::ImportClause
@@ -115,17 +115,17 @@ pub fn get_alias_declaration_from_name(
     }
 }
 
-pub fn is_aliasable_expression(e: &Node /*Expression*/) -> bool {
+pub fn is_aliasable_expression(e: Id<Node> /*Expression*/) -> bool {
     is_entity_name_expression(e) || is_class_expression(e)
 }
 
-pub fn export_assignment_is_alias(node: &Node, /*ExportAssignment | BinaryExpression*/) -> bool {
+pub fn export_assignment_is_alias(node: Id<Node>, /*ExportAssignment | BinaryExpression*/) -> bool {
     let e = get_export_assignment_expression(node);
     is_aliasable_expression(&e)
 }
 
 pub fn get_export_assignment_expression(
-    node: &Node, /*ExportAssignment | BinaryExpression*/
+    node: Id<Node>, /*ExportAssignment | BinaryExpression*/
 ) -> Id<Node /*Expression*/> {
     if is_export_assignment(node) {
         node.as_export_assignment().expression.clone()
@@ -135,7 +135,7 @@ pub fn get_export_assignment_expression(
 }
 
 pub fn get_property_assignment_alias_like_expression(
-    node: &Node, /*PropertyAssignment | ShorthandPropertyAssignment | PropertyAccessExpression*/
+    node: Id<Node>, /*PropertyAssignment | ShorthandPropertyAssignment | PropertyAccessExpression*/
 ) -> Id<Node /*Expression*/> {
     if node.kind() == SyntaxKind::ShorthandPropertyAssignment {
         node.as_shorthand_property_assignment().name()
@@ -147,7 +147,7 @@ pub fn get_property_assignment_alias_like_expression(
 }
 
 pub fn get_effective_base_type_node(
-    node: &Node, /*ClassLikeDeclaration | InterfaceDeclaration*/
+    node: Id<Node>, /*ClassLikeDeclaration | InterfaceDeclaration*/
 ) -> Option<Id<Node>> {
     let base_type = get_class_extends_heritage_element(node);
     if base_type.is_some() && is_in_js_file(Some(node)) {
@@ -160,7 +160,7 @@ pub fn get_effective_base_type_node(
 }
 
 pub fn get_class_extends_heritage_element(
-    node: &Node, /*ClassLikeDeclaration | InterfaceDeclaration (or maybe also eg FunctionDeclaration)*/
+    node: Id<Node>, /*ClassLikeDeclaration | InterfaceDeclaration (or maybe also eg FunctionDeclaration)*/
 ) -> Option<Id<Node>> {
     let heritage_clause = get_heritage_clause(
         node.maybe_as_interface_or_class_like_declaration()
@@ -177,7 +177,7 @@ pub fn get_class_extends_heritage_element(
 }
 
 pub fn get_effective_implements_type_nodes(
-    node: &Node, /*ClassLikeDeclaration*/
+    node: Id<Node>, /*ClassLikeDeclaration*/
 ) -> Option<Vec<Id<Node>>> {
     if is_in_js_file(Some(node)) {
         Some(
@@ -197,7 +197,7 @@ pub fn get_effective_implements_type_nodes(
     }
 }
 
-pub fn get_all_super_type_nodes(node: &Node) -> Vec<Id<Node>> {
+pub fn get_all_super_type_nodes(node: Id<Node>) -> Vec<Id<Node>> {
     if is_interface_declaration(node) {
         get_interface_base_type_nodes(node).map_or_else(|| vec![], |node_array| node_array.to_vec())
     } else if is_class_like(node) {
@@ -211,7 +211,7 @@ pub fn get_all_super_type_nodes(node: &Node) -> Vec<Id<Node>> {
 }
 
 pub fn get_interface_base_type_nodes(
-    node: &Node, /*InterfaceDeclaration*/
+    node: Id<Node>, /*InterfaceDeclaration*/
 ) -> Option<Gc<NodeArray>> {
     let heritage_clause = get_heritage_clause(
         node.as_interface_declaration()
@@ -274,7 +274,7 @@ pub fn is_string_a_keyword(name: &str) -> bool {
     token.is_some() && is_keyword(token.unwrap())
 }
 
-pub fn is_identifier_a_non_contextual_keyword(node: &Node /*Identifier*/) -> bool {
+pub fn is_identifier_a_non_contextual_keyword(node: Id<Node> /*Identifier*/) -> bool {
     let original_keyword_kind = node.as_identifier().original_keyword_kind;
     original_keyword_kind.is_some() && !is_contextual_keyword(original_keyword_kind.unwrap())
 }
@@ -338,7 +338,7 @@ pub fn get_function_flags<TNode: Borrow<Node>>(
     flags
 }
 
-pub fn is_async_function(node: &Node) -> bool {
+pub fn is_async_function(node: Id<Node>) -> bool {
     match node.kind() {
         SyntaxKind::FunctionDeclaration
         | SyntaxKind::FunctionExpression
@@ -355,11 +355,11 @@ pub fn is_async_function(node: &Node) -> bool {
     }
 }
 
-pub fn is_string_or_numeric_literal_like(node: &Node) -> bool {
+pub fn is_string_or_numeric_literal_like(node: Id<Node>) -> bool {
     is_string_literal_like(node) || is_numeric_literal(node)
 }
 
-pub fn is_signed_numeric_literal(node: &Node) -> bool {
+pub fn is_signed_numeric_literal(node: Id<Node>) -> bool {
     if !is_prefix_unary_expression(node) {
         return false;
     }
@@ -370,7 +370,7 @@ pub fn is_signed_numeric_literal(node: &Node) -> bool {
     ) && is_numeric_literal(&node_as_prefix_unary_expression.operand)
 }
 
-pub fn has_dynamic_name(declaration: &Node /*Declaration*/) -> bool {
+pub fn has_dynamic_name(declaration: Id<Node> /*Declaration*/) -> bool {
     let name = get_name_of_declaration(Some(declaration));
     if let Some(name) = name {
         is_dynamic_name(&name)
@@ -379,7 +379,7 @@ pub fn has_dynamic_name(declaration: &Node /*Declaration*/) -> bool {
     }
 }
 
-pub fn is_dynamic_name(name: &Node /*DeclarationName*/) -> bool {
+pub fn is_dynamic_name(name: Id<Node> /*DeclarationName*/) -> bool {
     if !matches!(
         name.kind(),
         SyntaxKind::ComputedPropertyName | SyntaxKind::ElementAccessExpression
@@ -398,7 +398,7 @@ pub fn is_dynamic_name(name: &Node /*DeclarationName*/) -> bool {
 }
 
 pub fn get_property_name_for_property_name_node<'name>(
-    name: &'name Node, /*PropertyName*/
+    name: Id<Node>, /*PropertyName*/
 ) -> Option<Cow<'name, str> /*__String*/> {
     match name.kind() {
         SyntaxKind::Identifier => Some((&*name.as_identifier().escaped_text).into()),
@@ -450,7 +450,7 @@ pub fn get_property_name_for_property_name_node<'name>(
     }
 }
 
-pub fn is_property_name_literal(node: &Node) -> bool {
+pub fn is_property_name_literal(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier
@@ -460,7 +460,7 @@ pub fn is_property_name_literal(node: &Node) -> bool {
     )
 }
 
-pub fn get_text_of_identifier_or_literal<'node>(node: &'node Node) -> Cow<'node, str> {
+pub fn get_text_of_identifier_or_literal<'node>(node: Id<Node>) -> Cow<'node, str> {
     if is_member_name(node) {
         id_text(node).into()
     } else {
@@ -468,7 +468,7 @@ pub fn get_text_of_identifier_or_literal<'node>(node: &'node Node) -> Cow<'node,
     }
 }
 
-pub fn get_escaped_text_of_identifier_or_literal<'node>(node: &'node Node) -> Cow<'node, str> /*__String*/
+pub fn get_escaped_text_of_identifier_or_literal<'node>(node: Id<Node>) -> Cow<'node, str> /*__String*/
 {
     if is_member_name(node) {
         node.as_member_name().escaped_text().into()
@@ -502,23 +502,23 @@ pub fn is_private_identifier_symbol(symbol: &Symbol) -> bool {
     starts_with(symbol.escaped_name(), "__#")
 }
 
-pub fn is_es_symbol_identifier(node: &Node) -> bool {
+pub fn is_es_symbol_identifier(node: Id<Node>) -> bool {
     node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text == "Symbol"
 }
 
-pub fn is_push_or_unshift_identifier(node: &Node /*Identifier*/) -> bool {
+pub fn is_push_or_unshift_identifier(node: Id<Node> /*Identifier*/) -> bool {
     matches!(
         node.as_identifier().escaped_text.deref(),
         "push" | "unshift"
     )
 }
 
-pub fn is_parameter_declaration(node: &Node /*VariableLikeDeclaration*/) -> bool {
+pub fn is_parameter_declaration(node: Id<Node> /*VariableLikeDeclaration*/) -> bool {
     let root = get_root_declaration(node);
     root.kind() == SyntaxKind::Parameter
 }
 
-pub fn get_root_declaration(node: &Node) -> Id<Node> {
+pub fn get_root_declaration(node: Id<Node>) -> Id<Node> {
     let mut node = node.node_wrapper();
     while node.kind() == SyntaxKind::BindingElement {
         node = node.parent().parent();
@@ -526,7 +526,7 @@ pub fn get_root_declaration(node: &Node) -> Id<Node> {
     node
 }
 
-pub fn node_starts_new_lexical_environment(node: &Node) -> bool {
+pub fn node_starts_new_lexical_environment(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Constructor
@@ -545,9 +545,12 @@ pub fn node_is_synthesized<TRange: ReadonlyTextRange>(range: &TRange) -> bool {
     position_is_synthesized(range.pos()) || position_is_synthesized(range.end())
 }
 
-pub fn get_original_source_file(source_file: &Node /*SourceFile*/) -> Id<Node /*SourceFile*/> {
-    get_parse_tree_node(Some(source_file), Some(|node: &Node| is_source_file(node)))
-        .unwrap_or_else(|| source_file.node_wrapper())
+pub fn get_original_source_file(source_file: Id<Node>, /*SourceFile*/) -> Id<Node /*SourceFile*/> {
+    get_parse_tree_node(
+        Some(source_file),
+        Some(|node: Id<Node>| is_source_file(node)),
+    )
+    .unwrap_or_else(|| source_file.node_wrapper())
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -556,7 +559,7 @@ pub enum Associativity {
     Right,
 }
 
-pub fn get_expression_associativity(expression: &Node /*Expression*/) -> Associativity {
+pub fn get_expression_associativity(expression: Id<Node> /*Expression*/) -> Associativity {
     let operator = get_operator(expression);
     let has_arguments = expression.kind() == SyntaxKind::NewExpression
         && expression.as_new_expression().arguments.is_some();
@@ -615,14 +618,14 @@ pub fn get_operator_associativity(
     Associativity::Left
 }
 
-pub fn get_expression_precedence(expression: &Node /*Expression*/) -> OperatorPrecedence {
+pub fn get_expression_precedence(expression: Id<Node> /*Expression*/) -> OperatorPrecedence {
     let operator = get_operator(expression);
     let has_arguments = expression.kind() == SyntaxKind::NewExpression
         && expression.as_new_expression().arguments.is_some();
     get_operator_precedence(expression.kind(), operator, Some(has_arguments))
 }
 
-pub fn get_operator(expression: &Node) -> SyntaxKind {
+pub fn get_operator(expression: Id<Node>) -> SyntaxKind {
     match expression {
         Node::BinaryExpression(expression) => expression.operator_token.kind(),
         Node::PrefixUnaryExpression(expression) => expression.operator,
@@ -932,7 +935,7 @@ pub(super) fn escape_template_substitution(str: &str) -> String {
         .to_string()
 }
 
-pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
+pub(crate) fn has_invalid_escape(template: Id<Node> /*TemplateLiteral*/) -> bool {
     /*template &&*/
     if is_no_substitution_template_literal(template) {
         matches!(template.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None)

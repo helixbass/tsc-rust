@@ -65,7 +65,7 @@ impl TransformTypeScript {
 
     pub(super) fn serialize_type_reference_node(
         &self,
-        node: &Node, /*TypeReferenceNode*/
+        node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         let node_as_type_reference_node = node.as_type_reference_node();
         let kind = self.resolver.get_type_reference_serialization_kind(
@@ -76,7 +76,7 @@ impl TransformTypeScript {
         )?;
         Ok(match kind {
             TypeReferenceSerializationKind::Unknown => {
-                if find_ancestor(Some(node), |n: &Node| {
+                if find_ancestor(Some(node), |n: Id<Node>| {
                     n.maybe_parent().matches(|ref n_parent| {
                         is_conditional_type_node(n_parent) && {
                             let n_parent_as_conditional_type_node =
@@ -95,7 +95,7 @@ impl TransformTypeScript {
                     &node_as_type_reference_node.type_name,
                 );
                 let temp = self.factory.create_temp_variable(
-                    Some(|node: &Node| self.context.hoist_variable_declaration(node)),
+                    Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
                     None,
                 );
                 self.factory.create_conditional_expression(
@@ -164,7 +164,7 @@ impl TransformTypeScript {
 
     pub(super) fn serialize_entity_name_as_expression_fallback(
         &self,
-        node: &Node, /*EntityName*/
+        node: Id<Node>, /*EntityName*/
     ) -> Id<Node /*BinaryExpression*/> {
         if node.kind() == SyntaxKind::Identifier {
             let copied = self.serialize_entity_name_as_expression(node);
@@ -179,7 +179,7 @@ impl TransformTypeScript {
         }
         let left = self.serialize_entity_name_as_expression_fallback(&node_as_qualified_name.left);
         let temp = self.factory.create_temp_variable(
-            Some(|node: &Node| self.context.hoist_variable_declaration(node)),
+            Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
             None,
         );
         self.factory.create_logical_and(
@@ -198,7 +198,7 @@ impl TransformTypeScript {
 
     pub(super) fn serialize_entity_name_as_expression(
         &self,
-        node: &Node, /*EntityName*/
+        node: Id<Node>, /*EntityName*/
     ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
         match node.kind() {
             SyntaxKind::Identifier => get_parse_node_factory()
@@ -208,7 +208,7 @@ impl TransformTypeScript {
                 .and_set_original(None)
                 .and_set_parent(get_parse_tree_node(
                     self.maybe_current_lexical_scope(),
-                    Option::<fn(&Node) -> bool>::None,
+                    Option::<fn(Id<Node>) -> bool>::None,
                 )),
             SyntaxKind::QualifiedName => self.serialize_qualified_name_as_expression(node),
             _ => unreachable!(),
@@ -217,7 +217,7 @@ impl TransformTypeScript {
 
     pub(super) fn serialize_qualified_name_as_expression(
         &self,
-        node: &Node, /*QualifiedName*/
+        node: Id<Node>, /*QualifiedName*/
     ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
         let node_as_qualified_name = node.as_qualified_name();
         self.factory.create_property_access_expression(
@@ -256,7 +256,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_expression_for_property_name(
         &self,
-        member: &Node, /*ClassElement | EnumMember*/
+        member: Id<Node>, /*ClassElement | EnumMember*/
         generate_name_for_computed_property_name: bool,
     ) -> Id<Node /*Expression*/> {
         let name = member.as_named_declaration().name();
@@ -281,7 +281,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_property_name_of_class_element(
         &self,
-        member: &Node, /*ClassElement*/
+        member: Id<Node>, /*ClassElement*/
     ) -> io::Result<Id<Node /*PropertyName*/>> {
         let ref name = member.as_named_declaration().name();
         if is_computed_property_name(name)
@@ -292,7 +292,7 @@ impl TransformTypeScript {
             let name_as_computed_property_name = name.as_computed_property_name();
             let expression = try_visit_node(
                 &name_as_computed_property_name.expression,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
@@ -310,7 +310,7 @@ impl TransformTypeScript {
         }
         try_visit_node(
             name,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_property_name),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )
@@ -318,7 +318,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_heritage_clause(
         &self,
-        node: &Node, /*HeritageClause*/
+        node: Id<Node>, /*HeritageClause*/
     ) -> io::Result<Option<Id<Node /*HeritageClause*/>>> {
         let node_as_heritage_clause = node.as_heritage_clause();
         if node_as_heritage_clause.token == SyntaxKind::ImplementsKeyword {
@@ -326,20 +326,20 @@ impl TransformTypeScript {
         }
         try_maybe_visit_each_child(
             Some(node),
-            |node: &Node| self.visitor(node),
+            |node: Id<Node>| self.visitor(node),
             &**self.context,
         )
     }
 
     pub(super) fn visit_expression_with_type_arguments(
         &self,
-        node: &Node, /*ExpressionWithTypeArguments*/
+        node: Id<Node>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<Id<Node /*ExpressionWithTypeArguments*/>> {
         Ok(self.factory.update_expression_with_type_arguments(
             node,
             try_visit_node(
                 &node.as_expression_with_type_arguments().expression,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_left_hand_side_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
@@ -349,14 +349,14 @@ impl TransformTypeScript {
 
     pub(super) fn should_emit_function_like_declaration(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> bool {
         !node_is_missing(node.as_function_like_declaration().maybe_body())
     }
 
     pub(super) fn visit_property_declaration(
         &self,
-        node: &Node, /*PropertyDeclaration*/
+        node: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<VisitResult> /*<Node>*/ {
         if node.flags().intersects(NodeFlags::Ambient)
             || has_syntactic_modifier(node, ModifierFlags::Abstract)
@@ -368,7 +368,7 @@ impl TransformTypeScript {
             Option::<Gc<NodeArray>>::None,
             try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_modifier),
                 None,
                 None,
@@ -378,8 +378,8 @@ impl TransformTypeScript {
             None,
             try_maybe_visit_node(
                 node.as_property_declaration().maybe_initializer(),
-                Some(|node: &Node| self.visitor(node)),
-                Option::<fn(&Node) -> bool>::None,
+                Some(|node: Id<Node>| self.visitor(node)),
+                Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         );
@@ -395,7 +395,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_constructor(
         &self,
-        node: &Node, /*ConstructorDeclaration*/
+        node: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<VisitResult> /*<Node>*/ {
         let node_as_constructor_declaration = node.as_constructor_declaration();
         if !self.should_emit_function_like_declaration(node) {
@@ -410,7 +410,7 @@ impl TransformTypeScript {
                     Option::<Gc<NodeArray>>::None,
                     try_visit_parameter_list(
                         Some(&node_as_constructor_declaration.parameters()),
-                        |node: &Node| self.visitor(node),
+                        |node: Id<Node>| self.visitor(node),
                         &**self.context,
                     )?
                     .unwrap(),
@@ -425,8 +425,8 @@ impl TransformTypeScript {
 
     pub(super) fn transform_constructor_body(
         &self,
-        body: &Node,        /*Block*/
-        constructor: &Node, /*ConstructorDeclaration*/
+        body: Id<Node>,        /*Block*/
+        constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<Id<Node>> {
         let body_as_block = body.as_block();
         let parameters_with_property_assignments =
@@ -445,7 +445,7 @@ impl TransformTypeScript {
         {
             return Ok(try_visit_function_body(
                 Some(body),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
             .unwrap());
@@ -461,7 +461,7 @@ impl TransformTypeScript {
             &self.factory,
             constructor,
             &mut statements,
-            |node: &Node| self.visitor(node),
+            |node: Id<Node>| self.visitor(node),
         )?;
 
         add_range(
@@ -482,7 +482,7 @@ impl TransformTypeScript {
             &mut statements,
             Some(&try_visit_nodes(
                 &body_as_block.statements,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_statement),
                 Some(index_of_first_statement),
                 None,
@@ -512,7 +512,7 @@ impl TransformTypeScript {
 
     pub(super) fn transform_parameter_with_property_assignment(
         &self,
-        node: &Node, /*ParameterPropertyDeclaration*/
+        node: Id<Node>, /*ParameterPropertyDeclaration*/
     ) -> Option<Id<Node>> {
         let ref name = node.as_named_declaration().name();
         if !is_identifier(name) {

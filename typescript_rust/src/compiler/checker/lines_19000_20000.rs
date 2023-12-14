@@ -399,7 +399,7 @@ impl CheckTypeRelatedTo {
                             Some(vec![
                                 self.type_checker.symbol_to_string_(
                                     target_prop,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None, None, None
                                 )?
                             ])
@@ -412,7 +412,7 @@ impl CheckTypeRelatedTo {
                             Some(vec![
                                 self.type_checker.symbol_to_string_(
                                     target_prop,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                     None,
@@ -423,7 +423,7 @@ impl CheckTypeRelatedTo {
                                     } else {
                                         target
                                     },
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?,
@@ -433,7 +433,7 @@ impl CheckTypeRelatedTo {
                                     } else {
                                         source
                                     },
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?,
@@ -454,17 +454,17 @@ impl CheckTypeRelatedTo {
                         Some(vec![
                             self.type_checker.symbol_to_string_(
                                 target_prop,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None, None
                             )?,
                             self.type_checker.type_to_string_(
                                 self.type_checker.get_declaring_class(source_prop)?.unwrap_or_else(|| source),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?,
                             self.type_checker.type_to_string_(
                                 self.type_checker.get_declaring_class(target_prop)?.unwrap_or_else(|| target),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?,
                         ])
@@ -481,20 +481,20 @@ impl CheckTypeRelatedTo {
                     Some(vec![
                         self.type_checker.symbol_to_string_(
                             target_prop,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
                         )?,
                         self.type_checker.type_to_string_(
                             source,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
                         self.type_checker.type_to_string_(
                             target,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
@@ -516,7 +516,7 @@ impl CheckTypeRelatedTo {
                     &Diagnostics::Types_of_property_0_are_incompatible,
                     Some(vec![self.type_checker.symbol_to_string_(
                         target_prop,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                         None,
@@ -543,20 +543,20 @@ impl CheckTypeRelatedTo {
                     Some(vec![
                         self.type_checker.symbol_to_string_(
                             target_prop,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
                         )?,
                         self.type_checker.type_to_string_(
                             source,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
                         self.type_checker.type_to_string_(
                             target,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
@@ -667,7 +667,7 @@ impl CheckTypeRelatedTo {
         if props.len() == 1 {
             let prop_name = self.type_checker.symbol_to_string_(
                 unmatched_property,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 None,
                 None,
                 None,
@@ -709,18 +709,18 @@ impl CheckTypeRelatedTo {
                     Some(vec![
                         self.type_checker.type_to_string_(
                             source,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?,
                         self.type_checker.type_to_string_(
                             target,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?,
                         (&props[0..4]).into_iter().map(|&p: &Id<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None, None,
                             )
                         ).collect::<Result<Vec<_>, _>>()?.join(", "),
@@ -733,18 +733,18 @@ impl CheckTypeRelatedTo {
                     Some(vec![
                         self.type_checker.type_to_string_(
                             source,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?,
                         self.type_checker.type_to_string_(
                             target,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?,
                         props.iter().map(|&p: &Id<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None, None,
                             )
                         ).collect::<Result<Vec<_>, _>>()?.join(", "),
@@ -1094,14 +1094,14 @@ impl CheckTypeRelatedTo {
                                 Some(vec![
                                     self.type_checker.symbol_to_string_(
                                         source_prop,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                         None,
                                     )?,
                                     self.type_checker.type_to_string_(
                                         target,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                     )?,
@@ -1325,7 +1325,7 @@ impl CheckTypeRelatedTo {
                     |signature: Gc<Signature>| -> io::Result<String> {
                         self.type_checker.signature_to_string_(
                             signature,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             Some(TypeFormatFlags::WriteArrowStyleSignature),
                             Some(kind),
                             None,
@@ -1369,13 +1369,13 @@ impl CheckTypeRelatedTo {
                         Some(vec![
                             self.type_checker.type_to_string_(
                                 source,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?,
                             self.type_checker.signature_to_string_(
                                 t.clone(),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 Some(kind),
                                 None,
@@ -1410,9 +1410,9 @@ impl CheckTypeRelatedTo {
             &Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
             Some(vec![
                 self.type_checker
-                    .type_to_string_(source, Option::<&Node>::None, None, None)?,
+                    .type_to_string_(source, Option::<Id<Node>>::None, None, None)?,
                 self.type_checker
-                    .type_to_string_(target, Option::<&Node>::None, None, None)?,
+                    .type_to_string_(target, Option::<Id<Node>>::None, None, None)?,
             ]),
         );
 
@@ -1428,9 +1428,9 @@ impl CheckTypeRelatedTo {
             &Diagnostics::Call_signature_return_types_0_and_1_are_incompatible,
             Some(vec![
                 self.type_checker
-                    .type_to_string_(source, Option::<&Node>::None, None, None)?,
+                    .type_to_string_(source, Option::<Id<Node>>::None, None, None)?,
                 self.type_checker
-                    .type_to_string_(target, Option::<&Node>::None, None, None)?,
+                    .type_to_string_(target, Option::<Id<Node>>::None, None, None)?,
             ]),
         );
 
@@ -1458,9 +1458,9 @@ impl CheckTypeRelatedTo {
             &Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
             Some(vec![
                 self.type_checker
-                    .type_to_string_(source, Option::<&Node>::None, None, None)?,
+                    .type_to_string_(source, Option::<Id<Node>>::None, None, None)?,
                 self.type_checker
-                    .type_to_string_(target, Option::<&Node>::None, None, None)?,
+                    .type_to_string_(target, Option::<Id<Node>>::None, None, None)?,
             ]),
         );
 
@@ -1476,9 +1476,9 @@ impl CheckTypeRelatedTo {
             &Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible,
             Some(vec![
                 self.type_checker
-                    .type_to_string_(source, Option::<&Node>::None, None, None)?,
+                    .type_to_string_(source, Option::<Id<Node>>::None, None, None)?,
                 self.type_checker
-                    .type_to_string_(target, Option::<&Node>::None, None, None)?,
+                    .type_to_string_(target, Option::<Id<Node>>::None, None, None)?,
             ]),
         );
 
@@ -1622,7 +1622,7 @@ impl CheckTypeRelatedTo {
                             ),
                             Some(vec![self.type_checker.symbol_to_string_(
                                 prop,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,

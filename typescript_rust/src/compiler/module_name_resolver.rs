@@ -1275,7 +1275,7 @@ impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
 }
 
 pub(crate) fn zip_to_mode_aware_cache<TValue: Clone + Trace + Finalize>(
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
     keys: &[String],
     values: &[TValue],
 ) -> ModeAwareCache<TValue> {

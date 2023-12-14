@@ -26,15 +26,15 @@ impl TransformES2021 {
         }
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
+    fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
         if node.as_source_file().is_declaration_file() {
             return node.node_wrapper();
         }
 
-        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
-    fn visitor(&self, node: &Node) -> VisitResult {
+    fn visitor(&self, node: Id<Node>) -> VisitResult {
         if !node
             .transform_flags()
             .intersects(TransformFlags::ContainsES2021)
@@ -49,14 +49,14 @@ impl TransformES2021 {
                 }
                 maybe_visit_each_child(
                     Some(node),
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )
                 .map(Into::into)
             }
             _ => maybe_visit_each_child(
                 Some(node),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )
             .map(Into::into),
@@ -65,7 +65,7 @@ impl TransformES2021 {
 
     fn transform_logical_assignment(
         &self,
-        binary_expression: &Node, /*AssignmentExpression<Token<LogicalOrCoalescingAssignmentOperator>>*/
+        binary_expression: Id<Node>, /*AssignmentExpression<Token<LogicalOrCoalescingAssignmentOperator>>*/
     ) -> VisitResult {
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
         let operator = &binary_expression_as_binary_expression.operator_token;
@@ -74,7 +74,7 @@ impl TransformES2021 {
         let mut left = skip_parentheses(
             &visit_node(
                 &binary_expression_as_binary_expression.left,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_left_hand_side_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
@@ -84,7 +84,7 @@ impl TransformES2021 {
         let right = skip_parentheses(
             &visit_node(
                 &binary_expression_as_binary_expression.right,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
@@ -99,7 +99,7 @@ impl TransformES2021 {
                 left_expression.clone()
             } else {
                 self.factory.create_temp_variable(
-                    Some(|node: &Node| {
+                    Some(|node: Id<Node>| {
                         self.context.hoist_variable_declaration(node);
                     }),
                     None,
@@ -133,7 +133,7 @@ impl TransformES2021 {
                         .clone()
                 } else {
                     self.factory.create_temp_variable(
-                        Some(|node: &Node| {
+                        Some(|node: Id<Node>| {
                             self.context.hoist_variable_declaration(node);
                         }),
                         None,
@@ -177,7 +177,7 @@ impl TransformES2021 {
 }
 
 impl TransformerInterface for TransformES2021 {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }

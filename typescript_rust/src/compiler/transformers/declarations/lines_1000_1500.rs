@@ -32,13 +32,13 @@ use crate::{
 impl TransformDeclarations {
     pub(super) fn visit_declaration_subtree_cleanup(
         &self,
-        input: &Node,
+        input: Id<Node>,
         can_produce_diagnostic: bool,
         previous_enclosing_declaration: Option<&Id<Node>>,
         old_diag: &GetSymbolAccessibilityDiagnostic,
         should_enter_suppress_new_diagnostics_context_context: bool,
         old_within_object_literal_type: Option<bool>,
-        return_value: Option<&Node>,
+        return_value: Option<Id<Node>>,
     ) -> io::Result<VisitResult> {
         if return_value.is_some() && can_produce_diagnostic && has_dynamic_name(input) {
             self.check_name(input)?;
@@ -70,13 +70,13 @@ impl TransformDeclarations {
 
     pub(super) fn is_private_method_type_parameter(
         &self,
-        node: &Node, /*TypeParameterDeclaration*/
+        node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> bool {
         node.parent().kind() == SyntaxKind::MethodDeclaration
             && has_effective_modifier(&node.parent(), ModifierFlags::Private)
     }
 
-    pub(super) fn visit_declaration_statements(&self, input: &Node) -> io::Result<VisitResult> /*<Node>*/
+    pub(super) fn visit_declaration_statements(&self, input: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
         if !is_preserved_declaration_statement(input) {
             return Ok(None);
@@ -175,7 +175,7 @@ impl TransformDeclarations {
 
     pub(super) fn strip_export_modifiers(
         &self,
-        statement: &Node, /*Statement*/
+        statement: Id<Node>, /*Statement*/
     ) -> Id<Node /*Statement*/> {
         if is_import_equals_declaration(statement)
             || has_effective_modifier(statement, ModifierFlags::Default)
@@ -192,7 +192,7 @@ impl TransformDeclarations {
 
     pub(super) fn transform_top_level_declaration(
         &self,
-        input: &Node, /*LateVisibilityPaintedStatement*/
+        input: Id<Node>, /*LateVisibilityPaintedStatement*/
     ) -> io::Result<VisitResult> {
         if self.should_strip_internal(input) {
             return Ok(None);
@@ -252,7 +252,7 @@ impl TransformDeclarations {
                                 input_as_type_alias_declaration
                                     .maybe_type_parameters()
                                     .as_deref(),
-                                Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                 Some(is_type_parameter_declaration),
                                 None,
                                 None,
@@ -262,7 +262,7 @@ impl TransformDeclarations {
                                     .maybe_type()
                                     .as_deref()
                                     .unwrap(),
-                                Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                 Some(is_type_node),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
@@ -299,8 +299,8 @@ impl TransformDeclarations {
                             ),
                             try_visit_nodes(
                                 &input_as_interface_declaration.members,
-                                Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                Option::<fn(&Node) -> bool>::None,
+                                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                Option::<fn(Id<Node>) -> bool>::None,
                                 None,
                                 None,
                             )?,
@@ -520,8 +520,8 @@ impl TransformDeclarations {
                     self.set_needs_scope_fix_marker(false);
                     let statements = try_visit_nodes(
                         &inner.as_module_block().statements,
-                        Some(|node: &Node| self.visit_declaration_statements(node)),
-                        Option::<fn(&Node) -> bool>::None,
+                        Some(|node: Id<Node>| self.visit_declaration_statements(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
                     )?;
@@ -546,8 +546,10 @@ impl TransformDeclarations {
                         } else {
                             late_statements = visit_nodes(
                                 &late_statements,
-                                Some(|node: &Node| Some(self.strip_export_modifiers(node).into())),
-                                Option::<fn(&Node) -> bool>::None,
+                                Some(|node: Id<Node>| {
+                                    Some(self.strip_export_modifiers(node).into())
+                                }),
+                                Option::<fn(Id<Node>) -> bool>::None,
                                 None,
                                 None,
                             );
@@ -586,8 +588,8 @@ impl TransformDeclarations {
                     self.set_needs_declare(false);
                     try_maybe_visit_node(
                         inner.as_double_deref(),
-                        Some(|node: &Node| self.visit_declaration_statements(node)),
-                        Option::<fn(&Node) -> bool>::None,
+                        Some(|node: Id<Node>| self.visit_declaration_statements(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     let id = maybe_get_original_node_id(inner.as_double_deref());
@@ -703,8 +705,8 @@ impl TransformDeclarations {
                     maybe_concatenate(private_identifier, parameter_properties),
                     try_maybe_visit_nodes(
                         Some(&input_as_class_declaration.members()),
-                        Some(|node: &Node| self.visit_declaration_subtree(node)),
-                        Option::<fn(&Node) -> bool>::None,
+                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
                     )?
@@ -793,10 +795,10 @@ impl TransformDeclarations {
                                                             t.as_expression_with_type_arguments()
                                                                 .maybe_type_arguments()
                                                                 .as_deref(),
-                                                            Some(|node: &Node| {
+                                                            Some(|node: Id<Node>| {
                                                                 self.visit_declaration_subtree(node)
                                                             }),
-                                                            Option::<fn(&Node) -> bool>::None,
+                                                            Option::<fn(Id<Node>) -> bool>::None,
                                                             None,
                                                             None,
                                                         )?,
@@ -831,8 +833,8 @@ impl TransformDeclarations {
                                             ),
                                             None,
                                         ),
-                                        Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                        Option::<fn(&Node) -> bool>::None,
+                                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                        Option::<fn(Id<Node>) -> bool>::None,
                                         None,
                                         None,
                                     )?,
@@ -964,8 +966,8 @@ impl TransformDeclarations {
 
     pub(super) fn walk_binding_pattern(
         &self,
-        param: &Node,
-        pattern: &Node, /*BindingPattern*/
+        param: Id<Node>,
+        pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut elems: Option<Vec<Id<Node /*PropertyDeclaration*/>>> = Default::default();
         for elem in &pattern.as_has_elements().elements() {
@@ -995,12 +997,12 @@ impl TransformDeclarations {
 
     pub(super) fn transform_top_level_declaration_cleanup(
         &self,
-        input: &Node,
+        input: Id<Node>,
         previous_enclosing_declaration: Option<&Id<Node>>,
         can_prodice_diagnostic: bool,
         old_diag: &GetSymbolAccessibilityDiagnostic,
         previous_needs_declare: bool,
-        node: Option<&Node>,
+        node: Option<Id<Node>>,
     ) -> VisitResult {
         if self.is_enclosing_declaration(input) {
             self.set_enclosing_declaration(previous_enclosing_declaration.cloned());
@@ -1035,7 +1037,7 @@ struct VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
 }
 
 impl VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
-    fn new(input: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(input: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             input: input.node_wrapper(),
         }))
@@ -1065,7 +1067,7 @@ struct TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
 }
 
 impl TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
-    fn new(extends_clause: &Node, input: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(extends_clause: Id<Node>, input: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             extends_clause: extends_clause.node_wrapper(),
             input: input.node_wrapper(),

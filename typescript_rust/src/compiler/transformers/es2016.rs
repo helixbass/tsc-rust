@@ -27,15 +27,15 @@ impl TransformES2016 {
         }
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
+    fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
         if node.as_source_file().is_declaration_file() {
             return node.node_wrapper();
         }
 
-        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
-    fn visitor(&self, node: &Node) -> VisitResult {
+    fn visitor(&self, node: Id<Node>) -> VisitResult {
         if !node
             .transform_flags()
             .intersects(TransformFlags::ContainsES2016)
@@ -46,7 +46,7 @@ impl TransformES2016 {
             SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
             _ => maybe_visit_each_child(
                 Some(node),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )
             .map(Into::into),
@@ -55,44 +55,44 @@ impl TransformES2016 {
 
     fn visit_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
         match node.as_binary_expression().operator_token.kind() {
             SyntaxKind::AsteriskAsteriskEqualsToken => {
                 self.visit_exponentiation_assignment_expression(node)
             }
             SyntaxKind::AsteriskAsteriskToken => self.visit_exponentiation_expression(node),
-            _ => visit_each_child(node, |node: &Node| self.visitor(node), &**self.context),
+            _ => visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context),
         }
     }
 
     fn visit_exponentiation_assignment_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node> {
         let target: Id<Node /*Expression*/>;
         let value: Id<Node /*Expression*/>;
         let node_as_binary_expression = node.as_binary_expression();
         let ref left = visit_node(
             &node_as_binary_expression.left,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let ref right = visit_node(
             &node_as_binary_expression.right,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         if is_element_access_expression(left) {
             let left_as_element_access_expression = left.as_element_access_expression();
             let expression_temp = self.factory.create_temp_variable(
-                Some(|node: &Node| self.context.hoist_variable_declaration(node)),
+                Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
                 None,
             );
             let argument_expression_temp = self.factory.create_temp_variable(
-                Some(|node: &Node| self.context.hoist_variable_declaration(node)),
+                Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
                 None,
             );
             target = set_text_range_rc_node(
@@ -124,7 +124,7 @@ impl TransformES2016 {
         } else if is_property_access_expression(left) {
             let left_as_property_access_expression = left.as_property_access_expression();
             let expression_temp = self.factory.create_temp_variable(
-                Some(|node: &Node| self.context.hoist_variable_declaration(node)),
+                Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
                 None,
             );
             target = set_text_range_rc_node(
@@ -167,17 +167,20 @@ impl TransformES2016 {
         )
     }
 
-    fn visit_exponentiation_expression(&self, node: &Node /*BinaryExpression*/) -> Id<Node> {
+    fn visit_exponentiation_expression(
+        &self,
+        node: Id<Node>, /*BinaryExpression*/
+    ) -> Id<Node> {
         let node_as_binary_expression = node.as_binary_expression();
         let left = visit_node(
             &node_as_binary_expression.left,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let right = visit_node(
             &node_as_binary_expression.right,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
@@ -190,7 +193,7 @@ impl TransformES2016 {
 }
 
 impl TransformerInterface for TransformES2016 {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }

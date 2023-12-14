@@ -25,13 +25,13 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_class_static_block_declaration(
         &self,
-        node: &Node, /*ClassStaticBlockDeclaration*/
+        node: Id<Node>, /*ClassStaticBlockDeclaration*/
     ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
 
         try_for_each_child(
             node,
-            |child: &Node| self.check_source_element(Some(child)),
+            |child: Id<Node>| self.check_source_element(Some(child)),
             Option::<fn(&NodeArray) -> io::Result<()>>::None,
         )?;
 
@@ -40,7 +40,7 @@ impl TypeChecker {
 
     pub(super) fn check_constructor_declaration(
         &self,
-        node: &Node, /*ConstructorDeclaration*/
+        node: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<()> {
         self.check_signature_declaration(node)?;
         if !self.check_grammar_constructor_type_parameters(node) {
@@ -135,7 +135,7 @@ impl TypeChecker {
 
     pub(super) fn is_instance_property_with_initializer_or_private_identifier_property(
         &self,
-        n: &Node,
+        n: Id<Node>,
     ) -> bool {
         if is_private_identifier_class_element_declaration(n) {
             return true;
@@ -147,7 +147,7 @@ impl TypeChecker {
 
     pub(super) fn check_accessor_declaration(
         &self,
-        node: &Node, /*AccessorDeclaration*/
+        node: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<()> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         if self.produce_diagnostics {
@@ -257,7 +257,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_missing_declaration(&self, node: &Node) -> io::Result<()> {
+    pub(super) fn check_missing_declaration(&self, node: Id<Node>) -> io::Result<()> {
         self.check_decorators(node)?;
 
         Ok(())
@@ -265,7 +265,7 @@ impl TypeChecker {
 
     pub(super) fn get_effective_type_arguments(
         &self,
-        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+        node: Id<Node>, /*TypeReferenceNode | ExpressionWithTypeArguments*/
         type_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
     ) -> io::Result<Vec<Id<Type>>> {
         Ok(self
@@ -284,7 +284,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_argument_constraints(
         &self,
-        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+        node: Id<Node>, /*TypeReferenceNode | ExpressionWithTypeArguments*/
         type_parameters: &[Id<Type /*TypeParameter*/>],
     ) -> io::Result<bool> {
         let mut type_arguments: Option<Vec<Id<Type>>> = None;
@@ -321,7 +321,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_parameters_for_type_reference(
         &self,
-        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+        node: Id<Node>, /*TypeReferenceNode | ExpressionWithTypeArguments*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         let type_ = self.get_type_from_type_reference(node)?;
         if !self.is_error_type(type_) {
@@ -358,7 +358,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_reference_node(
         &self,
-        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+        node: Id<Node>, /*TypeReferenceNode | ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
         let node_as_has_type_arguments = node.as_has_type_arguments();
         self.check_grammar_type_arguments(
@@ -428,7 +428,7 @@ impl TypeChecker {
                         Some(vec![
                             self.type_to_string_(
                                 type_,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?
                         ])
@@ -442,7 +442,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_argument_constraint_(
         &self,
-        node: &Node, /*TypeNode*/
+        node: Id<Node>, /*TypeNode*/
     ) -> io::Result<Option<Id<Type>>> {
         let type_reference_node =
             return_ok_default_if_none!(try_cast(node.parent(), |parent: &Id<Node>| {
@@ -475,7 +475,7 @@ impl TypeChecker {
         )?))
     }
 
-    pub(super) fn check_type_query(&self, node: &Node /*TypeQueryNode*/) -> io::Result<()> {
+    pub(super) fn check_type_query(&self, node: Id<Node> /*TypeQueryNode*/) -> io::Result<()> {
         self.get_type_from_type_query_node(node)?;
 
         Ok(())
@@ -483,7 +483,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_literal(
         &self,
-        node: &Node, /*TypeLiteralNode*/
+        node: Id<Node>, /*TypeLiteralNode*/
     ) -> io::Result<()> {
         try_for_each(
             &node.as_type_literal_node().members,
@@ -503,13 +503,13 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_array_type(&self, node: &Node /*ArrayTypeNode*/) -> io::Result<()> {
+    pub(super) fn check_array_type(&self, node: Id<Node> /*ArrayTypeNode*/) -> io::Result<()> {
         self.check_source_element(Some(&*node.as_array_type_node().element_type))?;
 
         Ok(())
     }
 
-    pub(super) fn check_tuple_type(&self, node: &Node /*TupleTypeNode*/) -> io::Result<()> {
+    pub(super) fn check_tuple_type(&self, node: Id<Node> /*TupleTypeNode*/) -> io::Result<()> {
         let node_as_tuple_type_node = node.as_tuple_type_node();
         let element_types = &node_as_tuple_type_node.elements;
         let mut seen_optional_element = false;
@@ -591,7 +591,7 @@ impl TypeChecker {
 
     pub(super) fn check_union_or_intersection_type(
         &self,
-        node: &Node, /*UnionOrIntersectionTypeNode*/
+        node: Id<Node>, /*UnionOrIntersectionTypeNode*/
     ) -> io::Result<()> {
         try_for_each(
             &node.as_union_or_intersection_type_node().types(),
@@ -608,7 +608,7 @@ impl TypeChecker {
     pub(super) fn check_indexed_access_index_type(
         &self,
         type_: Id<Type>,
-        access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
+        access_node: Id<Node>, /*IndexedAccessTypeNode | ElementAccessExpression*/
     ) -> io::Result<Id<Type>> {
         if !type_.ref_(self)
             .flags()
@@ -640,7 +640,7 @@ impl TypeChecker {
                     &Diagnostics::Index_signature_in_type_0_only_permits_reading,
                     Some(vec![self.type_to_string_(
                         object_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?]),
@@ -685,8 +685,8 @@ impl TypeChecker {
             Some(access_node),
             &Diagnostics::Type_0_cannot_be_used_to_index_type_1,
             Some(vec![
-                self.type_to_string_(index_type, Option::<&Node>::None, None, None)?,
-                self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
+                self.type_to_string_(index_type, Option::<Id<Node>>::None, None, None)?,
+                self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
             ]),
         );
         Ok(self.error_type())
@@ -694,7 +694,7 @@ impl TypeChecker {
 
     pub(super) fn check_indexed_access_type(
         &self,
-        node: &Node, /*IndexedAccessTypeNode*/
+        node: Id<Node>, /*IndexedAccessTypeNode*/
     ) -> io::Result<()> {
         let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
         self.check_source_element(Some(&*node_as_indexed_access_type_node.object_type))?;
@@ -707,7 +707,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_mapped_type(&self, node: &Node /*MappedTypeNode*/) -> io::Result<()> {
+    pub(super) fn check_mapped_type(&self, node: Id<Node> /*MappedTypeNode*/) -> io::Result<()> {
         self.check_grammar_mapped_type(node);
         let node_as_mapped_type_node = node.as_mapped_type_node();
         self.check_source_element(Some(&*node_as_mapped_type_node.type_parameter))?;
@@ -746,7 +746,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_grammar_mapped_type(&self, node: &Node /*MappedTypeNode*/) -> bool {
+    pub(super) fn check_grammar_mapped_type(&self, node: Id<Node> /*MappedTypeNode*/) -> bool {
         if let Some(node_members) = node
             .as_mapped_type_node()
             .members
@@ -762,7 +762,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_this_type(&self, node: &Node /*ThisTypeNode*/) -> io::Result<()> {
+    pub(super) fn check_this_type(&self, node: Id<Node> /*ThisTypeNode*/) -> io::Result<()> {
         self.get_type_from_this_type_node(node)?;
 
         Ok(())
@@ -770,7 +770,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_operator(
         &self,
-        node: &Node, /*TypeOperatorNode*/
+        node: Id<Node>, /*TypeOperatorNode*/
     ) -> io::Result<()> {
         self.check_grammar_type_operator_node(node);
         self.check_source_element(Some(&*node.as_type_operator_node().type_))?;
@@ -780,19 +780,19 @@ impl TypeChecker {
 
     pub(super) fn check_conditional_type(
         &self,
-        node: &Node, /*ConditionalTypeNode*/
+        node: Id<Node>, /*ConditionalTypeNode*/
     ) -> io::Result<()> {
         try_for_each_child(
             node,
-            |child: &Node| self.check_source_element(Some(child)),
+            |child: Id<Node>| self.check_source_element(Some(child)),
             Option::<fn(&NodeArray) -> io::Result<()>>::None,
         )?;
 
         Ok(())
     }
 
-    pub(super) fn check_infer_type(&self, node: &Node /*InferTypeNode*/) -> io::Result<()> {
-        if find_ancestor(Some(node), |n: &Node| {
+    pub(super) fn check_infer_type(&self, node: Id<Node> /*InferTypeNode*/) -> io::Result<()> {
+        if find_ancestor(Some(node), |n: Id<Node>| {
             matches!(
                 n.maybe_parent().as_ref(),
                 Some(n_parent) if n_parent.kind() == SyntaxKind::ConditionalType &&

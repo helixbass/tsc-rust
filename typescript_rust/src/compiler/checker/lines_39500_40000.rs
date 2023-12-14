@@ -25,7 +25,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_first_non_module_exports_identifier(
         &self,
-        node: &Node, /*EntityNameOrEntityNameExpression*/
+        node: Id<Node>, /*EntityNameOrEntityNameExpression*/
     ) -> Id<Node /*Identifier*/> {
         match node.kind() {
             SyntaxKind::Identifier => node.node_wrapper(),
@@ -58,7 +58,7 @@ impl TypeChecker {
 
     pub(super) fn check_external_import_or_export_declaration(
         &self,
-        node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
     ) -> bool {
         let module_name = get_external_module_name(node);
         if match module_name.as_ref() {
@@ -107,7 +107,7 @@ impl TypeChecker {
 
     pub(super) fn check_alias_symbol(
         &self,
-        node: &Node, /*ImportEqualsDeclaration | VariableDeclaration | ImportClause | NamespaceImport | ImportSpecifier | ExportSpecifier | NamespaceExport*/
+        node: Id<Node>, /*ImportEqualsDeclaration | VariableDeclaration | ImportClause | NamespaceImport | ImportSpecifier | ExportSpecifier | NamespaceExport*/
     ) -> io::Result<()> {
         let mut symbol = self.get_symbol_of_node(node)?.unwrap();
         let target = self.resolve_alias(symbol)?;
@@ -149,7 +149,7 @@ impl TypeChecker {
                     message,
                     Some(vec![self.symbol_to_string_(
                         symbol,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                         None,
@@ -258,7 +258,7 @@ impl TypeChecker {
 
     pub(super) fn check_import_binding(
         &self,
-        node: &Node, /*ImportEqualsDeclaration | ImportClause | NamespaceImport | ImportSpecifier*/
+        node: Id<Node>, /*ImportEqualsDeclaration | ImportClause | NamespaceImport | ImportSpecifier*/
     ) -> io::Result<()> {
         self.check_collisions_for_declaration_name(node, node.as_named_declaration().maybe_name());
         self.check_alias_symbol(node)?;
@@ -286,7 +286,7 @@ impl TypeChecker {
 
     pub(super) fn check_assert_clause(
         &self,
-        declaration: &Node, /*ImportDeclaration | ExportDeclaration*/
+        declaration: Id<Node>, /*ImportDeclaration | ExportDeclaration*/
     ) {
         if let Some(declaration_assert_clause) = declaration
             .as_has_assert_clause()
@@ -423,7 +423,7 @@ impl TypeChecker {
                                     SymbolFlags::Value | SymbolFlags::Namespace,
                                     None,
                                     None,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                 )?
                                 .unwrap().ref_(self)
                             .flags()
@@ -553,7 +553,7 @@ impl TypeChecker {
                         &Diagnostics::Module_0_uses_export_and_cannot_be_used_with_export_Asterisk,
                         Some(vec![self.symbol_to_string_(
                             module_symbol,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,

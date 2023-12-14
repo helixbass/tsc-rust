@@ -42,7 +42,7 @@ impl Printer {
         token: SyntaxKind,
         pos: isize,
         writer: impl FnMut(&str),
-        context_node: Option<&Node>,
+        context_node: Option<Id<Node>>,
     ) -> Option<isize> {
         if !self.source_maps_disabled() {
             Some(self.emit_token_with_source_map(
@@ -57,7 +57,7 @@ impl Printer {
         }
     }
 
-    pub(super) fn write_token_node(&self, node: &Node, writer: fn(&Printer, &str)) {
+    pub(super) fn write_token_node(&self, node: Id<Node>, writer: fn(&Printer, &str)) {
         self.on_before_emit_token(Some(node));
         writer(self, token_to_string(node.kind()).unwrap());
         self.on_after_emit_token(Some(node));
@@ -82,9 +82,9 @@ impl Printer {
 
     pub(super) fn write_line_or_space(
         &self,
-        parent_node: &Node,
-        prev_child_node: &Node,
-        next_child_node: &Node,
+        parent_node: Id<Node>,
+        prev_child_node: Id<Node>,
+        next_child_node: Id<Node>,
     ) {
         if get_emit_flags(parent_node).intersects(EmitFlags::SingleLine) {
             self.write_space();
@@ -148,7 +148,7 @@ impl Printer {
 
     pub(super) fn get_leading_line_terminator_count(
         &self,
-        parent_node: Option<&Node>,
+        parent_node: Option<Id<Node>>,
         children: &[Id<Node>],
         format: ListFormat,
     ) -> usize {
@@ -223,8 +223,8 @@ impl Printer {
 
     pub(super) fn get_separating_line_terminator_count(
         &self,
-        previous_node: Option<&Node>,
-        next_node: &Node,
+        previous_node: Option<Id<Node>>,
+        next_node: Id<Node>,
         format: ListFormat,
     ) -> usize {
         if format.intersects(ListFormat::PreserveLines)
@@ -285,7 +285,7 @@ impl Printer {
 
     pub(super) fn get_closing_line_terminator_count(
         &self,
-        parent_node: Option<&Node>,
+        parent_node: Option<Id<Node>>,
         children: NodeArrayOrSlice,
         format: ListFormat,
     ) -> usize {
@@ -373,8 +373,8 @@ impl Printer {
 
     pub(super) fn write_line_separators_and_indent_before(
         &self,
-        node: &Node,
-        parent: &Node,
+        node: Id<Node>,
+        parent: Id<Node>,
     ) -> bool {
         let leading_newlines = if self.maybe_preserve_source_newlines() == Some(true) {
             self.get_leading_line_terminator_count(
@@ -391,7 +391,7 @@ impl Printer {
         leading_newlines != 0
     }
 
-    pub(super) fn write_line_separators_after(&self, node: &Node, parent: &Node) {
+    pub(super) fn write_line_separators_after(&self, node: Id<Node>, parent: Id<Node>) {
         let trailing_newlines = if self.maybe_preserve_source_newlines() == Some(true) {
             self.get_closing_line_terminator_count(
                 Some(parent),
@@ -409,7 +409,7 @@ impl Printer {
 
     pub(super) fn synthesized_node_starts_on_new_line(
         &self,
-        node: &Node,
+        node: Id<Node>,
         format: ListFormat,
     ) -> bool {
         if node_is_synthesized(node) {
@@ -427,9 +427,9 @@ impl Printer {
 
     pub(super) fn get_lines_between_nodes(
         &self,
-        parent: &Node,
-        node1: &Node,
-        node2: &Node,
+        parent: Id<Node>,
+        node1: Id<Node>,
+        node2: Id<Node>,
     ) -> usize {
         if get_emit_flags(parent).intersects(EmitFlags::NoIndentation) {
             return 0;
@@ -471,12 +471,12 @@ impl Printer {
         0
     }
 
-    pub(super) fn is_empty_block(&self, block: &Node /*BlockLike*/) -> bool {
+    pub(super) fn is_empty_block(&self, block: Id<Node> /*BlockLike*/) -> bool {
         block.as_has_statements().statements().is_empty()
             && range_end_is_on_same_line_as_range_start(block, block, &self.current_source_file())
     }
 
-    pub(super) fn skip_synthesized_parentheses(&self, node: &Node) -> Id<Node> {
+    pub(super) fn skip_synthesized_parentheses(&self, node: Id<Node>) -> Id<Node> {
         let mut node = node.node_wrapper();
         while node.kind() == SyntaxKind::ParenthesizedExpression && node_is_synthesized(&*node) {
             node = node.as_parenthesized_expression().expression.clone();
@@ -487,7 +487,7 @@ impl Printer {
 
     pub(super) fn get_text_of_node<'node>(
         &self,
-        node: &'node Node,
+        node: Id<Node>,
         include_trivia: Option<bool>,
     ) -> Cow<'node, str> {
         if is_generated_identifier(node) {
@@ -526,7 +526,7 @@ impl Printer {
 
     pub(super) fn get_literal_text_of_node(
         &self,
-        node: &Node,
+        node: Id<Node>,
         never_ascii_escape: Option<bool>,
         jsx_attribute_escape: bool,
     ) -> Cow<'static, str> {
@@ -581,7 +581,7 @@ impl Printer {
         get_literal_text(node, self.maybe_current_source_file(), flags)
     }
 
-    pub(super) fn push_name_generation_scope(&self, node: Option<&Node>) {
+    pub(super) fn push_name_generation_scope(&self, node: Option<Id<Node>>) {
         if matches!(
             node,
             Some(node) if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope)
@@ -594,7 +594,7 @@ impl Printer {
             .push(self.maybe_reserved_names());
     }
 
-    pub(super) fn pop_name_generation_scope(&self, node: Option<&Node>) {
+    pub(super) fn pop_name_generation_scope(&self, node: Option<Id<Node>>) {
         if matches!(
             node,
             Some(node) if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope)
@@ -624,7 +624,7 @@ impl Printer {
             .insert(name.to_owned());
     }
 
-    pub(super) fn generate_names(&self, node: Option<&Node>) {
+    pub(super) fn generate_names(&self, node: Option<Id<Node>>) {
         if node.is_none() {
             return;
         }
@@ -763,7 +763,7 @@ impl Printer {
         }
     }
 
-    pub(super) fn generate_member_names(&self, node: Option<&Node>) {
+    pub(super) fn generate_member_names(&self, node: Option<Id<Node>>) {
         if node.is_none() {
             return;
         }
@@ -781,7 +781,7 @@ impl Printer {
         }
     }
 
-    pub(super) fn generate_name_if_needed(&self, name: Option<&Node /*DeclarationName*/>) {
+    pub(super) fn generate_name_if_needed(&self, name: Option<Id<Node> /*DeclarationName*/>) {
         if let Some(name) = name {
             if is_generated_identifier(name) {
                 self.generate_name(name);
@@ -791,7 +791,7 @@ impl Printer {
         }
     }
 
-    pub(super) fn generate_name(&self, name: &Node /*GeneratedIdentifier*/) -> String {
+    pub(super) fn generate_name(&self, name: Id<Node> /*GeneratedIdentifier*/) -> String {
         let name_as_identifier = name.as_identifier();
         if name_as_identifier
             .maybe_auto_generate_flags()

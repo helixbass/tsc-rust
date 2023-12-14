@@ -2125,7 +2125,7 @@ pub trait NodeExt {
         text: &str,
         has_trailing_new_line: Option<bool>,
     ) -> Self;
-    fn move_synthetic_comments(self, original: &Node) -> Self;
+    fn move_synthetic_comments(self, original: Id<Node>) -> Self;
 }
 
 impl NodeExt for Id<Node> {
@@ -2218,7 +2218,7 @@ impl NodeExt for Id<Node> {
         self
     }
 
-    fn move_synthetic_comments(self, original: &Node) -> Self {
+    fn move_synthetic_comments(self, original: Id<Node>) -> Self {
         move_synthetic_comments(&*self, original);
         self
     }

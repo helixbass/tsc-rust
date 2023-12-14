@@ -250,7 +250,7 @@ impl TypeChecker {
                                     t,
                                     self.number_type(),
                                     None,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     Option::<Id<Symbol>>::None,
                                     None,
                                 )?
@@ -420,7 +420,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_optional_type_node(
         &self,
-        node: &Node, /*OptionalTypeNode*/
+        node: Id<Node>, /*OptionalTypeNode*/
     ) -> io::Result<Id<Type>> {
         self.add_optionality(
             self.get_type_from_type_node_(&node.as_optional_type_node().type_)?,
@@ -1041,7 +1041,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_union_type_node(
         &self,
-        node: &Node, /*UnionTypeNode*/
+        node: Id<Node>, /*UnionTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {

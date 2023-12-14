@@ -61,7 +61,7 @@ impl Printer {
 
     pub(super) fn emit_prologue_directives_if_needed(
         &self,
-        source_file_or_bundle: &Node, /*Bundle | SourceFile*/
+        source_file_or_bundle: Id<Node>, /*Bundle | SourceFile*/
     ) -> io::Result<()> {
         Ok(if is_source_file(source_file_or_bundle) {
             self.emit_prologue_directives(
@@ -94,7 +94,7 @@ impl Printer {
 
     pub(super) fn get_prologue_directives_from_bundled_source_files(
         &self,
-        bundle: &Node, /*Bundle*/
+        bundle: Id<Node>, /*Bundle*/
     ) -> Option<Vec<SourceFilePrologueInfo>> {
         let mut seen_prologue_directives: HashSet<String> = HashSet::new();
         let mut prologues: Option<Vec<SourceFilePrologueInfo>> = None;
@@ -163,7 +163,7 @@ impl Printer {
 
     pub(super) fn emit_shebang_if_needed(
         &self,
-        source_file_or_bundle: &Node, /*Bundle | SourceFile | UnparsedSource*/
+        source_file_or_bundle: Id<Node>, /*Bundle | SourceFile | UnparsedSource*/
     ) -> bool {
         if is_source_file(source_file_or_bundle) || is_unparsed_source(source_file_or_bundle) {
             let source_file_or_bundle_as_source_file_like =
@@ -193,7 +193,7 @@ impl Printer {
 
     pub(super) fn emit_node_with_writer(
         &self,
-        node: Option<&Node>,
+        node: Option<Id<Node>>,
         writer: fn(&Printer, &str),
     ) -> io::Result<()> {
         if node.is_none() {
@@ -210,7 +210,7 @@ impl Printer {
 
     pub(super) fn emit_modifiers(
         &self,
-        node: &Node,
+        node: Id<Node>,
         modifiers: Option<&NodeArray /*<Modifier>*/>,
     ) -> io::Result<()> {
         Ok(
@@ -244,7 +244,7 @@ impl Printer {
         &self,
         node: Option<impl Borrow<Node> /*Expression*/>,
         equal_comment_start_pos: isize,
-        container: &Node,
+        container: Id<Node>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
@@ -267,8 +267,8 @@ impl Printer {
         &self,
         prefix: &str,
         prefix_writer: impl FnMut(&str),
-        node: Option<&Node>,
-        mut emit: impl FnMut(&Node),
+        node: Option<Id<Node>>,
+        mut emit: impl FnMut(Id<Node>),
     ) {
         self.try_emit_node_with_prefix(prefix, prefix_writer, node, |a| Ok(emit(a)))
             .unwrap()
@@ -278,8 +278,8 @@ impl Printer {
         &self,
         prefix: &str,
         mut prefix_writer: impl FnMut(&str),
-        node: Option<&Node>,
-        mut emit: impl FnMut(&Node) -> io::Result<()>,
+        node: Option<Id<Node>>,
+        mut emit: impl FnMut(Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if let Some(node) = node {
             prefix_writer(prefix);
@@ -289,7 +289,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_with_leading_space(&self, node: Option<&Node>) -> io::Result<()> {
+    pub(super) fn emit_with_leading_space(&self, node: Option<Id<Node>>) -> io::Result<()> {
         Ok(if let Some(node) = node {
             self.write_space();
             self.emit(Some(node), None)?;
@@ -298,7 +298,7 @@ impl Printer {
 
     pub(super) fn emit_expression_with_leading_space(
         &self,
-        node: Option<&Node>,
+        node: Option<Id<Node>>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
@@ -307,7 +307,7 @@ impl Printer {
         })
     }
 
-    pub(super) fn emit_with_trailing_space(&self, node: Option<&Node>) -> io::Result<()> {
+    pub(super) fn emit_with_trailing_space(&self, node: Option<Id<Node>>) -> io::Result<()> {
         Ok(if let Some(node) = node {
             self.emit(Some(node), None)?;
             self.write_space();
@@ -316,8 +316,8 @@ impl Printer {
 
     pub(super) fn emit_embedded_statement(
         &self,
-        parent: &Node,
-        node: &Node, /*Statement*/
+        parent: Id<Node>,
+        node: Id<Node>, /*Statement*/
     ) -> io::Result<()> {
         Ok(
             if is_block(node) || get_emit_flags(parent).intersects(EmitFlags::SingleLine) {
@@ -338,7 +338,7 @@ impl Printer {
 
     pub(super) fn emit_decorators(
         &self,
-        parent_node: &Node,
+        parent_node: Id<Node>,
         decorators: Option<&NodeArray /*<Decorator>*/>,
     ) -> io::Result<()> {
         self.emit_list(
@@ -355,7 +355,7 @@ impl Printer {
 
     pub(super) fn emit_type_arguments(
         &self,
-        parent_node: &Node,
+        parent_node: Id<Node>,
         type_arguments: Option<&NodeArray /*<TypeNode>*/>,
     ) -> io::Result<()> {
         self.emit_list(
@@ -374,7 +374,7 @@ impl Printer {
 
     pub(super) fn emit_type_parameters(
         &self,
-        parent_node: &Node, /*SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration | ClassDeclaration | ClassExpression*/
+        parent_node: Id<Node>, /*SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration | ClassDeclaration | ClassExpression*/
         type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
     ) -> io::Result<()> {
         if is_function_like(Some(parent_node)) {
@@ -397,7 +397,7 @@ impl Printer {
 
     pub(super) fn emit_parameters(
         &self,
-        parent_node: &Node,
+        parent_node: Id<Node>,
         parameters: &NodeArray, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         self.emit_list(
@@ -414,7 +414,7 @@ impl Printer {
 
     pub(super) fn can_emit_simple_arrow_head(
         &self,
-        parent_node: &Node,     /*FunctionTypeNode | ArrowFunction*/
+        parent_node: Id<Node>,     /*FunctionTypeNode | ArrowFunction*/
         parameters: &NodeArray, /*<ParameterDeclaration>*/
     ) -> bool {
         let parameter = single_or_undefined(Some(parameters));

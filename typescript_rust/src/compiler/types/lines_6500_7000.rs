@@ -393,7 +393,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         _reused_names: Option<&[String]>,
         _redirected_reference: Option<&ResolvedProjectReference>,
         _options: &CompilerOptions,
-        _containing_source_file: Option<&Node /*SourceFile*/>,
+        _containing_source_file: Option<Id<Node> /*SourceFile*/>,
     ) -> Option<Vec<Option<ResolvedModuleFull>>> {
         None
     }
@@ -416,7 +416,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     }
     fn on_release_old_source_file(
         &self,
-        _old_source_file: &Node, /*SourceFile*/
+        _old_source_file: Id<Node>, /*SourceFile*/
         _old_options: &CompilerOptions,
         _has_source_file_by_path: bool,
     ) {
@@ -587,14 +587,14 @@ impl TextRange for SourceMapRange {
     }
 }
 
-impl From<&Node> for SourceMapRange {
-    fn from(value: &Node) -> Self {
+impl From<Id<Node>> for SourceMapRange {
+    fn from(value: Id<Node>) -> Self {
         Self::new(value.pos(), value.end(), None)
     }
 }
 
-impl From<&Node> for Gc<SourceMapRange> {
-    fn from(value: &Node) -> Self {
+impl From<Id<Node>> for Gc<SourceMapRange> {
+    fn from(value: Id<Node>) -> Self {
         Gc::new(value.into())
     }
 }
@@ -1096,7 +1096,7 @@ pub enum EmitHint {
 
 pub trait SourceFileMayBeEmittedHost {
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
-    fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool;
+    fn is_source_file_from_external_library(&self, file: Id<Node> /*SourceFile*/) -> bool;
     fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
@@ -1138,7 +1138,7 @@ pub trait EmitHost:
     fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>>;
     fn get_source_file_from_reference(
         &self,
-        referencing_file: &Node, /*SourceFile | UnparsedSource*/
+        referencing_file: Id<Node>, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>>;
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>>;

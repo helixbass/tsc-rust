@@ -24,7 +24,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_grammar_jsx_element(
         &self,
-        node: &Node, /*JsxOpeningLikeElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> bool {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         self.check_grammar_jsx_name(&node_as_jsx_opening_like_element.tag_name());
@@ -73,7 +73,10 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_grammar_jsx_name(&self, node: &Node /*JsxTagNameExpression*/) -> bool {
+    pub(super) fn check_grammar_jsx_name(
+        &self,
+        node: Id<Node>, /*JsxTagNameExpression*/
+    ) -> bool {
         if is_property_access_expression(node) {
             let mut prop_name: Id<Node /*JsxTagNameExpression*/> = node.node_wrapper();
             while {
@@ -95,7 +98,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_jsx_nested_identifier(
         &self,
-        name: &Node, /*MemberName | ThisExpression*/
+        name: Id<Node>, /*MemberName | ThisExpression*/
     ) -> bool {
         if is_identifier(name) && id_text(name).contains(":") {
             return self.grammar_error_on_node(
@@ -107,7 +110,10 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_grammar_jsx_expression(&self, node: &Node /*JsxExpression*/) -> bool {
+    pub(super) fn check_grammar_jsx_expression(
+        &self,
+        node: Id<Node>, /*JsxExpression*/
+    ) -> bool {
         if let Some(node_expression) = node
             .as_jsx_expression()
             .expression
@@ -125,7 +131,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_for_in_or_for_of_statement(
         &self,
-        for_in_or_of_statement: &Node, /*ForInOrOfStatement*/
+        for_in_or_of_statement: Id<Node>, /*ForInOrOfStatement*/
     ) -> bool {
         if self.check_grammar_statement_in_ambient_context(for_in_or_of_statement) {
             return true;
@@ -304,7 +310,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_accessor(
         &self,
-        accessor: &Node, /*AccessorDeclaration*/
+        accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> bool {
         let accessor_as_function_like_declaration = accessor.as_function_like_declaration();
         if !accessor.flags().intersects(NodeFlags::Ambient)
@@ -433,7 +439,7 @@ impl TypeChecker {
 
     pub(super) fn does_accessor_have_correct_parameter_count(
         &self,
-        accessor: &Node, /*AccessorDeclaration*/
+        accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> bool {
         self.get_accessor_this_parameter(accessor).is_some()
             || accessor.as_function_like_declaration().parameters().len()
@@ -446,7 +452,7 @@ impl TypeChecker {
 
     pub(super) fn get_accessor_this_parameter(
         &self,
-        accessor: &Node, /*AccessorDeclaration*/
+        accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> Option<Id<Node /*ParameterDeclaration*/>> {
         if accessor.as_function_like_declaration().parameters().len()
             == if accessor.kind() == SyntaxKind::GetAccessor {
@@ -462,7 +468,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_type_operator_node(
         &self,
-        node: &Node, /*TypeOperatorNode*/
+        node: Id<Node>, /*TypeOperatorNode*/
     ) -> bool {
         let node_as_type_operator_node = node.as_type_operator_node();
         if node_as_type_operator_node.operator == SyntaxKind::UniqueKeyword {
@@ -554,7 +560,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_for_invalid_dynamic_name(
         &self,
-        node: &Node, /*DeclarationName*/
+        node: Id<Node>, /*DeclarationName*/
         message: &'static DiagnosticMessage,
     ) -> io::Result<bool> {
         if self.is_non_bindable_dynamic_name(node)? {
@@ -566,7 +572,7 @@ impl TypeChecker {
     #[allow(clippy::if_same_then_else)]
     pub(super) fn check_grammar_method(
         &self,
-        node: &Node, /*MethodDeclaration | MethodSignature*/
+        node: Id<Node>, /*MethodDeclaration | MethodSignature*/
     ) -> io::Result<bool> {
         if self.check_grammar_function_like_declaration(node)? {
             return Ok(true);
@@ -653,7 +659,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_break_or_continue_statement(
         &self,
-        node: &Node, /*BreakOrContinueStatement*/
+        node: Id<Node>, /*BreakOrContinueStatement*/
     ) -> bool {
         let mut current: Option<Id<Node>> = Some(node.node_wrapper());
         let node_as_has_label = node.as_has_label();
@@ -730,7 +736,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_binding_element(
         &self,
-        node: &Node, /*BindingElement*/
+        node: Id<Node>, /*BindingElement*/
     ) -> bool {
         let node_as_binding_element = node.as_binding_element();
         if node_as_binding_element.dot_dot_dot_token.is_some() {
@@ -775,7 +781,7 @@ impl TypeChecker {
 
     pub(super) fn is_string_or_number_literal_expression(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
     ) -> bool {
         is_string_or_numeric_literal_like(expr)
             || expr.kind() == SyntaxKind::PrefixUnaryExpression && {
@@ -785,7 +791,7 @@ impl TypeChecker {
             }
     }
 
-    pub(super) fn is_big_int_literal_expression(&self, expr: &Node /*Expression*/) -> bool {
+    pub(super) fn is_big_int_literal_expression(&self, expr: Id<Node> /*Expression*/) -> bool {
         expr.kind() == SyntaxKind::BigIntLiteral
             || expr.kind() == SyntaxKind::PrefixUnaryExpression && {
                 let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
@@ -796,7 +802,7 @@ impl TypeChecker {
 
     pub(super) fn is_simple_literal_enum_reference(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         if (is_property_access_expression(expr)
             || is_element_access_expression(expr)
@@ -816,7 +822,7 @@ impl TypeChecker {
 
     pub(super) fn check_ambient_initializer(
         &self,
-        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature*/
+        node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature*/
     ) -> io::Result<bool> {
         let initializer = node.as_has_initializer().maybe_initializer();
         if let Some(initializer) = initializer.as_ref() {
@@ -858,7 +864,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_variable_declaration(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<bool> {
         let node_as_variable_declaration = node.as_variable_declaration();
         if !matches!(

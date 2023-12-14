@@ -1038,7 +1038,7 @@ impl TypeChecker {
 
     pub(super) fn get_cannot_find_name_diagnostic_for_name(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> &'static DiagnosticMessage {
         match &*node.as_identifier().escaped_text {
             "document" | "console" => &Diagnostics::Cannot_find_name_0_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_include_dom,

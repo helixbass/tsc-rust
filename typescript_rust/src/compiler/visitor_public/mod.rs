@@ -23,9 +23,9 @@ use crate::{
 
 #[inline(always)]
 pub fn visit_node(
-    node: &Node,
-    visitor: Option<impl FnMut(&Node) -> VisitResult>,
-    test: Option<impl Fn(&Node) -> bool>,
+    node: Id<Node>,
+    visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
+    test: Option<impl Fn(Id<Node>) -> bool>,
     lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
 ) -> Id<Node> {
     maybe_visit_node(Some(node), visitor, test, lift).unwrap()
@@ -34,13 +34,13 @@ pub fn visit_node(
 #[inline(always)]
 pub fn maybe_visit_node(
     node: Option<impl Borrow<Node>>,
-    visitor: Option<impl FnMut(&Node) -> VisitResult>,
-    test: Option<impl Fn(&Node) -> bool>,
+    visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
+    test: Option<impl Fn(Id<Node>) -> bool>,
     lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
 ) -> Option<Id<Node>> {
     try_maybe_visit_node(
         node,
-        visitor.map(|mut visitor| move |node: &Node| Ok(visitor(node))),
+        visitor.map(|mut visitor| move |node: Id<Node>| Ok(visitor(node))),
         test,
         lift,
     )
@@ -49,9 +49,9 @@ pub fn maybe_visit_node(
 
 #[inline(always)]
 pub fn try_visit_node(
-    node: &Node,
-    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
-    test: Option<impl Fn(&Node) -> bool>,
+    node: Id<Node>,
+    visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
+    test: Option<impl Fn(Id<Node>) -> bool>,
     lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
 ) -> io::Result<Id<Node>> {
     Ok(try_maybe_visit_node(Some(node), visitor, test, lift)?.unwrap())
@@ -59,8 +59,8 @@ pub fn try_visit_node(
 
 pub fn try_maybe_visit_node(
     node: Option<impl Borrow<Node>>,
-    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
-    test: Option<impl Fn(&Node) -> bool>,
+    visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
+    test: Option<impl Fn(Id<Node>) -> bool>,
     lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
 ) -> io::Result<Option<Id<Node>>> {
     let node = return_ok_default_if_none!(node);
@@ -93,8 +93,8 @@ pub fn try_maybe_visit_node(
 #[inline(always)]
 pub fn visit_nodes(
     nodes: &NodeArray,
-    visitor: Option<impl FnMut(&Node) -> VisitResult>,
-    test: Option<impl Fn(&Node) -> bool>,
+    visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
+    test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
 ) -> Gc<NodeArray> {
@@ -103,8 +103,8 @@ pub fn visit_nodes(
 
 pub fn maybe_visit_nodes(
     nodes: Option<&NodeArray>,
-    visitor: Option<impl FnMut(&Node) -> VisitResult>,
-    test: Option<impl Fn(&Node) -> bool>,
+    visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
+    test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
 ) -> Option<Gc<NodeArray>> {
@@ -157,7 +157,7 @@ pub fn maybe_visit_nodes(
                         for visited_node in visited {
                             Debug_.assert_node(
                                 Some(&**visited_node),
-                                test.as_ref().map(|test| |node: &Node| test(node)),
+                                test.as_ref().map(|test| |node: Id<Node>| test(node)),
                                 None,
                             );
                             updated.as_mut().unwrap().push(visited_node.clone());
@@ -166,7 +166,7 @@ pub fn maybe_visit_nodes(
                     SingleNodeOrVecNode::SingleNode(visited) => {
                         Debug_.assert_node(
                             Some(&**visited),
-                            test.as_ref().map(|test| |node: &Node| test(node)),
+                            test.as_ref().map(|test| |node: Id<Node>| test(node)),
                             None,
                         );
                         updated.as_mut().unwrap().push(visited.clone());
@@ -189,8 +189,8 @@ pub fn maybe_visit_nodes(
 #[inline(always)]
 pub fn try_visit_nodes(
     nodes: &NodeArray,
-    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
-    test: Option<impl Fn(&Node) -> bool>,
+    visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
+    test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
 ) -> io::Result<Gc<NodeArray>> {
@@ -199,8 +199,8 @@ pub fn try_visit_nodes(
 
 pub fn try_maybe_visit_nodes(
     nodes: Option<&NodeArray>,
-    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
-    test: Option<impl Fn(&Node) -> bool>,
+    visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
+    test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
 ) -> io::Result<Option<Gc<NodeArray>>> {
@@ -256,7 +256,7 @@ pub fn try_maybe_visit_nodes(
                         for visited_node in visited {
                             Debug_.assert_node(
                                 Some(&**visited_node),
-                                test.as_ref().map(|test| |node: &Node| test(node)),
+                                test.as_ref().map(|test| |node: Id<Node>| test(node)),
                                 None,
                             );
                             updated.as_mut().unwrap().push(visited_node.clone());
@@ -265,7 +265,7 @@ pub fn try_maybe_visit_nodes(
                     SingleNodeOrVecNode::SingleNode(visited) => {
                         Debug_.assert_node(
                             Some(&**visited),
-                            test.as_ref().map(|test| |node: &Node| test(node)),
+                            test.as_ref().map(|test| |node: Id<Node>| test(node)),
                             None,
                         );
                         updated.as_mut().unwrap().push(visited.clone());
@@ -287,15 +287,15 @@ pub fn try_maybe_visit_nodes(
 
 pub fn visit_lexical_environment(
     statements: &NodeArray, /*<Statement>*/
-    mut visitor: impl FnMut(&Node) -> VisitResult,
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     start: Option<usize>,
     ensure_use_strict: Option<bool>,
     mut nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
-            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-            Option<&dyn Fn(&Node) -> bool>,
+            Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+            Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
         ) -> Option<Gc<NodeArray>>,
@@ -327,28 +327,29 @@ pub fn visit_lexical_environment(
     // )
     // .unwrap()
     context.start_lexical_environment();
-    let mut nodes_visitor_or_default = |nodes: Option<&NodeArray>,
-                                        visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                        test: Option<&dyn Fn(&Node) -> bool>,
-                                        start: Option<usize>,
-                                        count: Option<usize>|
-     -> Option<Gc<NodeArray>> {
-        if let Some(nodes_visitor) = nodes_visitor.as_mut() {
-            nodes_visitor(nodes, visitor, test, start, count)
-        } else {
-            maybe_visit_nodes(
-                nodes,
-                visitor.map(|visitor| |node: &Node| visitor(node)),
-                test.map(|test| |node: &Node| test(node)),
-                start,
-                count,
-            )
-        }
-    };
+    let mut nodes_visitor_or_default =
+        |nodes: Option<&NodeArray>,
+         visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+         test: Option<&dyn Fn(Id<Node>) -> bool>,
+         start: Option<usize>,
+         count: Option<usize>|
+         -> Option<Gc<NodeArray>> {
+            if let Some(nodes_visitor) = nodes_visitor.as_mut() {
+                nodes_visitor(nodes, visitor, test, start, count)
+            } else {
+                maybe_visit_nodes(
+                    nodes,
+                    visitor.map(|visitor| |node: Id<Node>| visitor(node)),
+                    test.map(|test| |node: Id<Node>| test(node)),
+                    start,
+                    count,
+                )
+            }
+        };
     let mut statements = nodes_visitor_or_default(
         Some(statements),
-        Some(&mut |node: &Node| visitor(node)),
-        Some(&|node: &Node| is_statement(node)),
+        Some(&mut |node: Id<Node>| visitor(node)),
+        Some(&|node: Id<Node>| is_statement(node)),
         start,
         None,
     )
@@ -363,7 +364,7 @@ pub fn visit_lexical_environment(
 
 pub fn try_visit_lexical_environment(
     statements: &NodeArray, /*<Statement>*/
-    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Gc<NodeArray>> {
     try_visit_lexical_environment_full(
@@ -375,8 +376,8 @@ pub fn try_visit_lexical_environment(
         Option::<
             fn(
                 Option<&NodeArray>,
-                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                Option<&dyn Fn(&Node) -> bool>,
+                Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
             ) -> io::Result<Option<Gc<NodeArray>>>,
@@ -386,15 +387,15 @@ pub fn try_visit_lexical_environment(
 
 pub fn try_visit_lexical_environment_full(
     statements: &NodeArray, /*<Statement>*/
-    mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     start: Option<usize>,
     ensure_use_strict: Option<bool>,
     mut nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
-            Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-            Option<&dyn Fn(&Node) -> bool>,
+            Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+            Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
         ) -> io::Result<Option<Gc<NodeArray>>>,
@@ -403,8 +404,8 @@ pub fn try_visit_lexical_environment_full(
     context.start_lexical_environment();
     let mut nodes_visitor_or_default =
         |nodes: Option<&NodeArray>,
-         visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-         test: Option<&dyn Fn(&Node) -> bool>,
+         visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+         test: Option<&dyn Fn(Id<Node>) -> bool>,
          start: Option<usize>,
          count: Option<usize>|
          -> io::Result<Option<Gc<NodeArray>>> {
@@ -413,8 +414,8 @@ pub fn try_visit_lexical_environment_full(
             } else {
                 try_maybe_visit_nodes(
                     nodes,
-                    visitor.map(|visitor| |node: &Node| visitor(node)),
-                    test.map(|test| |node: &Node| test(node)),
+                    visitor.map(|visitor| |node: Id<Node>| visitor(node)),
+                    test.map(|test| |node: Id<Node>| test(node)),
                     start,
                     count,
                 )
@@ -422,8 +423,8 @@ pub fn try_visit_lexical_environment_full(
         };
     let mut statements = nodes_visitor_or_default(
         Some(statements),
-        Some(&mut |node: &Node| visitor(node)),
-        Some(&|node: &Node| is_statement(node)),
+        Some(&mut |node: Id<Node>| visitor(node)),
+        Some(&|node: Id<Node>| is_statement(node)),
         start,
         None,
     )?
@@ -438,7 +439,7 @@ pub fn try_visit_lexical_environment_full(
 
 pub fn visit_parameter_list(
     nodes: Option<&NodeArray>,
-    visitor: impl FnMut(&Node) -> VisitResult,
+    visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
 ) -> Option<Gc<NodeArray>> {
     visit_parameter_list_full(
@@ -448,8 +449,8 @@ pub fn visit_parameter_list(
         Option::<
             fn(
                 Option<&NodeArray>,
-                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                Option<&dyn Fn(&Node) -> bool>,
+                Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+                Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
             ) -> Option<Gc<NodeArray>>,
@@ -459,21 +460,21 @@ pub fn visit_parameter_list(
 
 pub fn visit_parameter_list_full(
     nodes: Option<&NodeArray>,
-    mut visitor: impl FnMut(&Node) -> VisitResult,
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
-            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-            Option<&dyn Fn(&Node) -> bool>,
+            Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+            Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
         ) -> Option<Gc<NodeArray>>,
     >,
 ) -> Option<Gc<NodeArray>> {
     let mut nodes_visitor = |nodes: Option<&NodeArray>,
-                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                             test: Option<&dyn Fn(&Node) -> bool>,
+                             visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+                             test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
                              count: Option<usize>|
      -> Option<Gc<NodeArray>> {
@@ -482,8 +483,8 @@ pub fn visit_parameter_list_full(
         } else {
             maybe_visit_nodes(
                 nodes,
-                visitor.map(|visitor| |node: &Node| visitor(node)),
-                test.map(|test| |node: &Node| test(node)),
+                visitor.map(|visitor| |node: Id<Node>| visitor(node)),
+                test.map(|test| |node: Id<Node>| test(node)),
                 start,
                 count,
             )
@@ -519,7 +520,7 @@ pub fn visit_parameter_list_full(
 
 pub fn try_visit_parameter_list(
     nodes: Option<&NodeArray>,
-    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Option<Gc<NodeArray>>> {
     try_visit_parameter_list_full(
@@ -529,8 +530,8 @@ pub fn try_visit_parameter_list(
         Option::<
             fn(
                 Option<&NodeArray>,
-                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                Option<&dyn Fn(&Node) -> bool>,
+                Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
             ) -> io::Result<Option<Gc<NodeArray>>>,
@@ -540,36 +541,37 @@ pub fn try_visit_parameter_list(
 
 pub fn try_visit_parameter_list_full(
     nodes: Option<&NodeArray>,
-    mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
-            Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-            Option<&dyn Fn(&Node) -> bool>,
+            Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+            Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
         ) -> io::Result<Option<Gc<NodeArray>>>,
     >,
 ) -> io::Result<Option<Gc<NodeArray>>> {
-    let mut nodes_visitor = |nodes: Option<&NodeArray>,
-                             visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                             test: Option<&dyn Fn(&Node) -> bool>,
-                             start: Option<usize>,
-                             count: Option<usize>|
-     -> io::Result<Option<Gc<NodeArray>>> {
-        if let Some(nodes_visitor) = nodes_visitor.as_mut() {
-            nodes_visitor(nodes, visitor, test, start, count)
-        } else {
-            try_maybe_visit_nodes(
-                nodes,
-                visitor.map(|visitor| |node: &Node| visitor(node)),
-                test.map(|test| |node: &Node| test(node)),
-                start,
-                count,
-            )
-        }
-    };
+    let mut nodes_visitor =
+        |nodes: Option<&NodeArray>,
+         visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+         test: Option<&dyn Fn(Id<Node>) -> bool>,
+         start: Option<usize>,
+         count: Option<usize>|
+         -> io::Result<Option<Gc<NodeArray>>> {
+            if let Some(nodes_visitor) = nodes_visitor.as_mut() {
+                nodes_visitor(nodes, visitor, test, start, count)
+            } else {
+                try_maybe_visit_nodes(
+                    nodes,
+                    visitor.map(|visitor| |node: Id<Node>| visitor(node)),
+                    test.map(|test| |node: Id<Node>| test(node)),
+                    start,
+                    count,
+                )
+            }
+        };
     let mut updated: Option<Gc<NodeArray /*<ParameterDeclaration>*/>> = _d();
     context.start_lexical_environment();
     if let Some(nodes) = nodes {
@@ -623,7 +625,7 @@ fn add_default_value_assignments_if_needed(
 }
 
 fn add_default_value_assignment_if_needed(
-    parameter: &Node, /*ParameterDeclaration*/
+    parameter: Id<Node>, /*ParameterDeclaration*/
     context: &(impl TransformationContext + ?Sized),
 ) -> Id<Node> {
     let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
@@ -649,7 +651,7 @@ fn add_default_value_assignment_if_needed(
 }
 
 fn add_default_value_assignment_for_binding_pattern(
-    parameter: &Node, /*ParameterDeclaration*/
+    parameter: Id<Node>, /*ParameterDeclaration*/
     context: &(impl TransformationContext + ?Sized),
 ) -> Id<Node> {
     let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
@@ -704,9 +706,9 @@ fn add_default_value_assignment_for_binding_pattern(
 }
 
 fn add_default_value_assignment_for_initializer(
-    parameter: &Node,   /*ParameterDeclaration*/
-    name: &Node,        /*Identifier*/
-    initializer: &Node, /*Expression*/
+    parameter: Id<Node>,   /*ParameterDeclaration*/
+    name: Id<Node>,        /*Identifier*/
+    initializer: Id<Node>, /*Expression*/
     context: &(impl TransformationContext + ?Sized),
 ) -> Id<Node> {
     let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
@@ -756,8 +758,8 @@ fn add_default_value_assignment_for_initializer(
 }
 
 pub fn visit_function_body(
-    node: Option<&Node /*ConciseBody*/>,
-    visitor: impl FnMut(&Node) -> VisitResult,
+    node: Option<Id<Node> /*ConciseBody*/>,
+    visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
 ) -> Option<Id<Node /*ConciseBody*/>> {
     visit_function_body_full(
@@ -766,9 +768,9 @@ pub fn visit_function_body(
         context,
         Option::<
             fn(
-                Option<&Node>,
-                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                Option<&dyn Fn(&Node) -> bool>,
+                Option<Id<Node>>,
+                Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+                Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
             ) -> Option<Id<Node>>,
         >::None,
@@ -776,22 +778,22 @@ pub fn visit_function_body(
 }
 
 pub fn visit_function_body_full(
-    node: Option<&Node /*ConciseBody*/>,
-    mut visitor: impl FnMut(&Node) -> VisitResult,
+    node: Option<Id<Node> /*ConciseBody*/>,
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     mut node_visitor: Option<
         impl FnMut(
-            Option<&Node>,
-            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-            Option<&dyn Fn(&Node) -> bool>,
+            Option<Id<Node>>,
+            Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+            Option<&dyn Fn(Id<Node>) -> bool>,
             Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
         ) -> Option<Id<Node>>,
     >,
 ) -> Option<Id<Node /*ConciseBody*/>> {
     context.resume_lexical_environment();
-    let mut node_visitor = |node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
+    let mut node_visitor = |node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+                            test: Option<&dyn Fn(Id<Node>) -> bool>,
                             lift: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>|
      -> Option<Id<Node>> {
         if let Some(node_visitor) = node_visitor.as_mut() {
@@ -799,8 +801,8 @@ pub fn visit_function_body_full(
         } else {
             maybe_visit_node(
                 node,
-                visitor.map(|visitor| |node: &Node| visitor(node)),
-                test.map(|test| |node: &Node| test(node)),
+                visitor.map(|visitor| |node: Id<Node>| visitor(node)),
+                test.map(|test| |node: Id<Node>| test(node)),
                 lift.map(|lift| |node: &[Id<Node>]| lift(node)),
             )
         }
@@ -825,8 +827,8 @@ pub fn visit_function_body_full(
 }
 
 pub fn try_visit_function_body(
-    node: Option<&Node /*ConciseBody*/>,
-    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    node: Option<Id<Node> /*ConciseBody*/>,
+    visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Option<Id<Node /*ConciseBody*/>>> {
     try_visit_function_body_full(
@@ -835,9 +837,9 @@ pub fn try_visit_function_body(
         context,
         Option::<
             fn(
-                Option<&Node>,
-                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                Option<&dyn Fn(&Node) -> bool>,
+                Option<Id<Node>>,
+                Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
             ) -> io::Result<Option<Id<Node>>>,
         >::None,
@@ -845,35 +847,36 @@ pub fn try_visit_function_body(
 }
 
 pub fn try_visit_function_body_full(
-    node: Option<&Node /*ConciseBody*/>,
-    mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    node: Option<Id<Node> /*ConciseBody*/>,
+    mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     mut node_visitor: Option<
         impl FnMut(
-            Option<&Node>,
-            Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-            Option<&dyn Fn(&Node) -> bool>,
+            Option<Id<Node>>,
+            Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+            Option<&dyn Fn(Id<Node>) -> bool>,
             Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
         ) -> io::Result<Option<Id<Node>>>,
     >,
 ) -> io::Result<Option<Id<Node /*ConciseBody*/>>> {
     context.resume_lexical_environment();
-    let mut node_visitor = |node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
-                            lift: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>|
-     -> io::Result<Option<Id<Node>>> {
-        if let Some(node_visitor) = node_visitor.as_mut() {
-            node_visitor(node, visitor, test, lift)
-        } else {
-            try_maybe_visit_node(
-                node,
-                visitor.map(|visitor| |node: &Node| visitor(node)),
-                test.map(|test| |node: &Node| test(node)),
-                lift.map(|lift| |node: &[Id<Node>]| lift(node)),
-            )
-        }
-    };
+    let mut node_visitor =
+        |node: Option<Id<Node>>,
+         visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+         test: Option<&dyn Fn(Id<Node>) -> bool>,
+         lift: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>|
+         -> io::Result<Option<Id<Node>>> {
+            if let Some(node_visitor) = node_visitor.as_mut() {
+                node_visitor(node, visitor, test, lift)
+            } else {
+                try_maybe_visit_node(
+                    node,
+                    visitor.map(|visitor| |node: Id<Node>| visitor(node)),
+                    test.map(|test| |node: Id<Node>| test(node)),
+                    lift.map(|lift| |node: &[Id<Node>]| lift(node)),
+                )
+            }
+        };
     let updated = node_visitor(node, Some(&mut visitor), Some(&is_concise_body), None)?;
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
@@ -894,16 +897,16 @@ pub fn try_visit_function_body_full(
 }
 
 pub fn visit_iteration_body(
-    body: &Node, /*Statement*/
-    mut visitor: impl FnMut(&Node) -> VisitResult,
+    body: Id<Node>, /*Statement*/
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
 ) -> Id<Node /*Statement*/> {
     try_visit_iteration_body(body, |a| Ok(visitor(a)), context).unwrap()
 }
 
 pub fn try_visit_iteration_body(
-    body: &Node, /*Statement*/
-    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    body: Id<Node>, /*Statement*/
+    visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Id<Node /*Statement*/>> {
     context.start_block_scope();

@@ -199,7 +199,7 @@ impl WrapCustomTransformer {
 }
 
 impl TransformerInterface for WrapCustomTransformer {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(if is_bundle(node) {
             self.transformer.transform_bundle(node)
         } else {
@@ -291,14 +291,14 @@ fn passthrough_transformer() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDef
     PASSTHROUGH_TRANSFORMER.with(|passthrough_transformer| passthrough_transformer.clone())
 }
 
-pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Id<Node> {
+pub fn no_emit_substitution(_hint: EmitHint, node: Id<Node>) -> Id<Node> {
     node.node_wrapper()
 }
 
 pub fn no_emit_notification(
     hint: EmitHint,
-    node: &Node,
-    callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    node: Id<Node>,
+    callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
 ) -> io::Result<()> {
     callback(hint, node)
 }
@@ -673,7 +673,7 @@ impl TransformNodesTransformationResult {
         for node in &self.nodes {
             dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                 Some(&**node),
-                Option::<fn(&Node) -> bool>::None,
+                Option::<fn(Id<Node>) -> bool>::None,
             )))
         }
 
@@ -706,7 +706,7 @@ impl TransformNodesTransformationResult {
         Ok(())
     }
 
-    fn transformation(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn transformation(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         let mut node = node.node_wrapper();
         for transform in self.transformers_with_context().iter() {
             node = transform.call(&node)?;
@@ -714,7 +714,7 @@ impl TransformNodesTransformationResult {
         Ok(node)
     }
 
-    fn transform_root(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn transform_root(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(
             if
             /*node &&*/
@@ -900,7 +900,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         statements
     }
 
-    fn hoist_function_declaration(&self, func: &Node /*FunctionDeclaration*/) {
+    fn hoist_function_declaration(&self, func: Id<Node> /*FunctionDeclaration*/) {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the lexical environment during initialization."),
@@ -922,7 +922,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         }
     }
 
-    fn hoist_variable_declaration(&self, name: &Node /*Identifier*/) {
+    fn hoist_variable_declaration(&self, name: Id<Node> /*Identifier*/) {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the lexical environment during initialization."),
@@ -1016,7 +1016,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         statements
     }
 
-    fn add_block_scoped_variable(&self, name: &Node /*Identifier*/) {
+    fn add_block_scoped_variable(&self, name: Id<Node> /*Identifier*/) {
         Debug_.assert(
             self.block_scope_stack_offset() > 0,
             Some("Cannot add a block scoped variable outside of an iteration body."),
@@ -1026,7 +1026,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             .push(name.node_wrapper());
     }
 
-    fn add_initialization_statement(&self, node: &Node /*Statement*/) {
+    fn add_initialization_statement(&self, node: Id<Node> /*Statement*/) {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the lexical environment during initialization."),
@@ -1119,12 +1119,12 @@ impl TransformationContext for TransformNodesTransformationResult {
         *entry |= SyntaxKindFeatureFlags::Substitution;
     }
 
-    fn is_substitution_enabled(&self, node: &Node) -> bool {
+    fn is_substitution_enabled(&self, node: Id<Node>) -> bool {
         matches!(self.enabled_syntax_kind_features().get(&node.kind()), Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::Substitution))
             && !get_emit_flags(node).intersects(EmitFlags::NoSubstitution)
     }
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         self.on_substitute_node_outermost_override_or_original_method
             .borrow()
             .on_substitute_node(hint, node)
@@ -1175,7 +1175,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         *entry |= SyntaxKindFeatureFlags::EmitNotifications;
     }
 
-    fn is_emit_notification_enabled(&self, node: &Node) -> bool {
+    fn is_emit_notification_enabled(&self, node: Id<Node>) -> bool {
         matches!(
             self.enabled_syntax_kind_features().get(&node.kind()),
             Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::EmitNotifications)
@@ -1185,8 +1185,8 @@ impl TransformationContext for TransformNodesTransformationResult {
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         self.on_emit_node_outermost_override_or_original_method
             .borrow()
@@ -1236,8 +1236,8 @@ impl TransformationContextOnEmitNodeOverrider
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         no_emit_notification(hint, node, emit_callback)
     }
@@ -1249,7 +1249,7 @@ struct NoEmitNotificationTransformationContextOnSubstituteNodeOverrider;
 impl TransformationContextOnSubstituteNodeOverrider
     for NoEmitNotificationTransformationContextOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(no_emit_substitution(hint, node))
     }
 }
@@ -1263,7 +1263,7 @@ impl TransformationResult for TransformNodesTransformationResult {
         Some(self.diagnostics.borrow().clone())
     }
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         Debug_.assert(
             self.state() < TransformationState::Disposed,
             Some("Cannot substitute a node after the result is disposed."),
@@ -1279,8 +1279,8 @@ impl TransformationResult for TransformNodesTransformationResult {
     fn emit_node_with_notification(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         Debug_.assert(
             self.state() < TransformationState::Disposed,
@@ -1297,7 +1297,7 @@ impl TransformationResult for TransformNodesTransformationResult {
         Ok(())
     }
 
-    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
+    fn is_emit_notification_enabled(&self, node: Id<Node>) -> Option<bool> {
         Some(TransformationContext::is_emit_notification_enabled(
             self, node,
         ))
@@ -1308,7 +1308,7 @@ impl TransformationResult for TransformNodesTransformationResult {
             for node in &self.nodes {
                 dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                     Some(&**node),
-                    Option::<fn(&Node) -> bool>::None,
+                    Option::<fn(Id<Node>) -> bool>::None,
                 )))
             }
 
@@ -1368,9 +1368,9 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
         None
     }
 
-    fn hoist_function_declaration(&self, _node: &Node /*FunctionDeclaration*/) {}
+    fn hoist_function_declaration(&self, _node: Id<Node> /*FunctionDeclaration*/) {}
 
-    fn hoist_variable_declaration(&self, _node: &Node /*Identifier*/) {}
+    fn hoist_variable_declaration(&self, _node: Id<Node> /*Identifier*/) {}
 
     fn start_block_scope(&self) {}
 
@@ -1378,9 +1378,9 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
         None
     }
 
-    fn add_block_scoped_variable(&self, _node: &Node /*Identifier*/) {}
+    fn add_block_scoped_variable(&self, _node: Id<Node> /*Identifier*/) {}
 
-    fn add_initialization_statement(&self, _node: &Node /*Statement*/) {}
+    fn add_initialization_statement(&self, _node: Id<Node> /*Statement*/) {}
 }
 
 impl TransformationContext for TransformationContextNull {
@@ -1404,11 +1404,11 @@ impl TransformationContext for TransformationContextNull {
 
     fn enable_substitution(&self, _kind: SyntaxKind) {}
 
-    fn is_substitution_enabled(&self, _node: &Node) -> bool {
+    fn is_substitution_enabled(&self, _node: Id<Node>) -> bool {
         not_implemented()
     }
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(no_emit_substitution(hint, node))
     }
 
@@ -1430,15 +1430,15 @@ impl TransformationContext for TransformationContextNull {
 
     fn enable_emit_notification(&self, _kind: SyntaxKind) {}
 
-    fn is_emit_notification_enabled(&self, _node: &Node) -> bool {
+    fn is_emit_notification_enabled(&self, _node: Id<Node>) -> bool {
         not_implemented()
     }
 
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         no_emit_notification(hint, node, emit_callback)
     }

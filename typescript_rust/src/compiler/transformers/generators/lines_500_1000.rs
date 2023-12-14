@@ -17,19 +17,22 @@ use crate::{
 impl TransformGenerators {
     pub(super) fn visit_accessor_declaration(
         &self,
-        node: &Node, /*AccessorDeclaration*/
+        node: Id<Node>, /*AccessorDeclaration*/
     ) -> VisitResult {
         let saved_in_generator_function_body = self.maybe_in_generator_function_body();
         let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
         self.set_in_generator_function_body(Some(false));
         self.set_in_statement_containing_yield(Some(false));
-        let node = visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context);
         self.set_in_generator_function_body(saved_in_generator_function_body);
         self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         Some(node.into())
     }
 
-    pub(super) fn transform_generator_function_body(&self, body: &Node /*Block*/) -> Id<Node> {
+    pub(super) fn transform_generator_function_body(
+        &self,
+        body: Id<Node>, /*Block*/
+    ) -> Id<Node> {
         let body_as_block = body.as_block();
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let saved_in_generator_function_body = self.maybe_in_generator_function_body();
@@ -60,7 +63,7 @@ impl TransformGenerators {
         self.set_operation_locations(None);
         self.set_state(Some(
             self.factory
-                .create_temp_variable(Option::<fn(&Node)>::None, None),
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None),
         ));
 
         self.context.resume_lexical_environment();
@@ -69,7 +72,7 @@ impl TransformGenerators {
             &body_as_block.statements,
             &mut statements,
             Some(false),
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
         );
 
         self.transform_and_emit_statements(&body_as_block.statements, Some(statement_offset));
@@ -102,7 +105,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_variable_statement(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) -> Option<Id<Node /*Statement*/>> {
         let node_as_variable_statement = node.as_variable_statement();
         if node
@@ -147,7 +150,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
         let assoc = get_expression_associativity(node);
         match assoc {
@@ -160,7 +163,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_right_associative_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
         let node_as_binary_expression = node.as_binary_expression();
         let left = &node_as_binary_expression.left;
@@ -173,7 +176,7 @@ impl TransformGenerators {
                         left,
                         self.cache_expression(&visit_node(
                             &left_as_property_access_expression.expression,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_left_hand_side_expression),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
@@ -186,13 +189,13 @@ impl TransformGenerators {
                         left,
                         self.cache_expression(&visit_node(
                             &left_as_element_access_expression.expression,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_left_hand_side_expression),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
                         self.cache_expression(&visit_node(
                             &left_as_element_access_expression.argument_expression,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
@@ -200,7 +203,7 @@ impl TransformGenerators {
                 }
                 _ => visit_node(
                     left,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
@@ -218,7 +221,7 @@ impl TransformGenerators {
                                 get_non_assignment_operator_for_compound_assignment(operator),
                                 visit_node(
                                     right,
-                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(|node: Id<Node>| self.visitor(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ),
@@ -233,7 +236,7 @@ impl TransformGenerators {
                     node_as_binary_expression.operator_token.clone(),
                     visit_node(
                         right,
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
@@ -241,12 +244,12 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_left_associative_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
         let node_as_binary_expression = node.as_binary_expression();
         if self.contains_yield(Some(&*node_as_binary_expression.right)) {
@@ -260,24 +263,27 @@ impl TransformGenerators {
                 node,
                 self.cache_expression(&visit_node(
                     &node_as_binary_expression.left,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )),
                 node_as_binary_expression.operator_token.clone(),
                 visit_node(
                     &node_as_binary_expression.right,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             );
         }
 
-        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
-    pub(super) fn visit_comma_expression(&self, node: &Node /*BinaryExpression*/) -> Id<Node> {
+    pub(super) fn visit_comma_expression(
+        &self,
+        node: Id<Node>, /*BinaryExpression*/
+    ) -> Id<Node> {
         let node_as_binary_expression = node.as_binary_expression();
         let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
         self.visit_comma_expression_visit(
@@ -294,7 +300,7 @@ impl TransformGenerators {
     pub(super) fn visit_comma_expression_visit(
         &self,
         pending_expressions: &mut Vec<Id<Node>>,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) {
         if is_binary_expression(node)
             && node.as_binary_expression().operator_token.kind() == SyntaxKind::CommaToken
@@ -316,14 +322,14 @@ impl TransformGenerators {
                             )
                             .into(),
                     ),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 );
                 *pending_expressions = _d();
             }
 
             pending_expressions.push(visit_node(
                 node,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
@@ -332,7 +338,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_comma_list_expression(
         &self,
-        node: &Node, /*CommaListExpression*/
+        node: Id<Node>, /*CommaListExpression*/
     ) -> VisitResult {
         let node_as_comma_list_expression = node.as_comma_list_expression();
         let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
@@ -352,13 +358,13 @@ impl TransformGenerators {
                                 )
                                 .into(),
                         ),
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     );
                     pending_expressions = _d();
                 }
                 pending_expressions.push(visit_node(
                     elem,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ));
@@ -369,7 +375,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_logical_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node> {
         let node_as_binary_expression = node.as_binary_expression();
         let result_label = self.define_label();
@@ -379,7 +385,7 @@ impl TransformGenerators {
             result_local.clone(),
             visit_node(
                 &node_as_binary_expression.left,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
@@ -403,7 +409,7 @@ impl TransformGenerators {
             result_local.clone(),
             visit_node(
                 &node_as_binary_expression.right,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
@@ -415,7 +421,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_conditional_expression(
         &self,
-        node: &Node, /*ConditionalExpression*/
+        node: Id<Node>, /*ConditionalExpression*/
     ) -> Id<Node /*Expression*/> {
         let node_as_conditional_expression = node.as_conditional_expression();
         if self.contains_yield(Some(&*node_as_conditional_expression.when_true))
@@ -428,7 +434,7 @@ impl TransformGenerators {
                 when_false_label,
                 visit_node(
                     &node_as_conditional_expression.condition,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
@@ -438,19 +444,19 @@ impl TransformGenerators {
                 result_local.clone(),
                 visit_node(
                     &node_as_conditional_expression.when_true,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Some(&*node_as_conditional_expression.when_true),
             );
-            self.emit_break(result_label, Option::<&Node>::None);
+            self.emit_break(result_label, Option::<Id<Node>>::None);
             self.mark_label(when_false_label);
             self.emit_assignment(
                 result_local.clone(),
                 visit_node(
                     &node_as_conditional_expression.when_false,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
@@ -460,18 +466,18 @@ impl TransformGenerators {
             return result_local;
         }
 
-        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_yield_expression(
         &self,
-        node: &Node, /*YieldExpression*/
+        node: Id<Node>, /*YieldExpression*/
     ) -> Id<Node /*LeftHandSideExpression*/> {
         let node_as_yield_expression = node.as_yield_expression();
         let resume_label = self.define_label();
         let expression = maybe_visit_node(
             node_as_yield_expression.expression.as_deref(),
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
@@ -498,14 +504,14 @@ impl TransformGenerators {
 
     pub(super) fn visit_array_literal_expression(
         &self,
-        node: &Node, /*ArrayLiteralExpression*/
+        node: Id<Node>, /*ArrayLiteralExpression*/
     ) -> VisitResult {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         Some(
             self.visit_elements(
                 &node_as_array_literal_expression.elements,
-                Option::<&Node>::None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
+                Option::<Id<Node>>::None,
                 node_as_array_literal_expression.multi_line,
             )
             .into(),
@@ -529,7 +535,7 @@ impl TransformGenerators {
             temp = Some(self.declare_local(None));
             let initial_elements = visit_nodes(
                 elements,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Some(0),
                 Some(num_initial_elements),
@@ -546,7 +552,7 @@ impl TransformGenerators {
                     }),
                     None,
                 ),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             );
             leading_element = None;
         }

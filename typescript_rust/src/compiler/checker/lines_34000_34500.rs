@@ -24,7 +24,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_type_parameter(
         &self,
-        node: &Node, /*TypeParameterDeclaration*/
+        node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> io::Result<()> {
         let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
         if let Some(node_expression) = node_as_type_parameter_declaration.expression.as_ref() {
@@ -42,7 +42,7 @@ impl TypeChecker {
                 &Diagnostics::Type_parameter_0_has_a_circular_default,
                 Some(vec![self.type_to_string_(
                     type_parameter,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                 )?]),
@@ -79,7 +79,7 @@ impl TypeChecker {
 
     pub(super) fn check_parameter(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
 
@@ -196,7 +196,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_predicate(
         &self,
-        node: &Node, /*TypePredicateNode*/
+        node: Id<Node>, /*TypePredicateNode*/
     ) -> io::Result<()> {
         let parent = self.get_type_predicate_parent(node);
         if parent.is_none() {
@@ -281,7 +281,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_predicate_parent(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> Option<Id<Node /*SignatureDeclaration*/>> {
         match node.parent().kind() {
             SyntaxKind::ArrowFunction
@@ -306,8 +306,8 @@ impl TypeChecker {
 
     pub(super) fn check_if_type_predicate_variable_is_declared_in_binding_pattern(
         &self,
-        pattern: &Node, /*BindingPattern*/
-        predicate_variable_node: &Node,
+        pattern: Id<Node>, /*BindingPattern*/
+        predicate_variable_node: Id<Node>,
         predicate_variable_name: &str,
     ) -> bool {
         for element in &pattern.as_has_elements().elements() {
@@ -343,7 +343,7 @@ impl TypeChecker {
 
     pub(super) fn check_signature_declaration(
         &self,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::IndexSignature {
             self.check_grammar_index_signature(node)?;
@@ -487,7 +487,7 @@ impl TypeChecker {
 
     pub(super) fn check_class_for_duplicate_declarations(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
     ) {
         let mut instance_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut static_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
@@ -579,7 +579,7 @@ impl TypeChecker {
     pub(super) fn add_name(
         &self,
         names: &mut HashMap<__String, DeclarationMeaning>,
-        location: &Node,
+        location: Id<Node>,
         name: &str, /*__String*/
         meaning: DeclarationMeaning,
     ) {
@@ -623,7 +623,7 @@ impl TypeChecker {
 
     pub(super) fn check_class_for_static_property_name_conflicts(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> io::Result<()> {
         for member in &node.as_class_like_declaration().members() {
             let member_name_node = member.as_named_declaration().maybe_name();
@@ -659,7 +659,7 @@ impl TypeChecker {
 
     pub(super) fn check_object_type_for_duplicate_declarations(
         &self,
-        node: &Node, /*TypeLiteralNode | InterfaceDeclaration*/
+        node: Id<Node>, /*TypeLiteralNode | InterfaceDeclaration*/
     ) {
         let mut names: HashMap<String, bool> = HashMap::new();
         for member in &node.as_has_members().members() {
@@ -698,7 +698,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_type_for_duplicate_index_signatures(&self, node: &Node) -> io::Result<()> {
+    pub(super) fn check_type_for_duplicate_index_signatures(
+        &self,
+        node: Id<Node>,
+    ) -> io::Result<()> {
         if node.kind() == SyntaxKind::InterfaceDeclaration {
             let node_symbol = self.get_symbol_of_node(node)?.unwrap();
             if matches!(
@@ -758,7 +761,7 @@ impl TypeChecker {
                                 &Diagnostics::Duplicate_index_signature_for_type_0,
                                 Some(vec![self.type_to_string_(
                                     entry.type_,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?]),
@@ -776,7 +779,7 @@ impl TypeChecker {
 
     pub(super) fn check_property_declaration(
         &self,
-        node: &Node, /*PropertySignature*/
+        node: Id<Node>, /*PropertySignature*/
     ) -> io::Result<()> {
         let node_as_named_declaration = node.as_named_declaration();
         if !self.check_grammar_decorators_and_modifiers(node)
@@ -819,7 +822,7 @@ impl TypeChecker {
 
     pub(super) fn check_property_signature(
         &self,
-        node: &Node, /*PropertySignature*/
+        node: Id<Node>, /*PropertySignature*/
     ) -> io::Result<()> {
         if is_private_identifier(&node.as_property_signature().name()) {
             self.error(
@@ -835,7 +838,7 @@ impl TypeChecker {
 
     pub(super) fn check_method_declaration(
         &self,
-        node: &Node, /*MethodDeclaration | MethodSignature*/
+        node: Id<Node>, /*MethodDeclaration | MethodSignature*/
     ) -> io::Result<()> {
         let node_as_named_declaration = node.as_named_declaration();
         if !self.check_grammar_method(node)? {
@@ -875,7 +878,7 @@ impl TypeChecker {
 
     pub(super) fn set_node_links_for_private_identifier_scope(
         &self,
-        node: &Node, /*PropertyDeclaration | PropertySignature | MethodDeclaration | MethodSignature | AccessorDeclaration*/
+        node: Id<Node>, /*PropertyDeclaration | PropertySignature | MethodDeclaration | MethodSignature | AccessorDeclaration*/
     ) {
         let node_as_named_declaration = node.as_named_declaration();
         if is_private_identifier(&node_as_named_declaration.name())

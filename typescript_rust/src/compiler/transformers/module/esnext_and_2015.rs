@@ -148,7 +148,7 @@ impl TransformEcmascriptModule {
         *self.import_require_statements.borrow_mut() = import_require_statements;
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Id<Node>> {
+    fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
             return Ok(node.node_wrapper());
@@ -219,7 +219,7 @@ impl TransformEcmascriptModule {
         Ok(node.node_wrapper())
     }
 
-    fn update_external_module(&self, node: &Node /*SourceFile*/) -> io::Result<Id<Node>> {
+    fn update_external_module(&self, node: Id<Node> /*SourceFile*/) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         let external_helpers_import_declaration =
             create_external_helpers_import_declaration_if_needed(
@@ -238,13 +238,13 @@ impl TransformEcmascriptModule {
                     &node_as_source_file.statements(),
                     &mut statements,
                     None,
-                    Option::<fn(&Node) -> VisitResult>::None,
+                    Option::<fn(Id<Node>) -> VisitResult>::None,
                 );
                 statements.push(external_helpers_import_declaration);
                 statements.extend(
                     try_visit_nodes(
                         &node_as_source_file.statements(),
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_statement),
                         Some(statement_offset),
                         None,
@@ -263,11 +263,13 @@ impl TransformEcmascriptModule {
                     None,
                 )
             }
-            None => try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?,
+            None => {
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+            }
         })
     }
 
-    fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(match node.kind() {
             SyntaxKind::ImportEqualsDeclaration => (get_emit_script_target(&self.compiler_options)
                 // TODO: this definitely looks like an upstream bug of using ModuleKind instead
@@ -286,7 +288,7 @@ impl TransformEcmascriptModule {
 
     fn create_require_call(
         &self,
-        import_node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+        import_node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
     ) -> io::Result<Id<Node>> {
         let module_name = get_external_module_name_literal(
             &self.factory,
@@ -376,7 +378,7 @@ impl TransformEcmascriptModule {
 
     fn visit_import_equals_declaration(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         Debug_.assert(
@@ -418,7 +420,7 @@ impl TransformEcmascriptModule {
     fn append_exports_of_import_equals_declaration(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
     ) {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
@@ -442,14 +444,14 @@ impl TransformEcmascriptModule {
         // return statements;
     }
 
-    fn visit_export_assignment(&self, node: &Node /*ExportAssignment*/) -> VisitResult /*<ExportAssignment>*/
+    fn visit_export_assignment(&self, node: Id<Node> /*ExportAssignment*/) -> VisitResult /*<ExportAssignment>*/
     {
         let node_as_export_assignment = node.as_export_assignment();
         (node_as_export_assignment.is_export_equals != Some(true))
             .then(|| node.node_wrapper().into())
     }
 
-    fn visit_export_declaration(&self, node: &Node /*ExportDeclaration*/) -> VisitResult {
+    fn visit_export_declaration(&self, node: Id<Node> /*ExportDeclaration*/) -> VisitResult {
         let node_as_export_declaration = node.as_export_declaration();
         if self
             .compiler_options
@@ -514,7 +516,7 @@ impl TransformEcmascriptModule {
 }
 
 impl TransformerInterface for TransformEcmascriptModule {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
 }
@@ -541,8 +543,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformEcmascriptModuleOnEmi
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if is_source_file(node) {
             if (is_external_module(node)
@@ -590,7 +592,10 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
         }
     }
 
-    fn substitute_helper_name(&self, node: &Node /*Identifier*/) -> Id<Node /*Expression*/> {
+    fn substitute_helper_name(
+        &self,
+        node: Id<Node>, /*Identifier*/
+    ) -> Id<Node /*Expression*/> {
         let name = id_text(node);
         let mut substitution = self
             .transform_ecmascript_module
@@ -613,7 +618,7 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformEcmascriptModuleOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

@@ -31,7 +31,7 @@ use crate::{
 impl TransformClassFields {
     pub(super) fn visit_class_declaration(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
     ) -> VisitResult {
         let node_as_class_declaration = node.as_class_declaration();
         let facts = self.get_class_facts(node);
@@ -47,7 +47,7 @@ impl TransformClassFields {
         let mut pending_class_reference_assignment: Option<Id<Node /*BinaryExpression*/>> = _d();
         if facts.intersects(ClassFacts::NeedsClassConstructorReference) {
             let temp = self.factory.create_temp_variable(
-                Some(|node: &Node| {
+                Some(|node: Id<Node>| {
                     self.context.hoist_variable_declaration(node);
                 }),
                 Some(true),
@@ -84,7 +84,7 @@ impl TransformClassFields {
                     node_as_class_declaration
                         .maybe_heritage_clauses()
                         .as_deref(),
-                    Some(|node: &Node| self.heritage_clause_visitor(node)),
+                    Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                     Some(is_heritage_clause),
                     None,
                     None,
@@ -118,7 +118,7 @@ impl TransformClassFields {
 
     pub(super) fn visit_class_expression(
         &self,
-        node: &Node, /*ClassExpression*/
+        node: Id<Node>, /*ClassExpression*/
     ) -> Id<Node /*Expression*/> {
         let node_as_class_expression = node.as_class_expression();
         let facts = self.get_class_facts(node);
@@ -164,7 +164,7 @@ impl TransformClassFields {
             node,
             maybe_visit_nodes(
                 node.maybe_decorators().as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_decorator),
                 None,
                 None,
@@ -174,7 +174,7 @@ impl TransformClassFields {
             Option::<Gc<NodeArray>>::None,
             maybe_visit_nodes(
                 node_as_class_expression.maybe_heritage_clauses().as_deref(),
-                Some(|node: &Node| self.heritage_clause_visitor(node)),
+                Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                 Some(is_heritage_clause),
                 None,
                 None,
@@ -282,14 +282,14 @@ impl TransformClassFields {
         class_expression
     }
 
-    pub(super) fn create_class_temp_var(&self, node: &Node) -> Id<Node> {
+    pub(super) fn create_class_temp_var(&self, node: Id<Node>) -> Id<Node> {
         let class_check_flags = self.resolver.get_node_check_flags(node);
         let is_class_with_constructor_reference =
             class_check_flags.intersects(NodeCheckFlags::ClassWithConstructorReference);
         let requires_block_scoped_var =
             class_check_flags.intersects(NodeCheckFlags::BlockScopedBindingInLoop);
         self.factory.create_temp_variable(
-            Some(|node: &Node| {
+            Some(|node: Id<Node>| {
                 if requires_block_scoped_var {
                     self.context.add_block_scoped_variable(node);
                 } else {
@@ -302,13 +302,13 @@ impl TransformClassFields {
 
     pub(super) fn visit_class_static_block_declaration(
         &self,
-        node: &Node, /*ClassStaticBlockDeclaration*/
+        node: Id<Node>, /*ClassStaticBlockDeclaration*/
     ) -> VisitResult {
         if !self.should_transform_private_elements_or_class_static_blocks {
             return Some(
                 visit_each_child(
                     node,
-                    |node: &Node| self.class_element_visitor(node),
+                    |node: Id<Node>| self.class_element_visitor(node),
                     &**self.context,
                 )
                 .into(),
@@ -319,7 +319,7 @@ impl TransformClassFields {
 
     pub(super) fn transform_class_members(
         &self,
-        node: &Node, /*ClassDeclaration | ClassExpression*/
+        node: Id<Node>, /*ClassDeclaration | ClassExpression*/
         is_derived_class: bool,
     ) -> Gc<NodeArray> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
@@ -347,7 +347,7 @@ impl TransformClassFields {
             &mut members,
             Some(&visit_nodes(
                 &node_as_class_like_declaration.members(),
-                Some(|node: &Node| self.class_element_visitor(node)),
+                Some(|node: Id<Node>| self.class_element_visitor(node)),
                 Some(is_class_element),
                 None,
                 None,
@@ -383,7 +383,7 @@ impl TransformClassFields {
 
     pub(super) fn is_class_element_that_requires_constructor_statement(
         &self,
-        member: &Node, /*ClassElement*/
+        member: Id<Node>, /*ClassElement*/
     ) -> bool {
         if is_static(member)
             || has_syntactic_modifier(&get_original_node(member), ModifierFlags::Abstract)
@@ -400,13 +400,13 @@ impl TransformClassFields {
 
     pub(super) fn transform_constructor(
         &self,
-        node: &Node, /*ClassDeclaration | ClassExpression*/
+        node: Id<Node>, /*ClassDeclaration | ClassExpression*/
         is_derived_class: bool,
     ) -> Option<Id<Node>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         let constructor = maybe_visit_node(
             get_first_constructor_with_body(node),
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_constructor_declaration),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
@@ -423,7 +423,7 @@ impl TransformClassFields {
                 .as_ref()
                 .map(|constructor| constructor.as_signature_declaration().parameters())
                 .as_deref(),
-            |node: &Node| self.visitor(node),
+            |node: Id<Node>| self.visitor(node),
             &**self.context,
         );
         let body =
@@ -444,7 +444,7 @@ impl TransformClassFields {
 
     pub(super) fn transform_constructor_body(
         &self,
-        node: &Node, /*ClassDeclaration | ClassExpression*/
+        node: Id<Node>, /*ClassDeclaration | ClassExpression*/
         constructor: Option<impl Borrow<Node /*ConstructorDeclaration*/>>,
         is_derived_class: bool,
     ) -> Option<Id<Node>> {
@@ -465,7 +465,7 @@ impl TransformClassFields {
             !properties.is_empty() || !private_methods_and_accessors.is_empty();
 
         if constructor.is_none() && !needs_constructor_body {
-            return visit_function_body(None, |node: &Node| self.visitor(node), &**self.context);
+            return visit_function_body(None, |node: Id<Node>| self.visitor(node), &**self.context);
         }
 
         self.context.resume_lexical_environment();
@@ -491,7 +491,7 @@ impl TransformClassFields {
                 &self.factory,
                 constructor,
                 &mut statements,
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
             );
         }
         if let Some(constructor) = constructor.as_ref() {
@@ -512,7 +512,7 @@ impl TransformClassFields {
                             &mut statements,
                             Some(&visit_nodes(
                                 &constructor_body.as_block().statements,
-                                Some(|node: &Node| self.visitor(node)),
+                                Some(|node: Id<Node>| self.visitor(node)),
                                 Some(is_statement),
                                 Some(index_of_first_statement),
                                 Some(after_parameter_properties - index_of_first_statement),
@@ -539,7 +539,7 @@ impl TransformClassFields {
                         .unwrap()
                         .as_block()
                         .statements,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_statement),
                     Some(index_of_first_statement),
                     None,
@@ -591,7 +591,7 @@ impl TransformClassFields {
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
         properties: &[Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>],
-        receiver: &Node, /*LeftHandSideExpression*/
+        receiver: Id<Node>, /*LeftHandSideExpression*/
     ) {
         for property in properties {
             let expression = continue_if_none!(if is_class_static_block_declaration(property) {
@@ -614,7 +614,7 @@ impl TransformClassFields {
         properties_or_class_static_blocks: &[Id<
             Node, /*PropertyDeclaration | ClassStaticBlockDeclaration*/
         >],
-        receiver: &Node, /*LeftHandSideExpression*/
+        receiver: Id<Node>, /*LeftHandSideExpression*/
     ) -> Vec<Id<Node>> {
         let mut expressions: Vec<Id<Node /*Expression*/>> = _d();
         for property in properties_or_class_static_blocks {
@@ -635,8 +635,8 @@ impl TransformClassFields {
 
     pub(super) fn transform_property(
         &self,
-        property: &Node, /*PropertyDeclaration*/
-        receiver: &Node, /*LeftHandSideExpression*/
+        property: Id<Node>, /*PropertyDeclaration*/
+        receiver: Id<Node>, /*LeftHandSideExpression*/
     ) -> Option<Id<Node>> {
         let saved_current_static_property_declaration_or_static_block =
             self.maybe_current_static_property_declaration_or_static_block();
@@ -666,8 +666,8 @@ impl TransformClassFields {
 
     pub(super) fn transform_property_worker(
         &self,
-        property: &Node, /*PropertyDeclaration*/
-        receiver: &Node, /*LeftHandSideExpression*/
+        property: Id<Node>, /*PropertyDeclaration*/
+        receiver: Id<Node>, /*LeftHandSideExpression*/
     ) -> Option<Id<Node>> {
         let property_as_property_declaration = property.as_property_declaration();
         let emit_assignment = !self.use_define_for_class_fields;
@@ -709,7 +709,7 @@ impl TransformClassFields {
                             receiver.node_wrapper(),
                             maybe_visit_node(
                                 property_as_property_declaration.maybe_initializer(),
-                                Some(|node: &Node| self.visitor(node)),
+                                Some(|node: Id<Node>| self.visitor(node)),
                                 Some(is_expression),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
@@ -720,7 +720,7 @@ impl TransformClassFields {
                             private_identifier_info.maybe_variable_name().unwrap(),
                             maybe_visit_node(
                                 property_as_property_declaration.maybe_initializer(),
-                                Some(|node: &Node| self.visitor(node)),
+                                Some(|node: Id<Node>| self.visitor(node)),
                                 Some(is_expression),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
@@ -753,7 +753,7 @@ impl TransformClassFields {
         {
             maybe_visit_node(
                 property_as_property_declaration.maybe_initializer(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )
@@ -862,7 +862,7 @@ impl TransformClassFields {
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
         methods: &[Id<Node /*MethodDeclaration | AccessorDeclaration*/>],
-        receiver: &Node, /*LeftHandSideExpression*/
+        receiver: Id<Node>, /*LeftHandSideExpression*/
     ) {
         if !self.should_transform_private_elements_or_class_static_blocks || methods.is_empty() {
             return;

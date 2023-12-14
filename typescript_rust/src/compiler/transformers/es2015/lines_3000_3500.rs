@@ -30,7 +30,7 @@ impl TransformES2015 {
 
     pub(super) fn create_function_for_initializer_of_for_statement(
         &self,
-        node: &Node, /*ForStatementWithConvertibleInitializer*/
+        node: Id<Node>, /*ForStatementWithConvertibleInitializer*/
         current_state: Gc<GcCell<ConvertedLoopState>>,
     ) -> io::Result<IterationStatementPartFunction<Id<Node /*VariableDeclarationList*/>>> {
         let node_as_for_statement = node.as_for_statement();
@@ -87,7 +87,7 @@ impl TransformES2015 {
                                     None,
                                     try_visit_node(
                                         &self.factory.create_block(statements, Some(true)),
-                                        Some(|node: &Node| self.visitor(node)),
+                                        Some(|node: Id<Node>| self.visitor(node)),
                                         Some(is_block),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     )?,
@@ -120,7 +120,7 @@ impl TransformES2015 {
 
     pub(super) fn create_function_for_body_of_iteration_statement(
         &self,
-        node: &Node, /*IterationStatement*/
+        node: Id<Node>, /*IterationStatement*/
         current_state: Gc<GcCell<ConvertedLoopState>>,
         outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
     ) -> io::Result<IterationStatementPartFunction<Vec<Id<Node /*Statement*/>>>> {
@@ -128,7 +128,7 @@ impl TransformES2015 {
         self.context.start_lexical_environment();
         let statement = try_visit_node(
             &node.as_has_statement().statement(),
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_statement),
             Some(&|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
         )?;
@@ -151,7 +151,7 @@ impl TransformES2015 {
                             .unwrap(),
                         self.factory.create_expression_statement(try_visit_node(
                             node_incrementor,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?),
@@ -201,7 +201,7 @@ impl TransformES2015 {
                             SyntaxKind::ExclamationToken,
                             try_visit_node(
                                 node_as_for_statement.condition.as_deref().unwrap(),
-                                Some(|node: &Node| self.visitor(node)),
+                                Some(|node: Id<Node>| self.visitor(node)),
                                 Some(is_expression),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
@@ -210,7 +210,7 @@ impl TransformES2015 {
                             &self
                                 .factory
                                 .create_break_statement(Option::<Id<Node>>::None),
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_statement),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
@@ -344,7 +344,7 @@ impl TransformES2015 {
 
     pub(super) fn generate_call_to_converted_loop_initializer(
         &self,
-        init_function_expression_name: &Node, /*Identifier*/
+        init_function_expression_name: Id<Node>, /*Identifier*/
         contains_yield: bool,
     ) -> Id<Node /*Statement*/> {
         let call = self.factory.create_call_expression(
@@ -365,7 +365,7 @@ impl TransformES2015 {
 
     pub(super) fn generate_call_to_converted_loop(
         &self,
-        loop_function_expression_name: &Node, /*Identifier*/
+        loop_function_expression_name: Id<Node>, /*Identifier*/
         state: Gc<GcCell<ConvertedLoopState>>,
         outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
         contains_yield: bool,
@@ -524,7 +524,7 @@ impl TransformES2015 {
         &self,
         table: Option<&IndexMap<String, String>>,
         is_break: bool,
-        loop_result_name: &Node, /*Identifier*/
+        loop_result_name: Id<Node>, /*Identifier*/
         outer_loop: Option<Gc<GcCell<ConvertedLoopState>>>,
         case_clauses: &mut Vec<Id<Node /*CaseClause*/>>,
     ) {
@@ -573,8 +573,8 @@ impl TransformES2015 {
 
     pub(super) fn process_loop_variable_declaration(
         &self,
-        container: &Node, /*IterationStatement*/
-        decl: &Node,      /*VariableDeclaration | BindingElement*/
+        container: Id<Node>, /*IterationStatement*/
+        decl: Id<Node>,      /*VariableDeclaration | BindingElement*/
         loop_parameters: &mut Vec<Id<Node /*ParameterDeclaration*/>>,
         loop_out_parameters: &mut Vec<LoopOutParameter>,
         has_captured_bindings_in_for_initializer: bool,
@@ -639,8 +639,8 @@ impl TransformES2015 {
     pub(super) fn add_object_literal_members(
         &self,
         expressions: &mut Vec<Id<Node /*Expression*/>>,
-        node: &Node,     /*ObjectLiteralExpression*/
-        receiver: &Node, /*Identifier*/
+        node: Id<Node>,     /*ObjectLiteralExpression*/
+        receiver: Id<Node>, /*Identifier*/
         start: usize,
     ) -> io::Result<()> {
         let node_as_object_literal_expression = node.as_object_literal_expression();
@@ -694,8 +694,8 @@ impl TransformES2015 {
 
     pub(super) fn transform_property_assignment_to_expression(
         &self,
-        property: &Node, /*PropertyAssignment*/
-        receiver: &Node, /*Expression*/
+        property: Id<Node>, /*PropertyAssignment*/
+        receiver: Id<Node>, /*Expression*/
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
         let property_as_property_assignment = property.as_property_assignment();
@@ -707,15 +707,15 @@ impl TransformES2015 {
                     receiver,
                     &*try_visit_node(
                         &property_as_property_assignment.name(),
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_property_name),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 ),
                 try_visit_node(
                     &property_as_property_assignment.maybe_initializer().unwrap(),
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
@@ -729,8 +729,8 @@ impl TransformES2015 {
 
     pub(super) fn transform_shorthand_property_assignment_to_expression(
         &self,
-        property: &Node, /*ShorthandPropertyAssignment*/
-        receiver: &Node, /*Expression*/
+        property: Id<Node>, /*ShorthandPropertyAssignment*/
+        receiver: Id<Node>, /*Expression*/
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
         let property_as_shorthand_property_assignment = property.as_shorthand_property_assignment();
@@ -742,11 +742,11 @@ impl TransformES2015 {
                     receiver,
                     &*try_visit_node(
                         &property_as_shorthand_property_assignment.name(),
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_property_name),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 ),
                 self.factory
                     .clone_node(&property_as_shorthand_property_assignment.name()),

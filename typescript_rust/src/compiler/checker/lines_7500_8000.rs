@@ -138,7 +138,7 @@ impl SymbolTableToDeclarationStatements {
                         self.serialize_export_specifier(
                             name,
                             id_text(first),
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                         );
                     } else if expr.as_ref().matches(|expr| is_class_expression(expr)) {
                         self.serialize_export_specifier(
@@ -147,7 +147,7 @@ impl SymbolTableToDeclarationStatements {
                                 target,
                                 &symbol_name(&target.ref_(self)),
                             ),
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                         );
                     } else {
                         let var_name = self.get_unused_name(name, Some(symbol));
@@ -166,7 +166,7 @@ impl SymbolTableToDeclarationStatements {
                             ),
                             ModifierFlags::None,
                         );
-                        self.serialize_export_specifier(name, &var_name, Option::<&Node>::None);
+                        self.serialize_export_specifier(name, &var_name, Option::<Id<Node>>::None);
                     }
                 }
                 self.context().tracker().reenable_track_symbol();
@@ -238,7 +238,7 @@ impl SymbolTableToDeclarationStatements {
                         ));
                     return Ok(true);
                 } else if name != var_name {
-                    self.serialize_export_specifier(name, &var_name, Option::<&Node>::None);
+                    self.serialize_export_specifier(name, &var_name, Option::<Id<Node>>::None);
                     return Ok(true);
                 }
                 false
@@ -457,7 +457,7 @@ impl SymbolTableToDeclarationStatements {
                     .index_info_to_index_signature_declaration_helper(
                         info,
                         &self.context(),
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     )?,
             );
         }

@@ -20,11 +20,15 @@ use crate::{
 impl TransformES2015 {
     pub(super) fn visit_block(
         &self,
-        node: &Node, /*Block*/
+        node: Id<Node>, /*Block*/
         is_function_body: bool,
     ) -> io::Result<Id<Node /*Block*/>> {
         if is_function_body {
-            return try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
+            return try_visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &**self.context,
+            );
         }
         let ancestor_facts = if self
             .maybe_hierarchy_facts()
@@ -39,30 +43,30 @@ impl TransformES2015 {
             self.enter_subtree(HierarchyFacts::BlockExcludes, HierarchyFacts::BlockIncludes)
         };
         let updated =
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?;
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
         Ok(updated)
     }
 
     pub(super) fn visit_expression_statement(
         &self,
-        node: &Node, /*ExpressionStatement*/
+        node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<Id<Node /*Statement*/>> {
         try_visit_each_child(
             node,
-            |node: &Node| self.visitor_with_unused_expression_result(node),
+            |node: Id<Node>| self.visitor_with_unused_expression_result(node),
             &**self.context,
         )
     }
 
     pub(super) fn visit_parenthesized_expression(
         &self,
-        node: &Node, /*ParenthesizedExpression*/
+        node: Id<Node>, /*ParenthesizedExpression*/
         expression_result_is_unused: bool,
     ) -> io::Result<Id<Node /*ParenthesizedExpression*/>> {
         try_visit_each_child(
             node,
-            |node: &Node| {
+            |node: Id<Node>| {
                 Ok(if expression_result_is_unused {
                     self.visitor_with_unused_expression_result(node)?
                 } else {
@@ -75,19 +79,19 @@ impl TransformES2015 {
 
     pub(super) fn visit_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         expression_result_is_unused: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_binary_expression = node.as_binary_expression();
         if is_destructuring_assignment(node) {
             return try_flatten_destructuring_assignment(
                 node,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 self.context.clone(),
                 FlattenLevel::All,
                 Some(!expression_result_is_unused),
                 Option::<
-                    fn(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>,
+                    fn(Id<Node>, Id<Node>, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>,
                 >::None,
             );
         }
@@ -96,14 +100,14 @@ impl TransformES2015 {
                 node,
                 try_visit_node(
                     &node_as_binary_expression.left,
-                    Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                    Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 node_as_binary_expression.operator_token.clone(),
                 try_visit_node(
                     &node_as_binary_expression.right,
-                    Some(|node: &Node| {
+                    Some(|node: Id<Node>| {
                         Ok(if expression_result_is_unused {
                             self.visitor_with_unused_expression_result(node)?
                         } else {
@@ -115,19 +119,19 @@ impl TransformES2015 {
                 )?,
             ));
         }
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_comma_list_expression(
         &self,
-        node: &Node, /*CommaListExpression*/
+        node: Id<Node>, /*CommaListExpression*/
         expression_result_is_unused: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_comma_list_expression = node.as_comma_list_expression();
         if expression_result_is_unused {
             return try_visit_each_child(
                 node,
-                |node: &Node| self.visitor_with_unused_expression_result(node),
+                |node: Id<Node>| self.visitor_with_unused_expression_result(node),
                 &**self.context,
             );
         }
@@ -135,7 +139,7 @@ impl TransformES2015 {
         for (i, element) in node_as_comma_list_expression.elements.iter().enumerate() {
             let visited = try_visit_node(
                 element,
-                Some(|node: &Node| {
+                Some(|node: Id<Node>| {
                     Ok(if i < node_as_comma_list_expression.elements.len() - 1 {
                         self.visitor_with_unused_expression_result(node)?
                     } else {
@@ -164,7 +168,7 @@ impl TransformES2015 {
 
     pub(super) fn is_variable_statement_of_type_script_class_wrapper(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) -> bool {
         let node_as_variable_statement = node.as_variable_statement();
         let node_declaration_list_as_variable_declaration_list = node_as_variable_statement
@@ -185,7 +189,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_variable_statement(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<Option<Id<Node /*Statement*/>>> {
         let node_as_variable_statement = node.as_variable_statement();
         let ancestor_facts = self.enter_subtree(
@@ -220,14 +224,14 @@ impl TransformES2015 {
                     if is_binding_pattern(decl_as_variable_declaration.maybe_name()) {
                         assignment = try_flatten_destructuring_assignment(
                             decl,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             self.context.clone(),
                             FlattenLevel::All,
                             None,
                             Option::<
                                 fn(
-                                    &Node,
-                                    &Node,
+                                    Id<Node>,
+                                    Id<Node>,
                                     Option<&dyn ReadonlyTextRange>,
                                 ) -> io::Result<Id<Node>>,
                             >::None,
@@ -240,7 +244,7 @@ impl TransformES2015 {
                                 SyntaxKind::EqualsToken,
                                 try_visit_node(
                                     &decl_initializer,
-                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(|node: Id<Node>| self.visitor(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?,
@@ -263,7 +267,7 @@ impl TransformES2015 {
         } else {
             updated = Some(try_visit_each_child(
                 node,
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?);
         }
@@ -274,7 +278,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_variable_declaration_list(
         &self,
-        node: &Node, /*VariableDeclarationList*/
+        node: Id<Node>, /*VariableDeclarationList*/
     ) -> io::Result<Id<Node /*VariableDeclarationList*/>> {
         let node_as_variable_declaration_list = node.as_variable_declaration_list();
         if node.flags().intersects(NodeFlags::BlockScoped)
@@ -327,7 +331,7 @@ impl TransformES2015 {
 
             return Ok(declaration_list);
         }
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn get_range_union(
@@ -351,7 +355,7 @@ impl TransformES2015 {
 
     pub(super) fn should_emit_explicit_initializer_for_let_declaration(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<bool> {
         let flags = self.resolver.get_node_check_flags(node);
         let is_captured_in_function = flags.intersects(NodeCheckFlags::CapturedBlockScopedBinding);
@@ -384,7 +388,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_variable_declaration_in_let_declaration_list(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<VisitResult> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let name = node_as_variable_declaration.maybe_name();
@@ -409,13 +413,14 @@ impl TransformES2015 {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+                .into(),
         ))
     }
 
     pub(super) fn visit_variable_declaration(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<VisitResult> /*<VariableDeclaration>*/ {
         let node_as_variable_declaration = node.as_variable_declaration();
         let ancestor_facts = self.enter_subtree(
@@ -427,10 +432,10 @@ impl TransformES2015 {
             updated = Some(
                 try_flatten_destructuring_binding(
                     node,
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     self.context.clone(),
                     FlattenLevel::All,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Some(
                         !ancestor_facts
                             .unwrap_or_default()
@@ -442,7 +447,7 @@ impl TransformES2015 {
             );
         } else {
             updated = Some(
-                try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
                     .into(),
             );
         }
@@ -451,7 +456,7 @@ impl TransformES2015 {
         Ok(updated)
     }
 
-    pub(super) fn record_label(&self, node: &Node /*LabeledStatement*/) {
+    pub(super) fn record_label(&self, node: Id<Node> /*LabeledStatement*/) {
         let node_as_labeled_statement = node.as_labeled_statement();
         self.converted_loop_state()
             .borrow_mut()
@@ -461,7 +466,7 @@ impl TransformES2015 {
             .insert(id_text(&node_as_labeled_statement.label).to_owned(), true);
     }
 
-    pub(super) fn reset_label(&self, node: &Node /*LabeledStatement*/) {
+    pub(super) fn reset_label(&self, node: Id<Node> /*LabeledStatement*/) {
         let node_as_labeled_statement = node.as_labeled_statement();
         self.converted_loop_state()
             .borrow_mut()
@@ -473,7 +478,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_labeled_statement(
         &self,
-        node: &Node, /*LabeledStatement*/
+        node: Id<Node>, /*LabeledStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             converted_loop_state
@@ -484,7 +489,7 @@ impl TransformES2015 {
         let ref statement = unwrap_innermost_statement_of_label(
             node,
             self.maybe_converted_loop_state().map(|_| {
-                |node: &Node| {
+                |node: Id<Node>| {
                     self.record_label(node);
                 }
             }),
@@ -497,13 +502,13 @@ impl TransformES2015 {
                     .restore_enclosing_label(
                         &*try_visit_node(
                             statement,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_statement),
                             Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                         )?,
                         Some(node),
                         if self.maybe_converted_loop_state().is_some() {
-                            Some(|node: &Node| {
+                            Some(|node: Id<Node>| {
                                 self.reset_label(node);
                             })
                         } else {
@@ -517,8 +522,8 @@ impl TransformES2015 {
 
     pub(super) fn visit_iteration_statement(
         &self,
-        node: &Node,                        /*IterationStatement*/
-        outermost_labeled_statement: &Node, /*LabeledStatement*/
+        node: Id<Node>,                        /*IterationStatement*/
+        outermost_labeled_statement: Id<Node>, /*LabeledStatement*/
     ) -> io::Result<VisitResult> {
         Ok(match node.kind() {
             SyntaxKind::DoStatement | SyntaxKind::WhileStatement => {
@@ -541,12 +546,12 @@ impl TransformES2015 {
         &self,
         exclude_facts: HierarchyFacts,
         include_facts: HierarchyFacts,
-        node: &Node, /*IterationStatement*/
+        node: Id<Node>, /*IterationStatement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
         convert: Option<
             impl FnMut(
-                &Node,         /*IterationStatement*/
-                Option<&Node>, /*LabeledStatement*/
+                Id<Node>,         /*IterationStatement*/
+                Option<Id<Node>>, /*LabeledStatement*/
                 Option<&[Id<Node /*Statement*/>]>,
                 Option<HierarchyFacts>,
             ) -> Id<Node /*Statement*/>, /*LoopConverter*/
@@ -558,8 +563,8 @@ impl TransformES2015 {
             node,
             outermost_labeled_statement,
             convert.map(|mut convert| {
-                move |a: &Node,
-                      b: Option<&Node>,
+                move |a: Id<Node>,
+                      b: Option<Id<Node>>,
                       c: Option<&[Id<Node>]>,
                       d: Option<HierarchyFacts>| Ok(convert(a, b, c, d))
             }),
@@ -571,12 +576,12 @@ impl TransformES2015 {
         &self,
         exclude_facts: HierarchyFacts,
         include_facts: HierarchyFacts,
-        node: &Node, /*IterationStatement*/
+        node: Id<Node>, /*IterationStatement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
         convert: Option<
             impl FnMut(
-                &Node,         /*IterationStatement*/
-                Option<&Node>, /*LabeledStatement*/
+                Id<Node>,         /*IterationStatement*/
+                Option<Id<Node>>, /*LabeledStatement*/
                 Option<&[Id<Node /*Statement*/>]>,
                 Option<HierarchyFacts>,
             ) -> io::Result<Id<Node /*Statement*/>>, /*LoopConverter*/
@@ -595,7 +600,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_do_or_while_statement(
         &self,
-        node: &Node, /*DoStatement | WhileStatement*/
+        node: Id<Node>, /*DoStatement | WhileStatement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
         self.visit_iteration_statement_with_facts(
@@ -604,14 +609,19 @@ impl TransformES2015 {
             node,
             outermost_labeled_statement,
             Option::<
-                fn(&Node, Option<&Node>, Option<&[Id<Node>]>, Option<HierarchyFacts>) -> Id<Node>,
+                fn(
+                    Id<Node>,
+                    Option<Id<Node>>,
+                    Option<&[Id<Node>]>,
+                    Option<HierarchyFacts>,
+                ) -> Id<Node>,
             >::None,
         )
     }
 
     pub(super) fn visit_for_statement(
         &self,
-        node: &Node, /*ForStatement*/
+        node: Id<Node>, /*ForStatement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
         self.visit_iteration_statement_with_facts(
@@ -620,39 +630,44 @@ impl TransformES2015 {
             node,
             outermost_labeled_statement,
             Option::<
-                fn(&Node, Option<&Node>, Option<&[Id<Node>]>, Option<HierarchyFacts>) -> Id<Node>,
+                fn(
+                    Id<Node>,
+                    Option<Id<Node>>,
+                    Option<&[Id<Node>]>,
+                    Option<HierarchyFacts>,
+                ) -> Id<Node>,
             >::None,
         )
     }
 
     pub(super) fn visit_each_child_of_for_statement(
         &self,
-        node: &Node, /*ForStatement*/
+        node: Id<Node>, /*ForStatement*/
     ) -> io::Result<Id<Node>> {
         let node_as_for_statement = node.as_for_statement();
         Ok(self.factory.update_for_statement(
             node,
             try_maybe_visit_node(
                 node_as_for_statement.initializer.as_deref(),
-                Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                 Some(is_for_initializer),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
-                Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                 Some(is_expression),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_node(
                 &node_as_for_statement.statement,
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_statement),
                 Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
             )?,
@@ -661,7 +676,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_for_in_statement(
         &self,
-        node: &Node, /*ForInStatement*/
+        node: Id<Node>, /*ForInStatement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
         self.visit_iteration_statement_with_facts(
@@ -670,14 +685,19 @@ impl TransformES2015 {
             node,
             outermost_labeled_statement,
             Option::<
-                fn(&Node, Option<&Node>, Option<&[Id<Node>]>, Option<HierarchyFacts>) -> Id<Node>,
+                fn(
+                    Id<Node>,
+                    Option<Id<Node>>,
+                    Option<&[Id<Node>]>,
+                    Option<HierarchyFacts>,
+                ) -> Id<Node>,
             >::None,
         )
     }
 
     pub(super) fn visit_for_of_statement(
         &self,
-        node: &Node, /*ForOfStatement*/
+        node: Id<Node>, /*ForOfStatement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         self.try_visit_iteration_statement_with_facts(
@@ -686,8 +706,8 @@ impl TransformES2015 {
             node,
             outermost_labeled_statement,
             Some(
-                |node: &Node,
-                 outermost_labeled_statement: Option<&Node>,
+                |node: Id<Node>,
+                 outermost_labeled_statement: Option<Id<Node>>,
                  converted_loop_body_statements: Option<&[Id<Node>]>,
                  ancestor_facts: Option<HierarchyFacts>| {
                     Ok(if self.compiler_options.downlevel_iteration == Some(true) {
@@ -711,8 +731,8 @@ impl TransformES2015 {
 
     pub(super) fn convert_for_of_statement_head(
         &self,
-        node: &Node,        /*ForOfStatement*/
-        bound_value: &Node, /*Expression*/
+        node: Id<Node>,        /*ForOfStatement*/
+        bound_value: Id<Node>, /*Expression*/
         converted_loop_body_statements: Option<&[Id<Node /*Statement*/>]>,
     ) -> io::Result<Id<Node>> {
         let node_as_for_of_statement = node.as_for_of_statement();
@@ -740,7 +760,7 @@ impl TransformES2015 {
             {
                 let declarations = try_flatten_destructuring_binding(
                     first_original_declaration,
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     self.context.clone(),
                     FlattenLevel::All,
                     Some(bound_value),
@@ -777,7 +797,7 @@ impl TransformES2015 {
                                                 .maybe_name()
                                         } else {
                                             Some(self.factory.create_temp_variable(
-                                                Option::<fn(&Node)>::None,
+                                                Option::<fn(Id<Node>)>::None,
                                                 None,
                                             ))
                                         },
@@ -814,7 +834,7 @@ impl TransformES2015 {
                     self.factory
                         .create_expression_statement(try_visit_node(
                             assignment,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_expression),
                             Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                         )?)
@@ -840,7 +860,7 @@ impl TransformES2015 {
             } else {
                 let statement = try_visit_node(
                     &node_as_for_of_statement.statement,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_statement),
                     Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                 )?;
@@ -880,14 +900,14 @@ impl TransformES2015 {
 
     pub(super) fn convert_for_of_statement_for_array(
         &self,
-        node: &Node, /*ForOfStatement*/
-        outermost_labeled_statement: Option<&Node /*LabeledStatement*/>,
+        node: Id<Node>, /*ForOfStatement*/
+        outermost_labeled_statement: Option<Id<Node> /*LabeledStatement*/>,
         converted_loop_body_statements: Option<&[Id<Node /*Statement*/>]>,
     ) -> io::Result<Id<Node /*Statement*/>> {
         let node_as_for_of_statement = node.as_for_of_statement();
         let ref expression = try_visit_node(
             &node_as_for_of_statement.expression,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
@@ -898,7 +918,7 @@ impl TransformES2015 {
                 .get_generated_name_for_node(Some(&**expression), None)
         } else {
             self.factory
-                .create_temp_variable(Option::<fn(&Node)>::None, None)
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
         };
 
         set_emit_flags(
@@ -971,7 +991,7 @@ impl TransformES2015 {
             for_statement,
             outermost_labeled_statement,
             self.maybe_converted_loop_state().map(|_| {
-                |node: &Node| {
+                |node: Id<Node>| {
                     self.reset_label(node);
                 }
             }),

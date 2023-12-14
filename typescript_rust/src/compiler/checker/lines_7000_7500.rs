@@ -57,7 +57,7 @@ impl SymbolTableToDeclarationStatements {
                     .maybe_declarations()
                     .as_deref(),
                 Some(|d: &Id<Node>| {
-                    find_ancestor(Some(&**d), |node: &Node| is_export_declaration(node)).is_some()
+                    find_ancestor(Some(&**d), |node: Id<Node>| is_export_declaration(node)).is_some()
                         || is_namespace_export(d)
                         || is_import_equals_declaration(d)
                             && !is_external_module_reference(
@@ -75,7 +75,7 @@ impl SymbolTableToDeclarationStatements {
             .insert(get_symbol_id(&symbol.ref_(self)), symbol);
     }
 
-    pub(super) fn is_exporting_scope(&self, enclosing_declaration: &Node) -> bool {
+    pub(super) fn is_exporting_scope(&self, enclosing_declaration: Id<Node>) -> bool {
         is_source_file(enclosing_declaration)
             && (is_external_or_common_js_module(enclosing_declaration)
                 || is_json_source_file(enclosing_declaration))
@@ -85,7 +85,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn add_result(
         &self,
-        node: &Node, /*Statement*/
+        node: Id<Node>, /*Statement*/
         additional_modifier_flags: ModifierFlags,
     ) {
         let mut node = node.node_wrapper();
@@ -1180,7 +1180,7 @@ impl SymbolTableToDeclarationStatements {
                             symbol.ref_(self).escaped_name(),
                         ),
                         &target_name,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     );
                 }
             }
@@ -1472,7 +1472,7 @@ impl SymbolTableToDeclarationStatements {
                     self.serialize_export_specifier(
                         local_name,
                         &target_name,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                     );
                 }
             }

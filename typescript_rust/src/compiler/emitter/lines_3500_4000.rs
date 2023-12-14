@@ -19,7 +19,7 @@ use crate::{
 };
 
 impl Printer {
-    pub(super) fn emit_jsx_element(&self, node: &Node /*JsxElement*/) -> io::Result<()> {
+    pub(super) fn emit_jsx_element(&self, node: Id<Node> /*JsxElement*/) -> io::Result<()> {
         let node_as_jsx_element = node.as_jsx_element();
         self.emit(Some(&*node_as_jsx_element.opening_element), None)?;
         self.emit_list(
@@ -37,7 +37,7 @@ impl Printer {
 
     pub(super) fn emit_jsx_self_closing_element(
         &self,
-        node: &Node, /*JsxSelfClosingElement*/
+        node: Id<Node>, /*JsxSelfClosingElement*/
     ) -> io::Result<()> {
         self.write_punctuation("<");
         let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
@@ -55,7 +55,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_jsx_fragment(&self, node: &Node /*JsxFragment*/) -> io::Result<()> {
+    pub(super) fn emit_jsx_fragment(&self, node: Id<Node> /*JsxFragment*/) -> io::Result<()> {
         let node_as_jsx_fragment = node.as_jsx_fragment();
         self.emit(Some(&*node_as_jsx_fragment.opening_fragment), None)?;
         self.emit_list(
@@ -73,7 +73,7 @@ impl Printer {
 
     pub(super) fn emit_jsx_opening_element_or_fragment(
         &self,
-        node: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
+        node: Id<Node>, /*JsxOpeningElement | JsxOpeningFragment*/
     ) -> io::Result<()> {
         self.write_punctuation("<");
 
@@ -110,13 +110,13 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_jsx_text(&self, node: &Node /*JsxText*/) {
+    pub(super) fn emit_jsx_text(&self, node: Id<Node> /*JsxText*/) {
         self.writer().write_literal(&node.as_jsx_text().text());
     }
 
     pub(super) fn emit_jsx_closing_element_or_fragment(
         &self,
-        node: &Node, /*JsxClosingElement | JsxClosingFragment*/
+        node: Id<Node>, /*JsxClosingElement | JsxClosingFragment*/
     ) -> io::Result<()> {
         self.write_punctuation("</");
         if is_jsx_closing_element(node) {
@@ -127,7 +127,10 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_jsx_attributes(&self, node: &Node /*JsxAttributes*/) -> io::Result<()> {
+    pub(super) fn emit_jsx_attributes(
+        &self,
+        node: Id<Node>, /*JsxAttributes*/
+    ) -> io::Result<()> {
         self.emit_list(
             Some(node),
             Some(&node.as_jsx_attributes().properties),
@@ -140,14 +143,17 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_jsx_attribute(&self, node: &Node /*JsxAttribute*/) -> io::Result<()> {
+    pub(super) fn emit_jsx_attribute(
+        &self,
+        node: Id<Node>, /*JsxAttribute*/
+    ) -> io::Result<()> {
         let node_as_jsx_attribute = node.as_jsx_attribute();
         self.emit(Some(&*node_as_jsx_attribute.name), None)?;
         self.try_emit_node_with_prefix(
             "=",
             |text: &str| self.write_punctuation(text),
             node_as_jsx_attribute.initializer.as_deref(),
-            |node: &Node| self.emit_jsx_attribute_value(node),
+            |node: Id<Node>| self.emit_jsx_attribute_value(node),
         )?;
 
         Ok(())
@@ -155,7 +161,7 @@ impl Printer {
 
     pub(super) fn emit_jsx_spread_attribute(
         &self,
-        node: &Node, /*JsxSpreadAttribute*/
+        node: Id<Node>, /*JsxSpreadAttribute*/
     ) -> io::Result<()> {
         self.write_punctuation("{...");
         self.emit_expression(Some(&*node.as_jsx_spread_attribute().expression), None)?;
@@ -220,7 +226,10 @@ impl Printer {
         self.has_trailing_comments_at_position(pos) || self.has_leading_comments_at_position(pos)
     }
 
-    pub(super) fn emit_jsx_expression(&self, node: &Node /*JsxExpression*/) -> io::Result<()> {
+    pub(super) fn emit_jsx_expression(
+        &self,
+        node: Id<Node>, /*JsxExpression*/
+    ) -> io::Result<()> {
         let node_as_jsx_expression = node.as_jsx_expression();
         Ok(
             if node_as_jsx_expression.expression.is_some()
@@ -271,7 +280,7 @@ impl Printer {
 
     pub(super) fn emit_jsx_tag_name(
         &self,
-        node: &Node, /*JsxTagNameExpression*/
+        node: Id<Node>, /*JsxTagNameExpression*/
     ) -> io::Result<()> {
         Ok(if node.kind() == SyntaxKind::Identifier {
             self.emit_expression(Some(node), None)?;
@@ -280,7 +289,7 @@ impl Printer {
         })
     }
 
-    pub(super) fn emit_case_clause(&self, node: &Node /*CaseClause*/) -> io::Result<()> {
+    pub(super) fn emit_case_clause(&self, node: Id<Node> /*CaseClause*/) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::CaseKeyword,
             node.pos(),
@@ -308,7 +317,10 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_default_clause(&self, node: &Node /*DefaultClause*/) -> io::Result<()> {
+    pub(super) fn emit_default_clause(
+        &self,
+        node: Id<Node>, /*DefaultClause*/
+    ) -> io::Result<()> {
         let pos = self.emit_token_with_comment(
             SyntaxKind::DefaultKeyword,
             node.pos(),
@@ -323,7 +335,7 @@ impl Printer {
 
     pub(super) fn emit_case_or_default_clause_rest(
         &self,
-        parent_node: &Node,
+        parent_node: Id<Node>,
         statements: &NodeArray, /*<Statement>*/
         colon_pos: isize,
     ) -> io::Result<()> {
@@ -369,7 +381,7 @@ impl Printer {
 
     pub(super) fn emit_heritage_clause(
         &self,
-        node: &Node, /*HeritageClause*/
+        node: Id<Node>, /*HeritageClause*/
     ) -> io::Result<()> {
         self.write_space();
         let node_as_heritage_clause = node.as_heritage_clause();
@@ -391,7 +403,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_catch_clause(&self, node: &Node /*CatchClause*/) -> io::Result<()> {
+    pub(super) fn emit_catch_clause(&self, node: Id<Node> /*CatchClause*/) -> io::Result<()> {
         let open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::CatchKeyword,
             node.pos(),
@@ -427,7 +439,7 @@ impl Printer {
 
     pub(super) fn emit_property_assignment(
         &self,
-        node: &Node, /*PropertyAssignment*/
+        node: Id<Node>, /*PropertyAssignment*/
     ) -> io::Result<()> {
         let node_as_property_assignment = node.as_property_assignment();
         self.emit(node_as_property_assignment.maybe_name().as_deref(), None)?;
@@ -452,7 +464,7 @@ impl Printer {
 
     pub(super) fn emit_shorthand_property_assignment(
         &self,
-        node: &Node, /*ShorthandPropertyAssignment*/
+        node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<()> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         self.emit(
@@ -483,7 +495,7 @@ impl Printer {
 
     pub(super) fn emit_spread_assignment(
         &self,
-        node: &Node, /*SpreadAssignment*/
+        node: Id<Node>, /*SpreadAssignment*/
     ) -> io::Result<()> {
         let node_as_spread_assignment = node.as_spread_assignment();
         // if (node.expression) {
@@ -507,7 +519,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_enum_member(&self, node: &Node /*EnumMember*/) -> io::Result<()> {
+    pub(super) fn emit_enum_member(&self, node: Id<Node> /*EnumMember*/) -> io::Result<()> {
         let node_as_enum_member = node.as_enum_member();
         self.emit(node_as_enum_member.maybe_name().as_deref(), None)?;
         self.emit_initializer(
@@ -524,7 +536,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_jsdoc(&self, node: &Node /*JSDoc*/) -> io::Result<()> {
+    pub(super) fn emit_jsdoc(&self, node: Id<Node> /*JSDoc*/) -> io::Result<()> {
         self.write("/**");
         let node_as_jsdoc = node.as_jsdoc();
         if let Some(node_comment) = node_as_jsdoc.comment.as_ref() {
@@ -569,7 +581,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_simple_typed_tag(
         &self,
-        tag: &Node, /*JSDocTypeTag | JSDocThisTag | JSDocEnumTag | JSDocReturnTag*/
+        tag: Id<Node>, /*JSDocTypeTag | JSDocThisTag | JSDocEnumTag | JSDocReturnTag*/
     ) -> io::Result<()> {
         let tag_as_base_jsdoc_type_like_tag = tag.as_base_jsdoc_type_like_tag();
         self.emit_jsdoc_tag_name(&tag_as_base_jsdoc_type_like_tag.tag_name())?;
@@ -587,7 +599,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_jsdoc_see_tag(&self, tag: &Node /*JSDocSeeTag*/) -> io::Result<()> {
+    pub(super) fn emit_jsdoc_see_tag(&self, tag: Id<Node> /*JSDocSeeTag*/) -> io::Result<()> {
         let tag_as_jsdoc_see_tag = tag.as_jsdoc_see_tag();
         self.emit_jsdoc_tag_name(&tag_as_jsdoc_see_tag.tag_name())?;
         self.emit(tag_as_jsdoc_see_tag.name.as_deref(), None)?;
@@ -598,7 +610,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_name_reference(
         &self,
-        node: &Node, /*JSDocNameReference*/
+        node: Id<Node>, /*JSDocNameReference*/
     ) -> io::Result<()> {
         self.write_space();
         self.write_punctuation("{");
@@ -610,7 +622,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_heritage_tag(
         &self,
-        tag: &Node, /*JSDocImplementsTag | JSDocAugmentsTag*/
+        tag: Id<Node>, /*JSDocImplementsTag | JSDocAugmentsTag*/
     ) -> io::Result<()> {
         let tag_as_jsdoc_heritage_tag = tag.as_jsdoc_heritage_tag();
         self.emit_jsdoc_tag_name(&tag_as_jsdoc_heritage_tag.tag_name())?;
@@ -625,7 +637,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_template_tag(
         &self,
-        tag: &Node, /*JSDocTemplateTag*/
+        tag: Id<Node>, /*JSDocTemplateTag*/
     ) -> io::Result<()> {
         let tag_as_jsdoc_template_tag = tag.as_jsdoc_template_tag();
         self.emit_jsdoc_tag_name(&tag_as_jsdoc_template_tag.tag_name())?;
@@ -646,7 +658,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_typedef_tag(
         &self,
-        tag: &Node, /*JSDocTypedefTag*/
+        tag: Id<Node>, /*JSDocTypedefTag*/
     ) -> io::Result<()> {
         let tag_as_jsdoc_typedef_tag = tag.as_jsdoc_typedef_tag();
         self.emit_jsdoc_tag_name(&tag_as_jsdoc_typedef_tag.tag_name())?;
@@ -684,7 +696,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_callback_tag(
         &self,
-        tag: &Node, /*JSDocCallbackTag*/
+        tag: Id<Node>, /*JSDocCallbackTag*/
     ) -> io::Result<()> {
         let tag_as_jsdoc_callback_tag = tag.as_jsdoc_callback_tag();
         self.emit_jsdoc_tag_name(&tag_as_jsdoc_callback_tag.tag_name())?;
@@ -698,7 +710,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_jsdoc_simple_tag(&self, tag: &Node /*JSDocTag*/) -> io::Result<()> {
+    pub(super) fn emit_jsdoc_simple_tag(&self, tag: Id<Node> /*JSDocTag*/) -> io::Result<()> {
         let tag_as_jsdoc_tag = tag.as_jsdoc_tag();
         self.emit_jsdoc_tag_name(&tag_as_jsdoc_tag.tag_name())?;
         self.emit_jsdoc_comment(tag_as_jsdoc_tag.maybe_comment().map(Into::into));
@@ -708,7 +720,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_type_literal(
         &self,
-        lit: &Node, /*JSDocTypeLiteral*/
+        lit: Id<Node>, /*JSDocTypeLiteral*/
     ) -> io::Result<()> {
         self.emit_list(
             Some(lit),
@@ -729,7 +741,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_signature(
         &self,
-        sig: &Node, /*JSDocSignature*/
+        sig: Id<Node>, /*JSDocSignature*/
     ) -> io::Result<()> {
         let sig_as_jsdoc_signature = sig.as_jsdoc_signature();
         if let Some(sig_type_parameters) = sig_as_jsdoc_signature.maybe_type_parameters().as_ref() {
@@ -769,7 +781,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_property_like_tag(
         &self,
-        param: &Node, /*JSDocPropertyLikeTag*/
+        param: Id<Node>, /*JSDocPropertyLikeTag*/
     ) -> io::Result<()> {
         let param_as_jsdoc_property_like_tag = param.as_jsdoc_property_like_tag();
         self.emit_jsdoc_tag_name(&param_as_jsdoc_property_like_tag.tag_name())?;
@@ -795,7 +807,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_tag_name(
         &self,
-        tag_name: &Node, /*Identifier*/
+        tag_name: Id<Node>, /*Identifier*/
     ) -> io::Result<()> {
         self.write_punctuation("@");
         self.emit(Some(tag_name), None)?;
@@ -813,7 +825,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_type_expression(
         &self,
-        type_expression: Option<&Node /*JSDocTypeExpression*/>,
+        type_expression: Option<Id<Node> /*JSDocTypeExpression*/>,
     ) -> io::Result<()> {
         Ok(if let Some(type_expression) = type_expression {
             self.write_space();
@@ -826,7 +838,7 @@ impl Printer {
         })
     }
 
-    pub(super) fn emit_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<()> {
+    pub(super) fn emit_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<()> {
         self.write_line(None);
         let statements = node.as_source_file().statements();
         // if (emitBodyWithDetachedComments) {
@@ -834,7 +846,7 @@ impl Printer {
             || !is_prologue_directive(&statements[0])
             || node_is_synthesized(&*statements[0]);
         if should_emit_detached_comment {
-            self.try_emit_body_with_detached_comments(node, &*statements, |node: &Node| {
+            self.try_emit_body_with_detached_comments(node, &*statements, |node: Id<Node>| {
                 self.emit_source_file_worker(node)
             })?;
             return Ok(());
@@ -847,7 +859,7 @@ impl Printer {
 
     pub(super) fn emit_synthetic_triple_slash_references_if_needed(
         &self,
-        node: &Node, /*Bundle*/
+        node: Id<Node>, /*Bundle*/
     ) -> io::Result<()> {
         let node_as_bundle = node.as_bundle();
         let default_references: Vec<FileReference> = vec![];
@@ -882,7 +894,10 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_triple_slash_directives_if_needed(&self, node: &Node /*SourceFile*/) {
+    pub(super) fn emit_triple_slash_directives_if_needed(
+        &self,
+        node: Id<Node>, /*SourceFile*/
+    ) {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
             self.emit_triple_slash_directives(
@@ -1013,7 +1028,7 @@ impl Printer {
 
     pub(super) fn emit_source_file_worker(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
         let statements = node.as_source_file().statements();
         self.push_name_generation_scope(Some(node));
@@ -1043,7 +1058,7 @@ impl Printer {
 
     pub(super) fn emit_partially_emitted_expression(
         &self,
-        node: &Node, /*PartiallyEmittedExpression*/
+        node: Id<Node>, /*PartiallyEmittedExpression*/
     ) -> io::Result<()> {
         self.emit_expression(
             Some(&*node.as_partially_emitted_expression().expression),
@@ -1055,7 +1070,7 @@ impl Printer {
 
     pub(super) fn emit_comma_list(
         &self,
-        node: &Node, /*CommaListExpression*/
+        node: Id<Node>, /*CommaListExpression*/
     ) -> io::Result<()> {
         self.emit_expression_list(
             Some(node),
@@ -1072,7 +1087,7 @@ impl Printer {
     pub(super) fn emit_prologue_directives(
         &self,
         statements: &[Id<Node>],
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         seen_prologue_directives: &mut Option<HashSet<String>>,
         record_bundle_file_section: Option<bool /*true*/>,
     ) -> io::Result<usize> {

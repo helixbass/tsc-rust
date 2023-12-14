@@ -26,7 +26,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_initial_type_of_binding_element(
         &self,
-        node: &Node, /*BindingElement*/
+        node: Id<Node>, /*BindingElement*/
     ) -> io::Result<Id<Type>> {
         let pattern = node.parent();
         let parent_type = self.get_initial_type(&pattern.parent())?;
@@ -57,7 +57,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_initializer(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         let ret = (*links)
@@ -70,7 +70,7 @@ impl TypeChecker {
 
     pub(super) fn get_initial_type_of_variable_declaration(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<Id<Type>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         if let Some(node_initializer) = node_as_variable_declaration.maybe_initializer() {
@@ -88,7 +88,7 @@ impl TypeChecker {
 
     pub(super) fn get_initial_type(
         &self,
-        node: &Node, /*VariableDeclaration | BindingElement*/
+        node: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) -> io::Result<Id<Type>> {
         Ok(if node.kind() == SyntaxKind::VariableDeclaration {
             self.get_initial_type_of_variable_declaration(node)?
@@ -99,7 +99,7 @@ impl TypeChecker {
 
     pub(super) fn is_empty_array_assignment(
         &self,
-        node: &Node, /*VariableDeclaration | BindingElement | Expression*/
+        node: Id<Node>, /*VariableDeclaration | BindingElement | Expression*/
     ) -> bool {
         node.kind() == SyntaxKind::VariableDeclaration
             && matches!(
@@ -111,7 +111,7 @@ impl TypeChecker {
                 && self.is_empty_array_literal(&node.parent().as_binary_expression().right)
     }
 
-    pub(super) fn get_reference_candidate(&self, node: &Node /*Expression*/) -> Id<Node> {
+    pub(super) fn get_reference_candidate(&self, node: Id<Node> /*Expression*/) -> Id<Node> {
         match node.kind() {
             SyntaxKind::ParenthesizedExpression => {
                 return self
@@ -137,7 +137,7 @@ impl TypeChecker {
         node.node_wrapper()
     }
 
-    pub(super) fn get_reference_root(&self, node: &Node) -> Id<Node> {
+    pub(super) fn get_reference_root(&self, node: Id<Node>) -> Id<Node> {
         let parent = node.parent();
         if parent.kind() == SyntaxKind::ParenthesizedExpression
             || parent.kind() == SyntaxKind::BinaryExpression && {
@@ -159,7 +159,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_switch_clause(
         &self,
-        clause: &Node, /*CaseClause | DefaultClause*/
+        clause: Id<Node>, /*CaseClause | DefaultClause*/
     ) -> io::Result<Id<Type>> {
         if clause.kind() == SyntaxKind::CaseClause {
             return Ok(self.get_regular_type_of_literal_type(
@@ -171,7 +171,7 @@ impl TypeChecker {
 
     pub(super) fn get_switch_clause_types(
         &self,
-        switch_statement: &Node, /*SwitchStatement*/
+        switch_statement: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<Vec<Id<Type>>> {
         let links = self.get_node_links(switch_statement);
         if (*links).borrow().switch_types.is_none() {
@@ -192,7 +192,7 @@ impl TypeChecker {
 
     pub(super) fn get_switch_clause_type_of_witnesses(
         &self,
-        switch_statement: &Node, /*SwitchStatement*/
+        switch_statement: Id<Node>, /*SwitchStatement*/
         retain_default: bool,
     ) -> Vec<Option<String>> {
         let mut witnesses: Vec<Option<String>> = vec![];
@@ -689,7 +689,7 @@ impl TypeChecker {
     pub(super) fn add_evolving_array_element_type(
         &self,
         evolving_array_type: Id<Type>, /*EvolvingArrayType*/
-        node: &Node,                   /*Expression*/
+        node: Id<Node>,                /*Expression*/
     ) -> io::Result<Id<Type /*EvolvingArrayType*/>> {
         let element_type = self.get_regular_type_of_object_literal(
             self.get_base_type_of_literal_type(self.get_context_free_type_of_expression(node)?)?,
@@ -803,7 +803,7 @@ impl TypeChecker {
         has_evolving_array_type
     }
 
-    pub(super) fn is_evolving_array_operation_target(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_evolving_array_operation_target(&self, node: Id<Node>) -> io::Result<bool> {
         let root = self.get_reference_root(node);
         let parent = root.parent();
         let is_length_push_or_unshift = is_property_access_expression(&parent) && {
@@ -842,7 +842,7 @@ impl TypeChecker {
 
     pub(super) fn is_declaration_with_explicit_type_annotation(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> bool {
         (is_variable_declaration(node)
             || is_property_declaration(node)
@@ -909,7 +909,7 @@ impl TypeChecker {
                             use_,
                             expression_type,
                             self.undefined_type(),
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                         )?));
                     }
                 }
@@ -922,7 +922,7 @@ impl TypeChecker {
                                 &Diagnostics::_0_needs_an_explicit_type_annotation,
                                 Some(vec![self.symbol_to_string_(
                                     symbol,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                     None,
@@ -939,7 +939,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_dotted_name(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         diagnostic: Option<&Diagnostic>,
     ) -> io::Result<Option<Id<Type>>> {
         if !node.flags().intersects(NodeFlags::InWithStatement) {
@@ -1013,7 +1013,7 @@ impl TypeChecker {
 
     pub(super) fn get_effects_signature(
         &self,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
     ) -> io::Result<Option<Gc<Signature>>> {
         let links = self.get_node_links(node);
         let mut signature = (*links).borrow().effects_signature.clone();
@@ -1091,7 +1091,7 @@ impl TypeChecker {
     pub(super) fn get_type_predicate_argument(
         &self,
         predicate: &TypePredicate,
-        call_expression: &Node, /*CallExpression*/
+        call_expression: Id<Node>, /*CallExpression*/
     ) -> Option<Id<Node>> {
         let call_expression_as_call_expression = call_expression.as_call_expression();
         if matches!(
@@ -1115,8 +1115,8 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn report_flow_control_error(&self, node: &Node) {
-        let block = find_ancestor(Some(node), |ancestor: &Node| {
+    pub(super) fn report_flow_control_error(&self, node: Id<Node>) {
+        let block = find_ancestor(Some(node), |ancestor: Id<Node>| {
             is_function_or_module_block(ancestor)
         })
         .unwrap();
@@ -1150,7 +1150,7 @@ impl TypeChecker {
         Ok(result)
     }
 
-    pub(super) fn is_false_expression(&self, expr: &Node /*Expression*/) -> bool {
+    pub(super) fn is_false_expression(&self, expr: Id<Node> /*Expression*/) -> bool {
         let node = skip_parentheses(expr, Some(true));
         node.kind() == SyntaxKind::FalseKeyword
             || node.kind() == SyntaxKind::BinaryExpression && {

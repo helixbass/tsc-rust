@@ -34,11 +34,11 @@ trait FlattenContext {
     fn hoist_temp_variables(&self) -> bool;
     fn has_transformed_prior_element(&self) -> Option<bool>;
     fn set_has_transformed_prior_element(&self, has_transformed_prior_element: Option<bool>);
-    fn emit_expression(&self, value: &Node /*Expression*/);
+    fn emit_expression(&self, value: Id<Node> /*Expression*/);
     fn emit_binding_or_assignment(
         &self,
-        target: &Node, /*BindingOrAssignmentElementTarget*/
-        value: &Node,  /*Expression*/
+        target: Id<Node>, /*BindingOrAssignmentElementTarget*/
+        value: Id<Node>,  /*Expression*/
         location: &(impl ReadonlyTextRange + ?Sized),
         original: Option<impl Borrow<Node>>,
     ) -> io::Result<()>;
@@ -52,10 +52,10 @@ trait FlattenContext {
     ) -> Id<Node /*ObjectBindingOrAssignmentPattern*/>;
     fn create_array_binding_or_assignment_element(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> Id<Node /*BindingOrAssignmentElement*/>;
     fn is_visitor_supported(&self) -> bool;
-    fn visitor(&self, _node: &Node) -> Option<io::Result<VisitResult /*<Node>*/>> {
+    fn visitor(&self, _node: Id<Node>) -> Option<io::Result<VisitResult /*<Node>*/>> {
         None
     }
 }
@@ -67,15 +67,15 @@ pub enum FlattenLevel {
 }
 
 pub fn flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
-    node: &Node, /*VariableDeclaration | DestructuringAssignment*/
-    visitor: Option<impl FnMut(&Node) -> VisitResult + 'visitor>,
+    node: Id<Node>, /*VariableDeclaration | DestructuringAssignment*/
+    visitor: Option<impl FnMut(Id<Node>) -> VisitResult + 'visitor>,
     context: Gc<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     needs_value: Option<bool>,
     create_assignment_callback: Option<
         impl FnMut(
-                &Node, /*Identifier*/
-                &Node, /*Expression*/
+                Id<Node>, /*Identifier*/
+                Id<Node>, /*Expression*/
                 Option<&dyn ReadonlyTextRange>,
             ) -> Id<Node /*Expression*/>
             + 'create_assignment_callback,
@@ -83,12 +83,12 @@ pub fn flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
 ) -> Id<Node /*Expression*/> {
     try_flatten_destructuring_assignment(
         node,
-        visitor.map(|mut visitor| move |node: &Node| Ok(visitor(node))),
+        visitor.map(|mut visitor| move |node: Id<Node>| Ok(visitor(node))),
         context,
         level,
         needs_value,
         create_assignment_callback.map(|mut create_assignment_callback| {
-            move |a: &Node, b: &Node, c: Option<&dyn ReadonlyTextRange>| {
+            move |a: Id<Node>, b: Id<Node>, c: Option<&dyn ReadonlyTextRange>| {
                 Ok(create_assignment_callback(a, b, c))
             }
         }),
@@ -111,12 +111,16 @@ struct FlattenDestructuringAssignmentFlattenContext<'visitor, 'create_assignment
     create_assignment_callback: Option<
         Rc<
             RefCell<
-                dyn FnMut(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>
+                dyn FnMut(
+                        Id<Node>,
+                        Id<Node>,
+                        Option<&dyn ReadonlyTextRange>,
+                    ) -> io::Result<Id<Node>>
                     + 'create_assignment_callback,
             >,
         >,
     >,
-    visitor: Option<Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>>,
+    visitor: Option<Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>>,
     has_transformed_prior_element: Cell<Option<bool>>,
 }
 
@@ -131,12 +135,16 @@ impl<'visitor, 'create_assignment_callback>
         create_assignment_callback: Option<
             Rc<
                 RefCell<
-                    dyn FnMut(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>
+                    dyn FnMut(
+                            Id<Node>,
+                            Id<Node>,
+                            Option<&dyn ReadonlyTextRange>,
+                        ) -> io::Result<Id<Node>>
                         + 'create_assignment_callback,
                 >,
             >,
         >,
-        visitor: Option<Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>>,
+        visitor: Option<Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>>,
     ) -> Self {
         Self {
             context,
@@ -167,14 +175,14 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
         true
     }
 
-    fn emit_expression(&self, value: &Node /*Expression*/) {
+    fn emit_expression(&self, value: Id<Node> /*Expression*/) {
         emit_expression(&mut self.expressions.borrow_mut(), value.node_wrapper());
     }
 
     fn emit_binding_or_assignment(
         &self,
-        target: &Node, /*BindingOrAssignmentElementTarget*/
-        value: &Node,  /*Expression*/
+        target: Id<Node>, /*BindingOrAssignmentElementTarget*/
+        value: Id<Node>,  /*Expression*/
         location: &(impl ReadonlyTextRange + ?Sized),
         original: Option<impl Borrow<Node>>,
     ) -> io::Result<()> {
@@ -200,7 +208,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
                                 target,
                                 self.visitor
                                     .as_ref()
-                                    .map(|visitor| |node: &Node| (visitor.borrow_mut())(node)),
+                                    .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
                                 Some(is_expression),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
@@ -238,12 +246,12 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
 
     fn create_array_binding_or_assignment_element(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> Id<Node /*BindingOrAssignmentElement*/> {
         make_assignment_element(node)
     }
 
-    fn visitor(&self, node: &Node) -> Option<io::Result<VisitResult /*<Node>*/>> {
+    fn visitor(&self, node: Id<Node>) -> Option<io::Result<VisitResult /*<Node>*/>> {
         self.visitor
             .as_ref()
             .map(|visitor| (visitor.borrow_mut())(node))
@@ -264,16 +272,16 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
 }
 
 pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
-    node: &Node, /*VariableDeclaration | DestructuringAssignment*/
-    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult> + 'visitor>,
+    node: Id<Node>, /*VariableDeclaration | DestructuringAssignment*/
+    visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>,
     context: Gc<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     needs_value: Option<bool>,
     // create_assignment_callback: Option<Gc<Box<dyn TryCreateAssignmentCallback>>>,
     create_assignment_callback: Option<
         impl FnMut(
-                &Node, /*Identifier*/
-                &Node, /*Expression*/
+                Id<Node>, /*Identifier*/
+                Id<Node>, /*Expression*/
                 Option<&dyn ReadonlyTextRange>,
             ) -> io::Result<Id<Node /*Expression*/>>
             + 'create_assignment_callback,
@@ -282,15 +290,19 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     let mut location/*: TextRange*/ = node.node_wrapper();
     let mut value: Option<Id<Node /*Expression*/>> = _d();
     let mut node = node.node_wrapper();
-    let visitor: Option<Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>> =
+    let visitor: Option<Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>> =
         visitor.map(|visitor| {
             Rc::new(RefCell::new(visitor))
-                as Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>
+                as Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>
         });
     let create_assignment_callback: Option<
         Rc<
             RefCell<
-                dyn FnMut(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>
+                dyn FnMut(
+                        Id<Node>,
+                        Id<Node>,
+                        Option<&dyn ReadonlyTextRange>,
+                    ) -> io::Result<Id<Node>>
                     + 'create_assignment_callback,
             >,
         >,
@@ -298,7 +310,11 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
         Rc::new(RefCell::new(create_assignment_callback))
             as Rc<
                 RefCell<
-                    dyn FnMut(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>
+                    dyn FnMut(
+                            Id<Node>,
+                            Id<Node>,
+                            Option<&dyn ReadonlyTextRange>,
+                        ) -> io::Result<Id<Node>>
                         + 'create_assignment_callback,
                 >,
             >
@@ -317,7 +333,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                     value.as_ref().unwrap(),
                     visitor
                         .as_ref()
-                        .map(|visitor| |node: &Node| (visitor.borrow_mut())(node)),
+                        .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
@@ -340,7 +356,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
             value.as_ref().unwrap(),
             visitor
                 .as_ref()
-                .map(|visitor| |node: &Node| (visitor.borrow_mut())(node)),
+                .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?);
@@ -393,7 +409,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
 }
 
 fn binding_or_assignment_element_assigns_to_name(
-    element: &Node,     /*BindingOrAssignmentElement*/
+    element: Id<Node>,  /*BindingOrAssignmentElement*/
     escaped_name: &str, /*__String*/
 ) -> bool {
     let target = &get_target_of_binding_or_assignment_element(element).unwrap();
@@ -406,7 +422,7 @@ fn binding_or_assignment_element_assigns_to_name(
 }
 
 fn binding_or_assignment_pattern_assigns_to_name(
-    pattern: &Node,     /*BindingOrAssignmentPattern*/
+    pattern: Id<Node>,  /*BindingOrAssignmentPattern*/
     escaped_name: &str, /*__String*/
 ) -> bool {
     let elements = get_elements_of_binding_or_assignment_pattern(pattern);
@@ -419,7 +435,7 @@ fn binding_or_assignment_pattern_assigns_to_name(
 }
 
 fn binding_or_assignment_element_contains_non_literal_computed_name(
-    element: &Node, /*BindingOrAssignmentElement*/
+    element: Id<Node>, /*BindingOrAssignmentElement*/
 ) -> bool {
     let property_name = try_get_property_name_of_binding_or_assignment_element(element);
     if property_name.matches(|ref property_name| {
@@ -436,7 +452,7 @@ fn binding_or_assignment_element_contains_non_literal_computed_name(
 }
 
 fn binding_or_assignment_pattern_contains_non_literal_computed_name(
-    pattern: &Node, /*BindingOrAssignmentPattern*/
+    pattern: Id<Node>, /*BindingOrAssignmentPattern*/
 ) -> bool {
     get_elements_of_binding_or_assignment_pattern(pattern).any(|ref element| {
         binding_or_assignment_element_contains_non_literal_computed_name(element)
@@ -444,8 +460,8 @@ fn binding_or_assignment_pattern_contains_non_literal_computed_name(
 }
 
 pub fn flatten_destructuring_binding(
-    node: &Node, /*VariableDeclaration | ParameterDeclaration*/
-    mut visitor: impl FnMut(&Node) -> VisitResult,
+    node: Id<Node>, /*VariableDeclaration | ParameterDeclaration*/
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: Gc<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     rval: Option<impl Borrow<Node /*Expression*/>>,
@@ -454,7 +470,7 @@ pub fn flatten_destructuring_binding(
 ) -> Vec<Id<Node /*VariableDeclaration*/>> {
     try_flatten_destructuring_binding(
         node,
-        |node: &Node| Ok(visitor(node)),
+        |node: Id<Node>| Ok(visitor(node)),
         context,
         level,
         rval,
@@ -475,8 +491,8 @@ struct PendingDeclaration {
 }
 
 pub fn try_flatten_destructuring_binding<'visitor>(
-    node: &Node, /*VariableDeclaration | ParameterDeclaration*/
-    visitor: impl FnMut(&Node) -> io::Result<VisitResult> + 'visitor,
+    node: Id<Node>, /*VariableDeclaration | ParameterDeclaration*/
+    visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor,
     context: Gc<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     rval: Option<impl Borrow<Node /*Expression*/>>,
@@ -487,7 +503,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     let pending_expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>> = _d();
     let pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>> = _d();
     let mut declarations: Vec<Id<Node /*VariableDeclaration*/>> = _d();
-    let visitor: Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>> =
+    let visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>> =
         Rc::new(RefCell::new(visitor));
     // as Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>
     let flatten_context = FlattenDestructuringBindingFlattenContext::new(
@@ -515,8 +531,8 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 &flatten_context,
                 &*try_visit_node(
                     &initializer,
-                    Some(|node: &Node| (flatten_context.visitor.borrow_mut())(node)),
-                    Option::<fn(&Node) -> bool>::None,
+                    Some(|node: Id<Node>| (flatten_context.visitor.borrow_mut())(node)),
+                    Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 false,
@@ -536,7 +552,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     if (*pending_expressions).borrow().is_some() {
         let temp = context
             .factory()
-            .create_temp_variable(Option::<fn(&Node)>::None, None);
+            .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
         if hoist_temp_variables {
             let value = context
                 .factory()
@@ -548,8 +564,8 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 &mut pending_declarations.borrow_mut(),
                 &temp,
                 &value,
-                Option::<&Node>::None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
+                Option::<Id<Node>>::None,
             );
         } else {
             context.hoist_variable_declaration(&temp);
@@ -611,8 +627,8 @@ fn emit_binding_or_assignment(
     pending_expressions: &mut Option<Vec<Id<Node /*Expression*/>>>,
     context: &dyn TransformationContext,
     pending_declarations: &mut Vec<PendingDeclaration>,
-    target: &Node, /*BindingOrAssignmentElementTarget*/
-    value: &Node,  /*Expression*/
+    target: Id<Node>, /*BindingOrAssignmentElementTarget*/
+    value: Id<Node>,  /*Expression*/
     location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     original: Option<impl Borrow<Node>>,
 ) {
@@ -641,7 +657,7 @@ struct FlattenDestructuringBindingFlattenContext<'visitor> {
     hoist_temp_variables: bool,
     pending_expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
     pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
-    visitor: Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>,
+    visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>,
     has_transformed_prior_element: Cell<Option<bool>>,
 }
 
@@ -653,7 +669,7 @@ impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
         hoist_temp_variables: bool,
         pending_expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
         pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
-        visitor: Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>,
+        visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>,
     ) -> Self {
         Self {
             context,
@@ -685,7 +701,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
         self.hoist_temp_variables
     }
 
-    fn emit_expression(&self, value: &Node /*Expression*/) {
+    fn emit_expression(&self, value: Id<Node> /*Expression*/) {
         self.pending_expressions
             .borrow_mut()
             .get_or_insert_default_()
@@ -694,8 +710,8 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
 
     fn emit_binding_or_assignment(
         &self,
-        target: &Node, /*BindingOrAssignmentElementTarget*/
-        value: &Node,  /*Expression*/
+        target: Id<Node>, /*BindingOrAssignmentElementTarget*/
+        value: Id<Node>,  /*Expression*/
         location: &(impl ReadonlyTextRange + ?Sized),
         original: Option<impl Borrow<Node>>,
     ) -> io::Result<()> {
@@ -728,12 +744,12 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
 
     fn create_array_binding_or_assignment_element(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
     ) -> Id<Node /*BindingOrAssignmentElement*/> {
         make_binding_element(&self.context.factory(), name)
     }
 
-    fn visitor(&self, node: &Node) -> Option<io::Result<VisitResult /*<Node>*/>> {
+    fn visitor(&self, node: Id<Node>) -> Option<io::Result<VisitResult /*<Node>*/>> {
         Some((self.visitor.borrow_mut())(node))
     }
 
@@ -753,7 +769,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
 
 fn flatten_binding_or_assignment_element(
     flatten_context: &impl FlattenContext,
-    element: &Node, /*BindingOrAssignmentElement*/
+    element: Id<Node>, /*BindingOrAssignmentElement*/
     value: Option<impl Borrow<Node /*Expression*/>>,
     location: &impl ReadonlyTextRange,
     skip_initializer: Option<bool>,
@@ -765,7 +781,7 @@ fn flatten_binding_or_assignment_element(
             get_initializer_of_binding_or_assignment_element(element),
             flatten_context
                 .is_visitor_supported()
-                .then(|| |node: &Node| flatten_context.visitor(node).unwrap()),
+                .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
             Some(is_expression),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
@@ -824,9 +840,9 @@ fn flatten_binding_or_assignment_element(
 
 fn flatten_object_binding_or_assignment_pattern(
     flatten_context: &impl FlattenContext,
-    parent: &Node,  /*BindingOrAssignmentElement*/
-    pattern: &Node, /*ObjectBindingOrAssignmentPattern*/
-    value: &Node,   /*Expression*/
+    parent: Id<Node>,  /*BindingOrAssignmentElement*/
+    pattern: Id<Node>, /*ObjectBindingOrAssignmentPattern*/
+    value: Id<Node>,   /*Expression*/
     location: &impl ReadonlyTextRange,
 ) -> io::Result<()> {
     let elements = get_elements_of_binding_or_assignment_pattern(pattern).collect_vec();
@@ -868,8 +884,8 @@ fn flatten_object_binding_or_assignment_pattern(
                         element,
                         flatten_context
                             .is_visitor_supported()
-                            .then(|| |node: &Node| flatten_context.visitor(node).unwrap()),
-                        Option::<fn(&Node) -> bool>::None,
+                            .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?);
             } else {
@@ -946,9 +962,9 @@ fn flatten_object_binding_or_assignment_pattern(
 
 fn flatten_array_binding_or_assignment_pattern(
     flatten_context: &impl FlattenContext,
-    parent: &Node,  /*BindingOrAssignmentElement*/
-    pattern: &Node, /*ArrayBindingOrAssignmentPattern*/
-    value: &Node,   /*Expression*/
+    parent: Id<Node>,  /*BindingOrAssignmentElement*/
+    pattern: Id<Node>, /*ArrayBindingOrAssignmentPattern*/
+    value: Id<Node>,   /*Expression*/
     location: &impl ReadonlyTextRange,
 ) -> io::Result<()> {
     let elements = get_elements_of_binding_or_assignment_pattern(pattern).collect_vec();
@@ -1007,7 +1023,7 @@ fn flatten_array_binding_or_assignment_pattern(
                 let temp = flatten_context
                     .context()
                     .factory()
-                    .create_temp_variable(Option::<fn(&Node)>::None, None);
+                    .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
                 if flatten_context.hoist_temp_variables() {
                     flatten_context.context().hoist_variable_declaration(&temp);
                 }
@@ -1074,7 +1090,9 @@ fn flatten_array_binding_or_assignment_pattern(
     Ok(())
 }
 
-fn is_simple_binding_or_assignment_element(element: &Node, /*BindingOrAssignmentElement*/) -> bool {
+fn is_simple_binding_or_assignment_element(
+    element: Id<Node>, /*BindingOrAssignmentElement*/
+) -> bool {
     let target = get_target_of_binding_or_assignment_element(element);
     if target.is_none() {
         return true;
@@ -1100,8 +1118,8 @@ fn is_simple_binding_or_assignment_element(element: &Node, /*BindingOrAssignment
 
 fn create_default_value_check(
     flatten_context: &impl FlattenContext,
-    value: &Node,         /*Expression*/
-    default_value: &Node, /*Expression*/
+    value: Id<Node>,         /*Expression*/
+    default_value: Id<Node>, /*Expression*/
     location: &impl ReadonlyTextRange,
 ) -> io::Result<Id<Node /*Expression*/>> {
     let value = ensure_identifier(flatten_context, value, true, location)?;
@@ -1122,8 +1140,8 @@ fn create_default_value_check(
 
 fn create_destructuring_property_access(
     flatten_context: &impl FlattenContext,
-    value: &Node,         /*Expression*/
-    property_name: &Node, /*PropertyName*/
+    value: Id<Node>,         /*Expression*/
+    property_name: Id<Node>, /*PropertyName*/
 ) -> io::Result<Id<Node /*LeftHandSideExpression*/>> {
     Ok(if is_computed_property_name(property_name) {
         let argument_expression = ensure_identifier(
@@ -1132,8 +1150,8 @@ fn create_destructuring_property_access(
                 &property_name.as_computed_property_name().expression,
                 flatten_context
                     .is_visitor_supported()
-                    .then(|| |node: &Node| flatten_context.visitor(node).unwrap()),
-                Option::<fn(&Node) -> bool>::None,
+                    .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
+                Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             false,
@@ -1163,7 +1181,7 @@ fn create_destructuring_property_access(
 
 fn ensure_identifier(
     flatten_context: &impl FlattenContext,
-    value: &Node, /*Expression*/
+    value: Id<Node>, /*Expression*/
     reuse_identifier_expressions: bool,
     location: &impl ReadonlyTextRange,
 ) -> io::Result<Id<Node>> {
@@ -1173,7 +1191,7 @@ fn ensure_identifier(
         let temp = flatten_context
             .context()
             .factory()
-            .create_temp_variable(Option::<fn(&Node)>::None, None);
+            .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
         if flatten_context.hoist_temp_variables() {
             flatten_context.context().hoist_variable_declaration(&temp);
             flatten_context.emit_expression(
@@ -1188,7 +1206,7 @@ fn ensure_identifier(
                 &temp,
                 value,
                 location,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?;
         }
         temp
@@ -1253,11 +1271,11 @@ fn make_object_assignment_pattern<
 
 fn make_binding_element<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
     factory: &NodeFactory<TBaseNodeFactory>,
-    name: &Node, /*Identifier*/
+    name: Id<Node>, /*Identifier*/
 ) -> Id<Node> {
     factory.create_binding_element(None, Option::<Id<Node>>::None, name.node_wrapper(), None)
 }
 
-fn make_assignment_element(name: &Node /*Identifier*/) -> Id<Node> {
+fn make_assignment_element(name: Id<Node> /*Identifier*/) -> Id<Node> {
     name.node_wrapper()
 }

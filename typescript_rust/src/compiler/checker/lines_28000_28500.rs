@@ -23,7 +23,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_this_parameter_from_node_context(&self, node: &Node) -> Option<Id<Node>> {
+    pub(super) fn get_this_parameter_from_node_context(&self, node: Id<Node>) -> Option<Id<Node>> {
         let this_container = get_this_container(node, false);
         /*thisContainer &&*/
         if is_function_like(Some(&*this_container)) {
@@ -41,7 +41,7 @@ impl TypeChecker {
 
     pub(super) fn check_non_null_expression(
         &self,
-        node: &Node, /*Expression | QualifiedName*/
+        node: Id<Node>, /*Expression | QualifiedName*/
     ) -> io::Result<Id<Type>> {
         self.check_non_null_type(self.check_expression(node, None, None)?, node)
     }
@@ -65,7 +65,7 @@ impl TypeChecker {
 
     pub(super) fn report_object_possibly_null_or_undefined_error(
         &self,
-        node: &Node,
+        node: Id<Node>,
         flags: TypeFlags,
     ) {
         self.error(
@@ -85,7 +85,7 @@ impl TypeChecker {
 
     pub(super) fn report_cannot_invoke_possibly_null_or_undefined_error(
         &self,
-        node: &Node,
+        node: Id<Node>,
         flags: TypeFlags,
     ) {
         self.error(
@@ -106,8 +106,8 @@ impl TypeChecker {
     pub(super) fn check_non_null_type_with_reporter(
         &self,
         type_: Id<Type>,
-        node: &Node,
-        mut report_error: impl FnMut(&Node, TypeFlags),
+        node: Id<Node>,
+        mut report_error: impl FnMut(Id<Node>, TypeFlags),
     ) -> io::Result<Id<Type>> {
         if self.strict_null_checks && type_.ref_(self).flags().intersects(TypeFlags::Unknown) {
             self.error(Some(node), &Diagnostics::Object_is_of_type_unknown, None);
@@ -135,8 +135,12 @@ impl TypeChecker {
         Ok(type_)
     }
 
-    pub(super) fn check_non_null_type(&self, type_: Id<Type>, node: &Node) -> io::Result<Id<Type>> {
-        self.check_non_null_type_with_reporter(type_, node, |node: &Node, flags: TypeFlags| {
+    pub(super) fn check_non_null_type(
+        &self,
+        type_: Id<Type>,
+        node: Id<Node>,
+    ) -> io::Result<Id<Type>> {
+        self.check_non_null_type_with_reporter(type_, node, |node: Id<Node>, flags: TypeFlags| {
             self.report_object_possibly_null_or_undefined_error(node, flags)
         })
     }
@@ -144,7 +148,7 @@ impl TypeChecker {
     pub(super) fn check_non_null_non_void_type(
         &self,
         type_: Id<Type>,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<Id<Type>> {
         let non_null_type = self.check_non_null_type(type_, node)?;
         if non_null_type.ref_(self).flags().intersects(TypeFlags::Void) {
@@ -155,7 +159,7 @@ impl TypeChecker {
 
     pub(super) fn check_property_access_expression(
         &self,
-        node: &Node, /*PropertyAccessExpression*/
+        node: Id<Node>, /*PropertyAccessExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_property_access_expression = node.as_property_access_expression();
@@ -174,7 +178,7 @@ impl TypeChecker {
 
     pub(super) fn check_property_access_chain(
         &self,
-        node: &Node, /*PropertyAccessChain*/
+        node: Id<Node>, /*PropertyAccessChain*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_property_access_expression = node.as_property_access_expression();
@@ -202,7 +206,7 @@ impl TypeChecker {
 
     pub(super) fn check_qualified_name(
         &self,
-        node: &Node, /*QualifiedName*/
+        node: Id<Node>, /*QualifiedName*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_qualified_name = node.as_qualified_name();
@@ -225,7 +229,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_method_access_for_call(&self, node: &Node) -> bool {
+    pub(super) fn is_method_access_for_call(&self, node: Id<Node>) -> bool {
         let mut node = node.node_wrapper();
         while node.parent().kind() == SyntaxKind::ParenthesizedExpression {
             node = node.parent();
@@ -237,7 +241,7 @@ impl TypeChecker {
     pub(super) fn lookup_symbol_for_private_identifier_declaration(
         &self,
         prop_name: &str, /*__String*/
-        location: &Node,
+        location: Id<Node>,
     ) -> Option<Id<Symbol>> {
         let mut containing_class = get_containing_class(location);
         while let Some(containing_class_present) = containing_class.as_ref() {
@@ -265,7 +269,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_private_identifier_expression(
         &self,
-        priv_id: &Node, /*PrivateIdentifier*/
+        priv_id: Id<Node>, /*PrivateIdentifier*/
     ) -> bool {
         if get_containing_class(priv_id).is_none() {
             return self.grammar_error_on_node(
@@ -296,19 +300,19 @@ impl TypeChecker {
 
     pub(super) fn check_private_identifier_expression(
         &self,
-        priv_id: &Node, /*PrivateIdentifier*/
+        priv_id: Id<Node>, /*PrivateIdentifier*/
     ) -> Id<Type> {
         self.check_grammar_private_identifier_expression(priv_id);
         let symbol = self.get_symbol_for_private_identifier_expression(priv_id);
         if let Some(symbol) = symbol {
-            self.mark_property_as_referenced(symbol, Option::<&Node>::None, false);
+            self.mark_property_as_referenced(symbol, Option::<Id<Node>>::None, false);
         }
         self.any_type()
     }
 
     pub(super) fn get_symbol_for_private_identifier_expression(
         &self,
-        priv_id: &Node, /*PrivateIdentifier*/
+        priv_id: Id<Node>, /*PrivateIdentifier*/
     ) -> Option<Id<Symbol>> {
         if !is_expression_node(priv_id) {
             return None;
@@ -341,7 +345,7 @@ impl TypeChecker {
     pub(super) fn check_private_identifier_property_access(
         &self,
         left_type: Id<Type>,
-        right: &Node, /*PrivateIdentifier*/
+        right: Id<Node>, /*PrivateIdentifier*/
         lexically_scoped_identifier: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
         let mut property_on_type: Option<Id<Symbol>> = None;
@@ -380,8 +384,10 @@ impl TypeChecker {
                 let lexical_class = get_containing_class(&lexical_value_decl);
                 Debug_.assert(lexical_class.is_some(), None);
                 let lexical_class = lexical_class.unwrap();
-                if find_ancestor(Some(&*lexical_class), |n: &Node| ptr::eq(&*type_class, n))
-                    .is_some()
+                if find_ancestor(Some(&*lexical_class), |n: Id<Node>| {
+                    ptr::eq(&*type_class, n)
+                })
+                .is_some()
                 {
                     let diagnostic = self.error(
                         Some(right),
@@ -390,7 +396,7 @@ impl TypeChecker {
                             diag_name.clone(),
                             self.type_to_string_(
                                 left_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?
                         ])
@@ -441,7 +447,7 @@ impl TypeChecker {
 
     pub(super) fn is_this_property_access_in_constructor(
         &self,
-        node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
+        node: Id<Node>, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
         prop: Id<Symbol>,
     ) -> io::Result<bool> {
         Ok((self.is_constructor_declared_property(prop)?
@@ -457,10 +463,10 @@ impl TypeChecker {
 
     pub(super) fn check_property_access_expression_or_qualified_name(
         &self,
-        node: &Node, /*PropertyAccessExpression | QualifiedName*/
-        left: &Node, /*Expression | QualifiedName*/
+        node: Id<Node>, /*PropertyAccessExpression | QualifiedName*/
+        left: Id<Node>, /*Expression | QualifiedName*/
         left_type: Id<Type>,
-        right: &Node, /*Identifier | PrivateIdentifier*/
+        right: Id<Node>, /*Identifier | PrivateIdentifier*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let parent_symbol = (*self.get_node_links(left))
@@ -647,7 +653,7 @@ impl TypeChecker {
                                     .to_owned(),
                                     self.type_to_string_(
                                         left_type,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                     )?,
@@ -660,7 +666,7 @@ impl TypeChecker {
                                 Some(vec![
                                     self.type_to_string_(
                                         left_type,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None, None,
                                     )?
                                 ])
@@ -691,7 +697,7 @@ impl TypeChecker {
                         &Diagnostics::Index_signature_in_type_0_only_permits_reading,
                         Some(vec![self.type_to_string_(
                             apparent_type,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?]),
@@ -825,10 +831,10 @@ impl TypeChecker {
 
     pub(super) fn get_flow_type_of_access_expression(
         &self,
-        node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
+        node: Id<Node>, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
         prop: Option<Id<Symbol>>,
         mut prop_type: Id<Type>,
-        error_node: &Node,
+        error_node: Id<Node>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let assignment_kind = get_assignment_target_kind(node);
@@ -895,7 +901,7 @@ impl TypeChecker {
             } else {
                 prop_type.clone()
             }),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )?;
         if assume_uninitialized
             && !self
@@ -910,7 +916,7 @@ impl TypeChecker {
                 &Diagnostics::Property_0_is_used_before_being_assigned,
                 Some(vec![self.symbol_to_string_(
                     prop.unwrap(),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                     None,
@@ -928,8 +934,8 @@ impl TypeChecker {
     pub(super) fn check_property_not_used_before_declaration(
         &self,
         prop: Id<Symbol>,
-        node: &Node,  /*PropertyAccessExpression | QualifiedName*/
-        right: &Node, /*Identifier | PrivateIdentifier*/
+        node: Id<Node>,  /*PropertyAccessExpression | QualifiedName*/
+        right: Id<Node>, /*Identifier | PrivateIdentifier*/
     ) -> io::Result<()> {
         let value_declaration = prop.ref_(self).maybe_value_declaration();
         if value_declaration.is_none()
@@ -985,8 +991,8 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn is_in_property_initializer_or_class_static_block(&self, node: &Node) -> bool {
-        find_ancestor(Some(node), |node: &Node| match node.kind() {
+    pub(super) fn is_in_property_initializer_or_class_static_block(&self, node: Id<Node>) -> bool {
+        find_ancestor(Some(node), |node: Id<Node>| match node.kind() {
             SyntaxKind::PropertyDeclaration => true.into(),
             SyntaxKind::PropertyAssignment
             | SyntaxKind::MethodDeclaration
@@ -1080,7 +1086,7 @@ impl TypeChecker {
 
     pub(super) fn report_nonexistent_property(
         &self,
-        prop_node: &Node, /*Identifier | PrivateIdentifier*/
+        prop_node: Id<Node>, /*Identifier | PrivateIdentifier*/
         containing_type: Id<Type>,
         is_unchecked_js: bool,
     ) -> io::Result<()> {
@@ -1112,7 +1118,7 @@ impl TypeChecker {
                         &Diagnostics::Property_0_does_not_exist_on_type_1,
                         Some(vec![
                             declaration_name_to_string(Some(prop_node)).into_owned(),
-                            self.type_to_string_(subtype, Option::<&Node>::None, None, None)?,
+                            self.type_to_string_(subtype, Option::<Id<Node>>::None, None, None)?,
                         ]),
                     ));
                     break;
@@ -1124,7 +1130,7 @@ impl TypeChecker {
         {
             let prop_name = declaration_name_to_string(Some(prop_node)).into_owned();
             let type_name =
-                self.type_to_string_(containing_type, Option::<&Node>::None, None, None)?;
+                self.type_to_string_(containing_type, Option::<Id<Node>>::None, None, None)?;
             error_info = Some(chain_diagnostic_messages(
                 error_info,
                 &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
@@ -1136,7 +1142,7 @@ impl TypeChecker {
             ));
         } else {
             let promised_type =
-                self.get_promised_type_of_promise(containing_type, Option::<&Node>::None)?;
+                self.get_promised_type_of_promise(containing_type, Option::<Id<Node>>::None)?;
             if matches!(
                 promised_type,
                 Some(promised_type) if self.get_property_of_type_(
@@ -1150,7 +1156,12 @@ impl TypeChecker {
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
                         declaration_name_to_string(Some(prop_node)).into_owned(),
-                        self.type_to_string_(containing_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(
+                            containing_type,
+                            Option::<Id<Node>>::None,
+                            None,
+                            None,
+                        )?,
                     ]),
                 ));
                 related_info = Some(Gc::new(
@@ -1164,7 +1175,7 @@ impl TypeChecker {
             } else {
                 let missing_property = declaration_name_to_string(Some(prop_node)).into_owned();
                 let container =
-                    self.type_to_string_(containing_type, Option::<&Node>::None, None, None)?;
+                    self.type_to_string_(containing_type, Option::<Id<Node>>::None, None, None)?;
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
                     &missing_property,
                     containing_type,

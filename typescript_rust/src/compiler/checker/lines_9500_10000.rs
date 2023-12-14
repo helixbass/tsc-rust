@@ -256,7 +256,7 @@ impl TypeChecker {
                 &Diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
                 Some(vec![self.symbol_to_string_(
                     symbol,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                     None,
@@ -275,7 +275,7 @@ impl TypeChecker {
                 symbol.ref_(self).maybe_value_declaration(),
                 &Diagnostics::_0_implicitly_has_type_any_because_it_does_not_have_a_type_annotation_and_is_referenced_directly_or_indirectly_in_its_own_initializer,
                 Some(vec![
-                    self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
+                    self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?
                 ])
             );
         }
@@ -835,7 +835,7 @@ impl TypeChecker {
                     type_.ref_(self).symbol().ref_(self).maybe_value_declaration(),
                     &Diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_base_expression,
                     Some(vec![
-                        self.symbol_to_string_(type_.ref_(self).symbol(), Option::<&Node>::None, None, None, None)?
+                        self.symbol_to_string_(type_.ref_(self).symbol(), Option::<Id<Node>>::None, None, None, None)?
                     ])
                 );
                 let ret = self.error_type();
@@ -859,7 +859,7 @@ impl TypeChecker {
                     &Diagnostics::Type_0_is_not_a_constructor_function_type,
                     Some(vec![self.type_to_string_(
                         base_constructor_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?]),
@@ -885,8 +885,8 @@ impl TypeChecker {
                         add_related_info(
                             &err,
                             vec![create_diagnostic_for_node(&base_constructor_type_symbol_declarations[0], &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1, Some(vec![
-                                        self.symbol_to_string_(base_constructor_type.ref_(self).symbol(), Option::<&Node>::None, None, None, None)?,
-                                        self.type_to_string_(ctor_return, Option::<&Node>::None, None, None)?
+                                        self.symbol_to_string_(base_constructor_type.ref_(self).symbol(), Option::<Id<Node>>::None, None, None, None)?,
+                                        self.type_to_string_(ctor_return, Option::<Id<Node>>::None, None, None)?
                                     ])).into()]
                         );
                     }
@@ -941,7 +941,7 @@ impl TypeChecker {
             &Diagnostics::Type_0_recursively_references_itself_as_a_base_type,
             Some(vec![self.type_to_string_(
                 type_,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 Some(TypeFormatFlags::WriteArrayAsGenericType),
                 None,
             )?]),
@@ -1041,7 +1041,7 @@ impl TypeChecker {
                             t,
                             self.number_type(),
                             None,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             Option::<Id<Symbol>>::None,
                             None,
                         )?
@@ -1153,7 +1153,7 @@ impl TypeChecker {
                 elaboration,
                 &Diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
                 Some(vec![
-                    self.type_to_string_(reduced_base_type, Option::<&Node>::None, None, None)?
+                    self.type_to_string_(reduced_base_type, Option::<Id<Node>>::None, None, None)?
                 ])
             );
             self.diagnostics().add(Gc::new(
@@ -1179,7 +1179,7 @@ impl TypeChecker {
                 &Diagnostics::Type_0_recursively_references_itself_as_a_base_type,
                 Some(vec![self.type_to_string_(
                     type_,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Some(TypeFormatFlags::WriteArrayAsGenericType),
                     None,
                 )?]),

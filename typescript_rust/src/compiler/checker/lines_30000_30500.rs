@@ -22,7 +22,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_candidate_for_overload_failure(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         candidates: &mut Vec<Gc<Signature>>,
         args: &[Id<Node /*Expression*/>],
         has_candidates_out_array: bool,
@@ -184,7 +184,7 @@ impl TypeChecker {
 
     pub(super) fn pick_longest_candidate_signature(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         candidates: &mut Vec<Gc<Signature>>,
         args: &[Id<Node /*Expression*/>],
     ) -> io::Result<Gc<Signature>> {
@@ -253,7 +253,7 @@ impl TypeChecker {
 
     pub(super) fn infer_signature_instantiation_for_overload_failure(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         type_parameters: &[Id<Type /*TypeParameter*/>],
         candidate: Gc<Signature>,
         args: &[Id<Node /*Expression*/>],
@@ -309,7 +309,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_call_expression(
         &self,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
@@ -368,7 +368,7 @@ impl TypeChecker {
         func_type = self.check_non_null_type_with_reporter(
             func_type,
             &node_as_call_expression.expression,
-            |node: &Node, flags: TypeFlags| {
+            |node: Id<Node>, flags: TypeFlags| {
                 self.report_cannot_invoke_possibly_null_or_undefined_error(node, flags)
             },
         )?;
@@ -411,7 +411,7 @@ impl TypeChecker {
                     &Diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
                     Some(vec![self.type_to_string_(
                         func_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?]),
@@ -470,7 +470,7 @@ impl TypeChecker {
                 &Diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
                 Some(vec![self.type_to_string_(
                     func_type,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                 )?]),
@@ -526,7 +526,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_new_expression(
         &self,
-        node: &Node, /*NewExpression*/
+        node: Id<Node>, /*NewExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
@@ -711,7 +711,7 @@ impl TypeChecker {
 
     pub(super) fn is_constructor_accessible(
         &self,
-        node: &Node, /*NewExpression*/
+        node: Id<Node>, /*NewExpression*/
         signature: &Signature,
     ) -> io::Result<bool> {
         if
@@ -755,7 +755,7 @@ impl TypeChecker {
                     Some(vec![
                         self.type_to_string_(
                             declaring_class,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?
                     ])
@@ -768,7 +768,7 @@ impl TypeChecker {
                     Some(vec![
                         self.type_to_string_(
                             declaring_class,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?
                     ])
@@ -782,14 +782,14 @@ impl TypeChecker {
 
     pub(super) fn invocation_error_details(
         &self,
-        error_target: &Node,
+        error_target: Id<Node>,
         apparent_type: Id<Type>,
         kind: SignatureKind,
     ) -> io::Result<InvocationErrorDetails> {
         let mut error_info: Option<DiagnosticMessageChain> = None;
         let is_call = kind == SignatureKind::Call;
         let awaited_type =
-            self.get_awaited_type_(apparent_type, Option::<&Node>::None, None, None)?;
+            self.get_awaited_type_(apparent_type, Option::<Id<Node>>::None, None, None)?;
         let maybe_missing_await = matches!(
             awaited_type,
             Some(awaited_type) if !self.get_signatures_of_type(awaited_type, kind)?.is_empty()
@@ -819,7 +819,7 @@ impl TypeChecker {
                             },
                             Some(vec![self.type_to_string_(
                                 constituent,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?]),
@@ -833,7 +833,7 @@ impl TypeChecker {
                             },
                             Some(vec![self.type_to_string_(
                                 apparent_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?]),
@@ -854,7 +854,7 @@ impl TypeChecker {
                     },
                     Some(vec![self.type_to_string_(
                         apparent_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?]),
@@ -870,7 +870,7 @@ impl TypeChecker {
                     },
                     Some(vec![self.type_to_string_(
                         apparent_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?]),
@@ -886,7 +886,7 @@ impl TypeChecker {
                 },
                 Some(vec![self.type_to_string_(
                     apparent_type,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                 )?]),

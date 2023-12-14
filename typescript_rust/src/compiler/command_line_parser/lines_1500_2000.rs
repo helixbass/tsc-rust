@@ -970,16 +970,16 @@ pub(crate) trait JsonConversionNotifier {
     fn on_set_valid_option_key_value_in_root(
         &self,
         key: &str,
-        key_node: &Node, /*PropertyName*/
+        key_node: Id<Node>, /*PropertyName*/
         value: Option<&serde_json::Value>,
-        value_node: &Node, /*Expression*/
+        value_node: Id<Node>, /*Expression*/
     ) -> io::Result<()>;
     fn on_set_unknown_option_key_value_in_root(
         &self,
         key: &str,
-        key_node: &Node, /*PropertyName*/
+        key_node: Id<Node>, /*PropertyName*/
         value: Option<&serde_json::Value>,
-        value_node: &Node, /*Expression*/
+        value_node: Id<Node>, /*Expression*/
     );
 }
 
@@ -998,9 +998,9 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
     fn on_set_valid_option_key_value_in_root(
         &self,
         _key: &str,
-        _key_node: &Node, /*PropertyName*/
+        _key_node: Id<Node>, /*PropertyName*/
         _value: Option<&serde_json::Value>,
-        _value_node: &Node, /*Expression*/
+        _value_node: Id<Node>, /*Expression*/
     ) -> io::Result<()> {
         unimplemented!()
     }
@@ -1008,16 +1008,16 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
     fn on_set_unknown_option_key_value_in_root(
         &self,
         _key: &str,
-        _key_node: &Node, /*PropertyName*/
+        _key_node: Id<Node>, /*PropertyName*/
         _value: Option<&serde_json::Value>,
-        _value_node: &Node, /*Expression*/
+        _value_node: Id<Node>, /*Expression*/
     ) {
         unimplemented!()
     }
 }
 
 pub(super) fn convert_config_file_to_object(
-    source_file: &Node, /*JsonSourceFile*/
+    source_file: Id<Node>, /*JsonSourceFile*/
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     report_options_errors: bool,
     options_iterator: Option<&impl JsonConversionNotifier>,
@@ -1082,7 +1082,7 @@ pub(super) fn convert_config_file_to_object(
 }
 
 pub fn convert_to_object(
-    source_file: &Node, /*JsonSourceFile*/
+    source_file: Id<Node>, /*JsonSourceFile*/
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
 ) -> io::Result<Option<serde_json::Value>> {
     convert_to_object_worker(
@@ -1100,7 +1100,7 @@ pub fn convert_to_object(
 }
 
 pub(crate) fn convert_to_object_worker(
-    source_file: &Node, /*JsonSourceFile*/
+    source_file: Id<Node>, /*JsonSourceFile*/
     root_expression: Option<impl Borrow<Node>>,
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     return_value: bool,

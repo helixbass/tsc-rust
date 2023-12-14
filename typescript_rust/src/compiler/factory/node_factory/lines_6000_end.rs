@@ -27,7 +27,7 @@ use crate::{
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn update_modifiers(
         &self,
-        node: &Node, /*HasModifiers*/
+        node: Id<Node>, /*HasModifiers*/
         modifiers: impl Into<VecNodeOrModifierFlags>,
     ) -> Id<Node> {
         let modifiers = modifiers.into();
@@ -375,14 +375,14 @@ impl From<Id<Node>> for SyntaxKindOrRcNode {
     }
 }
 
-pub(super) fn update_without_original(updated: Id<Node>, original: &Node) -> Id<Node> {
+pub(super) fn update_without_original(updated: Id<Node>, original: Id<Node>) -> Id<Node> {
     if !ptr::eq(&*updated, original) {
         set_text_range(&*updated, Some(original));
     }
     updated
 }
 
-pub(super) fn update_with_original(updated: Id<Node>, original: &Node) -> Id<Node> {
+pub(super) fn update_with_original(updated: Id<Node>, original: Id<Node>) -> Id<Node> {
     if !ptr::eq(&*updated, original) {
         set_original_node(updated.clone(), Some(original.node_wrapper()));
         set_text_range(&*updated, Some(original));
@@ -496,12 +496,12 @@ pub(super) fn get_cooked_text(
     })
 }
 
-pub(super) fn propagate_identifier_name_flags(node: &Node /*Identifier*/) -> TransformFlags {
+pub(super) fn propagate_identifier_name_flags(node: Id<Node>, /*Identifier*/) -> TransformFlags {
     propagate_child_flags(Some(node)) & !TransformFlags::ContainsPossibleTopLevelAwait
 }
 
 pub(super) fn propagate_property_name_flags_of_child(
-    node: &Node, /*PropertyName*/
+    node: Id<Node>, /*PropertyName*/
     transform_flags: TransformFlags,
 ) -> TransformFlags {
     transform_flags | (node.transform_flags() & TransformFlags::PropertyNamePropagatingFlags)

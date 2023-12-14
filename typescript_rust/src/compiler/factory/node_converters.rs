@@ -37,7 +37,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 {
     fn convert_to_function_block(
         &self,
-        node: &Node, /*ConciseBody*/
+        node: Id<Node>, /*ConciseBody*/
         multi_line: Option<bool>,
     ) -> Id<Node /*Block*/> {
         if is_block(node) {
@@ -56,7 +56,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_function_expression(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> Id<Node /*FunctionExpression*/> {
         let node_as_function_declaration = node.as_function_declaration();
         if node_as_function_declaration.maybe_body().is_none() {
@@ -87,7 +87,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_array_assignment_element(
         &self,
-        element: &Node, /*ArrayBindingOrAssignmentElement*/
+        element: Id<Node>, /*ArrayBindingOrAssignmentElement*/
     ) -> Id<Node /*Expression*/> {
         if is_binding_element(element) {
             let element_as_binding_element = element.as_binding_element();
@@ -123,7 +123,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_object_assignment_element(
         &self,
-        element: &Node, /*ObjectBindingOrAssignmentElement*/
+        element: Id<Node>, /*ObjectBindingOrAssignmentElement*/
     ) -> Id<Node /*ObjectLiteralElementLike*/> {
         if is_binding_element(element) {
             let element_as_binding_element = element.as_binding_element();
@@ -177,7 +177,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_assignment_pattern(
         &self,
-        node: &Node, /*BindingOrAssignmentPattern*/
+        node: Id<Node>, /*BindingOrAssignmentPattern*/
     ) -> Id<Node /*AssignmentPattern*/> {
         match node.kind() {
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ArrayLiteralExpression => {
@@ -192,7 +192,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_object_assignment_pattern(
         &self,
-        node: &Node, /*ObjectBindingOrAssignmentPattern*/
+        node: Id<Node>, /*ObjectBindingOrAssignmentPattern*/
     ) -> Id<Node /*ObjectLiteralExpression*/> {
         if is_object_binding_pattern(node) {
             let node_as_object_binding_pattern = node.as_object_binding_pattern();
@@ -212,7 +212,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_array_assignment_pattern(
         &self,
-        node: &Node, /*ArrayBindingOrAssignmentPattern*/
+        node: Id<Node>, /*ArrayBindingOrAssignmentPattern*/
     ) -> Id<Node /*ArrayLiteralExpression*/> {
         if is_array_binding_pattern(node) {
             let node_as_array_binding_pattern = node.as_array_binding_pattern();
@@ -232,7 +232,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_assignment_element_target(
         &self,
-        node: &Node, /*BindingOrAssignmentElementTarget*/
+        node: Id<Node>, /*BindingOrAssignmentElementTarget*/
     ) -> Id<Node /*Expression*/> {
         if is_binding_pattern(Some(node)) {
             return self.convert_to_assignment_pattern(node);
@@ -265,7 +265,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 {
     fn convert_to_function_block(
         &self,
-        _node: &Node, /*ConciseBody*/
+        _node: Id<Node>, /*ConciseBody*/
         _multi_line: Option<bool>,
     ) -> Id<Node /*Block*/> {
         unimplemented!()
@@ -273,49 +273,49 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 
     fn convert_to_function_expression(
         &self,
-        _node: &Node, /*FunctionDeclaration*/
+        _node: Id<Node>, /*FunctionDeclaration*/
     ) -> Id<Node /*FunctionExpression*/> {
         unimplemented!()
     }
 
     fn convert_to_array_assignment_element(
         &self,
-        _element: &Node, /*ArrayBindingOrAssignmentElement*/
+        _element: Id<Node>, /*ArrayBindingOrAssignmentElement*/
     ) -> Id<Node /*Expression*/> {
         unimplemented!()
     }
 
     fn convert_to_object_assignment_element(
         &self,
-        _element: &Node, /*ObjectBindingOrAssignmentElement*/
+        _element: Id<Node>, /*ObjectBindingOrAssignmentElement*/
     ) -> Id<Node /*ObjectLiteralElementLike*/> {
         unimplemented!()
     }
 
     fn convert_to_assignment_pattern(
         &self,
-        _node: &Node, /*BindingOrAssignmentPattern*/
+        _node: Id<Node>, /*BindingOrAssignmentPattern*/
     ) -> Id<Node /*AssignmentPattern*/> {
         unimplemented!()
     }
 
     fn convert_to_object_assignment_pattern(
         &self,
-        _node: &Node, /*ObjectBindingOrAssignmentPattern*/
+        _node: Id<Node>, /*ObjectBindingOrAssignmentPattern*/
     ) -> Id<Node /*ObjectLiteralExpression*/> {
         unimplemented!()
     }
 
     fn convert_to_array_assignment_pattern(
         &self,
-        _node: &Node, /*ArrayBindingOrAssignmentPattern*/
+        _node: Id<Node>, /*ArrayBindingOrAssignmentPattern*/
     ) -> Id<Node /*ArrayLiteralExpression*/> {
         unimplemented!()
     }
 
     fn convert_to_assignment_element_target(
         &self,
-        _node: &Node, /*BindingOrAssignmentElementTarget*/
+        _node: Id<Node>, /*BindingOrAssignmentElementTarget*/
     ) -> Id<Node /*Expression*/> {
         unimplemented!()
     }

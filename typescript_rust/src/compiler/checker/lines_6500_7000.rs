@@ -36,14 +36,14 @@ use crate::{
 impl NodeBuilder {
     pub(super) fn get_effective_dot_dot_dot_for_parameter(
         &self,
-        _p: &Node, /*ParameterDeclaration*/
+        _p: Id<Node>, /*ParameterDeclaration*/
     ) -> Option<Id<Node>> {
         unimplemented!()
     }
 
     pub(super) fn get_name_for_jsdoc_function_parameter(
         &self,
-        _p: &Node, /*ParameterDeclaration*/
+        _p: Id<Node>, /*ParameterDeclaration*/
         _index: usize,
     ) -> Option<Id<Node>> {
         unimplemented!()
@@ -263,7 +263,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn get_names_of_declaration(
         &self,
-        statement: &Node, /*Statement*/
+        statement: Id<Node>, /*Statement*/
     ) -> Vec<Id<Node /*Identifier*/>> {
         if is_variable_statement(statement) {
             return statement
@@ -624,7 +624,7 @@ impl SymbolTableToDeclarationStatements {
         statements
     }
 
-    pub(super) fn can_have_export_modifier(&self, node: &Node /*Statement*/) -> bool {
+    pub(super) fn can_have_export_modifier(&self, node: Id<Node> /*Statement*/) -> bool {
         is_enum_declaration(node)
             || is_variable_statement(node)
             || is_function_declaration(node)
@@ -638,7 +638,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn add_export_modifier(
         &self,
-        node: &Node, /*Extract<HasModifiers, Statement>*/
+        node: Id<Node>, /*Extract<HasModifiers, Statement>*/
     ) -> Id<Node> {
         let flags =
             (get_effective_modifier_flags(node) | ModifierFlags::Export) & !ModifierFlags::Ambient;
@@ -647,7 +647,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn remove_export_modifier(
         &self,
-        node: &Node, /*Extract<HasModifiers, Statement>*/
+        node: Id<Node>, /*Extract<HasModifiers, Statement>*/
     ) -> Id<Node> {
         let flags = get_effective_modifier_flags(node) & !ModifierFlags::Export;
         get_factory().update_modifiers(node, flags)
@@ -716,7 +716,7 @@ impl SymbolTableToDeclarationStatements {
                     .unwrap()
                     .iter()
                     .any(|d| {
-                        find_ancestor(Some(&**d), |n: &Node| {
+                        find_ancestor(Some(&**d), |n: Id<Node>| {
                             ptr::eq(n, &*self.enclosing_declaration)
                         })
                         .is_some()
@@ -1271,7 +1271,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
 
     fn track_referenced_ambient_module(
         &self,
-        decl: &Node, /*ModuleDeclaration*/
+        decl: Id<Node>, /*ModuleDeclaration*/
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
         self.oldcontext_tracker
@@ -1285,7 +1285,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
 
     fn report_nonlocal_augmentation(
         &self,
-        containing_file: &Node, /*SourceFile*/
+        containing_file: Id<Node>, /*SourceFile*/
         parent_symbol: Id<Symbol>,
         augmenting_symbol: Id<Symbol>,
     ) {

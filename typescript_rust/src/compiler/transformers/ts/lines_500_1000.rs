@@ -24,7 +24,7 @@ use crate::{
 impl TransformTypeScript {
     pub(super) fn visit_source_file(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
         let always_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
             && !(is_external_module(node) && self.module_kind >= ModuleKind::ES2015)
@@ -34,15 +34,15 @@ impl TransformTypeScript {
             node,
             try_visit_lexical_environment_full(
                 &node.as_source_file().statements(),
-                |node: &Node| self.source_element_visitor(node),
+                |node: Id<Node>| self.source_element_visitor(node),
                 &**self.context,
                 Some(0),
                 Some(always_strict),
                 Option::<
                     fn(
                         Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                        Option<&dyn Fn(Id<Node>) -> bool>,
                         Option<usize>,
                         Option<usize>,
                     ) -> io::Result<Option<Gc<NodeArray>>>,
@@ -58,7 +58,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_class_facts(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
         static_properties: &[Id<Node /*PropertyDeclaration*/>],
     ) -> ClassFacts {
         let mut facts = ClassFacts::None;
@@ -81,7 +81,7 @@ impl TransformTypeScript {
         if class_or_constructor_parameter_is_decorated(node) {
             facts |= ClassFacts::HasConstructorDecorators;
         }
-        if child_is_decorated(node, Option::<&Node>::None) {
+        if child_is_decorated(node, Option::<Id<Node>>::None) {
             facts |= ClassFacts::HasMemberDecorators;
         }
         if self.is_export_of_namespace(node) {
@@ -99,14 +99,14 @@ impl TransformTypeScript {
         facts
     }
 
-    pub(super) fn has_type_script_class_syntax(&self, node: &Node) -> bool {
+    pub(super) fn has_type_script_class_syntax(&self, node: Id<Node>) -> bool {
         node.transform_flags()
             .intersects(TransformFlags::ContainsTypeScriptClassSyntax)
     }
 
     pub(super) fn is_class_like_declaration_with_type_script_syntax(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         some(
@@ -130,7 +130,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_class_declaration(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
         #[allow(clippy::nonminimal_bool)]
@@ -140,7 +140,7 @@ impl TransformTypeScript {
         {
             return Ok(try_maybe_visit_each_child(
                 Some(node),
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
             .map(Into::into));
@@ -270,7 +270,7 @@ impl TransformTypeScript {
 
     pub(super) fn create_class_declaration_head_without_decorators(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
         name: Option<impl Borrow<Node /*Identifier*/>>,
         facts: ClassFacts,
     ) -> io::Result<Id<Node>> {
@@ -279,7 +279,7 @@ impl TransformTypeScript {
             .then_and(|| {
                 maybe_visit_nodes(
                     node.maybe_modifiers().as_deref(),
-                    Some(|node: &Node| self.modifier_visitor(node)),
+                    Some(|node: Id<Node>| self.modifier_visitor(node)),
                     Some(is_modifier),
                     None,
                     None,
@@ -295,7 +295,7 @@ impl TransformTypeScript {
                 node_as_class_declaration
                     .maybe_heritage_clauses()
                     .as_deref(),
-                Some(|node: &Node| self.visitor(node)),
+                Some(|node: Id<Node>| self.visitor(node)),
                 Some(is_heritage_clause),
                 None,
                 None,
@@ -316,7 +316,7 @@ impl TransformTypeScript {
 
     pub(super) fn create_class_declaration_head_with_decorators(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
         name: Option<impl Borrow<Node /*Identifier*/>>,
     ) -> io::Result<Id<Node>> {
         let node_as_class_declaration = node.as_class_declaration();
@@ -334,7 +334,7 @@ impl TransformTypeScript {
             node_as_class_declaration
                 .maybe_heritage_clauses()
                 .as_deref(),
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_heritage_clause),
             None,
             None,
@@ -379,11 +379,15 @@ impl TransformTypeScript {
 
     pub(super) fn visit_class_expression(
         &self,
-        node: &Node, /*ClassExpression*/
+        node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<Id<Node /*<Expression>*/>> {
         let node_as_class_expression = node.as_class_expression();
         if !self.is_class_like_declaration_with_type_script_syntax(node) {
-            return try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
+            return try_visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &**self.context,
+            );
         }
 
         Ok(self
@@ -395,7 +399,7 @@ impl TransformTypeScript {
                 Option::<Gc<NodeArray>>::None,
                 try_maybe_visit_nodes(
                     node_as_class_expression.maybe_heritage_clauses().as_deref(),
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_heritage_clause),
                     None,
                     None,
@@ -408,7 +412,7 @@ impl TransformTypeScript {
 
     pub(super) fn transform_class_members(
         &self,
-        node: &Node, /*ClassDeclaration | ClassExpression*/
+        node: Id<Node>, /*ClassDeclaration | ClassExpression*/
     ) -> io::Result<Gc<NodeArray>> {
         let mut members: Vec<Id<Node /*ClassElement*/>> = Default::default();
         let constructor = get_first_constructor_with_body(node);
@@ -444,7 +448,7 @@ impl TransformTypeScript {
             &mut members,
             Some(&try_visit_nodes(
                 &node_as_class_like_declaration.members(),
-                Some(|node: &Node| self.class_element_visitor(node)),
+                Some(|node: Id<Node>| self.class_element_visitor(node)),
                 Some(is_class_element),
                 None,
                 None,
@@ -460,7 +464,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_decorated_class_elements<'self_and_node>(
         &'self_and_node self,
-        node: &'self_and_node Node, /*ClassExpression | ClassDeclaration*/
+        node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         is_static: bool,
     ) -> impl Iterator<Item = Id<Node /*ClassElement*/>> + 'self_and_node {
         node.as_class_like_declaration()
@@ -477,27 +481,27 @@ impl TransformTypeScript {
 
     pub(super) fn is_static_decorated_class_element(
         &self,
-        member: &Node, /*ClassElement*/
-        parent: &Node, /*ClassLikeDeclaration*/
+        member: Id<Node>, /*ClassElement*/
+        parent: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
         self.is_decorated_class_element(member, true, parent)
     }
 
     pub(super) fn is_instance_decorated_class_element(
         &self,
-        member: &Node, /*ClassElement*/
-        parent: &Node, /*ClassLikeDeclaration*/
+        member: Id<Node>, /*ClassElement*/
+        parent: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
         self.is_decorated_class_element(member, false, parent)
     }
 
     pub(super) fn is_decorated_class_element(
         &self,
-        member: &Node, /*ClassElement*/
+        member: Id<Node>, /*ClassElement*/
         is_static_element: bool,
-        parent: &Node, /*ClassLikeDeclaration*/
+        parent: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
-        node_or_child_is_decorated(member, Some(parent), Option::<&Node>::None)
+        node_or_child_is_decorated(member, Some(parent), Option::<Id<Node>>::None)
             && is_static_element == is_static(member)
     }
 
@@ -507,7 +511,7 @@ impl TransformTypeScript {
     ) -> Option<Vec<Option<NodeArrayOrVec>>> {
         let mut decorators: Option<Vec<Option<NodeArrayOrVec /*Decorator*/>>> = Default::default();
         if let Some(node) = node {
-            let node: &Node = node.borrow();
+            let node: Id<Node> = node.borrow();
             let node_as_function_like_declaration = node.as_function_like_declaration();
             let parameters = node_as_function_like_declaration.parameters();
             let first_parameter_is_this =
@@ -532,7 +536,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_all_decorators_of_constructor(
         &self,
-        node: &Node, /*ClassExpression | ClassDeclaration*/
+        node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> Option<AllDecorators> {
         let decorators = node.maybe_decorators();
         let parameters = self.get_decorators_of_parameters(get_first_constructor_with_body(node));

@@ -17,7 +17,7 @@ use crate::{
 impl TransformDeclarations {
     pub(super) fn transform_variable_statement(
         &self,
-        input: &Node, /*VariableStatement*/
+        input: Id<Node>, /*VariableStatement*/
     ) -> io::Result<Option<Id<Node>>> {
         let input_as_variable_statement = input.as_variable_statement();
         if !for_each_bool(
@@ -34,8 +34,8 @@ impl TransformDeclarations {
                 .declaration_list
                 .as_variable_declaration_list()
                 .declarations,
-            Some(|node: &Node| self.visit_declaration_subtree(node)),
-            Option::<fn(&Node) -> bool>::None,
+            Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+            Option::<fn(Id<Node>) -> bool>::None,
             None,
             None,
         )?));
@@ -59,7 +59,7 @@ impl TransformDeclarations {
 
     pub(super) fn recreate_binding_pattern(
         &self,
-        d: &Node, /*BindingPattern*/
+        d: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
         Ok(flatten(&try_map_defined(
             Some(&d.as_has_elements().elements()),
@@ -69,7 +69,7 @@ impl TransformDeclarations {
 
     pub(super) fn recreate_binding_element(
         &self,
-        e: &Node, /*ArrayBindingElement*/
+        e: Id<Node>, /*ArrayBindingElement*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         if e.kind() == SyntaxKind::OmittedExpression {
             return Ok(None);
@@ -94,7 +94,7 @@ impl TransformDeclarations {
 
     pub(super) fn check_name(
         &self,
-        node: &Node, /*DeclarationDiagnosticProducing*/
+        node: Id<Node>, /*DeclarationDiagnosticProducing*/
     ) -> io::Result<()> {
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
@@ -106,7 +106,7 @@ impl TransformDeclarations {
         self.set_error_name_node(node.as_named_declaration().maybe_name());
         Debug_.assert(
             self.resolver.is_late_bound(
-                &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
+                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
             )?,
             None,
         );
@@ -125,12 +125,12 @@ impl TransformDeclarations {
         Ok(())
     }
 
-    pub(super) fn should_strip_internal(&self, node: &Node) -> bool {
+    pub(super) fn should_strip_internal(&self, node: Id<Node>) -> bool {
         self.strip_internal == Some(true) &&
             /* !!node &&*/ is_internal_declaration(node, &self.current_source_file())
     }
 
-    pub(super) fn is_scope_marker(&self, node: &Node) -> bool {
+    pub(super) fn is_scope_marker(&self, node: Id<Node>) -> bool {
         is_export_assignment(node) || is_export_declaration(node)
     }
 
@@ -141,7 +141,7 @@ impl TransformDeclarations {
         )
     }
 
-    pub(super) fn ensure_modifiers(&self, node: &Node) -> Option<NodeArrayOrVec> {
+    pub(super) fn ensure_modifiers(&self, node: Id<Node>) -> Option<NodeArrayOrVec> {
         let current_flags = get_effective_modifier_flags(node);
         let new_flags = self.ensure_modifier_flags(node);
         if current_flags == new_flags {
@@ -154,7 +154,7 @@ impl TransformDeclarations {
         )
     }
 
-    pub(super) fn ensure_modifier_flags(&self, node: &Node) -> ModifierFlags {
+    pub(super) fn ensure_modifier_flags(&self, node: Id<Node>) -> ModifierFlags {
         let mut mask = ModifierFlags::All
             ^ (ModifierFlags::Public | ModifierFlags::Async | ModifierFlags::Override);
         let mut additions = if self.needs_declare() && !is_always_type(node) {
@@ -174,7 +174,7 @@ impl TransformDeclarations {
 
     pub(super) fn get_type_annotation_from_all_accessor_declarations(
         &self,
-        node: &Node, /*AccessorDeclaration*/
+        node: Id<Node>, /*AccessorDeclaration*/
         accessors: &AllAccessorDeclarations,
     ) -> Option<Id<Node>> {
         let mut accessor_type = get_type_annotation_from_accessor(node);
@@ -233,8 +233,8 @@ impl TransformDeclarations {
                                 ),
                                 None,
                             ),
-                            Some(|node: &Node| self.visit_declaration_subtree(node)),
-                            Option::<fn(&Node) -> bool>::None,
+                            Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                            Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
                         )?,
@@ -252,7 +252,7 @@ impl TransformDeclarations {
     }
 }
 
-pub(super) fn is_always_type(node: &Node) -> bool {
+pub(super) fn is_always_type(node: Id<Node>) -> bool {
     if node.kind() == SyntaxKind::InterfaceDeclaration {
         return true;
     }
@@ -260,7 +260,7 @@ pub(super) fn is_always_type(node: &Node) -> bool {
 }
 
 pub(super) fn mask_modifiers(
-    node: &Node,
+    node: Id<Node>,
     modifier_mask: Option<ModifierFlags>,
     modifier_additions: Option<ModifierFlags>,
 ) -> Vec<Id<Node /*Modifier*/>> {
@@ -272,7 +272,7 @@ pub(super) fn mask_modifiers(
 }
 
 pub(super) fn mask_modifier_flags(
-    node: &Node,
+    node: Id<Node>,
     modifier_mask: Option<ModifierFlags>,
     modifier_additions: Option<ModifierFlags>,
 ) -> ModifierFlags {
@@ -289,7 +289,7 @@ pub(super) fn mask_modifier_flags(
 }
 
 pub(super) fn get_type_annotation_from_accessor(
-    accessor: &Node, /*AccessorDeclaration*/
+    accessor: Id<Node>, /*AccessorDeclaration*/
 ) -> Option<Id<Node /*TypeNode*/>> {
     // if (accessor) {
     if accessor.kind() == SyntaxKind::GetAccessor {
@@ -307,7 +307,7 @@ pub(super) fn get_type_annotation_from_accessor(
     // }
 }
 
-pub(super) fn can_have_literal_initializer(node: &Node) -> bool {
+pub(super) fn can_have_literal_initializer(node: Id<Node>) -> bool {
     match node.kind() {
         SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => {
             !has_effective_modifier(node, ModifierFlags::Private)
@@ -317,7 +317,7 @@ pub(super) fn can_have_literal_initializer(node: &Node) -> bool {
     }
 }
 
-pub(super) fn is_preserved_declaration_statement(node: &Node) -> bool {
+pub(super) fn is_preserved_declaration_statement(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::FunctionDeclaration
@@ -334,7 +334,7 @@ pub(super) fn is_preserved_declaration_statement(node: &Node) -> bool {
     )
 }
 
-pub(super) fn is_processed_component(node: &Node) -> bool {
+pub(super) fn is_processed_component(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ConstructSignature

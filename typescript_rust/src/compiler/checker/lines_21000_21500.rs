@@ -386,14 +386,14 @@ impl TypeChecker {
                                 Some(vec![
                                     self.symbol_to_string_(
                                         p,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                         None,
                                     )?,
                                     self.type_to_string_(
                                         self.get_widened_type(t)?,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                     )?,
@@ -410,13 +410,13 @@ impl TypeChecker {
 
     pub(super) fn report_implicit_any(
         &self,
-        declaration: &Node, /*Declaration*/
+        declaration: Id<Node>, /*Declaration*/
         type_: Id<Type>,
         widening_kind: Option<WideningKind>,
     ) -> io::Result<()> {
         let type_as_string = self.type_to_string_(
             self.get_widened_type(type_)?,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
             None,
             None,
         )?;
@@ -608,7 +608,7 @@ impl TypeChecker {
 
     pub(super) fn report_errors_from_widening(
         &self,
-        declaration: &Node, /*Declaration*/
+        declaration: Id<Node>, /*Declaration*/
         type_: Id<Type>,
         widening_kind: Option<WideningKind>,
     ) -> io::Result<()> {
@@ -924,7 +924,7 @@ impl TypeChecker {
                     declaration.as_ref(),
                     Some(declaration) if find_ancestor(
                         declaration.maybe_parent(),
-                        |n: &Node| {
+                        |n: Id<Node>| {
                             if n.kind() == SyntaxKind::SourceFile {
                                 FindAncestorCallbackReturn::Bool(true)
                             } else if n.kind() == SyntaxKind::ModuleDeclaration {

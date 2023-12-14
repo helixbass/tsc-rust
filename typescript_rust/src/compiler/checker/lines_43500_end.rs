@@ -32,7 +32,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_es_module_marker(
         &self,
-        name: &Node, /*Identifier | BindingPattern*/
+        name: Id<Node>, /*Identifier | BindingPattern*/
     ) -> bool {
         if name.kind() == SyntaxKind::Identifier {
             if id_text(name) == "__esModule" {
@@ -56,7 +56,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_name_in_let_or_const_declarations(
         &self,
-        name: &Node, /*Identifier | BindingPattern*/
+        name: Id<Node>, /*Identifier | BindingPattern*/
     ) -> bool {
         if name.kind() == SyntaxKind::Identifier {
             if name.as_identifier().original_keyword_kind == Some(SyntaxKind::LetKeyword) {
@@ -81,7 +81,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_variable_declaration_list(
         &self,
-        declaration_list: &Node, /*VariableDeclarationList*/
+        declaration_list: Id<Node>, /*VariableDeclarationList*/
     ) -> bool {
         let declaration_list_as_variable_declaration_list =
             declaration_list.as_variable_declaration_list();
@@ -108,7 +108,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn allow_let_and_const_declarations(&self, parent: &Node) -> bool {
+    pub(super) fn allow_let_and_const_declarations(&self, parent: Id<Node>) -> bool {
         match parent.kind() {
             SyntaxKind::IfStatement
             | SyntaxKind::DoStatement
@@ -124,7 +124,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_for_disallowed_let_or_const_statement(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) -> bool {
         if !self.allow_let_and_const_declarations(&node.parent()) {
             let node_as_variable_statement = node.as_variable_statement();
@@ -145,7 +145,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_grammar_meta_property(&self, node: &Node /*MetaProperty*/) -> bool {
+    pub(super) fn check_grammar_meta_property(&self, node: Id<Node> /*MetaProperty*/) -> bool {
         let node_as_meta_property = node.as_meta_property();
         let escaped_text = &node_as_meta_property.name.as_identifier().escaped_text;
         match node_as_meta_property.keyword_token {
@@ -192,7 +192,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn has_parse_diagnostics(&self, source_file: &Node /*SourceFile*/) -> bool {
+    pub(super) fn has_parse_diagnostics(&self, source_file: Id<Node> /*SourceFile*/) -> bool {
         !(*source_file.as_source_file().parse_diagnostics())
             .borrow()
             .is_empty()
@@ -200,7 +200,7 @@ impl TypeChecker {
 
     pub(super) fn grammar_error_on_first_token(
         &self,
-        node: &Node,
+        node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
@@ -217,7 +217,7 @@ impl TypeChecker {
 
     pub(super) fn grammar_error_at_pos(
         &self,
-        node_for_source_file: &Node,
+        node_for_source_file: Id<Node>,
         start: isize,
         length: isize,
         message: &'static DiagnosticMessage,
@@ -236,7 +236,7 @@ impl TypeChecker {
     pub(super) fn grammar_error_on_node_skipped_on(
         &self,
         key: String, /*keyof CompilerOptions*/
-        node: &Node,
+        node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
@@ -250,7 +250,7 @@ impl TypeChecker {
 
     pub(super) fn grammar_error_on_node(
         &self,
-        node: &Node,
+        node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
@@ -265,7 +265,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_constructor_type_parameters(
         &self,
-        node: &Node, /*ConstructorDeclaration*/
+        node: Id<Node>, /*ConstructorDeclaration*/
     ) -> bool {
         let jsdoc_type_parameters = if is_in_js_file(Some(node)) {
             Some(get_jsdoc_type_parameter_declarations(node))
@@ -326,7 +326,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_constructor_type_annotation(
         &self,
-        node: &Node, /*ConstructorDeclaration*/
+        node: Id<Node>, /*ConstructorDeclaration*/
     ) -> bool {
         let type_ = get_effective_return_type_node(node);
         if let Some(type_) = type_.as_ref() {
@@ -341,7 +341,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_property(
         &self,
-        node: &Node, /*PropertyDeclaration | PropertySignature*/
+        node: Id<Node>, /*PropertyDeclaration | PropertySignature*/
     ) -> io::Result<bool> {
         let node_as_named_declaration = node.as_named_declaration();
         let node_name = node_as_named_declaration.name();
@@ -449,7 +449,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_top_level_element_for_required_declare_modifier(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> bool {
         if matches!(
             node.kind(),
@@ -476,7 +476,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_top_level_elements_for_required_declare_modifier(
         &self,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
     ) -> bool {
         for decl in &file.as_source_file().statements() {
             if is_declaration(decl) || decl.kind() == SyntaxKind::VariableStatement {
@@ -488,12 +488,12 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_grammar_source_file(&self, node: &Node /*SourceFile*/) -> bool {
+    pub(super) fn check_grammar_source_file(&self, node: Id<Node> /*SourceFile*/) -> bool {
         node.flags().intersects(NodeFlags::Ambient)
             && self.check_grammar_top_level_elements_for_required_declare_modifier(node)
     }
 
-    pub(super) fn check_grammar_statement_in_ambient_context(&self, node: &Node) -> bool {
+    pub(super) fn check_grammar_statement_in_ambient_context(&self, node: Id<Node>) -> bool {
         if node.flags().intersects(NodeFlags::Ambient) {
             let links = self.get_node_links(node);
             if (*links).borrow().has_reported_statement_in_ambient_context != Some(true)
@@ -531,7 +531,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_numeric_literal(
         &self,
-        node: &Node, /*NumericLiteral*/
+        node: Id<Node>, /*NumericLiteral*/
     ) -> bool {
         let node_as_numeric_literal = node.as_numeric_literal();
         if node_as_numeric_literal
@@ -573,7 +573,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_numeric_literal_value_size(&self, node: &Node /*NumericLiteral*/) {
+    pub(super) fn check_numeric_literal_value_size(&self, node: Id<Node> /*NumericLiteral*/) {
         let node_as_numeric_literal = node.as_numeric_literal();
         if node_as_numeric_literal
             .numeric_literal_flags
@@ -592,7 +592,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn check_grammar_big_int_literal(&self, node: &Node /*BigIntLiteral*/) -> bool {
+    pub(super) fn check_grammar_big_int_literal(&self, node: Id<Node> /*BigIntLiteral*/) -> bool {
         let literal_type = is_literal_type_node(&node.parent())
             || is_prefix_unary_expression(&node.parent())
                 && is_literal_type_node(&node.parent().parent());
@@ -612,7 +612,7 @@ impl TypeChecker {
 
     pub(super) fn grammar_error_after_first_token(
         &self,
-        node: &Node,
+        node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
@@ -641,7 +641,7 @@ impl TypeChecker {
         self.ambient_modules_cache.borrow().clone().unwrap()
     }
 
-    pub(super) fn check_grammar_import_clause(&self, node: &Node /*ImportClause*/) -> bool {
+    pub(super) fn check_grammar_import_clause(&self, node: Id<Node> /*ImportClause*/) -> bool {
         let node_as_import_clause = node.as_import_clause();
         if node_as_import_clause.is_type_only
             && node_as_import_clause.name.is_some()
@@ -670,7 +670,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_named_imports_or_exports(
         &self,
-        named_bindings: &Node, /*NamedImportsOrExports*/
+        named_bindings: Id<Node>, /*NamedImportsOrExports*/
     ) -> bool {
         for_each_bool(
             &named_bindings.as_has_elements().elements(),
@@ -693,7 +693,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_import_call_expression(
         &self,
-        node: &Node, /*ImportCall*/
+        node: Id<Node>, /*ImportCall*/
     ) -> bool {
         if self.module_kind == ModuleKind::ES2015 {
             return self.grammar_error_on_node(
@@ -991,7 +991,7 @@ impl EmitResolverCreateResolver {
 
     pub(super) fn is_in_heritage_clause(
         &self,
-        node: &Node, /*PropertyAccessEntityNameExpression*/
+        node: Id<Node>, /*PropertyAccessEntityNameExpression*/
     ) -> bool {
         matches!(
             node.maybe_parent(),
@@ -1115,7 +1115,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     }
 
     fn is_value_alias_declaration(&self, node_in: &Node) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None);
         node.as_ref().try_map_or(false, |node| {
             self.type_checker.is_value_alias_declaration(node)
         })
@@ -1126,7 +1126,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         node_in: &Node,
         check_children: Option<bool>,
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None);
         node.as_ref().try_map_or(false, |node| {
             self.type_checker
                 .is_referenced_alias_declaration(node, check_children)
@@ -1142,7 +1142,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     }
 
     fn get_node_check_flags(&self, node_in: &Node) -> NodeCheckFlags {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None);
         node.as_ref().map_or(NodeCheckFlags::None, |node| {
             self.type_checker.get_node_check_flags(node)
         })
@@ -1152,8 +1152,8 @@ impl EmitResolver for EmitResolverCreateResolver {
         self.type_checker.is_declaration_visible(node)
     }
 
-    fn is_late_bound(&self, node: &Node /*Declaration*/) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+    fn is_late_bound(&self, node: Id<Node> /*Declaration*/) -> io::Result<bool> {
+        let node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
         let symbol = node
             .as_ref()
             .try_and_then(|node| self.type_checker.get_symbol_of_node(node))?;
@@ -1165,7 +1165,7 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn collect_linked_aliases(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
         set_visibility: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         self.type_checker
@@ -1174,21 +1174,21 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn is_implementation_of_overload(
         &self,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<bool>> {
         self.type_checker.is_implementation_of_overload(node)
     }
 
     fn is_required_initialized_parameter(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
         self.type_checker.is_required_initialized_parameter(node)
     }
 
     fn is_optional_uninitialized_parameter_property(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
         self.type_checker
             .is_optional_uninitialized_parameter_property(node)
@@ -1196,14 +1196,14 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn is_expando_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<bool> {
         self.type_checker.is_expando_function_declaration(node)
     }
 
     fn get_properties_of_container_function(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> io::Result<Vec<Id<Symbol>>> {
         Ok(self
             .type_checker
@@ -1213,8 +1213,8 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn create_type_of_declaration(
         &self,
-        declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
-        enclosing_declaration: &Node,
+        declaration: Id<Node>, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
+        enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
@@ -1230,8 +1230,8 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn create_return_type_of_signature_declaration(
         &self,
-        signature_declaration: &Node, /*SignatureDeclaration*/
-        enclosing_declaration: &Node,
+        signature_declaration: Id<Node>, /*SignatureDeclaration*/
+        enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
@@ -1246,8 +1246,8 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn create_type_of_expression(
         &self,
-        expr: &Node, /*Expression*/
-        enclosing_declaration: &Node,
+        expr: Id<Node>, /*Expression*/
+        enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
@@ -1257,7 +1257,7 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn create_literal_const_value(
         &self,
-        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+        node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>> {
         self.type_checker.create_literal_const_value(node, tracker)
@@ -1266,7 +1266,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn is_symbol_accessible(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<&Node>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: Option<SymbolFlags>,
         should_compute_alias_to_mark_visible: bool,
     ) -> io::Result<SymbolAccessibilityResult> {
@@ -1280,8 +1280,8 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn is_entity_name_visible(
         &self,
-        entity_name: &Node, /*EntityNameOrEntityNameExpression*/
-        enclosing_declaration: &Node,
+        entity_name: Id<Node>, /*EntityNameOrEntityNameExpression*/
+        enclosing_declaration: Id<Node>,
     ) -> io::Result<SymbolVisibilityResult> {
         self.type_checker
             .is_entity_name_visible(entity_name, enclosing_declaration)
@@ -1289,11 +1289,11 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn get_constant_value(
         &self,
-        node_in: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
+        node_in: Id<Node>, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
     ) -> io::Result<Option<StringOrNumber>> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: &Node| self.type_checker.can_have_constant_value(node)),
+            Some(|node: Id<Node>| self.type_checker.can_have_constant_value(node)),
         );
         node.as_ref()
             .try_and_then(|node| self.type_checker.get_constant_value(node))
@@ -1301,7 +1301,7 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn get_referenced_value_declaration(
         &self,
-        reference: &Node, /*Identifier*/
+        reference: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         self.type_checker
             .get_referenced_value_declaration(reference)
@@ -1309,36 +1309,36 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn get_type_reference_serialization_kind(
         &self,
-        type_name: &Node, /*EntityName*/
-        location: Option<&Node>,
+        type_name: Id<Node>, /*EntityName*/
+        location: Option<Id<Node>>,
     ) -> io::Result<TypeReferenceSerializationKind> {
         self.type_checker
             .get_type_reference_serialization_kind(type_name, location)
     }
 
-    fn is_optional_parameter(&self, node: &Node /*ParameterDeclaration*/) -> io::Result<bool> {
+    fn is_optional_parameter(&self, node: Id<Node> /*ParameterDeclaration*/) -> io::Result<bool> {
         self.type_checker.is_optional_parameter(node)
     }
 
     fn module_exports_some_value(
         &self,
-        module_reference_expression: &Node, /*Expression*/
+        module_reference_expression: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         self.type_checker
             .module_exports_some_value(module_reference_expression)
     }
 
-    fn is_arguments_local_binding(&self, node: &Node /*Identifier*/) -> io::Result<bool> {
+    fn is_arguments_local_binding(&self, node: Id<Node> /*Identifier*/) -> io::Result<bool> {
         self.type_checker.is_arguments_local_binding(node)
     }
 
     fn get_external_module_file_from_declaration(
         &self,
-        node_in: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
+        node_in: Id<Node>, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: &Node| has_possible_external_module_reference(node)),
+            Some(|node: Id<Node>| has_possible_external_module_reference(node)),
         );
         node.as_ref().try_and_then(|node| {
             self.type_checker
@@ -1348,7 +1348,7 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn get_type_reference_directives_for_entity_name(
         &self,
-        node: &Node, /*EntityNameOrEntityNameExpression*/
+        node: Id<Node>, /*EntityNameOrEntityNameExpression*/
     ) -> io::Result<Option<Vec<String>>> {
         // if (!fileToDirective) {
         //     return undefined;
@@ -1366,7 +1366,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             meaning,
             Some(true),
             None,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )?;
         symbol
             .filter(|&symbol| symbol != self.type_checker.unknown_symbol())
@@ -1492,8 +1492,8 @@ impl EmitResolver for EmitResolverCreateResolver {
         node: &Node,
         decl: &Node, /*VariableDeclaration | BindingElement*/
     ) -> io::Result<bool> {
-        let parse_node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
-        let parse_decl = get_parse_tree_node(Some(decl), Option::<fn(&Node) -> bool>::None);
+        let parse_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
+        let parse_decl = get_parse_tree_node(Some(decl), Option::<fn(Id<Node>) -> bool>::None);
         Ok(matches!(
             (parse_node, parse_decl),
             (Some(ref parse_node), Some(ref parse_decl)) if (
@@ -1510,7 +1510,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>> {
-        let n = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+        let n = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
         Debug_.assert(
             matches!(
                 n.as_ref(),

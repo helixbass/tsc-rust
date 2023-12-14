@@ -85,7 +85,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_constant_reference(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_constant_reference(&self, node: Id<Node>) -> io::Result<bool> {
         match node.kind() {
             SyntaxKind::Identifier => {
                 let symbol = self.get_resolved_symbol(node)?;
@@ -112,7 +112,7 @@ impl TypeChecker {
 
     pub(super) fn get_flow_type_of_reference(
         &self,
-        reference: &Node,
+        reference: Id<Node>,
         declared_type: Id<Type>,
         initial_type: Option<Id<Type>>,
         flow_container: Option<impl Borrow<Node>>,
@@ -514,7 +514,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_assertion(
         &self,
         type_: Id<Type>,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let node = skip_parentheses(expr, Some(true));
         if node.kind() == SyntaxKind::FalseKeyword {

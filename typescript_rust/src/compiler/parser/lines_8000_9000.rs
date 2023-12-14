@@ -179,7 +179,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
 
     pub(super) fn is_object_or_object_array_type_reference(
         &self,
-        node: &Node, /*TypeNode*/
+        node: Id<Node>, /*TypeNode*/
     ) -> bool {
         match node.kind() {
             SyntaxKind::ObjectKeyword => true,
@@ -267,7 +267,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_nested_type_literal(
         &self,
         type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
-        name: &Node, /*EntityName*/
+        name: Id<Node>, /*EntityName*/
         target: PropertyLikeParse,
         indent: usize,
     ) -> Option<JSDocTypeExpression> {
@@ -933,8 +933,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
 
     pub(super) fn escaped_texts_equal(
         &self,
-        a: &Node, /*EntityName*/
-        b: &Node, /*EntityName*/
+        a: Id<Node>, /*EntityName*/
+        b: Id<Node>, /*EntityName*/
     ) -> bool {
         let mut a = a.node_wrapper();
         let mut b = b.node_wrapper();
@@ -961,7 +961,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         &self,
         target: PropertyLikeParse,
         indent: usize,
-        name: Option<&Node /*EntityName*/>,
+        name: Option<Id<Node> /*EntityName*/>,
     ) -> Option<Node /*JSDocTypeTag | JSDocPropertyTag | JSDocParameterTag*/> {
         let mut can_parse_tag = true;
         let mut seen_asterisk = false;

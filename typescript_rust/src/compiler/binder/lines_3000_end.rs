@@ -29,7 +29,7 @@ use crate::{
 impl BinderType {
     pub(super) fn bind_prototype_assignment(
         &self,
-        node: &Node, /*BindableStaticPropertyAssignmentExpression*/
+        node: Id<Node>, /*BindableStaticPropertyAssignmentExpression*/
     ) {
         let node_as_binary_expression = node.as_binary_expression();
         set_parent(&node_as_binary_expression.left, Some(node.node_wrapper()));
@@ -47,13 +47,13 @@ impl BinderType {
 
     pub(super) fn bind_object_define_prototype_property(
         &self,
-        node: &Node, /*BindableObjectDefinePropertyCall*/
+        node: Id<Node>, /*BindableObjectDefinePropertyCall*/
     ) {
         let namespace_symbol = self.lookup_symbol_for_property_access(
             &node.as_call_expression().arguments[0]
                 .as_property_access_expression()
                 .expression,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         );
         if let Some(namespace_symbol) = namespace_symbol {
             if let Some(namespace_symbol_value_declaration) =
@@ -71,8 +71,8 @@ impl BinderType {
 
     pub(super) fn bind_prototype_property_assignment(
         &self,
-        lhs: &Node, /*BindableStaticAccessExpression*/
-        parent: &Node,
+        lhs: Id<Node>, /*BindableStaticAccessExpression*/
+        parent: Id<Node>,
     ) {
         let class_prototype = lhs.as_has_expression().expression();
         let constructor_function = class_prototype.as_has_expression().expression();
@@ -86,12 +86,12 @@ impl BinderType {
 
     pub(super) fn bind_object_define_property_assignment(
         &self,
-        node: &Node, /*BindableObjectDefinePropertyCall*/
+        node: Id<Node>, /*BindableObjectDefinePropertyCall*/
     ) {
         let node_as_call_expression = node.as_call_expression();
         let mut namespace_symbol = self.lookup_symbol_for_property_access(
             &node_as_call_expression.arguments[0],
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         );
         let is_toplevel = node.parent().parent().kind() == SyntaxKind::SourceFile;
         namespace_symbol = self.bind_potentially_missing_namespaces(
@@ -106,7 +106,7 @@ impl BinderType {
 
     pub(super) fn bind_special_property_assignment(
         &self,
-        node: &Node, /*BindablePropertyAssignmentExpression*/
+        node: Id<Node>, /*BindablePropertyAssignmentExpression*/
     ) {
         let node_as_binary_expression = node.as_binary_expression();
         let parent_symbol = self
@@ -193,7 +193,7 @@ impl BinderType {
 
     pub(super) fn bind_static_property_assignment(
         &self,
-        node: &Node, /*BindableStaticNameExpression*/
+        node: Id<Node>, /*BindableStaticNameExpression*/
     ) {
         let node_as_has_expression = node.as_has_expression();
         Debug_.assert(!is_identifier(node), None);
@@ -204,7 +204,7 @@ impl BinderType {
     pub(super) fn bind_potentially_missing_namespaces(
         &self,
         mut namespace_symbol: Option<Id<Symbol>>,
-        entity_name: &Node, /*BindableStaticNameExpression*/
+        entity_name: Id<Node>, /*BindableStaticNameExpression*/
         is_toplevel: bool,
         is_prototype_property: bool,
         container_is_class: bool,
@@ -280,7 +280,7 @@ impl BinderType {
 
     pub(super) fn bind_potentially_new_expando_member_to_namespace(
         &self,
-        declaration: &Node, /*BindableStaticAccessExpression | CallExpression*/
+        declaration: Id<Node>, /*BindableStaticAccessExpression | CallExpression*/
         namespace_symbol: Option<Id<Symbol>>,
         is_prototype_property: bool,
     ) {
@@ -375,7 +375,7 @@ impl BinderType {
 
     pub(super) fn is_top_level_namespace_assignment(
         &self,
-        property_access: &Node, /*BindableAccessExpression*/
+        property_access: Id<Node>, /*BindableAccessExpression*/
     ) -> bool {
         if is_binary_expression(&property_access.parent()) {
             self.get_parent_of_binary_expression(&property_access.parent())
@@ -389,8 +389,8 @@ impl BinderType {
 
     pub(super) fn bind_property_assignment(
         &self,
-        name: &Node,            /*BindableStaticNameExpression*/
-        property_access: &Node, /*BindableStaticNameExpression*/
+        name: Id<Node>,            /*BindableStaticNameExpression*/
+        property_access: Id<Node>, /*BindableStaticNameExpression*/
         is_prototype_property: bool,
         container_is_class: bool,
     ) {
@@ -468,7 +468,7 @@ impl BinderType {
         false
     }
 
-    pub(super) fn get_parent_of_binary_expression(&self, expr: &Node) -> Id<Node> {
+    pub(super) fn get_parent_of_binary_expression(&self, expr: Id<Node>) -> Id<Node> {
         let mut expr = expr.node_wrapper();
         while is_binary_expression(&expr.parent()) {
             expr = expr.parent();
@@ -478,7 +478,7 @@ impl BinderType {
 
     pub(super) fn lookup_symbol_for_property_access<TLookupContainer: Borrow<Node>>(
         &self,
-        node: &Node, /*BindableStaticNameExpression*/
+        node: Id<Node>, /*BindableStaticNameExpression*/
         lookup_container: Option<TLookupContainer>,
     ) -> Option<Id<Symbol>> {
         let lookup_container =
@@ -489,7 +489,7 @@ impl BinderType {
         } else {
             let symbol = self.lookup_symbol_for_property_access(
                 &node.as_has_expression().expression(),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             );
             symbol
                 .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
@@ -502,13 +502,13 @@ impl BinderType {
 
     pub(super) fn for_each_identifier_in_entity_name<
         TAction: FnMut(
-            &Node, /*Declaration*/
+            Id<Node>, /*Declaration*/
             Option<Id<Symbol>>,
             Option<Id<Symbol>>,
         ) -> Option<Id<Symbol>>,
     >(
         &self,
-        e: &Node, /*BindableStaticNameExpression*/
+        e: Id<Node>, /*BindableStaticNameExpression*/
         parent: Option<Id<Symbol>>,
         action: &mut TAction,
     ) -> Option<Id<Symbol>> {
@@ -517,7 +517,7 @@ impl BinderType {
         } else if is_identifier(e) {
             action(
                 e,
-                self.lookup_symbol_for_property_access(e, Option::<&Node>::None),
+                self.lookup_symbol_for_property_access(e, Option::<Id<Node>>::None),
                 parent,
             )
         } else {
@@ -542,7 +542,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_call_expression(&self, node: &Node /*CallExpression*/) {
+    pub(super) fn bind_call_expression(&self, node: Id<Node> /*CallExpression*/) {
         if self
             .file()
             .as_source_file()
@@ -554,7 +554,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_class_like_declaration(&self, node: &Node /*ClassLikeDeclaration*/) {
+    pub(super) fn bind_class_like_declaration(&self, node: Id<Node> /*ClassLikeDeclaration*/) {
         if node.kind() == SyntaxKind::ClassDeclaration {
             self.bind_block_scoped_declaration(
                 node,
@@ -611,7 +611,7 @@ impl BinderType {
         prototype_symbol.ref_(self).set_parent(Some(symbol));
     }
 
-    pub(super) fn bind_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {
+    pub(super) fn bind_enum_declaration(&self, node: Id<Node> /*EnumDeclaration*/) {
         if is_enum_const(node) {
             self.bind_block_scoped_declaration(
                 node,
@@ -629,7 +629,7 @@ impl BinderType {
 
     pub(super) fn bind_variable_declaration_or_binding_element(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
     ) {
         let node_as_named_declaration = node.as_named_declaration();
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
@@ -668,7 +668,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_parameter(&self, node: &Node /*ParameterDeclaration*/) {
+    pub(super) fn bind_parameter(&self, node: Id<Node> /*ParameterDeclaration*/) {
         if node.kind() == SyntaxKind::JSDocParameterTag
             && self.container().kind() != SyntaxKind::JSDocSignature
         {
@@ -724,7 +724,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
+    pub(super) fn bind_function_declaration(&self, node: Id<Node> /*FunctionDeclaration*/) {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
         {
@@ -752,7 +752,7 @@ impl BinderType {
 
     pub(super) fn bind_function_expression(
         &self,
-        node: &Node, /*FunctionExpression (actually also ArrowFunction)*/
+        node: Id<Node>, /*FunctionExpression (actually also ArrowFunction)*/
     ) -> Id<Symbol> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
@@ -774,7 +774,7 @@ impl BinderType {
 
     pub(super) fn bind_property_or_method_or_accessor(
         &self,
-        node: &Node,
+        node: Id<Node>,
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Option<Id<Symbol>> {
@@ -804,7 +804,7 @@ impl BinderType {
 
     pub(super) fn get_infer_type_container(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> Option<Id<Node /*ConditionalTypeNode*/>> {
         let extends_type = find_ancestor(
             Some(node),
@@ -813,7 +813,7 @@ impl BinderType {
         extends_type.map(|extends_type| extends_type.parent())
     }
 
-    pub(super) fn bind_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
+    pub(super) fn bind_type_parameter(&self, node: Id<Node> /*TypeParameterDeclaration*/) {
         if is_jsdoc_template_tag(&node.parent()) {
             let container = get_effective_container_for_jsdoc_template_tag(&node.parent());
             if let Some(container) = container {
@@ -877,7 +877,7 @@ impl BinderType {
 
     pub(super) fn should_report_error_on_module_declaration(
         &self,
-        node: &Node, /*ModuleDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration*/
     ) -> bool {
         let instance_state = get_module_instance_state(node, None);
         instance_state == ModuleInstanceState::Instantiated
@@ -885,7 +885,7 @@ impl BinderType {
                 && should_preserve_const_enums(&self.options())
     }
 
-    pub(super) fn check_unreachable(&self, node: &Node) -> bool {
+    pub(super) fn check_unreachable(&self, node: Id<Node>) -> bool {
         if !self
             .current_flow()
             .flags()
@@ -936,7 +936,7 @@ impl BinderType {
     }
 }
 
-fn each_unreachable_range<TCallback: FnMut(&Node, &Node)>(node: &Node, mut cb: TCallback) {
+fn each_unreachable_range<TCallback: FnMut(Id<Node>, Id<Node>)>(node: Id<Node>, mut cb: TCallback) {
     if is_statement(node) && is_executable_statement(node) && is_block(&node.parent()) {
         let node_parent = node.parent();
         let statements = &node_parent.as_block().statements;
@@ -951,7 +951,7 @@ fn each_unreachable_range<TCallback: FnMut(&Node, &Node)>(node: &Node, mut cb: T
     }
 }
 
-fn is_executable_statement(s: &Node /*Statement*/) -> bool {
+fn is_executable_statement(s: Id<Node> /*Statement*/) -> bool {
     !is_function_declaration(s)
         && !is_purely_type_declaration(s)
         && !is_enum_declaration(s)
@@ -965,7 +965,7 @@ fn is_executable_statement(s: &Node /*Statement*/) -> bool {
                 .any(|d| d.as_variable_declaration().maybe_initializer().is_none()))
 }
 
-fn is_purely_type_declaration(s: &Node /*Statement*/) -> bool {
+fn is_purely_type_declaration(s: Id<Node> /*Statement*/) -> bool {
     match s.kind() {
         SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeAliasDeclaration => true,
         SyntaxKind::ModuleDeclaration => {
@@ -978,8 +978,8 @@ fn is_purely_type_declaration(s: &Node /*Statement*/) -> bool {
 
 pub fn is_exports_or_module_exports_or_alias(
     binder: &BinderType,
-    source_file: &Node, /*SourceFile*/
-    node: &Node,        /*Expression*/
+    source_file: Id<Node>, /*SourceFile*/
+    node: Id<Node>,        /*Expression*/
 ) -> bool {
     let mut node = node.node_wrapper();
     let mut i = 0;
@@ -1023,7 +1023,7 @@ pub fn is_exports_or_module_exports_or_alias(
 
 pub(super) fn lookup_symbol_for_name(
     binder: &BinderType,
-    container: &Node,
+    container: Id<Node>,
     name: &str, /*__String*/
 ) -> Option<Id<Symbol>> {
     let container_locals = container.maybe_locals();

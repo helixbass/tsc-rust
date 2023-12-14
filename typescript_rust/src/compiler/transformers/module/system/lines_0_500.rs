@@ -250,7 +250,7 @@ impl TransformSystemModule {
 
     pub(super) fn transform_source_file(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file()
@@ -422,7 +422,7 @@ impl TransformSystemModule {
 
     pub(super) fn create_system_module_body(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
         dependency_groups: &[DependencyGroup],
     ) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
@@ -437,7 +437,7 @@ impl TransformSystemModule {
             &node_as_source_file.statements(),
             &mut statements,
             Some(ensure_use_strict),
-            Some(|node: &Node| self.top_level_visitor(node)),
+            Some(|node: Id<Node>| self.top_level_visitor(node)),
         )?;
 
         statements.push(self.factory.create_variable_statement(
@@ -463,14 +463,14 @@ impl TransformSystemModule {
             self.module_info()
                 .external_helpers_import_declaration
                 .as_deref(),
-            Some(|node: &Node| self.top_level_visitor(node)),
+            Some(|node: Id<Node>| self.top_level_visitor(node)),
             Some(is_statement),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
 
         let execute_statements = try_visit_nodes(
             &node_as_source_file.statements(),
-            Some(|node: &Node| self.top_level_visitor(node)),
+            Some(|node: Id<Node>| self.top_level_visitor(node)),
             Some(is_statement),
             Some(statement_offset),
             None,
@@ -848,7 +848,7 @@ impl TransformSystemModule {
 }
 
 impl TransformerInterface for TransformSystemModule {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
 }
@@ -875,8 +875,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformSystemModuleOnEmitNod
     fn on_emit_node(
         &self,
         hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        node: Id<Node>,
+        emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::SourceFile {
             let id = get_original_node_id(node);
@@ -951,7 +951,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         }
     }
 
-    fn substitute_unspecified(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn substitute_unspecified(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(match node.kind() {
             SyntaxKind::ShorthandPropertyAssignment => {
                 self.substitute_shorthand_property_assignment(node)?
@@ -962,7 +962,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
 
     fn substitute_shorthand_property_assignment(
         &self,
-        node: &Node, /*ShorthandPropertyAssignment*/
+        node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Node>> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         let name = &node_as_shorthand_property_assignment.name();
@@ -1038,7 +1038,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         Ok(node.node_wrapper())
     }
 
-    fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Id<Node>> {
+    fn substitute_expression(&self, node: Id<Node> /*Expression*/) -> io::Result<Id<Node>> {
         Ok(match node.kind() {
             SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
             SyntaxKind::BinaryExpression => self.substitute_binary_expression(node)?,
@@ -1049,7 +1049,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
 
     fn substitute_expression_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         if get_emit_flags(node).intersects(EmitFlags::HelperName) {
             let external_helpers_module_name = get_external_helpers_module_name(
@@ -1130,7 +1130,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
 
     fn substitute_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_binary_expression = node.as_binary_expression();
         let node_left = &node_as_binary_expression.left;
@@ -1159,7 +1159,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         Ok(node.node_wrapper())
     }
 
-    fn substitute_meta_property(&self, node: &Node /*MetaProperty*/) -> Id<Node> {
+    fn substitute_meta_property(&self, node: Id<Node> /*MetaProperty*/) -> Id<Node> {
         if is_import_meta(node) {
             return self
                 .transform_system_module
@@ -1174,7 +1174,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         node.node_wrapper()
     }
 
-    fn is_substitution_prevented(&self, node: &Node) -> bool {
+    fn is_substitution_prevented(&self, node: Id<Node>) -> bool {
         self.transform_system_module
             .maybe_no_substitution()
             .as_ref()
@@ -1188,7 +1188,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformSystemModuleOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

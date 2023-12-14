@@ -12,8 +12,8 @@ use crate::{
 };
 
 pub fn for_each_child(
-    node: &Node,
-    mut cb_node: impl FnMut(&Node),
+    node: Id<Node>,
+    mut cb_node: impl FnMut(Id<Node>),
     mut cb_nodes: Option<impl FnMut(&NodeArray)>,
 ) {
     if
@@ -1168,8 +1168,8 @@ pub fn for_each_child(
 }
 
 pub fn try_for_each_child<TError>(
-    node: &Node,
-    mut cb_node: impl FnMut(&Node) -> Result<(), TError>,
+    node: Id<Node>,
+    mut cb_node: impl FnMut(Id<Node>) -> Result<(), TError>,
     mut cb_nodes: Option<impl FnMut(&NodeArray) -> Result<(), TError>>,
 ) -> Result<(), TError> {
     if

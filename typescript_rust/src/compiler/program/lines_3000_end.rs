@@ -56,7 +56,7 @@ use crate::{
 impl Program {
     pub fn process_lib_reference_directives(
         &self,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
         let file_as_source_file = file.as_source_file();
         try_maybe_for_each(
@@ -131,7 +131,7 @@ impl Program {
         Gc::new(Box::new(CompilerHostGetCanonicalFileName::new(host)))
     }
 
-    pub fn process_imported_modules(&self, file: &Node /*SourceFile*/) -> io::Result<()> {
+    pub fn process_imported_modules(&self, file: Id<Node> /*SourceFile*/) -> io::Result<()> {
         self.collect_external_module_references(file);
         let file_as_source_file = file.as_source_file();
         if !file_as_source_file
@@ -284,7 +284,7 @@ impl Program {
         if self.host().is_get_parsed_command_line_supported() {
             command_line = self.host().get_parsed_command_line(&ref_path);
             if command_line.is_none() {
-                self.add_file_to_files_by_name(Option::<&Node>::None, &source_file_path, None);
+                self.add_file_to_files_by_name(Option::<Id<Node>>::None, &source_file_path, None);
                 self.project_reference_redirects_mut()
                     .insert(source_file_path.clone(), None);
                 return Ok(None);
@@ -1299,7 +1299,7 @@ impl Program {
 
     pub fn add_program_diagnostic_explaining_file(
         &self,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
@@ -1860,7 +1860,7 @@ impl Program {
 
     pub fn create_option_diagnostic_in_object_literal_syntax(
         &self,
-        object_literal: &Node, /*ObjectLiteralExpression*/
+        object_literal: Id<Node>, /*ObjectLiteralExpression*/
         on_key: bool,
         key1: &str,
         key2: Option<&str>,
@@ -2262,7 +2262,7 @@ pub(crate) fn emit_skipped_with_no_diagnostics() -> EmitResult {
 
 pub(crate) fn handle_no_emit_options(
     program: Gc<Box<Program>>,
-    source_file: Option<&Node /*SourceFile*/>,
+    source_file: Option<Id<Node> /*SourceFile*/>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
 ) -> io::Result<Option<EmitResult>> {
@@ -2702,7 +2702,7 @@ pub(super) fn need_resolve_json_module(
     }
 }
 
-pub(super) fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
+pub(super) fn get_module_names(file: Id<Node> /*SourceFile*/) -> Vec<String> {
     let file_as_source_file = file.as_source_file();
     let imports = file_as_source_file.maybe_imports();
     let imports = imports.as_ref().unwrap();

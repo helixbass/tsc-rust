@@ -42,7 +42,7 @@ impl CheckTypeRelatedTo {
                     Cow::Borrowed(&Diagnostics::_0_index_signatures_are_incompatible),
                     Some(vec![self.type_checker.type_to_string_(
                         source_info.key_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?]),
@@ -53,13 +53,13 @@ impl CheckTypeRelatedTo {
                     Some(vec![
                         self.type_checker.type_to_string_(
                             source_info.key_type,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
                         self.type_checker.type_to_string_(
                             target_info.key_type,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
@@ -149,12 +149,16 @@ impl CheckTypeRelatedTo {
                 Some(vec![
                     self.type_checker.type_to_string_(
                         target_info.key_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?,
-                    self.type_checker
-                        .type_to_string_(source, Option::<&Node>::None, None, None)?,
+                    self.type_checker.type_to_string_(
+                        source,
+                        Option::<Id<Node>>::None,
+                        None,
+                        None,
+                    )?,
                 ]),
             )?;
         }

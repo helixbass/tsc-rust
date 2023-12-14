@@ -98,7 +98,7 @@ pub struct Printer {
 }
 
 pub trait CurrentParenthesizerRule: Trace + Finalize {
-    fn call(&self, node: &Node) -> Id<Node>;
+    fn call(&self, node: Id<Node>) -> Id<Node>;
 }
 
 #[derive(Copy, Clone)]
@@ -649,29 +649,29 @@ pub trait PrintHandlers: Trace + Finalize {
     fn on_emit_node(
         &self,
         _hint: EmitHint,
-        _node: &Node,
-        _emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        _node: Id<Node>,
+        _emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         Ok(())
     }
     fn is_on_emit_node_supported(&self) -> bool;
-    fn is_emit_notification_enabled(&self, _node: &Node) -> Option<bool> {
+    fn is_emit_notification_enabled(&self, _node: Id<Node>) -> Option<bool> {
         None
     }
-    fn substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Option<Id<Node>>> {
+    fn substitute_node(&self, _hint: EmitHint, _node: Id<Node>) -> io::Result<Option<Id<Node>>> {
         Ok(None)
     }
     fn is_substitute_node_supported(&self) -> bool;
     fn on_emit_source_map_of_node(
         &self,
         _hint: EmitHint,
-        _node: &Node,
-        _emit_callback: &dyn Fn(EmitHint, &Node),
+        _node: Id<Node>,
+        _emit_callback: &dyn Fn(EmitHint, Id<Node>),
     ) {
     }
     fn on_emit_source_map_of_token(
         &self,
-        _node: Option<&Node>,
+        _node: Option<Id<Node>>,
         _token: SyntaxKind,
         _writer: &dyn Fn(&str),
         _pos: usize,
@@ -680,13 +680,13 @@ pub trait PrintHandlers: Trace + Finalize {
         None
     }
     fn on_emit_source_map_of_position(&self, _pos: usize) {}
-    fn on_set_source_file(&self, _node: &Node /*SourceFile*/) {}
-    fn on_before_emit_node(&self, _node: Option<&Node>) {}
-    fn on_after_emit_node(&self, _node: Option<&Node>) {}
+    fn on_set_source_file(&self, _node: Id<Node> /*SourceFile*/) {}
+    fn on_before_emit_node(&self, _node: Option<Id<Node>>) {}
+    fn on_after_emit_node(&self, _node: Option<Id<Node>>) {}
     fn on_before_emit_node_array(&self, _nodes: Option<&NodeArray>) {}
     fn on_after_emit_node_array(&self, _nodes: Option<&NodeArray>) {}
-    fn on_before_emit_token(&self, _node: Option<&Node>) {}
-    fn on_after_emit_token(&self, _node: Option<&Node>) {}
+    fn on_before_emit_token(&self, _node: Option<Id<Node>>) {}
+    fn on_after_emit_token(&self, _node: Option<Id<Node>>) {}
 }
 
 mod _PrinterOptionsDeriveTraceScope {
@@ -893,7 +893,7 @@ pub trait SymbolTracker: Trace + Finalize {
     fn is_module_resolver_host_supported(&self) -> bool;
     fn track_referenced_ambient_module(
         &self,
-        _decl: &Node, /*ModuleDeclaration*/
+        _decl: Id<Node>, /*ModuleDeclaration*/
         _symbol: Id<Symbol>,
     ) -> io::Result<()> {
         Ok(())
@@ -902,7 +902,7 @@ pub trait SymbolTracker: Trace + Finalize {
     fn track_external_module_symbol_of_import_type_node(&self, _symbol: Id<Symbol>) {}
     fn report_nonlocal_augmentation(
         &self,
-        _containing_file: &Node, /*SourceFile*/
+        _containing_file: Id<Node>, /*SourceFile*/
         _parent_symbol: Id<Symbol>,
         _augmenting_symbol: Id<Symbol>,
     ) {

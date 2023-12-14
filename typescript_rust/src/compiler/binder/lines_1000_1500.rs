@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{init_flow_node, ActiveLabel, BinderType};
 use crate::{
@@ -16,7 +17,7 @@ impl BinderType {
     pub(super) fn create_flow_switch_clause(
         &self,
         antecedent: Gc<FlowNode>,
-        switch_statement: &Node, /*SwitchStatement*/
+        switch_statement: Id<Node>, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
     ) -> Gc<FlowNode> {
@@ -37,7 +38,7 @@ impl BinderType {
         &self,
         flags: FlowFlags,
         antecedent: Gc<FlowNode>,
-        node: &Node, /*Expression | VariableDeclaration | ArrayBindingElement*/
+        node: Id<Node>, /*Expression | VariableDeclaration | ArrayBindingElement*/
     ) -> Gc<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
         let result: Gc<FlowNode> = Gc::new(init_flow_node(
@@ -56,7 +57,7 @@ impl BinderType {
     pub(super) fn create_flow_call(
         &self,
         antecedent: Gc<FlowNode>,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
     ) -> Gc<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
         Gc::new(init_flow_node(
@@ -77,7 +78,7 @@ impl BinderType {
         flow.clone()
     }
 
-    pub(super) fn is_statement_condition(&self, node: &Node) -> bool {
+    pub(super) fn is_statement_condition(&self, node: Id<Node>) -> bool {
         let parent = node.parent();
         match parent.kind() {
             SyntaxKind::IfStatement | SyntaxKind::WhileStatement | SyntaxKind::DoStatement => {
@@ -90,7 +91,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn is_logical_expression(&self, node: &Node) -> bool {
+    pub(super) fn is_logical_expression(&self, node: Id<Node>) -> bool {
         let mut node = node.node_wrapper();
         loop {
             if node.kind() == SyntaxKind::ParenthesizedExpression {
@@ -111,7 +112,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn is_logical_assignment_expression(&self, node: &Node) -> bool {
+    pub(super) fn is_logical_assignment_expression(&self, node: Id<Node>) -> bool {
         let node = skip_parentheses(node, None);
         is_binary_expression(&node)
             && is_logical_or_coalescing_assignment_operator(
@@ -119,7 +120,7 @@ impl BinderType {
             )
     }
 
-    pub(super) fn is_top_level_logical_expression(&self, node: &Node) -> bool {
+    pub(super) fn is_top_level_logical_expression(&self, node: Id<Node>) -> bool {
         let mut node = node.node_wrapper();
         while is_parenthesized_expression(&node.parent())
             || is_prefix_unary_expression(&node.parent())
@@ -193,7 +194,7 @@ impl BinderType {
 
     pub(super) fn bind_iterative_statement(
         &self,
-        node: &Node, /*Statement*/
+        node: Id<Node>, /*Statement*/
         break_target: Gc<FlowNode /*FlowLabel*/>,
         continue_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
@@ -208,7 +209,7 @@ impl BinderType {
 
     pub(super) fn set_continue_target(
         &self,
-        node: &Node,
+        node: Id<Node>,
         target: Gc<FlowNode /*FlowLabel*/>,
     ) -> Gc<FlowNode> {
         let mut node = node.node_wrapper();
@@ -222,7 +223,7 @@ impl BinderType {
         target
     }
 
-    pub(super) fn bind_while_statement(&self, node: &Node /*WhileStatement*/) {
+    pub(super) fn bind_while_statement(&self, node: Id<Node> /*WhileStatement*/) {
         let node_as_while_statement = node.as_while_statement();
         let pre_while_label = self.set_continue_target(node, self.create_loop_label());
         let pre_body_label = self.create_branch_label();
@@ -244,7 +245,7 @@ impl BinderType {
         self.set_current_flow(Some(self.finish_flow_label(post_while_label)));
     }
 
-    pub(super) fn bind_do_statement(&self, node: &Node /*DoStatement*/) {
+    pub(super) fn bind_do_statement(&self, node: Id<Node> /*DoStatement*/) {
         let node_as_do_statement = node.as_do_statement();
         let pre_do_label = self.create_loop_label();
         let pre_condition_label = self.set_continue_target(node, self.create_branch_label());
@@ -266,7 +267,7 @@ impl BinderType {
         self.set_current_flow(Some(self.finish_flow_label(post_do_label)));
     }
 
-    pub(super) fn bind_for_statement(&self, node: &Node /*ForStatement*/) {
+    pub(super) fn bind_for_statement(&self, node: Id<Node> /*ForStatement*/) {
         let node_as_for_statement = node.as_for_statement();
         let pre_loop_label = self.set_continue_target(node, self.create_loop_label());
         let pre_body_label = self.create_branch_label();
@@ -290,7 +291,10 @@ impl BinderType {
         self.set_current_flow(Some(self.finish_flow_label(post_loop_label)));
     }
 
-    pub(super) fn bind_for_in_or_for_of_statement(&self, node: &Node /*ForInOrOfStatement*/) {
+    pub(super) fn bind_for_in_or_for_of_statement(
+        &self,
+        node: Id<Node>, /*ForInOrOfStatement*/
+    ) {
         let pre_loop_label = self.set_continue_target(node, self.create_loop_label());
         let post_loop_label = self.create_branch_label();
         self.bind(Some(&*node.as_has_expression().expression()));
@@ -314,7 +318,7 @@ impl BinderType {
         self.set_current_flow(Some(self.finish_flow_label(post_loop_label)));
     }
 
-    pub(super) fn bind_if_statement(&self, node: &Node /*IfStatement*/) {
+    pub(super) fn bind_if_statement(&self, node: Id<Node> /*IfStatement*/) {
         let node_as_if_statement = node.as_if_statement();
         let then_label = self.create_branch_label();
         let else_label = self.create_branch_label();
@@ -333,7 +337,7 @@ impl BinderType {
         self.set_current_flow(Some(self.finish_flow_label(post_if_label)));
     }
 
-    pub(super) fn bind_return_or_throw(&self, node: &Node) {
+    pub(super) fn bind_return_or_throw(&self, node: Id<Node>) {
         self.bind(node.as_has_expression().maybe_expression());
         if node.kind() == SyntaxKind::ReturnStatement {
             self.set_has_explicit_return(Some(true));
@@ -360,7 +364,7 @@ impl BinderType {
 
     pub(super) fn bind_break_or_continue_flow(
         &self,
-        node: &Node, /*BreakOrContinueStatement*/
+        node: Id<Node>, /*BreakOrContinueStatement*/
         break_target: Option<Gc<FlowNode /*FlowLabel*/>>,
         continue_target: Option<Gc<FlowNode /*FlowLabel*/>>,
     ) {
@@ -377,7 +381,7 @@ impl BinderType {
 
     pub(super) fn bind_break_or_continue_statement(
         &self,
-        node: &Node, /*BreakOrContinueStatement*/
+        node: Id<Node>, /*BreakOrContinueStatement*/
     ) {
         let node_as_has_label = node.as_has_label();
         if let Some(node_label) = node_as_has_label.maybe_label() {
@@ -399,7 +403,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_try_statement(&self, node: &Node /*TryStatement*/) {
+    pub(super) fn bind_try_statement(&self, node: Id<Node> /*TryStatement*/) {
         let save_return_target = self.maybe_current_return_target();
         let save_exception_target = self.maybe_current_exception_target();
         let normal_exit_label = self.create_branch_label();
@@ -503,7 +507,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_switch_statement(&self, node: &Node /*SwitchStatement*/) {
+    pub(super) fn bind_switch_statement(&self, node: Id<Node> /*SwitchStatement*/) {
         let node_as_switch_statement = node.as_switch_statement();
         let post_switch_label = self.create_branch_label();
         self.bind(Some(&*node_as_switch_statement.expression));
@@ -535,7 +539,7 @@ impl BinderType {
         self.set_current_flow(Some(self.finish_flow_label(post_switch_label)));
     }
 
-    pub(super) fn bind_case_block(&self, node: &Node /*CaseBlock*/) {
+    pub(super) fn bind_case_block(&self, node: Id<Node> /*CaseBlock*/) {
         let node_as_case_block = node.as_case_block();
         let clauses = &*node_as_case_block.clauses;
         let is_narrowing_switch =
@@ -587,7 +591,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_case_clause(&self, node: &Node /*CaseClause*/) {
+    pub(super) fn bind_case_clause(&self, node: Id<Node> /*CaseClause*/) {
         let save_current_flow = self.maybe_current_flow();
         self.set_current_flow(Some(self.pre_switch_case_flow()));
         let node_as_case_clause = node.as_case_clause();
@@ -596,13 +600,13 @@ impl BinderType {
         self.bind_each(Some(&node_as_case_clause.statements));
     }
 
-    pub(super) fn bind_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
+    pub(super) fn bind_expression_statement(&self, node: Id<Node> /*ExpressionStatement*/) {
         let node_as_expression_statement = node.as_expression_statement();
         self.bind(Some(&*node_as_expression_statement.expression));
         self.maybe_bind_expression_flow_if_call(&node_as_expression_statement.expression);
     }
 
-    pub(super) fn maybe_bind_expression_flow_if_call(&self, node: &Node /*Expression*/) {
+    pub(super) fn maybe_bind_expression_flow_if_call(&self, node: Id<Node> /*Expression*/) {
         if node.kind() == SyntaxKind::CallExpression {
             let call = node;
             let call_as_call_expression = call.as_call_expression();
@@ -614,7 +618,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_labeled_statement(&self, node: &Node /*LabeledStatement*/) {
+    pub(super) fn bind_labeled_statement(&self, node: Id<Node> /*LabeledStatement*/) {
         let post_statement_label = self.create_branch_label();
         let node_as_labeled_statement = node.as_labeled_statement();
         self.set_active_label_list(Some(Gc::new(ActiveLabel::new(
@@ -644,7 +648,7 @@ impl BinderType {
         self.set_current_flow(Some(self.finish_flow_label(post_statement_label)));
     }
 
-    pub(super) fn bind_destructuring_target_flow(&self, node: &Node /*Expression*/) {
+    pub(super) fn bind_destructuring_target_flow(&self, node: Id<Node> /*Expression*/) {
         if node.kind() == SyntaxKind::BinaryExpression
             && node.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
         {
@@ -654,7 +658,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_assignment_target_flow(&self, node: &Node /*Expression*/) {
+    pub(super) fn bind_assignment_target_flow(&self, node: Id<Node> /*Expression*/) {
         if self.is_narrowable_reference(node) {
             self.set_current_flow(Some(self.create_flow_mutation(
                 FlowFlags::Assignment,
@@ -686,7 +690,7 @@ impl BinderType {
 
     pub(super) fn bind_logical_like_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         true_target: Gc<FlowNode /*FlowLabel*/>,
         false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
@@ -749,7 +753,7 @@ impl BinderType {
 
     pub(super) fn bind_prefix_unary_expression_flow(
         &self,
-        node: &Node, /*PrefixUnaryExpression*/
+        node: Id<Node>, /*PrefixUnaryExpression*/
     ) {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         if node_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken {
@@ -772,7 +776,7 @@ impl BinderType {
 
     pub(super) fn bind_postfix_unary_expression_flow(
         &self,
-        node: &Node, /*PostfixUnaryExpression*/
+        node: Id<Node>, /*PostfixUnaryExpression*/
     ) {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         self.bind_each_child(node);
@@ -786,7 +790,7 @@ impl BinderType {
 
     pub(super) fn bind_destructuring_assignment_flow(
         &self,
-        node: &Node, /*DestructuringAssignment*/
+        node: Id<Node>, /*DestructuringAssignment*/
     ) {
         let node_as_binary_expression = node.as_binary_expression();
         if self.in_assignment_pattern() {

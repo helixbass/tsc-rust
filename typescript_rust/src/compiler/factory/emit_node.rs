@@ -10,7 +10,7 @@ use crate::{
     StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
-pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
+pub(crate) fn get_or_create_emit_node(node: Id<Node>) -> Gc<GcCell<EmitNode>> {
     match node.maybe_emit_node() {
         None => {
             if is_parse_tree_node(node) {
@@ -37,7 +37,7 @@ pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
 
                 let ref source_file = maybe_get_source_file_of_node(get_parse_tree_node(
                     maybe_get_source_file_of_node(Some(node)),
-                    Option::<fn(&Node) -> bool>::None,
+                    Option::<fn(Id<Node>) -> bool>::None,
                 ))
                 .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
                 get_or_create_emit_node(source_file)
@@ -66,7 +66,7 @@ pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
 pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>) {
     let annotated_nodes = maybe_get_source_file_of_node(get_parse_tree_node(
         source_file,
-        Option::<fn(&Node) -> _>::None,
+        Option::<fn(Id<Node>) -> _>::None,
     ))
     .and_then(|source_file| source_file.maybe_emit_node())
     .and_then(|emit_node| (*emit_node).borrow().annotated_nodes.clone());
@@ -98,7 +98,7 @@ pub fn add_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -
     node
 }
 
-pub fn get_source_map_range(node: &Node) -> Gc<SourceMapRange> {
+pub fn get_source_map_range(node: Id<Node>) -> Gc<SourceMapRange> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().source_map_range.clone())
         .unwrap_or_else(|| node.into())
@@ -128,12 +128,12 @@ pub fn set_token_source_map_range<TNode: Borrow<Node>>(
     node
 }
 
-pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
+pub(crate) fn get_starts_on_new_line(node: Id<Node>) -> Option<bool> {
     node.maybe_emit_node()
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
 }
 
-pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Id<Node>*/
+pub(crate) fn set_starts_on_new_line(node: Id<Node>, new_line: bool) /*-> Id<Node>*/
 {
     get_or_create_emit_node(node)
         .borrow_mut()
@@ -141,14 +141,14 @@ pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Id<Node>*
     // node
 }
 
-pub fn get_comment_range(node: &Node) -> BaseTextRange {
+pub fn get_comment_range(node: Id<Node>) -> BaseTextRange {
     // TODO: these semantics wouldn't work if the return value is treated mutably?
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().comment_range.clone())
         .unwrap_or_else(|| BaseTextRange::new(node.pos(), node.end()))
 }
 
-pub fn set_comment_range(node: &Node, range: &impl ReadonlyTextRange /*TextRange*/)
+pub fn set_comment_range(node: Id<Node>, range: &impl ReadonlyTextRange /*TextRange*/)
 /*-> Id<Node>*/
 {
     get_or_create_emit_node(node).borrow_mut().comment_range = Some(range.into());
@@ -162,12 +162,15 @@ pub fn set_comment_range_rc(
     node
 }
 
-pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
+pub fn get_synthetic_leading_comments(node: Id<Node>) -> Option<Vec<Rc<SynthesizedComment>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().leading_comments.clone())
 }
 
-pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
+pub fn set_synthetic_leading_comments(
+    node: Id<Node>,
+    comments: Option<Vec<Rc<SynthesizedComment>>>,
+)
 /*-> Id<Node>*/
 {
     get_or_create_emit_node(node).borrow_mut().leading_comments = comments;
@@ -182,7 +185,7 @@ pub fn set_synthetic_leading_comments_rc(
 }
 
 pub fn add_synthetic_leading_comment(
-    node: &Node,
+    node: Id<Node>,
     kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
     text: &str,
     has_trailing_new_line: Option<bool>,
@@ -204,19 +207,22 @@ pub fn add_synthetic_leading_comment(
     set_synthetic_leading_comments(node, synthetic_leading_comments);
 }
 
-pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
+pub fn get_synthetic_trailing_comments(node: Id<Node>) -> Option<Vec<Rc<SynthesizedComment>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().trailing_comments.clone())
 }
 
-pub fn set_synthetic_trailing_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
+pub fn set_synthetic_trailing_comments(
+    node: Id<Node>,
+    comments: Option<Vec<Rc<SynthesizedComment>>>,
+)
 /*-> Id<Node>*/
 {
     get_or_create_emit_node(node).borrow_mut().trailing_comments = comments;
 }
 
 pub fn add_synthetic_trailing_comment(
-    node: &Node,
+    node: Id<Node>,
     kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
     text: &str,
     has_trailing_new_line: Option<bool>,
@@ -238,7 +244,7 @@ pub fn add_synthetic_trailing_comment(
     set_synthetic_trailing_comments(node, synthetic_trailing_comments);
 }
 
-pub fn move_synthetic_comments<TNode: Borrow<Node>>(node: TNode, original: &Node) -> TNode {
+pub fn move_synthetic_comments<TNode: Borrow<Node>>(node: TNode, original: Id<Node>) -> TNode {
     let node_ref = node.borrow();
     set_synthetic_leading_comments(node_ref, get_synthetic_leading_comments(original));
     set_synthetic_trailing_comments(node_ref, get_synthetic_trailing_comments(original));
@@ -249,13 +255,13 @@ pub fn move_synthetic_comments<TNode: Borrow<Node>>(node: TNode, original: &Node
     node
 }
 
-pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
+pub fn get_constant_value(node: Id<Node> /*AccessExpression*/) -> Option<StringOrNumber> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
 }
 
 pub fn set_constant_value(
-    node: &Node, /*AccessExpression*/
+    node: Id<Node>, /*AccessExpression*/
     value: StringOrNumber,
 ) -> Id<Node /*AccessExpression*/> {
     let emit_node = get_or_create_emit_node(node);
@@ -263,7 +269,7 @@ pub fn set_constant_value(
     node.node_wrapper()
 }
 
-pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Id<Node> {
+pub fn add_emit_helper(node: Id<Node>, helper: Gc<EmitHelper>) -> Id<Node> {
     let emit_node = get_or_create_emit_node(node);
     emit_node
         .borrow_mut()
@@ -273,7 +279,7 @@ pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Id<Node> {
     node.node_wrapper()
 }
 
-pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Id<Node> {
+pub fn add_emit_helpers(node: Id<Node>, helpers: Option<&[Gc<EmitHelper>]>) -> Id<Node> {
     if let Some(helpers) = helpers.non_empty() {
         let emit_node = get_or_create_emit_node(node);
         let mut emit_node = emit_node.borrow_mut();
@@ -284,14 +290,14 @@ pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Id<N
     node.node_wrapper()
 }
 
-pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {
+pub fn get_emit_helpers(node: Id<Node>) -> Option<Vec<Gc<EmitHelper>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().helpers.clone())
 }
 
 pub fn move_emit_helpers(
-    source: &Node,
-    target: &Node,
+    source: Id<Node>,
+    target: Id<Node>,
     mut predicate: impl FnMut(&EmitHelper) -> bool,
 ) {
     let source_emit_node = return_if_none!(source.maybe_emit_node());
@@ -325,7 +331,7 @@ pub fn move_emit_helpers(
     }
 }
 
-pub(crate) fn get_snippet_element(node: &Node) -> Option<SnippetElement> {
+pub(crate) fn get_snippet_element(node: Id<Node>) -> Option<SnippetElement> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().snippet_element)
 }

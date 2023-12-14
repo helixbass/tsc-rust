@@ -31,7 +31,7 @@ use crate::{
     SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
-pub fn get_first_identifier(node: &Node) -> Id<Node /*Identifier*/> {
+pub fn get_first_identifier(node: Id<Node>) -> Id<Node /*Identifier*/> {
     match node.kind() {
         SyntaxKind::Identifier => node.node_wrapper(),
         SyntaxKind::QualifiedName => {
@@ -54,7 +54,7 @@ pub fn get_first_identifier(node: &Node) -> Id<Node /*Identifier*/> {
     }
 }
 
-pub fn is_dotted_name(node: &Node /*Expression*/) -> bool {
+pub fn is_dotted_name(node: Id<Node> /*Expression*/) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier
@@ -67,7 +67,7 @@ pub fn is_dotted_name(node: &Node /*Expression*/) -> bool {
             && is_dotted_name(&node.as_parenthesized_expression().expression)
 }
 
-pub fn is_property_access_entity_name_expression(node: &Node) -> bool {
+pub fn is_property_access_entity_name_expression(node: Id<Node>) -> bool {
     if !is_property_access_expression(node) {
         return false;
     }
@@ -77,7 +77,7 @@ pub fn is_property_access_entity_name_expression(node: &Node) -> bool {
 }
 
 pub fn try_get_property_access_or_identifier_to_string<'expr>(
-    expr: &'expr Node, /*Expression*/
+    expr: Id<Node>, /*Expression*/
 ) -> Option<Cow<'expr, str>> {
     if is_property_access_expression(expr) {
         let expr_as_property_access_expression = expr.as_property_access_expression();
@@ -120,7 +120,7 @@ pub fn try_get_property_access_or_identifier_to_string<'expr>(
     None
 }
 
-pub fn is_prototype_access(node: &Node) -> bool {
+pub fn is_prototype_access(node: Id<Node>) -> bool {
     is_bindable_static_access_expression(node, None)
         && match get_element_or_property_access_name(node) {
             Some(name) => name == "prototype",
@@ -128,7 +128,7 @@ pub fn is_prototype_access(node: &Node) -> bool {
         }
 }
 
-pub fn is_right_side_of_qualified_name_or_property_access(node: &Node) -> bool {
+pub fn is_right_side_of_qualified_name_or_property_access(node: Id<Node>) -> bool {
     node.parent().kind() == SyntaxKind::QualifiedName
         && ptr::eq(&*node.parent().as_qualified_name().right, node)
         || node.parent().kind() == SyntaxKind::PropertyAccessExpression
@@ -136,7 +136,7 @@ pub fn is_right_side_of_qualified_name_or_property_access(node: &Node) -> bool {
 }
 
 pub fn is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(
-    node: &Node,
+    node: Id<Node>,
 ) -> bool {
     is_qualified_name(&node.parent()) && ptr::eq(&*node.parent().as_qualified_name().right, node)
         || is_property_access_expression(&node.parent())
@@ -145,7 +145,7 @@ pub fn is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(
             && ptr::eq(&*node.parent().as_jsdoc_member_name().right, node)
 }
 
-pub fn is_empty_object_literal(expression: &Node) -> bool {
+pub fn is_empty_object_literal(expression: Id<Node>) -> bool {
     expression.kind() == SyntaxKind::ObjectLiteralExpression
         && expression
             .as_object_literal_expression()
@@ -153,7 +153,7 @@ pub fn is_empty_object_literal(expression: &Node) -> bool {
             .is_empty()
 }
 
-pub fn is_empty_array_literal(expression: &Node) -> bool {
+pub fn is_empty_array_literal(expression: Id<Node>) -> bool {
     expression.kind() == SyntaxKind::ArrayLiteralExpression
         && expression.as_array_literal_expression().elements.is_empty()
 }
@@ -274,7 +274,7 @@ pub fn move_range_pos(range: &impl ReadonlyTextRange, pos: isize) -> BaseTextRan
     create_range(pos, Some(range.end()))
 }
 
-pub fn move_range_past_decorators(node: &Node) -> BaseTextRange {
+pub fn move_range_past_decorators(node: Id<Node>) -> BaseTextRange {
     if let Some(node_decorators) = node
         .maybe_decorators()
         .filter(|node_decorators| !node_decorators.is_empty())
@@ -285,7 +285,7 @@ pub fn move_range_past_decorators(node: &Node) -> BaseTextRange {
     }
 }
 
-pub fn move_range_past_modifiers(node: &Node) -> BaseTextRange {
+pub fn move_range_past_modifiers(node: Id<Node>) -> BaseTextRange {
     if let Some(node_modifiers) = node
         .maybe_modifiers()
         .filter(|node_modifiers| !node_modifiers.is_empty())
@@ -305,7 +305,7 @@ pub fn create_token_range(pos: isize, token: SyntaxKind) -> BaseTextRange {
 
 pub fn range_is_on_single_line(
     range: &impl ReadonlyTextRange,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
     range_start_is_on_same_line_as_range_end(range, range, source_file)
 }
@@ -313,7 +313,7 @@ pub fn range_is_on_single_line(
 pub fn range_start_positions_are_on_same_line(
     range1: &impl ReadonlyTextRange,
     range2: &impl ReadonlyTextRange,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
     positions_are_on_same_line(
         get_start_position_of_range(range1, source_file, false),
@@ -325,7 +325,7 @@ pub fn range_start_positions_are_on_same_line(
 pub fn range_end_positions_are_on_same_line(
     range1: &impl ReadonlyTextRange,
     range2: &impl ReadonlyTextRange,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
     positions_are_on_same_line(range1.end(), range2.end(), source_file)
 }
@@ -333,7 +333,7 @@ pub fn range_end_positions_are_on_same_line(
 pub fn range_start_is_on_same_line_as_range_end(
     range1: &impl ReadonlyTextRange,
     range2: &impl ReadonlyTextRange,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
     positions_are_on_same_line(
         get_start_position_of_range(range1, source_file, false),
@@ -345,7 +345,7 @@ pub fn range_start_is_on_same_line_as_range_end(
 pub fn range_end_is_on_same_line_as_range_start(
     range1: &impl ReadonlyTextRange,
     range2: &impl ReadonlyTextRange,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
     positions_are_on_same_line(
         range1.end(),
@@ -357,7 +357,7 @@ pub fn range_end_is_on_same_line_as_range_start(
 pub fn get_lines_between_range_end_and_range_start(
     _range1: &impl ReadonlyTextRange,
     _range2: &impl ReadonlyTextRange,
-    _source_file: &Node, /*SourceFile*/
+    _source_file: Id<Node>, /*SourceFile*/
     _include_second_range_comments: bool,
 ) -> usize {
     unimplemented!()
@@ -366,14 +366,14 @@ pub fn get_lines_between_range_end_and_range_start(
 pub fn positions_are_on_same_line(
     pos1: isize,
     pos2: isize,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
     get_lines_between_positions(source_file.as_source_file(), pos1, pos2) == 0
 }
 
 pub fn get_start_position_of_range(
     range: &impl ReadonlyTextRange,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     include_comments: bool,
 ) -> isize {
     if position_is_synthesized(range.pos()) {
@@ -392,7 +392,7 @@ pub fn get_start_position_of_range(
 pub fn get_lines_between_position_and_preceding_non_whitespace_character(
     _pos: isize,
     _stop_pos: isize,
-    _source_file: &Node, /*SourceFile*/
+    _source_file: Id<Node>, /*SourceFile*/
     _include_comments: Option<bool>,
 ) -> usize {
     unimplemented!()
@@ -401,14 +401,14 @@ pub fn get_lines_between_position_and_preceding_non_whitespace_character(
 pub fn get_lines_between_position_and_next_non_whitespace_character(
     _pos: isize,
     _stop_pos: isize,
-    _source_file: &Node, /*SourceFile*/
+    _source_file: Id<Node>, /*SourceFile*/
     _include_comments: Option<bool>,
 ) -> usize {
     unimplemented!()
 }
 
-pub fn is_declaration_name_of_enum_or_namespace(node: &Node /*Identifier*/) -> bool {
-    let parse_node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+pub fn is_declaration_name_of_enum_or_namespace(node: Id<Node> /*Identifier*/) -> bool {
+    let parse_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
     if let Some(parse_node) = parse_node {
         match parse_node.parent().kind() {
             SyntaxKind::EnumDeclaration | SyntaxKind::ModuleDeclaration => {
@@ -423,14 +423,14 @@ pub fn is_declaration_name_of_enum_or_namespace(node: &Node /*Identifier*/) -> b
     false
 }
 
-pub fn get_initialized_variables(node: &Node /*VariableDeclarationList*/) -> Vec<Id<Node>> {
+pub fn get_initialized_variables(node: Id<Node> /*VariableDeclarationList*/) -> Vec<Id<Node>> {
     filter(
         &node.as_variable_declaration_list().declarations,
         |declaration: &Id<Node>| is_initialized_variable(declaration),
     )
 }
 
-fn is_initialized_variable(node: &Node /*VariableDeclaration*/) -> bool {
+fn is_initialized_variable(node: Id<Node> /*VariableDeclaration*/) -> bool {
     node.as_variable_declaration().maybe_initializer().is_some()
 }
 
@@ -499,11 +499,11 @@ pub fn get_combined_local_and_export_symbol_flags(_symbol: Id<Symbol>) -> Symbol
     unimplemented!()
 }
 
-pub fn is_write_only_access(node: &Node) -> bool {
+pub fn is_write_only_access(node: Id<Node>) -> bool {
     access_kind(node) == AccessKind::Write
 }
 
-pub fn is_write_access(node: &Node) -> bool {
+pub fn is_write_access(node: Id<Node>) -> bool {
     access_kind(node) != AccessKind::Read
 }
 
@@ -514,7 +514,7 @@ enum AccessKind {
     ReadWrite,
 }
 
-fn access_kind(node: &Node) -> AccessKind {
+fn access_kind(node: Id<Node>) -> AccessKind {
     let parent = node.maybe_parent();
     if parent.is_none() {
         return AccessKind::Read;
@@ -582,7 +582,7 @@ fn access_kind(node: &Node) -> AccessKind {
     }
 }
 
-fn write_or_read_write(parent: &Node) -> AccessKind {
+fn write_or_read_write(parent: Id<Node>) -> AccessKind {
     if let Some(grandparent) = parent.maybe_parent().as_ref() {
         if walk_up_parenthesized_expressions(grandparent)
             .unwrap()
@@ -676,7 +676,7 @@ pub fn is_type_node_kind(kind: SyntaxKind) -> bool {
         )
 }
 
-pub fn is_access_expression(node: &Node) -> bool {
+pub fn is_access_expression(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
@@ -687,7 +687,7 @@ pub fn is_bundle_file_text_like(_section: &BundleFileSection) -> bool {
     unimplemented!()
 }
 
-pub fn get_leftmost_access_expression(expr: &Node /*Expression*/) -> Id<Node /*Expression*/> {
+pub fn get_leftmost_access_expression(expr: Id<Node>, /*Expression*/) -> Id<Node /*Expression*/> {
     let mut expr = expr.node_wrapper();
     while is_access_expression(&expr) {
         expr = expr.as_has_expression().expression();
@@ -696,7 +696,7 @@ pub fn get_leftmost_access_expression(expr: &Node /*Expression*/) -> Id<Node /*E
 }
 
 pub fn get_leftmost_expression(
-    node: &Node, /*Expression*/
+    node: Id<Node>, /*Expression*/
     stop_at_call_expressions: bool,
 ) -> Id<Node /*Expression*/> {
     let mut node = node.node_wrapper();
@@ -879,7 +879,7 @@ fn is_diagnostic_with_detached_location(
 
 pub fn attach_file_to_diagnostic(
     diagnostic: &DiagnosticWithDetachedLocation,
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
 ) -> DiagnosticWithLocation {
     let file_as_source_file = file.as_source_file();
     let file_name = file_as_source_file.file_name();
@@ -928,7 +928,7 @@ pub fn attach_file_to_diagnostic(
 
 pub fn attach_file_to_diagnostics(
     diagnostics: &[Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>],
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
 ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
     diagnostics
         .iter()
@@ -942,7 +942,7 @@ pub fn attach_file_to_diagnostics(
 }
 
 pub fn create_file_diagnostic(
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
     start: isize,
     length: isize,
     message: &DiagnosticMessage,

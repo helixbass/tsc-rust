@@ -23,9 +23,9 @@ use crate::{
 impl TransformES2015 {
     pub(super) fn transform_object_literal_method_declaration_to_expression(
         &self,
-        method: &Node,   /*MethodDeclaration*/
-        receiver: &Node, /*Expression*/
-        container: &Node,
+        method: Id<Node>,   /*MethodDeclaration*/
+        receiver: Id<Node>, /*Expression*/
+        container: Id<Node>,
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
         let method_as_method_declaration = method.as_method_declaration();
@@ -37,16 +37,16 @@ impl TransformES2015 {
                     receiver,
                     &*try_visit_node(
                         &method_as_method_declaration.name(),
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_property_name),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 ),
                 self.transform_function_like_to_expression(
                     method,
                     Some(method),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Some(container),
                 )?,
             )
@@ -59,7 +59,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_catch_clause(
         &self,
-        node: &Node, /*CatchClause*/
+        node: Id<Node>, /*CatchClause*/
     ) -> io::Result<Id<Node /*CatchClause*/>> {
         let node_as_catch_clause = node.as_catch_clause();
         let ancestor_facts = self.enter_subtree(
@@ -80,14 +80,14 @@ impl TransformES2015 {
         ) {
             let temp = self
                 .factory
-                .create_temp_variable(Option::<fn(&Node)>::None, None);
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
             let new_variable_declaration = self
                 .factory
                 .create_variable_declaration(Some(temp.clone()), None, None, None)
                 .set_text_range(Some(&**node_variable_declaration));
             let vars = try_flatten_destructuring_binding(
                 node_variable_declaration,
-                |node: &Node| self.visitor(node),
+                |node: Id<Node>| self.visitor(node),
                 self.context.clone(),
                 FlattenLevel::All,
                 Some(&*temp),
@@ -108,7 +108,7 @@ impl TransformES2015 {
             );
         } else {
             updated =
-                try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?;
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
         }
 
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
@@ -117,13 +117,13 @@ impl TransformES2015 {
 
     pub(super) fn add_statement_to_start_of_block(
         &self,
-        block: &Node, /*Block*/
+        block: Id<Node>, /*Block*/
         statement: Id<Node /*Statement*/>,
     ) -> io::Result<Id<Node /*Block*/>> {
         let block_as_block = block.as_block();
         let transformed_statements = try_visit_nodes(
             &block_as_block.statements,
-            Some(|node: &Node| self.visitor(node)),
+            Some(|node: Id<Node>| self.visitor(node)),
             Some(is_statement),
             None,
             None,
@@ -136,7 +136,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_method_declaration(
         &self,
-        node: &Node, /*MethodDeclaration*/
+        node: Id<Node>, /*MethodDeclaration*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
         let node_as_method_declaration = node.as_method_declaration();
         Debug_.assert(
@@ -147,8 +147,8 @@ impl TransformES2015 {
             .transform_function_like_to_expression(
                 node,
                 Some(&ReadonlyTextRangeConcrete::from(move_range_pos(node, -1))),
-                Option::<&Node>::None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
+                Option::<Id<Node>>::None,
             )?
             .set_additional_emit_flags(EmitFlags::NoLeadingComments);
         Ok(self
@@ -159,7 +159,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_accessor_declaration(
         &self,
-        node: &Node, /*AccessorDeclaration*/
+        node: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<Id<Node /*AccessorDeclaration*/>> {
         let ref node_name = node.as_named_declaration().name();
         Debug_.assert(!is_computed_property_name(node_name), None);
@@ -172,7 +172,7 @@ impl TransformES2015 {
         let updated: Id<Node /*AccessorDeclaration*/>;
         let parameters = try_visit_parameter_list(
             Some(&node.as_signature_declaration().parameters()),
-            |node: &Node| self.visitor(node),
+            |node: Id<Node>| self.visitor(node),
             &**self.context,
         )?
         .unwrap();
@@ -208,7 +208,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_shorthand_property_assignment(
         &self,
-        node: &Node, /*ShorthandPropertyAssignment*/
+        node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         Ok(self
@@ -226,23 +226,24 @@ impl TransformES2015 {
 
     pub(super) fn visit_computed_property_name(
         &self,
-        node: &Node, /*ComputedPropertyName*/
+        node: Id<Node>, /*ComputedPropertyName*/
     ) -> io::Result<VisitResult> {
         Ok(Some(
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+                .into(),
         ))
     }
 
     pub(super) fn visit_yield_expression(
         &self,
-        node: &Node, /*YieldExpression*/
+        node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_array_literal_expression(
         &self,
-        node: &Node, /*ArrayLiteralExpression*/
+        node: Id<Node>, /*ArrayLiteralExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         if some(
@@ -256,12 +257,12 @@ impl TransformES2015 {
                 node_as_array_literal_expression.elements.has_trailing_comma,
             );
         }
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_call_expression(
         &self,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
     ) -> io::Result<VisitResult> {
         let node_as_call_expression = node.as_call_expression();
         if get_emit_flags(node).intersects(EmitFlags::TypeScriptClassWrapper) {
@@ -288,14 +289,14 @@ impl TransformES2015 {
                     node,
                     try_visit_node(
                         &node_as_call_expression.expression,
-                        Some(|node: &Node| self.call_expression_visitor(node)),
+                        Some(|node: Id<Node>| self.call_expression_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
                         &node_as_call_expression.arguments,
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_expression),
                         None,
                         None,
@@ -307,7 +308,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_type_script_class_wrapper(
         &self,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
     ) -> io::Result<VisitResult> {
         let node_as_call_expression = node.as_call_expression();
         let body = cast_present(
@@ -326,7 +327,7 @@ impl TransformES2015 {
         self.set_converted_loop_state(None);
         let body_statements = try_visit_nodes(
             &body_as_block.statements,
-            Some(|node: &Node| self.class_wrapper_statement_visitor(node)),
+            Some(|node: Id<Node>| self.class_wrapper_statement_visitor(node)),
             Some(is_statement),
             None,
             None,
@@ -491,7 +492,7 @@ impl TransformES2015 {
 
     pub(super) fn is_variable_statement_with_initializer(
         &self,
-        stmt: &Node, /*Statement*/
+        stmt: Id<Node>, /*Statement*/
     ) -> bool {
         is_variable_statement(stmt)
             && first(
@@ -508,14 +509,14 @@ impl TransformES2015 {
 
     pub(super) fn visit_immediate_super_call_in_body(
         &self,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
     ) -> io::Result<Id<Node>> {
         self.visit_call_expression_with_potential_captured_this_assignment(node, false)
     }
 
     pub(super) fn visit_call_expression_with_potential_captured_this_assignment(
         &self,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
         assign_to_captured_this: bool,
     ) -> io::Result<Id<Node /*CallExpression | BinaryExpression*/>> {
         let node_as_call_expression = node.as_call_expression();
@@ -530,7 +531,7 @@ impl TransformES2015 {
         {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
                 &node_as_call_expression.expression,
-                |node: &Node| {
+                |node: Id<Node>| {
                     self.context.hoist_variable_declaration(node);
                 },
                 None,
@@ -548,7 +549,7 @@ impl TransformES2015 {
                 resulting_call = self.factory.create_function_apply_call(
                     try_visit_node(
                         &target,
-                        Some(|node: &Node| self.call_expression_visitor(node)),
+                        Some(|node: Id<Node>| self.call_expression_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
@@ -557,7 +558,7 @@ impl TransformES2015 {
                     } else {
                         try_visit_node(
                             &this_arg,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?
@@ -575,7 +576,7 @@ impl TransformES2015 {
                     .create_function_call_call(
                         try_visit_node(
                             &target,
-                            Some(|node: &Node| self.call_expression_visitor(node)),
+                            Some(|node: Id<Node>| self.call_expression_visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
@@ -584,14 +585,14 @@ impl TransformES2015 {
                         } else {
                             try_visit_node(
                                 &this_arg,
-                                Some(|node: &Node| self.visitor(node)),
+                                Some(|node: Id<Node>| self.visitor(node)),
                                 Some(is_expression),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?
                         },
                         try_visit_nodes(
                             &node_as_call_expression.arguments,
-                            Some(|node: &Node| self.visitor(node)),
+                            Some(|node: Id<Node>| self.visitor(node)),
                             Some(is_expression),
                             None,
                             None,
@@ -622,12 +623,12 @@ impl TransformES2015 {
             return Ok(set_original_node(resulting_call, Some(node.node_wrapper())));
         }
 
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_new_expression(
         &self,
-        node: &Node, /*NewExpression*/
+        node: Id<Node>, /*NewExpression*/
     ) -> io::Result<Id<Node /*LeftHandSideExpression*/>> {
         let node_as_new_expression = node.as_new_expression();
         if some(
@@ -639,7 +640,7 @@ impl TransformES2015 {
                     node_as_new_expression.expression.clone(),
                     "bind",
                 ),
-                |node: &Node| {
+                |node: Id<Node>| {
                     self.context.hoist_variable_declaration(node);
                 },
                 None,
@@ -649,7 +650,7 @@ impl TransformES2015 {
                 self.factory.create_function_apply_call(
                     try_visit_node(
                         &target,
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
@@ -676,7 +677,7 @@ impl TransformES2015 {
                 Some(vec![]),
             ));
         }
-        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn transform_and_spread_elements(

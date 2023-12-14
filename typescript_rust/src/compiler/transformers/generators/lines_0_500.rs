@@ -863,7 +863,7 @@ impl TransformGenerators {
         self.context.get_emit_helper_factory()
     }
 
-    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
+    pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file()
             || !node
@@ -873,11 +873,11 @@ impl TransformGenerators {
             return node.node_wrapper();
         }
 
-        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
             .add_emit_helpers(self.context.read_emit_helpers().as_deref())
     }
 
-    pub(super) fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         let transform_flags = node.transform_flags();
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.visit_java_script_in_statement_containing_yield(node)
@@ -891,7 +891,9 @@ impl TransformGenerators {
         {
             self.visit_generator(node)
         } else if transform_flags.intersects(TransformFlags::ContainsGenerator) {
-            Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
+            Some(
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context).into(),
+            )
         } else {
             Some(node.node_wrapper().into())
         }
@@ -899,7 +901,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_java_script_in_statement_containing_yield(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> VisitResult /*<Node>*/ {
         match node.kind() {
             SyntaxKind::DoStatement => self.visit_do_statement(node),
@@ -910,8 +912,10 @@ impl TransformGenerators {
         }
     }
 
-    pub(super) fn visit_java_script_in_generator_function_body(&self, node: &Node) -> VisitResult /*<Node>*/
-    {
+    pub(super) fn visit_java_script_in_generator_function_body(
+        &self,
+        node: Id<Node>,
+    ) -> VisitResult /*<Node>*/ {
         match node.kind() {
             SyntaxKind::FunctionDeclaration => {
                 self.visit_function_declaration(node).map(Into::into)
@@ -937,8 +941,12 @@ impl TransformGenerators {
                         | TransformFlags::ContainsHoistedDeclarationOrCompletion,
                 ) {
                     Some(
-                        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
-                            .into(),
+                        visit_each_child(
+                            node,
+                            |node: Id<Node>| self.visitor(node),
+                            &**self.context,
+                        )
+                        .into(),
                     )
                 } else {
                     Some(node.node_wrapper().into())
@@ -947,7 +955,8 @@ impl TransformGenerators {
         }
     }
 
-    pub(super) fn visit_java_script_containing_yield(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn visit_java_script_containing_yield(&self, node: Id<Node>) -> VisitResult /*<Node>*/
+    {
         match node.kind() {
             SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
             SyntaxKind::CommaListExpression => self.visit_comma_list_expression(node),
@@ -961,12 +970,12 @@ impl TransformGenerators {
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => self.visit_new_expression(node),
             _ => Some(
-                visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context).into(),
             ),
         }
     }
 
-    pub(super) fn visit_generator(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn visit_generator(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         match node.kind() {
             SyntaxKind::FunctionDeclaration => {
                 self.visit_function_declaration(node).map(Into::into)
@@ -978,7 +987,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> Option<Id<Node /*Statement*/>> {
         let mut node = node.node_wrapper();
         if node
@@ -996,7 +1005,7 @@ impl TransformGenerators {
                     Option::<Gc<NodeArray>>::None,
                     visit_parameter_list(
                         Some(&node.as_function_declaration().parameters()),
-                        |node: &Node| self.visitor(node),
+                        |node: Id<Node>| self.visitor(node),
                         &**self.context,
                     )
                     .unwrap(),
@@ -1012,7 +1021,7 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context);
+            node = visit_each_child(&node, |node: Id<Node>| self.visitor(node), &**self.context);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
@@ -1027,7 +1036,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_function_expression(
         &self,
-        node: &Node, /*FunctionExpression*/
+        node: Id<Node>, /*FunctionExpression*/
     ) -> Id<Node /*Expression*/> {
         let mut node = node.node_wrapper();
         if node
@@ -1044,7 +1053,7 @@ impl TransformGenerators {
                     Option::<Gc<NodeArray>>::None,
                     visit_parameter_list(
                         Some(&node.as_function_expression().parameters()),
-                        |node: &Node| self.visitor(node),
+                        |node: Id<Node>| self.visitor(node),
                         &**self.context,
                     ),
                     None,
@@ -1059,7 +1068,7 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context);
+            node = visit_each_child(&node, |node: Id<Node>| self.visitor(node), &**self.context);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
@@ -1069,7 +1078,7 @@ impl TransformGenerators {
 }
 
 impl TransformerInterface for TransformGenerators {
-    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }
@@ -1093,7 +1102,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
 
     fn substitute_expression(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         if is_identifier(node) {
             return self.substitute_expression_identifier(node);
@@ -1103,7 +1112,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
 
     fn substitute_expression_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> {
         if !is_generated_identifier(node)
             && self
@@ -1147,7 +1156,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformGeneratorsOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

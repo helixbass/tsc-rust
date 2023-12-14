@@ -109,7 +109,7 @@ impl DebugType {
         panic!("{}", message);
     }
 
-    pub fn fail_bad_syntax_kind(&self, node: &Node, message: Option<&str>) -> ! {
+    pub fn fail_bad_syntax_kind(&self, node: Id<Node>, message: Option<&str>) -> ! {
         self.fail(Some(&format!(
             "{}\r\nNode {} was unexpected.",
             &message.map_or_else(
@@ -193,7 +193,7 @@ impl DebugType {
     pub fn assert_each_node(
         &self,
         nodes: &[Id<Node>],
-        mut test: impl FnMut(&Node) -> bool,
+        mut test: impl FnMut(Id<Node>) -> bool,
         message: Option<&str>,
     ) {
         if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertEachNode) {
@@ -207,7 +207,7 @@ impl DebugType {
     pub fn assert_node(
         &self,
         node: Option<impl Borrow<Node>>,
-        test: Option<impl FnOnce(&Node) -> bool>,
+        test: Option<impl FnOnce(Id<Node>) -> bool>,
         message: Option<&str>,
     ) {
         if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertNode) {
@@ -221,7 +221,7 @@ impl DebugType {
     pub fn assert_not_node(
         &self,
         node: Option<impl Borrow<Node>>,
-        test: Option<impl FnOnce(&Node) -> bool>,
+        test: Option<impl FnOnce(Id<Node>) -> bool>,
         message: Option<&str>,
     ) {
         if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertNotNode) {

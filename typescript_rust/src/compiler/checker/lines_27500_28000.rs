@@ -126,7 +126,7 @@ impl TypeChecker {
     pub(super) fn get_uninstantiated_jsx_signatures_of_type(
         &self,
         element_type: Id<Type>,
-        caller: &Node, /*JsxOpeningLikeElement*/
+        caller: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Vec<Gc<Signature>>> {
         if element_type
             .ref_(self)
@@ -187,7 +187,7 @@ impl TypeChecker {
     pub(super) fn get_intrinsic_attributes_type_from_string_literal_type(
         &self,
         type_: Id<Type>, /*StringLiteralType*/
-        location: &Node,
+        location: Id<Node>,
     ) -> io::Result<Option<Id<Type>>> {
         let intrinsic_elements_type =
             self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
@@ -216,7 +216,7 @@ impl TypeChecker {
         &self,
         ref_kind: JsxReferenceKind,
         elem_instance_type: Id<Type>,
-        opening_like_element: &Node, /*JsxOpeningLikeElement*/
+        opening_like_element: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<()> {
         if ref_kind == JsxReferenceKind::Function {
             let sfc_return_constraint =
@@ -301,7 +301,7 @@ impl TypeChecker {
 
     pub(super) fn get_intrinsic_attributes_type_from_jsx_opening_like_element(
         &self,
-        node: &Node, /*JsxOpeningLikeElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         Debug_.assert(
@@ -352,7 +352,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_element_class_type_at(
         &self,
-        location: &Node,
+        location: Id<Node>,
     ) -> io::Result<Option<Id<Type>>> {
         let type_ = self.get_jsx_type(&JsxNames::ElementClass, Some(location))?;
         if self.is_error_type(type_) {
@@ -361,13 +361,13 @@ impl TypeChecker {
         Ok(Some(type_))
     }
 
-    pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> io::Result<Id<Type>> {
+    pub(super) fn get_jsx_element_type_at(&self, location: Id<Node>) -> io::Result<Id<Type>> {
         self.get_jsx_type(&JsxNames::Element, Some(location))
     }
 
     pub(super) fn get_jsx_stateless_element_type_at(
         &self,
-        location: &Node,
+        location: Id<Node>,
     ) -> io::Result<Option<Id<Type>>> {
         let jsx_element_type = self.get_jsx_element_type_at(location)?;
         // if (jsxElementType) {
@@ -383,14 +383,14 @@ impl TypeChecker {
 
     pub fn get_jsx_intrinsic_tag_names_at(
         &self,
-        location: &Node,
+        location: Id<Node>,
     ) -> io::Result<impl Iterator<Item = Id<Symbol>>> {
         let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         /*intrinsics ?*/
         self.get_properties_of_type(intrinsics) /*: emptyArray*/
     }
 
-    pub(super) fn check_jsx_preconditions(&self, error_node: &Node) {
+    pub(super) fn check_jsx_preconditions(&self, error_node: Id<Node>) {
         if self.compiler_options.jsx.unwrap_or(JsxEmit::None) == JsxEmit::None {
             self.error(
                 Some(error_node),
@@ -408,7 +408,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_opening_like_element_or_opening_fragment(
         &self,
-        node: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+        node: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
     ) -> io::Result<()> {
         let is_node_opening_like_element = is_jsx_opening_like_element(node);
 
@@ -559,7 +559,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsx_expression(
         &self,
-        node: &Node, /*JsxExpression*/
+        node: Id<Node>, /*JsxExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.check_grammar_jsx_expression(node);
@@ -615,7 +615,7 @@ impl TypeChecker {
 
     pub(super) fn check_property_accessibility(
         &self,
-        node: &Node, /*PropertyAccessExpression | QualifiedName | VariableDeclaration | ParameterDeclaration | ImportTypeNode | PropertyAssignment | ShorthandPropertyAssignment | BindingElement*/
+        node: Id<Node>, /*PropertyAccessExpression | QualifiedName | VariableDeclaration | ParameterDeclaration | ImportTypeNode | PropertyAssignment | ShorthandPropertyAssignment | BindingElement*/
         is_super: bool,
         writing: bool,
         type_: Id<Type>,
@@ -644,7 +644,7 @@ impl TypeChecker {
 
     pub(super) fn check_property_accessibility_at_location(
         &self,
-        location: &Node,
+        location: Id<Node>,
         is_super: bool,
         writing: bool,
         containing_type: Id<Type>,
@@ -679,12 +679,12 @@ impl TypeChecker {
                         Some(vec![
                             self.symbol_to_string_(
                                 prop,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None, None
                             )?,
                             self.type_to_string_(
                                 self.get_declaring_class(prop)?.unwrap(),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?,
                         ])
@@ -713,7 +713,7 @@ impl TypeChecker {
                             Some(vec![
                                 self.symbol_to_string_(
                                     prop,
-                                    Option::<&Node>::None, None, None, None,
+                                    Option::<Id<Node>>::None, None, None, None,
                                 )?,
                                 get_text_of_identifier_or_literal(&declaring_class_declaration.as_named_declaration().name()).into_owned()
                             ])
@@ -739,10 +739,16 @@ impl TypeChecker {
                         error_node.as_deref(),
                         &Diagnostics::Property_0_is_private_and_only_accessible_within_class_1,
                         Some(vec![
-                            self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None)?,
+                            self.symbol_to_string_(
+                                prop,
+                                Option::<Id<Node>>::None,
+                                None,
+                                None,
+                                None,
+                            )?,
                             self.type_to_string_(
                                 self.get_declaring_class(prop)?.unwrap(),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?,
@@ -759,7 +765,7 @@ impl TypeChecker {
         }
 
         let mut enclosing_class =
-            self.try_for_each_enclosing_class(location, |enclosing_declaration: &Node| {
+            self.try_for_each_enclosing_class(location, |enclosing_declaration: Id<Node>| {
                 let enclosing_class = self.get_declared_type_of_symbol(
                     self.get_symbol_of_node(enclosing_declaration)?.unwrap(),
                 )?;
@@ -793,12 +799,12 @@ impl TypeChecker {
                         Some(vec![
                             self.symbol_to_string_(
                                 prop,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None, None,
                             )?,
                             self.type_to_string_(
                                 self.get_declaring_class(prop)?.unwrap_or_else(|| containing_type),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?,
                         ])
@@ -864,18 +870,18 @@ impl TypeChecker {
                     Some(vec![
                         self.symbol_to_string_(
                             prop,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None, None,
                         )?,
                         self.type_to_string_(
                             enclosing_class,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?,
                         self.type_to_string_(
                             // TODO: this looks like type_to_string_() actually should accept an Option<Type>
                             containing_type.unwrap(),
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?,
                     ])

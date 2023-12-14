@@ -563,8 +563,8 @@ impl TypeChecker {
                         error_info,
                         &Diagnostics::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
                         Some(vec![
-                            self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None)?,
-                            self.symbol_to_string_(never_prop, Option::<&Node>::None, None, None, None)?
+                            self.type_to_string_(type_, Option::<Id<Node>>::None, Some(TypeFormatFlags::NoTypeReduction), None)?,
+                            self.symbol_to_string_(never_prop, Option::<Id<Node>>::None, None, None, None)?
                         ])
                     )
                 ));
@@ -578,8 +578,8 @@ impl TypeChecker {
                         error_info,
                         &Diagnostics::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
                         Some(vec![
-                            self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None)?,
-                            self.symbol_to_string_(private_prop, Option::<&Node>::None, None, None, None)?
+                            self.type_to_string_(type_, Option::<Id<Node>>::None, Some(TypeFormatFlags::NoTypeReduction), None)?,
+                            self.symbol_to_string_(private_prop, Option::<Id<Node>>::None, None, None, None)?
                         ])
                     )
                 ));
@@ -841,7 +841,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_parameters_from_declaration(
         &self,
-        declaration: &Node, /*DeclarationWithTypeParameters*/
+        declaration: Id<Node>, /*DeclarationWithTypeParameters*/
     ) -> Option<Vec<Id<Type /*<TypeParameter>*/>>> {
         let mut result: Option<Vec<Id<Type>>> = None;
         for node in get_effective_type_parameter_declarations(declaration) {
@@ -865,7 +865,7 @@ impl TypeChecker {
 
     pub(super) fn is_jsdoc_optional_parameter(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> bool {
         is_in_js_file(Some(node)) && (
             matches!(node.as_parameter_declaration().maybe_type(), Some(type_) if type_.kind() == SyntaxKind::JSDocOptionalType) ||
@@ -903,7 +903,7 @@ impl TypeChecker {
 
     pub(super) fn is_optional_parameter_(
         &self,
-        node: &Node, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
+        node: Id<Node>, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
     ) -> io::Result<bool> {
         if has_question_token(node)
             || self.is_optional_jsdoc_property_like_tag(node)
@@ -950,12 +950,12 @@ impl TypeChecker {
 
     pub(super) fn is_optional_property_declaration(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> bool {
         is_property_declaration(node) && node.as_property_declaration().question_token.is_some()
     }
 
-    pub(super) fn is_optional_jsdoc_property_like_tag(&self, node: &Node) -> bool {
+    pub(super) fn is_optional_jsdoc_property_like_tag(&self, node: Id<Node>) -> bool {
         if !is_jsdoc_property_like_tag(node) {
             return false;
         }

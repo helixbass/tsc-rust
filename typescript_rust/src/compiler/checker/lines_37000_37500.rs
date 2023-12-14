@@ -19,7 +19,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn is_symbol_used_in_binary_expression_chain(
         &self,
-        node: &Node,
+        node: Id<Node>,
         tested_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         let mut node = node.node_wrapper();
@@ -43,7 +43,7 @@ impl TypeChecker {
     pub(super) fn is_symbol_used_in_binary_expression_chain_visit(
         &self,
         tested_symbol: Id<Symbol>,
-        child: &Node,
+        child: Id<Node>,
     ) -> io::Result<bool> {
         if is_identifier(child) {
             let symbol = self.get_symbol_at_location_(child, None)?;
@@ -61,7 +61,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_do_statement(&self, node: &Node /*DoStatement*/) -> io::Result<()> {
+    pub(super) fn check_do_statement(&self, node: Id<Node> /*DoStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
         let node_as_do_statement = node.as_do_statement();
@@ -73,7 +73,7 @@ impl TypeChecker {
 
     pub(super) fn check_while_statement(
         &self,
-        node: &Node, /*WhileStatement*/
+        node: Id<Node>, /*WhileStatement*/
     ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
@@ -84,7 +84,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_truthiness_of_type(&self, type_: Id<Type>, node: &Node) -> Id<Type> {
+    pub(super) fn check_truthiness_of_type(&self, type_: Id<Type>, node: Id<Node>) -> Id<Type> {
         if type_.ref_(self).flags().intersects(TypeFlags::Void) {
             self.error(
                 Some(node),
@@ -97,13 +97,16 @@ impl TypeChecker {
 
     pub(super) fn check_truthiness_expression(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         Ok(self.check_truthiness_of_type(self.check_expression(node, check_mode, None)?, node))
     }
 
-    pub(super) fn check_for_statement(&self, node: &Node /*ForStatement*/) -> io::Result<()> {
+    pub(super) fn check_for_statement(
+        &self,
+        node: Id<Node>, /*ForStatement*/
+    ) -> io::Result<()> {
         let node_as_for_statement = node.as_for_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
             if let Some(node_initializer) =
@@ -148,7 +151,7 @@ impl TypeChecker {
 
     pub(super) fn check_for_of_statement(
         &self,
-        node: &Node, /*ForOfStatement*/
+        node: Id<Node>, /*ForOfStatement*/
     ) -> io::Result<()> {
         self.check_grammar_for_in_or_for_of_statement(node);
 
@@ -229,7 +232,7 @@ impl TypeChecker {
 
     pub(super) fn check_for_in_statement(
         &self,
-        node: &Node, /*ForInStatement*/
+        node: Id<Node>, /*ForInStatement*/
     ) -> io::Result<()> {
         self.check_grammar_for_in_or_for_of_statement(node);
 
@@ -297,7 +300,7 @@ impl TypeChecker {
                 Some(vec![
                     self.type_to_string_(
                         right_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,None,
                     )?
                 ])
@@ -314,7 +317,7 @@ impl TypeChecker {
 
     pub(super) fn check_for_in_or_for_of_variable_declaration(
         &self,
-        iteration_statement: &Node, /*ForInOrOfStatement*/
+        iteration_statement: Id<Node>, /*ForInOrOfStatement*/
     ) -> io::Result<()> {
         let variable_declaration_list = iteration_statement
             .as_has_initializer()
@@ -331,7 +334,7 @@ impl TypeChecker {
 
     pub(super) fn check_right_hand_side_of_for_of(
         &self,
-        statement: &Node, /*ForOfStatement*/
+        statement: Id<Node>, /*ForOfStatement*/
     ) -> io::Result<Id<Type>> {
         let statement_as_for_of_statement = statement.as_for_of_statement();
         let use_ = if statement_as_for_of_statement.await_modifier.is_some() {
@@ -510,7 +513,7 @@ impl TypeChecker {
                             && self
                                 .get_awaited_type_of_promise(
                                     array_type,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?
@@ -518,7 +521,7 @@ impl TypeChecker {
                         default_diagnostic,
                         Some(vec![self.type_to_string_(
                             array_type,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?]),
@@ -592,7 +595,7 @@ impl TypeChecker {
             use_,
             IterationTypeKind::Yield,
             input_type,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )?;
 
         if yield_type.is_some() {

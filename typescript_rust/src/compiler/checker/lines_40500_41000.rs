@@ -43,7 +43,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbols_in_scope_(
         &self,
-        location: &Node,
+        location: Id<Node>,
         meaning: SymbolFlags,
     ) -> io::Result<Vec<Id<Symbol>>> {
         if location.flags().intersects(NodeFlags::InWithStatement) {
@@ -211,7 +211,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_type_declaration_name(&self, name: &Node) -> bool {
+    pub(super) fn is_type_declaration_name(&self, name: Id<Node>) -> bool {
         name.kind() == SyntaxKind::Identifier
             && self.is_type_declaration(&name.parent())
             && matches!(
@@ -223,7 +223,7 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn is_type_declaration(&self, node: &Node) -> bool {
+    pub(super) fn is_type_declaration(&self, node: Id<Node>) -> bool {
         match node.kind() {
             SyntaxKind::TypeParameter
             | SyntaxKind::ClassDeclaration
@@ -241,7 +241,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_type_reference_identifier(&self, node: &Node /*EntityName*/) -> bool {
+    pub(super) fn is_type_reference_identifier(&self, node: Id<Node> /*EntityName*/) -> bool {
         let mut node = node.node_wrapper();
         while node.parent().kind() == SyntaxKind::QualifiedName {
             node = node.parent();
@@ -250,7 +250,7 @@ impl TypeChecker {
         node.parent().kind() == SyntaxKind::TypeReference
     }
 
-    pub(super) fn is_heritage_clause_element_identifier(&self, node: &Node) -> bool {
+    pub(super) fn is_heritage_clause_element_identifier(&self, node: Id<Node>) -> bool {
         let mut node = node.node_wrapper();
         while node.parent().kind() == SyntaxKind::PropertyAccessExpression {
             node = node.parent();
@@ -262,17 +262,17 @@ impl TypeChecker {
     #[allow(dead_code)]
     pub(super) fn for_each_enclosing_class<TReturn>(
         &self,
-        node: &Node,
-        mut callback: impl FnMut(&Node) -> Option<TReturn>,
+        node: Id<Node>,
+        mut callback: impl FnMut(Id<Node>) -> Option<TReturn>,
     ) -> Option<TReturn> {
-        self.try_for_each_enclosing_class(node, |node: &Node| Ok(callback(node)))
+        self.try_for_each_enclosing_class(node, |node: Id<Node>| Ok(callback(node)))
             .unwrap()
     }
 
     pub(super) fn try_for_each_enclosing_class<TReturn>(
         &self,
-        node: &Node,
-        mut callback: impl FnMut(&Node) -> io::Result<Option<TReturn>>,
+        node: Id<Node>,
+        mut callback: impl FnMut(Id<Node>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         let mut result: Option<TReturn> = None;
 
@@ -294,8 +294,8 @@ impl TypeChecker {
 
     pub(super) fn for_each_enclosing_class_bool(
         &self,
-        node: &Node,
-        mut callback: impl FnMut(&Node) -> bool,
+        node: Id<Node>,
+        mut callback: impl FnMut(Id<Node>) -> bool,
     ) -> bool {
         let mut result = false;
 
@@ -315,7 +315,7 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn is_node_used_during_class_initialization(&self, node: &Node) -> bool {
+    pub(super) fn is_node_used_during_class_initialization(&self, node: Id<Node>) -> bool {
         find_ancestor(Some(node), |element| {
             if is_constructor_declaration(element)
                 && node_is_present(element.as_constructor_declaration().maybe_body())
@@ -333,15 +333,15 @@ impl TypeChecker {
 
     pub(super) fn is_node_within_class(
         &self,
-        node: &Node,
-        class_declaration: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>,
+        class_declaration: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
         self.for_each_enclosing_class_bool(node, |n| ptr::eq(n, class_declaration))
     }
 
     pub(super) fn get_left_side_of_import_equals_or_export_assignment(
         &self,
-        node_on_right_side: &Node, /*EntityName*/
+        node_on_right_side: Id<Node>, /*EntityName*/
     ) -> Option<Id<Node /*ImportEqualsDeclaration | ExportAssignment*/>> {
         let mut node_on_right_side = node_on_right_side.node_wrapper();
         while node_on_right_side.parent().kind() == SyntaxKind::QualifiedName {
@@ -381,7 +381,7 @@ impl TypeChecker {
 
     pub(super) fn is_in_right_side_of_import_or_export_assignment(
         &self,
-        node: &Node, /*EntityName*/
+        node: Id<Node>, /*EntityName*/
     ) -> bool {
         self.get_left_side_of_import_equals_or_export_assignment(node)
             .is_some()
@@ -389,7 +389,7 @@ impl TypeChecker {
 
     pub(super) fn get_special_property_assignment_symbol_from_entity_name(
         &self,
-        entity_name: &Node, /*EntityName | PropertyAccessExpression*/
+        entity_name: Id<Node>, /*EntityName | PropertyAccessExpression*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let special_property_assignment_kind =
             get_assignment_declaration_kind(&entity_name.parent().parent());
@@ -409,7 +409,7 @@ impl TypeChecker {
 
     pub(super) fn is_import_type_qualifier_part(
         &self,
-        node: &Node, /*EntityName*/
+        node: Id<Node>, /*EntityName*/
     ) -> Option<Id<Node /*ImportTypeNode*/>> {
         let mut parent = node.parent();
         let mut node = node.node_wrapper();
@@ -435,7 +435,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_of_name_or_property_access_expression(
         &self,
-        name: &Node, /*EntityName | PrivateIdentifier | PropertyAccessExpression | JSDocMemberName*/
+        name: Id<Node>, /*EntityName | PrivateIdentifier | PropertyAccessExpression | JSDocMemberName*/
     ) -> io::Result<Option<Id<Symbol>>> {
         if is_declaration_name(name) {
             return self.get_symbol_of_node(&name.parent());
@@ -466,7 +466,7 @@ impl TypeChecker {
                     | SymbolFlags::Alias,
                 Some(true),
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?;
             if matches!(
                 success,
@@ -514,7 +514,7 @@ impl TypeChecker {
 
             meaning |= SymbolFlags::Alias;
             let entity_name_symbol = if is_entity_name_expression(name) {
-                self.resolve_entity_name(name, meaning, None, None, Option::<&Node>::None)?
+                self.resolve_entity_name(name, meaning, None, None, Option::<Id<Node>>::None)?
             } else {
                 None
             };
@@ -615,7 +615,7 @@ impl TypeChecker {
                 meaning,
                 Some(false),
                 Some(true),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?;
             return Ok(
                 if matches!(
@@ -634,7 +634,7 @@ impl TypeChecker {
                 SymbolFlags::FunctionScopedVariable,
                 None,
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             );
         }
 
@@ -643,7 +643,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_jsdoc_member_name(
         &self,
-        name: &Node, /*EntityName | JSDocMemberName*/
+        name: Id<Node>, /*EntityName | JSDocMemberName*/
         container: Option<Id<Symbol>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if is_entity_name(name) {
@@ -703,7 +703,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_at_location_(
         &self,
-        node: &Node,
+        node: Id<Node>,
         ignore_errors: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if node.kind() == SyntaxKind::SourceFile {

@@ -22,7 +22,7 @@ use crate::{
 impl IncrementalParserType {
     pub fn create_syntax_cursor(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
     ) -> IncrementalParserSyntaxCursor {
         IncrementalParserSyntaxCursor::create(source_file.node_wrapper())
     }
@@ -125,16 +125,16 @@ impl IncrementalParserSyntaxCursorCreated {
 
         for_each_child_bool(
             &self.source_file,
-            |node: &Node| self.visit_node(position_as_isize, node),
+            |node: Id<Node>| self.visit_node(position_as_isize, node),
             Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
         );
     }
 
-    fn visit_node(&self, position_as_isize: isize, node: &Node) -> bool {
+    fn visit_node(&self, position_as_isize: isize, node: Id<Node>) -> bool {
         if position_as_isize >= node.pos() && position_as_isize < node.end() {
             for_each_child_bool(
                 node,
-                |node: &Node| self.visit_node(position_as_isize, node),
+                |node: Id<Node>| self.visit_node(position_as_isize, node),
                 Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
             );
         }
@@ -155,7 +155,7 @@ impl IncrementalParserSyntaxCursorCreated {
                     if child.pos() < position_as_isize && position_as_isize < child.end() {
                         for_each_child_bool(
                             child,
-                            |node: &Node| self.visit_node(position_as_isize, node),
+                            |node: Id<Node>| self.visit_node(position_as_isize, node),
                             Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
                         );
                         return true;
@@ -584,8 +584,8 @@ fn get_named_pragma_arguments(pragma: &PragmaSpec, text: Option<&str>) -> Option
 }
 
 pub(crate) fn tag_names_are_equivalent(
-    lhs: &Node, /*JsxTagNameExpression*/
-    rhs: &Node, /*JsxTagNameExpression*/
+    lhs: Id<Node>, /*JsxTagNameExpression*/
+    rhs: Id<Node>, /*JsxTagNameExpression*/
 ) -> bool {
     if lhs.kind() != rhs.kind() {
         return false;

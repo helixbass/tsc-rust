@@ -23,7 +23,7 @@ use crate::{
 impl TransformModule {
     pub(super) fn visit_import_equals_declaration(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         Debug_.assert(
@@ -39,7 +39,7 @@ impl TransformModule {
                         .create_expression_statement(self.create_export_expression(
                             &node_as_import_equals_declaration.name(),
                             &*self.create_require_call(node)?,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                         ))
                         .set_text_range(Some(node))
@@ -78,7 +78,7 @@ impl TransformModule {
                         .create_expression_statement(self.create_export_expression(
                             &self.factory.get_export_name(node, None, None),
                             &self.factory.get_local_name(node, None, None),
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                         ))
                         .set_text_range(Some(node))
@@ -102,7 +102,7 @@ impl TransformModule {
 
     pub(super) fn visit_export_declaration(
         &self,
-        node: &Node, /*ExportDeclaration*/
+        node: Id<Node>, /*ExportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_export_declaration = node.as_export_declaration();
         node_as_export_declaration.module_specifier.as_ref();
@@ -189,7 +189,7 @@ impl TransformModule {
                                 .create_expression_statement(self.create_export_expression(
                                     &self.factory.get_export_name(specifier, None, None),
                                     &exported_value,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     Some(true),
                                 ))
                                 .set_text_range(Some(&**specifier))
@@ -224,7 +224,7 @@ impl TransformModule {
                                         ))
                                     },
                                 ),
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                             ),
                         )
@@ -254,7 +254,7 @@ impl TransformModule {
 
     pub(super) fn visit_export_assignment(
         &self,
-        node: &Node, /*ExportAssignment*/
+        node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_export_assignment = node.as_export_assignment();
         if node_as_export_assignment.is_export_equals == Some(true) {
@@ -273,8 +273,8 @@ impl TransformModule {
                 &self.factory.create_identifier("default"),
                 &*try_visit_node(
                     &node_as_export_assignment.expression,
-                    Some(|node: &Node| self.visitor(node)),
-                    Option::<fn(&Node) -> bool>::None,
+                    Some(|node: Id<Node>| self.visitor(node)),
+                    Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 Some(node),
@@ -287,8 +287,8 @@ impl TransformModule {
                 &self.factory.create_identifier("default"),
                 &*try_visit_node(
                     &node_as_export_assignment.expression,
-                    Some(|node: &Node| self.visitor(node)),
-                    Option::<fn(&Node) -> bool>::None,
+                    Some(|node: Id<Node>| self.visitor(node)),
+                    Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 Some(node),
@@ -302,7 +302,7 @@ impl TransformModule {
 
     pub(super) fn visit_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
@@ -313,7 +313,7 @@ impl TransformModule {
                         Option::<Gc<NodeArray>>::None,
                         maybe_visit_nodes(
                             node.maybe_modifiers().as_deref(),
-                            Some(|node: &Node| self.modifier_visitor(node)),
+                            Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(is_modifier),
                             None,
                             None,
@@ -326,15 +326,15 @@ impl TransformModule {
                         Option::<Gc<NodeArray>>::None,
                         try_visit_nodes(
                             &node_as_function_declaration.parameters(),
-                            Some(|node: &Node| self.visitor(node)),
-                            Option::<fn(&Node) -> bool>::None,
+                            Some(|node: Id<Node>| self.visitor(node)),
+                            Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
                         )?,
                         None,
                         try_maybe_visit_each_child(
                             node_as_function_declaration.maybe_body(),
-                            |node: &Node| self.visitor(node),
+                            |node: Id<Node>| self.visitor(node),
                             &**self.context,
                         )?,
                     )
@@ -346,7 +346,7 @@ impl TransformModule {
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
                     node,
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?);
         }
@@ -366,7 +366,7 @@ impl TransformModule {
 
     pub(super) fn visit_class_declaration(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
@@ -377,7 +377,7 @@ impl TransformModule {
                         Option::<Gc<NodeArray>>::None,
                         maybe_visit_nodes(
                             node.maybe_modifiers().as_deref(),
-                            Some(|node: &Node| self.modifier_visitor(node)),
+                            Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(is_modifier),
                             None,
                             None,
@@ -391,15 +391,15 @@ impl TransformModule {
                             node_as_class_declaration
                                 .maybe_heritage_clauses()
                                 .as_deref(),
-                            Some(|node: &Node| self.visitor(node)),
-                            Option::<fn(&Node) -> bool>::None,
+                            Some(|node: Id<Node>| self.visitor(node)),
+                            Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
                         )?,
                         try_visit_nodes(
                             &node_as_class_declaration.members(),
-                            Some(|node: &Node| self.visitor(node)),
-                            Option::<fn(&Node) -> bool>::None,
+                            Some(|node: Id<Node>| self.visitor(node)),
+                            Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
                         )?,
@@ -412,7 +412,7 @@ impl TransformModule {
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
                     node,
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?);
         }
@@ -432,7 +432,7 @@ impl TransformModule {
 
     pub(super) fn visit_variable_statement(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_variable_statement = node.as_variable_statement();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
@@ -455,7 +455,7 @@ impl TransformModule {
                     if modifiers.is_none() {
                         modifiers = maybe_visit_nodes(
                             node.maybe_modifiers().as_deref(),
-                            Some(|node: &Node| self.modifier_visitor(node)),
+                            Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(is_modifier),
                             None,
                             None,
@@ -488,8 +488,8 @@ impl TransformModule {
                             variable_as_variable_declaration.maybe_type(),
                             Some(try_visit_node(
                                 variable_initializer,
-                                Some(|node: &Node| self.visitor(node)),
-                                Option::<fn(&Node) -> bool>::None,
+                                Some(|node: Id<Node>| self.visitor(node)),
+                                Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?),
                         );
@@ -534,7 +534,7 @@ impl TransformModule {
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
                     node,
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?);
         }
@@ -554,7 +554,7 @@ impl TransformModule {
 
     pub(super) fn create_all_export_expressions(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
         value: Id<Node /*Expression*/>,
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     ) -> io::Result<Id<Node>> {
@@ -581,7 +581,7 @@ impl TransformModule {
 
     pub(super) fn transform_initialized_variable(
         &self,
-        node: &Node, /*InitializedVariableDeclaration*/
+        node: Id<Node>, /*InitializedVariableDeclaration*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         Ok(
@@ -589,16 +589,18 @@ impl TransformModule {
                 try_flatten_destructuring_assignment(
                     &*try_visit_node(
                         node,
-                        Some(|node: &Node| self.visitor(node)),
-                        Option::<fn(&Node) -> bool>::None,
+                        Some(|node: Id<Node>| self.visitor(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<fn(&Node) -> io::Result<VisitResult>>::None,
+                    Option::<fn(Id<Node>) -> io::Result<VisitResult>>::None,
                     self.context.clone(),
                     FlattenLevel::All,
                     Some(false),
                     Some(
-                        |name: &Node, value: &Node, location: Option<&dyn ReadonlyTextRange>| {
+                        |name: Id<Node>,
+                         value: Id<Node>,
+                         location: Option<&dyn ReadonlyTextRange>| {
                             self.create_all_export_expressions(name, value.node_wrapper(), location)
                         },
                     ),
@@ -618,8 +620,8 @@ impl TransformModule {
                             |ref node_initializer| {
                                 try_visit_node(
                                     node_initializer,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Option::<fn(&Node) -> bool>::None,
+                                    Some(|node: Id<Node>| self.visitor(node)),
+                                    Option::<fn(Id<Node>) -> bool>::None,
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
                             },
@@ -631,7 +633,7 @@ impl TransformModule {
 
     pub(super) fn visit_merge_declaration_marker(
         &self,
-        node: &Node, /*MergeDeclarationMarker*/
+        node: Id<Node>, /*MergeDeclarationMarker*/
     ) -> VisitResult /*<Statement>*/ {
         if self.has_associated_end_of_declaration_marker(node)
             && node.maybe_original().unwrap().kind() == SyntaxKind::VariableStatement
@@ -646,13 +648,13 @@ impl TransformModule {
         Some(node.node_wrapper().into())
     }
 
-    pub(super) fn has_associated_end_of_declaration_marker(&self, node: &Node) -> bool {
+    pub(super) fn has_associated_end_of_declaration_marker(&self, node: Id<Node>) -> bool {
         get_emit_flags(node).intersects(EmitFlags::HasEndOfDeclarationMarker)
     }
 
     pub(super) fn visit_end_of_declaration_marker(
         &self,
-        node: &Node, /*EndOfDeclarationMarker*/
+        node: Id<Node>, /*EndOfDeclarationMarker*/
     ) -> VisitResult /*<Statement>*/ {
         let id = get_original_node_id(node);
         let statements = self.deferred_exports().get(&id).cloned().flatten();
@@ -668,7 +670,7 @@ impl TransformModule {
     pub(super) fn append_exports_of_import_declaration(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        decl: &Node, /*ImportDeclaration*/
+        decl: Id<Node>, /*ImportDeclaration*/
     ) /*: Statement[] | undefined */
     {
         let decl_as_import_declaration = decl.as_import_declaration();

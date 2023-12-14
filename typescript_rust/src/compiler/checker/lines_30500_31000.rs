@@ -30,7 +30,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn invocation_error(
         &self,
-        error_target: &Node,
+        error_target: Id<Node>,
         apparent_type: Id<Type>,
         kind: SignatureKind,
         related_information: Option<Gc<DiagnosticRelatedInformation>>,
@@ -125,7 +125,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_tagged_template_expression(
         &self,
-        node: &Node, /*TaggedTemplateExpression*/
+        node: Id<Node>, /*TaggedTemplateExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
@@ -186,7 +186,7 @@ impl TypeChecker {
 
     pub(super) fn get_diagnostic_head_message_for_decorator_resolution(
         &self,
-        node: &Node, /*Decorator*/
+        node: Id<Node>, /*Decorator*/
     ) -> &'static DiagnosticMessage {
         match node.parent().kind() {
             SyntaxKind::ClassDeclaration |
@@ -206,7 +206,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_decorator(
         &self,
-        node: &Node, /*Decorator*/
+        node: Id<Node>, /*Decorator*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
@@ -294,7 +294,7 @@ impl TypeChecker {
 
     pub(super) fn create_signature_for_jsx_intrinsic(
         &self,
-        node: &Node, /*JsxOpeningLikeElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement*/
         result: Id<Type>,
     ) -> io::Result<Gc<Signature>> {
         let namespace = self.get_jsx_namespace_at(Some(node))?;
@@ -361,7 +361,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_jsx_opening_like_element(
         &self,
-        node: &Node, /*JsxOpeningLikeElement*/
+        node: Id<Node>, /*JsxOpeningLikeElement*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
@@ -460,7 +460,7 @@ impl TypeChecker {
 
     pub(super) fn is_potentially_uncalled_decorator(
         &self,
-        decorator: &Node, /*Decorator*/
+        decorator: Id<Node>, /*Decorator*/
         signatures: &[Gc<Signature>],
     ) -> bool {
         !signatures.is_empty()
@@ -474,7 +474,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_signature(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
@@ -503,7 +503,7 @@ impl TypeChecker {
 
     pub(super) fn get_resolved_signature_(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Gc<Signature>> {
@@ -650,7 +650,7 @@ impl TypeChecker {
 
     pub(super) fn get_assigned_class_symbol(
         &self,
-        decl: &Node, /*Declaration*/
+        decl: Id<Node>, /*Declaration*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true)?;
         let prototype = assignment_symbol
@@ -672,7 +672,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_of_expando(
         &self,
-        node: &Node,
+        node: Id<Node>,
         allow_declaration: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         if node.maybe_parent().is_none() {
@@ -761,7 +761,7 @@ impl TypeChecker {
         self.get_symbol_of_node(&decl)
     }
 
-    pub(super) fn get_assigned_js_prototype(&self, node: &Node) -> Option<Id<Node>> {
+    pub(super) fn get_assigned_js_prototype(&self, node: Id<Node>) -> Option<Id<Node>> {
         if node.maybe_parent().is_none() {
             return None;
         }
@@ -791,7 +791,7 @@ impl TypeChecker {
 
     pub(super) fn check_call_expression(
         &self,
-        node: &Node, /*CallExpression |} NewExpression*/
+        node: Id<Node>, /*CallExpression |} NewExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         if !self.check_grammar_type_arguments(
@@ -916,7 +916,7 @@ impl TypeChecker {
     pub(super) fn check_deprecated_signature(
         &self,
         signature: Gc<Signature>,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<()> {
         if let Some(signature_declaration) =
             signature
@@ -937,7 +937,7 @@ impl TypeChecker {
                 name.as_deref(),
                 &self.signature_to_string_(
                     signature.clone(),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                     None,
@@ -948,7 +948,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn get_deprecated_suggestion_node(&self, node: &Node) -> Id<Node> {
+    pub(super) fn get_deprecated_suggestion_node(&self, node: Id<Node>) -> Id<Node> {
         let node = skip_parentheses(node, None);
         match node.kind() {
             SyntaxKind::CallExpression | SyntaxKind::Decorator | SyntaxKind::NewExpression => {

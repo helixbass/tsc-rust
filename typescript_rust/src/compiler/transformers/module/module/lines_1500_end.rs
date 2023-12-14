@@ -16,7 +16,7 @@ impl TransformModule {
     pub(super) fn append_exports_of_import_equals_declaration(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        decl: &Node, /*ImportEqualsDeclaration*/
+        decl: Id<Node>, /*ImportEqualsDeclaration*/
     ) /*: Statement[] | undefined */
     {
         if self.current_module_info().export_equals.is_some() {
@@ -29,7 +29,7 @@ impl TransformModule {
     pub(super) fn append_exports_of_variable_statement(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
     ) /*: Statement[] | undefined */
     {
         let node_as_variable_statement = node.as_variable_statement();
@@ -51,7 +51,7 @@ impl TransformModule {
     pub(super) fn append_exports_of_binding_element(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        decl: &Node, /*VariableDeclaration | BindingElement*/
+        decl: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) /*: Statement[] | undefined */
     {
         let decl_as_named_declaration = decl.as_named_declaration();
@@ -79,7 +79,7 @@ impl TransformModule {
     pub(super) fn append_exports_of_hoisted_declaration(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        decl: &Node, /*ClassDeclaration | FunctionDeclaration*/
+        decl: Id<Node>, /*ClassDeclaration | FunctionDeclaration*/
     ) /*: Statement[] | undefined */
     {
         if self.current_module_info().export_equals.is_some() {
@@ -112,7 +112,7 @@ impl TransformModule {
     pub(super) fn append_exports_of_declaration(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        decl: &Node, /*Declaration*/
+        decl: Id<Node>, /*Declaration*/
         live_binding: Option<bool>,
     ) /*: Statement[] | undefined */
     {
@@ -138,8 +138,8 @@ impl TransformModule {
     pub(super) fn append_export_statement(
         &self,
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
-        export_name: &Node, /*Identifier*/
-        expression: &Node,  /*Expression*/
+        export_name: Id<Node>, /*Identifier*/
+        expression: Id<Node>,  /*Expression*/
         location: Option<&impl ReadonlyTextRange>,
         allow_comments: Option<bool>,
         live_binding: Option<bool>,
@@ -163,7 +163,7 @@ impl TransformModule {
                 .create_expression_statement(self.create_export_expression(
                     &self.factory.create_identifier("__esModule"),
                     &self.factory.create_true(),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                 ))
         } else {
@@ -199,8 +199,8 @@ impl TransformModule {
 
     pub(super) fn create_export_statement(
         &self,
-        name: &Node,  /*Identifier*/
-        value: &Node, /*Expression*/
+        name: Id<Node>,  /*Identifier*/
+        value: Id<Node>, /*Expression*/
         location: Option<&impl ReadonlyTextRange>,
         allow_comments: Option<bool>,
         live_binding: Option<bool>,
@@ -210,7 +210,7 @@ impl TransformModule {
             .create_expression_statement(self.create_export_expression(
                 name,
                 value,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 live_binding,
             ))
             .set_text_range(location)
@@ -224,8 +224,8 @@ impl TransformModule {
 
     pub(super) fn create_export_expression(
         &self,
-        name: &Node,  /*Identifier*/
-        value: &Node, /*Expression*/
+        name: Id<Node>,  /*Identifier*/
+        value: Id<Node>, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
         live_binding: Option<bool>,
     ) -> Id<Node> {
@@ -279,7 +279,7 @@ impl TransformModule {
         .set_text_range(location)
     }
 
-    pub(super) fn modifier_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn modifier_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         match node.kind() {
             SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword => None,
             _ => Some(node.node_wrapper().into()),
@@ -288,7 +288,7 @@ impl TransformModule {
 
     pub(super) fn get_exports(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Vec<Id<Node /*Identifier*/>>>> {
         if !is_generated_identifier(name) {
             let value_declaration = self

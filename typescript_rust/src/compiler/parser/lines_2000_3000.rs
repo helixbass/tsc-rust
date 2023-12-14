@@ -385,7 +385,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn can_reuse_node(&self, node: &Node, parsing_context: ParsingContext) -> bool {
+    pub(super) fn can_reuse_node(&self, node: Id<Node>, parsing_context: ParsingContext) -> bool {
         match parsing_context {
             ParsingContext::ClassMembers => self.is_reusable_class_member(node),
 
@@ -409,7 +409,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn is_reusable_class_member(&self, node: &Node) -> bool {
+    pub(super) fn is_reusable_class_member(&self, node: Id<Node>) -> bool {
         // if (node) {
         match node.kind() {
             SyntaxKind::Constructor
@@ -441,7 +441,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn is_reusable_switch_clause(&self, node: &Node) -> bool {
+    pub(super) fn is_reusable_switch_clause(&self, node: Id<Node>) -> bool {
         // if (node) {
         match node.kind() {
             SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
@@ -454,7 +454,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn is_reusable_statement(&self, node: &Node) -> bool {
+    pub(super) fn is_reusable_statement(&self, node: Id<Node>) -> bool {
         // if (node) {
         match node.kind() {
             SyntaxKind::FunctionDeclaration
@@ -495,11 +495,11 @@ impl ParserType {
         false
     }
 
-    pub(super) fn is_reusable_enum_member(&self, node: &Node) -> bool {
+    pub(super) fn is_reusable_enum_member(&self, node: Id<Node>) -> bool {
         node.kind() == SyntaxKind::EnumMember
     }
 
-    pub(super) fn is_reusable_type_member(&self, node: &Node) -> bool {
+    pub(super) fn is_reusable_type_member(&self, node: Id<Node>) -> bool {
         // if (node) {
         match node.kind() {
             SyntaxKind::ConstructSignature
@@ -516,7 +516,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn is_reusable_variable_declaration(&self, node: &Node) -> bool {
+    pub(super) fn is_reusable_variable_declaration(&self, node: Id<Node>) -> bool {
         if node.kind() != SyntaxKind::VariableDeclaration {
             return false;
         }
@@ -525,7 +525,7 @@ impl ParserType {
         variable_declarator.maybe_initializer().is_none()
     }
 
-    pub(super) fn is_reusable_parameter(&self, node: &Node) -> bool {
+    pub(super) fn is_reusable_parameter(&self, node: Id<Node>) -> bool {
         if node.kind() != SyntaxKind::Parameter {
             return false;
         }
@@ -1083,7 +1083,7 @@ impl ParserType {
 
     pub(super) fn type_has_arrow_function_blocking_parse_error(
         &self,
-        node: &Node, /*TypeNode*/
+        node: Id<Node>, /*TypeNode*/
     ) -> bool {
         match node.kind() {
             SyntaxKind::TypeReference => {

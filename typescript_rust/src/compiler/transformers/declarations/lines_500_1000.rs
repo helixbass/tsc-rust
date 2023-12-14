@@ -30,8 +30,8 @@ use crate::{
 impl TransformDeclarations {
     pub(super) fn ensure_type(
         &self,
-        node: &Node, /*HasInferredType*/
-        type_: Option<&Node /*TypeNode*/>,
+        node: Id<Node>, /*HasInferredType*/
+        type_: Option<Id<Node> /*TypeNode*/>,
         ignore_private: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         if ignore_private != Some(true) && has_effective_modifier(node, ModifierFlags::Private) {
@@ -49,18 +49,18 @@ impl TransformDeclarations {
             if !should_use_resolver_type {
                 return try_maybe_visit_node(
                     Some(type_),
-                    Some(|node: &Node| self.visit_declaration_subtree(node)),
-                    Option::<fn(&Node) -> bool>::None,
+                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                    Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
             }
         }
-        if get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).is_none() {
+        if get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).is_none() {
             return Ok(if let Some(type_) = type_ {
                 try_maybe_visit_node(
                     Some(type_),
-                    Some(|node: &Node| self.visit_declaration_subtree(node)),
-                    Option::<fn(&Node) -> bool>::None,
+                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                    Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             } else {
@@ -167,9 +167,9 @@ impl TransformDeclarations {
 
     pub(super) fn is_declaration_and_not_visible(
         &self,
-        node: &Node, /*NamedDeclaration*/
+        node: Id<Node>, /*NamedDeclaration*/
     ) -> bool {
-        let ref node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap();
+        let ref node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap();
         match node.kind() {
             SyntaxKind::FunctionDeclaration
             | SyntaxKind::ModuleDeclaration
@@ -189,7 +189,7 @@ impl TransformDeclarations {
 
     pub(super) fn should_emit_function_properties(
         &self,
-        input: &Node, /*FunctionDeclaration*/
+        input: Id<Node>, /*FunctionDeclaration*/
     ) -> bool {
         if input.as_function_declaration().maybe_body().is_some() {
             return true;
@@ -222,7 +222,7 @@ impl TransformDeclarations {
 
     pub(super) fn get_binding_name_visible(
         &self,
-        elem: &Node, /*BindingElement | VariableDeclaration | OmittedExpression*/
+        elem: Id<Node>, /*BindingElement | VariableDeclaration | OmittedExpression*/
     ) -> bool {
         if is_omitted_expression(elem) {
             return false;
@@ -244,7 +244,7 @@ impl TransformDeclarations {
 
     pub(super) fn update_params_list(
         &self,
-        node: &Node,
+        node: Id<Node>,
         params: Option<&NodeArray /*<ParameterDeclaration>*/>,
         modifier_mask: Option<ModifierFlags>,
     ) -> io::Result<Option<Gc<NodeArray> /*<ParameterDeclaration>*/>> {
@@ -263,7 +263,7 @@ impl TransformDeclarations {
 
     pub(super) fn update_accessor_params_list(
         &self,
-        input: &Node, /*AccessorDeclaration*/
+        input: Id<Node>, /*AccessorDeclaration*/
         is_private: bool,
     ) -> io::Result<Gc<NodeArray>> {
         let mut new_params: Vec<Id<Node /*ParameterDeclaration*/>> = Default::default();
@@ -308,7 +308,7 @@ impl TransformDeclarations {
 
     pub(super) fn ensure_type_params(
         &self,
-        node: &Node,
+        node: Id<Node>,
         params: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
     ) -> io::Result<Option<Gc<NodeArray>>> {
         Ok(if has_effective_modifier(node, ModifierFlags::Private) {
@@ -316,15 +316,15 @@ impl TransformDeclarations {
         } else {
             try_maybe_visit_nodes(
                 params,
-                Some(|node: &Node| self.visit_declaration_subtree(node)),
-                Option::<fn(&Node) -> bool>::None,
+                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                Option::<fn(Id<Node>) -> bool>::None,
                 None,
                 None,
             )?
         })
     }
 
-    pub(super) fn is_enclosing_declaration(&self, node: &Node) -> bool {
+    pub(super) fn is_enclosing_declaration(&self, node: Id<Node>) -> bool {
         is_source_file(node)
             || is_type_alias_declaration(node)
             || is_module_declaration(node)
@@ -337,8 +337,8 @@ impl TransformDeclarations {
 
     pub(super) fn check_entity_name_visibility(
         &self,
-        entity_name: &Node, /*EntityNameOrEntityNameExpression*/
-        enclosing_declaration: &Node,
+        entity_name: Id<Node>, /*EntityNameOrEntityNameExpression*/
+        enclosing_declaration: Id<Node>,
     ) -> io::Result<()> {
         let visibility_result = self
             .resolver
@@ -355,7 +355,7 @@ impl TransformDeclarations {
         Ok(())
     }
 
-    pub(super) fn preserve_js_doc(&self, updated: &Node, original: &Node) -> Id<Node> {
+    pub(super) fn preserve_js_doc(&self, updated: Id<Node>, original: Id<Node>) -> Id<Node> {
         if has_jsdoc_nodes(updated) && has_jsdoc_nodes(original) {
             updated.set_js_doc(original.maybe_js_doc());
         }
@@ -367,8 +367,8 @@ impl TransformDeclarations {
 
     pub(super) fn rewrite_module_specifier(
         &self,
-        parent: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
-        input: Option<&Node>,
+        parent: Id<Node>, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
+        input: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Node>>> {
         let input = return_ok_default_if_none!(input);
         self.set_result_has_external_module_indicator(
@@ -406,7 +406,7 @@ impl TransformDeclarations {
 
     pub(super) fn transform_import_equals_declaration(
         &self,
-        decl: &Node, /*ImportEqualsDeclaration*/
+        decl: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<Option<Id<Node>>> {
         if !self.resolver.is_declaration_visible(decl) {
             return Ok(None);
@@ -448,7 +448,7 @@ impl TransformDeclarations {
 
     pub(super) fn transform_import_declaration(
         &self,
-        decl: &Node, /*ImportDeclaration*/
+        decl: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<Option<Id<Node>>> {
         let decl_as_import_declaration = decl.as_import_declaration();
         if decl_as_import_declaration.import_clause.is_none() {
@@ -629,8 +629,8 @@ impl TransformDeclarations {
 
         Ok(visit_nodes(
             statements,
-            Some(|node: &Node| self.visit_late_visibility_marked_statements(node)),
-            Option::<fn(&Node) -> bool>::None,
+            Some(|node: Id<Node>| self.visit_late_visibility_marked_statements(node)),
+            Option::<fn(Id<Node>) -> bool>::None,
             None,
             None,
         ))
@@ -638,7 +638,7 @@ impl TransformDeclarations {
 
     pub(super) fn visit_late_visibility_marked_statements(
         &self,
-        statement: &Node, /*Statement*/
+        statement: Id<Node>, /*Statement*/
     ) -> VisitResult {
         if is_late_visibility_painted_statement(statement) {
             let key = get_original_node_id(statement);
@@ -673,7 +673,7 @@ impl TransformDeclarations {
         Some(statement.node_wrapper().into())
     }
 
-    pub(super) fn visit_declaration_subtree(&self, input: &Node) -> io::Result<VisitResult> /*<Node>*/
+    pub(super) fn visit_declaration_subtree(&self, input: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
         if self.should_strip_internal(input) {
             return Ok(None);
@@ -684,7 +684,7 @@ impl TransformDeclarations {
             }
             if has_dynamic_name(input)
                 && !self.resolver.is_late_bound(
-                    &get_parse_tree_node(Some(input), Option::<fn(&Node) -> bool>::None).unwrap(),
+                    &get_parse_tree_node(Some(input), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
                 )?
             {
                 return Ok(None);
@@ -783,7 +783,7 @@ impl TransformDeclarations {
                     }
                     let ref node = try_visit_each_child(
                         input,
-                        |node: &Node| self.visit_declaration_subtree(node),
+                        |node: Id<Node>| self.visit_declaration_subtree(node),
                         &**self.context,
                     )?;
                     let node_as_expression_with_type_arguments =
@@ -813,7 +813,7 @@ impl TransformDeclarations {
                     )?;
                     let ref node = try_visit_each_child(
                         input,
-                        |node: &Node| self.visit_declaration_subtree(node),
+                        |node: Id<Node>| self.visit_declaration_subtree(node),
                         &**self.context,
                     )?;
                     let node_as_type_reference_node = node.as_type_reference_node();
@@ -1177,8 +1177,8 @@ impl TransformDeclarations {
                                 .unwrap(),
                                 try_maybe_visit_node(
                                     input_as_index_signature_declaration.maybe_type(),
-                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                    Option::<fn(&Node) -> bool>::None,
+                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                    Option::<fn(Id<Node>) -> bool>::None,
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?
                                 .unwrap_or_else(|| {
@@ -1249,7 +1249,7 @@ impl TransformDeclarations {
                         old_within_object_literal_type,
                         try_maybe_visit_each_child(
                             Some(input),
-                            |node: &Node| self.visit_declaration_subtree(node),
+                            |node: Id<Node>| self.visit_declaration_subtree(node),
                             &**self.context,
                         )?
                         .as_deref(),
@@ -1259,14 +1259,14 @@ impl TransformDeclarations {
                     let input_as_conditional_type_node = input.as_conditional_type_node();
                     let check_type = try_visit_node(
                         &input_as_conditional_type_node.check_type,
-                        Some(|node: &Node| self.visit_declaration_subtree(node)),
-                        Option::<fn(&Node) -> bool>::None,
+                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     let extends_type = try_visit_node(
                         &input_as_conditional_type_node.extends_type,
-                        Some(|node: &Node| self.visit_declaration_subtree(node)),
-                        Option::<fn(&Node) -> bool>::None,
+                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     let old_enclosing_decl = self.maybe_enclosing_declaration();
@@ -1275,15 +1275,15 @@ impl TransformDeclarations {
                     ));
                     let true_type = try_visit_node(
                         &input_as_conditional_type_node.true_type,
-                        Some(|node: &Node| self.visit_declaration_subtree(node)),
-                        Option::<fn(&Node) -> bool>::None,
+                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     self.set_enclosing_declaration(old_enclosing_decl);
                     let false_type = try_visit_node(
                         &input_as_conditional_type_node.false_type,
-                        Some(|node: &Node| self.visit_declaration_subtree(node)),
-                        Option::<fn(&Node) -> bool>::None,
+                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     self.visit_declaration_subtree_cleanup(
@@ -1318,8 +1318,8 @@ impl TransformDeclarations {
                                     input_as_function_type_node
                                         .maybe_type_parameters()
                                         .as_deref(),
-                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                    Option::<fn(&Node) -> bool>::None,
+                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                    Option::<fn(Id<Node>) -> bool>::None,
                                     None,
                                     None,
                                 )?,
@@ -1331,8 +1331,8 @@ impl TransformDeclarations {
                                 .unwrap(),
                                 try_maybe_visit_node(
                                     input_as_function_type_node.maybe_type(),
-                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                    Option::<fn(&Node) -> bool>::None,
+                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                    Option::<fn(Id<Node>) -> bool>::None,
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?,
                             ),
@@ -1356,8 +1356,8 @@ impl TransformDeclarations {
                                     input_as_constructor_type_node
                                         .maybe_type_parameters()
                                         .as_deref(),
-                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                    Option::<fn(&Node) -> bool>::None,
+                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                    Option::<fn(Id<Node>) -> bool>::None,
                                     None,
                                     None,
                                 )?,
@@ -1369,8 +1369,8 @@ impl TransformDeclarations {
                                 .unwrap(),
                                 try_maybe_visit_node(
                                     input_as_constructor_type_node.maybe_type(),
-                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                    Option::<fn(&Node) -> bool>::None,
+                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                    Option::<fn(Id<Node>) -> bool>::None,
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?,
                             ),
@@ -1416,7 +1416,7 @@ impl TransformDeclarations {
                                 input_as_import_type_node.qualifier.clone(),
                                 try_maybe_visit_nodes(
                                     input_as_import_type_node.maybe_type_arguments().as_deref(),
-                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                     Some(is_type_node),
                                     None,
                                     None,
@@ -1460,7 +1460,7 @@ impl TransformDeclarations {
             old_within_object_literal_type,
             try_maybe_visit_each_child(
                 Some(input),
-                |node: &Node| self.visit_declaration_subtree(node),
+                |node: Id<Node>| self.visit_declaration_subtree(node),
                 &**self.context,
             )?
             .as_deref(),

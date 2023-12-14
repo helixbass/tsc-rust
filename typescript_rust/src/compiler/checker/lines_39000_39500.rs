@@ -26,7 +26,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_property_initialization(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> io::Result<()> {
         if !self.strict_null_checks
             || !self.strict_property_initialization
@@ -72,7 +72,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn is_property_without_initializer(&self, node: &Node) -> bool {
+    pub(super) fn is_property_without_initializer(&self, node: Id<Node>) -> bool {
         node.kind() == SyntaxKind::PropertyDeclaration && !has_abstract_modifier(node) && {
             let node_as_property_declaration = node.as_property_declaration();
             node_as_property_declaration.exclamation_token.is_none()
@@ -82,7 +82,7 @@ impl TypeChecker {
 
     pub(super) fn is_property_initialized_in_static_blocks(
         &self,
-        prop_name: &Node, /*Identifier | PrivateIdentifier*/
+        prop_name: Id<Node>, /*Identifier | PrivateIdentifier*/
         prop_type: Id<Type>,
         static_blocks: impl IntoIterator<Item = Id<Node /*ClassStaticBlockDeclaration*/>>,
         start_pos: isize,
@@ -108,7 +108,7 @@ impl TypeChecker {
                     &reference,
                     prop_type,
                     Some(self.get_optional_type_(prop_type, None)?),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )?;
                 if !self
                     .get_falsy_flags(flow_type)
@@ -123,9 +123,9 @@ impl TypeChecker {
 
     pub(super) fn is_property_initialized_in_constructor(
         &self,
-        prop_name: &Node, /*Identifier | PrivateIdentifier*/
+        prop_name: Id<Node>, /*Identifier | PrivateIdentifier*/
         prop_type: Id<Type>,
-        constructor: &Node, /*ConstructorDeclaration*/
+        constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<bool> {
         let reference = get_factory().create_property_access_expression(
             get_factory().create_this(),
@@ -143,7 +143,7 @@ impl TypeChecker {
             &reference,
             prop_type,
             Some(self.get_optional_type_(prop_type, None)?),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )?;
         Ok(!self
             .get_falsy_flags(flow_type)
@@ -152,7 +152,7 @@ impl TypeChecker {
 
     pub(super) fn check_interface_declaration(
         &self,
-        node: &Node, /*InterfaceDeclaration*/
+        node: Id<Node>, /*InterfaceDeclaration*/
     ) -> io::Result<()> {
         if !self.check_grammar_decorators_and_modifiers(node) {
             self.check_grammar_interface_declaration(node);
@@ -248,7 +248,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_alias_declaration(
         &self,
-        node: &Node, /*TypeAliasDeclaration*/
+        node: Id<Node>, /*TypeAliasDeclaration*/
     ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
         let node_as_type_alias_declaration = node.as_type_alias_declaration();
@@ -290,7 +290,7 @@ impl TypeChecker {
 
     pub(super) fn compute_enum_member_values(
         &self,
-        node: &Node, /*EnumDeclaration*/
+        node: Id<Node>, /*EnumDeclaration*/
     ) -> io::Result<()> {
         let node_links = self.get_node_links(node);
         if !(*node_links)
@@ -316,7 +316,7 @@ impl TypeChecker {
 
     pub(super) fn compute_member_value(
         &self,
-        member: &Node, /*EnumMember*/
+        member: Id<Node>, /*EnumMember*/
         auto_value: Option<Number>,
     ) -> io::Result<Option<StringOrNumber>> {
         let member_as_enum_member = member.as_enum_member();
@@ -359,7 +359,7 @@ impl TypeChecker {
 
     pub(super) fn compute_constant_value(
         &self,
-        member: &Node, /*EnumMember*/
+        member: Id<Node>, /*EnumMember*/
     ) -> io::Result<Option<StringOrNumber>> {
         let enum_kind = self.get_enum_kind(self.get_symbol_of_node(&member.parent())?.unwrap())?;
         let is_const_enum = is_enum_const(&member.parent());
@@ -414,7 +414,7 @@ impl TypeChecker {
                     Some(vec![
                         self.type_to_string_(
                             source,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None, None,
                         )?
                     ])
@@ -437,8 +437,8 @@ impl TypeChecker {
 
     pub(super) fn evaluate(
         &self,
-        member: &Node,
-        expr: &Node, /*Expression*/
+        member: Id<Node>,
+        expr: Id<Node>, /*Expression*/
     ) -> io::Result<Option<StringOrNumber>> {
         match expr.kind() {
             SyntaxKind::PrefixUnaryExpression => {
@@ -588,8 +588,8 @@ impl TypeChecker {
 
     pub(super) fn evaluate_enum_member(
         &self,
-        member: &Node,
-        expr: &Node, /*Expression*/
+        member: Id<Node>,
+        expr: Id<Node>, /*Expression*/
         enum_symbol: Id<Symbol>,
         name: &str, /*__String*/
     ) -> io::Result<Option<StringOrNumber>> {
@@ -623,7 +623,7 @@ impl TypeChecker {
                     &Diagnostics::Property_0_is_used_before_being_assigned,
                     Some(vec![self.symbol_to_string_(
                         member_symbol,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                         None,
@@ -634,7 +634,7 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn is_constant_member_access(&self, node: &Node /*Expression*/) -> bool {
+    pub(super) fn is_constant_member_access(&self, node: Id<Node> /*Expression*/) -> bool {
         node.kind() == SyntaxKind::Identifier
             || node.kind() == SyntaxKind::PropertyAccessExpression
                 && self.is_constant_member_access(&node.as_property_access_expression().expression)
@@ -645,7 +645,7 @@ impl TypeChecker {
 
     pub(super) fn check_enum_declaration(
         &self,
-        node: &Node, /*EnumDeclaration*/
+        node: Id<Node>, /*EnumDeclaration*/
     ) -> io::Result<()> {
         if !self.produce_diagnostics {
             return Ok(());
@@ -727,7 +727,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_enum_member(&self, node: &Node /*EnumMember*/) {
+    pub(super) fn check_enum_member(&self, node: Id<Node> /*EnumMember*/) {
         if is_private_identifier(&node.as_enum_member().name) {
             self.error(
                 Some(node),
@@ -757,7 +757,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn in_same_lexical_scope(&self, node1: &Node, node2: &Node) -> bool {
+    pub(super) fn in_same_lexical_scope(&self, node1: Id<Node>, node2: Id<Node>) -> bool {
         let container1 = get_enclosing_block_scope_container(node1).unwrap();
         let container2 = get_enclosing_block_scope_container(node2).unwrap();
         if self.is_global_source_file(&container1) {
@@ -771,7 +771,7 @@ impl TypeChecker {
 
     pub(super) fn check_module_declaration(
         &self,
-        node: &Node, /*ModuleDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration*/
     ) -> io::Result<()> {
         let node_as_module_declaration = node.as_module_declaration();
         if self.produce_diagnostics {
@@ -931,7 +931,7 @@ impl TypeChecker {
 
     pub(super) fn check_module_augmentation_element(
         &self,
-        node: &Node,
+        node: Id<Node>,
         is_global_augmentation: bool,
     ) -> io::Result<()> {
         match node.kind() {

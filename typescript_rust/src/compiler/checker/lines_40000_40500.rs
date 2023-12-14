@@ -453,7 +453,7 @@ impl TypeChecker {
         self.add_optionality(type_, None, None)
     }
 
-    pub(super) fn check_node_deferred(&self, node: &Node) {
+    pub(super) fn check_node_deferred(&self, node: Id<Node>) {
         let ref enclosing_file = get_source_file_of_node(node);
         let links = self.get_node_links(enclosing_file);
         if !(*links)
@@ -476,7 +476,7 @@ impl TypeChecker {
 
     pub(super) fn check_deferred_nodes(
         &self,
-        context: &Node, /*SourceFile*/
+        context: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
         let links = self.get_node_links(context);
         let links_deferred_nodes_is_some = {
@@ -508,7 +508,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_deferred_node(&self, node: &Node) -> io::Result<()> {
+    pub(super) fn check_deferred_node(&self, node: Id<Node>) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Check, "checkDeferredNode", { kind: node.kind, pos: node.pos, end: node.end });
         let save_current_node = self.maybe_current_node();
         self.set_current_node(Some(node.node_wrapper()));
@@ -547,7 +547,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<()> {
+    pub(super) fn check_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<()> {
         if is_logging {
             println!(
                 "checking source file: {}",
@@ -577,7 +577,7 @@ impl TypeChecker {
 
     pub(super) fn get_potentially_unused_identifiers(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Id<Node /*PotentiallyUnusedIdentifier*/>> {
         self.all_potentially_unused_identifiers()
             .get(&source_file.as_source_file().path())
@@ -587,7 +587,7 @@ impl TypeChecker {
 
     pub(super) fn check_source_file_worker(
         &self,
-        node: &Node, /*SourceFile*/
+        node: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
         let links = self.get_node_links(node);
         if !(*links)

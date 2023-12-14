@@ -90,7 +90,7 @@ impl ActiveLabel {
 }
 
 pub fn get_module_instance_state(
-    node: &Node, /*ModuleDeclaration*/
+    node: Id<Node>, /*ModuleDeclaration*/
     visited: Option<Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>>,
 ) -> ModuleInstanceState {
     let node_as_module_declaration = node.as_module_declaration();
@@ -108,7 +108,7 @@ pub fn get_module_instance_state(
 }
 
 pub fn get_module_instance_state_cached(
-    node: &Node, /*ModuleDeclaration*/
+    node: Id<Node>, /*ModuleDeclaration*/
     visited: Option<Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>>,
 ) -> ModuleInstanceState {
     let visited = visited.unwrap_or_else(|| Rc::new(RefCell::new(HashMap::new())));
@@ -129,7 +129,7 @@ pub fn get_module_instance_state_cached(
 }
 
 pub(super) fn get_module_instance_state_worker(
-    node: &Node, /*ModuleDeclaration*/
+    node: Id<Node>, /*ModuleDeclaration*/
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
 ) -> ModuleInstanceState {
     match node.kind() {
@@ -210,7 +210,7 @@ pub(super) fn get_module_instance_state_worker(
 }
 
 pub(super) fn get_module_instance_state_for_alias_target(
-    specifier: &Node, /*ExportSpecifier*/
+    specifier: Id<Node>, /*ExportSpecifier*/
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
 ) -> ModuleInstanceState {
     let specifier_as_export_specifier = specifier.as_export_specifier();
@@ -278,7 +278,7 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: &Node /*SourceFile*/, options: Gc<CompilerOptions>) {
+pub fn bind_source_file(file: Id<Node> /*SourceFile*/, options: Gc<CompilerOptions>) {
     let file_as_source_file = file.as_source_file();
     if is_logging {
         println!("binding: {}", file_as_source_file.file_name());
@@ -392,7 +392,7 @@ pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
 }
 
 impl BinderType {
-    pub(super) fn call(&self, f: &Node, opts: Gc<CompilerOptions>) {
+    pub(super) fn call(&self, f: Id<Node>, opts: Gc<CompilerOptions>) {
         self.bind_source_file(f, opts);
     }
 
@@ -687,7 +687,7 @@ impl BinderType {
 
     pub(super) fn create_diagnostic_for_node(
         &self,
-        node: &Node,
+        node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> DiagnosticWithLocation {
@@ -699,7 +699,11 @@ impl BinderType {
         )
     }
 
-    pub(super) fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Gc<CompilerOptions>) {
+    pub(super) fn bind_source_file(
+        &self,
+        f: Id<Node>, /*SourceFile*/
+        opts: Gc<CompilerOptions>,
+    ) {
         self.set_file(Some(f.node_wrapper()));
         self.set_options(Some(opts.clone()));
         self.set_language_version(Some(get_emit_script_target(&opts)));
@@ -746,7 +750,7 @@ impl BinderType {
 
     pub(super) fn bind_in_strict_mode(
         &self,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
         opts: &CompilerOptions,
     ) -> bool {
         let file_as_source_file = file.as_source_file();
@@ -769,7 +773,7 @@ impl BinderType {
     pub(super) fn add_declaration_to_symbol(
         &self,
         symbol: Id<Symbol>,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) {
         symbol
@@ -827,7 +831,7 @@ impl BinderType {
 
     pub(super) fn get_declaration_name<'node>(
         &self,
-        node: &'node Node,
+        node: Id<Node>,
     ) -> Option<Cow<'node, str> /*__String*/> {
         if node.kind() == SyntaxKind::ExportAssignment {
             return Some(
@@ -939,7 +943,7 @@ impl BinderType {
 
     pub(super) fn get_display_name<'node>(
         &self,
-        node: &'node Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> Cow<'node, str> {
         if is_named_declaration(node) {
             declaration_name_to_string(node.as_named_declaration().maybe_name())
@@ -960,7 +964,7 @@ impl BinderType {
         &self,
         symbol_table: &mut SymbolTable,
         parent: Option<Id<Symbol>>,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         includes: SymbolFlags,
         excludes: SymbolFlags,
         is_replaceable_by_method: Option<bool>,

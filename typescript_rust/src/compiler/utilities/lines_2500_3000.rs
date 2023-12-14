@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub fn try_get_import_from_module_specifier(
-    node: &Node, /*StringLiteralLike*/
+    node: Id<Node>, /*StringLiteralLike*/
 ) -> Option<Id<Node /*AnyValidImportOrReExport*/>> {
     let node_parent = node.parent();
     match node_parent.kind() {
@@ -45,7 +45,7 @@ pub fn try_get_import_from_module_specifier(
 }
 
 pub fn get_external_module_name(
-    node: &Node, /*AnyImportOrReExport | ImportTypeNode | ImportCall | ModuleDeclaration*/
+    node: Id<Node>, /*AnyImportOrReExport | ImportTypeNode | ImportCall | ModuleDeclaration*/
 ) -> Option<Id<Node /*Expression*/>> {
     match node.kind() {
         SyntaxKind::ImportDeclaration => {
@@ -95,7 +95,7 @@ pub fn get_external_module_name(
 }
 
 pub fn get_namespace_declaration_node(
-    node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+    node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
 ) -> Option<Id<Node /*ImportEqualsDeclaration | NamespaceImport | NamespaceExport*/>> {
     match node.kind() {
         SyntaxKind::ImportDeclaration => {
@@ -130,7 +130,7 @@ pub fn get_namespace_declaration_node(
 }
 
 pub fn is_default_import(
-    node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+    node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
 ) -> bool {
     node.kind() == SyntaxKind::ImportDeclaration
         && node
@@ -142,18 +142,18 @@ pub fn is_default_import(
 }
 
 pub fn for_each_import_clause_declaration_bool(
-    node: &Node, /*ImportClause*/
-    mut action: impl FnMut(&Node) -> bool,
+    node: Id<Node>, /*ImportClause*/
+    mut action: impl FnMut(Id<Node>) -> bool,
 ) -> bool {
-    try_for_each_import_clause_declaration_bool(node, |node: &Node| -> Result<_, ()> {
+    try_for_each_import_clause_declaration_bool(node, |node: Id<Node>| -> Result<_, ()> {
         Ok(action(node))
     })
     .unwrap()
 }
 
 pub fn try_for_each_import_clause_declaration_bool<TError>(
-    node: &Node, /*ImportClause*/
-    mut action: impl FnMut(&Node) -> Result<bool, TError>,
+    node: Id<Node>, /*ImportClause*/
+    mut action: impl FnMut(Id<Node>) -> Result<bool, TError>,
 ) -> Result<bool, TError> {
     let node_as_import_clause = node.as_import_clause();
     if node_as_import_clause.name.is_some() {
@@ -178,7 +178,7 @@ pub fn try_for_each_import_clause_declaration_bool<TError>(
     Ok(false)
 }
 
-pub fn has_question_token(node: &Node) -> bool {
+pub fn has_question_token(node: Id<Node>) -> bool {
     // if (node) {
     match node.kind() {
         SyntaxKind::Parameter => node.as_parameter_declaration().question_token.is_some(),
@@ -199,7 +199,7 @@ pub fn has_question_token(node: &Node) -> bool {
     // }
 }
 
-pub fn is_jsdoc_construct_signature(node: &Node) -> bool {
+pub fn is_jsdoc_construct_signature(node: Id<Node>) -> bool {
     let param: Option<Id<Node>> = if is_jsdoc_function_type(node) {
         first_or_undefined(&node.as_jsdoc_function_type().parameters()).cloned()
     } else {
@@ -223,18 +223,18 @@ pub fn is_jsdoc_construct_signature(node: &Node) -> bool {
     name.as_identifier().escaped_text == "new"
 }
 
-pub fn is_jsdoc_type_alias(node: &Node) -> bool {
+pub fn is_jsdoc_type_alias(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocEnumTag
     )
 }
 
-pub fn is_type_alias(node: &Node) -> bool {
+pub fn is_type_alias(node: Id<Node>) -> bool {
     is_jsdoc_type_alias(node) || is_type_alias_declaration(node)
 }
 
-fn get_source_of_assignment(node: &Node) -> Option<Id<Node>> {
+fn get_source_of_assignment(node: Id<Node>) -> Option<Id<Node>> {
     if !is_expression_statement(node) {
         return None;
     }
@@ -254,7 +254,7 @@ fn get_source_of_assignment(node: &Node) -> Option<Id<Node>> {
     }
 }
 
-fn get_source_of_defaulted_assignment(node: &Node) -> Option<Id<Node>> {
+fn get_source_of_defaulted_assignment(node: Id<Node>) -> Option<Id<Node>> {
     if !is_expression_statement(node) {
         return None;
     }
@@ -289,7 +289,7 @@ fn get_source_of_defaulted_assignment(node: &Node) -> Option<Id<Node>> {
 }
 
 pub fn get_single_initializer_of_variable_statement_or_property_declaration(
-    node: &Node,
+    node: Id<Node>,
 ) -> Option<Id<Node /*Expression*/>> {
     match node.kind() {
         SyntaxKind::VariableStatement => {
@@ -304,7 +304,7 @@ pub fn get_single_initializer_of_variable_statement_or_property_declaration(
 }
 
 pub fn get_single_variable_of_variable_statement(
-    node: &Node,
+    node: Id<Node>,
 ) -> Option<Id<Node /*VariableDeclaration*/>> {
     if is_variable_statement(node) {
         first_or_undefined(
@@ -320,7 +320,7 @@ pub fn get_single_variable_of_variable_statement(
     }
 }
 
-fn get_nested_module_declaration(node: &Node) -> Option<Id<Node>> {
+fn get_nested_module_declaration(node: Id<Node>) -> Option<Id<Node>> {
     if is_module_declaration(node)
         && matches!(node.as_module_declaration().body.as_ref(), Some(body) if body.kind() == SyntaxKind::ModuleDeclaration)
     {
@@ -331,7 +331,7 @@ fn get_nested_module_declaration(node: &Node) -> Option<Id<Node>> {
 }
 
 pub fn get_jsdoc_comments_and_tags(
-    host_node: &Node,
+    host_node: Id<Node>,
     no_cache: Option<bool>,
 ) -> Vec<Id<Node /*JSDoc | JSDocTag*/>> {
     let no_cache = no_cache.unwrap_or(false);
@@ -420,8 +420,8 @@ pub fn get_jsdoc_comments_and_tags(
 }
 
 fn filter_owned_jsdoc_tags(
-    host_node: &Node,
-    js_doc: &Node, /*JSDoc | JSDocTag*/
+    host_node: Id<Node>,
+    js_doc: Id<Node>, /*JSDoc | JSDocTag*/
 ) -> Option<Vec<Id<Node /*JSDoc | JSDocTag*/>>> {
     if is_jsdoc(js_doc) {
         let owned_tags = maybe_filter(
@@ -445,7 +445,7 @@ fn filter_owned_jsdoc_tags(
     }
 }
 
-fn owns_jsdoc_tag(host_node: &Node, tag: &Node /*JSDocTag*/) -> bool {
+fn owns_jsdoc_tag(host_node: Id<Node>, tag: Id<Node> /*JSDocTag*/) -> bool {
     !is_jsdoc_type_tag(tag)
         || tag.maybe_parent().is_none()
         || !is_jsdoc(&tag.parent())
@@ -453,7 +453,7 @@ fn owns_jsdoc_tag(host_node: &Node, tag: &Node /*JSDocTag*/) -> bool {
         || matches!(tag.parent().maybe_parent(), Some(grandparent) if ptr::eq(&*grandparent, host_node))
 }
 
-pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Id<Node>> {
+pub fn get_next_jsdoc_comment_location(node: Id<Node>) -> Option<Id<Node>> {
     let parent = node.maybe_parent();
     if matches!(
         parent.as_ref(),
@@ -737,7 +737,7 @@ pub fn is_assignment_target(node: &Node) -> bool {
     get_assignment_target_kind(node) != AssignmentKind::None
 }
 
-pub fn is_node_with_possible_hoisted_declaration(node: &Node) -> bool {
+pub fn is_node_with_possible_hoisted_declaration(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Block
@@ -759,7 +759,7 @@ pub fn is_node_with_possible_hoisted_declaration(node: &Node) -> bool {
     )
 }
 
-pub fn is_value_signature_declaration(node: &Node) -> bool {
+pub fn is_value_signature_declaration(node: Id<Node>) -> bool {
     is_function_expression(node)
         || is_arrow_function(node)
         || is_method_or_accessor(node)
@@ -767,7 +767,7 @@ pub fn is_value_signature_declaration(node: &Node) -> bool {
         || is_constructor_declaration(node)
 }
 
-fn walk_up(node: &Node, kind: SyntaxKind) -> Option<Id<Node>> {
+fn walk_up(node: Id<Node>, kind: SyntaxKind) -> Option<Id<Node>> {
     let mut node = Some(node.node_wrapper());
     loop {
         if let Some(node_present) = node.as_ref() {
@@ -783,16 +783,16 @@ fn walk_up(node: &Node, kind: SyntaxKind) -> Option<Id<Node>> {
     node
 }
 
-pub fn walk_up_parenthesized_types(node: &Node) -> Option<Id<Node>> {
+pub fn walk_up_parenthesized_types(node: Id<Node>) -> Option<Id<Node>> {
     walk_up(node, SyntaxKind::ParenthesizedType)
 }
 
-pub fn walk_up_parenthesized_expressions(node: &Node) -> Option<Id<Node>> {
+pub fn walk_up_parenthesized_expressions(node: Id<Node>) -> Option<Id<Node>> {
     walk_up(node, SyntaxKind::ParenthesizedExpression)
 }
 
 pub fn walk_up_parenthesized_types_and_get_parent_and_child(
-    node: &Node,
+    node: Id<Node>,
 ) -> (Option<Id<Node /*ParenthesizedTypeNode*/>>, Option<Id<Node>>) {
     let mut child: Option<Id<Node>> = None;
     let mut node: Option<Id<Node>> = Some(node.node_wrapper());
@@ -804,7 +804,7 @@ pub fn walk_up_parenthesized_types_and_get_parent_and_child(
     (child, node)
 }
 
-pub fn skip_parentheses(node: &Node, exclude_jsdoc_type_assertions: Option<bool>) -> Id<Node> {
+pub fn skip_parentheses(node: Id<Node>, exclude_jsdoc_type_assertions: Option<bool>) -> Id<Node> {
     let exclude_jsdoc_type_assertions = exclude_jsdoc_type_assertions.unwrap_or(false);
     let flags = if exclude_jsdoc_type_assertions {
         OuterExpressionKinds::Parentheses | OuterExpressionKinds::ExcludeJSDocTypeAssertion
@@ -814,7 +814,7 @@ pub fn skip_parentheses(node: &Node, exclude_jsdoc_type_assertions: Option<bool>
     skip_outer_expressions(node, Some(flags))
 }
 
-pub fn is_delete_target(node: &Node) -> bool {
+pub fn is_delete_target(node: Id<Node>) -> bool {
     if !matches!(
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
@@ -825,7 +825,7 @@ pub fn is_delete_target(node: &Node) -> bool {
     matches!(node, Some(node) if node.kind() == SyntaxKind::DeleteExpression)
 }
 
-pub fn is_node_descendant_of(node: &Node, ancestor: Option<impl Borrow<Node>>) -> bool {
+pub fn is_node_descendant_of(node: Id<Node>, ancestor: Option<impl Borrow<Node>>) -> bool {
     maybe_is_node_descendant_of(Some(node), ancestor)
 }
 
@@ -848,14 +848,14 @@ pub fn maybe_is_node_descendant_of(
     false
 }
 
-pub fn is_declaration_name(name: &Node) -> bool {
+pub fn is_declaration_name(name: Id<Node>) -> bool {
     !is_source_file(name)
         && !is_binding_pattern(Some(name))
         && is_declaration(&name.parent())
         && matches!(name.parent().as_named_declaration().maybe_name(), Some(parent_name) if ptr::eq(&*parent_name, name))
 }
 
-pub fn get_declaration_from_name(name: &Node) -> Option<Id<Node /*Declaration*/>> {
+pub fn get_declaration_from_name(name: Id<Node>) -> Option<Id<Node /*Declaration*/>> {
     let parent = name.parent();
     match name.kind() {
         SyntaxKind::StringLiteral

@@ -2,6 +2,7 @@ use std::{collections::HashMap, convert::TryInto, io, iter::FromIterator, rc::Rc
 
 use bitflags::bitflags;
 use gc::Gc;
+use id_arena::Id;
 
 use super::{brackets, PipelinePhase};
 use crate::{
@@ -311,7 +312,7 @@ impl Printer {
 
     pub(super) fn get_parsed_source_map(
         &self,
-        node: &Node, /*UnparsedSource*/
+        node: Id<Node>, /*UnparsedSource*/
     ) -> Option<Rc<RawSourceMap>> {
         let node_as_unparsed_source = node.as_unparsed_source();
         if node_as_unparsed_source.parsed_source_map.borrow().is_none() {
@@ -331,7 +332,7 @@ impl Printer {
     pub(super) fn pipeline_emit_with_source_maps(
         &self,
         hint: EmitHint,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<()> {
         let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::SourceMaps, hint, node)?;
         self.emit_source_maps_before_node(node);
@@ -341,7 +342,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_source_maps_before_node(&self, node: &Node) {
+    pub(super) fn emit_source_maps_before_node(&self, node: Id<Node>) {
         let emit_flags = get_emit_flags(node);
         let source_map_range = get_source_map_range(node);
 
@@ -397,7 +398,7 @@ impl Printer {
         }
     }
 
-    pub(super) fn emit_source_maps_after_node(&self, node: &Node) {
+    pub(super) fn emit_source_maps_after_node(&self, node: Id<Node>) {
         let emit_flags = get_emit_flags(node);
         let source_map_range = get_source_map_range(node);
 
@@ -430,7 +431,7 @@ impl Printer {
 
     pub(super) fn emit_token_with_source_map<TWriter: FnMut(&str)>(
         &self,
-        node: Option<&Node>,
+        node: Option<Id<Node>>,
         token: SyntaxKind,
         writer: TWriter,
         mut token_pos: isize,

@@ -173,7 +173,7 @@ impl TypeChecker {
                                 SymbolFlags::Type,
                                 Some(true),
                                 None,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                             )?;
                             if match base_symbol {
                                 None => true,
@@ -374,7 +374,7 @@ impl TypeChecker {
                         &Diagnostics::Type_alias_0_circularly_references_itself,
                         Some(vec![self.symbol_to_string_(
                             symbol,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
@@ -393,7 +393,7 @@ impl TypeChecker {
                         &Diagnostics::Type_alias_0_circularly_references_itself,
                         Some(vec![self.symbol_to_string_(
                             symbol,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
@@ -407,7 +407,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn is_string_concat_expression(&self, expr: &Node) -> bool {
+    pub(super) fn is_string_concat_expression(&self, expr: Id<Node>) -> bool {
         if is_string_literal_like(expr) {
             return true;
         } else if expr.kind() == SyntaxKind::BinaryExpression {
@@ -420,7 +420,7 @@ impl TypeChecker {
 
     pub(super) fn is_literal_enum_member(
         &self,
-        member: &Node, /*EnumMember*/
+        member: Id<Node>, /*EnumMember*/
     ) -> io::Result<bool> {
         let member_as_enum_member = member.as_enum_member();
         let expr = member_as_enum_member.initializer.as_deref();
@@ -638,7 +638,7 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn is_thisless_type(&self, node: &Node /*TypeNode*/) -> bool {
+    pub(super) fn is_thisless_type(&self, node: Id<Node> /*TypeNode*/) -> bool {
         match node.kind() {
             SyntaxKind::AnyKeyword
             | SyntaxKind::UnknownKeyword
@@ -671,7 +671,7 @@ impl TypeChecker {
 
     pub(super) fn is_thisless_type_parameter(
         &self,
-        node: &Node, /*TypeParameterDeclaration*/
+        node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> bool {
         let constraint = get_effective_constraint_of_type_parameter(node);
         match constraint {
@@ -682,7 +682,7 @@ impl TypeChecker {
 
     pub(super) fn is_thisless_variable_like_declaration(
         &self,
-        node: &Node, /*VariableLikeDeclaration*/
+        node: Id<Node>, /*VariableLikeDeclaration*/
     ) -> bool {
         let type_node = get_effective_type_annotation_node(node);
         if let Some(type_node) = type_node {
@@ -694,7 +694,7 @@ impl TypeChecker {
 
     pub(super) fn is_thisless_function_like_declaration(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> bool {
         let return_type = get_effective_return_type_node(node);
         let type_parameters = get_effective_type_parameter_declarations(node);
@@ -836,7 +836,7 @@ impl TypeChecker {
 
     pub(super) fn is_late_bindable_name(
         &self,
-        node: &Node, /*DeclarationName*/
+        node: Id<Node>, /*DeclarationName*/
     ) -> io::Result<bool> {
         if !is_computed_property_name(node) && !is_element_access_expression(node) {
             return Ok(false);

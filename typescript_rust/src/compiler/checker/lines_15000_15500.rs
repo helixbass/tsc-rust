@@ -211,7 +211,7 @@ impl TypeChecker {
 
     pub(super) fn is_uncalled_function_reference(
         &self,
-        node: &Node,
+        node: Id<Node>,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         if symbol
@@ -328,7 +328,7 @@ impl TypeChecker {
                             &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
                             Some(vec![self.symbol_to_string_(
                                 prop,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,
@@ -354,7 +354,7 @@ impl TypeChecker {
                             access_expression,
                             prop_type,
                             None,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                         )?
                     } else {
                         prop_type
@@ -383,7 +383,7 @@ impl TypeChecker {
                                 Some(vec![
                                     self.type_to_string_(
                                         object_type,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                     )?,
@@ -399,7 +399,7 @@ impl TypeChecker {
                                     unescape_leading_underscores(prop_name).to_owned(),
                                     self.type_to_string_(
                                         object_type,
-                                        Option::<&Node>::None,
+                                        Option::<Id<Node>>::None,
                                         None,
                                         None,
                                     )?,
@@ -468,13 +468,13 @@ impl TypeChecker {
                             Some(vec![
                                 self.type_to_string_(
                                     index_type,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?,
                                 self.type_to_string_(
                                     original_object_type,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?,
@@ -497,7 +497,7 @@ impl TypeChecker {
                             &Diagnostics::Type_0_cannot_be_used_as_an_index_type,
                             Some(vec![self.type_to_string_(
                                 index_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?]),
@@ -626,7 +626,7 @@ impl TypeChecker {
                                         unescape_leading_underscores(prop_name).to_owned(),
                                         self.type_to_string_(
                                             object_type,
-                                            Option::<&Node>::None,
+                                            Option::<Id<Node>>::None,
                                             None,
                                             None,
                                         )?,
@@ -648,7 +648,7 @@ impl TypeChecker {
                         })? {
                             let type_name = self.type_to_string_(
                                 object_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?;
@@ -686,7 +686,7 @@ impl TypeChecker {
                                     &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
                                     Some(vec![
                                         (*prop_name.unwrap()).to_owned(),
-                                        self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
+                                        self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
                                         suggestion,
                                     ])
                                 );
@@ -702,7 +702,7 @@ impl TypeChecker {
                                         Some(access_expression),
                                         &Diagnostics::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature_Did_you_mean_to_call_1,
                                         Some(vec![
-                                            self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
+                                            self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
                                             suggestion,
                                         ])
                                     );
@@ -721,14 +721,14 @@ impl TypeChecker {
                                                     "[{}]",
                                                     self.type_to_string_(
                                                         index_type,
-                                                        Option::<&Node>::None,
+                                                        Option::<Id<Node>>::None,
                                                         None,
                                                         None
                                                     )?,
                                                 ),
                                                 self.type_to_string_(
                                                     object_type,
-                                                    Option::<&Node>::None,
+                                                    Option::<Id<Node>>::None,
                                                     None,
                                                     None,
                                                 )?,
@@ -750,7 +750,7 @@ impl TypeChecker {
                                                 format!("[{}]", symbol_name,),
                                                 self.type_to_string_(
                                                     object_type,
-                                                    Option::<&Node>::None,
+                                                    Option::<Id<Node>>::None,
                                                     None,
                                                     None,
                                                 )?,
@@ -772,7 +772,7 @@ impl TypeChecker {
                                                     .clone(),
                                                 self.type_to_string_(
                                                     object_type,
-                                                    Option::<&Node>::None,
+                                                    Option::<Id<Node>>::None,
                                                     None,
                                                     None,
                                                 )?,
@@ -794,7 +794,7 @@ impl TypeChecker {
                                                     .to_string(),
                                                 self.type_to_string_(
                                                     object_type,
-                                                    Option::<&Node>::None,
+                                                    Option::<Id<Node>>::None,
                                                     None,
                                                     None,
                                                 )?,
@@ -809,8 +809,8 @@ impl TypeChecker {
                                             None,
                                             &Diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
                                             Some(vec![
-                                                self.type_to_string_(index_type, Option::<&Node>::None, None, None)?,
-                                                self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
+                                                self.type_to_string_(index_type, Option::<Id<Node>>::None, None, None)?,
+                                                self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
                                             ])
                                         ));
                                     }
@@ -819,8 +819,8 @@ impl TypeChecker {
                                         error_info,
                                         &Diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
                                         Some(vec![
-                                            self.type_to_string_(full_index_type, Option::<&Node>::None, None, None)?,
-                                            self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
+                                            self.type_to_string_(full_index_type, Option::<Id<Node>>::None, None, None)?,
+                                            self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
                                         ])
                                     ));
                                     self.diagnostics().add(Gc::new(
@@ -875,8 +875,8 @@ impl TypeChecker {
                     Some(index_node),
                     &Diagnostics::Type_0_has_no_matching_index_signature_for_type_1,
                     Some(vec![
-                        self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(index_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
+                        self.type_to_string_(index_type, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
             } else {
@@ -885,7 +885,7 @@ impl TypeChecker {
                     &Diagnostics::Type_0_cannot_be_used_as_an_index_type,
                     Some(vec![self.type_to_string_(
                         index_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )?]),
@@ -900,7 +900,7 @@ impl TypeChecker {
 
     pub(super) fn error_if_writing_to_readonly_index(
         &self,
-        access_expression: Option<&Node>,
+        access_expression: Option<Id<Node>>,
         object_type: Id<Type>,
         index_info: Option<impl Borrow<IndexInfo>>,
     ) -> io::Result<()> {
@@ -916,7 +916,7 @@ impl TypeChecker {
                             &Diagnostics::Index_signature_in_type_0_only_permits_reading,
                             Some(vec![self.type_to_string_(
                                 object_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?]),
@@ -931,7 +931,7 @@ impl TypeChecker {
 
     pub(super) fn get_index_node_for_access_expression(
         &self,
-        access_node: &Node, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+        access_node: Id<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
     ) -> Id<Node> {
         if access_node.kind() == SyntaxKind::ElementAccessExpression {
             access_node
@@ -1117,7 +1117,7 @@ impl TypeChecker {
                             t,
                             index_type,
                             None,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             Option::<Id<Symbol>>::None,
                             None,
                         )?,
@@ -1156,7 +1156,7 @@ impl TypeChecker {
                             object_type,
                             t,
                             None,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             Option::<Id<Symbol>>::None,
                             None,
                         )?,

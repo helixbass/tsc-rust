@@ -138,7 +138,7 @@ impl ParserType {
 
     pub(super) fn reparse_top_level_await(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
     ) -> Id<Node> {
         let saved_syntax_cursor = self.take_syntax_cursor();
         let base_syntax_cursor = IncrementalParser().create_syntax_cursor(source_file);
@@ -263,7 +263,7 @@ impl ParserType {
             .update_source_file(source_file, new_statements, None, None, None, None, None)
     }
 
-    pub(super) fn contains_possible_top_level_await(&self, node: &Node) -> bool {
+    pub(super) fn contains_possible_top_level_await(&self, node: Id<Node>) -> bool {
         !node.flags().intersects(NodeFlags::AwaitContext)
             && node
                 .transform_flags()
@@ -298,7 +298,7 @@ impl ParserType {
         None
     }
 
-    pub fn fixup_parent_references(&self, root_node: &Node) {
+    pub fn fixup_parent_references(&self, root_node: Id<Node>) {
         set_parent_recursive(Some(root_node), true);
     }
 
@@ -761,7 +761,7 @@ impl ParserType {
 
     pub(super) fn parse_error_for_missing_semicolon_after(
         &self,
-        node: &Node, /*Expression | PropertyName*/
+        node: Id<Node>, /*Expression | PropertyName*/
     ) {
         if is_tagged_template_expression(node) {
             let node_as_tagged_template_expression = node.as_tagged_template_expression();
@@ -913,7 +913,7 @@ impl ParserType {
         TInitializer: Borrow<Node>,
     >(
         &self,
-        name: &Node, /*PropertyName*/
+        name: Id<Node>, /*PropertyName*/
         type_: Option<TType /*TypeNode*/>,
         initializer: Option<TInitializer /*Expression*/>,
     ) {

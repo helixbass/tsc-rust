@@ -45,7 +45,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_infer_type_node(
         &self,
-        node: &Node, /*InferTypeNode*/
+        node: Id<Node>, /*InferTypeNode*/
         type_parameter: Id<Node /*TypeParameterDeclaration*/>,
     ) -> Id<Node> {
         let node_as_infer_type_node = node.as_infer_type_node();
@@ -74,7 +74,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_template_literal_type(
         &self,
-        node: &Node, /*TemplateLiteralTypeSpan*/
+        node: Id<Node>, /*TemplateLiteralTypeSpan*/
         head: Id<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
     ) -> Id<Node> {
@@ -121,7 +121,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_import_type_node(
         &self,
-        node: &Node, /*ImportTypeNode*/
+        node: Id<Node>, /*ImportTypeNode*/
         argument: Id<Node /*TypeNode*/>,
         qualifier: Option<Id<Node /*EntityName*/>>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
@@ -163,7 +163,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_parenthesized_type(
         &self,
-        node: &Node, /*ParenthesizedTypeNode*/
+        node: Id<Node>, /*ParenthesizedTypeNode*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
         let node_as_parenthesized_type_node = node.as_parenthesized_type_node();
@@ -201,7 +201,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_operator_node(
         &self,
-        node: &Node, /*TypeOperatorNode*/
+        node: Id<Node>, /*TypeOperatorNode*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
         let node_as_type_operator_node = node.as_type_operator_node();
@@ -234,7 +234,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_indexed_access_type_node(
         &self,
-        node: &Node, /*IndexedAccessTypeNode*/
+        node: Id<Node>, /*IndexedAccessTypeNode*/
         object_type: Id<Node /*TypeNode*/>,
         index_type: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
@@ -277,7 +277,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_mapped_type_node(
         &self,
-        node: &Node, /*MappedTypeNode*/
+        node: Id<Node>, /*MappedTypeNode*/
         readonly_token: Option<Id<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
         type_parameter: Id<Node /*TypeParameterDeclaration*/>,
         name_type: Option<Id<Node /*TypeNode*/>>,
@@ -330,7 +330,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_literal_type_node(
         &self,
-        node: &Node, /*LiteralTypeNode*/
+        node: Id<Node>, /*LiteralTypeNode*/
         literal: Id<Node /*LiteralTypeNode["literal"]*/>,
     ) -> Id<Node> {
         let node_as_literal_type_node = node.as_literal_type_node();
@@ -366,7 +366,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_object_binding_pattern(
         &self,
-        node: &Node, /*ObjectBindingPattern*/
+        node: Id<Node>, /*ObjectBindingPattern*/
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> Id<Node> {
         let node_as_object_binding_pattern = node.as_object_binding_pattern();
@@ -395,7 +395,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_array_binding_pattern(
         &self,
-        node: &Node, /*ArrayBindingPattern*/
+        node: Id<Node>, /*ArrayBindingPattern*/
         elements: impl Into<NodeArrayOrVec /*<ArrayBindingElement>*/>,
     ) -> Id<Node> {
         let node_as_array_binding_pattern = node.as_array_binding_pattern();
@@ -445,7 +445,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_binding_element(
         &self,
-        node: &Node, /*BindingElement*/
+        node: Id<Node>, /*BindingElement*/
         dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
         property_name: Option<Id<Node /*PropertyName*/>>,
         name: Id<Node /*BindingName*/>,
@@ -515,7 +515,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_array_literal_expression(
         &self,
-        node: &Node,                         /*ArrayLiteralExpression*/
+        node: Id<Node>,                      /*ArrayLiteralExpression*/
         elements: impl Into<NodeArrayOrVec>, /*Expression*/
     ) -> Id<Node> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
@@ -551,7 +551,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_object_literal_expression(
         &self,
-        node: &Node,                           /*ObjectLiteralExpression*/
+        node: Id<Node>,                        /*ObjectLiteralExpression*/
         properties: impl Into<NodeArrayOrVec>, /*ObjectLiteralElementLike*/
     ) -> Id<Node> {
         let node_as_object_literal_expression = node.as_object_literal_expression();
@@ -601,7 +601,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_property_access_expression(
         &self,
-        node: &Node, /*PropertyAccessExpression*/
+        node: Id<Node>, /*PropertyAccessExpression*/
         expression: Id<Node /*Expression*/>,
         name: Id<Node /*Identifier | PrivateIdentifier*/>,
     ) -> Id<Node> {
@@ -659,7 +659,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_property_access_chain(
         &self,
-        node: &Node, /*PropertyAccessChain*/
+        node: Id<Node>, /*PropertyAccessChain*/
         expression: Id<Node /*Expression*/>,
         question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         name: Id<Node /*Identifier | PrivateIdentifier*/>,
@@ -715,7 +715,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_element_access_expression(
         &self,
-        node: &Node, /*ElementAccessExpression*/
+        node: Id<Node>, /*ElementAccessExpression*/
         expression: Id<Node /*Expression*/>,
         argument_expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
@@ -770,7 +770,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_element_access_chain(
         &self,
-        node: &Node, /*ElementAccessChain*/
+        node: Id<Node>, /*ElementAccessChain*/
         expression: Id<Node /*Expression*/>,
         question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         argument_expression: Id<Node /*Expression*/>,
@@ -842,7 +842,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_call_expression(
         &self,
-        node: &Node, /*CallExpression*/
+        node: Id<Node>, /*CallExpression*/
         expression: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         arguments_array: impl Into<NodeArrayOrVec /*<Expression>*/>,
@@ -920,7 +920,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_call_chain(
         &self,
-        node: &Node, /*CallChain*/
+        node: Id<Node>, /*CallChain*/
         expression: Id<Node /*Expression*/>,
         question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         type_arguments: Option<
@@ -1000,7 +1000,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_new_expression(
         &self,
-        node: &Node, /*NewExpression*/
+        node: Id<Node>, /*NewExpression*/
         expression: Id<Node /*Expression*/>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
@@ -1066,7 +1066,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_tagged_template_expression(
         &self,
-        node: &Node, /*TaggedTemplateExpression*/
+        node: Id<Node>, /*TaggedTemplateExpression*/
         tag: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
         template: Id<Node /*TemplateLiteral*/>,
@@ -1114,7 +1114,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_assertion(
         &self,
-        node: &Node, /*TypeAssertion*/
+        node: Id<Node>, /*TypeAssertion*/
         type_: Id<Node /*TypeNode*/>,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
@@ -1141,7 +1141,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_parenthesized_expression(
         &self,
-        node: &Node, /*ParenthesizedExpression*/
+        node: Id<Node>, /*ParenthesizedExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
@@ -1195,7 +1195,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_function_expression(
         &self,
-        node: &Node, /*FunctionExpression*/
+        node: Id<Node>, /*FunctionExpression*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
         name: Option<Id<Node /*Identifier*/>>,
@@ -1290,7 +1290,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_arrow_function(
         &self,
-        node: &Node, /*ArrowFunction*/
+        node: Id<Node>, /*ArrowFunction*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
@@ -1348,7 +1348,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_delete_expression(
         &self,
-        node: &Node, /*DeleteExpression*/
+        node: Id<Node>, /*DeleteExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_delete_expression = node.as_delete_expression();
@@ -1376,7 +1376,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_of_expression(
         &self,
-        node: &Node, /*TypeOfExpression*/
+        node: Id<Node>, /*TypeOfExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_type_of_expression = node.as_type_of_expression();
@@ -1404,7 +1404,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_void_expression(
         &self,
-        node: &Node, /*VoidExpression*/
+        node: Id<Node>, /*VoidExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_void_expression = node.as_void_expression();
@@ -1437,7 +1437,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_await_expression(
         &self,
-        node: &Node, /*AwaitExpression*/
+        node: Id<Node>, /*AwaitExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_await_expression = node.as_await_expression();
@@ -1476,7 +1476,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_prefix_unary_expression(
         &self,
-        node: &Node, /*PrefixUnaryExpression*/
+        node: Id<Node>, /*PrefixUnaryExpression*/
         operand: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
@@ -1518,7 +1518,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_postfix_unary_expression(
         &self,
-        node: &Node, /*PostfixUnaryExpression*/
+        node: Id<Node>, /*PostfixUnaryExpression*/
         operand: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
@@ -1588,7 +1588,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         left: Id<Node /*Expression*/>,
         operator: Id<Node /*BinaryOperatorToken*/>,
         right: Id<Node /*Expression*/>,
@@ -1606,7 +1606,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     fn propagate_assignment_pattern_flags(
         &self,
-        node: &Node, /*AssignmentPattern*/
+        node: Id<Node>, /*AssignmentPattern*/
     ) -> TransformFlags {
         if node
             .transform_flags()
@@ -1675,7 +1675,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_conditional_expression(
         &self,
-        node: &Node, /*ConditionalExpression*/
+        node: Id<Node>, /*ConditionalExpression*/
         condition: Id<Node /*Expression*/>,
         question_token: Id<Node /*QuestionToken*/>,
         when_true: Id<Node /*Expression*/>,
@@ -1729,7 +1729,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_template_expression(
         &self,
-        node: &Node, /*TemplateExpression*/
+        node: Id<Node>, /*TemplateExpression*/
         head: Id<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
     ) -> Id<Node> {
@@ -1906,7 +1906,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_yield_expression(
         &self,
-        node: &Node, /*Id<Node>*/
+        node: Id<Node>, /*Id<Node>*/
         asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
         expression: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
@@ -1945,7 +1945,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_spread_element(
         &self,
-        node: &Node, /*SpreadElement*/
+        node: Id<Node>, /*SpreadElement*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_spread_element = node.as_spread_element();
@@ -1992,7 +1992,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_class_expression(
         &self,
-        node: &Node, /*ClassExpression*/
+        node: Id<Node>, /*ClassExpression*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<Id<Node>>,

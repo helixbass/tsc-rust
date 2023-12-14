@@ -166,7 +166,7 @@ pub(crate) fn get_mode_for_resolution_at_index(
 
 pub(crate) fn get_mode_for_usage_location(
     implied_node_format: Option<ModuleKind>,
-    usage: &Node, /*StringLiteralLike*/
+    usage: Id<Node>, /*StringLiteralLike*/
 ) -> Option<ModuleKind> {
     let implied_node_format = implied_node_format?;
     if implied_node_format != ModuleKind::ESNext {
@@ -249,7 +249,7 @@ impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
 
 pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     names: &[String],
-    containing_file: &Node, /*SourceFile*/
+    containing_file: Id<Node>, /*SourceFile*/
     containing_file_name: &str,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     loader: &dyn LoadWithModeAwareCacheLoader<TValue>,

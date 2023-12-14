@@ -31,7 +31,7 @@ impl GetFlowTypeOfReference {
         &self,
         type_: Id<Type>,
         operator: SyntaxKind,
-        identifier: &Node, /*Expression*/
+        identifier: Id<Node>, /*Expression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if if assume_true {
@@ -108,7 +108,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_instanceof(
         &self,
         type_: Id<Type>,
-        expr: &Node, /*BinaryExpression*/
+        expr: Id<Node>, /*BinaryExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         let expr_as_binary_expression = expr.as_binary_expression();
@@ -259,7 +259,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_call_expression(
         &self,
         type_: Id<Type>,
-        call_expression: &Node, /*CallExpression*/
+        call_expression: Id<Node>, /*CallExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if self
@@ -334,7 +334,7 @@ impl GetFlowTypeOfReference {
         &self,
         mut type_: Id<Type>,
         predicate: &TypePredicate,
-        call_expression: &Node, /*CallExpression*/
+        call_expression: Id<Node>, /*CallExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if let Some(predicate_type) = predicate.type_.filter(|&predicate_type| {
@@ -394,7 +394,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type(
         &self,
         type_: Id<Type>,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if is_expression_of_optional_chain_root(expr) || {
@@ -491,7 +491,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_optionality(
         &self,
         type_: Id<Type>,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
         assume_present: bool,
     ) -> io::Result<Id<Type>> {
         if self
@@ -528,7 +528,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_symbol_at_location_(
         &self,
         symbol: Id<Symbol>,
-        location: &Node,
+        location: Id<Node>,
     ) -> io::Result<Id<Type>> {
         let symbol = symbol.ref_(self)
             .maybe_export_symbol()
@@ -569,8 +569,8 @@ impl TypeChecker {
         self.get_non_missing_type_of_symbol(symbol)
     }
 
-    pub(super) fn maybe_get_control_flow_container(&self, node: &Node) -> Option<Id<Node>> {
-        find_ancestor(node.maybe_parent(), |node: &Node| {
+    pub(super) fn maybe_get_control_flow_container(&self, node: Id<Node>) -> Option<Id<Node>> {
+        find_ancestor(node.maybe_parent(), |node: Id<Node>| {
             is_function_like(Some(node))
                 && get_immediately_invoked_function_expression(node).is_none()
                 || matches!(
@@ -582,7 +582,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_control_flow_container(&self, node: &Node) -> Id<Node> {
+    pub(super) fn get_control_flow_container(&self, node: Id<Node>) -> Id<Node> {
         self.maybe_get_control_flow_container(node).unwrap()
     }
 
@@ -610,8 +610,8 @@ impl TypeChecker {
         Ok(symbol.ref_(self).maybe_is_assigned().unwrap_or(false))
     }
 
-    pub(super) fn has_parent_with_assignments_marked(&self, node: &Node) -> bool {
-        find_ancestor(node.maybe_parent(), |node: &Node| {
+    pub(super) fn has_parent_with_assignments_marked(&self, node: Id<Node>) -> bool {
+        find_ancestor(node.maybe_parent(), |node: Id<Node>| {
             (is_function_like(Some(node)) || is_catch_clause(node))
                 && (*self.get_node_links(node))
                     .borrow()
@@ -621,7 +621,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn mark_node_assignments(&self, node: &Node) -> io::Result<()> {
+    pub(super) fn mark_node_assignments(&self, node: Id<Node>) -> io::Result<()> {
         if node.kind() == SyntaxKind::Identifier {
             if is_assignment_target(node) {
                 let symbol = self.get_resolved_symbol(node)?;
@@ -632,7 +632,7 @@ impl TypeChecker {
         } else {
             try_for_each_child(
                 node,
-                |node: &Node| self.mark_node_assignments(node),
+                |node: Id<Node>| self.mark_node_assignments(node),
                 Option::<fn(&NodeArray) -> io::Result<()>>::None,
             )?;
         }
@@ -652,7 +652,7 @@ impl TypeChecker {
     pub(super) fn remove_optionality_from_declared_type(
         &self,
         declared_type: Id<Type>,
-        declaration: &Node, /*VariableLikeDeclaration (actually also includes BindingElement)*/
+        declaration: Id<Node>, /*VariableLikeDeclaration (actually also includes BindingElement)*/
     ) -> io::Result<Id<Type>> {
         let declaration_as_has_initializer = declaration.as_has_initializer();
         Ok(
@@ -681,7 +681,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_constraint_position(&self, type_: Id<Type>, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_constraint_position(&self, type_: Id<Type>, node: Id<Node>) -> io::Result<bool> {
         let parent = node.parent();
         Ok(parent.kind() == SyntaxKind::PropertyAccessExpression
             || parent.kind() == SyntaxKind::CallExpression
@@ -722,7 +722,7 @@ impl TypeChecker {
 
     pub(super) fn has_non_binding_pattern_contextual_type_with_no_generic_types(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<bool> {
         let contextual_type = if (is_identifier(node)
             || is_property_access_expression(node)
@@ -746,7 +746,7 @@ impl TypeChecker {
     pub(super) fn get_narrowable_type_for_reference(
         &self,
         type_: Id<Type>,
-        reference: &Node,
+        reference: Id<Node>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let substitute_constraints = !matches!(
@@ -776,8 +776,8 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_export_or_export_expression(&self, location: &Node) -> bool {
-        find_ancestor(Some(location), |n: &Node| {
+    pub(super) fn is_export_or_export_expression(&self, location: Id<Node>) -> bool {
+        find_ancestor(Some(location), |n: Id<Node>| {
             let parent = n.maybe_parent();
             if parent.is_none() {
                 return FindAncestorCallbackReturn::Quit;
@@ -808,7 +808,7 @@ impl TypeChecker {
     pub(super) fn mark_alias_referenced(
         &self,
         symbol: Id<Symbol>,
-        location: &Node,
+        location: Id<Node>,
     ) -> io::Result<()> {
         if self.is_non_local_alias(Some(symbol), Some(SymbolFlags::Value))
             && !self.is_in_type_query(location)
@@ -833,7 +833,7 @@ impl TypeChecker {
 
     pub(super) fn check_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let symbol = self.get_resolved_symbol(node)?;
@@ -917,7 +917,7 @@ impl TypeChecker {
                 .intersects(SymbolFlags::Class)
             {
                 if declaration.kind() == SyntaxKind::ClassDeclaration
-                    && node_is_decorated(declaration, Option::<&Node>::None, Option::<&Node>::None)
+                    && node_is_decorated(declaration, Option::<Id<Node>>::None, Option::<Id<Node>>::None)
                 {
                     let mut container = get_containing_class(node);
                     while let Some(container_present) = container.as_ref() {
@@ -1008,7 +1008,7 @@ impl TypeChecker {
                     assignment_error,
                     Some(vec![self.symbol_to_string_(
                         symbol,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                         None,
@@ -1026,7 +1026,7 @@ impl TypeChecker {
                         &Diagnostics::Cannot_assign_to_0_because_it_is_a_constant,
                         Some(vec![self.symbol_to_string_(
                             symbol,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
@@ -1038,7 +1038,7 @@ impl TypeChecker {
                         &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
                         Some(vec![self.symbol_to_string_(
                             symbol,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
@@ -1151,12 +1151,12 @@ impl TypeChecker {
                         Some(vec![
                             self.symbol_to_string_(
                                 symbol,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None, None,
                             )?,
                             self.type_to_string_(
                                 flow_type,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None, None,
                             )?
                         ])
@@ -1167,12 +1167,12 @@ impl TypeChecker {
                         Some(vec![
                             self.symbol_to_string_(
                                 symbol,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,
                             )?,
-                            self.type_to_string_(flow_type, Option::<&Node>::None, None, None)?,
+                            self.type_to_string_(flow_type, Option::<Id<Node>>::None, None, None)?,
                         ]),
                     );
                 }
@@ -1189,7 +1189,7 @@ impl TypeChecker {
                 &Diagnostics::Variable_0_is_used_before_being_assigned,
                 Some(vec![self.symbol_to_string_(
                     symbol,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                     None,

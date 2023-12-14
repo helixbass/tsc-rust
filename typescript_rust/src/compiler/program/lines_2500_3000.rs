@@ -26,7 +26,7 @@ impl Program {
     pub(super) fn get_node_at_position(
         &self,
         is_java_script_file: bool,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         position: isize,
     ) -> Id<Node> {
         let mut current = source_file.node_wrapper();
@@ -41,7 +41,7 @@ impl Program {
             .or_else(|| {
                 for_each_child_returns(
                     &current,
-                    |child: &Node| self.get_containing_child(position, child),
+                    |child: Id<Node>| self.get_containing_child(position, child),
                     Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
                 )
             });
@@ -61,7 +61,7 @@ impl Program {
 
     pub(super) fn get_source_file_from_reference(
         &self,
-        referencing_file: &Node, /*SourceFile | UnparsedSource*/
+        referencing_file: Id<Node>, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         self.get_source_file_from_reference_worker(
@@ -206,7 +206,7 @@ impl Program {
             Some(
                 |diagnostic: &'static DiagnosticMessage, args: Option<Vec<String>>| {
                     self.add_file_preprocessing_file_explaining_diagnostic(
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         reason.clone(),
                         diagnostic,
                         args,
@@ -230,7 +230,7 @@ impl Program {
     pub fn report_file_names_differ_only_in_casing_error(
         &self,
         file_name: &str,
-        existing_file: &Node, /*SourceFile*/
+        existing_file: Id<Node>, /*SourceFile*/
         reason: Gc<FileIncludeReason>,
     ) {
         let existing_file_as_source_file = existing_file.as_source_file();
@@ -267,8 +267,8 @@ impl Program {
 
     pub fn create_redirect_source_file(
         &self,
-        redirect_target: &Node, /*SourceFile*/
-        unredirected: &Node,    /*SourceFile*/
+        redirect_target: Id<Node>, /*SourceFile*/
+        unredirected: Id<Node>,    /*SourceFile*/
         file_name: &str,
         path: &Path,
         resolved_path: &Path,
@@ -454,7 +454,7 @@ impl Program {
             get_emit_script_target(&self.options),
             Some(&mut |host_error_message| {
                 self.add_file_preprocessing_file_explaining_diagnostic(
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     reason.clone(),
                     &Diagnostics::Cannot_read_file_0_Colon_1,
                     Some(vec![file_name.clone(), host_error_message.to_owned()]),
@@ -813,7 +813,7 @@ impl Program {
 
     pub fn process_referenced_files(
         &self,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
         is_default_lib: bool,
     ) -> io::Result<()> {
         let file_as_source_file = file.as_source_file();
@@ -847,7 +847,7 @@ impl Program {
 
     pub fn process_type_reference_directives(
         &self,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
         let file_as_source_file = file.as_source_file();
         let file_type_reference_directives = file_as_source_file.maybe_type_reference_directives();
@@ -998,7 +998,7 @@ impl Program {
             }
         } else {
             self.add_file_preprocessing_file_explaining_diagnostic(
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 reason,
                 &Diagnostics::Cannot_find_type_definition_file_for_0,
                 Some(vec![type_reference_directive.to_owned()]),

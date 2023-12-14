@@ -30,8 +30,8 @@ use crate::{
 impl TypeChecker {
     pub(super) fn contains_same_named_this_property(
         &self,
-        this_property: &Node, /*Expression*/
-        expression: &Node,    /*Expression*/
+        this_property: Id<Node>, /*Expression*/
+        expression: Id<Node>,    /*Expression*/
     ) -> io::Result<bool> {
         Ok(is_property_access_expression(this_property)
             && this_property
@@ -42,13 +42,13 @@ impl TypeChecker {
             && try_for_each_child_recursively_bool(
                 expression,
                 |n, _| self.is_matching_reference(this_property, n),
-                Option::<fn(&NodeArray, &Node) -> io::Result<bool>>::None,
+                Option::<fn(&NodeArray, Id<Node>) -> io::Result<bool>>::None,
             )?)
     }
 
     pub(super) fn is_declaration_in_constructor(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> bool {
         let this_container = get_this_container(expression, false);
         matches!(
@@ -79,7 +79,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_binding_element(
         &self,
-        element: &Node, /*BindingElement*/
+        element: Id<Node>, /*BindingElement*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -124,7 +124,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_object_binding_pattern(
         &self,
-        pattern: &Node, /*ObjectBindingPattern*/
+        pattern: Id<Node>, /*ObjectBindingPattern*/
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
@@ -210,7 +210,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_array_binding_pattern(
         &self,
-        pattern: &Node, /*BindingPattern*/
+        pattern: Id<Node>, /*BindingPattern*/
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
@@ -276,7 +276,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_binding_pattern(
         &self,
-        pattern: &Node, /*BindingPattern*/
+        pattern: Id<Node>, /*BindingPattern*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -299,7 +299,7 @@ impl TypeChecker {
 
     pub(super) fn get_widened_type_for_variable_like_declaration(
         &self,
-        declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
+        declaration: Id<Node>, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         report_errors: Option<bool>,
     ) -> io::Result<Id<Type>> {
         self.widen_type_for_variable_like_declaration(
@@ -309,7 +309,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_global_symbol_constructor(&self, node: Id<Node>) -> io::Result<bool> {
         let symbol = self.get_symbol_of_node(node)?;
         let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false)?;
         Ok(matches!(
@@ -321,7 +321,7 @@ impl TypeChecker {
     pub(super) fn widen_type_for_variable_like_declaration(
         &self,
         type_: Option<Id<Type>>,
-        declaration: &Node,
+        declaration: Id<Node>,
         report_errors: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let report_errors = report_errors.unwrap_or(false);
@@ -370,7 +370,7 @@ impl TypeChecker {
 
     pub(super) fn declaration_belongs_to_private_ambient_member(
         &self,
-        declaration: &Node, /*VariableLikeDeclaration*/
+        declaration: Id<Node>, /*VariableLikeDeclaration*/
     ) -> bool {
         let root = get_root_declaration(declaration);
         let member_declaration = if root.kind() == SyntaxKind::Parameter {
@@ -383,7 +383,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_type_from_effective_type_node(
         &self,
-        declaration: &Node, /*Declaration*/
+        declaration: Id<Node>, /*Declaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let type_node = get_effective_type_annotation_node(declaration);
         type_node.try_map(|type_node| self.get_type_from_type_node_(&type_node))
@@ -673,7 +673,7 @@ impl TypeChecker {
 
     pub(super) fn get_annotated_accessor_this_parameter(
         &self,
-        accessor: &Node, /*AccessorDeclaration*/
+        accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> Option<Id<Symbol>> {
         let parameter = self.get_accessor_this_parameter(accessor)?;
         parameter.maybe_symbol()
@@ -681,7 +681,7 @@ impl TypeChecker {
 
     pub(super) fn get_this_type_of_declaration(
         &self,
-        declaration: &Node, /*SignatureDeclaration*/
+        declaration: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
         self.get_this_type_of_signature(&*self.get_signature_from_declaration_(declaration)?)
     }
@@ -732,7 +732,7 @@ impl TypeChecker {
                     getter,
                     &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
+                        self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?
                     ])
                 );
             }
@@ -791,7 +791,7 @@ impl TypeChecker {
                     setter,
                     &*Diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
+                        self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?
                     ])
                 );
             }
@@ -804,7 +804,7 @@ impl TypeChecker {
                     getter,
                     &*Diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
+                        self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?
                     ])
                 );
             }

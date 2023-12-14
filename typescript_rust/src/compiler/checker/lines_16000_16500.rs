@@ -319,7 +319,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_literal_type_node(
         &self,
-        node: &Node, /*LiteralTypeNode*/
+        node: Id<Node>, /*LiteralTypeNode*/
     ) -> io::Result<Id<Type>> {
         let node_as_literal_type_node = node.as_literal_type_node();
         if node_as_literal_type_node.literal.kind() == SyntaxKind::NullKeyword {
@@ -355,7 +355,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> io::Result<Id<Type>> {
+    pub(super) fn get_es_symbol_like_type_for_node(&self, node: Id<Node>) -> io::Result<Id<Type>> {
         if is_valid_es_symbol_declaration(node) {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
             let links = self.get_symbol_links(symbol);
@@ -368,7 +368,7 @@ impl TypeChecker {
         Ok(self.es_symbol_type())
     }
 
-    pub(super) fn get_this_type(&self, node: &Node) -> io::Result<Id<Type>> {
+    pub(super) fn get_this_type(&self, node: Id<Node>) -> io::Result<Id<Type>> {
         let container = get_this_container(node, false);
         let parent = /*container &&*/ container.maybe_parent();
         if let Some(parent) = parent.as_ref().filter(|parent| {
@@ -457,7 +457,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_this_type_node(
         &self,
-        node: &Node, /*ThisExpression | ThisTypeNode*/
+        node: Id<Node>, /*ThisExpression | ThisTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -469,7 +469,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_rest_type_node(
         &self,
-        node: &Node, /*RestTypeNode | NamedTupleMember*/
+        node: Id<Node>, /*RestTypeNode | NamedTupleMember*/
     ) -> io::Result<Id<Type>> {
         let node_as_has_type = node.as_has_type();
         self.get_type_from_type_node_(
@@ -481,7 +481,7 @@ impl TypeChecker {
 
     pub(super) fn get_array_element_type_node(
         &self,
-        node: &Node, /*TypeNode*/
+        node: Id<Node>, /*TypeNode*/
     ) -> Option<Id<Node /*TypeNode*/>> {
         match node.kind() {
             SyntaxKind::ParenthesizedType => {
@@ -511,7 +511,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_named_tuple_type_node(
         &self,
-        node: &Node, /*NamedTupleMember*/
+        node: Id<Node>, /*NamedTupleMember*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -533,14 +533,14 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_type_node_(
         &self,
-        node: &Node, /*TypeNode*/
+        node: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
         self.get_conditional_flow_type_of_type(self.get_type_from_type_node_worker(node)?, node)
     }
 
     pub(super) fn get_type_from_type_node_worker(
         &self,
-        node: &Node, /*TypeNode*/
+        node: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
         Ok(match node.kind() {
             SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {

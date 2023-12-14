@@ -20,7 +20,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn is_symbol_or_symbol_for_call(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_symbol_or_symbol_for_call(&self, node: Id<Node>) -> io::Result<bool> {
         if !is_call_expression(node) {
             return Ok(false);
         }
@@ -62,7 +62,7 @@ impl TypeChecker {
 
     pub(super) fn check_import_call_expression(
         &self,
-        node: &Node, /*ImportCall*/
+        node: Id<Node>, /*ImportCall*/
     ) -> io::Result<Id<Type>> {
         let node_as_call_expression = node.as_call_expression();
         if !self.check_grammar_arguments(Some(&node_as_call_expression.arguments)) {
@@ -97,7 +97,7 @@ impl TypeChecker {
                 &Diagnostics::Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0,
                 Some(vec![self.type_to_string_(
                     specifier_type,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                 )?]),
@@ -182,7 +182,7 @@ impl TypeChecker {
         type_: Id<Type>,
         symbol: Id<Symbol>,
         original_symbol: Id<Symbol>,
-        module_specifier: &Node, /*Expression*/
+        module_specifier: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         let has_default_only = self.is_only_imported_as_default(module_specifier);
         if has_default_only {
@@ -209,7 +209,7 @@ impl TypeChecker {
         type_: Id<Type>,
         symbol: Id<Symbol>,
         original_symbol: Id<Symbol>,
-        module_specifier: &Node, /*Expression*/
+        module_specifier: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
             let synth_type = type_;
@@ -273,7 +273,7 @@ impl TypeChecker {
         Ok(type_)
     }
 
-    pub(super) fn is_common_js_require(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_common_js_require(&self, node: Id<Node>) -> io::Result<bool> {
         if !is_require_call(node, true) {
             return Ok(false);
         }
@@ -332,7 +332,7 @@ impl TypeChecker {
 
     pub(super) fn check_tagged_template_expression(
         &self,
-        node: &Node, /*TaggedTemplateExpression*/
+        node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<Id<Type>> {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         if !self.check_grammar_tagged_template_chain(node) {
@@ -353,7 +353,7 @@ impl TypeChecker {
 
     pub(super) fn check_assertion(
         &self,
-        node: &Node, /*AssertionExpression*/
+        node: Id<Node>, /*AssertionExpression*/
     ) -> io::Result<Id<Type>> {
         if node.kind() == SyntaxKind::TypeAssertionExpression {
             let file = maybe_get_source_file_of_node(Some(node));
@@ -379,7 +379,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_valid_const_assertion_argument(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_valid_const_assertion_argument(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(match node.kind() {
             SyntaxKind::StringLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral
@@ -423,9 +423,9 @@ impl TypeChecker {
 
     pub(super) fn check_assertion_worker(
         &self,
-        err_node: &Node,
-        type_: &Node,      /*TypeNode*/
-        expression: &Node, /*UnaryExpression | Expression*/
+        err_node: Id<Node>,
+        type_: Id<Node>,      /*TypeNode*/
+        expression: Id<Node>, /*UnaryExpression | Expression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let mut expr_type = self.check_expression(expression, check_mode, None)?;
@@ -460,7 +460,7 @@ impl TypeChecker {
 
     pub(super) fn check_non_null_chain(
         &self,
-        node: &Node, /*NonNullChain*/
+        node: Id<Node>, /*NonNullChain*/
     ) -> io::Result<Id<Type>> {
         let left_type =
             self.check_expression(&node.as_has_expression().expression(), None, None)?;
@@ -475,7 +475,7 @@ impl TypeChecker {
 
     pub(super) fn check_non_null_assertion(
         &self,
-        node: &Node, /*NonNullExpression*/
+        node: Id<Node>, /*NonNullExpression*/
     ) -> io::Result<Id<Type>> {
         Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_non_null_chain(node)?
@@ -490,7 +490,7 @@ impl TypeChecker {
 
     pub(super) fn check_meta_property(
         &self,
-        node: &Node, /*MetaProperty*/
+        node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<Id<Type>> {
         self.check_grammar_meta_property(node);
 
@@ -508,7 +508,7 @@ impl TypeChecker {
 
     pub(super) fn check_meta_property_keyword(
         &self,
-        node: &Node, /*MetaProperty*/
+        node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<Id<Type>> {
         Ok(match node.as_meta_property().keyword_token {
             SyntaxKind::ImportKeyword => self.get_global_import_meta_expression_type()?,
@@ -526,7 +526,7 @@ impl TypeChecker {
 
     pub(super) fn check_new_target_meta_property(
         &self,
-        node: &Node, /*MetaProperty*/
+        node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<Id<Type>> {
         let container = get_new_target_container(node);
         Ok(match container.as_ref() {
@@ -554,7 +554,7 @@ impl TypeChecker {
 
     pub(super) fn check_import_meta_property(
         &self,
-        node: &Node, /*MetaProperty*/
+        node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<Id<Type>> {
         if matches!(self.module_kind, ModuleKind::Node12 | ModuleKind::NodeNext) {
             if get_source_file_of_node(node)
@@ -603,7 +603,7 @@ impl TypeChecker {
 
     pub(super) fn get_tuple_element_label(
         &self,
-        d: &Node, /*ParameterDeclaration | NamedTupleMember*/
+        d: Id<Node>, /*ParameterDeclaration | NamedTupleMember*/
     ) -> __String {
         Debug_.assert(is_identifier(&d.as_named_declaration().name()), None);
         d.as_named_declaration()
@@ -815,7 +815,7 @@ impl TypeChecker {
                     rest_type,
                     self.get_number_literal_type(Number::new(index as f64)),
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Id<Symbol>>::None,
                     None,
                 )?));
@@ -842,7 +842,7 @@ impl TypeChecker {
                             rest_type,
                             self.number_type(),
                             None,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             Option::<Id<Symbol>>::None,
                             None,
                         )?,

@@ -33,10 +33,10 @@ impl<TValue> From<TValue> for ForEachChildRecursivelyCallbackReturn<TValue> {
 
 pub fn for_each_child_recursively<
     TValue,
-    TCBNode: FnMut(&Node, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
-    TCBNodes: FnMut(&NodeArray, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
+    TCBNode: FnMut(Id<Node>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
+    TCBNodes: FnMut(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
 >(
-    root_node: &Node,
+    root_node: Id<Node>,
     mut cb_node: TCBNode,
     mut cb_nodes: Option<TCBNodes>,
 ) -> Option<TValue> {
@@ -93,24 +93,24 @@ pub fn for_each_child_recursively<
 }
 
 pub fn for_each_child_recursively_bool(
-    root_node: &Node,
-    mut cb_node: impl FnMut(&Node, &Node) -> bool,
-    cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> bool>,
+    root_node: Id<Node>,
+    mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> bool,
+    cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> bool>,
 ) -> bool {
     try_for_each_child_recursively_bool(
         root_node,
-        |a: &Node, b: &Node| -> Result<_, ()> { Ok(cb_node(a, b)) },
+        |a: Id<Node>, b: Id<Node>| -> Result<_, ()> { Ok(cb_node(a, b)) },
         cb_nodes.map(|mut cb_nodes| {
-            move |a: &NodeArray, b: &Node| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
+            move |a: &NodeArray, b: Id<Node>| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
         }),
     )
     .unwrap()
 }
 
 pub fn try_for_each_child_recursively_bool<TError>(
-    root_node: &Node,
-    mut cb_node: impl FnMut(&Node, &Node) -> Result<bool, TError>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> Result<bool, TError>>,
+    root_node: Id<Node>,
+    mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> Result<bool, TError>,
+    mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Result<bool, TError>>,
 ) -> Result<bool, TError> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
     let mut parents: Vec<Id<Node>> = vec![];
@@ -167,7 +167,7 @@ impl From<Gc<NodeArray>> for RcNodeOrNodeArray {
     }
 }
 
-fn gather_possible_children(node: &Node) -> Vec<RcNodeOrNodeArray> {
+fn gather_possible_children(node: Id<Node>) -> Vec<RcNodeOrNodeArray> {
     let children: RefCell<Vec<RcNodeOrNodeArray>> = RefCell::new(vec![]);
     for_each_child(
         node,
@@ -234,14 +234,14 @@ pub fn parse_json_text(file_name: &str, source_text: String) -> Id<Node /*JsonSo
     Parser().parse_json_text(file_name, source_text, None, None, None)
 }
 
-pub fn is_external_module(file: &Node /*SourceFile*/) -> bool {
+pub fn is_external_module(file: Id<Node> /*SourceFile*/) -> bool {
     file.as_source_file()
         .maybe_external_module_indicator()
         .is_some()
 }
 
 pub fn update_source_file(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     new_text: String,
     text_change_range: TextChangeRange,
     aggressive_checks: Option<bool>,

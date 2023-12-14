@@ -30,7 +30,7 @@ pub struct SymbolAccessibilityDiagnostic {
     pub type_name: Option<Id<Node /*DeclarationName | QualifiedName*/>>,
 }
 
-pub fn can_produce_diagnostics(node: &Node) -> bool {
+pub fn can_produce_diagnostics(node: Id<Node>) -> bool {
     is_variable_declaration(node)
         || is_property_declaration(node)
         || is_property_signature(node)
@@ -54,7 +54,7 @@ pub fn can_produce_diagnostics(node: &Node) -> bool {
 }
 
 pub fn create_get_symbol_accessibility_diagnostic_for_node(
-    node: &Node, /*DeclarationDiagnosticProducing*/
+    node: Id<Node>, /*DeclarationDiagnosticProducing*/
 ) -> GetSymbolAccessibilityDiagnostic {
     if is_variable_declaration(node)
         || is_property_declaration(node)
@@ -101,7 +101,7 @@ pub fn create_get_symbol_accessibility_diagnostic_for_node(
 }
 
 fn get_variable_declaration_type_visibility_diagnostic_message(
-    node: &Node,
+    node: Id<Node>,
     symbol_accessibility_result: &SymbolAccessibilityResult,
 ) -> Option<&'static DiagnosticMessage> {
     if matches!(
@@ -196,7 +196,7 @@ struct GetVariableDeclarationTypeVisibilityError {
 }
 
 impl GetVariableDeclarationTypeVisibilityError {
-    fn new(node: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             node: node.node_wrapper(),
         }))
@@ -228,7 +228,7 @@ struct GetAccessorDeclarationTypeVisibilityError {
 }
 
 impl GetAccessorDeclarationTypeVisibilityError {
-    fn new(node: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             node: node.node_wrapper(),
         }))
@@ -316,7 +316,7 @@ struct GetReturnTypeVisibilityError {
 }
 
 impl GetReturnTypeVisibilityError {
-    fn new(node: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             node: node.node_wrapper(),
         }))
@@ -456,7 +456,7 @@ struct GetParameterDeclarationTypeVisibilityError {
 }
 
 impl GetParameterDeclarationTypeVisibilityError {
-    fn new(node: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             node: node.node_wrapper(),
         }))
@@ -483,7 +483,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetParameterDeclarationTypeVi
 }
 
 fn get_parameter_declaration_type_visibility_diagnostic_message(
-    node: &Node,
+    node: Id<Node>,
     symbol_accessibility_result: &SymbolAccessibilityResult,
 ) -> &'static DiagnosticMessage {
     match node.parent().kind() {
@@ -632,7 +632,7 @@ struct GetTypeParameterConstraintVisibilityError {
 }
 
 impl GetTypeParameterConstraintVisibilityError {
-    fn new(node: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             node: node.node_wrapper(),
         }))
@@ -697,7 +697,7 @@ struct GetHeritageClauseVisibilityError {
 }
 
 impl GetHeritageClauseVisibilityError {
-    fn new(node: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             node: node.node_wrapper(),
         }))
@@ -746,7 +746,7 @@ struct GetImportEntityNameVisibilityError {
 }
 
 impl GetImportEntityNameVisibilityError {
-    fn new(node: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             node: node.node_wrapper(),
         }))
@@ -772,7 +772,7 @@ struct GetTypeAliasDeclarationVisibilityError {
 }
 
 impl GetTypeAliasDeclarationVisibilityError {
-    fn new(node: &Node) -> GetSymbolAccessibilityDiagnostic {
+    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
             node: node.node_wrapper(),
         }))

@@ -46,7 +46,7 @@ impl ParserType {
         self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
-    pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
+    pub(super) fn set_external_module_indicator(&self, source_file: Id<Node> /*SourceFile*/) {
         let source_file_as_source_file = source_file.as_source_file();
         source_file_as_source_file.set_external_module_indicator(
             for_each(&source_file_as_source_file.statements(), |statement, _| {
@@ -56,7 +56,7 @@ impl ParserType {
         );
     }
 
-    pub(super) fn is_an_external_module_indicator_node(&self, node: &Node) -> Option<Id<Node>> {
+    pub(super) fn is_an_external_module_indicator_node(&self, node: Id<Node>) -> Option<Id<Node>> {
         if self.has_modifier_of_kind(node, SyntaxKind::ExportKeyword)
             || is_import_equals_declaration(node)
                 && is_external_module_reference(
@@ -74,7 +74,7 @@ impl ParserType {
 
     pub(super) fn get_import_meta_if_necessary(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
     ) -> Option<Id<Node>> {
         if source_file
             .flags()
@@ -86,7 +86,10 @@ impl ParserType {
         }
     }
 
-    pub(super) fn walk_tree_for_external_module_indicators(&self, node: &Node) -> Option<Id<Node>> {
+    pub(super) fn walk_tree_for_external_module_indicators(
+        &self,
+        node: Id<Node>,
+    ) -> Option<Id<Node>> {
         if self.is_import_meta(node) {
             Some(node.node_wrapper())
         } else {
@@ -98,7 +101,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn has_modifier_of_kind(&self, node: &Node, kind: SyntaxKind) -> bool {
+    pub(super) fn has_modifier_of_kind(&self, node: Id<Node>, kind: SyntaxKind) -> bool {
         let modifiers = node.maybe_modifiers();
         let modifiers: Option<&[Id<Node>]> = modifiers.as_ref().map(|node_array| {
             let slice_ref: &[Id<Node>] = node_array;
@@ -107,7 +110,7 @@ impl ParserType {
         some(modifiers, Some(|m: &Id<Node>| m.kind() == kind))
     }
 
-    pub(super) fn is_import_meta(&self, node: &Node) -> bool {
+    pub(super) fn is_import_meta(&self, node: Id<Node>) -> bool {
         if !is_meta_property(node) {
             return false;
         }
@@ -266,7 +269,7 @@ impl ParserType {
 
     pub fn JSDocParser_parse_jsdoc_comment(
         &self,
-        parent: &Node,
+        parent: Id<Node>,
         start: usize,
         length: usize,
     ) -> Option<Id<Node /*JSDoc*/>> {

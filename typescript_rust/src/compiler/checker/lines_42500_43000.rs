@@ -19,7 +19,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn report_obvious_modifier_errors(&self, node: &Node) -> Option<bool> {
+    pub(super) fn report_obvious_modifier_errors(&self, node: Id<Node>) -> Option<bool> {
         if node.maybe_modifiers().is_none() {
             Some(false)
         } else if self.should_report_bad_modifier(node) {
@@ -33,7 +33,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn should_report_bad_modifier(&self, node: &Node) -> bool {
+    pub(super) fn should_report_bad_modifier(&self, node: Id<Node>) -> bool {
         match node.kind() {
             SyntaxKind::GetAccessor
             | SyntaxKind::SetAccessor
@@ -80,7 +80,7 @@ impl TypeChecker {
 
     pub(super) fn node_has_any_modifiers_except(
         &self,
-        node: &Node,
+        node: Id<Node>,
         allowed_modifier: SyntaxKind,
     ) -> bool {
         let node_modifiers = node.maybe_modifiers();
@@ -88,7 +88,11 @@ impl TypeChecker {
         node_modifiers.len() > 1 || node_modifiers[0].kind() != allowed_modifier
     }
 
-    pub(super) fn check_grammar_async_modifier(&self, node: &Node, async_modifier: &Node) -> bool {
+    pub(super) fn check_grammar_async_modifier(
+        &self,
+        node: Id<Node>,
+        async_modifier: Id<Node>,
+    ) -> bool {
         if matches!(
             node.kind(),
             SyntaxKind::MethodDeclaration
@@ -127,7 +131,7 @@ impl TypeChecker {
     pub(super) fn check_grammar_type_parameter_list(
         &self,
         type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
     ) -> bool {
         if let Some(type_parameters) =
             type_parameters.filter(|type_parameters| type_parameters.is_empty())
@@ -243,7 +247,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_for_use_strict_simple_parameter_list(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> bool {
         if self.language_version >= ScriptTarget::ES2016 {
             let node_as_function_like_declaration = node.as_function_like_declaration();
@@ -313,7 +317,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_function_like_declaration(
         &self,
-        node: &Node, /*FunctionLikeDeclaration | MethodSignature*/
+        node: Id<Node>, /*FunctionLikeDeclaration | MethodSignature*/
     ) -> io::Result<bool> {
         let file = get_source_file_of_node(node);
         let node_as_signature_declaration = node.as_signature_declaration();
@@ -332,7 +336,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_class_like_declaration(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
         let file = get_source_file_of_node(node);
         self.check_grammar_class_declaration_heritage_clauses(node)
@@ -346,8 +350,8 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_arrow_function(
         &self,
-        node: &Node,
-        file: &Node, /*SourceFile*/
+        node: Id<Node>,
+        file: Id<Node>, /*SourceFile*/
     ) -> bool {
         if !is_arrow_function(node) {
             return false;
@@ -401,7 +405,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_index_signature_parameters(
         &self,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         let node_as_signature_declaration = node.as_signature_declaration();
         let parameter = node_as_signature_declaration.parameters().get(0).cloned();
@@ -502,7 +506,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_index_signature(
         &self,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         Ok(self.check_grammar_decorators_and_modifiers(node)
             || self.check_grammar_index_signature_parameters(node)?)
@@ -510,7 +514,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_for_at_least_one_type_argument(
         &self,
-        node: &Node,
+        node: Id<Node>,
         type_arguments: Option<&NodeArray /*<TypeNode>*/>,
     ) -> bool {
         if let Some(type_arguments) =
@@ -538,7 +542,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_type_arguments(
         &self,
-        node: &Node,
+        node: Id<Node>,
         type_arguments: Option<&NodeArray /*<TypeNode>*/>,
     ) -> bool {
         self.check_grammar_for_disallowed_trailing_comma(type_arguments, None)
@@ -547,7 +551,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_tagged_template_chain(
         &self,
-        node: &Node, /*TaggedTemplateExpression*/
+        node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> bool {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         if node_as_tagged_template_expression
@@ -593,7 +597,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_heritage_clause(
         &self,
-        node: &Node, /*HeritageClause*/
+        node: Id<Node>, /*HeritageClause*/
     ) -> bool {
         let node_as_heritage_clause = node.as_heritage_clause();
         let types = &node_as_heritage_clause.types;
@@ -620,7 +624,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_expression_with_type_arguments(
         &self,
-        node: &Node, /*ExpressionWithTypeArguments*/
+        node: Id<Node>, /*ExpressionWithTypeArguments*/
     ) -> bool {
         self.check_grammar_type_arguments(
             node,
@@ -632,7 +636,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_class_declaration_heritage_clauses(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
         let mut seen_extends_clause = false;
         let mut seen_implements_clause = false;
@@ -695,7 +699,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_interface_declaration(
         &self,
-        node: &Node, /*InterfaceDeclaration*/
+        node: Id<Node>, /*InterfaceDeclaration*/
     ) -> bool {
         let mut seen_extends_clause = false;
 
@@ -732,7 +736,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_grammar_computed_property_name(&self, node: &Node) -> bool {
+    pub(super) fn check_grammar_computed_property_name(&self, node: Id<Node>) -> bool {
         if node.kind() != SyntaxKind::ComputedPropertyName {
             return false;
         }
@@ -757,7 +761,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_for_generator(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> bool {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         if let Some(node_asterisk_token) = node_as_function_like_declaration
@@ -817,7 +821,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_object_literal_expression(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
+        node: Id<Node>, /*ObjectLiteralExpression*/
         in_destructuring: bool,
     ) -> bool {
         let mut seen: HashMap<__String, DeclarationMeaning> = HashMap::new();

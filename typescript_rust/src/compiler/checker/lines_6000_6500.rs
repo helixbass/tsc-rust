@@ -446,7 +446,7 @@ impl NodeBuilder {
         })
     }
 
-    pub(super) fn is_string_named(&self, d: &Node /*Declaration*/) -> bool {
+    pub(super) fn is_string_named(&self, d: Id<Node> /*Declaration*/) -> bool {
         let name = get_name_of_declaration(Some(d));
         matches!(
             name.as_ref(),
@@ -454,7 +454,7 @@ impl NodeBuilder {
         )
     }
 
-    pub(super) fn is_single_quoted_string_named(&self, d: &Node /*Declaration*/) -> bool {
+    pub(super) fn is_single_quoted_string_named(&self, d: Id<Node> /*Declaration*/) -> bool {
         let name = get_name_of_declaration(Some(d));
         matches!(
             name.as_ref(),
@@ -666,7 +666,7 @@ impl NodeBuilder {
 
     pub(super) fn existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
         &self,
-        existing: &Node, /*TypeNode*/
+        existing: Id<Node>, /*TypeNode*/
         type_: Id<Type>,
     ) -> bool {
         !get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference)
@@ -696,7 +696,7 @@ impl NodeBuilder {
     ) -> io::Result<Id<Node>> {
         if !self.type_checker.is_error_type(type_) {
             if let Some(enclosing_declaration) = enclosing_declaration {
-                let enclosing_declaration: &Node = enclosing_declaration.borrow();
+                let enclosing_declaration: Id<Node> = enclosing_declaration.borrow();
                 let decl_with_existing_annotation =
                     self.get_declaration_with_type_annotation(symbol, Some(enclosing_declaration));
                 if let Some(decl_with_existing_annotation) = decl_with_existing_annotation
@@ -823,7 +823,7 @@ impl NodeBuilder {
 
     pub(super) fn track_existing_entity_name(
         &self,
-        node: &Node, /*EntityNameOrEntityNameExpression*/
+        node: Id<Node>, /*EntityNameOrEntityNameExpression*/
         context: &NodeBuilderContext,
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
     ) -> io::Result<TrackExistingEntityNameReturn> {
@@ -850,7 +850,7 @@ impl NodeBuilder {
             SymbolFlags::All,
             Some(true),
             Some(true),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )?;
         if let Some(sym) = sym {
             if self
@@ -907,7 +907,7 @@ impl NodeBuilder {
     pub(super) fn serialize_existing_type_node(
         &self,
         context: &NodeBuilderContext,
-        existing: &Node, /*TypeNode*/
+        existing: Id<Node>, /*TypeNode*/
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         _bundled: Option<bool>,
     ) -> io::Result<Option<Id<Node>>> {
@@ -918,7 +918,7 @@ impl NodeBuilder {
         let file = maybe_get_source_file_of_node(Some(existing));
         let transformed = try_visit_node(
             existing,
-            Some(|node: &Node| {
+            Some(|node: Id<Node>| {
                 self.visit_existing_node_tree_symbols(
                     context,
                     &mut had_error,
@@ -927,7 +927,7 @@ impl NodeBuilder {
                     node,
                 )
             }),
-            Option::<fn(&Node) -> bool>::None,
+            Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         if had_error {
@@ -947,8 +947,8 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         had_error: &mut bool,
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
-        file: Option<&Node>,
-        node: &Node,
+        file: Option<Id<Node>>,
+        node: Id<Node>,
     ) -> io::Result<VisitResult> {
         if is_jsdoc_all_type(node) || node.kind() == SyntaxKind::JSDocNamepathType {
             return Ok(Some(
@@ -970,7 +970,7 @@ impl NodeBuilder {
                     .create_union_type_node(vec![
                         try_visit_node(
                             node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
-                            Some(|node: &Node| {
+                            Some(|node: Id<Node>| {
                                 self.visit_existing_node_tree_symbols(
                                     context,
                                     had_error,
@@ -979,7 +979,7 @@ impl NodeBuilder {
                                     node,
                                 )
                             }),
-                            Option::<fn(&Node) -> bool>::None,
+                            Option::<fn(Id<Node>) -> bool>::None,
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
                         get_factory().create_literal_type_node(get_factory().create_null()),
@@ -993,7 +993,7 @@ impl NodeBuilder {
                     .create_union_type_node(vec![
                         try_visit_node(
                             node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
-                            Some(|node: &Node| {
+                            Some(|node: Id<Node>| {
                                 self.visit_existing_node_tree_symbols(
                                     context,
                                     had_error,
@@ -1002,7 +1002,7 @@ impl NodeBuilder {
                                     node,
                                 )
                             }),
-                            Option::<fn(&Node) -> bool>::None,
+                            Option::<fn(Id<Node>) -> bool>::None,
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
                         get_factory().create_keyword_type_node(SyntaxKind::UndefinedKeyword),
@@ -1014,7 +1014,7 @@ impl NodeBuilder {
             return Ok(Some(
                 try_visit_node(
                     node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
-                    Some(|node: &Node| {
+                    Some(|node: Id<Node>| {
                         self.visit_existing_node_tree_symbols(
                             context,
                             had_error,
@@ -1023,7 +1023,7 @@ impl NodeBuilder {
                             node,
                         )
                     }),
-                    Option::<fn(&Node) -> bool>::None,
+                    Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
                 .into(),
@@ -1034,7 +1034,7 @@ impl NodeBuilder {
                 get_factory()
                     .create_array_type_node(try_visit_node(
                         node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
-                        Some(|node: &Node| {
+                        Some(|node: Id<Node>| {
                             self.visit_existing_node_tree_symbols(
                                 context,
                                 had_error,
@@ -1043,7 +1043,7 @@ impl NodeBuilder {
                                 node,
                             )
                         }),
-                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?)
                     .into(),
@@ -1101,8 +1101,8 @@ impl NodeBuilder {
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref().try_and_then(|t_type_expression| {
                                         try_maybe_visit_node(
                                             Some(&*t_type_expression.as_jsdoc_type_expression().type_),
-                                            Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
-                                            Option::<fn(&Node) -> bool>::None,
+                                            Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
+                                            Option::<fn(Id<Node>) -> bool>::None,
                                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                         )
                                     })
@@ -1156,7 +1156,7 @@ impl NodeBuilder {
                                     .unwrap()
                                     .get(0)
                                     .cloned(),
-                                Some(|node: &Node| {
+                                Some(|node: Id<Node>| {
                                     self.visit_existing_node_tree_symbols(
                                         context,
                                         had_error,
@@ -1165,7 +1165,7 @@ impl NodeBuilder {
                                         node,
                                     )
                                 }),
-                                Option::<fn(&Node) -> bool>::None,
+                                Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
                             None,
@@ -1177,7 +1177,7 @@ impl NodeBuilder {
                                 .unwrap()
                                 .get(1)
                                 .cloned(),
-                            Some(|node: &Node| {
+                            Some(|node: Id<Node>| {
                                 self.visit_existing_node_tree_symbols(
                                     context,
                                     had_error,
@@ -1186,7 +1186,7 @@ impl NodeBuilder {
                                     node,
                                 )
                             }),
-                            Option::<fn(&Node) -> bool>::None,
+                            Option::<fn(Id<Node>) -> bool>::None,
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
                     )]))
@@ -1202,8 +1202,8 @@ impl NodeBuilder {
                         node_as_jsdoc_function_type.maybe_modifiers(),
                         try_maybe_visit_nodes(
                             node_as_jsdoc_function_type.maybe_type_parameters().as_deref(),
-                            Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
-                            Option::<fn(&Node) -> bool>::None,
+                            Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
+                            Option::<fn(Id<Node>) -> bool>::None,
                             None, None,
                         )?,
                         try_map_defined(
@@ -1226,8 +1226,8 @@ impl NodeBuilder {
                                             p_as_parameter_declaration.question_token.clone(),
                                             try_maybe_visit_node(
                                                 p_as_parameter_declaration.maybe_type(),
-                                                Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
-                                                Option::<fn(&Node) -> bool>::None,
+                                                Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
+                                                Option::<fn(Id<Node>) -> bool>::None,
                                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                             )?,
                                             None,
@@ -1240,7 +1240,7 @@ impl NodeBuilder {
                             try_maybe_visit_node(
                                 new_type_node.or_else(|| node_as_jsdoc_function_type.maybe_type()),
                                 Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
-                                Option::<fn(&Node) -> bool>::None,
+                                Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?.unwrap_or_else(|| {
                                 get_factory().create_keyword_type_node(
@@ -1258,7 +1258,7 @@ impl NodeBuilder {
                                 node_as_jsdoc_function_type
                                     .maybe_type_parameters()
                                     .as_deref(),
-                                Some(|node: &Node| {
+                                Some(|node: Id<Node>| {
                                     self.visit_existing_node_tree_symbols(
                                         context,
                                         had_error,
@@ -1267,7 +1267,7 @@ impl NodeBuilder {
                                         node,
                                     )
                                 }),
-                                Option::<fn(&Node) -> bool>::None,
+                                Option::<fn(Id<Node>) -> bool>::None,
                                 None,
                                 None,
                             )?,
@@ -1283,7 +1283,7 @@ impl NodeBuilder {
                                         p_as_parameter_declaration.question_token.clone(),
                                         try_maybe_visit_node(
                                             node_as_jsdoc_function_type.maybe_type(),
-                                            Some(|node: &Node| {
+                                            Some(|node: Id<Node>| {
                                                 self.visit_existing_node_tree_symbols(
                                                     context,
                                                     had_error,
@@ -1292,7 +1292,7 @@ impl NodeBuilder {
                                                     node,
                                                 )
                                             }),
-                                            Option::<fn(&Node) -> bool>::None,
+                                            Option::<fn(Id<Node>) -> bool>::None,
                                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                         )?,
                                         None,
@@ -1302,7 +1302,7 @@ impl NodeBuilder {
                             Some(
                                 try_maybe_visit_node(
                                     node_as_jsdoc_function_type.maybe_type(),
-                                    Some(|node: &Node| {
+                                    Some(|node: Id<Node>| {
                                         self.visit_existing_node_tree_symbols(
                                             context,
                                             had_error,
@@ -1311,7 +1311,7 @@ impl NodeBuilder {
                                             node,
                                         )
                                     }),
-                                    Option::<fn(&Node) -> bool>::None,
+                                    Option::<fn(Id<Node>) -> bool>::None,
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?
                                 .unwrap_or_else(|| {
@@ -1412,7 +1412,7 @@ impl NodeBuilder {
         Ok(Some(
             try_visit_each_child(
                 node,
-                |node: &Node| {
+                |node: Id<Node>| {
                     self.visit_existing_node_tree_symbols(
                         context,
                         had_error,

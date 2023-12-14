@@ -17,18 +17,18 @@ use crate::{
 };
 
 impl TransformSystemModule {
-    pub(super) fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         self.visitor_worker(node, false)
     }
 
-    pub(super) fn discarded_value_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    pub(super) fn discarded_value_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
         self.visitor_worker(node, true)
     }
 
     pub(super) fn visit_expression_statement(
         &self,
-        node: &Node, /*ExpressionStatement*/
+        node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<VisitResult> {
         let node_as_expression_statement = node.as_expression_statement();
         Ok(Some(
@@ -37,7 +37,7 @@ impl TransformSystemModule {
                     node,
                     try_visit_node(
                         &node_as_expression_statement.expression,
-                        Some(|node: &Node| self.discarded_value_visitor(node)),
+                        Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
@@ -48,7 +48,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_parenthesized_expression(
         &self,
-        node: &Node, /*ParenthesizedExpression*/
+        node: Id<Node>, /*ParenthesizedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
@@ -58,7 +58,7 @@ impl TransformSystemModule {
                     node,
                     try_visit_node(
                         &node_as_parenthesized_expression.expression,
-                        Some(|node: &Node| {
+                        Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
                             } else {
@@ -75,7 +75,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_partially_emitted_expression(
         &self,
-        node: &Node, /*PartiallyEmittedExpression*/
+        node: Id<Node>, /*PartiallyEmittedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
         let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
@@ -85,7 +85,7 @@ impl TransformSystemModule {
                     node,
                     try_visit_node(
                         &node_as_partially_emitted_expression.expression,
-                        Some(|node: &Node| {
+                        Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
                             } else {
@@ -102,7 +102,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_import_call_expression(
         &self,
-        node: &Node, /*ImportCall*/
+        node: Id<Node>, /*ImportCall*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_call_expression = node.as_call_expression();
         let external_module_name = get_external_module_name_literal(
@@ -115,8 +115,8 @@ impl TransformSystemModule {
         )?;
         let first_argument = try_maybe_visit_node(
             first_or_undefined(&node_as_call_expression.arguments).cloned(),
-            Some(|node: &Node| self.visitor(node)),
-            Option::<fn(&Node) -> bool>::None,
+            Some(|node: Id<Node>| self.visitor(node)),
+            Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let argument = external_module_name
@@ -140,7 +140,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_destructuring_assignment(
         &self,
-        node: &Node, /*DestructuringAssignment*/
+        node: Id<Node>, /*DestructuringAssignment*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> /*<Expression>*/ {
         let node_as_binary_expression = node.as_binary_expression();
@@ -148,12 +148,16 @@ impl TransformSystemModule {
             return Ok(Some(
                 try_flatten_destructuring_assignment(
                     node,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     self.context.clone(),
                     FlattenLevel::All,
                     Some(!value_is_discarded),
                     Option::<
-                        fn(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>,
+                        fn(
+                            Id<Node>,
+                            Id<Node>,
+                            Option<&dyn ReadonlyTextRange>,
+                        ) -> io::Result<Id<Node>>,
                     >::None,
                 )?
                 .into(),
@@ -161,13 +165,14 @@ impl TransformSystemModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+                .into(),
         ))
     }
 
     pub(super) fn has_exported_reference_in_destructuring_target(
         &self,
-        node: &Node, /*Expression | ObjectLiteralElementLike*/
+        node: Id<Node>, /*Expression | ObjectLiteralElementLike*/
     ) -> io::Result<bool> {
         Ok(if is_assignment_expression(node, Some(true)) {
             self.has_exported_reference_in_destructuring_target(&node.as_binary_expression().left)?
@@ -207,7 +212,7 @@ impl TransformSystemModule {
 
     pub(super) fn visit_prefix_or_postfix_unary_expression(
         &self,
-        node: &Node, /*PrefixUnaryExpression | PostfixUnaryExpression*/
+        node: Id<Node>, /*PrefixUnaryExpression | PostfixUnaryExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
         let node_as_unary_expression = node.as_unary_expression();
@@ -225,7 +230,7 @@ impl TransformSystemModule {
                 let mut temp: Option<Id<Node /*Identifier*/>> = _d();
                 let mut expression/*: Expression*/ = try_visit_node(
                     &node_operand,
-                    Some(|node: &Node| self.visitor(node)),
+                    Some(|node: Id<Node>| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?;
@@ -239,7 +244,7 @@ impl TransformSystemModule {
                         .update_postfix_unary_expression(node, expression);
                     if !value_is_discarded {
                         temp = Some(self.factory.create_temp_variable(
-                            Some(|node: &Node| {
+                            Some(|node: Id<Node>| {
                                 self.context.hoist_variable_declaration(node);
                             }),
                             None,
@@ -273,12 +278,15 @@ impl TransformSystemModule {
             }
         }
         Ok(Some(
-            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+                .into(),
         ))
     }
 
-    pub(super) fn modifier_visitor(&self, node: &Node /*FunctionDeclaration*/) -> VisitResult /*<Node>*/
-    {
+    pub(super) fn modifier_visitor(
+        &self,
+        node: Id<Node>, /*FunctionDeclaration*/
+    ) -> VisitResult /*<Node>*/ {
         match node.kind() {
             SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword => return None,
             _ => (),
@@ -288,7 +296,7 @@ impl TransformSystemModule {
 
     pub(super) fn get_exports(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut exported_names: Option<Vec<Id<Node /*Identifier*/>>> = _d();
         if !is_generated_identifier(name) {

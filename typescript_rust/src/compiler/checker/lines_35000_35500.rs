@@ -20,7 +20,7 @@ impl TypeChecker {
     pub(super) fn report_implementation_expected_error(
         &self,
         is_constructor: bool,
-        node: &Node, /*SignatureDeclaration*/
+        node: Id<Node>, /*SignatureDeclaration*/
     ) {
         let node_as_signature_declaration = node.as_signature_declaration();
         if matches!(
@@ -33,7 +33,7 @@ impl TypeChecker {
         let mut seen = false;
         let subsequent_node = for_each_child_returns(
             &node.parent(),
-            |c: &Node| {
+            |c: Id<Node>| {
                 if seen {
                     Some(c.node_wrapper())
                 } else {
@@ -125,7 +125,7 @@ impl TypeChecker {
 
     pub(super) fn check_exports_on_merged_declarations(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
     ) -> io::Result<()> {
         if !self.produce_diagnostics {
             return Ok(());
@@ -211,7 +211,7 @@ impl TypeChecker {
 
     pub(super) fn get_declaration_spaces(
         &self,
-        decl: &Node, /*Declaration*/
+        decl: Id<Node>, /*Declaration*/
     ) -> io::Result<DeclarationSpaces> {
         let d = decl;
         Ok(match d.kind() {
@@ -397,7 +397,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         with_alias: bool,
-        error_node: &Node,
+        error_node: Id<Node>,
         diagnostic_message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> io::Result<Id<Type>> {
@@ -500,7 +500,7 @@ impl TypeChecker {
         }
 
         Debug_.assert(
-            self.get_promised_type_of_promise(type_, Option::<&Node>::None)?
+            self.get_promised_type_of_promise(type_, Option::<Id<Node>>::None)?
                 .is_none(),
             Some("type provided should not be a non-generic 'promise'-like."),
         );
@@ -554,7 +554,7 @@ impl TypeChecker {
                 } else {
                     self.get_awaited_type_no_alias(
                         constituent_type,
-                        Option::<&Node>::None,
+                        Option::<Id<Node>>::None,
                         None,
                         None,
                     )
@@ -565,7 +565,7 @@ impl TypeChecker {
             return Ok(ret);
         }
 
-        let promised_type = self.get_promised_type_of_promise(type_, Option::<&Node>::None)?;
+        let promised_type = self.get_promised_type_of_promise(type_, Option::<Id<Node>>::None)?;
         if let Some(promised_type) = promised_type {
             if type_.ref_(self).id() == promised_type.ref_(self).id()
                 || self

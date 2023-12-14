@@ -46,8 +46,8 @@ pub fn create_member_access_for_property_name<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    target: &Node,      /*Expression*/
-    member_name: &Node, /*PropertyName*/
+    target: Id<Node>,      /*Expression*/
+    member_name: Id<Node>, /*PropertyName*/
     location: Option<&impl ReadonlyTextRange>,
 ) -> Id<Node /*MemberExpression*/> {
     if is_computed_property_name(member_name) {
@@ -77,13 +77,13 @@ pub fn create_member_access_for_property_name<
 
 fn create_react_namespace(
     react_namespace: Option<&str>,
-    parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+    parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node> {
     get_parse_node_factory()
         .create_identifier(react_namespace.non_empty().unwrap_or("React"))
         .and_set_parent(get_parse_tree_node(
             Some(parent),
-            Option::<fn(&Node) -> bool>::None,
+            Option::<fn(Id<Node>) -> bool>::None,
         ))
 }
 
@@ -91,8 +91,8 @@ fn create_jsx_factory_expression_from_entity_name<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    jsx_factory: &Node, /*EntityName*/
-    parent: &Node,      /*JsxOpeningLikeElement | JsxOpeningFragment*/
+    jsx_factory: Id<Node>, /*EntityName*/
+    parent: Id<Node>,      /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
     if is_qualified_name(jsx_factory) {
         let jsx_factory_as_qualified_name = jsx_factory.as_qualified_name();
@@ -114,7 +114,7 @@ pub fn create_jsx_factory_expression<
     factory: &NodeFactory<TBaseNodeFactory>,
     jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
     react_namespace: Option<&str>,
-    parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+    parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
     jsx_factory_entity.map_or_else(
         || {
@@ -136,7 +136,7 @@ pub fn create_jsx_fragment_factory_expression<
     factory: &NodeFactory<TBaseNodeFactory>,
     jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
     react_namespace: &str,
-    parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+    parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
     jsx_fragment_factory_entity.map_or_else(
         || {
@@ -160,8 +160,8 @@ pub fn create_expression_for_jsx_element<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    callee: &Node,   /*Expression*/
-    tag_name: &Node, /*Expression*/
+    callee: Id<Node>,   /*Expression*/
+    tag_name: Id<Node>, /*Expression*/
     props: Option<impl Borrow<Node /*Expression*/>>,
     children: Option<&[Id<Node /*Expression*/>]>,
     location: &impl ReadonlyTextRange,
@@ -204,7 +204,7 @@ pub fn create_expression_for_jsx_fragment<
     jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
     react_namespace: &str,
     children: &[Id<Node /*Expression*/>],
-    parent_element: &Node, /*JsxOpeningFragment*/
+    parent_element: Id<Node>, /*JsxOpeningFragment*/
     location: &impl ReadonlyTextRange,
 ) -> Id<Node /*LeftHandSideExpression*/> {
     let tag_name = create_jsx_fragment_factory_expression(
@@ -246,8 +246,8 @@ pub fn create_for_of_binding_statement<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    node: &Node,        /*ForInitializer*/
-    bound_value: &Node, /*Expression*/
+    node: Id<Node>,        /*ForInitializer*/
+    bound_value: Id<Node>, /*Expression*/
 ) -> Id<Node /*Statement*/> {
     if is_variable_declaration_list(node) {
         let first_declaration = first(&node.as_variable_declaration_list().declarations);
@@ -278,7 +278,7 @@ pub fn create_expression_from_entity_name<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    node: &Node, /*EntityName | Expression*/
+    node: Id<Node>, /*EntityName | Expression*/
 ) -> Id<Node /*Expression*/> {
     if is_qualified_name(node) {
         let node_as_qualified_name = node.as_qualified_name();
@@ -302,7 +302,7 @@ pub fn create_expression_for_property_name<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    member_name: &Node, /*Exclude<PropertyName, PrivateIdentifier>*/
+    member_name: Id<Node>, /*Exclude<PropertyName, PrivateIdentifier>*/
 ) -> Id<Node /*Expression*/> {
     if is_identifier(member_name) {
         factory.create_string_literal_from_node(member_name)
@@ -329,8 +329,8 @@ fn create_expression_for_accessor_declaration<
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
     properties: &NodeArray, /*<Declaration>*/
-    property: &Node, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
-    receiver: &Node, /*Expression*/
+    property: Id<Node>, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
+    receiver: Id<Node>, /*Expression*/
     multi_line: bool,
 ) -> Option<Id<Node>> {
     let AllAccessorDeclarations {
@@ -404,8 +404,8 @@ fn create_expression_for_property_assignment<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    property: &Node, /*PropertyAssignment*/
-    receiver: &Node, /*Expression*/
+    property: Id<Node>, /*PropertyAssignment*/
+    receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
     let property_as_property_assignment = property.as_property_assignment();
     factory
@@ -426,8 +426,8 @@ fn create_expression_for_shorthand_property_assignment<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    property: &Node, /*ShorthandPropertyAssignment*/
-    receiver: &Node, /*Expression*/
+    property: Id<Node>, /*ShorthandPropertyAssignment*/
+    receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
     let property_as_shorthand_property_assignment = property.as_shorthand_property_assignment();
     factory
@@ -448,8 +448,8 @@ fn create_expression_for_method_declaration<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    method: &Node,   /*MethodDeclaration*/
-    receiver: &Node, /*Expression*/
+    method: Id<Node>,   /*MethodDeclaration*/
+    receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
     let method_as_method_declaration = method.as_method_declaration();
     factory
@@ -481,9 +481,9 @@ pub fn create_expression_for_object_literal_element_like<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    node: &Node,     /*ObjectLiteralExpression*/
-    property: &Node, /*ObjectLiteralElementLike*/
-    receiver: &Node, /*Expression*/
+    node: Id<Node>,     /*ObjectLiteralExpression*/
+    property: Id<Node>, /*ObjectLiteralElementLike*/
+    receiver: Id<Node>, /*Expression*/
 ) -> Option<Id<Node /*Expression*/>> {
     let node_as_object_literal_expression = node.as_object_literal_expression();
     if property
@@ -523,9 +523,9 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    node: &Node,       /*PrefixUnaryExpression | PostfixUnaryExpression*/
-    expression: &Node, /*Expression*/
-    record_temp_variable: impl FnMut(&Node /*Expression*/),
+    node: Id<Node>,       /*PrefixUnaryExpression | PostfixUnaryExpression*/
+    expression: Id<Node>, /*Expression*/
+    record_temp_variable: impl FnMut(Id<Node> /*Expression*/),
     result_variable: Option<impl Borrow<Node /*Identifier*/>>,
 ) -> Id<Node /*Expression*/> {
     let node_as_unary_expression = node.as_unary_expression();
@@ -567,19 +567,19 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     expression
 }
 
-pub fn is_internal_name(node: &Node /*Identifier*/) -> bool {
+pub fn is_internal_name(node: Id<Node> /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::InternalName)
 }
 
-pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
+pub fn is_local_name(node: Id<Node> /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)
 }
 
-pub fn is_export_name(node: &Node /*Identifier*/) -> bool {
+pub fn is_export_name(node: Id<Node> /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::ExportName)
 }
 
-fn is_use_strict_prologue(node: &Node /*ExpressionStatement*/) -> bool {
+fn is_use_strict_prologue(node: Id<Node> /*ExpressionStatement*/) -> bool {
     let node_as_expression_statement = node.as_expression_statement();
     is_string_literal(&node_as_expression_statement.expression)
         && &*node_as_expression_statement
@@ -613,25 +613,25 @@ pub fn starts_with_use_strict(statements: &[Id<Node>]) -> bool {
     is_prologue_directive(first_statement) && is_use_strict_prologue(first_statement)
 }
 
-pub fn is_comma_sequence(node: &Node /*Expression*/) -> bool {
+pub fn is_comma_sequence(node: Id<Node> /*Expression*/) -> bool {
     node.kind() == SyntaxKind::BinaryExpression
         && node.as_binary_expression().operator_token.kind() == SyntaxKind::CommaToken
         || node.kind() == SyntaxKind::CommaListExpression
 }
 
-pub fn is_jsdoc_type_assertion(node: &Node) -> bool {
+pub fn is_jsdoc_type_assertion(node: Id<Node>) -> bool {
     is_parenthesized_expression(node)
         && is_in_js_file(Some(node))
         && get_jsdoc_type_tag(node).is_some()
 }
 
-pub fn get_jsdoc_type_assertion_type(node: &Node /*JSDocTypeAssertion*/) -> Id<Node> {
+pub fn get_jsdoc_type_assertion_type(node: Id<Node> /*JSDocTypeAssertion*/) -> Id<Node> {
     let type_ = get_jsdoc_type(node);
     Debug_.assert_is_defined(&type_, None);
     type_.unwrap()
 }
 
-pub fn is_outer_expression(node: &Node, kinds: Option<OuterExpressionKinds>) -> bool {
+pub fn is_outer_expression(node: Id<Node>, kinds: Option<OuterExpressionKinds>) -> bool {
     let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
     match node.kind() {
         SyntaxKind::ParenthesizedExpression => {
@@ -653,7 +653,7 @@ pub fn is_outer_expression(node: &Node, kinds: Option<OuterExpressionKinds>) -> 
     }
 }
 
-pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) -> Id<Node> {
+pub fn skip_outer_expressions(node: Id<Node>, kinds: Option<OuterExpressionKinds>) -> Id<Node> {
     let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
     let mut node = node.node_wrapper();
     while is_outer_expression(&node, Some(kinds)) {
@@ -667,7 +667,7 @@ pub fn start_on_new_line<TNode: Borrow<Node>>(node: TNode) -> TNode {
     node
 }
 
-pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Id<Node>> {
+pub fn get_external_helpers_module_name(node: Id<Node> /*SourceFile*/) -> Option<Id<Node>> {
     let parse_node = maybe_get_original_node_full(
         Some(node),
         Some(|node: Option<Id<Node>>| is_source_file(node.as_ref().unwrap())),
@@ -677,7 +677,7 @@ pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Id
     ret
 }
 
-pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool {
+pub fn has_recorded_external_helpers(source_file: Id<Node> /*SourceFile*/) -> bool {
     let parse_node = maybe_get_original_node_full(
         Some(source_file),
         Some(|node: Option<Id<Node>>| is_source_file(node.as_ref().unwrap())),
@@ -698,7 +698,7 @@ pub fn create_external_helpers_import_declaration_if_needed<
 >(
     node_factory: &NodeFactory<TBaseNodeFactory>,
     helper_factory: &EmitHelperFactory,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
     has_export_stars_to_export_values: Option<bool>,
     has_import_star: Option<bool>,
@@ -797,7 +797,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    node: &Node, /*SourceFile*/
+    node: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
     has_export_stars_to_export_values: Option<bool>,
     has_import_star_or_import_default: Option<bool>,
@@ -855,8 +855,8 @@ pub fn get_local_name_for_external_import<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
-    source_file: &Node, /*SourceFile*/
+    node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> Option<Id<Node /*Identifier*/>> {
     let namespace_declaration = get_namespace_declaration_node(node);
     if let Some(namespace_declaration) = namespace_declaration
@@ -890,8 +890,8 @@ pub fn get_external_module_name_literal<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    import_node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration | ImportCall*/
-    source_file: &Node, /*SourceFile*/
+    import_node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration | ImportCall*/
+    source_file: Id<Node>, /*SourceFile*/
     host: &dyn EmitHost,
     resolver: &dyn EmitResolver,
     compiler_options: &CompilerOptions,
@@ -916,8 +916,8 @@ pub fn get_external_module_name_literal<
 
 fn try_rename_external_module<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
     factory: &NodeFactory<TBaseNodeFactory>,
-    module_name: &Node, /*LiteralExpression*/
-    source_file: &Node, /*SourceFile*/
+    module_name: Id<Node>, /*LiteralExpression*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> Option<Id<Node>> {
     let rename = source_file
         .as_source_file()
@@ -942,7 +942,7 @@ pub fn try_get_module_name_from_file<
     options: &CompilerOptions,
 ) -> Option<Id<Node /*StringLiteral*/>> {
     let file = file?;
-    let file: &Node = file.borrow();
+    let file: Id<Node> = file.borrow();
     let file_as_source_file = file.as_source_file();
     if let Some(file_module_name) = file_as_source_file.maybe_module_name().clone().non_empty() {
         return Some(factory.create_string_literal(file_module_name, None, None));
@@ -960,7 +960,7 @@ pub fn try_get_module_name_from_file<
 fn try_get_module_name_from_declaration<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ImportCall*/
+    declaration: Id<Node>, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ImportCall*/
     host: &dyn EmitHost,
     factory: &NodeFactory<TBaseNodeFactory>,
     resolver: &dyn EmitResolver,
@@ -975,7 +975,7 @@ fn try_get_module_name_from_declaration<
 }
 
 pub fn get_initializer_of_binding_or_assignment_element(
-    binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: Id<Node>, /*BindingOrAssignmentElement*/
 ) -> Option<Id<Node /*Expression*/>> {
     if is_declaration_binding_element(binding_element) {
         return binding_element.as_has_initializer().maybe_initializer();
@@ -1007,7 +1007,7 @@ pub fn get_initializer_of_binding_or_assignment_element(
 }
 
 pub fn get_target_of_binding_or_assignment_element(
-    binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: Id<Node>, /*BindingOrAssignmentElement*/
 ) -> Option<Id<Node /*BindingOrAssignmentElementTarget*/>> {
     if is_declaration_binding_element(binding_element) {
         return binding_element.as_named_declaration().maybe_name();
@@ -1057,7 +1057,7 @@ pub fn get_target_of_binding_or_assignment_element(
 }
 
 pub fn get_elements_of_binding_or_assignment_pattern(
-    name: &Node, /*BindingOrAssignmentPattern*/
+    name: Id<Node>, /*BindingOrAssignmentPattern*/
 ) -> impl Iterator<Item = Id<Node /*BindingOrAssignmentElement*/>> {
     match name.kind() {
         SyntaxKind::ObjectBindingPattern
@@ -1071,7 +1071,7 @@ pub fn get_elements_of_binding_or_assignment_pattern(
 }
 
 pub fn get_rest_indicator_of_binding_or_assignment_element(
-    binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: Id<Node>, /*BindingOrAssignmentElement*/
 ) -> Option<Id<Node /*BindingOrAssignmentElementRestIndicator*/>> {
     match binding_element.kind() {
         SyntaxKind::Parameter | SyntaxKind::BindingElement => binding_element
@@ -1085,7 +1085,7 @@ pub fn get_rest_indicator_of_binding_or_assignment_element(
 }
 
 pub fn get_property_name_of_binding_or_assignment_element(
-    binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: Id<Node>, /*BindingOrAssignmentElement*/
 ) -> Option<Id<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
     let property_name = try_get_property_name_of_binding_or_assignment_element(binding_element);
     Debug_.assert(
@@ -1096,7 +1096,7 @@ pub fn get_property_name_of_binding_or_assignment_element(
 }
 
 pub fn try_get_property_name_of_binding_or_assignment_element(
-    binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: Id<Node>, /*BindingOrAssignmentElement*/
 ) -> Option<Id<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
     match binding_element.kind() {
         SyntaxKind::BindingElement => {
@@ -1161,7 +1161,7 @@ pub fn try_get_property_name_of_binding_or_assignment_element(
     None
 }
 
-fn is_string_or_numeric_literal(node: &Node) -> bool {
+fn is_string_or_numeric_literal(node: Id<Node>) -> bool {
     let kind = node.kind();
     matches!(kind, SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral)
 }
@@ -1185,7 +1185,7 @@ pub(crate) fn get_jsdoc_type_alias_name(
     })
 }
 
-pub fn can_have_modifiers(node: &Node) -> bool {
+pub fn can_have_modifiers(node: Id<Node>) -> bool {
     let kind = node.kind();
     matches!(
         kind,
@@ -1215,27 +1215,27 @@ pub fn can_have_modifiers(node: &Node) -> bool {
     )
 }
 
-pub fn is_type_node_or_type_parameter_declaration(node: &Node) -> bool {
+pub fn is_type_node_or_type_parameter_declaration(node: Id<Node>) -> bool {
     is_type_node(node) || is_type_parameter_declaration(node)
 }
 
-pub fn is_question_or_exclamation_token(node: &Node) -> bool {
+pub fn is_question_or_exclamation_token(node: Id<Node>) -> bool {
     is_question_token(node) || is_exclamation_token(node)
 }
 
-pub fn is_identifier_or_this_type_node(node: &Node) -> bool {
+pub fn is_identifier_or_this_type_node(node: Id<Node>) -> bool {
     is_identifier(node) || is_this_type_node(node)
 }
 
-pub fn is_readonly_keyword_or_plus_or_minus_token(node: &Node) -> bool {
+pub fn is_readonly_keyword_or_plus_or_minus_token(node: Id<Node>) -> bool {
     is_readonly_keyword(node) || is_plus_token(node) || is_minus_token(node)
 }
 
-pub fn is_question_or_plus_or_minus_token(node: &Node) -> bool {
+pub fn is_question_or_plus_or_minus_token(node: Id<Node>) -> bool {
     is_question_token(node) || is_plus_token(node) || is_minus_token(node)
 }
 
-pub fn is_module_name(node: &Node) -> bool {
+pub fn is_module_name(node: Id<Node>) -> bool {
     is_identifier(node) || is_string_literal(node)
 }
 
@@ -1337,7 +1337,7 @@ fn is_binary_operator(kind: SyntaxKind) -> bool {
     is_assignment_operator_or_higher(kind) || kind == SyntaxKind::CommaToken
 }
 
-pub fn is_binary_operator_token(node: &Node) -> bool {
+pub fn is_binary_operator_token(node: Id<Node>) -> bool {
     is_binary_operator(node.kind())
 }
 
@@ -1670,7 +1670,7 @@ fn binary_expression_state_push_stack<TState>(
     state_stack: &mut Vec<BinaryExpressionState>,
     node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TState>>,
-    node: &Node, /*BinaryExpression*/
+    node: Id<Node>, /*BinaryExpression*/
 ) -> usize {
     stack_index += 1;
     push_or_replace(state_stack, stack_index, BinaryExpressionState::Enter);
@@ -1682,7 +1682,7 @@ fn binary_expression_state_push_stack<TState>(
 fn binary_expression_state_check_circularity(
     mut stack_index: usize,
     node_stack: &[Id<Node /*BinaryExpression*/>],
-    node: &Node, /*BinaryExpression*/
+    node: Id<Node>, /*BinaryExpression*/
 ) {
     if Debug_.should_assert(AssertionLevel::Aggressive) {
         loop
@@ -1707,41 +1707,41 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
 
     fn on_enter(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         prev: Option<Self::TState>,
         outer_state: Self::TOuterState,
     ) -> io::Result<Self::TState>;
 
     fn on_left(
         &self,
-        _left: &Node, /*Expression*/
+        _left: Id<Node>, /*Expression*/
         _user_state: Self::TState,
-        _node: &Node, /*BinaryExpression*/
+        _node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         panic!("Shouldn't call default on_left()")
     }
 
     fn on_operator(
         &self,
-        _operator_token: &Node, /*BinaryOperatorToken*/
+        _operator_token: Id<Node>, /*BinaryOperatorToken*/
         _user_state: Self::TState,
-        _node: &Node, /*BinaryExpression*/
+        _node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<()> {
         panic!("Shouldn't call default on_operator()")
     }
 
     fn on_right(
         &self,
-        _right: &Node, /*Expression*/
+        _right: Id<Node>, /*Expression*/
         _user_state: Self::TState,
-        _node: &Node, /*BinaryExpression*/
+        _node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         panic!("Shouldn't call default on_left()")
     }
 
     fn on_exit(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         user_state: Self::TState,
     ) -> io::Result<Self::TResult>;
 
@@ -1784,7 +1784,7 @@ impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine
 
     pub fn call(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
         outer_state: TMachine::TOuterState,
     ) -> io::Result<TMachine::TResult> {
         let result_holder: Rc<RefCell<Option<TMachine::TResult>>> = Rc::new(RefCell::new(None));

@@ -28,7 +28,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_index_infos_at_location_(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<Option<Vec<Gc<IndexInfo>>>> {
         if is_identifier(node)
             && is_property_access_expression(&node.parent())
@@ -63,14 +63,14 @@ impl TypeChecker {
         location: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if let Some(location) = location {
-            let location: &Node = location.borrow();
+            let location: Id<Node> = location.borrow();
             if location.kind() == SyntaxKind::ShorthandPropertyAssignment {
                 return self.resolve_entity_name(
                     &location.as_shorthand_property_assignment().name(),
                     SymbolFlags::Value | SymbolFlags::Alias,
                     None,
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 );
             }
         }
@@ -79,7 +79,7 @@ impl TypeChecker {
 
     pub(super) fn get_export_specifier_local_target_symbol_(
         &self,
-        node: &Node, /*Identifier | ExportSpecifier*/
+        node: Id<Node>, /*Identifier | ExportSpecifier*/
     ) -> io::Result<Option<Id<Symbol>>> {
         Ok(if is_export_specifier(node) {
             let node_as_export_specifier = node.as_export_specifier();
@@ -103,7 +103,7 @@ impl TypeChecker {
                         | SymbolFlags::Alias,
                     None,
                     None,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                 )?
             }
         } else {
@@ -115,12 +115,12 @@ impl TypeChecker {
                     | SymbolFlags::Alias,
                 None,
                 None,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             )?
         })
     }
 
-    pub(super) fn get_type_of_node(&self, node: &Node) -> io::Result<Id<Type>> {
+    pub(super) fn get_type_of_node(&self, node: Id<Node>) -> io::Result<Id<Type>> {
         if is_source_file(node) && !is_external_module(node) {
             return Ok(self.error_type());
         }
@@ -225,7 +225,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_assignment_pattern_(
         &self,
-        expr: &Node, /*AssignmentPattern*/
+        expr: Id<Node>, /*AssignmentPattern*/
     ) -> io::Result<Option<Id<Type>>> {
         Debug_.assert(
             matches!(
@@ -303,7 +303,7 @@ impl TypeChecker {
 
     pub(super) fn get_property_symbol_of_destructuring_assignment_(
         &self,
-        location: &Node, /*Identifier*/
+        location: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let type_of_object_literal = self.get_type_of_assignment_pattern_(&*cast_present(
             location.parent().parent(),
@@ -320,7 +320,7 @@ impl TypeChecker {
 
     pub(super) fn get_regular_type_of_expression(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let mut expr = expr.node_wrapper();
         if is_right_side_of_qualified_name_or_property_access(&expr) {
@@ -331,7 +331,7 @@ impl TypeChecker {
 
     pub(super) fn get_parent_type_of_class_element(
         &self,
-        node: &Node, /*ClassElement*/
+        node: Id<Node>, /*ClassElement*/
     ) -> io::Result<Id<Type>> {
         let class_symbol = self.get_symbol_of_node(&node.parent())?.unwrap();
         Ok(if is_static(node) {
@@ -343,7 +343,7 @@ impl TypeChecker {
 
     pub(super) fn get_class_element_property_key_type(
         &self,
-        element: &Node, /*ClassElement*/
+        element: Id<Node>, /*ClassElement*/
     ) -> io::Result<Id<Type>> {
         let ref name = element.as_named_declaration().name();
         Ok(match name.kind() {
@@ -474,7 +474,7 @@ impl TypeChecker {
 
     pub(super) fn is_arguments_local_binding(
         &self,
-        node_in: &Node, /*Identifier*/
+        node_in: Id<Node>, /*Identifier*/
     ) -> io::Result<bool> {
         if is_generated_identifier(node_in) {
             return Ok(false);
@@ -504,7 +504,7 @@ impl TypeChecker {
 
     pub(super) fn module_exports_some_value(
         &self,
-        module_reference_expression: &Node, /*Expression*/
+        module_reference_expression: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         let module_symbol = self.resolve_external_module_name_(
             &module_reference_expression.parent(),
@@ -551,7 +551,7 @@ impl TypeChecker {
 
     pub(super) fn is_name_of_module_or_enum_declaration(
         &self,
-        node: &Node, /*Identifier*/
+        node: Id<Node>, /*Identifier*/
     ) -> bool {
         is_module_or_enum_declaration(&node.parent())
             && ptr::eq(node, &*node.parent().as_named_declaration().name())
@@ -559,7 +559,7 @@ impl TypeChecker {
 
     pub(super) fn get_referenced_export_container(
         &self,
-        node_in: &Node, /*Identifier*/
+        node_in: Id<Node>, /*Identifier*/
         prefix_locals: Option<bool>,
     ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
         let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
@@ -626,7 +626,7 @@ impl TypeChecker {
 
     pub(super) fn get_referenced_import_declaration(
         &self,
-        node_in: &Node, /*Identifier*/
+        node_in: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         if let Some(node_in_generated_import_reference) = node_in
             .as_identifier()

@@ -19,7 +19,7 @@ use crate::{
     TypePredicate, TypePredicateKind,
 };
 
-pub fn introduces_arguments_exotic_object(node: &Node) -> bool {
+pub fn introduces_arguments_exotic_object(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::MethodDeclaration
@@ -33,8 +33,8 @@ pub fn introduces_arguments_exotic_object(node: &Node) -> bool {
 }
 
 pub fn unwrap_innermost_statement_of_label(
-    node: &Node, /*LabeledStatement*/
-    mut before_unwrap_label_callback: Option<impl FnMut(&Node)>,
+    node: Id<Node>, /*LabeledStatement*/
+    mut before_unwrap_label_callback: Option<impl FnMut(Id<Node>)>,
 ) -> Id<Node /*Statement*/> {
     let mut node = node.node_wrapper();
     loop {
@@ -49,18 +49,18 @@ pub fn unwrap_innermost_statement_of_label(
     }
 }
 
-pub fn is_function_block(node: &Node) -> bool {
+pub fn is_function_block(node: Id<Node>) -> bool {
     /*node &&*/
     node.kind() == SyntaxKind::Block && is_function_like(node.maybe_parent())
 }
 
-pub fn is_object_literal_method(node: &Node) -> bool {
+pub fn is_object_literal_method(node: Id<Node>) -> bool {
     /*node &&*/
     node.kind() == SyntaxKind::MethodDeclaration
         && node.parent().kind() == SyntaxKind::ObjectLiteralExpression
 }
 
-pub fn is_object_literal_or_class_expression_method_or_accessor(node: &Node) -> bool {
+pub fn is_object_literal_or_class_expression_method_or_accessor(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
@@ -81,7 +81,7 @@ pub fn is_this_type_predicate(predicate: &TypePredicate) -> bool {
 }
 
 pub fn get_property_assignment<'key_and_key2>(
-    object_literal: &Node, /*ObjectLiteralExpression*/
+    object_literal: Id<Node>, /*ObjectLiteralExpression*/
     key: &'key_and_key2 str,
     key2: Option<&'key_and_key2 str>,
 ) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + Clone + 'key_and_key2 {
@@ -100,7 +100,7 @@ pub fn get_property_assignment<'key_and_key2>(
 }
 
 pub fn get_property_array_element_value(
-    object_literal: &Node, /*ObjectLiteralExpression*/
+    object_literal: Id<Node>, /*ObjectLiteralExpression*/
     prop_key: &str,
     element_value: &str,
 ) -> Option<Id<Node /*StringLiteral*/>> {
@@ -198,26 +198,26 @@ pub fn get_ts_config_prop_array<'prop_key>(
     }
 }
 
-pub fn get_containing_function(node: &Node) -> Option<Id<Node /*SignatureDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: &Node| {
+pub fn get_containing_function(node: Id<Node>) -> Option<Id<Node /*SignatureDeclaration*/>> {
+    find_ancestor(node.maybe_parent(), |node: Id<Node>| {
         is_function_like(Some(node))
     })
 }
 
 pub fn get_containing_function_declaration(
-    node: &Node,
+    node: Id<Node>,
 ) -> Option<Id<Node /*FunctionLikeDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: &Node| {
+    find_ancestor(node.maybe_parent(), |node: Id<Node>| {
         is_function_like_declaration(node)
     })
 }
 
-pub fn get_containing_class(node: &Node) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: &Node| is_class_like(node))
+pub fn get_containing_class(node: Id<Node>) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
+    find_ancestor(node.maybe_parent(), |node: Id<Node>| is_class_like(node))
 }
 
-pub fn get_containing_class_static_block(node: &Node) -> Option<Id<Node>> {
-    find_ancestor(node.maybe_parent(), |n: &Node| {
+pub fn get_containing_class_static_block(node: Id<Node>) -> Option<Id<Node>> {
+    find_ancestor(node.maybe_parent(), |n: Id<Node>| {
         if is_class_like(n) || is_function_like(Some(n)) {
             return FindAncestorCallbackReturn::Quit;
         }
@@ -226,14 +226,14 @@ pub fn get_containing_class_static_block(node: &Node) -> Option<Id<Node>> {
 }
 
 pub fn get_containing_function_or_class_static_block(
-    node: &Node,
+    node: Id<Node>,
 ) -> Option<Id<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: &Node| {
+    find_ancestor(node.maybe_parent(), |node: Id<Node>| {
         is_function_like_or_class_static_block_declaration(Some(node))
     })
 }
 
-pub fn get_this_container(node: &Node, include_arrow_functions: bool) -> Id<Node> {
+pub fn get_this_container(node: Id<Node>, include_arrow_functions: bool) -> Id<Node> {
     Debug_.assert(node.kind() != SyntaxKind::SourceFile, None);
     let mut node = node.node_wrapper();
     loop {
@@ -287,7 +287,7 @@ pub fn get_this_container(node: &Node, include_arrow_functions: bool) -> Id<Node
     }
 }
 
-pub fn is_in_top_level_context(node: &Node) -> bool {
+pub fn is_in_top_level_context(node: Id<Node>) -> bool {
     let mut node = node.node_wrapper();
     if is_identifier(&node)
         && (is_class_declaration(&node.parent()) || is_function_declaration(&node.parent()))
@@ -299,7 +299,7 @@ pub fn is_in_top_level_context(node: &Node) -> bool {
     is_source_file(&container)
 }
 
-pub fn get_new_target_container(node: &Node) -> Option<Id<Node>> {
+pub fn get_new_target_container(node: Id<Node>) -> Option<Id<Node>> {
     let container = get_this_container(node, false);
     // if (container) {
     match container.kind() {
@@ -314,7 +314,7 @@ pub fn get_new_target_container(node: &Node) -> Option<Id<Node>> {
     None
 }
 
-pub fn get_super_container(node: &Node, stop_on_functions: bool) -> Option<Id<Node>> {
+pub fn get_super_container(node: Id<Node>, stop_on_functions: bool) -> Option<Id<Node>> {
     let mut node = node.node_wrapper();
     loop {
         let maybe_parent = node.maybe_parent();
@@ -359,7 +359,7 @@ pub fn get_super_container(node: &Node, stop_on_functions: bool) -> Option<Id<No
 }
 
 pub fn get_immediately_invoked_function_expression(
-    func: &Node,
+    func: Id<Node>,
 ) -> Option<Id<Node /*CallExpression*/>> {
     if matches!(
         func.kind(),
@@ -380,18 +380,18 @@ pub fn get_immediately_invoked_function_expression(
     None
 }
 
-pub fn is_super_or_super_property(node: &Node) -> bool {
+pub fn is_super_or_super_property(node: Id<Node>) -> bool {
     node.kind() == SyntaxKind::SuperKeyword || is_super_property(node)
 }
 
-pub fn is_super_property(node: &Node) -> bool {
+pub fn is_super_property(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
     ) && node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword
 }
 
-pub fn is_this_property(node: &Node) -> bool {
+pub fn is_this_property(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
@@ -432,7 +432,7 @@ pub fn is_this_initialized_object_binding_expression<TNode: Borrow<Node>>(
 }
 
 pub fn get_entity_name_from_type_node(
-    node: &Node, /*TypeNode*/
+    node: Id<Node>, /*TypeNode*/
 ) -> Option<Id<Node /*EntityNameOrEntityNameExpression*/>> {
     match node.kind() {
         SyntaxKind::TypeReference => {
@@ -457,7 +457,7 @@ pub fn get_entity_name_from_type_node(
     None
 }
 
-pub fn get_invoked_expression(node: &Node /*CallLikeExpression*/) -> Id<Node /*Expression*/> {
+pub fn get_invoked_expression(node: Id<Node> /*CallLikeExpression*/) -> Id<Node /*Expression*/> {
     match node.kind() {
         SyntaxKind::TaggedTemplateExpression => node.as_tagged_template_expression().tag.clone(),
         SyntaxKind::JsxOpeningElement => node.as_jsx_opening_element().tag_name.clone(),
@@ -467,7 +467,7 @@ pub fn get_invoked_expression(node: &Node /*CallLikeExpression*/) -> Id<Node /*E
 }
 
 pub fn node_can_be_decorated<TParent: Borrow<Node>, TGrandparent: Borrow<Node>>(
-    node: &Node,
+    node: Id<Node>,
     parent: Option<TParent>,
     grandparent: Option<TGrandparent>,
 ) -> bool {
@@ -514,7 +514,7 @@ pub fn node_can_be_decorated<TParent: Borrow<Node>, TGrandparent: Borrow<Node>>(
 }
 
 pub fn node_is_decorated<TParent: Borrow<Node>, TGrandparent: Borrow<Node>>(
-    node: &Node,
+    node: Id<Node>,
     parent: Option<TParent>,
     grandparent: Option<TGrandparent>,
 ) -> bool {
@@ -522,14 +522,14 @@ pub fn node_is_decorated<TParent: Borrow<Node>, TGrandparent: Borrow<Node>>(
 }
 
 pub fn node_or_child_is_decorated(
-    node: &Node,
+    node: Id<Node>,
     parent: Option<impl Borrow<Node> + Clone>,
     grandparent: Option<impl Borrow<Node>>,
 ) -> bool {
     node_is_decorated(node, parent.clone(), grandparent) || child_is_decorated(node, parent)
 }
 
-pub fn child_is_decorated(node: &Node, parent: Option<impl Borrow<Node> + Clone>) -> bool {
+pub fn child_is_decorated(node: Id<Node>, parent: Option<impl Borrow<Node> + Clone>) -> bool {
     match node.kind() {
         SyntaxKind::ClassDeclaration => some(
             Some(&node.as_class_declaration().members()),
@@ -543,8 +543,8 @@ pub fn child_is_decorated(node: &Node, parent: Option<impl Borrow<Node> + Clone>
     }
 }
 
-pub fn class_or_constructor_parameter_is_decorated(node: &Node /*ClassDeclaration*/) -> bool {
-    if node_is_decorated(node, Option::<&Node>::None, Option::<&Node>::None) {
+pub fn class_or_constructor_parameter_is_decorated(node: Id<Node> /*ClassDeclaration*/) -> bool {
+    if node_is_decorated(node, Option::<Id<Node>>::None, Option::<Id<Node>>::None) {
         return true;
     }
     let constructor = get_first_constructor_with_body(node);
@@ -554,7 +554,7 @@ pub fn class_or_constructor_parameter_is_decorated(node: &Node /*ClassDeclaratio
     }
 }
 
-pub fn is_jsx_tag_name(node: &Node) -> bool {
+pub fn is_jsx_tag_name(node: Id<Node>) -> bool {
     let parent = node.parent();
     match parent.kind() {
         SyntaxKind::JsxOpeningElement => ptr::eq(&*parent.as_jsx_opening_element().tag_name, node),
@@ -566,7 +566,7 @@ pub fn is_jsx_tag_name(node: &Node) -> bool {
     }
 }
 
-pub fn is_expression_node(node: &Node) -> bool {
+pub fn is_expression_node(node: Id<Node>) -> bool {
     let mut node = node.node_wrapper();
     match node.kind() {
         SyntaxKind::SuperKeyword
@@ -653,7 +653,7 @@ pub fn is_expression_node(node: &Node) -> bool {
     }
 }
 
-pub fn is_in_expression_context(node: &Node) -> bool {
+pub fn is_in_expression_context(node: Id<Node>) -> bool {
     let parent = node.parent();
     match parent.kind() {
         SyntaxKind::VariableDeclaration

@@ -19,7 +19,7 @@ use crate::{
 impl Printer {
     pub(super) fn generate_name_cached(
         &self,
-        node: &Node,
+        node: Id<Node>,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> String {
         let node_id = get_node_id(node);
@@ -50,7 +50,7 @@ impl Printer {
             })
     }
 
-    pub(super) fn is_unique_local_name(&self, name: &str, container: &Node) -> bool {
+    pub(super) fn is_unique_local_name(&self, name: &str, container: Id<Node>) -> bool {
         let mut node = Some(container.node_wrapper());
         while maybe_is_node_descendant_of(node.as_deref(), Some(container)) {
             let node_present = node.as_ref().unwrap();
@@ -165,7 +165,7 @@ impl Printer {
 
     pub(super) fn generate_name_for_module_or_enum(
         &self,
-        node: &Node, /*ModuleDeclaration | EnumDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> String {
         let node_name = node.as_named_declaration().name();
         let name = self.get_text_of_node(&node_name, None);
@@ -178,7 +178,7 @@ impl Printer {
 
     pub(super) fn generate_name_for_import_or_export_declaration(
         &self,
-        node: &Node, /*ImportDeclaration | ExportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration | ExportDeclaration*/
     ) -> String {
         let ref expr = get_external_module_name(node).unwrap();
         let base_name = if is_string_literal(expr) {
@@ -199,7 +199,7 @@ impl Printer {
 
     pub(super) fn generate_name_for_method_or_accessor(
         &self,
-        node: &Node, /*MethodDeclaration | AccessorDeclaration*/
+        node: Id<Node>, /*MethodDeclaration | AccessorDeclaration*/
     ) -> String {
         let ref node_name = node.as_named_declaration().name();
         if is_identifier(node_name) {
@@ -210,7 +210,7 @@ impl Printer {
 
     pub(super) fn generate_name_for_node(
         &self,
-        node: &Node,
+        node: Id<Node>,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> String {
         match node.kind() {
@@ -271,7 +271,7 @@ impl Printer {
         }
     }
 
-    pub(super) fn make_name(&self, name: &Node /*GeneratedIdentifier*/) -> String {
+    pub(super) fn make_name(&self, name: Id<Node> /*GeneratedIdentifier*/) -> String {
         let name_auto_generate_flags = name.as_identifier().auto_generate_flags();
         match name_auto_generate_flags & GeneratedIdentifierFlags::KindMask {
             GeneratedIdentifierFlags::Auto => self.make_temp_variable_name(
@@ -309,7 +309,7 @@ impl Printer {
 
     pub(super) fn get_node_for_generated_name(
         &self,
-        name: &Node, /*GeneratedIdentifier*/
+        name: Id<Node>, /*GeneratedIdentifier*/
     ) -> Id<Node> {
         let auto_generate_id = name.as_identifier().auto_generate_id;
         let mut node: Id<Node> = name.node_wrapper();
@@ -337,7 +337,7 @@ impl Printer {
     pub(super) fn pipeline_emit_with_comments(
         &self,
         hint: EmitHint,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<()> {
         let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::Comments, hint, node)?;
         let saved_container_pos = self.container_pos();
@@ -355,7 +355,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_comments_before_node(&self, node: &Node) {
+    pub(super) fn emit_comments_before_node(&self, node: Id<Node>) {
         let emit_flags = get_emit_flags(node);
         let comment_range = get_comment_range(node);
 
@@ -372,7 +372,7 @@ impl Printer {
 
     pub(super) fn emit_comments_after_node(
         &self,
-        node: &Node,
+        node: Id<Node>,
         saved_container_pos: isize,
         saved_container_end: isize,
         saved_declaration_list_container_end: isize,
@@ -396,7 +396,7 @@ impl Printer {
 
     pub(super) fn emit_leading_comments_of_node(
         &self,
-        node: &Node,
+        node: Id<Node>,
         emit_flags: EmitFlags,
         pos: isize,
         end: isize,
@@ -444,7 +444,7 @@ impl Printer {
 
     pub(super) fn emit_trailing_comments_of_node(
         &self,
-        node: &Node,
+        node: Id<Node>,
         emit_flags: EmitFlags,
         pos: isize,
         end: isize,
@@ -530,9 +530,9 @@ impl Printer {
     #[allow(dead_code)]
     pub(super) fn emit_body_with_detached_comments(
         &self,
-        node: &Node,
+        node: Id<Node>,
         detached_range: &impl ReadonlyTextRange,
-        mut emit_callback: impl FnMut(&Node),
+        mut emit_callback: impl FnMut(Id<Node>),
     ) {
         self.try_emit_body_with_detached_comments(node, detached_range, |a| Ok(emit_callback(a)))
             .unwrap()
@@ -540,9 +540,9 @@ impl Printer {
 
     pub(super) fn try_emit_body_with_detached_comments(
         &self,
-        node: &Node,
+        node: Id<Node>,
         detached_range: &impl ReadonlyTextRange,
-        mut emit_callback: impl FnMut(&Node) -> io::Result<()>,
+        mut emit_callback: impl FnMut(Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         self.enter_comment();
         let pos = detached_range.pos();
@@ -577,7 +577,11 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn original_nodes_have_same_parent(&self, node_a: &Node, node_b: &Node) -> bool {
+    pub(super) fn original_nodes_have_same_parent(
+        &self,
+        node_a: Id<Node>,
+        node_b: Id<Node>,
+    ) -> bool {
         let ref node_a = get_original_node(node_a);
         matches!(
             node_a.maybe_parent().as_ref(),
@@ -595,8 +599,8 @@ impl Printer {
 
     pub(super) fn sibling_node_positions_are_comparable(
         &self,
-        previous_node: &Node,
-        next_node: &Node,
+        previous_node: Id<Node>,
+        next_node: Id<Node>,
     ) -> bool {
         if next_node.pos() < previous_node.end() {
             return false;

@@ -35,7 +35,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_assert_clause(
         &self,
-        node: &Node,             /*AssertClause*/
+        node: Id<Node>,          /*AssertClause*/
         elements: Gc<NodeArray>, /*<AssertEntry>*/
         multi_line: Option<bool>,
     ) -> Id<Node> {
@@ -63,7 +63,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_assert_entry(
         &self,
-        node: &Node, /*AssertEntry*/
+        node: Id<Node>, /*AssertEntry*/
         name: Id<Node /*AssertionKey*/>,
         value: Id<Node /*StringLiteral*/>,
     ) -> Id<Node> {
@@ -90,7 +90,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_namespace_import(
         &self,
-        node: &Node, /*NamespaceImport*/
+        node: Id<Node>, /*NamespaceImport*/
         name: Id<Node /*Identifier*/>,
     ) -> Id<Node> {
         let node_as_namespace_import = node.as_namespace_import();
@@ -116,7 +116,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_namespace_export(
         &self,
-        node: &Node, /*NamespaceExport*/
+        node: Id<Node>, /*NamespaceExport*/
         name: Id<Node /*Identifier*/>,
     ) -> Id<Node> {
         let node_as_namespace_export = node.as_namespace_export();
@@ -140,7 +140,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_named_imports(
         &self,
-        node: &Node, /*NamedImports*/
+        node: Id<Node>, /*NamedImports*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
         let node_as_named_imports = node.as_named_imports();
@@ -173,7 +173,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_import_specifier(
         &self,
-        node: &Node, /*ImportSpecifier*/
+        node: Id<Node>, /*ImportSpecifier*/
         is_type_only: bool,
         property_name: Option<Id<Node /*Identifier*/>>,
         name: Id<Node /*Identifier*/>,
@@ -225,7 +225,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_export_assignment(
         &self,
-        node: &Node, /*ExportAssignment*/
+        node: Id<Node>, /*ExportAssignment*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         expression: Id<Node /*Expression*/>,
@@ -282,7 +282,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_export_declaration(
         &self,
-        node: &Node, /*ExportDeclaration*/
+        node: Id<Node>, /*ExportDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
@@ -338,7 +338,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_named_exports(
         &self,
-        node: &Node, /*NamedExports*/
+        node: Id<Node>, /*NamedExports*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
         let node_as_named_exports = node.as_named_exports();
@@ -380,7 +380,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_export_specifier(
         &self,
-        node: &Node, /*ExportSpecifier*/
+        node: Id<Node>, /*ExportSpecifier*/
         is_type_only: bool,
         property_name: Option<Id<Node> /*Identifier*/>,
         name: Id<Node>,
@@ -429,7 +429,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_external_module_reference(
         &self,
-        node: &Node, /*ExternalModuleReference*/
+        node: Id<Node>, /*ExternalModuleReference*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_external_module_reference = node.as_external_module_reference();
@@ -512,7 +512,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[allow(dead_code)]
-    fn get_default_tag_name(&self, node: &Node /*JSDocTag*/) -> Id<Node /*Identifier*/> {
+    fn get_default_tag_name(&self, node: Id<Node> /*JSDocTag*/) -> Id<Node /*Identifier*/> {
         let default_tag_name = get_default_tag_name_for_kind(node.kind());
         let node_as_jsdoc_tag = node.as_jsdoc_tag();
         if node_as_jsdoc_tag.tag_name().as_identifier().escaped_text
@@ -826,7 +826,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_element(
         &self,
-        node: &Node, /*JsxElement*/
+        node: Id<Node>, /*JsxElement*/
         opening_element: Id<Node /*JsxOpeningElement*/>,
         children: impl Into<NodeArrayOrVec>,
         closing_element: Id<Node /*JsxClosingElement*/>,
@@ -874,7 +874,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_self_closing_element(
         &self,
-        node: &Node, /*JsxSelfClosingElement*/
+        node: Id<Node>, /*JsxSelfClosingElement*/
         tag_name: Id<Node /*JsxTagNameExpression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Id<Node /*JsxAttributes*/>,
@@ -927,7 +927,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_opening_element(
         &self,
-        node: &Node, /*JsxOpeningElement*/
+        node: Id<Node>, /*JsxOpeningElement*/
         tag_name: Id<Node /*JsxTagNameExpression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Id<Node /*JsxAttributes*/>,
@@ -967,7 +967,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_closing_element(
         &self,
-        node: &Node, /*JsxClosingElement*/
+        node: Id<Node>, /*JsxClosingElement*/
         tag_name: Id<Node /*JsxTagNameExpression*/>,
     ) -> Id<Node> {
         let node_as_jsx_closing_element = node.as_jsx_closing_element();
@@ -1003,7 +1003,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_fragment(
         &self,
-        node: &Node, /*JsxFragment*/
+        node: Id<Node>, /*JsxFragment*/
         opening_fragment: Id<Node /*JsxOpeningFragment*/>,
         children: impl Into<NodeArrayOrVec>,
         closing_fragment: Id<Node /*JsxClosingFragment*/>,
@@ -1041,7 +1041,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_text(
         &self,
-        node: &Node, /*JsxText*/
+        node: Id<Node>, /*JsxText*/
         text: String,
         contains_only_trivia_white_spaces: Option<bool>,
     ) -> Id<Node> {
@@ -1093,7 +1093,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_attribute(
         &self,
-        node: &Node, /*JsxAttribute*/
+        node: Id<Node>, /*JsxAttribute*/
         name: Id<Node /*Identifier*/>,
         initializer: Option<Id<Node /*StringLiteral | JsxExpression*/>>,
     ) -> Id<Node> {
@@ -1125,7 +1125,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_attributes(
         &self,
-        node: &Node, /*JsxAttributes*/
+        node: Id<Node>, /*JsxAttributes*/
         properties: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
         let node_as_jsx_attributes = node.as_jsx_attributes();
@@ -1152,7 +1152,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_spread_attribute(
         &self,
-        node: &Node, /*JsxSpreadAttribute*/
+        node: Id<Node>, /*JsxSpreadAttribute*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_jsx_spread_attribute = node.as_jsx_spread_attribute();
@@ -1181,7 +1181,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_expression(
         &self,
-        node: &Node, /*JsxExpression*/
+        node: Id<Node>, /*JsxExpression*/
         expression: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
         let node_as_jsx_expression = node.as_jsx_expression();
@@ -1223,7 +1223,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_case_clause(
         &self,
-        node: &Node, /*CaseClause*/
+        node: Id<Node>, /*CaseClause*/
         expression: Id<Node /*Expression*/>,
         statements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
@@ -1251,7 +1251,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_default_clause(
         &self,
-        node: &Node, /*DefaultClause*/
+        node: Id<Node>, /*DefaultClause*/
         statements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
         let node_as_default_clause = node.as_default_clause();
@@ -1286,7 +1286,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_heritage_clause(
         &self,
-        node: &Node,                      /*HeritageClause*/
+        node: Id<Node>,                   /*HeritageClause*/
         types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
     ) -> Id<Node> {
         let node_as_heritage_clause = node.as_heritage_clause();
@@ -1348,7 +1348,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_catch_clause(
         &self,
-        node: &Node, /*CatchClause*/
+        node: Id<Node>, /*CatchClause*/
         variable_declaration: Option<Id<Node> /*VariableDeclaration*/>,
         block: Id<Node /*Block*/>,
     ) -> Id<Node> {

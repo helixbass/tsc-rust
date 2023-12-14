@@ -115,7 +115,7 @@ impl TransformGenerators {
         end_label
     }
 
-    pub(super) fn begin_catch_block(&self, variable: &Node /*VariableDeclaration*/) {
+    pub(super) fn begin_catch_block(&self, variable: Id<Node> /*VariableDeclaration*/) {
         let variable_as_variable_declaration = variable.as_variable_declaration();
         Debug_.assert(
             self.peek_block_kind() == Some(CodeBlockKind::Exception),
@@ -150,7 +150,7 @@ impl TransformGenerators {
         );
 
         let end_label = exception.as_exception_block().end_label;
-        self.emit_break(end_label, Option::<&Node>::None);
+        self.emit_break(end_label, Option::<Id<Node>>::None);
 
         let catch_label = self.define_label();
         self.mark_label(catch_label);
@@ -166,7 +166,7 @@ impl TransformGenerators {
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![]),
             ),
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         );
         self.emit_nop();
     }
@@ -185,7 +185,7 @@ impl TransformGenerators {
         );
 
         let end_label = exception.as_exception_block().end_label;
-        self.emit_break(end_label, Option::<&Node>::None);
+        self.emit_break(end_label, Option::<Id<Node>>::None);
 
         let finally_label = self.define_label();
         self.mark_label(finally_label);
@@ -204,7 +204,7 @@ impl TransformGenerators {
         if state < ExceptionBlockState::Finally {
             self.emit_break(
                 exception.as_exception_block().end_label,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
             );
         } else {
             self.emit_end_finally();

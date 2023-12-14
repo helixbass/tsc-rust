@@ -19,7 +19,7 @@ use crate::{
     ModifierFlags, MultiMap,
 };
 
-pub fn get_original_node_id(node: &Node) -> NodeId {
+pub fn get_original_node_id(node: Id<Node>) -> NodeId {
     let node = get_original_node(node);
     get_node_id(&node)
 }
@@ -79,7 +79,7 @@ fn contains_default_reference(node: Option<impl Borrow<Node /*NamedImportBinding
         .any(|element| is_named_default_reference(element))
 }
 
-fn is_named_default_reference(e: &Node /*ImportSpecifier*/) -> bool {
+fn is_named_default_reference(e: Id<Node> /*ImportSpecifier*/) -> bool {
     let e_as_import_specifier = e.as_import_specifier();
     e_as_import_specifier
         .property_name
@@ -96,11 +96,11 @@ pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> 
     CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
 }
 
-pub fn get_export_needs_import_star_helper(node: &Node /*ExportDeclaration*/) -> bool {
+pub fn get_export_needs_import_star_helper(node: Id<Node> /*ExportDeclaration*/) -> bool {
     get_namespace_declaration_node(node).is_some()
 }
 
-pub fn get_import_needs_import_star_helper(node: &Node /*ImportDeclaration*/) -> bool {
+pub fn get_import_needs_import_star_helper(node: Id<Node> /*ImportDeclaration*/) -> bool {
     let node_as_import_declaration = node.as_import_declaration();
     if get_namespace_declaration_node(node).is_some() {
         return true;
@@ -125,7 +125,7 @@ pub fn get_import_needs_import_star_helper(node: &Node /*ImportDeclaration*/) ->
             && is_default_import(node)
 }
 
-pub fn get_import_needs_import_default_helper(node: &Node /*ImportDeclaration*/) -> bool {
+pub fn get_import_needs_import_default_helper(node: Id<Node> /*ImportDeclaration*/) -> bool {
     let node_as_import_declaration = node.as_import_declaration();
     !get_import_needs_import_star_helper(node)
         && (is_default_import(node)
@@ -145,7 +145,7 @@ pub fn get_import_needs_import_default_helper(node: &Node /*ImportDeclaration*/)
 
 pub fn collect_external_module_info(
     context: &dyn TransformationContext,
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     resolver: &dyn EmitResolver,
     compiler_options: &CompilerOptions,
 ) -> io::Result<ExternalModuleInfo> {
@@ -341,7 +341,7 @@ fn add_exported_names_for_export_declaration(
     resolver: &dyn EmitResolver,
     exported_bindings: &mut HashMap<NodeId, Vec<Id<Node /*Identifier*/>>>,
     exported_names: &mut Option<Vec<Id<Node /*Identifier*/>>>,
-    node: &Node, /*ExportDeclaration*/
+    node: Id<Node>, /*ExportDeclaration*/
 ) -> io::Result<()> {
     let node_as_export_declaration = node.as_export_declaration();
     for specifier in &cast(
@@ -390,7 +390,7 @@ fn add_exported_names_for_export_declaration(
 }
 
 fn collect_exported_variable_info(
-    decl: &Node, /*VariableDeclaration | BindingElement*/
+    decl: Id<Node>, /*VariableDeclaration | BindingElement*/
     unique_exports: &mut HashMap<String, bool>,
     exported_names: &mut Option<Vec<Id<Node /*Identifier*/>>>,
 ) {
@@ -411,14 +411,14 @@ fn collect_exported_variable_info(
     // return exportedNames;
 }
 
-pub fn is_simple_copiable_expression(expression: &Node /*Expression*/) -> bool {
+pub fn is_simple_copiable_expression(expression: Id<Node> /*Expression*/) -> bool {
     is_string_literal_like(expression)
         || expression.kind() == SyntaxKind::NumericLiteral
         || is_keyword(expression.kind())
         || is_identifier(expression)
 }
 
-pub fn is_simple_inlineable_expression(expression: &Node /*Expression*/) -> bool {
+pub fn is_simple_inlineable_expression(expression: Id<Node> /*Expression*/) -> bool {
     !is_identifier(expression) && is_simple_copiable_expression(expression)
 }
 
@@ -453,11 +453,11 @@ pub fn get_non_assignment_operator_for_compound_assignment(
 
 pub fn add_prologue_directives_and_initial_super_call(
     factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
-    ctor: &Node, /*ConstructorDeclaration*/
+    ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
-    mut visitor: impl FnMut(&Node) -> VisitResult,
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
 ) -> usize {
-    try_add_prologue_directives_and_initial_super_call(factory, ctor, result, |node: &Node| {
+    try_add_prologue_directives_and_initial_super_call(factory, ctor, result, |node: Id<Node>| {
         Ok(visitor(node))
     })
     .unwrap()
@@ -465,9 +465,9 @@ pub fn add_prologue_directives_and_initial_super_call(
 
 pub fn try_add_prologue_directives_and_initial_super_call(
     factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
-    ctor: &Node, /*ConstructorDeclaration*/
+    ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
-    mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
 ) -> io::Result<usize> {
     let ctor_as_constructor_declaration = ctor.as_constructor_declaration();
     if let Some(ctor_body) = ctor_as_constructor_declaration.maybe_body() {
@@ -476,7 +476,7 @@ pub fn try_add_prologue_directives_and_initial_super_call(
             statements,
             result,
             Some(false),
-            Some(|node: &Node| visitor(node)),
+            Some(|node: Id<Node>| visitor(node)),
         )?;
         if index == statements.len() {
             return Ok(index);
@@ -493,7 +493,7 @@ pub fn try_add_prologue_directives_and_initial_super_call(
             for statement in statements.iter().skip(index).take(super_index - index + 1) {
                 result.push(try_visit_node(
                     statement,
-                    Some(|node: &Node| visitor(node)),
+                    Some(|node: Id<Node>| visitor(node)),
                     Some(is_statement),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?);
@@ -508,7 +508,7 @@ pub fn try_add_prologue_directives_and_initial_super_call(
 }
 
 pub fn get_properties(
-    node: &Node, /*ClassExpression | ClassDeclaration*/
+    node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     require_initializer: bool,
     is_static: bool,
 ) -> Vec<Id<Node /*PropertyDeclaration*/>> {
@@ -521,13 +521,13 @@ pub fn get_properties(
 }
 
 pub fn is_static_property_declaration_or_class_static_block_declaration(
-    element: &Node, /*ClassElement*/
+    element: Id<Node>, /*ClassElement*/
 ) -> bool {
     is_static_property_declaration(element) || is_class_static_block_declaration(element)
 }
 
 pub fn get_static_properties_and_class_static_block(
-    node: &Node, /*ClassExpression | ClassDeclaration*/
+    node: Id<Node>, /*ClassExpression | ClassDeclaration*/
 ) -> Vec<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
     node.as_class_like_declaration()
         .members()
@@ -538,7 +538,7 @@ pub fn get_static_properties_and_class_static_block(
 }
 
 fn is_initialized_or_static_property(
-    member: &Node, /*ClassElement*/
+    member: Id<Node>, /*ClassElement*/
     require_initializer: bool,
     is_static: bool,
 ) -> bool {
@@ -551,11 +551,11 @@ fn is_initialized_or_static_property(
         && has_static_modifier(member) == is_static
 }
 
-pub fn is_static_property_declaration(member: &Node /*ClassElement*/) -> bool {
+pub fn is_static_property_declaration(member: Id<Node> /*ClassElement*/) -> bool {
     is_property_declaration(member) && has_static_modifier(member)
 }
 
-pub fn is_initialized_property(member: &Node /*ClassElement*/) -> bool {
+pub fn is_initialized_property(member: Id<Node> /*ClassElement*/) -> bool {
     member.kind() == SyntaxKind::PropertyDeclaration
         && member
             .as_property_declaration()
@@ -563,7 +563,9 @@ pub fn is_initialized_property(member: &Node /*ClassElement*/) -> bool {
             .is_some()
 }
 
-pub fn is_non_static_method_or_accessor_with_private_name(member: &Node, /*ClassElement*/) -> bool {
+pub fn is_non_static_method_or_accessor_with_private_name(
+    member: Id<Node>, /*ClassElement*/
+) -> bool {
     !is_static(member)
         && is_method_or_accessor(member)
         && is_private_identifier(&member.as_named_declaration().name())

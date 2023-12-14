@@ -19,7 +19,7 @@ use crate::{
     Debug_, HasInitializerInterface, LiteralLikeNodeInterface, Node,
 };
 
-pub fn is_part_of_type_query(node: &Node) -> bool {
+pub fn is_part_of_type_query(node: Id<Node>) -> bool {
     let mut node = node.node_wrapper();
     while matches!(
         node.kind(),
@@ -30,7 +30,7 @@ pub fn is_part_of_type_query(node: &Node) -> bool {
     node.kind() == SyntaxKind::TypeQuery
 }
 
-pub fn is_namespace_reexport_declaration(node: &Node) -> bool {
+pub fn is_namespace_reexport_declaration(node: Id<Node>) -> bool {
     is_namespace_export(node)
         && node
             .parent()
@@ -39,14 +39,14 @@ pub fn is_namespace_reexport_declaration(node: &Node) -> bool {
             .is_some()
 }
 
-pub fn is_external_module_import_equals_declaration(node: &Node) -> bool {
+pub fn is_external_module_import_equals_declaration(node: Id<Node>) -> bool {
     node.kind() == SyntaxKind::ImportEqualsDeclaration
         && node.as_import_equals_declaration().module_reference.kind()
             == SyntaxKind::ExternalModuleReference
 }
 
 pub fn get_external_module_import_equals_declaration_expression(
-    node: &Node,
+    node: Id<Node>,
 ) -> Id<Node /*Expression*/> {
     Debug_.assert(is_external_module_import_equals_declaration(node), None);
     node.as_import_equals_declaration()
@@ -56,7 +56,7 @@ pub fn get_external_module_import_equals_declaration_expression(
         .clone()
 }
 
-pub fn get_external_module_require_argument(node: &Node) -> Option<Id<Node /*StringLiteral*/>> {
+pub fn get_external_module_require_argument(node: Id<Node>) -> Option<Id<Node /*StringLiteral*/>> {
     if is_require_variable_declaration(node) {
         Some(
             get_leftmost_access_expression(
@@ -71,17 +71,17 @@ pub fn get_external_module_require_argument(node: &Node) -> Option<Id<Node /*Str
     }
 }
 
-pub fn is_internal_module_import_equals_declaration(node: &Node) -> bool {
+pub fn is_internal_module_import_equals_declaration(node: Id<Node>) -> bool {
     node.kind() == SyntaxKind::ImportEqualsDeclaration
         && node.as_import_equals_declaration().module_reference.kind()
             != SyntaxKind::ExternalModuleReference
 }
 
-pub fn is_source_file_js(file: &Node /*SourceFile*/) -> bool {
+pub fn is_source_file_js(file: Id<Node> /*SourceFile*/) -> bool {
     is_in_js_file(Some(file))
 }
 
-pub fn is_source_file_not_js(file: &Node /*SourceFile*/) -> bool {
+pub fn is_source_file_not_js(file: Id<Node> /*SourceFile*/) -> bool {
     !is_in_js_file(Some(file))
 }
 
@@ -97,7 +97,7 @@ pub fn is_in_json_file(node: Option<impl Borrow<Node>>) -> bool {
     })
 }
 
-pub fn is_source_file_not_json(file: &Node /*SourceFile*/) -> bool {
+pub fn is_source_file_not_json(file: Id<Node> /*SourceFile*/) -> bool {
     !is_json_source_file(file)
 }
 
@@ -108,7 +108,7 @@ pub fn is_in_jsdoc<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
 }
 
 pub fn is_jsdoc_index_signature(
-    node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+    node: Id<Node>, /*TypeReferenceNode | ExpressionWithTypeArguments*/
 ) -> bool {
     if !is_type_reference_node(node) {
         return false;
@@ -133,7 +133,10 @@ pub fn is_jsdoc_index_signature(
         )
 }
 
-pub fn is_require_call(call_expression: &Node, require_string_literal_like_argument: bool) -> bool {
+pub fn is_require_call(
+    call_expression: Id<Node>,
+    require_string_literal_like_argument: bool,
+) -> bool {
     if call_expression.kind() != SyntaxKind::CallExpression {
         return false;
     }
@@ -154,7 +157,7 @@ pub fn is_require_call(call_expression: &Node, require_string_literal_like_argum
     !require_string_literal_like_argument || is_string_literal_like(arg)
 }
 
-pub fn is_require_variable_declaration(node: &Node) -> bool {
+pub fn is_require_variable_declaration(node: Id<Node>) -> bool {
     let mut node = node.node_wrapper();
     if node.kind() == SyntaxKind::BindingElement {
         node = node.parent().parent();
@@ -171,7 +174,7 @@ pub fn is_require_variable_declaration(node: &Node) -> bool {
     is_require_call(&get_leftmost_access_expression(&node_initializer), true)
 }
 
-pub fn is_require_variable_statement(node: &Node) -> bool {
+pub fn is_require_variable_statement(node: Id<Node>) -> bool {
     if !is_variable_statement(node) {
         return false;
     }
@@ -196,20 +199,20 @@ pub fn is_single_or_double_quote(char_code: char) -> bool {
 }
 
 pub fn is_string_double_quoted(
-    str: &Node,         /*StringLiteralLike*/
-    source_file: &Node, /*SourceFile*/
+    str: Id<Node>,         /*StringLiteralLike*/
+    source_file: Id<Node>, /*SourceFile*/
 ) -> bool {
     get_source_text_of_node_from_source_file(source_file, str, None).starts_with("\"")
 }
 
-pub fn is_assignment_declaration(decl: &Node /*Declaration*/) -> bool {
+pub fn is_assignment_declaration(decl: Id<Node> /*Declaration*/) -> bool {
     is_binary_expression(decl)
         || is_access_expression(decl)
         || is_identifier(decl)
         || is_call_expression(decl)
 }
 
-pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Id<Node>> {
+pub fn get_effective_initializer(node: Id<Node>, /*HasExpressionInitializer*/) -> Option<Id<Node>> {
     let node_initializer = node.as_has_initializer().maybe_initializer();
     if is_in_js_file(Some(node)) {
         if let Some(node_initializer) = node_initializer.as_ref() {
@@ -237,7 +240,7 @@ pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> O
 }
 
 pub fn get_declared_expando_initializer(
-    node: &Node, /*HasExpressionInitializer*/
+    node: Id<Node>, /*HasExpressionInitializer*/
 ) -> Option<Id<Node /*Expression*/>> {
     let init = get_effective_initializer(node);
     init.and_then(|init| {
@@ -249,7 +252,7 @@ pub fn get_declared_expando_initializer(
 }
 
 pub fn has_expando_value_property(
-    node: &Node, /*ObjectLiteralExpression*/
+    node: Id<Node>, /*ObjectLiteralExpression*/
     is_prototype_assignment: bool,
 ) -> Option<Id<Node /*Expression*/>> {
     for_each(&node.as_object_literal_expression().properties, |p, _| {
@@ -317,7 +320,7 @@ pub fn get_assigned_expando_initializer<TNode: Borrow<Node>>(
 }
 
 pub fn get_expando_initializer(
-    initializer: &Node,
+    initializer: Id<Node>,
     is_prototype_assignment: bool,
 ) -> Option<Id<Node /*Expression*/>> {
     if is_call_expression(initializer) {
@@ -350,8 +353,8 @@ pub fn get_expando_initializer(
 }
 
 pub fn get_defaulted_expando_initializer(
-    name: &Node,        /*Expression*/
-    initializer: &Node, /*Expression*/
+    name: Id<Node>,        /*Expression*/
+    initializer: Id<Node>, /*Expression*/
     is_prototype_assignment: bool,
 ) -> Option<Id<Node /*Expression*/>> {
     let e: Option<Id<Node>> = if is_binary_expression(initializer) {
@@ -373,7 +376,7 @@ pub fn get_defaulted_expando_initializer(
     e.filter(|_| is_same_entity_name(name, &initializer.as_binary_expression().left))
 }
 
-pub fn is_defaulted_expando_initializer(node: &Node /*BinaryExpression*/) -> bool {
+pub fn is_defaulted_expando_initializer(node: Id<Node> /*BinaryExpression*/) -> bool {
     let node_parent = node.parent();
     let name: Option<Id<Node>> = if is_variable_declaration(&node_parent) {
         Some(node_parent.as_variable_declaration().name())
@@ -394,7 +397,9 @@ pub fn is_defaulted_expando_initializer(node: &Node /*BinaryExpression*/) -> boo
         && is_same_entity_name(&name, &node_as_binary_expression.left)
 }
 
-pub fn get_name_of_expando(node: &Node, /*Declaration*/) -> Option<Id<Node /*DeclarationName*/>> {
+pub fn get_name_of_expando(
+    node: Id<Node>, /*Declaration*/
+) -> Option<Id<Node /*DeclarationName*/>> {
     let node_parent = node.parent();
     if is_binary_expression(&node_parent) {
         let parent = if matches!(
@@ -419,8 +424,8 @@ pub fn get_name_of_expando(node: &Node, /*Declaration*/) -> Option<Id<Node /*Dec
 }
 
 pub fn is_same_entity_name(
-    name: &Node,        /*Expression*/
-    initializer: &Node, /*Expression*/
+    name: Id<Node>,        /*Expression*/
+    initializer: Id<Node>, /*Expression*/
 ) -> bool {
     if is_property_name_literal(name) && is_property_name_literal(initializer) {
         return get_text_of_identifier_or_literal(name)
@@ -459,7 +464,9 @@ pub fn is_same_entity_name(
     false
 }
 
-pub fn get_right_most_assigned_expression(node: &Node, /*Expression*/) -> Id<Node /*Expression*/> {
+pub fn get_right_most_assigned_expression(
+    node: Id<Node>, /*Expression*/
+) -> Id<Node /*Expression*/> {
     let mut node = node.node_wrapper();
     while is_assignment_expression(&node, Some(true)) {
         node = node.as_binary_expression().right.clone();
@@ -467,21 +474,21 @@ pub fn get_right_most_assigned_expression(node: &Node, /*Expression*/) -> Id<Nod
     node
 }
 
-pub fn is_exports_identifier(node: &Node) -> bool {
+pub fn is_exports_identifier(node: Id<Node>) -> bool {
     if !is_identifier(node) {
         return false;
     }
     node.as_identifier().escaped_text == "exports"
 }
 
-pub fn is_module_identifier(node: &Node) -> bool {
+pub fn is_module_identifier(node: Id<Node>) -> bool {
     if !is_identifier(node) {
         return false;
     }
     node.as_identifier().escaped_text == "module"
 }
 
-pub fn is_module_exports_access_expression(node: &Node) -> bool {
+pub fn is_module_exports_access_expression(node: Id<Node>) -> bool {
     if !(is_property_access_expression(node) || is_literal_like_element_access(node)) {
         return false;
     }
@@ -493,7 +500,7 @@ pub fn is_module_exports_access_expression(node: &Node) -> bool {
 }
 
 pub fn get_assignment_declaration_kind(
-    expr: &Node, /*BinaryExpression | CallExpression*/
+    expr: Id<Node>, /*BinaryExpression | CallExpression*/
 ) -> AssignmentDeclarationKind {
     let special = get_assignment_declaration_kind_worker(expr);
     if special == AssignmentDeclarationKind::Property || is_in_js_file(Some(expr)) {
@@ -503,7 +510,7 @@ pub fn get_assignment_declaration_kind(
     }
 }
 
-pub fn is_bindable_object_define_property_call(expr: &Node /*CallExpression*/) -> bool {
+pub fn is_bindable_object_define_property_call(expr: Id<Node> /*CallExpression*/) -> bool {
     let expr = expr.as_call_expression();
     if !length(Some(&expr.arguments)) == 3 {
         return false;
@@ -529,11 +536,11 @@ pub fn is_bindable_object_define_property_call(expr: &Node /*CallExpression*/) -
     is_bindable_static_name_expression(&expr_arguments[0], Some(true))
 }
 
-pub fn is_literal_like_access(node: &Node) -> bool {
+pub fn is_literal_like_access(node: Id<Node>) -> bool {
     is_property_access_expression(node) || is_literal_like_element_access(node)
 }
 
-pub fn is_literal_like_element_access(node: &Node) -> bool {
+pub fn is_literal_like_element_access(node: Id<Node>) -> bool {
     if !is_element_access_expression(node) {
         return false;
     }
@@ -542,7 +549,7 @@ pub fn is_literal_like_element_access(node: &Node) -> bool {
 }
 
 pub fn is_bindable_static_access_expression(
-    node: &Node,
+    node: Id<Node>,
     exclude_this_keyword: Option<bool>,
 ) -> bool {
     let exclude_this_keyword_unwrapped = exclude_this_keyword.unwrap_or(false);
@@ -563,7 +570,7 @@ pub fn is_bindable_static_access_expression(
 }
 
 pub fn is_bindable_static_element_access_expression(
-    node: &Node,
+    node: Id<Node>,
     exclude_this_keyword: Option<bool>,
 ) -> bool {
     let exclude_this_keyword = exclude_this_keyword.unwrap_or(false);
@@ -580,13 +587,16 @@ pub fn is_bindable_static_element_access_expression(
         )
 }
 
-pub fn is_bindable_static_name_expression(node: &Node, exclude_this_keyword: Option<bool>) -> bool {
+pub fn is_bindable_static_name_expression(
+    node: Id<Node>,
+    exclude_this_keyword: Option<bool>,
+) -> bool {
     is_entity_name_expression(node)
         || is_bindable_static_access_expression(node, exclude_this_keyword)
 }
 
 pub fn get_name_or_argument(
-    expr: &Node, /*PropertyAccessExpression | LiteralLikeElementAccessExpression*/
+    expr: Id<Node>, /*PropertyAccessExpression | LiteralLikeElementAccessExpression*/
 ) -> Id<Node> {
     if is_property_access_expression(expr) {
         return expr.as_property_access_expression().name();
@@ -597,7 +607,7 @@ pub fn get_name_or_argument(
 }
 
 fn get_assignment_declaration_kind_worker(
-    expr: &Node, /*BinaryExpression | CallExpression*/
+    expr: Id<Node>, /*BinaryExpression | CallExpression*/
 ) -> AssignmentDeclarationKind {
     if is_call_expression(expr) {
         if !is_bindable_object_define_property_call(expr) {
@@ -638,7 +648,7 @@ fn get_assignment_declaration_kind_worker(
     get_assignment_declaration_property_access_kind(&expr_as_binary_expression.left)
 }
 
-fn is_void_zero(node: &Node) -> bool {
+fn is_void_zero(node: Id<Node>) -> bool {
     if !is_void_expression(node) {
         return false;
     }
@@ -652,7 +662,7 @@ fn is_void_zero(node: &Node) -> bool {
 }
 
 pub(crate) fn get_element_or_property_access_argument_expression_or_name(
-    node: &Node, /*AccessExpression*/
+    node: Id<Node>, /*AccessExpression*/
 ) -> Option<
     Id<
         Node, /*Identifier | PrivateIdentifier | StringLiteralLike | NumericLiteral | ElementAccessExpression*/
@@ -670,7 +680,7 @@ pub(crate) fn get_element_or_property_access_argument_expression_or_name(
 }
 
 pub(crate) fn get_element_or_property_access_name(
-    node: &Node, /*AccessExpression*/
+    node: Id<Node>, /*AccessExpression*/
 ) -> Option<__String> {
     let name = get_element_or_property_access_argument_expression_or_name(node);
     name.and_then(|name| {
@@ -687,7 +697,7 @@ pub(crate) fn get_element_or_property_access_name(
 }
 
 pub fn get_assignment_declaration_property_access_kind(
-    lhs: &Node, /*AccessExpression*/
+    lhs: Id<Node>, /*AccessExpression*/
 ) -> AssignmentDeclarationKind {
     let lhs_as_has_expression = lhs.as_has_expression();
     if lhs_as_has_expression.expression().kind() == SyntaxKind::ThisKeyword {
@@ -725,7 +735,7 @@ pub fn get_assignment_declaration_property_access_kind(
 }
 
 pub fn get_initializer_of_binary_expression(
-    expr: &Node, /*BinaryExpression*/
+    expr: Id<Node>, /*BinaryExpression*/
 ) -> Id<Node /*Expression*/> {
     let mut expr = expr.node_wrapper();
     while is_binary_expression(&expr.as_binary_expression().right) {
@@ -734,13 +744,13 @@ pub fn get_initializer_of_binary_expression(
     expr.as_binary_expression().right.clone()
 }
 
-pub fn is_prototype_property_assignment(node: &Node) -> bool {
+pub fn is_prototype_property_assignment(node: Id<Node>) -> bool {
     is_binary_expression(node)
         && get_assignment_declaration_kind(node) == AssignmentDeclarationKind::PrototypeProperty
 }
 
 pub fn is_special_property_declaration(
-    expr: &Node, /*PropertyAccessExpression | ElementAccessExpression*/
+    expr: Id<Node>, /*PropertyAccessExpression | ElementAccessExpression*/
 ) -> bool {
     is_in_js_file(Some(expr))
         && matches!(expr.maybe_parent(), Some(parent) if parent.kind() == SyntaxKind::ExpressionStatement)
@@ -748,7 +758,7 @@ pub fn is_special_property_declaration(
         && get_jsdoc_type_tag(&expr.parent()).is_some()
 }
 
-pub fn set_value_declaration(symbol: &Symbol, node: &Node) {
+pub fn set_value_declaration(symbol: &Symbol, node: Id<Node>) {
     match symbol.maybe_value_declaration() {
         None => {
             symbol.set_value_declaration(node.node_wrapper());
@@ -792,7 +802,7 @@ pub fn is_function_symbol(symbol: Option<&Symbol>) -> bool {
 }
 
 pub fn try_get_module_specifier_from_declaration(
-    node: &Node, /*AnyImportOrRequire*/
+    node: Id<Node>, /*AnyImportOrRequire*/
 ) -> Option<String> {
     match node.kind() {
         SyntaxKind::VariableDeclaration => Some(
@@ -824,7 +834,7 @@ pub fn try_get_module_specifier_from_declaration(
 }
 
 pub fn import_from_module_specifier(
-    node: &Node, /*StringLiteralLike*/
+    node: Id<Node>, /*StringLiteralLike*/
 ) -> Id<Node /*AnyValidImportOrReExport*/> {
     try_get_import_from_module_specifier(node)
         .unwrap_or_else(|| Debug_.fail_bad_syntax_kind(&node.parent(), None))

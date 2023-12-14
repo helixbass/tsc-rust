@@ -37,8 +37,8 @@ use crate::{
 };
 
 pub fn try_visit_each_child(
-    node: &Node,
-    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    node: Id<Node>,
+    visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Id<Node>> {
     Ok(try_maybe_visit_each_child(Some(node), visitor, context)?.unwrap())
@@ -46,7 +46,7 @@ pub fn try_visit_each_child(
 
 pub fn try_maybe_visit_each_child(
     node: Option<impl Borrow<Node>>,
-    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Option<Id<Node>>> {
     return try_maybe_visit_each_child_full(
@@ -56,18 +56,18 @@ pub fn try_maybe_visit_each_child(
         Option::<
             fn(
                 Option<&NodeArray>,
-                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                Option<&dyn Fn(&Node) -> bool>,
+                Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
             ) -> io::Result<Option<Gc<NodeArray>>>,
         >::None,
-        Option::<fn(&Node) -> io::Result<VisitResult>>::None,
+        Option::<fn(Id<Node>) -> io::Result<VisitResult>>::None,
         Option::<
             fn(
-                Option<&Node>,
-                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                Option<&dyn Fn(&Node) -> bool>,
+                Option<Id<Node>>,
+                Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
             ) -> io::Result<Option<Id<Node>>>,
         >::None,
@@ -76,31 +76,31 @@ pub fn try_maybe_visit_each_child(
 
 pub fn try_maybe_visit_each_child_full(
     node: Option<impl Borrow<Node>>,
-    mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
-            Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-            Option<&dyn Fn(&Node) -> bool>,
+            Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+            Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
         ) -> io::Result<Option<Gc<NodeArray>>>,
     >,
-    token_visitor: Option<impl Fn(&Node) -> io::Result<VisitResult>>,
+    token_visitor: Option<impl Fn(Id<Node>) -> io::Result<VisitResult>>,
     mut node_visitor: Option<
         impl FnMut(
-            Option<&Node>,
-            Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-            Option<&dyn Fn(&Node) -> bool>,
+            Option<Id<Node>>,
+            Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+            Option<&dyn Fn(Id<Node>) -> bool>,
             Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
         ) -> io::Result<Option<Id<Node>>>,
     >,
 ) -> io::Result<Option<Id<Node>>> {
     let mut nodes_visitor =
         move |nodes: Option<&NodeArray>,
-              visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-              test: Option<&dyn Fn(&Node) -> bool>,
+              visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+              test: Option<&dyn Fn(Id<Node>) -> bool>,
               start: Option<usize>,
               count: Option<usize>|
               -> io::Result<Option<Gc<NodeArray>>> {
@@ -111,9 +111,9 @@ pub fn try_maybe_visit_each_child_full(
             }
         };
     let mut node_visitor =
-        move |node: Option<&Node>,
-              visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-              lift: Option<&dyn Fn(&Node) -> bool>,
+        move |node: Option<Id<Node>>,
+              visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+              lift: Option<&dyn Fn(Id<Node>) -> bool>,
               test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>|
               -> io::Result<Option<Id<Node>>> {
             if let Some(node_visitor) = node_visitor.as_mut() {
@@ -123,7 +123,7 @@ pub fn try_maybe_visit_each_child_full(
             }
         };
     let node = return_ok_default_if_none!(node);
-    let node: &Node = node.borrow();
+    let node: Id<Node> = node.borrow();
 
     let kind = node.kind();
 
@@ -142,7 +142,7 @@ pub fn try_maybe_visit_each_child_full(
                 node,
                 nodes_visitor(
                     node_as_identifier.maybe_type_arguments().as_deref(),
-                    Some(&mut |node: &Node| visitor(node)),
+                    Some(&mut |node: Id<Node>| visitor(node)),
                     Some(&is_type_node_or_type_parameter_declaration),
                     None,
                     None,
@@ -220,21 +220,21 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     )?,
                     node_visitor(
                         node_as_parameter_declaration.dot_dot_dot_token.as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -254,7 +254,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_parameter_declaration
                             .maybe_question_token()
                             .as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -301,7 +301,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -315,7 +315,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     node_visitor(
                         node_as_property_signature.maybe_question_token().as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -341,14 +341,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -391,7 +391,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -405,7 +405,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     node_visitor(
                         node_as_method_signature.maybe_question_token().as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -417,14 +417,14 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_method_signature.maybe_type_parameters().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_method_signature.parameters()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
@@ -446,21 +446,21 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     )?,
                     node_visitor(
                         node_as_method_declaration.maybe_asterisk_token().as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -479,7 +479,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     node_visitor(
                         node_as_method_declaration.maybe_question_token().as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -493,19 +493,19 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_method_declaration
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
                         Some(&node_as_method_declaration.parameters()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
                             nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            test: Option<&dyn Fn(Id<Node>) -> bool>,
                             start: Option<usize>,
                             count: Option<usize>
                         | {
@@ -521,12 +521,12 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     try_visit_function_body_full(
                         node_as_method_declaration.maybe_body().as_deref(),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
+                            node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            lift: Option<&dyn Fn(Id<Node>) -> bool>,
                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>
                         | {
                             node_visitor(node, visitor, lift, test)
@@ -542,26 +542,26 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
                         Some(&node_as_constructor_declaration.parameters()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
                             nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            test: Option<&dyn Fn(Id<Node>) -> bool>,
                             start: Option<usize>,
                             count: Option<usize>
                         | {
@@ -571,12 +571,12 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     try_visit_function_body_full(
                         node_as_constructor_declaration.maybe_body().as_deref(),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
+                            node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            lift: Option<&dyn Fn(Id<Node>) -> bool>,
                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>
                         | {
                             node_visitor(node, visitor, lift, test)
@@ -592,14 +592,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -613,12 +613,12 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     try_visit_parameter_list_full(
                         Some(&node_as_get_accessor_declaration.parameters()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
                             nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            test: Option<&dyn Fn(Id<Node>) -> bool>,
                             start: Option<usize>,
                             count: Option<usize>
                         | {
@@ -634,12 +634,12 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     try_visit_function_body_full(
                         node_as_get_accessor_declaration.maybe_body().as_deref(),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
+                            node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            lift: Option<&dyn Fn(Id<Node>) -> bool>,
                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>
                         | {
                             node_visitor(node, visitor, lift, test)
@@ -655,14 +655,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -676,12 +676,12 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     try_visit_parameter_list_full(
                         Some(&node_as_set_accessor_declaration.parameters()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
                             nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            test: Option<&dyn Fn(Id<Node>) -> bool>,
                             start: Option<usize>,
                             count: Option<usize>
                         | {
@@ -691,12 +691,12 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     try_visit_function_body_full(
                         node_as_set_accessor_declaration.maybe_body().as_deref(),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
+                            node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            lift: Option<&dyn Fn(Id<Node>) -> bool>,
                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>
                         | {
                             node_visitor(node, visitor, lift, test)
@@ -714,26 +714,26 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     )?,
                     try_visit_function_body_full(
                         Some(&node_as_class_static_block_declaration.body),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
+                            node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            lift: Option<&dyn Fn(Id<Node>) -> bool>,
                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>
                         | {
                             node_visitor(node, visitor, lift, test)
@@ -751,14 +751,14 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_call_signature_declaration
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_call_signature_declaration.parameters()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
@@ -782,14 +782,14 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_construct_signature_declaration
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_construct_signature_declaration.parameters()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
@@ -813,21 +813,21 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_index_signature_declaration.parameters()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
@@ -886,7 +886,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_type_reference_node
                             .maybe_type_arguments()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -903,14 +903,14 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_function_type_node
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_function_type_node.parameters()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
@@ -932,7 +932,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -941,14 +941,14 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_constructor_type_node
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_constructor_type_node.parameters()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
@@ -985,7 +985,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_type_literal_node.members),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_element),
                         None,
                         None,
@@ -1016,7 +1016,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_tuple_type_node.elements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -1062,7 +1062,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_union_type_node.types),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -1078,7 +1078,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_intersection_type_node.types),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -1158,7 +1158,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_import_type_node.maybe_type_arguments().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -1260,7 +1260,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     node_visitor(
                         node_as_mapped_type_node.readonly_token.as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -1297,7 +1297,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_mapped_type_node.members.as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_element),
                         None,
                         None,
@@ -1334,7 +1334,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_template_literal_type_node.template_spans),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_template_literal_type_span),
                         None,
                         None,
@@ -1372,7 +1372,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_object_binding_pattern.elements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_binding_element),
                         None,
                         None,
@@ -1388,7 +1388,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_array_binding_pattern.elements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_array_binding_element),
                         None,
                         None,
@@ -1404,7 +1404,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     node_visitor(
                         node_as_binding_element.dot_dot_dot_token.as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -1443,7 +1443,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_array_literal_expression.elements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_expression),
                         None,
                         None,
@@ -1459,7 +1459,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_object_literal_expression.properties),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_object_literal_element_like),
                         None,
                         None,
@@ -1485,7 +1485,7 @@ pub fn try_maybe_visit_each_child_full(
                             node_as_property_access_expression
                                 .question_dot_token
                                 .as_deref(),
-                            Some(&mut |node: &Node| {
+                            Some(&mut |node: Id<Node>| {
                                 Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)?
                                 } else {
@@ -1542,7 +1542,7 @@ pub fn try_maybe_visit_each_child_full(
                             node_as_element_access_expression
                                 .question_dot_token
                                 .as_deref(),
-                            Some(&mut |node: &Node| {
+                            Some(&mut |node: Id<Node>| {
                                 Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)?
                                 } else {
@@ -1597,7 +1597,7 @@ pub fn try_maybe_visit_each_child_full(
                         .unwrap(),
                         node_visitor(
                             node_as_call_expression.question_dot_token.as_deref(),
-                            Some(&mut |node: &Node| {
+                            Some(&mut |node: Id<Node>| {
                                 Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)?
                                 } else {
@@ -1609,14 +1609,14 @@ pub fn try_maybe_visit_each_child_full(
                         )?,
                         nodes_visitor(
                             node_as_call_expression.maybe_type_arguments().as_deref(),
-                            Some(&mut |node: &Node| visitor(node)),
+                            Some(&mut |node: Id<Node>| visitor(node)),
                             Some(&is_type_node),
                             None,
                             None,
                         )?,
                         nodes_visitor(
                             Some(&node_as_call_expression.arguments),
-                            Some(&mut |node: &Node| visitor(node)),
+                            Some(&mut |node: Id<Node>| visitor(node)),
                             Some(&is_expression),
                             None,
                             None,
@@ -1637,14 +1637,14 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_call_expression.maybe_type_arguments().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_call_expression.arguments),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_expression),
                         None,
                         None,
@@ -1667,14 +1667,14 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_new_expression.maybe_type_arguments().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node_as_new_expression.arguments.as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_expression),
                         None,
                         None,
@@ -1698,7 +1698,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_tagged_template_expression
                             .maybe_type_arguments()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -1757,14 +1757,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     )?,
                     node_visitor(
                         node_as_function_expression.maybe_asterisk_token().as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -1782,19 +1782,19 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_function_expression.maybe_type_parameters().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
                         Some(&node_as_function_expression.parameters()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
                             nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            test: Option<&dyn Fn(Id<Node>) -> bool>,
                             start: Option<usize>,
                             count: Option<usize>
                         | {
@@ -1810,12 +1810,12 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     try_visit_function_body_full(
                         Some(&node_as_function_expression.maybe_body().unwrap()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
+                            node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            lift: Option<&dyn Fn(Id<Node>) -> bool>,
                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>
                         | {
                             node_visitor(node, visitor, lift, test)
@@ -1831,26 +1831,26 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node_as_arrow_function.maybe_type_parameters().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
                         Some(&node_as_arrow_function.parameters()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
                             nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            test: Option<&dyn Fn(Id<Node>) -> bool>,
                             start: Option<usize>,
                             count: Option<usize>
                         | {
@@ -1866,7 +1866,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     node_visitor(
                         Some(&node_as_arrow_function.equals_greater_than_token),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -1879,12 +1879,12 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     try_visit_function_body_full(
                         Some(&node_as_arrow_function.maybe_body().unwrap()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
+                            node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            lift: Option<&dyn Fn(Id<Node>) -> bool>,
                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>
                         | {
                             node_visitor(node, visitor, lift, test)
@@ -1997,7 +1997,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_binary_expression.operator_token),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -2032,7 +2032,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_expression.question_token),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -2052,7 +2052,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_expression.colon_token),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -2087,7 +2087,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_template_expression.template_spans),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_template_span),
                         None,
                         None,
@@ -2102,7 +2102,7 @@ pub fn try_maybe_visit_each_child_full(
                 node,
                 node_visitor(
                     node_as_yield_expression.asterisk_token.as_deref(),
-                    Some(&mut |node: &Node| {
+                    Some(&mut |node: Id<Node>| {
                         Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                             token_visitor(node)?
                         } else {
@@ -2142,14 +2142,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -2162,21 +2162,21 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_class_expression.maybe_type_parameters().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node_as_class_expression.maybe_heritage_clauses().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_heritage_clause),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_class_expression.members()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_class_element),
                         None,
                         None,
@@ -2201,7 +2201,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_expression_with_type_arguments
                             .maybe_type_arguments()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -2304,7 +2304,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_block.statements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_statement),
                         None,
                         None,
@@ -2320,7 +2320,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -2385,7 +2385,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     try_visit_iteration_body(
                         &node_as_do_statement.statement,
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                     )?,
                     node_visitor(
@@ -2412,7 +2412,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     try_visit_iteration_body(
                         &node_as_while_statement.statement,
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                     )?,
                 ),
@@ -2442,7 +2442,7 @@ pub fn try_maybe_visit_each_child_full(
                 )?,
                 try_visit_iteration_body(
                     &node_as_for_statement.statement,
-                    |node: &Node| visitor(node),
+                    |node: Id<Node>| visitor(node),
                     context,
                 )?,
             ))
@@ -2468,7 +2468,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     try_visit_iteration_body(
                         &node_as_for_in_statement.statement,
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                     )?,
                 ),
@@ -2481,7 +2481,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     node_visitor(
                         node_as_for_of_statement.await_modifier.as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -2507,7 +2507,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     try_visit_iteration_body(
                         &node_as_for_of_statement.statement,
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                     )?,
                 ),
@@ -2669,7 +2669,7 @@ pub fn try_maybe_visit_each_child_full(
                 )?,
                 node_visitor(
                     node_as_variable_declaration.exclamation_token.as_deref(),
-                    Some(&mut |node: &Node| {
+                    Some(&mut |node: Id<Node>| {
                         Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                             token_visitor(node)?
                         } else {
@@ -2700,7 +2700,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_variable_declaration_list.declarations),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_variable_declaration),
                         None,
                         None,
@@ -2716,21 +2716,21 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     )?,
                     node_visitor(
                         node_as_function_declaration.maybe_asterisk_token().as_deref(),
-                        Some(&mut |node: &Node| {
+                        Some(&mut |node: Id<Node>| {
                             Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)?
                             } else {
@@ -2748,19 +2748,19 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_function_declaration.maybe_type_parameters().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
                         Some(&node_as_function_declaration.parameters()),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
                             nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            test: Option<&dyn Fn(Id<Node>) -> bool>,
                             start: Option<usize>,
                             count: Option<usize>
                         | {
@@ -2776,12 +2776,12 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     try_visit_function_body_full(
                         node_as_function_declaration.maybe_body().as_deref(),
-                        |node: &Node| visitor(node),
+                        |node: Id<Node>| visitor(node),
                         context,
                         Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
+                            node: Option<Id<Node>>,
+                            visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+                            lift: Option<&dyn Fn(Id<Node>) -> bool>,
                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>
                         | {
                             node_visitor(node, visitor, lift, test)
@@ -2797,14 +2797,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -2817,7 +2817,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_class_declaration.maybe_type_parameters().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
@@ -2826,14 +2826,14 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_class_declaration
                             .maybe_heritage_clauses()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_heritage_clause),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_class_declaration.members()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_class_element),
                         None,
                         None,
@@ -2849,14 +2849,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -2872,7 +2872,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_interface_declaration
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
@@ -2881,14 +2881,14 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_interface_declaration
                             .maybe_heritage_clauses()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_heritage_clause),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         Some(&node_as_interface_declaration.members()),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_element),
                         None,
                         None,
@@ -2904,14 +2904,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -2927,7 +2927,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_type_alias_declaration
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
@@ -2949,14 +2949,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -2970,7 +2970,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_enum_declaration.members),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_enum_member),
                         None,
                         None,
@@ -2985,14 +2985,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -3020,7 +3020,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_module_block.statements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_statement),
                         None,
                         None,
@@ -3036,7 +3036,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_case_block.clauses),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_case_or_default_clause),
                         None,
                         None,
@@ -3067,14 +3067,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -3104,14 +3104,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -3145,7 +3145,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_assert_clause.elements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_assert_entry),
                         None,
                         None,
@@ -3233,7 +3233,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_named_imports.elements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_import_specifier),
                         None,
                         None,
@@ -3271,14 +3271,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node.maybe_decorators().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_decorator),
                         None,
                         None,
                     )?,
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
@@ -3299,14 +3299,14 @@ pub fn try_maybe_visit_each_child_full(
                 node,
                 nodes_visitor(
                     node.maybe_decorators().as_deref(),
-                    Some(&mut |node: &Node| visitor(node)),
+                    Some(&mut |node: Id<Node>| visitor(node)),
                     Some(&is_decorator),
                     None,
                     None,
                 )?,
                 nodes_visitor(
                     node.maybe_modifiers().as_deref(),
-                    Some(&mut |node: &Node| visitor(node)),
+                    Some(&mut |node: Id<Node>| visitor(node)),
                     Some(&is_modifier),
                     None,
                     None,
@@ -3339,7 +3339,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_named_exports.elements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_export_specifier),
                         None,
                         None,
@@ -3399,7 +3399,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_jsx_element.children),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_jsx_child),
                         None,
                         None,
@@ -3431,7 +3431,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_jsx_self_closing_element
                             .maybe_type_arguments()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -3462,7 +3462,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_jsx_opening_element
                             .maybe_type_arguments()
                             .as_deref(),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
@@ -3506,7 +3506,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_jsx_fragment.children),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_jsx_child),
                         None,
                         None,
@@ -3550,7 +3550,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_jsx_attributes.properties),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_jsx_attribute_like),
                         None,
                         None,
@@ -3600,7 +3600,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_case_clause.statements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_statement),
                         None,
                         None,
@@ -3616,7 +3616,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_default_clause.statements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_statement),
                         None,
                         None,
@@ -3632,7 +3632,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_heritage_clause.types),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_expression_with_type_arguments),
                         None,
                         None,
@@ -3749,7 +3749,7 @@ pub fn try_maybe_visit_each_child_full(
                 node,
                 try_visit_lexical_environment(
                     &node_as_source_file.statements(),
-                    |node: &Node| visitor(node),
+                    |node: Id<Node>| visitor(node),
                     context,
                 )?,
                 None,
@@ -3781,7 +3781,7 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         Some(&node_as_comma_list_expression.elements),
-                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_expression),
                         None,
                         None,

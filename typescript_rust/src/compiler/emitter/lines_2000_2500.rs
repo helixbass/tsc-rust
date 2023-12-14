@@ -23,7 +23,7 @@ use crate::{
 impl Printer {
     pub(super) fn emit_type_parameter(
         &self,
-        node: &Node, /*TypeParameterDeclaration*/
+        node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> io::Result<()> {
         let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
         self.emit(
@@ -48,7 +48,7 @@ impl Printer {
 
     pub(super) fn emit_parameter(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<()> {
         let node_as_parameter_declaration = node.as_parameter_declaration();
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
@@ -102,7 +102,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_decorator(&self, node: &Node /*Decorator*/) -> io::Result<()> {
+    pub(super) fn emit_decorator(&self, node: Id<Node> /*Decorator*/) -> io::Result<()> {
         self.write_punctuation("@");
         self.emit_expression(
             Some(&*node.as_decorator().expression),
@@ -116,7 +116,7 @@ impl Printer {
 
     pub(super) fn emit_property_signature(
         &self,
-        node: &Node, /*PropertySignature*/
+        node: Id<Node>, /*PropertySignature*/
     ) -> io::Result<()> {
         let node_as_property_signature = node.as_property_signature();
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
@@ -134,7 +134,7 @@ impl Printer {
 
     pub(super) fn emit_property_declaration(
         &self,
-        node: &Node, /*PropertyDeclaration*/
+        node: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<()> {
         let node_as_property_declaration = node.as_property_declaration();
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
@@ -167,7 +167,7 @@ impl Printer {
 
     pub(super) fn emit_method_signature(
         &self,
-        node: &Node, /*MethodSignature*/
+        node: Id<Node>, /*MethodSignature*/
     ) -> io::Result<()> {
         self.push_name_generation_scope(Some(node));
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
@@ -189,7 +189,7 @@ impl Printer {
 
     pub(super) fn emit_method_declaration(
         &self,
-        node: &Node, /*MethodDeclaration*/
+        node: Id<Node>, /*MethodDeclaration*/
     ) -> io::Result<()> {
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
         self.emit_modifiers(node, node.maybe_modifiers().as_deref())?;
@@ -203,14 +203,14 @@ impl Printer {
             node_as_method_declaration.maybe_question_token().as_deref(),
             None,
         )?;
-        self.emit_signature_and_body(node, |node: &Node| self.emit_signature_head(node))?;
+        self.emit_signature_and_body(node, |node: Id<Node>| self.emit_signature_head(node))?;
 
         Ok(())
     }
 
     pub(super) fn emit_class_static_block_declaration(
         &self,
-        node: &Node, /*ClassStaticBlockDeclaration*/
+        node: Id<Node>, /*ClassStaticBlockDeclaration*/
     ) -> io::Result<()> {
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
         self.emit_modifiers(node, node.maybe_modifiers().as_deref())?;
@@ -222,18 +222,18 @@ impl Printer {
 
     pub(super) fn emit_constructor(
         &self,
-        node: &Node, /*ConstructorDeclaration*/
+        node: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<()> {
         self.emit_modifiers(node, node.maybe_modifiers().as_deref())?;
         self.write_keyword("constructor");
-        self.emit_signature_and_body(node, |node: &Node| self.emit_signature_head(node))?;
+        self.emit_signature_and_body(node, |node: Id<Node>| self.emit_signature_head(node))?;
 
         Ok(())
     }
 
     pub(super) fn emit_accessor_declaration(
         &self,
-        node: &Node, /*AccessorDeclaration*/
+        node: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<()> {
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
         self.emit_modifiers(node, node.maybe_modifiers().as_deref())?;
@@ -244,14 +244,14 @@ impl Printer {
         });
         self.write_space();
         self.emit(node.as_named_declaration().maybe_name().as_deref(), None)?;
-        self.emit_signature_and_body(node, |node: &Node| self.emit_signature_head(node))?;
+        self.emit_signature_and_body(node, |node: Id<Node>| self.emit_signature_head(node))?;
 
         Ok(())
     }
 
     pub(super) fn emit_call_signature(
         &self,
-        node: &Node, /*CallSignatureDeclaration*/
+        node: Id<Node>, /*CallSignatureDeclaration*/
     ) -> io::Result<()> {
         self.push_name_generation_scope(Some(node));
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
@@ -273,7 +273,7 @@ impl Printer {
 
     pub(super) fn emit_construct_signature(
         &self,
-        node: &Node, /*ConstructSignatureDeclaration*/
+        node: Id<Node>, /*ConstructSignatureDeclaration*/
     ) -> io::Result<()> {
         self.push_name_generation_scope(Some(node));
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
@@ -297,7 +297,7 @@ impl Printer {
 
     pub(super) fn emit_index_signature(
         &self,
-        node: &Node, /*IndexSignatureDeclaration*/
+        node: Id<Node>, /*IndexSignatureDeclaration*/
     ) -> io::Result<()> {
         self.emit_decorators(node, node.maybe_decorators().as_deref())?;
         self.emit_modifiers(node, node.maybe_modifiers().as_deref())?;
@@ -314,7 +314,7 @@ impl Printer {
 
     pub(super) fn emit_template_type_span(
         &self,
-        node: &Node, /*TemplateLiteralTypeSpan*/
+        node: Id<Node>, /*TemplateLiteralTypeSpan*/
     ) -> io::Result<()> {
         let node_as_template_literal_type_span = node.as_template_literal_type_span();
         self.emit(Some(&*node_as_template_literal_type_span.type_), None)?;
@@ -329,7 +329,7 @@ impl Printer {
 
     pub(super) fn emit_type_predicate(
         &self,
-        node: &Node, /*TypePredicateNode*/
+        node: Id<Node>, /*TypePredicateNode*/
     ) -> io::Result<()> {
         let node_as_type_predicate_node = node.as_type_predicate_node();
         if let Some(node_asserts_modifier) = node_as_type_predicate_node.asserts_modifier.as_ref() {
@@ -349,7 +349,7 @@ impl Printer {
 
     pub(super) fn emit_type_reference(
         &self,
-        node: &Node, /*TypeReferenceNode*/
+        node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<()> {
         let node_as_type_reference_node = node.as_type_reference_node();
         self.emit(Some(&*node_as_type_reference_node.type_name), None)?;
@@ -365,7 +365,7 @@ impl Printer {
 
     pub(super) fn emit_function_type(
         &self,
-        node: &Node, /*FunctionTypeNode*/
+        node: Id<Node>, /*FunctionTypeNode*/
     ) -> io::Result<()> {
         self.push_name_generation_scope(Some(node));
         let node_as_function_type_node = node.as_function_type_node();
@@ -387,7 +387,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_function_type(
         &self,
-        node: &Node, /*JSDocFunctionType*/
+        node: Id<Node>, /*JSDocFunctionType*/
     ) -> io::Result<()> {
         self.write_keyword("function");
         let node_as_jsdoc_function_type = node.as_jsdoc_function_type();
@@ -400,7 +400,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_nullable_type(
         &self,
-        node: &Node, /*JSDocNullableType*/
+        node: Id<Node>, /*JSDocNullableType*/
     ) -> io::Result<()> {
         self.write_punctuation("?");
         self.emit(
@@ -413,7 +413,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_non_nullable_type(
         &self,
-        node: &Node, /*JSDocNonNullableType*/
+        node: Id<Node>, /*JSDocNonNullableType*/
     ) -> io::Result<()> {
         self.write_punctuation("!");
         self.emit(
@@ -426,7 +426,7 @@ impl Printer {
 
     pub(super) fn emit_jsdoc_optional_type(
         &self,
-        node: &Node, /*JSDocOptionalType*/
+        node: Id<Node>, /*JSDocOptionalType*/
     ) -> io::Result<()> {
         self.emit(
             node.as_base_jsdoc_unary_type().maybe_type().as_deref(),
@@ -439,7 +439,7 @@ impl Printer {
 
     pub(super) fn emit_constructor_type(
         &self,
-        node: &Node, /*ConstructorTypeNode*/
+        node: Id<Node>, /*ConstructorTypeNode*/
     ) -> io::Result<()> {
         self.push_name_generation_scope(Some(node));
         self.emit_modifiers(node, node.maybe_modifiers().as_deref())?;
@@ -462,7 +462,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_type_query(&self, node: &Node /*TypeQueryNode*/) -> io::Result<()> {
+    pub(super) fn emit_type_query(&self, node: Id<Node> /*TypeQueryNode*/) -> io::Result<()> {
         self.write_keyword("typeof");
         self.write_space();
         self.emit(Some(&*node.as_type_query_node().expr_name), None)?;
@@ -470,7 +470,10 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_type_literal(&self, node: &Node /*TypeLiteralNode*/) -> io::Result<()> {
+    pub(super) fn emit_type_literal(
+        &self,
+        node: Id<Node>, /*TypeLiteralNode*/
+    ) -> io::Result<()> {
         self.write_punctuation("{");
         let flags = if get_emit_flags(node).intersects(EmitFlags::SingleLine) {
             ListFormat::SingleLineTypeLiteralMembers
@@ -490,7 +493,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_array_type(&self, node: &Node /*ArrayTypeNode*/) -> io::Result<()> {
+    pub(super) fn emit_array_type(&self, node: Id<Node> /*ArrayTypeNode*/) -> io::Result<()> {
         self.emit(
             Some(&*node.as_array_type_node().element_type),
             Some(Gc::new(Box::new(
@@ -507,7 +510,7 @@ impl Printer {
 
     pub(super) fn emit_rest_or_jsdoc_variadic_type(
         &self,
-        node: &Node, /*RestTypeNode | JSDocVariadicType*/
+        node: Id<Node>, /*RestTypeNode | JSDocVariadicType*/
     ) -> io::Result<()> {
         self.write_punctuation("...");
         self.emit(node.as_has_type().maybe_type().as_deref(), None)?;
@@ -515,7 +518,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_tuple_type(&self, node: &Node /*TupleTypeNode*/) -> io::Result<()> {
+    pub(super) fn emit_tuple_type(&self, node: Id<Node> /*TupleTypeNode*/) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::OpenBracketToken,
             node.pos(),
@@ -550,7 +553,7 @@ impl Printer {
 
     pub(super) fn emit_named_tuple_member(
         &self,
-        node: &Node, /*NamedTupleMember*/
+        node: Id<Node>, /*NamedTupleMember*/
     ) -> io::Result<()> {
         let node_as_named_tuple_member = node.as_named_tuple_member();
         self.emit(
@@ -574,7 +577,7 @@ impl Printer {
 
     pub(super) fn emit_optional_type(
         &self,
-        node: &Node, /*OptionalTypeNode*/
+        node: Id<Node>, /*OptionalTypeNode*/
     ) -> io::Result<()> {
         self.emit(
             Some(&*node.as_optional_type_node().type_),
@@ -589,7 +592,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_union_type(&self, node: &Node /*UnionTypeNode*/) -> io::Result<()> {
+    pub(super) fn emit_union_type(&self, node: Id<Node> /*UnionTypeNode*/) -> io::Result<()> {
         self.emit_list(
             Some(node),
             Some(&node.as_union_type_node().types),
@@ -606,7 +609,7 @@ impl Printer {
 
     pub(super) fn emit_intersection_type(
         &self,
-        node: &Node, /*IntersectionTypeNode*/
+        node: Id<Node>, /*IntersectionTypeNode*/
     ) -> io::Result<()> {
         self.emit_list(
             Some(node),
@@ -624,7 +627,7 @@ impl Printer {
 
     pub(super) fn emit_conditional_type(
         &self,
-        node: &Node, /*ConditionalTypeNode*/
+        node: Id<Node>, /*ConditionalTypeNode*/
     ) -> io::Result<()> {
         let node_as_conditional_type_node = node.as_conditional_type_node();
         self.emit(
@@ -658,7 +661,7 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_infer_type(&self, node: &Node /*InferTypeNode*/) -> io::Result<()> {
+    pub(super) fn emit_infer_type(&self, node: Id<Node> /*InferTypeNode*/) -> io::Result<()> {
         self.write_keyword("infer");
         self.write_space();
         self.emit(Some(&*node.as_infer_type_node().type_parameter), None)?;
@@ -668,7 +671,7 @@ impl Printer {
 
     pub(super) fn emit_parenthesized_type(
         &self,
-        node: &Node, /*ParenthesizedTypeNode*/
+        node: Id<Node>, /*ParenthesizedTypeNode*/
     ) -> io::Result<()> {
         self.write_punctuation("(");
         self.emit(Some(&*node.as_parenthesized_type_node().type_), None)?;
@@ -683,7 +686,7 @@ impl Printer {
 
     pub(super) fn emit_type_operator(
         &self,
-        node: &Node, /*TypeOperatorNode*/
+        node: Id<Node>, /*TypeOperatorNode*/
     ) -> io::Result<()> {
         let node_as_type_operator_node = node.as_type_operator_node();
         self.write_token_text(
@@ -704,7 +707,7 @@ impl Printer {
 
     pub(super) fn emit_indexed_access_type(
         &self,
-        node: &Node, /*IndexedAccessType*/
+        node: Id<Node>, /*IndexedAccessType*/
     ) -> io::Result<()> {
         let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
         self.emit(
@@ -720,7 +723,10 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_mapped_type(&self, node: &Node /*MappedTypeNode*/) -> io::Result<()> {
+    pub(super) fn emit_mapped_type(
+        &self,
+        node: Id<Node>, /*MappedTypeNode*/
+    ) -> io::Result<()> {
         let emit_flags = get_emit_flags(node);
         self.write_punctuation("{");
         if emit_flags.intersects(EmitFlags::SingleLine) {
@@ -773,7 +779,10 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn emit_literal_type(&self, node: &Node /*LiteralTypeNode*/) -> io::Result<()> {
+    pub(super) fn emit_literal_type(
+        &self,
+        node: Id<Node>, /*LiteralTypeNode*/
+    ) -> io::Result<()> {
         self.emit_expression(Some(&*node.as_literal_type_node().literal), None)?;
 
         Ok(())
@@ -781,7 +790,7 @@ impl Printer {
 
     pub(super) fn emit_template_type(
         &self,
-        node: &Node, /*TemplateLiteralTypeNode*/
+        node: Id<Node>, /*TemplateLiteralTypeNode*/
     ) -> io::Result<()> {
         let node_as_template_literal_type_node = node.as_template_literal_type_node();
         self.emit(Some(&*node_as_template_literal_type_node.head), None)?;
@@ -799,7 +808,7 @@ impl Printer {
 
     pub(super) fn emit_import_type_node(
         &self,
-        node: &Node, /*ImportTypeNode*/
+        node: Id<Node>, /*ImportTypeNode*/
     ) -> io::Result<()> {
         let node_as_import_type_node = node.as_import_type_node();
         if node_as_import_type_node.is_type_of() {
@@ -824,7 +833,7 @@ impl Printer {
 
     pub(super) fn emit_object_binding_pattern(
         &self,
-        node: &Node, /*ObjectBindingPattern*/
+        node: Id<Node>, /*ObjectBindingPattern*/
     ) -> io::Result<()> {
         self.write_punctuation("{");
         self.emit_list(
@@ -842,7 +851,7 @@ impl Printer {
 
     pub(super) fn emit_array_binding_pattern(
         &self,
-        node: &Node, /*ArrayBindingPattern*/
+        node: Id<Node>, /*ArrayBindingPattern*/
     ) -> io::Result<()> {
         self.write_punctuation("[");
         self.emit_list(
@@ -860,7 +869,7 @@ impl Printer {
 
     pub(super) fn emit_binding_element(
         &self,
-        node: &Node, /*BindingElement*/
+        node: Id<Node>, /*BindingElement*/
     ) -> io::Result<()> {
         let node_as_binding_element = node.as_binding_element();
         self.emit(node_as_binding_element.dot_dot_dot_token.as_deref(), None)?;
@@ -886,7 +895,7 @@ impl Printer {
 
     pub(super) fn emit_array_literal_expression(
         &self,
-        node: &Node, /*ArrayLiteralExpression*/
+        node: Id<Node>, /*ArrayLiteralExpression*/
     ) -> io::Result<()> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         let elements = &node_as_array_literal_expression.elements;
@@ -913,7 +922,7 @@ impl Printer {
 
     pub(super) fn emit_object_literal_expression(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
+        node: Id<Node>, /*ObjectLiteralExpression*/
     ) -> io::Result<()> {
         let node_as_object_literal_expression = node.as_object_literal_expression();
         for_each(
@@ -961,7 +970,7 @@ impl Printer {
 
     pub(super) fn emit_property_access_expression(
         &self,
-        node: &Node, /*PropertyAccessExpression*/
+        node: Id<Node>, /*PropertyAccessExpression*/
     ) -> io::Result<()> {
         let node_as_property_access_expression = node.as_property_access_expression();
         self.emit_expression(
@@ -1026,7 +1035,7 @@ impl Printer {
 
     pub(super) fn may_need_dot_dot_for_property_access(
         &self,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> bool {
         let ref expression = skip_partially_emitted_expressions(expression);
         if is_numeric_literal(expression) {
@@ -1046,7 +1055,7 @@ impl Printer {
 
     pub(super) fn emit_element_access_expression(
         &self,
-        node: &Node, /*ElementAccessExpression*/
+        node: Id<Node>, /*ElementAccessExpression*/
     ) -> io::Result<()> {
         let node_as_element_access_expression = node.as_element_access_expression();
         self.emit_expression(

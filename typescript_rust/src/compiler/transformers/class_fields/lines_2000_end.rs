@@ -10,7 +10,7 @@ use crate::{
 impl TransformClassFields {
     pub(super) fn visit_assignment_pattern(
         &self,
-        node: &Node, /*AssignmentPattern*/
+        node: Id<Node>, /*AssignmentPattern*/
     ) -> VisitResult {
         if is_array_literal_expression(node) {
             let node_as_array_literal_expression = node.as_array_literal_expression();
@@ -20,7 +20,7 @@ impl TransformClassFields {
                         node,
                         visit_nodes(
                             &node_as_array_literal_expression.elements,
-                            Some(|node: &Node| self.visit_array_assignment_target(node)),
+                            Some(|node: Id<Node>| self.visit_array_assignment_target(node)),
                             Some(is_expression),
                             None,
                             None,
@@ -36,7 +36,7 @@ impl TransformClassFields {
                         node,
                         visit_nodes(
                             &node_as_object_literal_expression.properties,
-                            Some(|node: &Node| self.visit_object_assignment_target(node)),
+                            Some(|node: Id<Node>| self.visit_object_assignment_target(node)),
                             Some(is_object_literal_element_like),
                             None,
                             None,
@@ -90,6 +90,6 @@ pub(super) fn create_private_instance_method_initializer(
     )
 }
 
-pub(super) fn is_reserved_private_name(node: &Node /*PrivateIdentifier*/) -> bool {
+pub(super) fn is_reserved_private_name(node: Id<Node> /*PrivateIdentifier*/) -> bool {
     node.as_private_identifier().escaped_text == "#constructor"
 }

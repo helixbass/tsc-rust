@@ -66,7 +66,7 @@ impl TypeChecker {
 
     pub(super) fn get_containing_object_literal(
         &self,
-        func: &Node, /*SignatureDeclaration*/
+        func: Id<Node>, /*SignatureDeclaration*/
     ) -> Option<Id<Node /*ObjectLiteralExpression*/>> {
         if matches!(
             func.kind(),
@@ -122,7 +122,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_this_parameter_type(
         &self,
-        func: &Node, /*SignatureDeclaration*/
+        func: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
         if func.kind() == SyntaxKind::ArrowFunction {
             return Ok(None);
@@ -203,7 +203,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextually_typed_parameter_type(
         &self,
-        parameter: &Node, /*ParameterDeclaration*/
+        parameter: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let func = parameter.parent();
         if !self.is_context_sensitive_function_or_object_literal_method(&func)? {
@@ -286,7 +286,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_variable_like_declaration(
         &self,
-        declaration: &Node,
+        declaration: Id<Node>,
     ) -> io::Result<Option<Id<Type>>> {
         let type_node = get_effective_type_annotation_node(declaration);
         if let Some(type_node) = type_node.as_ref() {
@@ -311,7 +311,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_binding_element(
         &self,
-        declaration: &Node, /*BindingElement*/
+        declaration: Id<Node>, /*BindingElement*/
     ) -> io::Result<Option<Id<Type>>> {
         let parent = declaration.parent().parent();
         let declaration_as_binding_element = declaration.as_binding_element();
@@ -360,7 +360,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_static_property_declaration(
         &self,
-        declaration: &Node, /*PropertyDeclaration*/
+        declaration: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let parent_type = return_ok_none_if_none!(if is_expression(&declaration.parent()) {
             self.get_contextual_type_(&declaration.parent(), None)?
@@ -378,7 +378,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_initializer_expression(
         &self,
-        node: &Node,
+        node: Id<Node>,
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         let declaration = node.parent();
@@ -412,7 +412,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_return_expression(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         let func = get_containing_function(node);
         if let Some(func) = func.as_ref() {
@@ -429,7 +429,7 @@ impl TypeChecker {
                         .get_iteration_types_of_iterable(
                             contextual_return_type,
                             use_,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                         )?);
                     contextual_return_type = iteration_types.return_type();
                 }
@@ -438,7 +438,12 @@ impl TypeChecker {
                     let contextual_awaited_type = self.try_map_type(
                         contextual_return_type,
                         &mut |type_: Id<Type>| {
-                            self.get_awaited_type_no_alias(type_, Option::<&Node>::None, None, None)
+                            self.get_awaited_type_no_alias(
+                                type_,
+                                Option::<Id<Node>>::None,
+                                None,
+                                None,
+                            )
                         },
                         None,
                     )?;
@@ -464,13 +469,17 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_await_operand(
         &self,
-        node: &Node, /*AwaitExpression*/
+        node: Id<Node>, /*AwaitExpression*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         let contextual_type = self.get_contextual_type_(node, context_flags)?;
         if let Some(contextual_type) = contextual_type {
-            let contextual_awaited_type =
-                self.get_awaited_type_no_alias(contextual_type, Option::<&Node>::None, None, None)?;
+            let contextual_awaited_type = self.get_awaited_type_no_alias(
+                contextual_type,
+                Option::<Id<Node>>::None,
+                None,
+                None,
+            )?;
             return contextual_awaited_type.try_map(|contextual_awaited_type| {
                 self.get_union_type(
                     &[
@@ -489,7 +498,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_yield_operand(
         &self,
-        node: &Node, /*YieldExpression*/
+        node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let func = get_containing_function(node);
         if let Some(func) = func.as_ref() {
@@ -513,7 +522,7 @@ impl TypeChecker {
 
     pub(super) fn is_in_parameter_initializer_before_containing_function(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> bool {
         let mut in_binding_initializer = false;
         let mut node = node.node_wrapper();
@@ -555,7 +564,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_iteration_type(
         &self,
         kind: IterationTypeKind,
-        function_decl: &Node, /*SignatureDeclaration*/
+        function_decl: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let is_async = get_function_flags(Some(function_decl)).intersects(FunctionFlags::Async);
         let contextual_return_type = self.get_contextual_return_type(function_decl)?;
@@ -572,7 +581,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_return_type(
         &self,
-        function_decl: &Node, /*SignatureDeclaration*/
+        function_decl: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let return_type = self.get_return_type_from_annotation(function_decl)?;
         if return_type.is_some() {
@@ -595,8 +604,8 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_argument(
         &self,
-        call_target: &Node, /*CallLikeExpression*/
-        arg: &Node,         /*Expression*/
+        call_target: Id<Node>, /*CallLikeExpression*/
+        arg: Id<Node>,         /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         let args = self.get_effective_call_arguments(call_target)?;
         let arg_index = args.iter().position(|argument| ptr::eq(&**argument, arg));
@@ -607,7 +616,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_argument_at_index_(
         &self,
-        call_target: &Node, /*CallLikeExpression*/
+        call_target: Id<Node>, /*CallLikeExpression*/
         arg_index: usize,
     ) -> io::Result<Id<Type>> {
         if is_import_call(call_target) {
@@ -646,7 +655,7 @@ impl TypeChecker {
                     self.get_type_of_symbol(signature.parameters()[rest_index])?,
                     self.get_number_literal_type(Number::new((arg_index - rest_index) as f64)),
                     Some(AccessFlags::Contextual),
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Id<Symbol>>::None,
                     None,
                 )?
@@ -658,8 +667,8 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_substitution_expression(
         &self,
-        template: &Node,                /*TemplateExpression*/
-        substitution_expression: &Node, /*Expression*/
+        template: Id<Node>,                /*TemplateExpression*/
+        substitution_expression: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         if template.parent().kind() == SyntaxKind::TaggedTemplateExpression {
             return self
@@ -671,7 +680,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_binary_operand(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         let binary_expression = node.parent();
@@ -716,7 +725,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_for_expression(
         &self,
-        e: &Node, /*Expression*/
+        e: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Symbol>>> {
         if e.maybe_symbol().is_some() {
             return Ok(e.maybe_symbol());
@@ -752,7 +761,7 @@ impl TypeChecker {
     pub(super) fn try_get_private_identifier_property_of_type(
         &self,
         type_: Id<Type>,
-        id: &Node, /*PrivateIdentifier*/
+        id: Id<Node>, /*PrivateIdentifier*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let lexically_scoped_symbol = self.lookup_symbol_for_private_identifier_declaration(
             &id.as_private_identifier().escaped_text,

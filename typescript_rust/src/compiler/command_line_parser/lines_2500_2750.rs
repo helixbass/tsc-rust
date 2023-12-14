@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{
     can_json_report_no_input_files, create_compiler_diagnostic_only_if_json,
@@ -93,7 +94,7 @@ pub fn parse_json_config_file_content(
 ) -> io::Result<ParsedCommandLine> {
     parse_json_config_file_content_worker(
         json,
-        Option::<&Node>::None,
+        Option::<Id<Node>>::None,
         host,
         base_path,
         existing_options,
@@ -106,7 +107,7 @@ pub fn parse_json_config_file_content(
 }
 
 pub fn parse_json_source_file_config_file_content(
-    source_file: &Node, /*TsConfigSourceFile*/
+    source_file: Id<Node>, /*TsConfigSourceFile*/
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     existing_options: Option<Gc<CompilerOptions>>,

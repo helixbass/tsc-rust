@@ -19,7 +19,7 @@ use crate::{
 };
 
 impl TransformTypeScript {
-    pub(super) fn has_namespace_qualified_export_name(&self, node: &Node) -> bool {
+    pub(super) fn has_namespace_qualified_export_name(&self, node: Id<Node>) -> bool {
         self.is_export_of_namespace(node)
             || self.is_external_module_export(node)
                 && !matches!(
@@ -34,7 +34,7 @@ impl TransformTypeScript {
 
     pub(super) fn record_emitted_declaration_in_scope(
         &self,
-        node: &Node, /*FunctionDeclaration | ClassDeclaration | ModuleDeclaration | EnumDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration | ClassDeclaration | ModuleDeclaration | EnumDeclaration*/
     ) {
         let mut current_scope_first_declarations_of_name =
             self.maybe_current_scope_first_declarations_of_name_mut();
@@ -49,7 +49,7 @@ impl TransformTypeScript {
 
     pub(super) fn is_first_emitted_declaration_in_scope(
         &self,
-        node: &Node, /*ModuleDeclaration | EnumDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> bool {
         if let Some(current_scope_first_declarations_of_name) = self
             .maybe_current_scope_first_declarations_of_name()
@@ -65,7 +65,7 @@ impl TransformTypeScript {
 
     pub(super) fn declared_name_in_scope(
         &self,
-        node: &Node, /*FunctionDeclaration | ClassDeclaration | ModuleDeclaration | EnumDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration | ClassDeclaration | ModuleDeclaration | EnumDeclaration*/
     ) -> __String {
         let node_as_named_declaration = node.as_named_declaration();
         Debug_.assert_node(
@@ -83,14 +83,14 @@ impl TransformTypeScript {
     pub(super) fn add_var_for_enum_or_module_declaration(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        node: &Node, /*ModuleDeclaration | EnumDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> bool {
         let statement = self
             .factory
             .create_variable_statement(
                 maybe_visit_nodes(
                     node.maybe_modifiers().as_deref(),
-                    Some(|node: &Node| self.modifier_visitor(node)),
+                    Some(|node: Id<Node>| self.modifier_visitor(node)),
                     Some(is_modifier),
                     None,
                     None,
@@ -143,7 +143,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_module_declaration(
         &self,
-        node: &Node, /*ModuleDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_module_declaration = node.as_module_declaration();
         if !self.should_emit_module_declaration(node) {
@@ -249,8 +249,8 @@ impl TransformTypeScript {
 
     pub(super) fn transform_module_body(
         &self,
-        node: &Node,                 /*ModuleDeclaration*/
-        namespace_local_name: &Node, /*Identifier*/
+        node: Id<Node>,                 /*ModuleDeclaration*/
+        namespace_local_name: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> /*Identifier*/ {
         let node_as_module_declaration = node.as_module_declaration();
         let saved_current_namespace_container_name = self.maybe_current_namespace_container_name();
@@ -269,12 +269,12 @@ impl TransformTypeScript {
         let mut block_location: Option<Id<Node> /*TextRange*/> = Default::default();
         if let Some(node_body) = node_as_module_declaration.body.as_ref() {
             if node_body.kind() == SyntaxKind::ModuleBlock {
-                self.try_save_state_and_invoke(node_body, |body: &Node| {
+                self.try_save_state_and_invoke(node_body, |body: Id<Node>| {
                     add_range(
                         &mut statements,
                         Some(&try_visit_nodes(
                             &body.as_module_block().statements,
-                            Some(|node: &Node| self.namespace_element_visitor(node)),
+                            Some(|node: Id<Node>| self.namespace_element_visitor(node)),
                             Some(is_statement),
                             None,
                             None,
@@ -346,7 +346,7 @@ impl TransformTypeScript {
     #[allow(clippy::only_used_in_recursion)]
     pub(super) fn get_inner_most_module_declaration_from_dotted_module(
         &self,
-        module_declaration: &Node, /*ModuleDeclaration*/
+        module_declaration: Id<Node>, /*ModuleDeclaration*/
     ) -> Option<Id<Node>> /*ModuleDeclaration*/ {
         let module_declaration_as_module_declaration = module_declaration.as_module_declaration();
         let module_body = module_declaration_as_module_declaration
@@ -364,7 +364,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_import_declaration(
         &self,
-        node: &Node, /*ImportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_declaration = node.as_import_declaration();
         if node_as_import_declaration.import_clause.is_none() {
@@ -377,7 +377,7 @@ impl TransformTypeScript {
 
         let import_clause = try_maybe_visit_node(
             Some(&**node_import_clause),
-            Some(|node: &Node| self.visit_import_clause(node)),
+            Some(|node: Id<Node>| self.visit_import_clause(node)),
             Some(is_import_clause),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
@@ -408,7 +408,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_import_clause(
         &self,
-        node: &Node, /*ImportClause*/
+        node: Id<Node>, /*ImportClause*/
     ) -> io::Result<VisitResult> /*<ImportClause>*/ {
         let node_as_import_clause = node.as_import_clause();
         Debug_.assert(!node_as_import_clause.is_type_only, None);
@@ -419,7 +419,7 @@ impl TransformTypeScript {
         };
         let named_bindings = try_maybe_visit_node(
             node_as_import_clause.named_bindings.as_deref(),
-            Some(|node: &Node| self.visit_named_import_bindings(node)),
+            Some(|node: Id<Node>| self.visit_named_import_bindings(node)),
             Some(is_named_import_bindings),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
@@ -436,7 +436,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_named_import_bindings(
         &self,
-        node: &Node, /*NamedImportBindings*/
+        node: Id<Node>, /*NamedImportBindings*/
     ) -> io::Result<VisitResult> /*<NamedImportBindings>*/ {
         Ok(if node.kind() == SyntaxKind::NamespaceImport {
             if self.should_emit_alias_declaration(node)? {
@@ -452,7 +452,7 @@ impl TransformTypeScript {
                 );
             let elements = try_visit_nodes(
                 &node.as_named_imports().elements,
-                Some(|node: &Node| self.visit_import_specifier(node)),
+                Some(|node: Id<Node>| self.visit_import_specifier(node)),
                 Some(is_import_specifier),
                 None,
                 None,
@@ -464,7 +464,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_import_specifier(
         &self,
-        node: &Node, /*ImportSpecifier*/
+        node: Id<Node>, /*ImportSpecifier*/
     ) -> io::Result<VisitResult> /*<ImportSpecifier>*/ {
         let node_as_import_specifier = node.as_import_specifier();
         Ok(
@@ -475,14 +475,14 @@ impl TransformTypeScript {
 
     pub(super) fn visit_export_assignment(
         &self,
-        node: &Node, /*ExportAssignment*/
+        node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         self.resolver
             .is_value_alias_declaration(node)?
             .try_then_and(|| -> io::Result<_> {
                 Ok(try_maybe_visit_each_child(
                     Some(node),
-                    |node: &Node| self.visitor(node),
+                    |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
                 .map(Into::into))
@@ -491,7 +491,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_export_declaration(
         &self,
-        node: &Node, /*ExportDeclaration*/
+        node: Id<Node>, /*ExportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_export_declaration = node.as_export_declaration();
         if node_as_export_declaration.is_type_only {
@@ -513,7 +513,7 @@ impl TransformTypeScript {
             );
         let export_clause = try_maybe_visit_node(
             node_as_export_declaration.export_clause.as_deref(),
-            Some(|bindings: &Node /*NamedExportBindings*/| {
+            Some(|bindings: Id<Node> /*NamedExportBindings*/| {
                 self.visit_named_export_bindings(bindings, allow_empty)
             }),
             Some(is_named_export_bindings),
@@ -536,13 +536,13 @@ impl TransformTypeScript {
 
     pub(super) fn visit_named_exports(
         &self,
-        node: &Node, /*NamedExports*/
+        node: Id<Node>, /*NamedExports*/
         allow_empty: bool,
     ) -> io::Result<VisitResult> /*<NamedExports>*/ {
         let node_as_named_exports = node.as_named_exports();
         let elements = try_visit_nodes(
             &node_as_named_exports.elements,
-            Some(|node: &Node| self.visit_export_specifier(node)),
+            Some(|node: Id<Node>| self.visit_export_specifier(node)),
             Some(is_export_specifier),
             None,
             None,
@@ -553,7 +553,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_namespace_exports(
         &self,
-        node: &Node, /*NamespaceExport*/
+        node: Id<Node>, /*NamespaceExport*/
     ) -> io::Result<VisitResult> /*<NamespaceExport>*/ {
         Ok(Some(
             self.factory
@@ -561,7 +561,7 @@ impl TransformTypeScript {
                     node,
                     try_visit_node(
                         &node.as_namespace_export().name,
-                        Some(|node: &Node| self.visitor(node)),
+                        Some(|node: Id<Node>| self.visitor(node)),
                         Some(is_identifier),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
@@ -572,7 +572,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_named_export_bindings(
         &self,
-        node: &Node, /*NamedExportBindings*/
+        node: Id<Node>, /*NamedExportBindings*/
         allow_empty: bool,
     ) -> io::Result<VisitResult> /*<NamedExportBindings>*/ {
         Ok(if is_namespace_export(node) {
@@ -584,7 +584,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_export_specifier(
         &self,
-        node: &Node, /*ExportSpecifier*/
+        node: Id<Node>, /*ExportSpecifier*/
     ) -> io::Result<VisitResult> /*<ExportSpecifier>*/ {
         let node_as_export_specifier = node.as_export_specifier();
         Ok((!node_as_export_specifier.is_type_only
@@ -594,7 +594,7 @@ impl TransformTypeScript {
 
     pub(super) fn should_emit_import_equals_declaration(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<bool> {
         Ok(self.should_emit_alias_declaration(node)?
             || !is_external_module(&self.current_source_file())
@@ -605,7 +605,7 @@ impl TransformTypeScript {
 
     pub(super) fn visit_import_equals_declaration(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         if node_as_import_equals_declaration.is_type_only {
@@ -638,10 +638,12 @@ impl TransformTypeScript {
             }
 
             return is_referenced.try_then(|| -> io::Result<_> {
-                Ok(
-                    try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?
-                        .into(),
-                )
+                Ok(try_visit_each_child(
+                    node,
+                    |node: Id<Node>| self.visitor(node),
+                    &**self.context,
+                )?
+                .into())
             });
         }
 
@@ -661,7 +663,7 @@ impl TransformTypeScript {
                     .create_variable_statement(
                         maybe_visit_nodes(
                             node.maybe_modifiers().as_deref(),
-                            Some(|node: &Node| self.modifier_visitor(node)),
+                            Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(is_modifier),
                             None,
                             None,

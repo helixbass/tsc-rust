@@ -28,7 +28,7 @@ use crate::{
 impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
         self.try_get_and_cache_diagnostics(
@@ -46,7 +46,7 @@ impl Program {
 
     pub(super) fn get_bind_and_check_diagnostics_for_file_no_cache(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
         // self.run_with_cancellation_token(|| {
@@ -107,7 +107,7 @@ impl Program {
 
     pub(super) fn get_merged_bind_and_check_diagnostics(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         include_bind_and_check_diagnostics: bool,
         all_diagnostics: &[Option<Vec<Gc<Diagnostic>>>],
     ) -> Vec<Gc<Diagnostic>> {
@@ -151,7 +151,7 @@ impl Program {
 
     pub(super) fn get_diagnostics_with_preceding_directives(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         comment_directives: &[Rc<CommentDirective>],
         flat_diagnostics: &[Gc<Diagnostic>],
     ) -> DiagnosticsWithPrecedingDirectives {
@@ -222,7 +222,7 @@ impl Program {
 
     pub(super) fn get_js_syntactic_diagnostics_for_file(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         self.run_with_cancellation_token(|| {
             let diagnostics: Gc<GcCell<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>> =
@@ -237,7 +237,7 @@ impl Program {
                 source_file,
                 {
                     let diagnostics = diagnostics.clone();
-                    move |node: &Node, parent: &Node| {
+                    move |node: Id<Node>, parent: Id<Node>| {
                         self.get_js_syntactic_diagnostics_for_file_walk(
                             diagnostics.clone(),
                             source_file,
@@ -248,7 +248,7 @@ impl Program {
                 },
                 {
                     let diagnostics = diagnostics.clone();
-                    Some(move |nodes: &NodeArray, parent: &Node| {
+                    Some(move |nodes: &NodeArray, parent: Id<Node>| {
                         self.get_js_syntactic_diagnostics_for_file_walk_array(
                             diagnostics.clone(),
                             source_file,
@@ -267,9 +267,9 @@ impl Program {
     pub(super) fn get_js_syntactic_diagnostics_for_file_walk(
         &self,
         diagnostics: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
-        source_file: &Node,
-        node: &Node,
-        parent: &Node,
+        source_file: Id<Node>,
+        node: Id<Node>,
+        parent: Id<Node>,
     ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
         match parent.kind() {
             SyntaxKind::Parameter
@@ -497,9 +497,9 @@ impl Program {
     pub(super) fn get_js_syntactic_diagnostics_for_file_walk_array(
         &self,
         diagnostics: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
-        source_file: &Node,
+        source_file: Id<Node>,
         nodes: &NodeArray,
-        parent: &Node,
+        parent: Id<Node>,
     ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
         if matches!(
             parent.maybe_decorators().as_deref(),
@@ -635,7 +635,7 @@ impl Program {
     pub(super) fn get_js_syntactic_diagnostics_for_file_check_modifiers(
         &self,
         diagnostics: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
-        source_file: &Node,
+        source_file: Id<Node>,
         modifiers: &NodeArray, /*<Modifier>*/
         is_const_valid: bool,
     ) {
@@ -683,7 +683,7 @@ impl Program {
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
         &self,
-        source_file: &Node,
+        source_file: Id<Node>,
         nodes: &NodeArray,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
@@ -694,8 +694,8 @@ impl Program {
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
         &self,
-        source_file: &Node,
-        node: &Node,
+        source_file: Id<Node>,
+        node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> DiagnosticWithLocation {
@@ -704,7 +704,7 @@ impl Program {
 
     pub(super) fn get_declaration_diagnostics_worker(
         &self,
-        source_file: Option<&Node>, /*SourceFile*/
+        source_file: Option<Id<Node>>, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         self.try_get_and_cache_diagnostics(
@@ -719,7 +719,7 @@ impl Program {
 
     pub(super) fn get_declaration_diagnostics_for_file_no_cache(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         self.run_with_cancellation_token(|| -> io::Result<_> {
@@ -739,11 +739,11 @@ impl Program {
     #[allow(dead_code)]
     pub(super) fn get_and_cache_diagnostics(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         cache: &mut DiagnosticCache,
         mut get_diagnostics: impl FnMut(
-            Option<&Node>, /*SourceFile*/
+            Option<Id<Node>>, /*SourceFile*/
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> Vec<Gc<Diagnostic>>,
     ) -> Vec<Gc<Diagnostic>> {
@@ -755,11 +755,11 @@ impl Program {
 
     pub(super) fn try_get_and_cache_diagnostics(
         &self,
-        source_file: Option<&Node /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         cache: &mut DiagnosticCache,
         mut get_diagnostics: impl FnMut(
-            Option<&Node>, /*SourceFile*/
+            Option<Id<Node>>, /*SourceFile*/
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> io::Result<Vec<Gc<Diagnostic>>>,
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
@@ -790,7 +790,7 @@ impl Program {
 
     pub fn get_declaration_diagnostics_for_file(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         Ok(if source_file.as_source_file().is_declaration_file() {
@@ -875,8 +875,8 @@ impl Program {
 
     pub fn module_name_is_equal_to(
         &self,
-        a: &Node, /*StringLiteralLike | Identifier*/
-        b: &Node, /*StringLiteralLike | Identifier*/
+        a: Id<Node>, /*StringLiteralLike | Identifier*/
+        b: Id<Node>, /*StringLiteralLike | Identifier*/
     ) -> bool {
         if a.kind() == SyntaxKind::Identifier {
             b.kind() == SyntaxKind::Identifier
@@ -887,7 +887,11 @@ impl Program {
         }
     }
 
-    pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Id<Node> {
+    pub fn create_synthetic_import(
+        &self,
+        text: &str,
+        file: Id<Node>, /*SourceFile*/
+    ) -> Id<Node> {
         let external_helpers_module_reference =
             get_factory().create_string_literal(text.to_owned(), None, None);
         let import_decl = get_factory().create_import_declaration(
@@ -906,7 +910,7 @@ impl Program {
         external_helpers_module_reference
     }
 
-    pub fn collect_external_module_references(&self, file: &Node /*SourceFile*/) {
+    pub fn collect_external_module_references(&self, file: Id<Node> /*SourceFile*/) {
         let file_as_source_file = file.as_source_file();
         if file_as_source_file.maybe_imports().is_some() {
             return;
@@ -972,11 +976,11 @@ impl Program {
     pub(super) fn collect_module_references(
         &self,
         imports: &mut Option<Vec<Id<Node>>>,
-        file: &Node,
+        file: Id<Node>,
         is_external_module_file: bool,
         module_augmentations: &mut Option<Vec<Id<Node>>>,
         ambient_modules: &mut Option<Vec<String>>,
-        node: &Node, /*Statement*/
+        node: Id<Node>, /*Statement*/
         in_ambient_module: bool,
     ) {
         if is_any_import_or_re_export(node) {
@@ -1048,7 +1052,7 @@ impl Program {
         &self,
         is_java_script_file: bool,
         imports: &mut Option<Vec<Id<Node>>>,
-        file: &Node, /*SourceFile*/
+        file: Id<Node>, /*SourceFile*/
     ) {
         lazy_static! {
             static ref r: Regex = Regex::new(r"import|require").unwrap();
@@ -1091,7 +1095,11 @@ impl Program {
         }
     }
 
-    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Id<Node>> {
+    pub(super) fn get_containing_child(
+        &self,
+        position: isize,
+        child: Id<Node>,
+    ) -> Option<Id<Node>> {
         if child.pos() <= position
             && (position < child.end()
                 || position == child.end() && child.kind() == SyntaxKind::EndOfFileToken)

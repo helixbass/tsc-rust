@@ -475,8 +475,8 @@ impl<TReturn> From<Option<TReturn>> for ForEachAncestorReturn<TReturn> {
 }
 
 pub fn for_each_ancestor<TReturn, TCallbackReturn: Into<ForEachAncestorReturn<TReturn>>>(
-    node: &Node,
-    mut callback: impl FnMut(&Node) -> TCallbackReturn,
+    node: Id<Node>,
+    mut callback: impl FnMut(Id<Node>) -> TCallbackReturn,
 ) -> Option<TReturn> {
     let mut node = node.node_wrapper();
     loop {
@@ -602,7 +602,7 @@ pub fn try_using_single_line_string_writer<TError>(
     Ok(ret)
 }
 
-pub fn get_full_width(node: &Node) -> isize {
+pub fn get_full_width(node: Id<Node>) -> isize {
     node.end() - node.pos()
 }
 
@@ -627,7 +627,7 @@ pub fn get_resolved_module(
 }
 
 pub fn set_resolved_module(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     module_name_text: &str,
     resolved_module: Option<Gc<ResolvedModuleFull>>,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
@@ -644,7 +644,7 @@ pub fn set_resolved_module(
 }
 
 pub fn set_resolved_type_reference_directive(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     type_reference_directive_name: &str,
     resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
 ) {
@@ -761,13 +761,13 @@ pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
     false
 }
 
-pub fn contains_parse_error(node: &Node) -> bool {
+pub fn contains_parse_error(node: Id<Node>) -> bool {
     aggregate_child_data(node);
     node.flags()
         .intersects(NodeFlags::ThisNodeOrAnySubNodesHasError)
 }
 
-fn aggregate_child_data(node: &Node) {
+fn aggregate_child_data(node: Id<Node>) {
     if !node.flags().intersects(NodeFlags::HasAggregatedChildData) {
         let this_node_or_any_sub_nodes_has_error =
             node.flags().intersects(NodeFlags::ThisNodeHasError)
@@ -785,7 +785,7 @@ fn aggregate_child_data(node: &Node) {
     }
 }
 
-pub fn get_source_file_of_node(node: &Node) -> Id<Node /*SourceFile*/> {
+pub fn get_source_file_of_node(node: Id<Node>) -> Id<Node /*SourceFile*/> {
     let mut node = node.node_wrapper();
     while node.kind() != SyntaxKind::SourceFile {
         node = node.parent();
@@ -817,7 +817,7 @@ pub fn get_source_file_of_module(module: &Symbol) -> Option<Id<Node /*SourceFile
     )
 }
 
-pub fn is_statement_with_locals(node: &Node) -> bool {
+pub fn is_statement_with_locals(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Block
@@ -833,7 +833,7 @@ pub fn get_start_position_of_line(line: usize, source_file: &impl SourceFileLike
     get_line_starts(source_file)[line]
 }
 
-pub fn node_pos_to_string(node: &Node) -> String {
+pub fn node_pos_to_string(node: Id<Node>) -> String {
     let file = get_source_file_of_node(node);
     let file_as_source_file = file.as_source_file();
     let loc =
@@ -866,7 +866,7 @@ pub fn get_end_line_position(line: usize, source_file: &impl SourceFileLike) -> 
 }
 
 pub fn is_file_level_unique_name(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     name: &str,
     has_global_name: Option<impl FnOnce(&str) -> bool>,
 ) -> bool {
@@ -895,7 +895,7 @@ pub fn node_is_present(node: Option<impl Borrow<Node>>) -> bool {
 fn insert_statements_after_prologue(
     to: &mut Vec<Id<Node>>,
     from: Option<&[Id<Node>]>,
-    mut is_prologue_directive: impl FnMut(&Node) -> bool,
+    mut is_prologue_directive: impl FnMut(Id<Node>) -> bool,
 ) {
     if from.is_none() {
         return /*to*/;
@@ -920,7 +920,7 @@ fn insert_statements_after_prologue(
 fn insert_statement_after_prologue(
     to: &mut Vec<Id<Node>>,
     statement: Option<Id<Node>>,
-    mut is_prologue_directive: impl FnMut(&Node) -> bool,
+    mut is_prologue_directive: impl FnMut(Id<Node>) -> bool,
 ) {
     if statement.is_none() {
         return /*to*/;
@@ -936,7 +936,7 @@ fn insert_statement_after_prologue(
     to.insert(statement_index, statement);
 }
 
-fn is_any_prologue_directive(node: &Node) -> bool {
+fn is_any_prologue_directive(node: Id<Node>) -> bool {
     is_prologue_directive(node) || get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
 }
 
@@ -986,7 +986,7 @@ pub fn is_pinned_comment(text: &SourceTextAsChars, start: usize) -> bool {
 }
 
 pub fn create_comment_directives_map(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     comment_directives: &[Rc<CommentDirective>],
 ) -> CommentDirectivesMap {
     let directives_by_line: HashMap<String, Rc<CommentDirective>> =
@@ -1040,7 +1040,7 @@ impl CommentDirectivesMap {
 //     node: &Node,
 //     source_file: Option<TSourceFile>,
 pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
-    node: &Node,
+    node: Id<Node>,
     source_file: Option<TSourceFile>,
     include_js_doc: Option<bool>,
 ) -> isize {
@@ -1097,7 +1097,7 @@ pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
 }
 
 pub fn get_non_decorator_token_pos_of_node(
-    node: &Node,
+    node: Id<Node>,
     source_file: Option<impl Borrow<Node>>,
 ) -> isize {
     if node_is_missing(Some(node)) || node.maybe_decorators().is_none() {
@@ -1121,8 +1121,8 @@ pub fn get_non_decorator_token_pos_of_node(
 }
 
 pub fn get_source_text_of_node_from_source_file(
-    source_file: &Node, /*SourceFile*/
-    node: &Node,
+    source_file: Id<Node>, /*SourceFile*/
+    node: Id<Node>,
     include_trivia: Option<bool>,
 ) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
@@ -1133,11 +1133,11 @@ pub fn get_source_text_of_node_from_source_file(
     )
 }
 
-fn is_jsdoc_type_expression_or_child(node: &Node) -> bool {
+fn is_jsdoc_type_expression_or_child(node: Id<Node>) -> bool {
     find_ancestor(Some(node), |node| is_jsdoc_type_expression(node)).is_some()
 }
 
-pub fn is_export_namespace_as_default_declaration(node: &Node) -> bool {
+pub fn is_export_namespace_as_default_declaration(node: Id<Node>) -> bool {
     if !is_export_declaration(node) {
         return false;
     }
@@ -1159,7 +1159,7 @@ pub fn is_export_namespace_as_default_declaration(node: &Node) -> bool {
 
 pub fn get_text_of_node_from_source_text(
     source_text: &SourceTextAsChars,
-    node: &Node,
+    node: Id<Node>,
     include_trivia: Option<bool>,
 ) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
@@ -1201,7 +1201,7 @@ pub fn get_text_of_node_from_source_text(
     text.into()
 }
 
-pub fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> Cow<'static, str> {
+pub fn get_text_of_node(node: Id<Node>, include_trivia: Option<bool>) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
         &get_source_file_of_node(node),
@@ -1210,11 +1210,11 @@ pub fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> Cow<'stati
     )
 }
 
-fn get_pos(range: &Node) -> isize {
+fn get_pos(range: Id<Node>) -> isize {
     range.pos()
 }
 
-pub fn index_of_node(node_array: &[Id<Node>], node: &Node) -> isize {
+pub fn index_of_node(node_array: &[Id<Node>], node: Id<Node>) -> isize {
     binary_search_copy_key(
         node_array,
         &node.node_wrapper(),
@@ -1224,7 +1224,7 @@ pub fn index_of_node(node_array: &[Id<Node>], node: &Node) -> isize {
     )
 }
 
-pub fn get_emit_flags(node: &Node) -> EmitFlags {
+pub fn get_emit_flags(node: Id<Node>) -> EmitFlags {
     node.maybe_emit_node()
         .and_then(|emit_node| (*emit_node).borrow().flags)
         .unwrap_or(EmitFlags::None)
@@ -1426,7 +1426,7 @@ bitflags! {
 }
 
 pub fn get_literal_text<TSourceFile: Borrow<Node>>(
-    node: &Node, /*LiteralLikeNode*/
+    node: Id<Node>, /*LiteralLikeNode*/
     source_file: Option<TSourceFile /*SourceFile*/>,
     flags: GetLiteralTextFlags,
 ) -> Cow<'static, str> {
@@ -1502,7 +1502,10 @@ pub fn get_literal_text<TSourceFile: Borrow<Node>>(
     }
 }
 
-fn can_use_original_text(node: &Node /*LiteralLikeNode*/, flags: GetLiteralTextFlags) -> bool {
+fn can_use_original_text(
+    node: Id<Node>, /*LiteralLikeNode*/
+    flags: GetLiteralTextFlags,
+) -> bool {
     if node_is_synthesized(node)
         || node.maybe_parent().is_none()
         || flags.intersects(GetLiteralTextFlags::TerminateUnterminatedLiterals)
@@ -1545,35 +1548,35 @@ pub fn make_identifier_from_module_name(module_name: &str) -> String {
         .into_owned()
 }
 
-pub fn is_block_or_catch_scoped(declaration: &Node /*Declaration*/) -> bool {
+pub fn is_block_or_catch_scoped(declaration: Id<Node> /*Declaration*/) -> bool {
     get_combined_node_flags(declaration).intersects(NodeFlags::BlockScoped)
         || is_catch_clause_variable_declaration_or_binding_element(declaration)
 }
 
 pub fn is_catch_clause_variable_declaration_or_binding_element(
-    declaration: &Node, /*Declaration*/
+    declaration: Id<Node>, /*Declaration*/
 ) -> bool {
     let node = get_root_declaration(declaration);
     node.kind() == SyntaxKind::VariableDeclaration
         && node.parent().kind() == SyntaxKind::CatchClause
 }
 
-pub fn is_ambient_module(node: &Node) -> bool {
+pub fn is_ambient_module(node: Id<Node>) -> bool {
     is_module_declaration(node)
         && (node.as_module_declaration().name.kind() == SyntaxKind::StringLiteral
             || is_global_scope_augmentation(node))
 }
 
-pub fn is_module_with_string_literal_name(node: &Node) -> bool {
+pub fn is_module_with_string_literal_name(node: Id<Node>) -> bool {
     is_module_declaration(node)
         && node.as_module_declaration().name.kind() == SyntaxKind::StringLiteral
 }
 
-pub fn is_non_global_ambient_module(node: &Node) -> bool {
+pub fn is_non_global_ambient_module(node: Id<Node>) -> bool {
     is_module_declaration(node) && is_string_literal(&node.as_module_declaration().name)
 }
 
-pub fn is_effective_module_declaration(node: &Node) -> bool {
+pub fn is_effective_module_declaration(node: Id<Node>) -> bool {
     is_module_declaration(node) || is_identifier(node)
 }
 
@@ -1592,22 +1595,22 @@ fn is_shorthand_ambient_module<TNode: Borrow<Node>>(node: Option<TNode>) -> bool
     }
 }
 
-pub fn is_block_scoped_container_top_level(node: &Node) -> bool {
+pub fn is_block_scoped_container_top_level(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration
     ) || is_function_like_or_class_static_block_declaration(Some(node))
 }
 
-pub fn is_global_scope_augmentation(module: &Node /*ModuleDeclaration*/) -> bool {
+pub fn is_global_scope_augmentation(module: Id<Node> /*ModuleDeclaration*/) -> bool {
     module.flags().intersects(NodeFlags::GlobalAugmentation)
 }
 
-pub fn is_external_module_augmentation(node: &Node) -> bool {
+pub fn is_external_module_augmentation(node: Id<Node>) -> bool {
     is_ambient_module(node) && is_module_augmentation_external(node)
 }
 
-pub fn is_module_augmentation_external(node: &Node /*AmbientModuleDeclaration*/) -> bool {
+pub fn is_module_augmentation_external(node: Id<Node> /*AmbientModuleDeclaration*/) -> bool {
     match node.parent().kind() {
         SyntaxKind::SourceFile => is_external_module(&node.parent()),
         SyntaxKind::ModuleBlock => {
@@ -1642,7 +1645,7 @@ fn is_common_js_containing_module_kind(kind: ModuleKind) -> bool {
 }
 
 pub fn is_effective_external_module(
-    node: &Node, /*SourceFile*/
+    node: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
 ) -> bool {
     is_external_module(node)
@@ -1655,7 +1658,7 @@ pub fn is_effective_external_module(
 }
 
 pub fn is_effective_strict_mode_source_file(
-    node: &Node, /*SourceFile*/
+    node: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
 ) -> bool {
     let node_as_source_file = node.as_source_file();
@@ -1684,7 +1687,7 @@ pub fn is_effective_strict_mode_source_file(
 }
 
 pub fn is_block_scope<TParentNode: Borrow<Node>>(
-    node: &Node,
+    node: Id<Node>,
     parent_node: Option<TParentNode>,
 ) -> bool {
     match node.kind() {
@@ -1709,7 +1712,7 @@ pub fn is_block_scope<TParentNode: Borrow<Node>>(
     }
 }
 
-pub fn is_declaration_with_type_parameters(node: &Node) -> bool {
+pub fn is_declaration_with_type_parameters(node: Id<Node>) -> bool {
     match node.kind() {
         SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocSignature => {
             true
@@ -1721,7 +1724,7 @@ pub fn is_declaration_with_type_parameters(node: &Node) -> bool {
     }
 }
 
-pub fn is_declaration_with_type_parameter_children(node: &Node) -> bool {
+pub fn is_declaration_with_type_parameter_children(node: Id<Node>) -> bool {
     match node.kind() {
         SyntaxKind::CallSignature
         | SyntaxKind::ConstructSignature
@@ -1749,14 +1752,14 @@ pub fn is_declaration_with_type_parameter_children(node: &Node) -> bool {
     }
 }
 
-pub fn is_any_import_syntax(node: &Node) -> bool {
+pub fn is_any_import_syntax(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
     )
 }
 
-pub fn is_late_visibility_painted_statement(node: &Node) -> bool {
+pub fn is_late_visibility_painted_statement(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ImportDeclaration
@@ -1771,25 +1774,25 @@ pub fn is_late_visibility_painted_statement(node: &Node) -> bool {
     )
 }
 
-pub fn has_possible_external_module_reference(node: &Node) -> bool {
+pub fn has_possible_external_module_reference(node: Id<Node>) -> bool {
     is_any_import_or_re_export(node)
         || is_module_declaration(node)
         || is_import_type_node(node)
         || is_import_call(node)
 }
 
-pub fn is_any_import_or_re_export(node: &Node) -> bool {
+pub fn is_any_import_or_re_export(node: Id<Node>) -> bool {
     is_any_import_syntax(node) || is_export_declaration(node)
 }
 
-pub fn get_enclosing_block_scope_container(node: &Node) -> Option<Id<Node>> {
+pub fn get_enclosing_block_scope_container(node: Id<Node>) -> Option<Id<Node>> {
     find_ancestor(node.maybe_parent(), |current| {
         is_block_scope(current, current.maybe_parent())
     })
 }
 
-pub fn for_each_enclosing_block_scope_container<TCallback: FnMut(&Node)>(
-    node: &Node,
+pub fn for_each_enclosing_block_scope_container<TCallback: FnMut(Id<Node>)>(
+    node: Id<Node>,
     mut cb: TCallback,
 ) {
     let mut container = get_enclosing_block_scope_container(node);
@@ -1825,13 +1828,13 @@ pub fn get_name_from_index_info(info: &IndexInfo) -> Option<Cow<'static, str>> {
     })
 }
 
-pub fn is_computed_non_literal_name(name: &Node /*PropertyName*/) -> bool {
+pub fn is_computed_non_literal_name(name: Id<Node> /*PropertyName*/) -> bool {
     name.kind() == SyntaxKind::ComputedPropertyName
         && !is_string_or_numeric_literal_like(&name.as_computed_property_name().expression)
 }
 
 pub fn get_text_of_property_name<'name>(
-    name: &'name Node, /*PropertyName | NoSubstitutionTemplateLiteral*/
+    name: Id<Node>, /*PropertyName | NoSubstitutionTemplateLiteral*/
 ) -> Cow<'name, str> /*__String*/ {
     match name.kind() {
         SyntaxKind::Identifier => (&*name.as_identifier().escaped_text).into(),
@@ -1868,7 +1871,7 @@ pub fn get_text_of_property_name<'name>(
 }
 
 pub fn entity_name_to_string<'node>(
-    name: &'node Node, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
+    name: Id<Node>, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
 ) -> Cow<'node, str> {
     match name.kind() {
         SyntaxKind::ThisKeyword => "this".into(),

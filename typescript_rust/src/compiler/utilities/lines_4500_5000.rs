@@ -23,7 +23,7 @@ use crate::{
     ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
-pub fn get_effective_type_annotation_node(node: &Node) -> Option<Id<Node /*TypeNode*/>> {
+pub fn get_effective_type_annotation_node(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>> {
     if !is_in_js_file(Some(node)) && is_function_declaration(node) {
         return None;
     }
@@ -43,13 +43,13 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Id<Node /*TypeN
     }
 }
 
-pub fn get_type_annotation_node(node: &Node) -> Option<Id<Node /*TypeNode*/>> {
+pub fn get_type_annotation_node(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>> {
     node.maybe_as_has_type()
         .and_then(|has_type| has_type.maybe_type())
 }
 
 pub fn get_effective_return_type_node(
-    node: &Node, /*SignatureDeclaration | JSDocSignature*/
+    node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
 ) -> Option<Id<Node /*TypeNode*/>> {
     if is_jsdoc_signature(node) {
         node.as_jsdoc_signature()
@@ -69,7 +69,7 @@ pub fn get_effective_return_type_node(
 }
 
 pub fn get_jsdoc_type_parameter_declarations(
-    node: &Node, /*DeclarationWithTypeParameters*/
+    node: Id<Node>, /*DeclarationWithTypeParameters*/
 ) -> Vec<Id<Node /*TypeParameterDeclaration*/>> {
     flat_map(Some(get_jsdoc_tags(node)), |tag, _| {
         if is_non_type_alias_template(&tag) {
@@ -80,7 +80,7 @@ pub fn get_jsdoc_type_parameter_declarations(
     })
 }
 
-pub fn is_non_type_alias_template(tag: &Node /*JSDocTag*/) -> bool {
+pub fn is_non_type_alias_template(tag: Id<Node> /*JSDocTag*/) -> bool {
     is_jsdoc_template_tag(tag)
         && !(tag.parent().kind() == SyntaxKind::JSDocComment
             && tag.parent().as_jsdoc().tags.as_ref().map_or(false, |tags| {
@@ -89,7 +89,7 @@ pub fn is_non_type_alias_template(tag: &Node /*JSDocTag*/) -> bool {
 }
 
 pub fn get_effective_set_accessor_type_annotation_node(
-    node: &Node, /*SetAccessorDeclaration*/
+    node: Id<Node>, /*SetAccessorDeclaration*/
 ) -> Option<Id<Node /*TypeNode*/>> {
     let parameter = get_set_accessor_value_parameter(node);
     parameter.and_then(|parameter| get_effective_type_annotation_node(&parameter))
@@ -382,56 +382,59 @@ fn calculate_indent(text: &SourceTextAsChars, mut pos: usize, end: usize) -> usi
     current_line_indent
 }
 
-pub fn has_effective_modifiers(node: &Node) -> bool {
+pub fn has_effective_modifiers(node: Id<Node>) -> bool {
     get_effective_modifier_flags(node) != ModifierFlags::None
 }
 
-pub fn has_syntactic_modifiers(node: &Node) -> bool {
+pub fn has_syntactic_modifiers(node: Id<Node>) -> bool {
     get_syntactic_modifier_flags(node) != ModifierFlags::None
 }
 
-pub fn has_effective_modifier(node: &Node, flags: ModifierFlags) -> bool {
+pub fn has_effective_modifier(node: Id<Node>, flags: ModifierFlags) -> bool {
     get_selected_effective_modifier_flags(node, flags) != ModifierFlags::None
 }
 
-pub fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
+pub fn has_syntactic_modifier(node: Id<Node>, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
 
-pub fn is_static(node: &Node) -> bool {
+pub fn is_static(node: Id<Node>) -> bool {
     is_class_element(node) && has_static_modifier(node) || is_class_static_block_declaration(node)
 }
 
-pub fn has_static_modifier(node: &Node) -> bool {
+pub fn has_static_modifier(node: Id<Node>) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Static)
 }
 
-pub fn has_override_modifier(node: &Node) -> bool {
+pub fn has_override_modifier(node: Id<Node>) -> bool {
     has_effective_modifier(node, ModifierFlags::Override)
 }
 
-pub fn has_abstract_modifier(node: &Node) -> bool {
+pub fn has_abstract_modifier(node: Id<Node>) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Abstract)
 }
 
-pub fn has_ambient_modifier(node: &Node) -> bool {
+pub fn has_ambient_modifier(node: Id<Node>) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Ambient)
 }
 
-pub fn has_effective_readonly_modifier(node: &Node) -> bool {
+pub fn has_effective_readonly_modifier(node: Id<Node>) -> bool {
     has_effective_modifier(node, ModifierFlags::Readonly)
 }
 
-pub fn get_selected_effective_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
+pub fn get_selected_effective_modifier_flags(
+    node: Id<Node>,
+    flags: ModifierFlags,
+) -> ModifierFlags {
     get_effective_modifier_flags(node) & flags
 }
 
-fn get_selected_syntactic_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
+fn get_selected_syntactic_modifier_flags(node: Id<Node>, flags: ModifierFlags) -> ModifierFlags {
     get_syntactic_modifier_flags(node) & flags
 }
 
 fn get_modifier_flags_worker(
-    node: &Node,
+    node: Id<Node>,
     include_jsdoc: bool,
     always_include_jsdoc: Option<bool>,
 ) -> ModifierFlags {
@@ -466,19 +469,19 @@ fn get_modifier_flags_worker(
         & !(ModifierFlags::HasComputedFlags | ModifierFlags::HasComputedJSDocModifiers)
 }
 
-pub fn get_effective_modifier_flags(node: &Node) -> ModifierFlags {
+pub fn get_effective_modifier_flags(node: Id<Node>) -> ModifierFlags {
     get_modifier_flags_worker(node, true, None)
 }
 
-pub fn get_effective_modifier_flags_always_include_jsdoc(node: &Node) -> ModifierFlags {
+pub fn get_effective_modifier_flags_always_include_jsdoc(node: Id<Node>) -> ModifierFlags {
     get_modifier_flags_worker(node, true, Some(true))
 }
 
-pub fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
+pub fn get_syntactic_modifier_flags(node: Id<Node>) -> ModifierFlags {
     get_modifier_flags_worker(node, false, None)
 }
 
-fn get_jsdoc_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+fn get_jsdoc_modifier_flags_no_cache(node: Id<Node>) -> ModifierFlags {
     let mut flags = ModifierFlags::None;
     if node.maybe_parent().is_some() && !is_parameter(node) {
         if is_in_js_file(Some(node)) {
@@ -506,11 +509,11 @@ fn get_jsdoc_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
     flags
 }
 
-pub fn get_effective_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+pub fn get_effective_modifier_flags_no_cache(node: Id<Node>) -> ModifierFlags {
     get_syntactic_modifier_flags_no_cache(node) | get_jsdoc_modifier_flags_no_cache(node)
 }
 
-fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+fn get_syntactic_modifier_flags_no_cache(node: Id<Node>) -> ModifierFlags {
     let mut flags = modifiers_to_flags(node.maybe_modifiers().as_double_deref());
     if node.flags().intersects(NodeFlags::NestedNamespace)
         || node.kind() == SyntaxKind::Identifier
@@ -583,7 +586,9 @@ pub fn is_logical_or_coalescing_assignment_operator(token: SyntaxKind) -> bool {
     )
 }
 
-pub fn is_logical_or_coalescing_assignment_expression(expr: &Node, /*BinaryExpression*/) -> bool {
+pub fn is_logical_or_coalescing_assignment_expression(
+    expr: Id<Node>, /*BinaryExpression*/
+) -> bool {
     is_logical_or_coalescing_assignment_operator(expr.as_binary_expression().operator_token.kind())
 }
 
@@ -592,7 +597,7 @@ pub fn is_assignment_operator(token: SyntaxKind) -> bool {
 }
 
 pub fn try_get_class_extending_expression_with_type_arguments(
-    node: &Node,
+    node: Id<Node>,
 ) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
     let cls = try_get_class_implementing_or_extending_expression_with_type_arguments(node);
     cls.filter(|cls| !cls.is_implements).map(|cls| cls.class)
@@ -603,7 +608,7 @@ pub struct ClassImplementingOrExtendingExpressionWithTypeArguments {
     pub is_implements: bool,
 }
 pub fn try_get_class_implementing_or_extending_expression_with_type_arguments(
-    node: &Node,
+    node: Id<Node>,
 ) -> Option<ClassImplementingOrExtendingExpressionWithTypeArguments> {
     if is_expression_with_type_arguments(node)
         && is_heritage_clause(&node.parent())
@@ -619,7 +624,7 @@ pub fn try_get_class_implementing_or_extending_expression_with_type_arguments(
     }
 }
 
-pub fn is_assignment_expression(node: &Node, exclude_compound_assignment: Option<bool>) -> bool {
+pub fn is_assignment_expression(node: Id<Node>, exclude_compound_assignment: Option<bool>) -> bool {
     let exclude_compound_assignment = exclude_compound_assignment.unwrap_or(false);
     if !is_binary_expression(node) {
         return false;
@@ -632,12 +637,12 @@ pub fn is_assignment_expression(node: &Node, exclude_compound_assignment: Option
     }) && is_left_hand_side_expression(&node_as_binary_expression.left)
 }
 
-pub fn is_left_hand_side_of_assignment(node: &Node) -> bool {
+pub fn is_left_hand_side_of_assignment(node: Id<Node>) -> bool {
     is_assignment_expression(&node.parent(), None)
         && ptr::eq(&*node.parent().as_binary_expression().left, node)
 }
 
-pub fn is_destructuring_assignment(node: &Node) -> bool {
+pub fn is_destructuring_assignment(node: Id<Node>) -> bool {
     if is_assignment_expression(node, Some(true)) {
         let kind = node.as_binary_expression().left.kind();
         return matches!(
@@ -649,10 +654,10 @@ pub fn is_destructuring_assignment(node: &Node) -> bool {
     false
 }
 
-pub fn is_expression_with_type_arguments_in_class_extends_clause(node: &Node) -> bool {
+pub fn is_expression_with_type_arguments_in_class_extends_clause(node: Id<Node>) -> bool {
     try_get_class_extending_expression_with_type_arguments(node).is_some()
 }
 
-pub fn is_entity_name_expression(node: &Node) -> bool {
+pub fn is_entity_name_expression(node: Id<Node>) -> bool {
     node.kind() == SyntaxKind::Identifier || is_property_access_entity_name_expression(node)
 }

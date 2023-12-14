@@ -11,22 +11,22 @@ use crate::{
 };
 
 impl TransformTypeScript {
-    pub(super) fn is_export_of_namespace(&self, node: &Node) -> bool {
+    pub(super) fn is_export_of_namespace(&self, node: Id<Node>) -> bool {
         self.maybe_current_namespace().is_some()
             && has_syntactic_modifier(node, ModifierFlags::Export)
     }
 
-    pub(super) fn is_external_module_export(&self, node: &Node) -> bool {
+    pub(super) fn is_external_module_export(&self, node: Id<Node>) -> bool {
         self.maybe_current_namespace().is_none()
             && has_syntactic_modifier(node, ModifierFlags::Export)
     }
 
-    pub(super) fn is_named_external_module_export(&self, node: &Node) -> bool {
+    pub(super) fn is_named_external_module_export(&self, node: Id<Node>) -> bool {
         self.is_external_module_export(node)
             && !has_syntactic_modifier(node, ModifierFlags::Default)
     }
 
-    pub(super) fn is_default_external_module_export(&self, node: &Node) -> bool {
+    pub(super) fn is_default_external_module_export(&self, node: Id<Node>) -> bool {
         self.is_external_module_export(node) && has_syntactic_modifier(node, ModifierFlags::Default)
     }
 
@@ -37,7 +37,7 @@ impl TransformTypeScript {
     pub(super) fn add_export_member_assignment(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        node: &Node, /*ClassDeclaration | FunctionDeclaration*/
+        node: Id<Node>, /*ClassDeclaration | FunctionDeclaration*/
     ) {
         let expression = self
             .factory
@@ -69,8 +69,8 @@ impl TransformTypeScript {
 
     pub(super) fn create_namespace_export(
         &self,
-        export_name: &Node,  /*Identifier*/
-        export_value: &Node, /*Expression*/
+        export_name: Id<Node>,  /*Identifier*/
+        export_value: Id<Node>, /*Expression*/
         location: Option<&impl ReadonlyTextRange>,
     ) -> Id<Node> {
         self.factory
@@ -88,8 +88,8 @@ impl TransformTypeScript {
 
     pub(super) fn create_namespace_export_expression(
         &self,
-        export_name: &Node,  /*Identifier*/
-        export_value: &Node, /*Expression*/
+        export_name: Id<Node>,  /*Identifier*/
+        export_value: Id<Node>, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     ) -> Id<Node> {
         self.factory
@@ -102,7 +102,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_namespace_member_name_with_source_maps_and_without_comments(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
     ) -> Id<Node> {
         self.factory.get_namespace_member_name(
             &self.current_namespace_container_name(),
@@ -114,7 +114,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_namespace_parameter_name(
         &self,
-        node: &Node, /*ModuleDeclaration | EnumDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> Id<Node> {
         self.factory
             .get_generated_name_for_node(Some(node), None)
@@ -128,14 +128,14 @@ impl TransformTypeScript {
 
     pub(super) fn get_namespace_container_name(
         &self,
-        node: &Node, /*ModuleDeclaration | EnumDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> Id<Node> {
         self.factory.get_generated_name_for_node(Some(node), None)
     }
 
     pub(super) fn get_class_alias_if_needed(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
     ) -> Option<Id<Node>> {
         if self
             .resolver
@@ -160,7 +160,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_class_prototype(
         &self,
-        node: &Node, /*ClassExpression | ClassDeclaration*/
+        node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> Id<Node> {
         self.factory.create_property_access_expression(
             self.factory.get_declaration_name(Some(node), None, None),
@@ -170,8 +170,8 @@ impl TransformTypeScript {
 
     pub(super) fn get_class_member_prefix(
         &self,
-        node: &Node,   /*ClassExpression | ClassDeclaration*/
-        member: &Node, /*ClassElement*/
+        node: Id<Node>,   /*ClassExpression | ClassDeclaration*/
+        member: Id<Node>, /*ClassElement*/
     ) -> Id<Node> {
         if is_static(member) {
             self.factory.get_declaration_name(Some(node), None, None)
@@ -225,7 +225,7 @@ impl TransformTypeScript {
         }
     }
 
-    pub(super) fn should_emit_alias_declaration(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn should_emit_alias_declaration(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(
             if self.compiler_options.preserve_value_imports == Some(true) {
                 self.resolver.is_value_alias_declaration(node)?

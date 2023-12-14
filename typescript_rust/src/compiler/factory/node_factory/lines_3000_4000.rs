@@ -55,7 +55,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_expression_with_type_arguments(
         &self,
-        node: &Node,          /*ExpressionWithTypeArguments*/
+        node: Id<Node>,       /*ExpressionWithTypeArguments*/
         expression: Id<Node>, /*Expression*/
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> Id<Node> {
@@ -97,7 +97,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_as_expression(
         &self,
-        node: &Node,          /*AsExpression*/
+        node: Id<Node>,       /*AsExpression*/
         expression: Id<Node>, /*Expression*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
@@ -130,7 +130,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_non_null_expression(
         &self,
-        node: &Node,          /*NonNullExpression*/
+        node: Id<Node>,       /*NonNullExpression*/
         expression: Id<Node>, /*Expression*/
     ) -> Id<Node> {
         let node_as_non_null_expression = node.as_non_null_expression();
@@ -164,7 +164,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_non_null_chain(
         &self,
-        node: &Node,          /*NonNullChain*/
+        node: Id<Node>,       /*NonNullChain*/
         expression: Id<Node>, /*Expression*/
     ) -> Id<Node> {
         let node_as_non_null_expression = node.as_non_null_expression();
@@ -204,7 +204,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_meta_property(
         &self,
-        node: &Node,    /*MetaProperty*/
+        node: Id<Node>, /*MetaProperty*/
         name: Id<Node>, /*Identifier*/
     ) -> Id<Node> {
         let node_as_meta_property = node.as_meta_property();
@@ -236,7 +236,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_template_span(
         &self,
-        node: &Node, /*TemplateSpan*/
+        node: Id<Node>, /*TemplateSpan*/
         expression: Id<Node /*Expression*/>,
         literal: Id<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> Id<Node> {
@@ -276,7 +276,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_block(
         &self,
-        node: &Node,                           /*Block*/
+        node: Id<Node>,                        /*Block*/
         statements: impl Into<NodeArrayOrVec>, /*Statement*/
     ) -> Id<Node> {
         let node_as_block = node.as_block();
@@ -325,7 +325,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_variable_statement(
         &self,
-        node: &Node, /*VariableStatement*/
+        node: Id<Node>, /*VariableStatement*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         declaration_list: Id<Node /*VariableDeclarationList*/>,
     ) -> Id<Node> {
@@ -369,7 +369,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_expression_statement(
         &self,
-        node: &Node, /*ExpressionStatement*/
+        node: Id<Node>, /*ExpressionStatement*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_expression_statement = node.as_expression_statement();
@@ -404,7 +404,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_if_statement(
         &self,
-        node: &Node, /*IfStatement*/
+        node: Id<Node>, /*IfStatement*/
         expression: Id<Node /*Expression*/>,
         then_statement: Id<Node /*Statement*/>,
         else_statement: Option<Id<Node /*Statement*/>>,
@@ -447,7 +447,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_do_statement(
         &self,
-        node: &Node, /*DoStatement*/
+        node: Id<Node>, /*DoStatement*/
         statement: Id<Node /*Statement*/>,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
@@ -482,7 +482,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_while_statement(
         &self,
-        node: &Node, /*WhileStatement*/
+        node: Id<Node>, /*WhileStatement*/
         expression: Id<Node /*Expression*/>,
         statement: Id<Node /*Statement*/>,
     ) -> Id<Node> {
@@ -523,7 +523,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_for_statement(
         &self,
-        node: &Node, /*ForStatement*/
+        node: Id<Node>, /*ForStatement*/
         initializer: Option<Id<Node /*ForInitializer*/>>,
         condition: Option<Id<Node /*Expression*/>>,
         incrementor: Option<Id<Node /*Expression*/>>,
@@ -573,7 +573,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_for_in_statement(
         &self,
-        node: &Node, /*ForInStatement*/
+        node: Id<Node>, /*ForInStatement*/
         initializer: Id<Node /*ForInitializer*/>,
         expression: Id<Node /*Expression*/>,
         statement: Id<Node /*Statement*/>,
@@ -625,7 +625,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_for_of_statement(
         &self,
-        node: &Node, /*ForOfStatement*/
+        node: Id<Node>, /*ForOfStatement*/
         await_modifier: Option<Id<Node /*AwaitKeyword*/>>,
         initializer: Id<Node /*ForInitializer*/>,
         expression: Id<Node /*Expression*/>,
@@ -664,7 +664,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_continue_statement(
         &self,
-        node: &Node, /*ContinueStatement*/
+        node: Id<Node>, /*ContinueStatement*/
         label: Option<Id<Node /*Identifier*/>>,
     ) -> Id<Node> {
         let node_as_continue_statement = node.as_continue_statement();
@@ -691,7 +691,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_break_statement(
         &self,
-        node: &Node, /*BreakStatement*/
+        node: Id<Node>, /*BreakStatement*/
         label: Option<Id<Node /*Identifier*/>>,
     ) -> Id<Node> {
         let node_as_break_statement = node.as_break_statement();
@@ -719,7 +719,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_return_statement(
         &self,
-        node: &Node, /*ReturnStatement*/
+        node: Id<Node>, /*ReturnStatement*/
         expression: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
         let node_as_return_statement = node.as_return_statement();
@@ -754,7 +754,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_with_statement(
         &self,
-        node: &Node, /*WithStatement*/
+        node: Id<Node>, /*WithStatement*/
         expression: Id<Node /*Expression*/>,
         statement: Id<Node /*Statement*/>,
     ) -> Id<Node> {
@@ -790,7 +790,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_switch_statement(
         &self,
-        node: &Node, /*SwitchStatement*/
+        node: Id<Node>, /*SwitchStatement*/
         expression: Id<Node /*Expression*/>,
         case_block: Id<Node /*CaseBlock*/>,
     ) -> Id<Node> {
@@ -825,7 +825,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_labeled_statement(
         &self,
-        node: &Node, /*LabeledStatement*/
+        node: Id<Node>, /*LabeledStatement*/
         label: Id<Node /*Identifier*/>,
         statement: Id<Node /*Statement*/>,
     ) -> Id<Node> {
@@ -852,7 +852,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_throw_statement(
         &self,
-        node: &Node, /*ThrowStatement*/
+        node: Id<Node>, /*ThrowStatement*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         let node_as_throw_statement = node.as_throw_statement();
@@ -882,7 +882,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_try_statement(
         &self,
-        node: &Node, /*TryStatement*/
+        node: Id<Node>, /*TryStatement*/
         try_block: Id<Node /*Block*/>,
         catch_clause: Option<Id<Node /*CatchClause*/>>,
         finally_block: Option<Id<Node /*Block*/>>,
@@ -943,7 +943,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_variable_declaration(
         &self,
-        node: &Node, /*VariableDeclaration*/
+        node: Id<Node>, /*VariableDeclaration*/
         name: Option<Id<Node /*BindingName*/>>,
         exclamation_token: Option<Id<Node /*ExclamationToken*/>>,
         type_: Option<Id<Node /*TypeNode*/>>,
@@ -997,7 +997,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_variable_declaration_list(
         &self,
-        node: &Node, /*VariableDeclarationList*/
+        node: Id<Node>, /*VariableDeclarationList*/
         declarations: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
         let node_as_variable_declaration_list = node.as_variable_declaration_list();
@@ -1075,7 +1075,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
@@ -1181,7 +1181,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_class_declaration(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<Id<Node>>,
@@ -1260,7 +1260,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_interface_declaration<'name>(
         &self,
-        node: &Node, /*InterfaceDeclaration*/
+        node: Id<Node>, /*InterfaceDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node>,
@@ -1330,7 +1330,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_alias_declaration(
         &self,
-        node: &Node, /*TypeAliasDeclaration*/
+        node: Id<Node>, /*TypeAliasDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node>,
@@ -1396,7 +1396,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_enum_declaration(
         &self,
-        node: &Node, /*EnumDeclaration*/
+        node: Id<Node>, /*EnumDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node>,
@@ -1462,7 +1462,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_module_declaration(
         &self,
-        node: &Node, /*ModuleDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node /*ModuleName*/>,
@@ -1504,7 +1504,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_module_block(
         &self,
-        node: &Node, /*ModuleBlock*/
+        node: Id<Node>, /*ModuleBlock*/
         statements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
         let node_as_module_block = node.as_module_block();
@@ -1529,7 +1529,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_case_block(
         &self,
-        node: &Node,                        /*CaseBlock*/
+        node: Id<Node>,                     /*CaseBlock*/
         clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
     ) -> Id<Node> {
         let node_as_case_block = node.as_case_block();
@@ -1559,7 +1559,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_namespace_export_declaration(
         &self,
-        _node: &Node, /*NamespaceExportDeclaration*/
+        _node: Id<Node>, /*NamespaceExportDeclaration*/
         _name: Id<Node /*Identifier*/>,
     ) -> Id<Node> {
         unimplemented!()
@@ -1593,7 +1593,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_import_equals_declaration(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
@@ -1647,7 +1647,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_import_declaration(
         &self,
-        node: &Node, /*ImportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         import_clause: Option<Id<Node /*ImportClause*/>>,
@@ -1711,7 +1711,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_import_clause(
         &self,
-        node: &Node, /*ImportClause*/
+        node: Id<Node>, /*ImportClause*/
         is_type_only: bool,
         name: Option<Id<Node /*Identifier*/>>,
         named_bindings: Option<Id<Node /*NamedImportBindings*/>>,

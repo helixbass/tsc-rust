@@ -21,7 +21,7 @@ use crate::{
 };
 
 impl BinderType {
-    pub(super) fn bind_worker(&self, node: &Node) {
+    pub(super) fn bind_worker(&self, node: Id<Node>) {
         match node.kind() {
             SyntaxKind::Identifier => {
                 if matches!(
@@ -422,7 +422,7 @@ impl BinderType {
 
     pub(super) fn bind_property_worker(
         &self,
-        node: &Node, /*PropertyDeclaration | PropertySignature*/
+        node: Id<Node>, /*PropertyDeclaration | PropertySignature*/
     ) -> Option<Id<Symbol>> {
         self.bind_property_or_method_or_accessor(
             node,
@@ -442,7 +442,7 @@ impl BinderType {
 
     pub(super) fn bind_anonymous_type_worker(
         &self,
-        node: &Node, /*TypeLiteralNode | MappedTypeNode | JSDocTypeLiteral*/
+        node: Id<Node>, /*TypeLiteralNode | MappedTypeNode | JSDocTypeLiteral*/
     ) -> Id<Symbol> {
         self.bind_anonymous_declaration(
             node,
@@ -483,7 +483,7 @@ impl BinderType {
         );
     }
 
-    pub(super) fn bind_export_assignment(&self, node: &Node /*ExportAssignment*/) {
+    pub(super) fn bind_export_assignment(&self, node: Id<Node> /*ExportAssignment*/) {
         if !matches!(self.container().maybe_symbol(), Some(symbol) if symbol.ref_(self).maybe_exports().is_some())
         {
             self.bind_anonymous_declaration(
@@ -515,7 +515,7 @@ impl BinderType {
 
     pub(super) fn bind_namespace_export_declaration(
         &self,
-        node: &Node, /*NamespaceExportDeclaration*/
+        node: Id<Node>, /*NamespaceExportDeclaration*/
     ) {
         if matches!(node.maybe_modifiers().as_ref(), Some(modifiers) if !modifiers.is_empty()) {
             self.file()
@@ -568,7 +568,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_export_declaration(&self, node: &Node /*ExportDeclaration*/) {
+    pub(super) fn bind_export_declaration(&self, node: Id<Node> /*ExportDeclaration*/) {
         let node_as_export_declaration = node.as_export_declaration();
         if !matches!(self.container().maybe_symbol(), Some(symbol) if symbol.ref_(self).maybe_exports().is_some())
         {
@@ -600,7 +600,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_import_clause(&self, node: &Node /*ImportClause*/) {
+    pub(super) fn bind_import_clause(&self, node: Id<Node> /*ImportClause*/) {
         if node.as_import_clause().name.is_some() {
             self.declare_symbol_and_add_to_symbol_table(
                 node,
@@ -610,7 +610,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn set_common_js_module_indicator(&self, node: &Node) -> bool {
+    pub(super) fn set_common_js_module_indicator(&self, node: Id<Node>) -> bool {
         let file = self.file();
         let file_as_source_file = file.as_source_file();
         if file_as_source_file
@@ -630,7 +630,7 @@ impl BinderType {
 
     pub(super) fn bind_object_define_property_export(
         &self,
-        node: &Node, /*BindableObjectDefinePropertyCall*/
+        node: Id<Node>, /*BindableObjectDefinePropertyCall*/
     ) {
         if !self.set_common_js_module_indicator(node) {
             return;
@@ -665,7 +665,7 @@ impl BinderType {
 
     pub(super) fn bind_exports_property_assignment(
         &self,
-        node: &Node, /*BindableStaticPropertyAssignmentExpression*/
+        node: Id<Node>, /*BindableStaticPropertyAssignmentExpression*/
     ) {
         if !self.set_common_js_module_indicator(node) {
             return;
@@ -721,7 +721,7 @@ impl BinderType {
 
     pub(super) fn bind_module_exports_assignment(
         &self,
-        node: &Node, /*BindablePropertyAssignmentExpression*/
+        node: Id<Node>, /*BindablePropertyAssignmentExpression*/
     ) {
         if !self.set_common_js_module_indicator(node) {
             return;
@@ -773,7 +773,7 @@ impl BinderType {
 
     pub(super) fn bind_export_assigned_object_member_alias(
         &self,
-        node: &Node, /*ShorthandPropertyAssignment*/
+        node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) {
         self.declare_symbol(
             &mut self.file().symbol().ref_(self).exports().borrow_mut(),
@@ -788,7 +788,7 @@ impl BinderType {
 
     pub(super) fn bind_this_property_assignment(
         &self,
-        node: &Node, /*BindablePropertyAssignmentExpression | PropertyAccessExpression | LiteralLikeElementAccessExpression*/
+        node: Id<Node>, /*BindablePropertyAssignmentExpression | PropertyAccessExpression | LiteralLikeElementAccessExpression*/
     ) {
         Debug_.assert(is_in_js_file(Some(node)), None);
         let has_private_identifier = is_binary_expression(node) && {
@@ -943,7 +943,7 @@ impl BinderType {
 
     pub(super) fn bind_dynamically_named_this_property_assignment(
         &self,
-        node: &Node, /*BinaryExpression | DynamicNamedDeclaration*/
+        node: Id<Node>, /*BinaryExpression | DynamicNamedDeclaration*/
         symbol: Id<Symbol>,
         symbol_table: &mut SymbolTable,
     ) {
@@ -961,7 +961,7 @@ impl BinderType {
 
     pub(super) fn add_late_bound_assignment_declaration_to_symbol(
         &self,
-        node: &Node, /*BinaryExpression | DynamicNamedDeclaration*/
+        node: Id<Node>, /*BinaryExpression | DynamicNamedDeclaration*/
         symbol: Option<Id<Symbol>>,
     ) {
         if let Some(symbol) = symbol {
@@ -980,7 +980,7 @@ impl BinderType {
 
     pub(super) fn bind_special_property_declaration(
         &self,
-        node: &Node, /*PropertyAccessExpression | LiteralLikeElementAccessExpression*/
+        node: Id<Node>, /*PropertyAccessExpression | LiteralLikeElementAccessExpression*/
     ) {
         let node_as_has_expression = node.as_has_expression();
         if node_as_has_expression.expression().kind() == SyntaxKind::ThisKeyword {

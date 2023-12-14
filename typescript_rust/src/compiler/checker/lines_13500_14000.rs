@@ -18,7 +18,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_type_from_jsdoc_nullable_type_node(
         &self,
-        node: &Node, /*JSDocNullableType*/
+        node: Id<Node>, /*JSDocNullableType*/
     ) -> io::Result<Id<Type>> {
         let type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
@@ -31,7 +31,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_type_reference(
         &self,
-        node: &Node, /*TypeReferenceNode*/
+        node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -79,7 +79,7 @@ impl TypeChecker {
 
     pub(super) fn type_arguments_from_type_reference_node(
         &self,
-        node: &Node, /*NodeWithTypeArguments*/
+        node: Id<Node>, /*NodeWithTypeArguments*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         try_maybe_map(
             node.as_has_type_arguments().maybe_type_arguments().as_ref(),
@@ -90,7 +90,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_type_query_node(
         &self,
-        node: &Node, /*TypeQueryNode*/
+        node: Id<Node>, /*TypeQueryNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -265,7 +265,7 @@ impl TypeChecker {
         diagnostic: Option<&DiagnosticMessage>,
     ) -> io::Result<Option<Id<Symbol>>> {
         self.resolve_name_(
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
             name,
             meaning,
             diagnostic,
@@ -763,7 +763,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_tuple_element_flags(&self, node: &Node /*TypeNode*/) -> ElementFlags {
+    pub(super) fn get_tuple_element_flags(&self, node: Id<Node> /*TypeNode*/) -> ElementFlags {
         match node.kind() {
             SyntaxKind::OptionalType => ElementFlags::Optional,
             SyntaxKind::RestType => self.get_rest_type_element_flags(node),
@@ -783,7 +783,7 @@ impl TypeChecker {
 
     pub(super) fn get_rest_type_element_flags(
         &self,
-        node: &Node, /*RestTypeNode | NamedTupleMember*/
+        node: Id<Node>, /*RestTypeNode | NamedTupleMember*/
     ) -> ElementFlags {
         if self
             .get_array_element_type_node(&node.as_has_type().maybe_type().unwrap())
@@ -797,7 +797,7 @@ impl TypeChecker {
 
     pub(super) fn get_array_or_tuple_target_type(
         &self,
-        node: &Node, /*ArrayTypeNode | TupleTypeNode*/
+        node: Id<Node>, /*ArrayTypeNode | TupleTypeNode*/
     ) -> io::Result<Id<Type /*GenericType*/>> {
         let readonly = self.is_readonly_type_operator(&node.parent());
         let element_type = self.get_array_element_type_node(node);
@@ -830,7 +830,7 @@ impl TypeChecker {
 
     pub(super) fn is_deferred_type_reference_node(
         &self,
-        node: &Node, /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
+        node: Id<Node>, /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         has_default_type_arguments: Option<bool>,
     ) -> io::Result<bool> {
         Ok(self.get_alias_symbol_for_type_node(node)?.is_some()
@@ -855,7 +855,7 @@ impl TypeChecker {
                 })
     }
 
-    pub(super) fn is_resolved_by_type_alias(&self, node: &Node) -> bool {
+    pub(super) fn is_resolved_by_type_alias(&self, node: Id<Node>) -> bool {
         let parent = node.parent();
         match parent.kind() {
             SyntaxKind::ParenthesizedType
@@ -873,7 +873,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn may_resolve_type_alias(&self, node: &Node) -> io::Result<bool> {
+    pub(super) fn may_resolve_type_alias(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(match node.kind() {
             SyntaxKind::TypeReference => {
                 self.is_jsdoc_type_reference(node)
@@ -930,7 +930,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_array_or_tuple_type_node(
         &self,
-        node: &Node, /*ArrayTypeNode*/
+        node: Id<Node>, /*ArrayTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
@@ -979,7 +979,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn is_readonly_type_operator(&self, node: &Node) -> bool {
+    pub(super) fn is_readonly_type_operator(&self, node: Id<Node>) -> bool {
         is_type_operator_node(node)
             && node.as_type_operator_node().operator == SyntaxKind::ReadonlyKeyword
     }

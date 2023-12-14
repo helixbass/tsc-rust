@@ -1018,7 +1018,7 @@ pub(crate) fn format_color_and_reset(text: &str, format_style: &str) -> String {
 }
 
 fn format_code_span(
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
     start: isize,
     length: isize,
     indent: &str,
@@ -1130,7 +1130,7 @@ fn format_code_span(
 }
 
 pub fn format_location(
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
     start: isize,
     host: &impl FormatDiagnosticsHost,
     color: Option<impl Fn(&str, &str) -> String>,

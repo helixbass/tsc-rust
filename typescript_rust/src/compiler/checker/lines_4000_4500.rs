@@ -109,7 +109,7 @@ impl TypeChecker {
 
     pub(super) fn find_constructor_declaration(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> Option<Id<Node /*ConstructorDeclaration*/>> {
         let members = node.as_class_like_declaration().members();
         for member in &members {
@@ -368,12 +368,12 @@ impl TypeChecker {
             Gc<GcCell<SymbolTable>>,
             Option<bool>,
             Option<bool>,
-            Option<&Node>,
+            Option<Id<Node>>,
         ) -> Option<TReturn>,
     ) -> Option<TReturn> {
         self.try_for_each_symbol_table_in_scope(
             enclosing_declaration,
-            |a: Gc<GcCell<SymbolTable>>, b: Option<bool>, c: Option<bool>, d: Option<&Node>| {
+            |a: Gc<GcCell<SymbolTable>>, b: Option<bool>, c: Option<bool>, d: Option<Id<Node>>| {
                 Ok(callback(a, b, c, d))
             },
         )
@@ -387,7 +387,7 @@ impl TypeChecker {
             Gc<GcCell<SymbolTable>>,
             Option<bool>,
             Option<bool>,
-            Option<&Node>,
+            Option<Id<Node>>,
         ) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         let mut result: Option<TReturn>;
@@ -567,7 +567,7 @@ impl TypeChecker {
         visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
         meaning: SymbolFlags,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<&Node>,
+        enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         symbols: Gc<GcCell<SymbolTable>>,
@@ -595,7 +595,7 @@ impl TypeChecker {
 
     pub(super) fn can_qualify_symbol(
         &self,
-        enclosing_declaration: Option<&Node>,
+        enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         symbol_from_symbol_table: Id<Symbol>,
@@ -619,7 +619,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<&Node>,
+        enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         symbol_from_symbol_table: Option<Id<Symbol>>,
@@ -659,7 +659,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<&Node>,
+        enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
@@ -789,7 +789,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<&Node>,
+        enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
@@ -1142,7 +1142,7 @@ impl TypeChecker {
                             )?),
                             error_module_name: Some(self.symbol_to_string_(
                                 symbol_external_module,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,
@@ -1183,7 +1183,7 @@ impl TypeChecker {
 
     pub(super) fn get_external_module_container(
         &self,
-        declaration: &Node,
+        declaration: Id<Node>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let node = find_ancestor(Some(declaration), |node| {
             self.has_external_module_symbol(node)
@@ -1191,7 +1191,7 @@ impl TypeChecker {
         node.try_and_then(|node| self.get_symbol_of_node(&node))
     }
 
-    pub(super) fn has_external_module_symbol(&self, declaration: &Node) -> bool {
+    pub(super) fn has_external_module_symbol(&self, declaration: Id<Node>) -> bool {
         is_ambient_module(declaration)
             || declaration.kind() == SyntaxKind::SourceFile
                 && is_external_or_common_js_module(declaration)

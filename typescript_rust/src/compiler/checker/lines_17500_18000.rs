@@ -40,8 +40,18 @@ impl TypeChecker {
                 (error_reporter.as_mut().unwrap())(
                     Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
                     Some(vec![
-                        self.type_predicate_to_string_(source, Option::<&Node>::None, None, None)?,
-                        self.type_predicate_to_string_(target, Option::<&Node>::None, None, None)?,
+                        self.type_predicate_to_string_(
+                            source,
+                            Option::<Id<Node>>::None,
+                            None,
+                            None,
+                        )?,
+                        self.type_predicate_to_string_(
+                            target,
+                            Option::<Id<Node>>::None,
+                            None,
+                            None,
+                        )?,
                     ]),
                 )?;
             }
@@ -68,13 +78,13 @@ impl TypeChecker {
                         Some(vec![
                             self.type_predicate_to_string_(
                                 source,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?,
                             self.type_predicate_to_string_(
                                 target,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?,
@@ -100,8 +110,8 @@ impl TypeChecker {
             (error_reporter.as_mut().unwrap())(
                 Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
                 Some(vec![
-                    self.type_predicate_to_string_(source, Option::<&Node>::None, None, None)?,
-                    self.type_predicate_to_string_(target, Option::<&Node>::None, None, None)?,
+                    self.type_predicate_to_string_(source, Option::<Id<Node>>::None, None, None)?,
+                    self.type_predicate_to_string_(target, Option::<Id<Node>>::None, None, None)?,
                 ]),
             )?;
         }
@@ -280,7 +290,7 @@ impl TypeChecker {
                                 symbol_name(&property.ref_(self)).into_owned(),
                                 self.type_to_string_(
                                     self.get_declared_type_of_symbol(target_symbol)?,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     Some(TypeFormatFlags::UseFullyQualifiedType),
                                     None,
                                 )?,
@@ -498,7 +508,7 @@ impl TypeChecker {
                 source,
                 target,
                 relation,
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 None,
                 None,
                 None,

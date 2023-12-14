@@ -24,7 +24,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_contextual_type_for_assignment_declaration(
         &self,
-        binary_expression: &Node, /*BinaryExpression*/
+        binary_expression: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let kind = get_assignment_declaration_kind(binary_expression);
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
@@ -85,7 +85,7 @@ impl TypeChecker {
                         .maybe_value_declaration());
                     let lhs = cast(
                         Some(&*binary_expression_as_binary_expression.left),
-                        |node: &&Node| is_access_expression(node),
+                        |node: &Id<Node>| is_access_expression(node),
                     );
                     let overall_annotation = get_effective_type_annotation_node(&decl);
                     if let Some(overall_annotation) = overall_annotation.as_ref() {
@@ -185,7 +185,7 @@ impl TypeChecker {
 
     pub(super) fn is_possibly_aliased_this_property(
         &self,
-        declaration: &Node, /*BinaryExpression*/
+        declaration: Id<Node>, /*BinaryExpression*/
         kind: Option<AssignmentDeclarationKind>,
     ) -> io::Result<bool> {
         let kind = kind.unwrap_or_else(|| get_assignment_declaration_kind(declaration));
@@ -227,7 +227,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_this_property_assignment(
         &self,
-        binary_expression: &Node, /*BinaryExpression*/
+        binary_expression: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let binary_expression_symbol = binary_expression.maybe_symbol();
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
@@ -251,7 +251,7 @@ impl TypeChecker {
         }
         let this_access = cast(
             Some(&*binary_expression_as_binary_expression.left),
-            |node: &&Node| is_access_expression(node),
+            |node: &Id<Node>| is_access_expression(node),
         );
         if !is_object_literal_method(&get_this_container(
             &this_access.as_has_expression().expression(),
@@ -330,7 +330,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_object_literal_method(
         &self,
-        node: &Node, /*MethodDeclaration*/
+        node: Id<Node>, /*MethodDeclaration*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         Debug_.assert(is_object_literal_method(node), None);
@@ -342,7 +342,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_object_literal_element_(
         &self,
-        element: &Node, /*ObjectLiteralElementLike*/
+        element: Id<Node>, /*ObjectLiteralElementLike*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         let object_literal = element.parent();
@@ -400,7 +400,7 @@ impl TypeChecker {
                             IterationUse::Element,
                             t,
                             self.undefined_type(),
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             false,
                         )
                     },
@@ -411,7 +411,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_conditional_operand(
         &self,
-        node: &Node, /*Expression*/
+        node: Id<Node>, /*Expression*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         let conditional = node.parent();
@@ -429,8 +429,8 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_child_jsx_expression(
         &self,
-        node: &Node,  /*JsxElement*/
-        child: &Node, /*JsxChild*/
+        node: Id<Node>,  /*JsxElement*/
+        child: Id<Node>, /*JsxChild*/
     ) -> io::Result<Option<Id<Type>>> {
         let node_as_jsx_element = node.as_jsx_element();
         let attributes_type = self.get_apparent_type_of_contextual_type(
@@ -474,7 +474,7 @@ impl TypeChecker {
                                 t,
                                 self.get_number_literal_type(Number::new(child_index as f64)),
                                 None,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 Option::<Id<Symbol>>::None,
                                 None,
                             )?)
@@ -490,7 +490,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_jsx_expression(
         &self,
-        node: &Node, /*JsxExpression*/
+        node: Id<Node>, /*JsxExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let expr_parent = node.parent();
         Ok(if is_jsx_attribute_like(&expr_parent) {
@@ -504,7 +504,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_jsx_attribute_(
         &self,
-        attribute: &Node, /*JsxAttribute | JsxSpreadAttribute*/
+        attribute: Id<Node>, /*JsxAttribute | JsxSpreadAttribute*/
     ) -> io::Result<Option<Id<Type>>> {
         Ok(if is_jsx_attribute(attribute) {
             let attributes_type = return_ok_default_if_none!(
@@ -526,7 +526,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_possibly_discriminant_value(&self, node: &Node /*Expression*/) -> bool {
+    pub(super) fn is_possibly_discriminant_value(&self, node: Id<Node> /*Expression*/) -> bool {
         match node.kind() {
             SyntaxKind::StringLiteral
             | SyntaxKind::NumericLiteral
@@ -550,7 +550,7 @@ impl TypeChecker {
 
     pub(super) fn discriminate_contextual_type_by_object_members(
         &self,
-        node: &Node,               /*ObjectLiteralExpression*/
+        node: Id<Node>,               /*ObjectLiteralExpression*/
         contextual_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Id<Type>> {
         self.get_matching_union_constituent_for_object_literal(
@@ -762,7 +762,7 @@ impl TypeChecker {
     pub(super) fn instantiate_contextual_type(
         &self,
         contextual_type: Option<Id<Type>>,
-        node: &Node,
+        node: Id<Node>,
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         if let Some(contextual_type) = contextual_type.filter(|&contextual_type| {
@@ -962,7 +962,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_inference_context(&self, node: &Node) -> Option<Gc<InferenceContext>> {
-        let ancestor = find_ancestor(Some(node), |n: &Node| n.maybe_inference_context().is_some());
+        let ancestor = find_ancestor(Some(node), |n: Id<Node>| n.maybe_inference_context().is_some());
         ancestor.map(|ancestor| ancestor.maybe_inference_context().clone().unwrap())
     }
 

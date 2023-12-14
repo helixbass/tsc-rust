@@ -414,7 +414,7 @@ impl TypeChecker {
     pub(super) fn create_deferred_type_reference(
         &self,
         target: Id<Type>, /*GenericType*/
-        node: &Node,      /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
+        node: Id<Node>,   /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         mapper: Option<Id<TypeMapper>>,
         mut alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
@@ -577,7 +577,7 @@ impl TypeChecker {
                     {
                         Some(vec![self.symbol_to_string_(
                             type_target_symbol,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                             None,
@@ -610,7 +610,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_class_or_interface_reference(
         &self,
-        node: &Node, /*NodeWithTypeArguments*/
+        node: Id<Node>, /*NodeWithTypeArguments*/
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let type_ =
@@ -652,7 +652,7 @@ impl TypeChecker {
 
                 let type_str = self.type_to_string_(
                     type_,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     Some(TypeFormatFlags::WriteArrayAsGenericType),
                     None,
                 )?;
@@ -769,7 +769,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_type_alias_reference(
         &self,
-        node: &Node, /*NodeWithTypeArguments*/
+        node: Id<Node>, /*NodeWithTypeArguments*/
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Unresolved) {
@@ -813,7 +813,7 @@ impl TypeChecker {
                         &Diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments
                     },
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?,
+                        self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?,
                         min_type_argument_count.to_string(),
                         type_parameters.len().to_string(),
                     ]),
@@ -856,7 +856,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_reference_name(
         &self,
-        node: &Node, /*TypeReferenceType*/
+        node: Id<Node>, /*TypeReferenceType*/
     ) -> Option<Id<Node /*EntityNameOrEntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::TypeReference => {
@@ -886,7 +886,7 @@ impl TypeChecker {
 
     pub(super) fn get_unresolved_symbol_for_entity_name(
         &self,
-        name: &Node, /*EntityNameOrEntityNameExpression*/
+        name: Id<Node>, /*EntityNameOrEntityNameExpression*/
     ) -> Id<Symbol /*TransientSymbol*/> {
         let identifier = if name.kind() == SyntaxKind::QualifiedName {
             name.as_qualified_name().right.clone()
@@ -940,7 +940,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_type_reference_name(
         &self,
-        type_reference: &Node, /*TypeReferenceType*/
+        type_reference: Id<Node>, /*TypeReferenceType*/
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
     ) -> io::Result<Id<Symbol>> {
@@ -957,7 +957,7 @@ impl TypeChecker {
             meaning,
             Some(ignore_errors),
             None,
-            Option::<&Node>::None,
+            Option::<Id<Node>>::None,
         )?;
         Ok(
             if symbol.is_some() && symbol.unwrap() != self.unknown_symbol() {
@@ -972,7 +972,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_reference_type(
         &self,
-        node: &Node,
+        node: Id<Node>,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         if symbol == self.unknown_symbol() {
@@ -1013,7 +1013,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_jsdoc_value_reference(
         &self,
-        node: &Node, /*NodeWithTypeArguments*/
+        node: Id<Node>, /*NodeWithTypeArguments*/
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
         let links = self.get_node_links(node);
@@ -1068,15 +1068,15 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn is_unary_tuple_type_node(&self, node: &Node /*TypeNode*/) -> bool {
+    pub(super) fn is_unary_tuple_type_node(&self, node: Id<Node> /*TypeNode*/) -> bool {
         node.kind() == SyntaxKind::TupleType && node.as_tuple_type_node().elements.len() == 1
     }
 
     pub(super) fn get_implied_constraint(
         &self,
         type_: Id<Type>,
-        check_node: &Node,   /*TypeNode*/
-        extends_node: &Node, /*TypeNode*/
+        check_node: Id<Node>,   /*TypeNode*/
+        extends_node: Id<Node>, /*TypeNode*/
     ) -> io::Result<Option<Id<Type>>> {
         Ok(
             if self.is_unary_tuple_type_node(check_node)
@@ -1100,7 +1100,7 @@ impl TypeChecker {
     pub(super) fn get_conditional_flow_type_of_type(
         &self,
         type_: Id<Type>,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<Id<Type>> {
         let mut constraints: Option<Vec<Id<Type>>> = None;
         let mut covariant = true;
@@ -1142,7 +1142,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_jsdoc_type_reference(&self, node: &Node) -> bool {
+    pub(super) fn is_jsdoc_type_reference(&self, node: Id<Node>) -> bool {
         node.flags().intersects(NodeFlags::JSDoc)
             && matches!(
                 node.kind(),
@@ -1152,7 +1152,7 @@ impl TypeChecker {
 
     pub(super) fn check_no_type_arguments(
         &self,
-        node: &Node, /*NodeWithTypeArguments*/
+        node: Id<Node>, /*NodeWithTypeArguments*/
         symbol: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
         if node
@@ -1164,7 +1164,7 @@ impl TypeChecker {
                 Some(node),
                 &Diagnostics::Type_0_is_not_generic,
                 Some(vec![if let Some(symbol) = symbol {
-                    self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
+                    self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?
                 } else if node.kind() == SyntaxKind::TypeReference
                 /*&& node.as_type_reference_node().type_name.is_some()*/
                 {
@@ -1181,7 +1181,7 @@ impl TypeChecker {
 
     pub(super) fn get_intended_type_from_jsdoc_type_reference(
         &self,
-        node: &Node, /*TypeReferenceNode*/
+        node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Option<Id<Type>>> {
         let node_as_type_reference_node = node.as_type_reference_node();
         if is_identifier(&node_as_type_reference_node.type_name) {

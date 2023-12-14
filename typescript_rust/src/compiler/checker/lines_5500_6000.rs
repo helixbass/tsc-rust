@@ -717,7 +717,7 @@ impl NodeBuilder {
     pub(super) fn clone_binding_name(
         &self,
         context: &NodeBuilderContext,
-        node: &Node, /*BindingName*/
+        node: Id<Node>, /*BindingName*/
     ) -> io::Result<Id<Node /*BIndingName*/>> {
         self.elide_initializer_and_set_emit_flags(context, node)
     }
@@ -725,7 +725,7 @@ impl NodeBuilder {
     pub(super) fn elide_initializer_and_set_emit_flags(
         &self,
         context: &NodeBuilderContext,
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<Id<Node>> {
         if context.tracker().is_track_symbol_supported()
             && is_computed_property_name(node)
@@ -739,7 +739,7 @@ impl NodeBuilder {
         }
         let mut visited = try_visit_each_child(
             node,
-            |node: &Node| -> io::Result<_> {
+            |node: Id<Node>| -> io::Result<_> {
                 Ok(Some(
                     self.elide_initializer_and_set_emit_flags(context, node)?
                         .into(),
@@ -768,7 +768,7 @@ impl NodeBuilder {
 
     pub(super) fn track_computed_name(
         &self,
-        access_expression: &Node, /*EntityNameOrEntityNameExpression*/
+        access_expression: Id<Node>, /*EntityNameOrEntityNameExpression*/
         enclosing_declaration: Option<impl Borrow<Node>>,
         context: &NodeBuilderContext,
     ) -> io::Result<()> {
@@ -1125,7 +1125,7 @@ impl NodeBuilder {
 
     pub(super) fn get_topmost_indexed_access_type(
         &self,
-        top: &Node, /*IndexedAccessTypeNode*/
+        top: Id<Node>, /*IndexedAccessTypeNode*/
     ) -> Id<Node /*IndexedAccessTypeNode*/> {
         let top_as_indexed_access_type_node = top.as_indexed_access_type_node();
         if is_indexed_access_type_node(&top_as_indexed_access_type_node.object_type) {

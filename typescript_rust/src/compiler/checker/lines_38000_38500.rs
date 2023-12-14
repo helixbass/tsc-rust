@@ -25,7 +25,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_with_statement(
         &self,
-        node: &Node, /*WithStatement*/
+        node: Id<Node>, /*WithStatement*/
     ) -> io::Result<()> {
         if !self.check_grammar_statement_in_ambient_context(node) {
             if node.flags().intersects(NodeFlags::AwaitContext) {
@@ -59,7 +59,7 @@ impl TypeChecker {
 
     pub(super) fn check_switch_statement(
         &self,
-        node: &Node, /*SwitchStatement*/
+        node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
@@ -145,7 +145,7 @@ impl TypeChecker {
 
     pub(super) fn check_labeled_statement(
         &self,
-        node: &Node, /*LabeledStatement*/
+        node: Id<Node>, /*LabeledStatement*/
     ) -> io::Result<()> {
         let node_as_labeled_statement = node.as_labeled_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
@@ -183,7 +183,7 @@ impl TypeChecker {
 
     pub(super) fn check_throw_statement(
         &self,
-        node: &Node, /*ThrowStatement*/
+        node: Id<Node>, /*ThrowStatement*/
     ) -> io::Result<()> {
         let node_as_throw_statement = node.as_throw_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
@@ -209,7 +209,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_try_statement(&self, node: &Node /*TryStatement*/) -> io::Result<()> {
+    pub(super) fn check_try_statement(
+        &self,
+        node: Id<Node>, /*TryStatement*/
+    ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
         let node_as_try_statement = node.as_try_statement();
@@ -422,10 +425,10 @@ impl TypeChecker {
                     error_node,
                     &Diagnostics::Property_0_of_type_1_is_not_assignable_to_2_index_type_3,
                     Some(vec![
-                        self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None)?,
-                        self.type_to_string_(prop_type, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(info.key_type, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(info.type_, Option::<&Node>::None, None, None)?,
+                        self.symbol_to_string_(prop, Option::<Id<Node>>::None, None, None, None)?,
+                        self.type_to_string_(prop_type, Option::<Id<Node>>::None, None, None)?,
+                        self.type_to_string_(info.key_type, Option::<Id<Node>>::None, None, None)?,
+                        self.type_to_string_(info.type_, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
             }
@@ -497,13 +500,18 @@ impl TypeChecker {
                     Some(vec![
                         self.type_to_string_(
                             check_info.key_type,
-                            Option::<&Node>::None,
+                            Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
-                        self.type_to_string_(check_info.type_, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(info.key_type, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(info.type_, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(
+                            check_info.type_,
+                            Option::<Id<Node>>::None,
+                            None,
+                            None,
+                        )?,
+                        self.type_to_string_(info.key_type, Option::<Id<Node>>::None, None, None)?,
+                        self.type_to_string_(info.type_, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
             }
@@ -514,7 +522,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_name_is_reserved(
         &self,
-        name: &Node, /*Identifier*/
+        name: Id<Node>, /*Identifier*/
         message: &'static DiagnosticMessage,
     ) {
         let name_as_identifier = name.as_identifier();
@@ -531,7 +539,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_class_name_collision_with_object(&self, name: &Node /*Identifier*/) {
+    pub(super) fn check_class_name_collision_with_object(
+        &self,
+        name: Id<Node>, /*Identifier*/
+    ) {
         if self.language_version >= ScriptTarget::ES5
             && name.as_identifier().escaped_text == "Object"
             && (self.module_kind <= ModuleKind::ES2015
@@ -596,7 +607,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_parameters_not_referenced(
         &self,
-        root: &Node, /*TypeNode*/
+        root: Id<Node>, /*TypeNode*/
         type_parameters: &[Id<Node /*TypeParameterDeclaration*/>],
         index: usize,
     ) -> io::Result<()> {
@@ -609,7 +620,7 @@ impl TypeChecker {
         &self,
         index: usize,
         type_parameters: &[Id<Node /*TypeParameterDeclaration*/>],
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::TypeReference {
             let type_ = self.get_type_from_type_reference(node)?;
@@ -672,7 +683,7 @@ impl TypeChecker {
                     .maybe_local_type_parameters(),
             )? {
                 let name =
-                    self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?;
+                    self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?;
                 for declaration in &declarations {
                     self.error(
                         declaration.as_named_declaration().maybe_name(),
@@ -754,7 +765,7 @@ impl TypeChecker {
 
     pub(super) fn check_class_expression(
         &self,
-        node: &Node, /*ClassExpression*/
+        node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<Id<Type>> {
         self.check_class_like_declaration(node)?;
         self.check_node_deferred(node);
@@ -763,7 +774,7 @@ impl TypeChecker {
 
     pub(super) fn check_class_expression_deferred(
         &self,
-        node: &Node, /*ClassExpression*/
+        node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<()> {
         try_for_each(
             &node.as_class_expression().members(),
@@ -779,7 +790,7 @@ impl TypeChecker {
 
     pub(super) fn check_class_declaration(
         &self,
-        node: &Node, /*ClassDeclaration*/
+        node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<()> {
         let node_as_class_declaration = node.as_class_declaration();
         if some(
@@ -822,7 +833,7 @@ impl TypeChecker {
 
     pub(super) fn check_class_like_declaration(
         &self,
-        node: &Node, /*ClassLikeDeclaration*/
+        node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> io::Result<()> {
         self.check_grammar_class_like_declaration(node);
         self.check_decorators(node)?;
@@ -927,7 +938,7 @@ impl TypeChecker {
                 if !self.check_type_assignable_to(
                     type_with_this,
                     base_with_this,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                     None,
@@ -1052,7 +1063,7 @@ impl TypeChecker {
                             if !self.check_type_assignable_to(
                                 type_with_this,
                                 base_with_this,
-                                Option::<&Node>::None,
+                                Option::<Id<Node>>::None,
                                 None,
                                 None,
                                 None,

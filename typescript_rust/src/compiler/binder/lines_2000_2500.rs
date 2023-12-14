@@ -34,7 +34,7 @@ enum ElementKind {
 impl BinderType {
     pub(super) fn declare_module_symbol(
         &self,
-        node: &Node, /*ModuleDeclaration*/
+        node: Id<Node>, /*ModuleDeclaration*/
     ) -> ModuleInstanceState {
         let state = get_module_instance_state(node, None);
         let instantiated = state != ModuleInstanceState::NonInstantiated;
@@ -56,7 +56,7 @@ impl BinderType {
 
     pub(super) fn bind_function_or_constructor_type(
         &self,
-        node: &Node, /*SignatureDeclaration | JSDocSignature*/
+        node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
     ) {
         let symbol = self.alloc_symbol(self.create_symbol(
             SymbolFlags::Signature,
@@ -84,7 +84,7 @@ impl BinderType {
 
     pub(super) fn bind_object_literal_expression(
         &self,
-        node: &Node, /*ObjectLiteralExpression*/
+        node: Id<Node>, /*ObjectLiteralExpression*/
     ) {
         if matches!(self.maybe_in_strict_mode(), Some(true)) && !is_assignment_target(node) {
             let mut seen = HashMap::<__String, ElementKind>::new();
@@ -143,7 +143,7 @@ impl BinderType {
         );
     }
 
-    pub(super) fn bind_jsx_attributes(&self, node: &Node /*JsxAttributes*/) -> Id<Symbol> {
+    pub(super) fn bind_jsx_attributes(&self, node: Id<Node> /*JsxAttributes*/) -> Id<Symbol> {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
@@ -153,7 +153,7 @@ impl BinderType {
 
     pub(super) fn bind_jsx_attribute(
         &self,
-        node: &Node, /*JsxAttribute*/
+        node: Id<Node>, /*JsxAttribute*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Option<Id<Symbol>> {
@@ -162,7 +162,7 @@ impl BinderType {
 
     pub(super) fn bind_anonymous_declaration(
         &self,
-        node: &Node,
+        node: Id<Node>,
         symbol_flags: SymbolFlags,
         name: __String,
     ) -> Id<Symbol> {
@@ -178,7 +178,7 @@ impl BinderType {
 
     pub(super) fn bind_block_scoped_declaration(
         &self,
-        node: &Node, /*Declaration*/
+        node: Id<Node>, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) {
@@ -385,7 +385,7 @@ impl BinderType {
 
     pub(super) fn check_contextual_identifier(
         &self,
-        node: &Node, /*Identifier (and whatever ThisKeyword is) */
+        node: Id<Node>, /*Identifier (and whatever ThisKeyword is) */
     ) {
         if (*self.file().as_source_file().parse_diagnostics())
             .borrow()
@@ -457,7 +457,7 @@ impl BinderType {
 
     pub(super) fn get_strict_mode_identifier_message(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> &'static DiagnosticMessage {
         if get_containing_class(node).is_some() {
             return &Diagnostics::Identifier_expected_0_is_a_reserved_word_in_strict_mode_Class_definitions_are_automatically_in_strict_mode;
@@ -475,7 +475,7 @@ impl BinderType {
         &Diagnostics::Identifier_expected_0_is_a_reserved_word_in_strict_mode
     }
 
-    pub(super) fn check_private_identifier(&self, node: &Node /*PrivateIdentifier*/) {
+    pub(super) fn check_private_identifier(&self, node: Id<Node> /*PrivateIdentifier*/) {
         if node.as_private_identifier().escaped_text == "#constructor" {
             let file = self.file();
             let file_as_source_file = file.as_source_file();
@@ -497,7 +497,7 @@ impl BinderType {
 
     pub(super) fn check_strict_mode_binary_expression(
         &self,
-        node: &Node, /*BinaryExpression*/
+        node: Id<Node>, /*BinaryExpression*/
     ) {
         let node_as_binary_expression = node.as_binary_expression();
         if matches!(self.maybe_in_strict_mode(), Some(true))
@@ -508,7 +508,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn check_strict_mode_catch_clause(&self, node: &Node /*CatchClause*/) {
+    pub(super) fn check_strict_mode_catch_clause(&self, node: Id<Node> /*CatchClause*/) {
         let node_as_catch_clause = node.as_catch_clause();
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
             if let Some(node_variable_declaration) =
@@ -526,7 +526,7 @@ impl BinderType {
 
     pub(super) fn check_strict_mode_delete_expression(
         &self,
-        node: &Node, /*DeleteExpression*/
+        node: Id<Node>, /*DeleteExpression*/
     ) {
         let node_as_delete_expression = node.as_delete_expression();
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
@@ -550,13 +550,13 @@ impl BinderType {
         }
     }
 
-    pub(super) fn is_eval_or_arguments_identifier(&self, node: &Node) -> bool {
+    pub(super) fn is_eval_or_arguments_identifier(&self, node: Id<Node>) -> bool {
         is_identifier(node) && matches!(&*node.as_identifier().escaped_text, "eval" | "arguments")
     }
 
     pub(super) fn check_strict_mode_eval_or_arguments<TName: Borrow<Node>>(
         &self,
-        context_node: &Node,
+        context_node: Id<Node>,
         name: Option<TName>,
     ) {
         if name.is_none() {
@@ -587,7 +587,7 @@ impl BinderType {
 
     pub(super) fn get_strict_mode_eval_or_arguments_message(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> &'static DiagnosticMessage {
         if get_containing_class(node).is_some() {
             return &Diagnostics::Code_contained_in_a_class_is_evaluated_in_JavaScript_s_strict_mode_which_does_not_allow_this_use_of_0_For_more_information_see_https_Colon_Slash_Slashdeveloper_mozilla_org_Slashen_US_Slashdocs_SlashWeb_SlashJavaScript_SlashReference_SlashStrict_mode;
@@ -607,7 +607,7 @@ impl BinderType {
 
     pub(super) fn check_strict_mode_function_name(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) {
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
             self.check_strict_mode_eval_or_arguments(
@@ -619,7 +619,7 @@ impl BinderType {
 
     pub(super) fn get_strict_mode_block_scope_function_declaration_message(
         &self,
-        node: &Node,
+        node: Id<Node>,
     ) -> &'static DiagnosticMessage {
         if get_containing_class(node).is_some() {
             return &Diagnostics::Function_declarations_are_not_allowed_inside_blocks_in_strict_mode_when_targeting_ES3_or_ES5_Class_definitions_are_automatically_in_strict_mode;
@@ -639,7 +639,7 @@ impl BinderType {
 
     pub(super) fn check_strict_mode_function_declaration(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        node: Id<Node>, /*FunctionDeclaration*/
     ) {
         if matches!(self.maybe_language_version(), Some(language_version) if language_version < ScriptTarget::ES2015)
         {
@@ -668,7 +668,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn check_strict_mode_numeric_literal(&self, node: &Node /*NumericLiteral*/) {
+    pub(super) fn check_strict_mode_numeric_literal(&self, node: Id<Node> /*NumericLiteral*/) {
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
             let node_as_numeric_literal = node.as_numeric_literal();
             if node_as_numeric_literal
@@ -692,7 +692,7 @@ impl BinderType {
 
     pub(super) fn check_strict_mode_postfix_unary_expression(
         &self,
-        node: &Node, /*PostfixUnaryExpression*/
+        node: Id<Node>, /*PostfixUnaryExpression*/
     ) {
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
             self.check_strict_mode_eval_or_arguments(
@@ -704,7 +704,7 @@ impl BinderType {
 
     pub(super) fn check_strict_mode_prefix_unary_expression(
         &self,
-        node: &Node, /*PrefixUnaryExpression*/
+        node: Id<Node>, /*PrefixUnaryExpression*/
     ) {
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
             let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
@@ -720,7 +720,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn check_strict_mode_with_statement(&self, node: &Node /*WithStatement*/) {
+    pub(super) fn check_strict_mode_with_statement(&self, node: Id<Node> /*WithStatement*/) {
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
             self.error_on_first_token(
                 node,
@@ -732,7 +732,7 @@ impl BinderType {
 
     pub(super) fn check_strict_mode_labeled_statement(
         &self,
-        node: &Node, /*LabeledStatement*/
+        node: Id<Node>, /*LabeledStatement*/
     ) {
         if matches!(self.maybe_in_strict_mode(), Some(true))
             && get_emit_script_target(&self.options()) >= ScriptTarget::ES2015
@@ -752,7 +752,7 @@ impl BinderType {
 
     pub(super) fn error_on_first_token(
         &self,
-        node: &Node,
+        node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
@@ -768,7 +768,7 @@ impl BinderType {
     pub(super) fn error_or_suggestion_on_node(
         &self,
         is_error: bool,
-        node: &Node,
+        node: Id<Node>,
         message: &DiagnosticMessage,
     ) {
         self.error_or_suggestion_on_range(is_error, node, node, message);
@@ -777,8 +777,8 @@ impl BinderType {
     pub(super) fn error_or_suggestion_on_range(
         &self,
         is_error: bool,
-        start_node: &Node,
-        end_node: &Node,
+        start_node: Id<Node>,
+        end_node: Id<Node>,
         message: &DiagnosticMessage,
     ) {
         self.add_error_or_suggestion_diagnostic(
@@ -859,7 +859,7 @@ impl BinderType {
         self.set_in_strict_mode(save_in_strict_mode);
     }
 
-    pub(super) fn bind_jsdoc(&self, node: &Node) {
+    pub(super) fn bind_jsdoc(&self, node: Id<Node>) {
         if has_jsdoc_nodes(node) {
             if is_in_js_file(Some(node)) {
                 for j in node.maybe_js_doc().unwrap() {
@@ -894,7 +894,7 @@ impl BinderType {
 
     pub(super) fn is_use_strict_prologue_directive(
         &self,
-        node: &Node, /*ExpressionStatement*/
+        node: Id<Node>, /*ExpressionStatement*/
     ) -> bool {
         let node_text = get_source_text_of_node_from_source_file(
             &self.file(),

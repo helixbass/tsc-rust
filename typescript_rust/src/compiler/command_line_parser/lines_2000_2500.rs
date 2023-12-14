@@ -2,6 +2,7 @@ use std::{cmp, collections::HashMap, io, ptr, rc::Rc};
 
 use fancy_regex::Regex;
 use gc::{Gc, GcCell};
+use id_arena::Id;
 use indexmap::IndexMap;
 use serde::Serialize;
 
@@ -43,10 +44,10 @@ pub(super) fn is_root_option_map(
 pub(super) fn convert_object_literal_expression_to_json(
     return_value: bool,
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
-    source_file: &Node, /*JsonSourceFile*/
+    source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
-    node: &Node, /*ObjectLiteralExpression*/
+    node: Id<Node>, /*ObjectLiteralExpression*/
     known_options: Option<&HashMap<String, Gc<CommandLineOption>>>,
     extra_key_diagnostics: Option<&dyn DidYouMeanOptionsDiagnostics>,
     parent_option: Option<&str>,
@@ -200,7 +201,7 @@ pub(super) fn convert_object_literal_expression_to_json(
 
 pub(super) fn convert_array_literal_expression_to_json(
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
-    source_file: &Node, /*JsonSourceFile*/
+    source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
@@ -245,11 +246,11 @@ pub(super) fn convert_array_literal_expression_to_json(
 
 pub(super) fn convert_property_value_to_json(
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
-    source_file: &Node, /*JsonSourceFile*/
+    source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
-    value_expression: &Node, /*Expression*/
+    value_expression: Id<Node>, /*Expression*/
     option: Option<&CommandLineOption>,
 ) -> io::Result<Option<serde_json::Value>> {
     let mut invalid_reported: Option<bool> = None;
@@ -575,8 +576,8 @@ pub(super) fn validate_value(
     invalid_reported: Option<bool>,
     option: Option<&CommandLineOption>,
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
-    source_file: &Node,      /*JsonSourceFile*/
-    value_expression: &Node, /*Expression*/
+    source_file: Id<Node>,      /*JsonSourceFile*/
+    value_expression: Id<Node>, /*Expression*/
     value: Option<serde_json::Value>,
 ) -> Option<serde_json::Value> {
     if !matches!(invalid_reported, Some(true)) {
@@ -602,8 +603,8 @@ pub(super) fn validate_value(
 pub(super) fn report_invalid_option_value(
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     invalid_reported: &mut Option<bool>,
-    source_file: &Node,      /*JsonSourceFile*/
-    value_expression: &Node, /*Expression*/
+    source_file: Id<Node>,      /*JsonSourceFile*/
+    value_expression: Id<Node>, /*Expression*/
     option: Option<&CommandLineOption>,
     is_error: Option<bool>,
 ) {
@@ -625,8 +626,8 @@ pub(super) fn report_invalid_option_value(
 }
 
 pub(super) fn is_double_quoted_string(
-    source_file: &Node, /*JsonSourceFile*/
-    node: &Node,
+    source_file: Id<Node>, /*JsonSourceFile*/
+    node: Id<Node>,
 ) -> bool {
     is_string_literal(node) && is_string_double_quoted(node, source_file)
 }

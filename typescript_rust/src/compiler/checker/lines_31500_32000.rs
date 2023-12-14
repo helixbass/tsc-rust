@@ -195,7 +195,7 @@ impl TypeChecker {
 
     pub(super) fn assign_binding_element_types(
         &self,
-        pattern: &Node, /*BindingPattern*/
+        pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<()> {
         for element in &pattern.as_has_elements().elements() {
             if !is_omitted_expression(element) {
@@ -219,7 +219,7 @@ impl TypeChecker {
             let promised_type = self
                 .get_awaited_type_no_alias(
                     self.unwrap_awaited_type(promised_type)?,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                 )?
@@ -236,7 +236,7 @@ impl TypeChecker {
             let promised_type = self
                 .get_awaited_type_no_alias(
                     self.unwrap_awaited_type(promised_type)?,
-                    Option::<&Node>::None,
+                    Option::<Id<Node>>::None,
                     None,
                     None,
                 )?
@@ -251,7 +251,7 @@ impl TypeChecker {
 
     pub(super) fn create_promise_return_type(
         &self,
-        func: &Node, /*FunctionLikeDeclaration | ImportCall*/
+        func: Id<Node>, /*FunctionLikeDeclaration | ImportCall*/
         promised_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let promise_type = self.create_promise_type(promised_type)?;
@@ -318,7 +318,7 @@ impl TypeChecker {
 
     pub(super) fn get_return_type_from_body(
         &self,
-        func: &Node, /*FunctionLikeDeclaration*/
+        func: Id<Node>, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let func_as_function_like_declaration = func.as_function_like_declaration();
@@ -593,7 +593,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_aggregate_yield_operand_types(
         &self,
-        func: &Node, /*FunctionLikeDeclaration*/
+        func: Id<Node>, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<CheckAndAggregateYieldOperandTypesReturn> {
         let mut yield_types: Vec<Id<Type>> = vec![];
@@ -601,7 +601,7 @@ impl TypeChecker {
         let is_async = get_function_flags(Some(func)).intersects(FunctionFlags::Async);
         try_for_each_yield_expression(
             &func.as_function_like_declaration().maybe_body().unwrap(),
-            |yield_expression: &Node| -> io::Result<_> {
+            |yield_expression: Id<Node>| -> io::Result<_> {
                 let yield_expression_as_yield_expression = yield_expression.as_yield_expression();
                 let yield_expression_type = if let Some(yield_expression_expression) =
                     yield_expression_as_yield_expression.expression.as_ref()
@@ -651,7 +651,7 @@ impl TypeChecker {
 
     pub(super) fn get_yielded_type_of_yield_expression(
         &self,
-        node: &Node, /*YieldExpression*/
+        node: Id<Node>, /*YieldExpression*/
         expression_type: Id<Type>,
         sent_type: Id<Type>,
         is_async: bool,
@@ -755,7 +755,7 @@ impl TypeChecker {
 
     pub(super) fn is_exhaustive_switch_statement(
         &self,
-        node: &Node, /*SwitchStatement*/
+        node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<bool> {
         let links = self.get_node_links(node);
         let links_is_exhaustive = (*links).borrow().is_exhaustive;
@@ -769,7 +769,7 @@ impl TypeChecker {
 
     pub(super) fn compute_exhaustive_switch_statement(
         &self,
-        node: &Node, /*SwitchStatement*/
+        node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<bool> {
         let node_as_switch_statement = node.as_switch_statement();
         if node_as_switch_statement.expression.kind() == SyntaxKind::TypeOfExpression {
@@ -825,7 +825,7 @@ impl TypeChecker {
 
     pub(super) fn function_has_implicit_return(
         &self,
-        func: &Node, /*FunctionLikeDeclaration*/
+        func: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
         Ok(matches!(
             func.as_function_like_declaration().maybe_end_flow_node().as_ref(),
@@ -835,7 +835,7 @@ impl TypeChecker {
 
     pub(super) fn check_and_aggregate_return_expression_types(
         &self,
-        func: &Node, /*FunctionLikeDeclaration*/
+        func: Id<Node>, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         let function_flags = get_function_flags(Some(func));
@@ -844,7 +844,7 @@ impl TypeChecker {
         let mut has_return_of_type_never = false;
         try_for_each_return_statement(
             &func.as_function_like_declaration().maybe_body().unwrap(),
-            |return_statement: &Node| -> io::Result<_> {
+            |return_statement: Id<Node>| -> io::Result<_> {
                 let expr = return_statement.as_return_statement().expression.as_ref();
                 if let Some(expr) = expr {
                     let mut type_ = self.check_expression_cached(
@@ -892,7 +892,7 @@ impl TypeChecker {
         Ok(Some(aggregated_types))
     }
 
-    pub(super) fn may_return_never(&self, func: &Node /*FunctionLikeDeclaration*/) -> bool {
+    pub(super) fn may_return_never(&self, func: Id<Node> /*FunctionLikeDeclaration*/) -> bool {
         match func.kind() {
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => true,
             SyntaxKind::MethodDeclaration => {
@@ -904,7 +904,7 @@ impl TypeChecker {
 
     pub(super) fn check_all_code_paths_in_non_void_function_return_or_throw(
         &self,
-        func: &Node, /*FunctionLikeDeclaration | MethodSignature*/
+        func: Id<Node>, /*FunctionLikeDeclaration | MethodSignature*/
         return_type: Option<Id<Type>>,
     ) -> io::Result<()> {
         if !self.produce_diagnostics {

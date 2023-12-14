@@ -26,7 +26,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_function_expression_or_object_literal_method(
         &self,
-        node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
+        node: Id<Node>, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         Debug_.assert(
@@ -108,7 +108,7 @@ impl TypeChecker {
 
     pub(super) fn contextually_check_function_expression_or_object_literal_method(
         &self,
-        node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
+        node: Id<Node>, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<()> {
         let links = self.get_node_links(node);
@@ -182,7 +182,7 @@ impl TypeChecker {
 
     pub(super) fn check_function_expression_or_object_literal_method_deferred(
         &self,
-        node: &Node, /*ArrowFunction | FunctionExpression | MethodDeclaration*/
+        node: Id<Node>, /*ArrowFunction | FunctionExpression | MethodDeclaration*/
     ) -> io::Result<()> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
@@ -240,7 +240,7 @@ impl TypeChecker {
 
     pub(super) fn check_arithmetic_operand_type(
         &self,
-        operand: &Node, /*Expression*/
+        operand: Id<Node>, /*Expression*/
         type_: Id<Type>,
         diagnostic: &DiagnosticMessage,
         is_await_valid: Option<bool>,
@@ -248,7 +248,7 @@ impl TypeChecker {
         let is_await_valid = is_await_valid.unwrap_or(false);
         if !self.is_type_assignable_to(type_, self.number_or_big_int_type())? {
             let awaited_type = if is_await_valid {
-                self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
+                self.get_awaited_type_of_promise(type_, Option::<Id<Node>>::None, None, None)?
             } else {
                 None
             };
@@ -268,7 +268,7 @@ impl TypeChecker {
 
     pub(super) fn is_readonly_assignment_declaration(
         &self,
-        d: &Node, /*Declaration*/
+        d: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
         if !is_call_expression(d) {
             return Ok(false);
@@ -348,7 +348,7 @@ impl TypeChecker {
 
     pub(super) fn is_assignment_to_readonly_entity(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
         symbol: Id<Symbol>,
         assignment_kind: AssignmentKind,
     ) -> io::Result<bool> {
@@ -434,7 +434,7 @@ impl TypeChecker {
 
     pub(super) fn check_reference_expression(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
         invalid_reference_message: &'static DiagnosticMessage,
         invalid_optional_chain_message: &'static DiagnosticMessage,
     ) -> bool {
@@ -455,7 +455,7 @@ impl TypeChecker {
 
     pub(super) fn check_delete_expression(
         &self,
-        node: &Node, /*DeleteExpression*/
+        node: Id<Node>, /*DeleteExpression*/
     ) -> io::Result<Id<Type>> {
         let node_as_delete_expression = node.as_delete_expression();
         self.check_expression(&node_as_delete_expression.expression, None, None)?;
@@ -495,7 +495,7 @@ impl TypeChecker {
 
     pub(super) fn check_delete_expression_must_be_optional(
         &self,
-        expr: &Node, /*AccessExpression*/
+        expr: Id<Node>, /*AccessExpression*/
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
         let type_ = self.get_type_of_symbol(symbol)?;
@@ -522,7 +522,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_of_expression(
         &self,
-        node: &Node, /*TypeOfExpression*/
+        node: Id<Node>, /*TypeOfExpression*/
     ) -> io::Result<Id<Type>> {
         self.check_expression(&node.as_type_of_expression().expression, None, None)?;
         Ok(self.typeof_type())
@@ -530,7 +530,7 @@ impl TypeChecker {
 
     pub(super) fn check_void_expression(
         &self,
-        node: &Node, /*VoidExpression*/
+        node: Id<Node>, /*VoidExpression*/
     ) -> io::Result<Id<Type>> {
         self.check_expression(&node.as_void_expression().expression, None, None)?;
         Ok(self.undefined_widening_type())
@@ -538,7 +538,7 @@ impl TypeChecker {
 
     pub(super) fn check_await_expression(
         &self,
-        node: &Node, /*AwaitExpression*/
+        node: Id<Node>, /*AwaitExpression*/
     ) -> io::Result<Id<Type>> {
         if self.produce_diagnostics {
             let container = get_containing_function_or_class_static_block(node);
@@ -678,7 +678,7 @@ impl TypeChecker {
 
     pub(super) fn check_prefix_unary_expression(
         &self,
-        node: &Node, /*PrefixUnaryExpression*/
+        node: Id<Node>, /*PrefixUnaryExpression*/
     ) -> io::Result<Id<Type>> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         let operand_type =
@@ -757,7 +757,7 @@ impl TypeChecker {
                                     .to_owned(),
                                 self.type_to_string_(
                                     self.get_base_type_of_literal_type(operand_type)?,
-                                    Option::<&Node>::None,
+                                    Option::<Id<Node>>::None,
                                     None,
                                     None,
                                 )?,
@@ -800,7 +800,7 @@ impl TypeChecker {
 
     pub(super) fn check_postfix_unary_expression(
         &self,
-        node: &Node, /*PostfixUnaryExpression*/
+        node: Id<Node>, /*PostfixUnaryExpression*/
     ) -> io::Result<Id<Type>> {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         let operand_type =
@@ -927,8 +927,8 @@ impl TypeChecker {
 
     pub(super) fn check_instance_of_expression(
         &self,
-        left: &Node,  /*Expression*/
-        right: &Node, /*Expression*/
+        left: Id<Node>,  /*Expression*/
+        right: Id<Node>, /*Expression*/
         left_type: Id<Type>,
         right_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
@@ -959,8 +959,8 @@ impl TypeChecker {
 
     pub(super) fn check_in_expression(
         &self,
-        left: &Node,  /*Expression*/
-        right: &Node, /*Expression*/
+        left: Id<Node>,  /*Expression*/
+        right: Id<Node>, /*Expression*/
         mut left_type: Id<Type>,
         right_type: Id<Type>,
     ) -> io::Result<Id<Type>> {

@@ -1970,7 +1970,7 @@ pub fn try_get_extension_from_path(path: &str) -> Option<Extension> {
 }
 
 pub fn is_check_js_enabled_for_file(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
 ) -> bool {
     source_file
@@ -2073,15 +2073,15 @@ pub struct MinAndMax {
     pub max: usize,
 }
 
-pub fn range_of_node(node: &Node) -> BaseTextRange {
+pub fn range_of_node(node: Id<Node>) -> BaseTextRange {
     BaseTextRange::new(
-        get_token_pos_of_node(node, Option::<&Node>::None, None),
+        get_token_pos_of_node(node, Option::<Id<Node>>::None, None),
         node.end(),
     )
 }
 
 pub fn range_of_type_parameters(
-    source_file: &Node,          /*SourceFile*/
+    source_file: Id<Node>,       /*SourceFile*/
     type_parameters: &NodeArray, /*<TypeParameterDeclaration>*/
 ) -> BaseTextRange {
     let pos = type_parameters.pos() - 1;

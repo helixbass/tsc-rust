@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
-    source_file: &Node, /*SourceFile*/
+    source_file: Id<Node>, /*SourceFile*/
     options: &CompilerOptions,
     is_source_of_project_reference_redirect: TIsSourceOfProjectReferenceRedirect,
 ) -> bool {
@@ -127,7 +127,7 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
     )
 }
 
-pub fn is_valid_type_only_alias_use_site(use_site: &Node) -> bool {
+pub fn is_valid_type_only_alias_use_site(use_site: Id<Node>) -> bool {
     use_site.flags().intersects(NodeFlags::Ambient)
         || is_part_of_type_query(use_site)
         || is_identifier_in_non_emitting_heritage_clause(use_site)
@@ -135,7 +135,7 @@ pub fn is_valid_type_only_alias_use_site(use_site: &Node) -> bool {
         || !(is_expression_node(use_site) || is_shorthand_property_name_use_site(use_site))
 }
 
-fn is_shorthand_property_name_use_site(use_site: &Node) -> bool {
+fn is_shorthand_property_name_use_site(use_site: Id<Node>) -> bool {
     is_identifier(use_site)
         && is_shorthand_property_assignment(&use_site.parent())
         && ptr::eq(
@@ -144,7 +144,7 @@ fn is_shorthand_property_name_use_site(use_site: &Node) -> bool {
         )
 }
 
-fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(node: &Node) -> bool {
+fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(node: Id<Node>) -> bool {
     let mut node = node.node_wrapper();
     while matches!(
         node.kind(),
@@ -165,7 +165,7 @@ fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(node: &Node
     )
 }
 
-fn is_identifier_in_non_emitting_heritage_clause(node: &Node) -> bool {
+fn is_identifier_in_non_emitting_heritage_clause(node: Id<Node>) -> bool {
     if node.kind() != SyntaxKind::Identifier {
         return false;
     }
@@ -236,7 +236,7 @@ pub fn set_node_flags(node: Option<impl Borrow<Node>>, new_flags: NodeFlags) -> 
     })
 }
 
-pub fn set_parent(child: &Node, parent: Option<impl Borrow<Node>>) -> &Node {
+pub fn set_parent(child: Id<Node>, parent: Option<impl Borrow<Node>>) -> Id<Node> {
     if let Some(parent) = parent {
         let parent = parent.borrow();
         child.set_parent(Some(parent.node_wrapper()));
@@ -262,7 +262,7 @@ pub fn set_parent_recursive(root_node: Option<impl Borrow<Node>>, incremental: b
         return /*rootNode*/;
     }
     let root_node = root_node.unwrap();
-    let root_node: &Node = root_node.borrow();
+    let root_node: Id<Node> = root_node.borrow();
     let is_jsdoc_node_root_node = is_jsdoc_node(root_node);
     for_each_child_recursively(
         root_node,
@@ -273,14 +273,14 @@ pub fn set_parent_recursive(root_node: Option<impl Borrow<Node>>, incremental: b
                 bind_parent_to_child(incremental, child, parent)
             }
         },
-        Option::<fn(&NodeArray, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<()>>>::None,
+        Option::<fn(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>>::None,
     );
 }
 
 fn bind_parent_to_child_ignoring_jsdoc(
     incremental: bool,
-    child: &Node,
-    parent: &Node,
+    child: Id<Node>,
+    parent: Id<Node>,
 ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
     if incremental
         && matches!(
@@ -296,7 +296,7 @@ fn bind_parent_to_child_ignoring_jsdoc(
 
 fn bind_jsdoc(
     incremental: bool,
-    child: &Node,
+    child: Id<Node>,
 ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
     if has_jsdoc_nodes(child) {
         for doc in &child.maybe_js_doc().unwrap() {
@@ -307,7 +307,7 @@ fn bind_jsdoc(
                     bind_parent_to_child_ignoring_jsdoc(incremental, child, parent)
                 },
                 Option::<
-                    fn(&NodeArray, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
+                    fn(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
                 >::None,
             );
         }
@@ -317,18 +317,18 @@ fn bind_jsdoc(
 
 fn bind_parent_to_child(
     incremental: bool,
-    child: &Node,
-    parent: &Node,
+    child: Id<Node>,
+    parent: Id<Node>,
 ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
     bind_parent_to_child_ignoring_jsdoc(incremental, child, parent)
         .or_else(|| bind_jsdoc(incremental, child))
 }
 
-pub fn is_packed_array_literal(_node: &Node /*Expression*/) -> bool {
+pub fn is_packed_array_literal(_node: Id<Node> /*Expression*/) -> bool {
     unimplemented!()
 }
 
-pub fn expression_result_is_unused(node: &Node /*Expression*/) -> bool {
+pub fn expression_result_is_unused(node: Id<Node> /*Expression*/) -> bool {
     Debug_.assert_is_defined(&node.maybe_parent(), None);
     let mut node = node.node_wrapper();
     loop {
@@ -385,11 +385,11 @@ pub fn contains_ignored_path(path: &str) -> bool {
     )
 }
 
-pub fn get_containing_node_array(_node: &Node) -> Option<Gc<NodeArray>> {
+pub fn get_containing_node_array(_node: Id<Node>) -> Option<Gc<NodeArray>> {
     unimplemented!()
 }
 
-pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/) -> bool {
+pub fn has_context_sensitive_parameters(node: Id<Node> /*FunctionLikeDeclaration*/) -> bool {
     let node_as_function_like_declaration = node.as_function_like_declaration();
     if node_as_function_like_declaration
         .maybe_type_parameters()
@@ -419,7 +419,7 @@ pub fn is_infinity_or_nan_string(name: &str) -> bool {
     matches!(name, "Infinity" | "-Infinity" | "NaN")
 }
 
-pub fn is_catch_clause_variable_declaration(node: &Node) -> bool {
+pub fn is_catch_clause_variable_declaration(node: Id<Node>) -> bool {
     node.kind() == SyntaxKind::VariableDeclaration
         && node.parent().kind() == SyntaxKind::CatchClause
 }
@@ -436,7 +436,7 @@ pub fn is_parameter_or_catch_clause_variable(symbol: &Symbol) -> bool {
     )
 }
 
-pub fn is_function_expression_or_arrow_function(node: &Node) -> bool {
+pub fn is_function_expression_or_arrow_function(node: Id<Node>) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction

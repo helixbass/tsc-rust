@@ -22,7 +22,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn maybe_type_parameter_reference(&self, node: &Node) -> bool {
+    pub(super) fn maybe_type_parameter_reference(&self, node: Id<Node>) -> bool {
         !(node.parent().kind() == SyntaxKind::TypeReference && {
             let node_parent = node.parent();
             let node_parent_as_type_reference_node = node_parent.as_type_reference_node();
@@ -50,7 +50,7 @@ impl TypeChecker {
     pub(super) fn is_type_parameter_possibly_referenced(
         &self,
         tp: Id<Type>, /*TypeParameter*/
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<bool> {
         if let Some(tp_symbol) = tp.ref_(self).maybe_symbol() {
             let tp_symbol_ref = tp_symbol.ref_(self);
@@ -89,7 +89,7 @@ impl TypeChecker {
     pub(super) fn contains_reference(
         &self,
         tp: Id<Type>, /*TypeParameter*/
-        node: &Node,
+        node: Id<Node>,
     ) -> io::Result<bool> {
         Ok(match node.kind() {
             SyntaxKind::ThisType => {
@@ -784,7 +784,7 @@ impl TypeChecker {
                     let access_flags = type_.ref_(self).as_indexed_access_type().access_flags;
                     access_flags
                 }),
-                Option::<&Node>::None,
+                Option::<Id<Node>>::None,
                 new_alias_symbol,
                 new_alias_type_arguments.as_deref(),
             );
@@ -930,7 +930,7 @@ impl TypeChecker {
 
     pub(super) fn is_context_sensitive(
         &self,
-        node: &Node, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
+        node: Id<Node>, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
     ) -> io::Result<bool> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
@@ -1000,7 +1000,7 @@ impl TypeChecker {
 
     pub(super) fn is_context_sensitive_function_like_declaration(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
         Ok((!is_function_declaration(node)
             || is_in_js_file(Some(node))
@@ -1013,7 +1013,7 @@ impl TypeChecker {
 
     pub(super) fn has_context_sensitive_return_expression(
         &self,
-        node: &Node, /*FunctionLikeDeclaration*/
+        node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         Ok(node_as_function_like_declaration
@@ -1028,7 +1028,7 @@ impl TypeChecker {
 
     pub(super) fn is_context_sensitive_function_or_object_literal_method(
         &self,
-        func: &Node,
+        func: Id<Node>,
     ) -> io::Result<bool> {
         Ok((is_in_js_file(Some(func)) && is_function_declaration(func)
             || is_function_expression_or_arrow_function(func)
