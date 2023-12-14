@@ -396,20 +396,6 @@ impl BinderType {
         self.bind_source_file(f, opts);
     }
 
-    pub fn arena(&self) -> &AllArenas {
-        unsafe { &*self.arena }
-    }
-
-    #[track_caller]
-    pub fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
-        self.arena().symbol(symbol)
-    }
-
-    #[track_caller]
-    pub fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
-        self.arena().alloc_symbol(symbol)
-    }
-
     pub(super) fn rc_wrapper(&self) -> Gc<Self> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
@@ -1230,5 +1216,11 @@ impl BinderType {
         }
 
         symbol
+    }
+}
+
+impl HasArena for BinderType {
+    fn arena(&self) -> &AllArenas {
+        unsafe { &*self.arena }
     }
 }
