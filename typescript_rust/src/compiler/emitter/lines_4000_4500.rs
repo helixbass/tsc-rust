@@ -414,7 +414,7 @@ impl Printer {
 
     pub(super) fn can_emit_simple_arrow_head(
         &self,
-        parent_node: Id<Node>,     /*FunctionTypeNode | ArrowFunction*/
+        parent_node: Id<Node>,  /*FunctionTypeNode | ArrowFunction*/
         parameters: &NodeArray, /*<ParameterDeclaration>*/
     ) -> bool {
         let parameter = single_or_undefined(Some(parameters));
@@ -456,7 +456,7 @@ impl Printer {
 
     pub(super) fn emit_parameters_for_arrow(
         &self,
-        parent_node: &Node,     /*FunctionTypeNode | ArrowFunction*/
+        parent_node: Id<Node>,     /*FunctionTypeNode | ArrowFunction*/
         parameters: &NodeArray, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         Ok(
@@ -477,7 +477,7 @@ impl Printer {
 
     pub(super) fn emit_parameters_for_index_signature(
         &self,
-        parent_node: &Node,
+        parent_node: Id<Node>,
         parameters: &NodeArray, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         self.emit_list(
@@ -563,7 +563,7 @@ impl Printer {
         &self,
         emit: fn(
             &Printer,
-            Option<&Node>,
+            Option<Id<Node>>,
             Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         ) -> io::Result<()>,
         parent_node: Option<impl Borrow<Node>>,

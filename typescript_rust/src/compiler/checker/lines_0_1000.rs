@@ -29,15 +29,15 @@ use crate::{
     Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
     ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface,
-    IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey, IterationTypes, JsxEmit,
-    ModuleInstanceState, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
-    NodeId, NodeInterface, NodeLinks, Number, ObjectFlags, OptionTry,
+    HasArena, InArena, IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey,
+    IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
+    NodeCheckFlags, NodeFlags, NodeId, NodeInterface, NodeLinks, Number, ObjectFlags, OptionTry,
     OutofbandVarianceMarkerHandler, Path, PatternAmbientModule, PseudoBigInt,
     RelationComparisonResult, Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeMapperCallback,
-    TypePredicate, TypePredicateKind, VarianceFlags, HasArena, InArena,
+    TypePredicate, TypePredicateKind, VarianceFlags,
 };
 
 lazy_static! {
@@ -1791,8 +1791,10 @@ impl TypeChecker {
         parameter_in: Id<Node>, /*ParameterDeclaration*/
         parameter_name: &str,
     ) -> io::Result<Vec<Id<Symbol>>> {
-        let parameter =
-            get_parse_tree_node(Some(parameter_in), Some(|node: Id<Node>| is_parameter(node)));
+        let parameter = get_parse_tree_node(
+            Some(parameter_in),
+            Some(|node: Id<Node>| is_parameter(node)),
+        );
         if parameter.is_none() {
             Debug_.fail(Some("Cannot get symbols of a synthetic parameter that cannot be resolved to a parse-tree node."));
         }
@@ -2069,7 +2071,8 @@ impl TypeChecker {
 
     pub fn get_export_symbol_of_symbol(&self, symbol: Id<Symbol>) -> Id<Symbol> {
         self.get_merged_symbol(Some(
-            symbol.ref_(self)
+            symbol
+                .ref_(self)
                 .maybe_export_symbol()
                 .unwrap_or_else(|| symbol),
         ))
@@ -2568,7 +2571,8 @@ impl TypeChecker {
     pub fn get_default_from_type_parameter(&self, type_: Id<Type>) -> io::Result<Option<Id<Type>>> {
         /*type &&*/
         Ok(
-            if type_.ref_(self)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {

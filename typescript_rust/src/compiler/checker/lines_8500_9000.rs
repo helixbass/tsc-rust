@@ -20,11 +20,11 @@ use crate::{
     return_ok_default_if_none, return_ok_none_if_none, set_parent, skip_parentheses, some,
     starts_with, try_cast, try_maybe_every, unescape_leading_underscores,
     walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind, Debug_,
-    Diagnostics, HasInitializerInterface, HasTypeInterface, InternalSymbolName, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, OptionTry, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction, HasArena, InArena,
+    Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName,
+    LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Number,
+    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, StrOrRcNode, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -82,7 +82,8 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let type_ = self.get_literal_type_from_property_name(name)?;
         Ok(
-            if type_.ref_(self)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
             {
@@ -135,7 +136,8 @@ impl TypeChecker {
         if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             if declaration_as_binding_element.dot_dot_dot_token.is_some() {
                 parent_type = self.get_reduced_type(parent_type)?;
-                if parent_type.ref_(self)
+                if parent_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Unknown)
                     || !self.is_valid_spread_type(parent_type)?
@@ -279,7 +281,10 @@ impl TypeChecker {
         Ok(Some(self.get_type_from_type_node_(&jsdoc_type)?))
     }
 
-    pub(super) fn is_null_or_undefined(&self, node: Id<Node> /*Expression*/) -> io::Result<bool> {
+    pub(super) fn is_null_or_undefined(
+        &self,
+        node: Id<Node>, /*Expression*/
+    ) -> io::Result<bool> {
         let expr = skip_parentheses(node, Some(true));
         Ok(expr.kind() == SyntaxKind::NullKeyword
             || expr.kind() == SyntaxKind::Identifier
@@ -331,7 +336,8 @@ impl TypeChecker {
                 None,
             )?;
             return Ok(Some(
-                if index_type.ref_(self)
+                if index_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeParameter | TypeFlags::Index)
                 {
@@ -407,7 +413,10 @@ impl TypeChecker {
             let func = declaration.parent();
             if func.kind() == SyntaxKind::SetAccessor && self.has_bindable_name(&func)? {
                 let getter = get_declaration_of_kind(
-                    &self.get_symbol_of_node(&declaration.parent())?.unwrap().ref_(self),
+                    &self
+                        .get_symbol_of_node(&declaration.parent())?
+                        .unwrap()
+                        .ref_(self),
                     SyntaxKind::GetAccessor,
                 );
                 if let Some(getter) = getter {
@@ -626,7 +635,8 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let file = get_source_file_of_node(
-            symbol.ref_(self)
+            symbol
+                .ref_(self)
                 .maybe_declarations()
                 .as_ref()
                 .unwrap()
@@ -691,8 +701,7 @@ impl TypeChecker {
         static_blocks: &[Id<Node /*ClassStaticBlockDeclaration*/>],
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
-        let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#")
-        {
+        let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
             factory.with(|factory_| {
                 factory_
                     .create_private_identifier(
@@ -745,11 +754,10 @@ impl TypeChecker {
     pub(super) fn get_flow_type_in_constructor(
         &self,
         symbol: Id<Symbol>,
-        constructor: &Node, /*ConstructorDeclaration*/
+        constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
-        let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#")
-        {
+        let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
             factory.with(|factory_| {
                 factory_
                     .create_private_identifier(
@@ -800,7 +808,7 @@ impl TypeChecker {
 
     pub(super) fn get_flow_type_of_property(
         &self,
-        reference: &Node,
+        reference: Id<Node>,
         prop: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
         let initial_type = prop.try_and_then(|prop| -> io::Result<_> {
@@ -837,15 +845,17 @@ impl TypeChecker {
                 return self
                     .get_type_from_type_node_(&tag.as_jsdoc_type_like_tag().type_expression());
             }
-            let container_object_type = symbol.ref_(self)
-                .maybe_value_declaration()
-                .try_and_then(|value_declaration| {
-                    self.get_js_container_object_type(
-                        &value_declaration,
-                        Some(symbol),
-                        Some(&*container),
-                    )
-                })?;
+            let container_object_type =
+                symbol
+                    .ref_(self)
+                    .maybe_value_declaration()
+                    .try_and_then(|value_declaration| {
+                        self.get_js_container_object_type(
+                            &value_declaration,
+                            Some(symbol),
+                            Some(&*container),
+                        )
+                    })?;
             return container_object_type.try_unwrap_or_else(|| {
                 self.get_widened_literal_type(self.check_expression_cached(&container, None)?)
             });
@@ -931,7 +941,8 @@ impl TypeChecker {
                 }
                 let types = types.unwrap();
                 let mut constructor_types = if defined_in_constructor {
-                    symbol.ref_(self)
+                    symbol
+                        .ref_(self)
                         .maybe_declarations()
                         .as_ref()
                         .and_then(|declarations| {
@@ -990,7 +1001,7 @@ impl TypeChecker {
 
     pub(super) fn get_js_container_object_type(
         &self,
-        decl: &Node,
+        decl: Id<Node>,
         symbol: Option<Id<Symbol>>,
         init: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
@@ -1044,9 +1055,9 @@ impl TypeChecker {
     pub(super) fn get_annotated_type_for_assignment_declaration(
         &self,
         declared_type: Option<Id<Type>>,
-        expression: &Node, /*Expression*/
+        expression: Id<Node>, /*Expression*/
         symbol: Id<Symbol>,
-        declaration: &Node, /*Declaration*/
+        declaration: Id<Node>, /*Declaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let type_node = get_effective_type_annotation_node(&expression.parent());
         if let Some(type_node) = type_node {
@@ -1095,7 +1106,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         resolved_symbol: Option<Id<Symbol>>,
-        expression: &Node, /*BinaryExpression | CallExpression*/
+        expression: Id<Node>, /*BinaryExpression | CallExpression*/
         kind: AssignmentDeclarationKind,
     ) -> io::Result<Id<Type>> {
         if is_call_expression(expression) {
@@ -1159,19 +1170,18 @@ impl TypeChecker {
                     ))));
                 }
             }
-            for (name, &s) in &*(*resolved_symbol.unwrap_or(symbol).ref_(self).exports()).borrow()
-            {
+            for (name, &s) in &*(*resolved_symbol.unwrap_or(symbol).ref_(self).exports()).borrow() {
                 let exported_member = members.get(name).cloned();
                 if let Some(exported_member) =
                     exported_member.filter(|&exported_member| exported_member != s)
                 {
                     if s.ref_(self).flags().intersects(SymbolFlags::Value)
-                        && exported_member.ref_(self)
+                        && exported_member
+                            .ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Value)
                     {
-                        if let Some(s_value_declaration) = s.ref_(self).maybe_value_declaration()
-                        {
+                        if let Some(s_value_declaration) = s.ref_(self).maybe_value_declaration() {
                             if let Some(exported_member_value_declaration) =
                                 exported_member.ref_(self).maybe_value_declaration()
                             {
@@ -1227,7 +1237,8 @@ impl TypeChecker {
                             )
                             .into(),
                         );
-                        union.ref_(self)
+                        union
+                            .ref_(self)
                             .as_transient_symbol()
                             .symbol_links()
                             .borrow_mut()
@@ -1244,11 +1255,13 @@ impl TypeChecker {
                         if let Some(exported_member_value_declaration) =
                             exported_member.ref_(self).maybe_value_declaration()
                         {
-                            union.ref_(self)
+                            union
+                                .ref_(self)
                                 .set_value_declaration(exported_member_value_declaration);
                         }
                         union.ref_(self).set_declarations(concatenate(
-                            exported_member.ref_(self)
+                            exported_member
+                                .ref_(self)
                                 .maybe_declarations()
                                 .as_ref()
                                 .map_or_else(|| vec![], |declarations| declarations.clone()),
@@ -1272,15 +1285,18 @@ impl TypeChecker {
                     exported_type.ref_(self).maybe_symbol()
                 },
                 Gc::new(GcCell::new(members)),
-                exported_type.ref_(self)
+                exported_type
+                    .ref_(self)
                     .as_resolved_type()
                     .call_signatures()
                     .clone(),
-                exported_type.ref_(self)
+                exported_type
+                    .ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .clone(),
-                exported_type.ref_(self)
+                exported_type
+                    .ref_(self)
                     .as_resolved_type()
                     .index_infos()
                     .clone(),
@@ -1290,7 +1306,8 @@ impl TypeChecker {
                     | get_object_flags(&type_.ref_(self)) & ObjectFlags::JSLiteral,
             );
             if let Some(result_symbol) = result.ref_(self).maybe_symbol() {
-                if result_symbol.ref_(self)
+                if result_symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Class)
                     && type_ == self.get_declared_type_of_class_or_interface(result_symbol)?

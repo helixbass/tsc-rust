@@ -46,7 +46,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_source_element_worker(&self, node: &Node) -> io::Result<()> {
+    pub(super) fn check_source_element_worker(&self, node: Id<Node>) -> io::Result<()> {
         if is_in_js_file(Some(node)) {
             try_maybe_for_each(
                 node.maybe_js_doc().as_ref(),
@@ -322,7 +322,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_jsdoc_type_is_in_js_file(&self, node: &Node) {
+    pub(super) fn check_jsdoc_type_is_in_js_file(&self, node: Id<Node>) {
         if !is_in_js_file(Some(node)) {
             self.grammar_error_on_node(
                 node,
@@ -334,7 +334,7 @@ impl TypeChecker {
 
     pub(super) fn check_jsdoc_variadic_type(
         &self,
-        node: &Node, /*JSDocVariadicType*/
+        node: Id<Node>, /*JSDocVariadicType*/
     ) -> io::Result<()> {
         self.check_jsdoc_type_is_in_js_file(node);
         let node_as_base_jsdoc_unary_type = node.as_base_jsdoc_unary_type();
@@ -399,7 +399,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_jsdoc_variadic_type(
         &self,
-        node: &Node, /*JSDocVariadicType*/
+        node: Id<Node>, /*JSDocVariadicType*/
     ) -> io::Result<Id<Type>> {
         let type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;

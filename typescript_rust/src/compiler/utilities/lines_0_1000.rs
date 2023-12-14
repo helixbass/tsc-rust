@@ -1037,7 +1037,7 @@ impl CommentDirectivesMap {
 // guess accept eg a &dyn SourceFileLike so that falling back to get_source_file_of_node() can be
 // type-compatible?
 // pub fn get_token_pos_of_node<TSourceFile: SourceFileLike>(
-//     node: &Node,
+//     node: Id<Node>,
 //     source_file: Option<TSourceFile>,
 pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
     node: Id<Node>,

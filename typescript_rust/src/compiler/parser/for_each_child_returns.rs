@@ -2898,7 +2898,7 @@ pub fn for_each_child_bool(
 ) -> bool {
     // match for_each_child_returns(
     //     node,
-    //     |node: &Node| if cb_node(node) { Some(()) } else { None },
+    //     |node: Id<Node>| if cb_node(node) { Some(()) } else { None },
     //     cb_nodes.map(|cb_nodes| {
     //         |node_array: &NodeArray| if cb_nodes(node_array) { Some(()) } else { None }
     //     }),

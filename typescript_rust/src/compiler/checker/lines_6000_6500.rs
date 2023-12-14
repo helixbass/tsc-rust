@@ -23,11 +23,11 @@ use crate::{
     starts_with, try_for_each_entry_bool, try_map, try_map_defined, try_maybe_map,
     try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
     unescape_leading_underscores, AsDoubleDeref, CharacterCodes, Debug_, EmitFlags,
-    GetOrInsertDefault, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
-    InternalSymbolName, LiteralType, Matches, NamedDeclarationInterface, Node, NodeArray,
-    NodeBuilder, NodeBuilderFlags, NodeInterface, Number, ObjectFlags, OptionTry,
-    ReadonlyTextRange, Signature, SignatureDeclarationInterface, Symbol, SymbolAccessibility,
-    SymbolFlags, HasArena, InArena,
+    GetOrInsertDefault, HasArena, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, InArena, InternalSymbolName, LiteralType, Matches,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    Number, ObjectFlags, OptionTry, ReadonlyTextRange, Signature, SignatureDeclarationInterface,
+    Symbol, SymbolAccessibility, SymbolFlags,
 };
 
 impl NodeBuilder {
@@ -179,7 +179,8 @@ impl NodeBuilder {
             None,
         )?;
         if let Some(result) = result {
-            if result.ref_(self)
+            if result
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::TypeParameter)
                 && matches!(
@@ -362,9 +363,7 @@ impl NodeBuilder {
 
         if is_single_or_double_quote(first_char)
             && some(
-                symbol.ref_(self)
-                    .maybe_declarations()
-                    .as_deref(),
+                symbol.ref_(self).maybe_declarations().as_deref(),
                 Some(|declaration: &Id<Node>| {
                     self.type_checker
                         .has_non_global_augmentation_external_module_symbol(declaration)
@@ -476,16 +475,9 @@ impl NodeBuilder {
         symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> io::Result<Id<Node>> {
-        let single_quote = length(
-            symbol.ref_(self)
-                .maybe_declarations()
-                .as_deref(),
-        ) > 0
+        let single_quote = length(symbol.ref_(self).maybe_declarations().as_deref()) > 0
             && every(
-                symbol.ref_(self)
-                    .maybe_declarations()
-                    .as_deref()
-                    .unwrap(),
+                symbol.ref_(self).maybe_declarations().as_deref().unwrap(),
                 |declaration: &Id<Node>, _| self.is_single_quoted_string_named(declaration),
             );
         let from_name_type = self.get_property_name_node_for_symbol_from_name_type(
@@ -498,16 +490,9 @@ impl NodeBuilder {
         }
         let symbol_ref = symbol.ref_(self);
         let raw_name = unescape_leading_underscores(symbol_ref.escaped_name());
-        let string_named = length(
-            symbol.ref_(self)
-                .maybe_declarations()
-                .as_deref(),
-        ) > 0
+        let string_named = length(symbol.ref_(self).maybe_declarations().as_deref()) > 0
             && every(
-                symbol.ref_(self)
-                    .maybe_declarations()
-                    .as_deref()
-                    .unwrap(),
+                symbol.ref_(self).maybe_declarations().as_deref().unwrap(),
                 |declaration: &Id<Node>, _| self.is_string_named(declaration),
             );
         Ok(self.create_property_name_node_for_identifier_or_literal(
@@ -531,7 +516,8 @@ impl NodeBuilder {
             return Ok(None);
         }
         let name_type = name_type.unwrap();
-        if name_type.ref_(self)
+        if name_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
@@ -565,7 +551,8 @@ impl NodeBuilder {
                 self.create_property_name_node_for_identifier_or_literal(name, None, None),
             ));
         }
-        if name_type.ref_(self)
+        if name_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
         {
@@ -646,7 +633,8 @@ impl NodeBuilder {
     ) -> Option<Id<Node>> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        symbol.ref_(self)
+        symbol
+            .ref_(self)
             .maybe_declarations()
             .as_deref()
             .and_then(|symbol_declarations| {
@@ -677,9 +665,11 @@ impl NodeBuilder {
                     .maybe_type_arguments()
                     .as_double_deref(),
             ) >= self.type_checker.get_min_type_argument_count(
-                type_.ref_(self)
-                            .as_type_reference_interface()
-                            .target().ref_(self)
+                type_
+                    .ref_(self)
+                    .as_type_reference_interface()
+                    .target()
+                    .ref_(self)
                     .as_interface_type_interface()
                     .maybe_type_parameters(),
             )
@@ -728,7 +718,8 @@ impl NodeBuilder {
             }
         }
         let old_flags = context.flags();
-        if type_.ref_(self)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
             && matches!(
@@ -738,9 +729,7 @@ impl NodeBuilder {
             && match context.maybe_enclosing_declaration().as_ref() {
                 None => true,
                 Some(context_enclosing_declaration) => some(
-                    symbol.ref_(self)
-                        .maybe_declarations()
-                        .as_deref(),
+                    symbol.ref_(self).maybe_declarations().as_deref(),
                     Some(|d: &Id<Node>| {
                         Gc::ptr_eq(
                             maybe_get_source_file_of_node(Some(&**d)).as_ref().unwrap(),
@@ -784,13 +773,11 @@ impl NodeBuilder {
                     .is_some()
                     {
                         let annotated = self.type_checker.get_type_from_type_node_(annotation)?;
-                        let this_instantiated = if annotated.ref_(self)
+                        let this_instantiated = if annotated
+                            .ref_(self)
                             .flags()
                             .intersects(TypeFlags::TypeParameter)
-                            && annotated.ref_(self)
-                                .as_type_parameter()
-                                .is_this_type
-                                == Some(true)
+                            && annotated.ref_(self).as_type_parameter().is_this_type == Some(true)
                         {
                             self.type_checker
                                 .instantiate_type(annotated, signature.mapper.clone())?
@@ -876,7 +863,8 @@ impl NodeBuilder {
                 }
             }
             if is_identifier(node) {
-                let name = if sym.ref_(self)
+                let name = if sym
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::TypeParameter)
                 {
@@ -1239,7 +1227,7 @@ impl NodeBuilder {
                         Some(
                             try_maybe_visit_node(
                                 new_type_node.or_else(|| node_as_jsdoc_function_type.maybe_type()),
-                                Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
+                                Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?.unwrap_or_else(|| {

@@ -1216,7 +1216,7 @@ impl IncrementalParserType {
 
     pub fn update_source_file(
         &self,
-        _source_file: &Node, /*SourceFile*/
+        _source_file: Id<Node>, /*SourceFile*/
         _new_text: String,
         _text_change_range: TextChangeRange,
         _aggressive_checks: bool,

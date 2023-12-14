@@ -22,9 +22,9 @@ use crate::{
     try_visit_each_child, try_visit_node, visit_nodes, Debug_, EmitFlags,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    HasTypeParametersInterface, InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange, SignatureDeclarationInterface,
-    SymbolInterface, SyntaxKind, VisitResult, InArena,
+    SymbolInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformDeclarations {
@@ -169,7 +169,8 @@ impl TransformDeclarations {
         &self,
         node: Id<Node>, /*NamedDeclaration*/
     ) -> bool {
-        let ref node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap();
+        let ref node =
+            get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap();
         match node.kind() {
             SyntaxKind::FunctionDeclaration
             | SyntaxKind::ModuleDeclaration
@@ -195,19 +196,19 @@ impl TransformDeclarations {
             return true;
         }
 
-        let overload_signatures: Option<Vec<_>> = input.symbol().ref_(self)
-            .maybe_declarations()
-            .as_ref()
-            .map(|input_symbol_declarations| {
-                input_symbol_declarations
-                    .into_iter()
-                    .filter(|decl: &&Id<Node>| {
-                        is_function_declaration(decl)
-                            && decl.as_function_declaration().maybe_body().is_none()
-                    })
-                    .cloned()
-                    .collect()
-            });
+        let overload_signatures: Option<Vec<_>> =
+            input.symbol().ref_(self).maybe_declarations().as_ref().map(
+                |input_symbol_declarations| {
+                    input_symbol_declarations
+                        .into_iter()
+                        .filter(|decl: &&Id<Node>| {
+                            is_function_declaration(decl)
+                                && decl.as_function_declaration().maybe_body().is_none()
+                        })
+                        .cloned()
+                        .collect()
+                },
+            );
         match overload_signatures {
             None => true,
             Some(overload_signatures) if overload_signatures.is_empty() => true,
@@ -684,7 +685,8 @@ impl TransformDeclarations {
             }
             if has_dynamic_name(input)
                 && !self.resolver.is_late_bound(
-                    &get_parse_tree_node(Some(input), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
+                    &get_parse_tree_node(Some(input), Option::<fn(Id<Node>) -> bool>::None)
+                        .unwrap(),
                 )?
             {
                 return Ok(None);

@@ -1145,7 +1145,7 @@ fn try_get_module_name_from_paths(
     None
 }
 
-fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Id<Node> {
+fn get_top_namespace(namespace_declaration: Id<Node> /*ModuleDeclaration*/) -> Id<Node> {
     let mut namespace_declaration = namespace_declaration.node_wrapper();
     while namespace_declaration
         .flags()

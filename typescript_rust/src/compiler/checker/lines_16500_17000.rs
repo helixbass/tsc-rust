@@ -15,10 +15,10 @@ use crate::{
     is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
     is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, try_every,
     try_for_each_child_bool, try_map, try_some, AsDoubleDeref, Debug_, DiagnosticMessage,
-    Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction, HasArena, InArena,
+    Diagnostics, ElementFlags, HasArena, HasTypeArgumentsInterface, InArena, IndexInfo, MappedType,
+    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -139,14 +139,18 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Option<Id<Type>>> {
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
-        if constraint_type.ref_(self)
+        if constraint_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Index)
         {
-            let type_variable = self.get_actual_type_variable(constraint_type)?.ref_(self)
+            let type_variable = self
+                .get_actual_type_variable(constraint_type)?
+                .ref_(self)
                 .as_index_type()
                 .type_;
-            if type_variable.ref_(self)
+            if type_variable
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {
@@ -261,7 +265,11 @@ impl TypeChecker {
             )
         })?;
         let new_readonly = self.get_modified_readonly_state(
-            tuple_type.ref_(self).as_type_reference().target.ref_(self)
+            tuple_type
+                .ref_(self)
+                .as_type_reference()
+                .target
+                .ref_(self)
                 .as_tuple_type()
                 .readonly,
             self.get_mapped_type_modifiers(mapped_type),
@@ -301,9 +309,7 @@ impl TypeChecker {
         mapped_type: Id<Type>, /*MappedType*/
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let tuple_type_target = tuple_type.ref_(self)
-            .as_type_reference_interface()
-            .target();
+        let tuple_type_target = tuple_type.ref_(self).as_type_reference_interface().target();
         let tuple_type_target_ref = tuple_type_target.ref_(self);
         let element_flags = &tuple_type_target_ref.as_tuple_type().element_flags;
         let element_types = try_map(&self.get_type_arguments(tuple_type), |_, i| {
@@ -345,7 +351,8 @@ impl TypeChecker {
                 &element_types,
                 Some(&new_tuple_modifiers),
                 Some(new_readonly),
-                tuple_type_target.ref_(self)
+                tuple_type_target
+                    .ref_(self)
                     .as_tuple_type()
                     .labeled_element_declarations
                     .as_deref(),
@@ -367,7 +374,8 @@ impl TypeChecker {
         );
         let prop_type = self.instantiate_type(
             self.get_template_type_from_mapped_type(
-                type_.ref_(self)
+                type_
+                    .ref_(self)
                     .as_mapped_type()
                     .maybe_target()
                     .unwrap_or_else(|| type_),
@@ -403,7 +411,8 @@ impl TypeChecker {
             type_.ref_(self).as_object_flags_type().object_flags() | ObjectFlags::Instantiated,
             type_.ref_(self).maybe_symbol(),
         );
-        let is_mapped_type = type_.ref_(self)
+        let is_mapped_type = type_
+            .ref_(self)
             .as_object_flags_type()
             .object_flags()
             .intersects(ObjectFlags::Mapped);
@@ -416,7 +425,8 @@ impl TypeChecker {
                 Some(self.make_unary_type_mapper(orig_type_parameter, fresh_type_parameter)),
                 mapper,
             );
-            fresh_type_parameter.ref_(self)
+            fresh_type_parameter
+                .ref_(self)
                 .as_type_parameter()
                 .set_mapper(mapper.clone());
         }
@@ -487,7 +497,8 @@ impl TypeChecker {
                     if let Some(distribution_type) =
                         distribution_type.filter(|&distribution_type| {
                             check_type != distribution_type
-                                && distribution_type.ref_(self)
+                                && distribution_type
+                                    .ref_(self)
                                     .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
                         })
@@ -599,13 +610,15 @@ impl TypeChecker {
                 .intersects(ObjectFlags::Reference | ObjectFlags::Anonymous | ObjectFlags::Mapped)
             {
                 if object_flags.intersects(ObjectFlags::Reference)
-                    && type_.ref_(self)
+                    && type_
+                        .ref_(self)
                         .as_type_reference_interface()
                         .maybe_node()
                         .is_none()
                 {
                     let resolved_type_arguments = {
-                        let resolved_type_arguments = type_.ref_(self)
+                        let resolved_type_arguments = type_
+                            .ref_(self)
                             .as_type_reference_interface()
                             .maybe_resolved_type_arguments()
                             .clone();
@@ -654,16 +667,19 @@ impl TypeChecker {
                 None
             };
             let types = if let Some(origin) = origin.filter(|&origin| {
-                origin.ref_(self)
+                origin
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::UnionOrIntersection)
             }) {
-                origin.ref_(self)
+                origin
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned()
             } else {
-                type_.ref_(self)
+                type_
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned()
@@ -808,7 +824,8 @@ impl TypeChecker {
                 type_.ref_(self).as_substitution_type().base_type,
                 Some(mapper.clone()),
             )?;
-            if maybe_variable.ref_(self)
+            if maybe_variable
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeVariable)
             {
@@ -857,7 +874,8 @@ impl TypeChecker {
             type_.ref_(self).as_reverse_mapped_type().constraint_type,
             Some(mapper.clone()),
         )?;
-        if !inner_index_type.ref_(self)
+        if !inner_index_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Index)
         {
@@ -879,7 +897,8 @@ impl TypeChecker {
 
     pub(super) fn get_permissive_instantiation(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if type_.ref_(self)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
             {
@@ -889,7 +908,8 @@ impl TypeChecker {
                     *type_.ref_(self).maybe_permissive_instantiation() =
                         Some(self.instantiate_type(type_, self.permissive_mapper.clone())?);
                 }
-                type_.ref_(self)
+                type_
+                    .ref_(self)
                     .maybe_permissive_instantiation()
                     .clone()
                     .unwrap()
@@ -898,7 +918,8 @@ impl TypeChecker {
     }
 
     pub(super) fn get_restrictive_instantiation(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if type_.ref_(self)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
         {
@@ -1039,11 +1060,13 @@ impl TypeChecker {
     pub(super) fn get_type_without_signatures(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            if !resolved.ref_(self)
+            if !resolved
+                .ref_(self)
                 .as_resolved_type()
                 .construct_signatures()
                 .is_empty()
-                || !resolved.ref_(self)
+                || !resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .call_signatures()
                     .is_empty()
@@ -1059,10 +1082,7 @@ impl TypeChecker {
                 );
                 return Ok(self.alloc_type(result.into()));
             }
-        } else if type_.ref_(self)
-            .flags()
-            .intersects(TypeFlags::Intersection)
-        {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &try_map(
                     type_.ref_(self).as_intersection_type().types(),
@@ -1156,7 +1176,8 @@ impl TypeChecker {
                 Some(target.ref_(self).as_union_type().types()),
                 Some(|&t: &Id<Type>| self.is_type_derived_from(source, t)),
             )?
-        } else if source.ref_(self)
+        } else if source
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
         {
@@ -1166,7 +1187,8 @@ impl TypeChecker {
                 target,
             )?
         } else if target == self.global_object_type() {
-            source.ref_(self)
+            source
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Object | TypeFlags::NonPrimitive)
         } else if target == self.global_function_type() {

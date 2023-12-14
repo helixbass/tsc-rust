@@ -16,10 +16,10 @@ use crate::{
     is_private_identifier, is_string_literal, is_type_only_import_or_export_declaration, length,
     maybe_get_source_file_of_node, node_is_missing, try_for_each,
     try_for_each_import_clause_declaration_bool, unescape_leading_underscores, Debug_,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, HasStatementsInterface,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, HasArena, HasStatementsInterface, InArena,
     LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TypeChecker, HasArena, InArena,
+    SyntaxKind, TypeChecker,
 };
 
 impl TypeChecker {
@@ -118,26 +118,24 @@ impl TypeChecker {
                     symbol.ref_(self).maybe_export_symbol().unwrap_or(symbol),
                 ))
                 .unwrap();
-            let excluded_meanings = if symbol.ref_(self)
-                .flags()
-                .intersects(SymbolFlags::Value | SymbolFlags::ExportValue)
-            {
-                SymbolFlags::Value
-            } else {
-                SymbolFlags::None
-            } | if symbol.ref_(self).flags().intersects(SymbolFlags::Type)
-            {
-                SymbolFlags::Type
-            } else {
-                SymbolFlags::None
-            } | if symbol.ref_(self)
-                .flags()
-                .intersects(SymbolFlags::Namespace)
-            {
-                SymbolFlags::Namespace
-            } else {
-                SymbolFlags::None
-            };
+            let excluded_meanings =
+                if symbol
+                    .ref_(self)
+                    .flags()
+                    .intersects(SymbolFlags::Value | SymbolFlags::ExportValue)
+                {
+                    SymbolFlags::Value
+                } else {
+                    SymbolFlags::None
+                } | if symbol.ref_(self).flags().intersects(SymbolFlags::Type) {
+                    SymbolFlags::Type
+                } else {
+                    SymbolFlags::None
+                } | if symbol.ref_(self).flags().intersects(SymbolFlags::Namespace) {
+                    SymbolFlags::Namespace
+                } else {
+                    SymbolFlags::None
+                };
             if target.ref_(self).flags().intersects(excluded_meanings) {
                 let message = if node.kind() == SyntaxKind::ExportSpecifier {
                     &*Diagnostics::Export_declaration_conflicts_with_exported_declaration_of_0
@@ -235,14 +233,15 @@ impl TypeChecker {
             }
 
             if is_import_specifier(node) {
-                if let Some(target_declarations) =
-                    target.ref_(self).maybe_declarations().as_ref().filter(
-                        |target_declarations| {
-                            target_declarations.into_iter().all(|d| {
-                                get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
-                            })
-                        },
-                    )
+                if let Some(target_declarations) = target
+                    .ref_(self)
+                    .maybe_declarations()
+                    .as_ref()
+                    .filter(|target_declarations| {
+                        target_declarations
+                            .into_iter()
+                            .all(|d| get_combined_node_flags(d).intersects(NodeFlags::Deprecated))
+                    })
                 {
                     self.add_deprecated_suggestion(
                         &node.as_named_declaration().name(),
@@ -322,7 +321,7 @@ impl TypeChecker {
 
     pub(super) fn check_import_declaration(
         &self,
-        node: &Node, /*ImportDeclaration*/
+        node: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<()> {
         if self.check_grammar_module_element_context(
             node,
@@ -391,7 +390,7 @@ impl TypeChecker {
 
     pub(super) fn check_import_equals_declaration(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<()> {
         if self.check_grammar_module_element_context(
             node,
@@ -418,14 +417,16 @@ impl TypeChecker {
                         let module_name = get_first_identifier(
                             &node_as_import_equals_declaration.module_reference,
                         );
-                        if !self.resolve_entity_name(
-                                    &module_name,
-                                    SymbolFlags::Value | SymbolFlags::Namespace,
-                                    None,
-                                    None,
-                                    Option::<Id<Node>>::None,
-                                )?
-                                .unwrap().ref_(self)
+                        if !self
+                            .resolve_entity_name(
+                                &module_name,
+                                SymbolFlags::Value | SymbolFlags::Namespace,
+                                None,
+                                None,
+                                Option::<Id<Node>>::None,
+                            )?
+                            .unwrap()
+                            .ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Namespace)
                         {
@@ -475,7 +476,7 @@ impl TypeChecker {
 
     pub(super) fn check_export_declaration(
         &self,
-        node: &Node, /*ExportDeclaration*/
+        node: Id<Node>, /*ExportDeclaration*/
     ) -> io::Result<()> {
         if self.check_grammar_module_element_context(
             node,
@@ -591,7 +592,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_export_declaration(
         &self,
-        node: &Node, /*ExportDeclaration*/
+        node: Id<Node>, /*ExportDeclaration*/
     ) -> bool {
         let node_as_export_declaration = node.as_export_declaration();
         if node_as_export_declaration.is_type_only {
@@ -614,7 +615,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_module_element_context(
         &self,
-        node: &Node, /*Statement*/
+        node: Id<Node>, /*Statement*/
         error_message: &DiagnosticMessage,
     ) -> bool {
         let is_in_appropriate_context = matches!(
@@ -629,11 +630,14 @@ impl TypeChecker {
 
     pub(super) fn import_clause_contains_referenced_import(
         &self,
-        import_clause: &Node, /*ImportClause*/
+        import_clause: Id<Node>, /*ImportClause*/
     ) -> io::Result<bool> {
         try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
             Ok(
-                match self.get_symbol_of_node(declaration)?.unwrap().ref_(self)
+                match self
+                    .get_symbol_of_node(declaration)?
+                    .unwrap()
+                    .ref_(self)
                     .maybe_is_referenced()
                 {
                     None => false,
@@ -645,7 +649,7 @@ impl TypeChecker {
 
     pub(super) fn import_clause_contains_const_enum_used_as_value(
         &self,
-        import_clause: &Node, /*ImportClause*/
+        import_clause: Id<Node>, /*ImportClause*/
     ) -> io::Result<bool> {
         try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
             Ok(
@@ -659,7 +663,7 @@ impl TypeChecker {
 
     pub(super) fn can_convert_import_declaration_to_type_only(
         &self,
-        statement: &Node, /*Statement*/
+        statement: Id<Node>, /*Statement*/
     ) -> io::Result<bool> {
         Ok(is_import_declaration(statement)
             && matches!(
@@ -673,7 +677,7 @@ impl TypeChecker {
 
     pub(super) fn can_convert_import_equals_declaration_to_type_only(
         &self,
-        statement: &Node, /*Statement*/
+        statement: Id<Node>, /*Statement*/
     ) -> io::Result<bool> {
         Ok(is_import_equals_declaration(statement) && {
             let statement_as_import_equals_declaration = statement.as_import_equals_declaration();
@@ -693,7 +697,7 @@ impl TypeChecker {
 
     pub(super) fn check_imports_for_type_only_conversion(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
         for statement in &source_file.as_source_file().statements() {
             if self.can_convert_import_declaration_to_type_only(statement)?
@@ -712,7 +716,7 @@ impl TypeChecker {
 
     pub(super) fn check_export_specifier(
         &self,
-        node: &Node, /*ExportSpecifier*/
+        node: Id<Node>, /*ExportSpecifier*/
     ) -> io::Result<()> {
         self.check_alias_symbol(node)?;
         let node_as_export_specifier = node.as_export_specifier();
@@ -819,7 +823,7 @@ impl TypeChecker {
 
     pub(super) fn check_export_assignment(
         &self,
-        node: &Node, /*ExportAssignment*/
+        node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<()> {
         let node_as_export_assignment = node.as_export_assignment();
         let illegal_context_message = if node_as_export_assignment.is_export_equals == Some(true) {
@@ -939,15 +943,14 @@ impl TypeChecker {
     }
 
     pub(super) fn has_exported_members(&self, module_symbol: Id<Symbol>) -> bool {
-        for_each_entry_bool(
-            &*(*module_symbol.ref_(self).exports()).borrow(),
-            |_, id| id != "export=",
-        )
+        for_each_entry_bool(&*(*module_symbol.ref_(self).exports()).borrow(), |_, id| {
+            id != "export="
+        })
     }
 
     pub(super) fn check_external_module_exports(
         &self,
-        node: &Node, /*SourceFile | ModuleDeclaration*/
+        node: Id<Node>, /*SourceFile | ModuleDeclaration*/
     ) -> io::Result<()> {
         let module_symbol = self.get_symbol_of_node(node)?.unwrap();
         let links = self.get_symbol_links(module_symbol);

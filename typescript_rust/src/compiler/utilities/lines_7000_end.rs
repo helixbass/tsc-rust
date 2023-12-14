@@ -183,7 +183,7 @@ fn is_identifier_in_non_emitting_heritage_clause(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_identifier_type_reference(node: &Node) -> bool {
+pub fn is_identifier_type_reference(node: Id<Node>) -> bool {
     is_type_reference_node(node) && is_identifier(&node.as_type_reference_node().type_name)
 }
 

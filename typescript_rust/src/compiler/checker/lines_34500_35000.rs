@@ -16,10 +16,10 @@ use crate::{
     is_super_call, is_type_reference_type, node_is_missing, node_is_present,
     return_ok_default_if_none, some, symbol_name, try_cast, try_for_each, try_for_each_child,
     try_maybe_for_each, try_maybe_map, unescape_leading_underscores, DiagnosticRelatedInformation,
-    Diagnostics, ElementFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
+    Diagnostics, ElementFlags, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
+    InArena, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, HasArena, InArena,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -330,27 +330,30 @@ impl TypeChecker {
                 .resolved_symbol
                 .clone();
             if let Some(symbol) = symbol {
-                return Ok(if symbol.ref_(self)
-                    .flags()
-                    .intersects(SymbolFlags::TypeAlias)
-                {
-                    (*self.get_symbol_links(symbol))
-                        .borrow()
-                        .type_parameters
-                        .clone()
-                } else {
-                    None
-                }
-                .or_else(|| {
-                    if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference) {
-                        type_.ref_(self).as_type_reference_interface().target().ref_(self)
-                            .as_interface_type_interface()
-                            .maybe_local_type_parameters()
-                            .map(ToOwned::to_owned)
+                return Ok(
+                    if symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias) {
+                        (*self.get_symbol_links(symbol))
+                            .borrow()
+                            .type_parameters
+                            .clone()
                     } else {
                         None
                     }
-                }));
+                    .or_else(|| {
+                        if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference) {
+                            type_
+                                .ref_(self)
+                                .as_type_reference_interface()
+                                .target()
+                                .ref_(self)
+                                .as_interface_type_interface()
+                                .maybe_local_type_parameters()
+                                .map(ToOwned::to_owned)
+                        } else {
+                            None
+                        }
+                    }),
+                );
             }
         }
         Ok(None)
@@ -418,7 +421,8 @@ impl TypeChecker {
                     );
                 }
                 if type_.ref_(self).flags().intersects(TypeFlags::Enum)
-                    && symbol.ref_(self)
+                    && symbol
+                        .ref_(self)
                         .flags()
                         .intersects(SymbolFlags::EnumMember)
                 {
@@ -541,7 +545,11 @@ impl TypeChecker {
                 }
                 if self.is_array_type(type_)
                     || self.is_tuple_type(type_)
-                        && type_.ref_(self).as_type_reference_interface().target().ref_(self)
+                        && type_
+                            .ref_(self)
+                            .as_type_reference_interface()
+                            .target()
+                            .ref_(self)
                             .as_tuple_type()
                             .combined_flags
                             .intersects(ElementFlags::Rest)
@@ -610,7 +618,8 @@ impl TypeChecker {
         type_: Id<Type>,
         access_node: Id<Node>, /*IndexedAccessTypeNode | ElementAccessExpression*/
     ) -> io::Result<Id<Type>> {
-        if !type_.ref_(self)
+        if !type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::IndexedAccess)
         {
@@ -707,7 +716,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_mapped_type(&self, node: Id<Node> /*MappedTypeNode*/) -> io::Result<()> {
+    pub(super) fn check_mapped_type(
+        &self,
+        node: Id<Node>, /*MappedTypeNode*/
+    ) -> io::Result<()> {
         self.check_grammar_mapped_type(node);
         let node_as_mapped_type_node = node.as_mapped_type_node();
         self.check_source_element(Some(&*node_as_mapped_type_node.type_parameter))?;
@@ -818,7 +830,7 @@ impl TypeChecker {
 
     pub(super) fn check_template_literal_type(
         &self,
-        node: &Node, /*TemplateLiteralTypeNode*/
+        node: Id<Node>, /*TemplateLiteralTypeNode*/
     ) -> io::Result<()> {
         for span in &node.as_template_literal_type_node().template_spans {
             let span_as_template_literal_type_span = span.as_template_literal_type_span();
@@ -838,7 +850,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_import_type(&self, node: &Node /*ImportTypeNode*/) -> io::Result<()> {
+    pub(super) fn check_import_type(&self, node: Id<Node> /*ImportTypeNode*/) -> io::Result<()> {
         self.check_source_element(Some(&*node.as_import_type_node().argument))?;
         self.get_type_from_type_node_(node)?;
 
@@ -847,7 +859,7 @@ impl TypeChecker {
 
     pub(super) fn check_named_tuple_member(
         &self,
-        node: &Node, /*NamedTupleMember*/
+        node: Id<Node>, /*NamedTupleMember*/
     ) -> io::Result<()> {
         let node_as_named_tuple_member = node.as_named_tuple_member();
         if node_as_named_tuple_member.dot_dot_dot_token.is_some()
@@ -879,7 +891,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn is_private_within_ambient(&self, node: &Node) -> bool {
+    pub(super) fn is_private_within_ambient(&self, node: Id<Node>) -> bool {
         (has_effective_modifier(node, ModifierFlags::Private)
             || is_private_identifier_class_element_declaration(node))
             && node.flags().intersects(NodeFlags::Ambient)
@@ -887,7 +899,7 @@ impl TypeChecker {
 
     pub(super) fn get_effective_declaration_flags(
         &self,
-        n: &Node, /*Declaration*/
+        n: Id<Node>, /*Declaration*/
         flags_to_check: ModifierFlags,
     ) -> ModifierFlags {
         let mut flags = get_combined_modifier_flags(n);
@@ -937,7 +949,8 @@ impl TypeChecker {
 
         let symbol_ref = symbol.ref_(self);
         let declarations = symbol_ref.maybe_declarations();
-        let is_constructor = symbol.ref_(self)
+        let is_constructor = symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Constructor);
 
@@ -1057,9 +1070,7 @@ impl TypeChecker {
 
         if has_non_ambient_class
             && !is_constructor
-            && symbol.ref_(self)
-                .flags()
-                .intersects(SymbolFlags::Function)
+            && symbol.ref_(self).flags().intersects(SymbolFlags::Function)
         {
             if let Some(declarations) = declarations.as_ref() {
                 let related_diagnostics: Vec<Gc<DiagnosticRelatedInformation>> =

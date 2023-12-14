@@ -440,7 +440,7 @@ impl NodeBuilder {
 
     pub(super) fn deep_clone_or_reuse_node(&self, node: Id<Node>) -> Id<Node> {
         if !node_is_synthesized(node)
-            && matches!(get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None), Some(parse_tree_node) if ptr::eq(&*parse_tree_node, node))
+            && matches!(get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None), Some(parse_tree_node) if ptr::eq(&*parse_tree_node, node))
         {
             return node.node_wrapper();
         }

@@ -567,7 +567,7 @@ impl TypeChecker {
                                         },
                                         self.type_to_string_(
                                             object_type,
-                                            Option::<&Node>::None,
+                                            Option::<Id<Node>>::None,
                                             None,
                                             None,
                                         )?,
@@ -863,7 +863,7 @@ impl TypeChecker {
                             }
                             _ => panic!("Expected NumberLiteralType or StringLiteralType"),
                         },
-                        self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
             } else if index_type

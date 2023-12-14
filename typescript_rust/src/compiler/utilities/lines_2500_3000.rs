@@ -501,7 +501,7 @@ pub fn get_next_jsdoc_comment_location(node: Id<Node>) -> Option<Id<Node>> {
     None
 }
 
-pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Option<Id<Symbol>> {
+pub fn get_parameter_symbol_from_jsdoc(node: Id<Node>, /*JSDocParameterTag*/) -> Option<Id<Symbol>> {
     if node.maybe_symbol().is_some() {
         return node.maybe_symbol();
     }
@@ -527,7 +527,7 @@ pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Op
 }
 
 pub fn get_effective_container_for_jsdoc_template_tag(
-    node: &Node, /*JSDocTemplateTag*/
+    node: Id<Node>, /*JSDocTemplateTag*/
 ) -> Option<Id<Node>> {
     let node_parent = node.parent();
     if is_jsdoc(&node_parent) {
@@ -541,12 +541,12 @@ pub fn get_effective_container_for_jsdoc_template_tag(
     get_host_signature_from_jsdoc(node)
 }
 
-pub fn get_host_signature_from_jsdoc(node: &Node) -> Option<Id<Node /*SignatureDeclaration*/>> {
+pub fn get_host_signature_from_jsdoc(node: Id<Node>) -> Option<Id<Node /*SignatureDeclaration*/>> {
     let host = get_effective_jsdoc_host(node);
     host.filter(|host| is_function_like(Some(&**host)))
 }
 
-pub fn get_effective_jsdoc_host(node: &Node) -> Option<Id<Node>> {
+pub fn get_effective_jsdoc_host(node: Id<Node>) -> Option<Id<Node>> {
     let host = get_jsdoc_host(node);
     let host = host?;
     get_source_of_defaulted_assignment(&host).or_else(|| {
@@ -561,7 +561,7 @@ pub fn get_effective_jsdoc_host(node: &Node) -> Option<Id<Node>> {
     })
 }
 
-pub fn get_jsdoc_host(node: &Node) -> Option<Id<Node /*HasJSDoc*/>> {
+pub fn get_jsdoc_host(node: Id<Node>) -> Option<Id<Node /*HasJSDoc*/>> {
     let js_doc = get_jsdoc_root(node)?;
 
     let host = js_doc.maybe_parent();
@@ -576,12 +576,12 @@ pub fn get_jsdoc_host(node: &Node) -> Option<Id<Node /*HasJSDoc*/>> {
     })
 }
 
-pub fn get_jsdoc_root(node: &Node) -> Option<Id<Node /*JSDoc*/>> {
+pub fn get_jsdoc_root(node: Id<Node>) -> Option<Id<Node /*JSDoc*/>> {
     find_ancestor(node.maybe_parent(), |node| is_jsdoc(node))
 }
 
 pub fn get_type_parameter_from_js_doc(
-    node: &Node, /*TypeParameterDeclaration & { parent: JSDocTemplateTag }*/
+    node: Id<Node>, /*TypeParameterDeclaration & { parent: JSDocTemplateTag }*/
 ) -> Option<Id<Node /*TypeParameterDeclaration*/>> {
     let node_name = node.as_type_parameter_declaration().name();
     let name = &node_name.as_identifier().escaped_text;
@@ -603,7 +603,7 @@ pub fn get_type_parameter_from_js_doc(
         .map(Clone::clone)
 }
 
-pub fn has_rest_parameter(node: &Node /*SignatureDeclaration | JSDocSignature*/) -> bool {
+pub fn has_rest_parameter(node: Id<Node> /*SignatureDeclaration | JSDocSignature*/) -> bool {
     let last = match node.kind() {
         SyntaxKind::JSDocSignature => {
             last_or_undefined(&node.as_jsdoc_signature().parameters).cloned()
@@ -617,7 +617,7 @@ pub fn has_rest_parameter(node: &Node /*SignatureDeclaration | JSDocSignature*/)
     is_rest_parameter(last)
 }
 
-pub fn is_rest_parameter(node: &Node /*ParameterDeclaration | JSDocParameterTag*/) -> bool {
+pub fn is_rest_parameter(node: Id<Node> /*ParameterDeclaration | JSDocParameterTag*/) -> bool {
     let type_: Option<Id<Node>> = if is_jsdoc_parameter_tag(node) {
         node.as_jsdoc_property_like_tag()
             .type_expression
@@ -633,7 +633,7 @@ pub fn is_rest_parameter(node: &Node /*ParameterDeclaration | JSDocParameterTag*
             .is_some()
 }
 
-pub fn has_type_arguments(node: &Node) -> bool {
+pub fn has_type_arguments(node: Id<Node>) -> bool {
     node.as_has_type_arguments()
         .maybe_type_arguments()
         .is_some()
@@ -646,7 +646,7 @@ pub enum AssignmentKind {
     Compound,
 }
 
-pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
+pub fn get_assignment_target_kind(node: Id<Node>) -> AssignmentKind {
     let mut node = node.node_wrapper();
     let mut parent = node.parent();
     loop {
@@ -733,7 +733,7 @@ pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
     }
 }
 
-pub fn is_assignment_target(node: &Node) -> bool {
+pub fn is_assignment_target(node: Id<Node>) -> bool {
     get_assignment_target_kind(node) != AssignmentKind::None
 }
 

@@ -505,7 +505,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     let mut declarations: Vec<Id<Node /*VariableDeclaration*/>> = _d();
     let visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>> =
         Rc::new(RefCell::new(visitor));
-    // as Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>
+    // as Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>
     let flatten_context = FlattenDestructuringBindingFlattenContext::new(
         context.clone(),
         level,

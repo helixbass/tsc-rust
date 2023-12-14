@@ -1824,7 +1824,7 @@ pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
     fn call(
         &self,
         module_names: &[String],
-        containing_file: &Node, /*SourceFile*/
+        containing_file: Id<Node>, /*SourceFile*/
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
@@ -1847,7 +1847,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
     fn call(
         &self,
         module_names: &[String],
-        containing_file: &Node, /*SourceFile*/
+        containing_file: Id<Node>, /*SourceFile*/
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
@@ -1897,7 +1897,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
     fn call(
         &self,
         module_names: &[String],
-        containing_file: &Node, /*SourceFile*/
+        containing_file: Id<Node>, /*SourceFile*/
         containing_file_name: &str,
         _reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
@@ -2100,7 +2100,7 @@ impl SourceFileMayBeEmittedHost for Program {
         self.get_compiler_options()
     }
 
-    fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
+    fn is_source_file_from_external_library(&self, file: Id<Node> /*SourceFile*/) -> bool {
         self.is_source_file_from_external_library(file)
     }
 

@@ -457,7 +457,7 @@ pub fn get_entity_name_from_type_node(
     None
 }
 
-pub fn get_invoked_expression(node: Id<Node> /*CallLikeExpression*/) -> Id<Node /*Expression*/> {
+pub fn get_invoked_expression(node: Id<Node>, /*CallLikeExpression*/) -> Id<Node /*Expression*/> {
     match node.kind() {
         SyntaxKind::TaggedTemplateExpression => node.as_tagged_template_expression().tag.clone(),
         SyntaxKind::JsxOpeningElement => node.as_jsx_opening_element().tag_name.clone(),
@@ -543,7 +543,7 @@ pub fn child_is_decorated(node: Id<Node>, parent: Option<impl Borrow<Node> + Clo
     }
 }
 
-pub fn class_or_constructor_parameter_is_decorated(node: Id<Node> /*ClassDeclaration*/) -> bool {
+pub fn class_or_constructor_parameter_is_decorated(node: Id<Node>, /*ClassDeclaration*/) -> bool {
     if node_is_decorated(node, Option::<Id<Node>>::None, Option::<Id<Node>>::None) {
         return true;
     }

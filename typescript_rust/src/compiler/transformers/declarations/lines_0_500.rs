@@ -1319,7 +1319,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                 .is_symbol_accessible(
                     symbol,
                     // TODO: it sort of looks like maybe the signature for .track_symbol() should take
-                    // an Option<&Node> instead?
+                    // an Option<Id<Node>> instead?
                     enclosing_declaration.as_deref(),
                     Some(meaning),
                     true,

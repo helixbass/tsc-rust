@@ -14,9 +14,9 @@ use crate::{
     length, Debug_, Diagnostics, ElementFlags, EnumKind, Extension, ExternalEmitHelpers,
     HasTypeArgumentsInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface,
     NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
-    TransientSymbolInterface, __String, has_initializer, maybe_get_source_file_of_node, Node,
-    NodeInterface, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, HasArena, InArena,
+    TransientSymbolInterface, __String, has_initializer, maybe_get_source_file_of_node, HasArena,
+    InArena, Node, NodeInterface, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -84,10 +84,12 @@ impl TypeChecker {
             self.check_expression_cached(&node_as_call_expression.arguments[i], None)?;
         }
 
-        if specifier_type.ref_(self)
+        if specifier_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Undefined)
-            || specifier_type.ref_(self)
+            || specifier_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Null)
             || !self.is_type_assignable_to(specifier_type, self.string_type())?
@@ -214,7 +216,8 @@ impl TypeChecker {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
             let synth_type = type_;
             if synth_type.ref_(self).maybe_synthetic_type().is_none() {
-                let file = original_symbol.ref_(self)
+                let file = original_symbol
+                    .ref_(self)
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|original_symbol_declarations| {
@@ -244,7 +247,8 @@ impl TypeChecker {
                             original_symbol,
                             Some(anonymous_symbol),
                         )?;
-                    anonymous_symbol.ref_(self)
+                    anonymous_symbol
+                        .ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
                         .borrow_mut()
@@ -265,7 +269,8 @@ impl TypeChecker {
                     *synth_type.ref_(self).maybe_synthetic_type() = Some(type_);
                 }
             }
-            return Ok(synth_type.ref_(self)
+            return Ok(synth_type
+                .ref_(self)
                 .maybe_synthetic_type()
                 .clone()
                 .unwrap());
@@ -299,19 +304,22 @@ impl TypeChecker {
         if resolved_require == self.require_symbol() {
             return Ok(true);
         }
-        if resolved_require.ref_(self)
+        if resolved_require
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Alias)
         {
             return Ok(false);
         }
 
-        let target_declaration_kind = if resolved_require.ref_(self)
+        let target_declaration_kind = if resolved_require
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Function)
         {
             SyntaxKind::FunctionDeclaration
-        } else if resolved_require.ref_(self)
+        } else if resolved_require
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Variable)
         {
@@ -626,7 +634,8 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            return Ok(signature.parameters()[pos].ref_(self)
+            return Ok(signature.parameters()[pos]
+                .ref_(self)
                 .escaped_name()
                 .to_owned());
         }
@@ -725,7 +734,7 @@ impl TypeChecker {
 
     pub(super) fn is_valid_declaration_for_tuple_label(
         &self,
-        d: &Node, /*Declaration*/
+        d: Id<Node>, /*Declaration*/
     ) -> bool {
         d.kind() == SyntaxKind::NamedTupleMember
             || is_parameter(d)
@@ -747,7 +756,8 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            let decl = signature.parameters()[pos].ref_(self)
+            let decl = signature.parameters()[pos]
+                .ref_(self)
                 .maybe_value_declaration();
             return Ok(decl.filter(|decl| self.is_valid_declaration_for_tuple_label(decl)));
         }
@@ -768,11 +778,11 @@ impl TypeChecker {
                 associated_names.and_then(|associated_names| associated_names.get(index).cloned())
             );
         }
-        Ok(rest_parameter.ref_(self)
-            .maybe_value_declaration()
-            .filter(|rest_parameter_value_declaration| {
+        Ok(rest_parameter.ref_(self).maybe_value_declaration().filter(
+            |rest_parameter_value_declaration| {
                 self.is_valid_declaration_for_tuple_label(rest_parameter_value_declaration)
-            }))
+            },
+        ))
     }
 
     pub(super) fn get_type_at_position(
@@ -806,9 +816,7 @@ impl TypeChecker {
             let index = pos - param_count;
             if !self.is_tuple_type(rest_type) || {
                 let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
-                rest_type_target.ref_(self)
-                    .as_tuple_type()
-                    .has_rest_element
+                rest_type_target.ref_(self).as_tuple_type().has_rest_element
                     || index < rest_type_target.ref_(self).as_tuple_type().fixed_length
             } {
                 return Ok(Some(self.get_indexed_access_type(
@@ -891,10 +899,7 @@ impl TypeChecker {
                 let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
                 return Ok(
                     length + rest_type_target.ref_(self).as_tuple_type().fixed_length
-                        - if rest_type_target.ref_(self)
-                            .as_tuple_type()
-                            .has_rest_element
-                        {
+                        - if rest_type_target.ref_(self).as_tuple_type().has_rest_element {
                             0
                         } else {
                             1
@@ -963,7 +968,9 @@ impl TypeChecker {
             /*while (i >= 0)*/
             {
                 let type_ = self.get_type_at_position(signature, i)?;
-                if self.filter_type(type_, |type_| self.accepts_void(type_)).ref_(self)
+                if self
+                    .filter_type(type_, |type_| self.accepts_void(type_))
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Never)
                 {
@@ -986,7 +993,11 @@ impl TypeChecker {
             let rest_type =
                 self.get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
             return Ok(!self.is_tuple_type(rest_type)
-                || rest_type.ref_(self).as_type_reference_interface().target().ref_(self)
+                || rest_type
+                    .ref_(self)
+                    .as_type_reference_interface()
+                    .target()
+                    .ref_(self)
                     .as_tuple_type()
                     .has_rest_element);
         }
@@ -1004,10 +1015,7 @@ impl TypeChecker {
                 return Ok(Some(rest_type));
             }
             let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
-            if rest_type_target.ref_(self)
-                .as_tuple_type()
-                .has_rest_element
-            {
+            if rest_type_target.ref_(self).as_tuple_type().has_rest_element {
                 return Ok(Some(self.slice_tuple_type(
                     rest_type,
                     rest_type_target.ref_(self).as_tuple_type().fixed_length,
@@ -1026,7 +1034,9 @@ impl TypeChecker {
         rest_type.try_filter(|&rest_type| -> io::Result<_> {
             Ok(!self.is_array_type(rest_type)
                 && !self.is_type_any(Some(rest_type))
-                && !self.get_reduced_type(rest_type)?.ref_(self)
+                && !self
+                    .get_reduced_type(rest_type)?
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Never))
         })

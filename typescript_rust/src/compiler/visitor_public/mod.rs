@@ -303,19 +303,19 @@ pub fn visit_lexical_environment(
 ) -> Gc<NodeArray> {
     // try_visit_lexical_environment_full(
     //     statements,
-    //     |node: &Node| Ok(visitor(node)),
+    //     |node: Id<Node>| Ok(visitor(node)),
     //     context,
     //     start,
     //     ensure_use_strict,
     //     nodes_visitor.map(|mut nodes_visitor| {
     //         move |nodes: Option<&NodeArray>,
-    //               visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-    //               test: Option<&dyn Fn(&Node) -> bool>,
+    //               visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
+    //               test: Option<&dyn Fn(Id<Node>) -> bool>,
     //               start: Option<usize>,
     //               count: Option<usize>| {
     //             let mut visitor = visitor.map(|visitor| {
-    //                 Box::new(move |node: &Node| visitor(node).unwrap())
-    //                     as Box<dyn FnMut(&Node) -> VisitResult>
+    //                 Box::new(move |node: Id<Node>| visitor(node).unwrap())
+    //                     as Box<dyn FnMut(Id<Node>) -> VisitResult>
     //             });
     //             let ret = {
     //                 let visitor = visitor.as_deref_mut();

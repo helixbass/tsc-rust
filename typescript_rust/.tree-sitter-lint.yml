@@ -8,8 +8,8 @@ rules:
   #   level: error
   # rewrite-gc-type-to-id-type:
   #   level: error
-  rewrite-ref-type-to-id-type:
-    level: error
+  # rewrite-ref-type-to-id-type:
+  #   level: error
   rustfmt/rustfmt:
     level: error
   rust-known-imports/known-imports:

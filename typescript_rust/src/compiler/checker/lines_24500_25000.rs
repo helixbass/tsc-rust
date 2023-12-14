@@ -19,11 +19,11 @@ use crate::{
     is_right_side_of_qualified_name_or_property_access, is_set_accessor, is_spread_assignment,
     is_static, is_string_literal_like, is_variable_declaration, is_write_access, node_is_decorated,
     should_preserve_const_enums, try_find, try_for_each_child, try_map, AssignmentKind,
-    ContextFlags, Diagnostics, FindAncestorCallbackReturn, HasInitializerInterface,
-    HasTypeInterface, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
-    ObjectFlags, OptionTry, ScriptTarget, Signature, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
-    TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, HasArena, InArena,
+    ContextFlags, Diagnostics, FindAncestorCallbackReturn, HasArena, HasInitializerInterface,
+    HasTypeInterface, InArena, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags,
+    NodeInterface, ObjectFlags, OptionTry, ScriptTarget, Signature, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl GetFlowTypeOfReference {
@@ -84,18 +84,12 @@ impl GetFlowTypeOfReference {
         }
 
         let is_constructed_by = |source: Id<Type>, target: Id<Type>| {
-            if source.ref_(self)
-                .flags()
-                .intersects(TypeFlags::Object)
+            if source.ref_(self).flags().intersects(TypeFlags::Object)
                 && get_object_flags(&source.ref_(self)).intersects(ObjectFlags::Class)
-                || target.ref_(self)
-                    .flags()
-                    .intersects(TypeFlags::Object)
-                    && get_object_flags(&target.ref_(self))
-                        .intersects(ObjectFlags::Class)
+                || target.ref_(self).flags().intersects(TypeFlags::Object)
+                    && get_object_flags(&target.ref_(self)).intersects(ObjectFlags::Class)
             {
-                return Ok(source.ref_(self).maybe_symbol()
-                    == target.ref_(self).maybe_symbol());
+                return Ok(source.ref_(self).maybe_symbol() == target.ref_(self).maybe_symbol());
             }
 
             self.type_checker.is_type_subtype_of(source, target)
@@ -187,11 +181,7 @@ impl GetFlowTypeOfReference {
         }
         let target_type = target_type.unwrap();
 
-        if !assume_true
-            && right_type.ref_(self)
-                .flags()
-                .intersects(TypeFlags::Union)
-        {
+        if !assume_true && right_type.ref_(self).flags().intersects(TypeFlags::Union) {
             let non_constructor_type_in_union = try_find(
                 &right_type.ref_(self).as_union_type().types(),
                 |t: &Id<Type>, _| -> io::Result<_> {
@@ -226,14 +216,12 @@ impl GetFlowTypeOfReference {
                 .type_checker
                 .try_filter_type(type_, |t: Id<Type>| Ok(!is_related(t, candidate)?));
         }
-        if type_.ref_(self)
-            .flags()
-            .intersects(TypeFlags::Union)
-        {
+        if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             let assignable_type = self
                 .type_checker
                 .try_filter_type(type_, |t: Id<Type>| is_related(t, candidate))?;
-            if !assignable_type.ref_(self)
+            if !assignable_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never)
             {
@@ -417,8 +405,7 @@ impl GetFlowTypeOfReference {
                 {
                     let symbol = self.type_checker.get_resolved_symbol(expr)?;
                     if self.type_checker.is_const_variable(symbol) {
-                        let declaration =
-                            symbol.ref_(self).maybe_value_declaration();
+                        let declaration = symbol.ref_(self).maybe_value_declaration();
                         if let Some(declaration) =
                             declaration
                                 .as_ref()
@@ -530,7 +517,8 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         location: Id<Node>,
     ) -> io::Result<Id<Type>> {
-        let symbol = symbol.ref_(self)
+        let symbol = symbol
+            .ref_(self)
             .maybe_export_symbol()
             .unwrap_or_else(|| symbol);
 
@@ -641,9 +629,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_variable(&self, symbol: Id<Symbol>) -> bool {
-        symbol.ref_(self)
-            .flags()
-            .intersects(SymbolFlags::Variable)
+        symbol.ref_(self).flags().intersects(SymbolFlags::Variable)
             && self
                 .get_declaration_node_flags_from_symbol(symbol)
                 .intersects(NodeFlags::Const)
@@ -681,7 +667,11 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_constraint_position(&self, type_: Id<Type>, node: Id<Node>) -> io::Result<bool> {
+    pub(super) fn is_constraint_position(
+        &self,
+        type_: Id<Type>,
+        node: Id<Node>,
+    ) -> io::Result<bool> {
         let parent = node.parent();
         Ok(parent.kind() == SyntaxKind::PropertyAccessExpression
             || parent.kind() == SyntaxKind::CallExpression
@@ -699,10 +689,10 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(type_.ref_(self)
-            .flags()
-            .intersects(TypeFlags::Instantiable)
-            && self.get_base_constraint_or_type(type_)?.ref_(self)
+        Ok(type_.ref_(self).flags().intersects(TypeFlags::Instantiable)
+            && self
+                .get_base_constraint_or_type(type_)?
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Nullable | TypeFlags::Union))
     }
@@ -711,9 +701,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(type_.ref_(self)
-            .flags()
-            .intersects(TypeFlags::Instantiable)
+        Ok(type_.ref_(self).flags().intersects(TypeFlags::Instantiable)
             && !self.maybe_type_of_kind(
                 self.get_base_constraint_or_type(type_)?,
                 TypeFlags::Nullable,
@@ -885,7 +873,8 @@ impl TypeChecker {
         let local_or_export_symbol = self
             .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
             .unwrap();
-        let source_symbol = if local_or_export_symbol.ref_(self)
+        let source_symbol = if local_or_export_symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Alias)
         {
@@ -909,15 +898,19 @@ impl TypeChecker {
             }
         }
 
-        let mut declaration = local_or_export_symbol.ref_(self)
-            .maybe_value_declaration();
+        let mut declaration = local_or_export_symbol.ref_(self).maybe_value_declaration();
         if let Some(declaration) = declaration.as_ref() {
-            if local_or_export_symbol.ref_(self)
+            if local_or_export_symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Class)
             {
                 if declaration.kind() == SyntaxKind::ClassDeclaration
-                    && node_is_decorated(declaration, Option::<Id<Node>>::None, Option::<Id<Node>>::None)
+                    && node_is_decorated(
+                        declaration,
+                        Option::<Id<Node>>::None,
+                        Option::<Id<Node>>::None,
+                    )
                 {
                     let mut container = get_containing_class(node);
                     while let Some(container_present) = container.as_ref() {
@@ -966,35 +959,42 @@ impl TypeChecker {
         let assignment_kind = get_assignment_target_kind(node);
 
         if assignment_kind != AssignmentKind::None {
-            if !local_or_export_symbol.ref_(self)
+            if !local_or_export_symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Variable)
                 && !(is_in_js_file(Some(node))
-                    && local_or_export_symbol.ref_(self)
+                    && local_or_export_symbol
+                        .ref_(self)
                         .flags()
                         .intersects(SymbolFlags::ValueModule))
             {
-                let assignment_error = if local_or_export_symbol.ref_(self)
+                let assignment_error = if local_or_export_symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Enum)
                 {
                     &*Diagnostics::Cannot_assign_to_0_because_it_is_an_enum
-                } else if local_or_export_symbol.ref_(self)
+                } else if local_or_export_symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Class)
                 {
                     &*Diagnostics::Cannot_assign_to_0_because_it_is_a_class
-                } else if local_or_export_symbol.ref_(self)
+                } else if local_or_export_symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Module)
                 {
                     &*Diagnostics::Cannot_assign_to_0_because_it_is_a_namespace
-                } else if local_or_export_symbol.ref_(self)
+                } else if local_or_export_symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Function)
                 {
                     &*Diagnostics::Cannot_assign_to_0_because_it_is_a_function
-                } else if local_or_export_symbol.ref_(self)
+                } else if local_or_export_symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Alias)
                 {
@@ -1017,7 +1017,8 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
             if self.is_readonly_symbol(local_or_export_symbol)? {
-                if local_or_export_symbol.ref_(self)
+                if local_or_export_symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Variable)
                 {
@@ -1049,11 +1050,13 @@ impl TypeChecker {
             }
         }
 
-        let is_alias = local_or_export_symbol.ref_(self)
+        let is_alias = local_or_export_symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Alias);
 
-        if local_or_export_symbol.ref_(self)
+        if local_or_export_symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Variable)
         {
@@ -1087,7 +1090,8 @@ impl TypeChecker {
                 Some(node_parent_parent) if is_spread_assignment(node_parent) && self.is_destructuring_assignment_target(node_parent_parent)
             )
         );
-        let is_module_exports = symbol.ref_(self)
+        let is_module_exports = symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::ModuleExports);
         while !matches!(
@@ -1111,7 +1115,8 @@ impl TypeChecker {
             || type_ != self.auto_type()
                 && type_ != self.auto_array_type()
                 && (!self.strict_null_checks
-                    || type_.ref_(self)
+                    || type_
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Void)
                     || self.is_in_type_query(node)

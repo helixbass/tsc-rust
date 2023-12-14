@@ -23,10 +23,10 @@ use crate::{
     skip_parentheses, starts_with, symbol_name, try_filter,
     try_get_property_access_or_identifier_to_string, try_get_spelling_suggestion,
     try_maybe_for_each, unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags,
-    Debug_, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
-    OptionTry, Signature, SignatureFlags, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, HasArena, InArena,
+    Debug_, Diagnostics, HasArena, InArena, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrRcNode, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -59,7 +59,8 @@ impl TypeChecker {
         containing_type: Id<Type>,
     ) -> io::Result<bool> {
         let prop =
-            containing_type.ref_(self)
+            containing_type
+                .ref_(self)
                 .maybe_symbol()
                 .try_and_then(|containing_type_symbol| {
                     self.get_property_of_type_(
@@ -98,7 +99,9 @@ impl TypeChecker {
         missing_property: &str,
         containing_type: Id<Type>,
     ) -> io::Result<Option<String>> {
-        let container = return_ok_default_if_none!(self.get_apparent_type(containing_type)?.ref_(self)
+        let container = return_ok_default_if_none!(self
+            .get_apparent_type(containing_type)?
+            .ref_(self)
             .maybe_symbol());
         let all_features = get_script_target_features();
         let lib_targets = all_features.keys();
@@ -272,10 +275,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let symbol_result =
             self.get_suggested_symbol_for_nonexistent_symbol_(location, outer_name, meaning)?;
-        Ok(
-            symbol_result
-                .map(|symbol_result| symbol_name(&symbol_result.ref_(self)).into_owned()),
-        )
+        Ok(symbol_result.map(|symbol_result| symbol_name(&symbol_result.ref_(self)).into_owned()))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
@@ -357,12 +357,14 @@ impl TypeChecker {
         source: Id<Type>, /*StringLiteralType*/
         target: Id<Type>, /*UnionType*/
     ) -> Option<Id<Type /*StringLiteralType*/>> {
-        let candidates = target.ref_(self)
+        let candidates = target
+            .ref_(self)
             .as_union_type()
             .types()
             .into_iter()
             .filter(|&&type_| {
-                type_.ref_(self)
+                type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
             })
@@ -392,10 +394,7 @@ impl TypeChecker {
                 return Ok(Some(candidate_name.into_owned()));
             }
 
-            if candidate.ref_(self)
-                .flags()
-                .intersects(SymbolFlags::Alias)
-            {
+            if candidate.ref_(self).flags().intersects(SymbolFlags::Alias) {
                 let alias = self.try_resolve_alias(candidate)?;
                 if matches!(
                     alias,
@@ -440,9 +439,7 @@ impl TypeChecker {
         if matches!(
             node_for_check_write_only.as_ref(),
             Some(node_for_check_write_only) if is_write_only_access(node_for_check_write_only)
-        ) && !prop.ref_(self)
-            .flags()
-            .intersects(SymbolFlags::SetAccessor)
+        ) && !prop.ref_(self).flags().intersects(SymbolFlags::SetAccessor)
         {
             return;
         }
@@ -463,14 +460,15 @@ impl TypeChecker {
         }
 
         if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Instantiated) {
-                (*self.get_symbol_links(prop))
-                    .borrow()
-                    .target
-                    .clone()
-                    .unwrap()
-            } else {
-                prop
-            }.ref_(self)
+            (*self.get_symbol_links(prop))
+                .borrow()
+                .target
+                .clone()
+                .unwrap()
+        } else {
+            prop
+        }
+        .ref_(self)
         .set_is_referenced(Some(SymbolFlags::All));
     }
 
@@ -491,7 +489,7 @@ impl TypeChecker {
 
     pub(super) fn is_valid_property_access_(
         &self,
-        node: Id<Node>,         /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
+        node: Id<Node>, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         property_name: &str, /*__String*/
     ) -> io::Result<bool> {
         Ok(match node.kind() {
@@ -582,7 +580,8 @@ impl TypeChecker {
             return Ok(true);
         }
 
-        if let Some(property_value_declaration) = property.ref_(self)
+        if let Some(property_value_declaration) = property
+            .ref_(self)
             .maybe_value_declaration()
             .as_ref()
             .filter(|property_value_declaration| {
@@ -615,7 +614,7 @@ impl TypeChecker {
 
     pub(super) fn get_for_in_variable_symbol(
         &self,
-        node: &Node, /*ForInStatement*/
+        node: Id<Node>, /*ForInStatement*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let initializer = &node.as_for_in_statement().initializer;
         if initializer.kind() == SyntaxKind::VariableDeclarationList {
@@ -644,15 +643,12 @@ impl TypeChecker {
 
     pub(super) fn is_for_in_variable_for_numeric_property_names(
         &self,
-        expr: &Node, /*Expression*/
+        expr: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         let e = skip_parentheses(expr, None);
         if e.kind() == SyntaxKind::Identifier {
             let symbol = self.get_resolved_symbol(&e)?;
-            if symbol.ref_(self)
-                .flags()
-                .intersects(SymbolFlags::Variable)
-            {
+            if symbol.ref_(self).flags().intersects(SymbolFlags::Variable) {
                 let mut child = expr.node_wrapper();
                 let mut node = expr.maybe_parent();
                 while let Some(node_present) = node.as_ref() {
@@ -679,7 +675,7 @@ impl TypeChecker {
 
     pub(super) fn check_indexed_access(
         &self,
-        node: &Node, /*ElementAccessExpression*/
+        node: Id<Node>, /*ElementAccessExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
@@ -695,7 +691,7 @@ impl TypeChecker {
 
     pub(super) fn check_element_access_chain(
         &self,
-        node: &Node, /*ElementAccessChain*/
+        node: Id<Node>, /*ElementAccessChain*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_element_access_expression = node.as_element_access_expression();
@@ -721,7 +717,7 @@ impl TypeChecker {
 
     pub(super) fn check_element_access_expression(
         &self,
-        node: &Node, /*ElementAccessExpression*/
+        node: Id<Node>, /*ElementAccessExpression*/
         expr_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
@@ -795,7 +791,7 @@ impl TypeChecker {
 
     pub(super) fn call_like_expression_may_have_type_arguments(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
     ) -> bool {
         is_call_or_new_expression(node)
             || is_tagged_template_expression(node)
@@ -804,7 +800,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_untyped_call(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<Gc<Signature>> {
         if self.call_like_expression_may_have_type_arguments(node) {
             try_maybe_for_each(
@@ -834,7 +830,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_error_call(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<Gc<Signature>> {
         self.resolve_untyped_call(node)?;
         Ok(self.unknown_signature())
