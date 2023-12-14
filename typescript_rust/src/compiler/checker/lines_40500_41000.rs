@@ -776,7 +776,8 @@ impl TypeChecker {
                 }
                 if parent.as_meta_property().keyword_token == SyntaxKind::NewKeyword {
                     return Ok(self
-                        .type_(self.check_new_target_meta_property(parent)?)
+                        .check_new_target_meta_property(parent)?
+                        .ref_(self)
                         .maybe_symbol());
                 }
             }
@@ -800,7 +801,8 @@ impl TypeChecker {
                 }
                 if is_in_expression_context(node) {
                     return Ok(self
-                        .type_(self.check_expression(node, None, None)?)
+                        .check_expression(node, None, None)?
+                        .ref_(self)
                         .maybe_symbol());
                 }
 
@@ -810,11 +812,13 @@ impl TypeChecker {
             }
 
             SyntaxKind::ThisType => self
-                .type_(self.get_type_from_this_type_node(node)?)
+                .get_type_from_this_type_node(node)?
+                .ref_(self)
                 .maybe_symbol(),
 
             SyntaxKind::SuperKeyword => self
-                .type_(self.check_expression(node, None, None)?)
+                .check_expression(node, None, None)?
+                .ref_(self)
                 .maybe_symbol(),
 
             SyntaxKind::ConstructorKeyword => {
@@ -963,7 +967,8 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::MetaProperty => self
-                .type_(self.check_expression(node, None, None)?)
+                .check_expression(node, None, None)?
+                .ref_(self)
                 .maybe_symbol(),
 
             _ => None,

@@ -486,8 +486,8 @@ impl TypeChecker {
             return self.get_contextual_call_signature(type_, node);
         }
         let mut signature_list: Option<Vec<Gc<Signature>>> = None;
-        let types = self
-            .type_(type_)
+        let types = type_
+            .ref_(self)
             .as_union_or_intersection_type_interface()
             .types()
             .to_owned();
@@ -725,8 +725,8 @@ impl TypeChecker {
         if !get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference) {
             return type_;
         }
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_type_reference_interface()
             .maybe_literal_type()
             .is_none()
@@ -741,8 +741,8 @@ impl TypeChecker {
                         | ObjectFlags::ContainsObjectOrArrayLiteral,
                 );
             }
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_type_reference_interface()
                 .maybe_literal_type_mut() = Some(literal_type);
         }
@@ -829,8 +829,8 @@ impl TypeChecker {
                         .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
                 }
             }
-            if self
-                .type_(links_resolved_type)
+            if links_resolved_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Nullable)
                 || !self.is_type_assignable_to_kind(
@@ -1255,8 +1255,8 @@ impl TypeChecker {
             let member = member.unwrap();
 
             if let Some(computed_name_type) = computed_name_type.filter(|&computed_name_type| {
-                !self
-                    .type_(computed_name_type)
+                !computed_name_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
             }) {

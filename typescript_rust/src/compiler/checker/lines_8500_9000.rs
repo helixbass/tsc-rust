@@ -82,8 +82,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let type_ = self.get_literal_type_from_property_name(name)?;
         Ok(
-            if self
-                .type_(type_)
+            if type_.ref_(self)
                 .flags()
                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
             {
@@ -136,8 +135,7 @@ impl TypeChecker {
         if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             if declaration_as_binding_element.dot_dot_dot_token.is_some() {
                 parent_type = self.get_reduced_type(parent_type)?;
-                if self
-                    .type_(parent_type)
+                if parent_type.ref_(self)
                     .flags()
                     .intersects(TypeFlags::Unknown)
                     || !self.is_valid_spread_type(parent_type)?
@@ -333,8 +331,7 @@ impl TypeChecker {
                 None,
             )?;
             return Ok(Some(
-                if self
-                    .type_(index_type)
+                if index_type.ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeParameter | TypeFlags::Index)
                 {

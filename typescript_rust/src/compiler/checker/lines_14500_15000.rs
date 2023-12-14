@@ -28,26 +28,26 @@ impl TypeChecker {
     ) -> bool {
         for &u in union_types {
             if !self.contains_type(u.ref_(self).as_union_type().types(), type_) {
-                let primitive = if self
-                    .type_(type_)
+                let primitive = if type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
                 {
                     Some(self.string_type())
-                } else if self
-                    .type_(type_)
+                } else if type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::NumberLiteral)
                 {
                     Some(self.number_type())
-                } else if self
-                    .type_(type_)
+                } else if type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::BigIntLiteral)
                 {
                     Some(self.bigint_type())
-                } else if self
-                    .type_(type_)
+                } else if type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::UniqueESSymbol)
                 {
@@ -415,8 +415,8 @@ impl TypeChecker {
             let mut j: isize = (types.len() - 1).try_into().unwrap();
             while j >= 0 {
                 let j_as_usize: usize = j.try_into().unwrap();
-                if self
-                    .type_(types[j_as_usize])
+                if types[j_as_usize]
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Union)
                 {
@@ -587,8 +587,7 @@ impl TypeChecker {
             self.filter_type(
                 self.get_union_type(&key_types, None, Option::<Id<Symbol>>::None, None, None)?,
                 |t| {
-                    !self
-                        .type_(t)
+                    !t.ref_(self)
                         .flags()
                         .intersects(TypeFlags::Any | TypeFlags::String)
                 },
@@ -597,8 +596,8 @@ impl TypeChecker {
             self.get_union_type(&key_types, None, Option::<Id<Symbol>>::None, None, None)?
         };
         if result.ref_(self).flags().intersects(TypeFlags::Union)
-            && self
-                .type_(constraint_type)
+            && constraint_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Union)
             && self.get_type_list_id(Some(result.ref_(self).as_union_type().types()))
@@ -665,15 +664,15 @@ impl TypeChecker {
                 .borrow()
                 .is_distributive
                 && type_.ref_(self).as_conditional_type().check_type == type_variable
-        } else if self
-            .type_(type_)
+        } else if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UnionOrIntersection | TypeFlags::TemplateLiteral)
         {
             let type_ref = type_.ref_(self);
             every(
-                if self
-                    .type_(type_)
+                if type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::UnionOrIntersection)
                 {
@@ -683,8 +682,8 @@ impl TypeChecker {
                 },
                 |&t: &Id<Type>, _| self.is_distributive(type_variable, t),
             )
-        } else if self
-            .type_(type_)
+        } else if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::IndexedAccess)
         {
@@ -695,17 +694,13 @@ impl TypeChecker {
                 type_variable,
                 type_.ref_(self).as_indexed_access_type().index_type,
             )
-        } else if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Substitution)
-        {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Substitution) {
             self.is_distributive(
                 type_variable,
                 type_.ref_(self).as_substitution_type().substitute,
             )
-        } else if self
-            .type_(type_)
+        } else if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StringMapping)
         {
@@ -778,8 +773,8 @@ impl TypeChecker {
 
     pub(super) fn is_key_type_included(&self, key_type: Id<Type>, include: TypeFlags) -> bool {
         key_type.ref_(self).flags().intersects(include)
-            || self
-                .type_(key_type)
+            || key_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Intersection)
                 && some(
@@ -849,11 +844,7 @@ impl TypeChecker {
                 Option::<Id<Symbol>>::None,
                 None,
             )?
-        } else if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Intersection)
-        {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             self.get_union_type(
                 &try_map(
                     &{
@@ -869,8 +860,8 @@ impl TypeChecker {
                 None,
                 None,
             )?
-        } else if self
-            .type_(type_)
+        } else if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
             || self.is_generic_tuple_type(type_)
@@ -883,8 +874,8 @@ impl TypeChecker {
             self.wildcard_type()
         } else if type_.ref_(self).flags().intersects(TypeFlags::Unknown) {
             self.never_type()
-        } else if self
-            .type_(type_)
+        } else if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Any | TypeFlags::Never)
         {
@@ -1089,8 +1080,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         for (i, t) in types.iter().enumerate() {
             let t = *t;
-            if self
-                .type_(t)
+            if t.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Literal | TypeFlags::Null | TypeFlags::Undefined)
             {

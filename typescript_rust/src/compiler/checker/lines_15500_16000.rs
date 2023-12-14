@@ -44,8 +44,8 @@ impl TypeChecker {
                     .as_deref(),
             )?;
             links.borrow_mut().resolved_type = Some(
-                if self
-                    .type_(resolved)
+                if resolved
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::IndexedAccess)
                     && {
@@ -83,24 +83,26 @@ impl TypeChecker {
     }
 
     pub(super) fn get_actual_type_variable(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Substitution)
-        {
+        if type_.ref_(self).flags().intersects(TypeFlags::Substitution) {
             return Ok(type_.ref_(self).as_substitution_type().base_type.clone());
         }
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::IndexedAccess)
         {
-            if self
-                .type_(type_.ref_(self).as_indexed_access_type().object_type)
+            if type_
+                .ref_(self)
+                .as_indexed_access_type()
+                .object_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Substitution)
-                || self
-                    .type_(type_.ref_(self).as_indexed_access_type().index_type)
+                || type_
+                    .ref_(self)
+                    .as_indexed_access_type()
+                    .index_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Substitution)
             {
@@ -244,8 +246,8 @@ impl TypeChecker {
                 extends_type.clone()
             };
             if !check_type_instantiable && !self.is_generic_type(inferred_extends_type)? {
-                if !self
-                    .type_(inferred_extends_type)
+                if !inferred_extends_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::AnyOrUnknown)
                     && (check_type.ref_(self).flags().intersects(TypeFlags::Any) && !is_unwrapped
@@ -280,8 +282,8 @@ impl TypeChecker {
                             .as_conditional_type_node()
                             .false_type,
                     )?;
-                    if self
-                        .type_(false_type)
+                    if false_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Conditional)
                     {
@@ -309,8 +311,8 @@ impl TypeChecker {
                     result = self.instantiate_type(false_type, mapper.clone())?;
                     break;
                 }
-                if self
-                    .type_(inferred_extends_type)
+                if inferred_extends_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::AnyOrUnknown)
                     || self.is_type_assignable_to(
@@ -385,8 +387,8 @@ impl TypeChecker {
         new_type: Id<Type>,
         new_mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<bool> {
-        if self
-            .type_(new_type)
+        if new_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Conditional)
         {
@@ -421,8 +423,8 @@ impl TypeChecker {
                         None => true,
                         Some(new_check_type) => {
                             new_check_type == (*new_root).borrow().check_type
-                                || !self
-                                    .type_(new_check_type)
+                                || !new_check_type
+                                    .ref_(self)
                                     .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
                         }
@@ -446,14 +448,14 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_conditional_type()
             .maybe_resolved_true_type()
             .is_none()
         {
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_conditional_type()
                 .maybe_resolved_true_type() = Some(
                 self.instantiate_type(
@@ -475,8 +477,8 @@ impl TypeChecker {
                 )?,
             );
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_conditional_type()
             .maybe_resolved_true_type()
             .clone()
@@ -487,14 +489,14 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_conditional_type()
             .maybe_resolved_false_type()
             .is_none()
         {
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_conditional_type()
                 .maybe_resolved_false_type() = Some(
                 self.instantiate_type(
@@ -516,8 +518,8 @@ impl TypeChecker {
                 )?,
             );
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_conditional_type()
             .maybe_resolved_false_type()
             .clone()
@@ -528,18 +530,18 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_conditional_type()
             .maybe_resolved_inferred_true_type()
             .is_none()
         {
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_conditional_type()
                 .maybe_resolved_inferred_true_type() = Some(
-                if let Some(type_combined_mapper) = self
-                    .type_(type_)
+                if let Some(type_combined_mapper) = type_
+                    .ref_(self)
                     .as_conditional_type()
                     .combined_mapper
                     .clone()
@@ -560,8 +562,8 @@ impl TypeChecker {
                 },
             );
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_conditional_type()
             .maybe_resolved_inferred_true_type()
             .clone()
@@ -633,8 +635,8 @@ impl TypeChecker {
                 check_type.clone(),
                 self.get_type_from_type_node_(&node_as_conditional_type_node.extends_type)?,
                 {
-                    let intersects = self
-                        .type_(check_type)
+                    let intersects = check_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::TypeParameter);
                     intersects

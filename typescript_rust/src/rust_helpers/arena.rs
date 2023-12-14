@@ -4,7 +4,7 @@ use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Symbol, Type, TypeInterface, TypeMapper};
+use crate::{InArena, Symbol, Type, TypeInterface, TypeMapper};
 
 #[derive(Default)]
 pub struct AllArenas {

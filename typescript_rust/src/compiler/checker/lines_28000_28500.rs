@@ -122,8 +122,7 @@ impl TypeChecker {
             report_error(node, kind);
             let t = self.get_non_nullable_type(type_)?;
             return Ok(
-                if self
-                    .type_(t)
+                if t.ref_(self)
                     .flags()
                     .intersects(TypeFlags::Nullable | TypeFlags::Never)
                 {
@@ -148,11 +147,7 @@ impl TypeChecker {
         node: &Node,
     ) -> io::Result<Id<Type>> {
         let non_null_type = self.check_non_null_type(type_, node)?;
-        if self
-            .type_(non_null_type)
-            .flags()
-            .intersects(TypeFlags::Void)
-        {
+        if non_null_type.ref_(self).flags().intersects(TypeFlags::Void) {
             self.error(Some(node), &Diagnostics::Object_is_possibly_undefined, None);
         }
         Ok(non_null_type)
@@ -1092,12 +1087,12 @@ impl TypeChecker {
         let mut error_info: Option<DiagnosticMessageChain> = None;
         let mut related_info: Option<Gc<DiagnosticRelatedInformation>> = None;
         if !is_private_identifier(prop_node)
-            && self
-                .type_(containing_type)
+            && containing_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Union)
-            && !self
-                .type_(containing_type)
+            && !containing_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Primitive)
         {

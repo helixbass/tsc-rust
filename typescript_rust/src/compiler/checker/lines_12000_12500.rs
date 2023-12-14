@@ -23,11 +23,7 @@ use crate::{
 
 impl TypeChecker {
     pub(super) fn get_apparent_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        let t = if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Instantiable)
-        {
+        let t = if type_.ref_(self).flags().intersects(TypeFlags::Instantiable) {
             self.get_base_constraint_of_type(type_)?
                 .unwrap_or_else(|| self.unknown_type())
         } else {
@@ -75,8 +71,8 @@ impl TypeChecker {
         let mut single_prop: Option<Id<Symbol>> = None;
         let mut prop_set: Option<IndexMap<SymbolId, Id<Symbol>>> = None;
         let mut index_types: Option<Vec<Id<Type>>> = None;
-        let is_union = self
-            .type_(containing_type)
+        let is_union = containing_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Union);
         let mut optional_flag = if is_union {
@@ -92,8 +88,8 @@ impl TypeChecker {
         };
         let mut merged_instantiations = false;
         for &current in &{
-            let types = self
-                .type_(containing_type)
+            let types = containing_type
+                .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .types()
                 .to_owned();
@@ -363,8 +359,8 @@ impl TypeChecker {
         name: &str,      /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let mut property = self
-            .type_(type_)
+        let mut property = type_
+            .ref_(self)
             .as_union_or_intersection_type_interface()
             .maybe_property_cache_without_object_function_property_augment()
             .as_ref()
@@ -445,37 +441,33 @@ impl TypeChecker {
 
     pub(super) fn get_reduced_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Union)
-            && self
-                .type_(type_)
+            && type_
+                .ref_(self)
                 .as_union_type()
                 .object_flags()
                 .intersects(ObjectFlags::ContainsIntersections)
         {
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .as_union_type()
                 .maybe_resolved_reduced_type()
                 .is_none()
             {
-                *self
-                    .type_(type_)
+                *type_
+                    .ref_(self)
                     .as_union_type()
                     .maybe_resolved_reduced_type() = Some(self.get_reduced_union_type(type_)?);
             }
-            return Ok((*self
-                .type_(type_)
+            return Ok((*type_
+                .ref_(self)
                 .as_union_type()
                 .maybe_resolved_reduced_type())
             .borrow()
             .clone()
             .unwrap());
-        } else if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Intersection)
-        {
-            if !self
-                .type_(type_)
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
+            if !type_
+                .ref_(self)
                 .as_intersection_type()
                 .object_flags()
                 .intersects(ObjectFlags::IsNeverIntersectionComputed)
@@ -496,8 +488,8 @@ impl TypeChecker {
                     .set_object_flags(object_flags);
             }
             return Ok(
-                if self
-                    .type_(type_)
+                if type_
+                    .ref_(self)
                     .as_intersection_type()
                     .object_flags()
                     .intersects(ObjectFlags::IsNeverIntersection)
@@ -524,8 +516,8 @@ impl TypeChecker {
         }
         let reduced = self.get_union_type(&reduced_types, None, None, None, None)?;
         if reduced.ref_(self).flags().intersects(TypeFlags::Union) {
-            *self
-                .type_(reduced)
+            *reduced
+                .ref_(self)
                 .as_union_type()
                 .maybe_resolved_reduced_type() = Some(reduced.clone());
         }
@@ -543,7 +535,8 @@ impl TypeChecker {
                 & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
                 == CheckFlags::Discriminant
             && self
-                .type_(self.get_type_of_symbol(prop)?)
+                .get_type_of_symbol(prop)?
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never))
     }
@@ -558,10 +551,7 @@ impl TypeChecker {
         error_info: Option<DiagnosticMessageChain>,
         type_: Id<Type>,
     ) -> io::Result<Option<DiagnosticMessageChain>> {
-        if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Intersection)
+        if type_.ref_(self).flags().intersects(TypeFlags::Intersection)
             && get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::IsNeverIntersection)
         {
             let never_prop = self
@@ -621,15 +611,15 @@ impl TypeChecker {
             }
             let function_type = if resolved == self.any_function_type() {
                 Some(self.global_function_type())
-            } else if !self
-                .type_(resolved)
+            } else if !resolved
+                .ref_(self)
                 .as_resolved_type()
                 .call_signatures()
                 .is_empty()
             {
                 Some(self.global_callable_function_type())
-            } else if !self
-                .type_(resolved)
+            } else if !resolved
+                .ref_(self)
                 .as_resolved_type()
                 .construct_signatures()
                 .is_empty()
@@ -646,8 +636,8 @@ impl TypeChecker {
             }
             return self.get_property_of_object_type(self.global_object_type(), name);
         }
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
@@ -665,8 +655,8 @@ impl TypeChecker {
         type_: Id<Type>,
         kind: SignatureKind,
     ) -> io::Result<Vec<Gc<Signature>>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StructuredType)
         {
@@ -768,8 +758,8 @@ impl TypeChecker {
             || target == self.string_type()
                 && self.is_type_assignable_to(source, self.number_type())?
             || target == self.number_type()
-                && self
-                    .type_(source)
+                && source
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
                 && self.is_numeric_literal_name(&source.ref_(self).as_string_literal_type().value))
@@ -779,17 +769,13 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StructuredType)
         {
             let resolved = self.resolve_structured_type_members(type_)?;
-            return Ok(self
-                .type_(resolved)
-                .as_resolved_type()
-                .index_infos()
-                .clone());
+            return Ok(resolved.ref_(self).as_resolved_type().index_infos().clone());
         }
         Ok(vec![])
     }

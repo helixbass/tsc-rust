@@ -615,7 +615,8 @@ impl TypeChecker {
                 }
                 if symbol.ref_(self).flags().intersects(SymbolFlags::Enum)
                     && (self
-                        .type_(self.get_declared_type_of_symbol(symbol)?)
+                        .get_declared_type_of_symbol(symbol)?
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Enum)
                         || try_some(
@@ -626,7 +627,8 @@ impl TypeChecker {
                                 .as_deref(),
                             Some(|&prop: &Id<Symbol>| -> io::Result<_> {
                                 Ok(self
-                                    .type_(self.get_type_of_symbol(prop)?)
+                                    .get_type_of_symbol(prop)?
+                                    .ref_(self)
                                     .flags()
                                     .intersects(TypeFlags::NumberLike))
                             }),
@@ -787,35 +789,34 @@ impl TypeChecker {
             let property_type = self.get_type_of_symbol(prop)?;
             let mapped_type: Id<Type>;
             let constraint_type: Id<Type>;
-            let type_constraint_type_type = self
-                .type_(type_.ref_(self).as_reverse_mapped_type().constraint_type)
+            let type_constraint_type_type = type_
+                .ref_(self)
+                .as_reverse_mapped_type()
+                .constraint_type
+                .ref_(self)
                 .as_index_type()
                 .type_;
-            if self
-                .type_(type_constraint_type_type)
+            if type_constraint_type_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::IndexedAccess)
-                && self
-                    .type_(
-                        type_constraint_type_type
-                            .ref_(self)
-                            .as_indexed_access_type()
-                            .object_type,
-                    )
+                && type_constraint_type_type
+                    .ref_(self)
+                    .as_indexed_access_type()
+                    .object_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeParameter)
-                && self
-                    .type_(
-                        type_constraint_type_type
-                            .ref_(self)
-                            .as_indexed_access_type()
-                            .index_type,
-                    )
+                && type_constraint_type_type
+                    .ref_(self)
+                    .as_indexed_access_type()
+                    .index_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeParameter)
             {
-                let new_type_param = self
-                    .type_(type_constraint_type_type)
+                let new_type_param = type_constraint_type_type
+                    .ref_(self)
                     .as_indexed_access_type()
                     .object_type;
                 let new_mapped_type = self.replace_indexed_access(
@@ -826,13 +827,13 @@ impl TypeChecker {
                 mapped_type = new_mapped_type;
                 constraint_type = self.get_index_type(new_type_param, None, None)?;
             } else {
-                mapped_type = self
-                    .type_(type_)
+                mapped_type = type_
+                    .ref_(self)
                     .as_reverse_mapped_type()
                     .mapped_type
                     .clone();
-                constraint_type = self
-                    .type_(type_)
+                constraint_type = type_
+                    .ref_(self)
                     .as_reverse_mapped_type()
                     .constraint_type
                     .clone();
@@ -898,11 +899,7 @@ impl TypeChecker {
                 )?
                 .unwrap());
         }
-        if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Intersection)
-        {
+        if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &try_map(
                     type_
@@ -954,8 +951,9 @@ impl TypeChecker {
         } else {
             for info in self.get_index_infos_of_type(type_)? {
                 if !strings_only
-                    || self
-                        .type_(info.key_type)
+                    || info
+                        .key_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::String | TypeFlags::TemplateLiteral)
                 {
@@ -990,8 +988,8 @@ impl TypeChecker {
                 .unwrap_or_else(|| type_),
         )?;
         let template_type = self.get_template_type_from_mapped_type({
-            let type_ = self
-                .type_(type_)
+            let type_ = type_
+                .ref_(self)
                 .as_mapped_type()
                 .maybe_target()
                 .unwrap_or_else(|| type_);
@@ -1220,19 +1218,19 @@ impl TypeChecker {
                 members.insert(prop_name, prop);
             }
         } else if self.is_valid_index_key_type(prop_name_type)?
-            || self
-                .type_(prop_name_type)
+            || prop_name_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::Enum)
         {
-            let index_key_type = if self
-                .type_(prop_name_type)
+            let index_key_type = if prop_name_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::String)
             {
                 self.string_type()
-            } else if self
-                .type_(prop_name_type)
+            } else if prop_name_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Number | TypeFlags::Enum)
             {
@@ -1330,8 +1328,8 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
         {
-            let value = self
-                .type_(type_)
+            let value = type_
+                .ref_(self)
                 .as_mapped_type()
                 .maybe_type_parameter()
                 .clone();
@@ -1340,8 +1338,8 @@ impl TypeChecker {
         .try_unwrap_or_else(|| -> io::Result<_> {
             let ret = self.get_declared_type_of_type_parameter(
                 self.get_symbol_of_node(&*{
-                    let type_parameter = self
-                        .type_(type_)
+                    let type_parameter = type_
+                        .ref_(self)
                         .as_mapped_type()
                         .declaration
                         .as_mapped_type_node()
@@ -1361,8 +1359,8 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
         {
-            let value = self
-                .type_(type_)
+            let value = type_
+                .ref_(self)
                 .as_mapped_type()
                 .maybe_constraint_type()
                 .clone();

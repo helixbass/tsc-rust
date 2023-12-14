@@ -52,19 +52,19 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/
     ) -> String /*__String*/ {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
         {
-            return self
-                .type_(type_)
+            return type_
+                .ref_(self)
                 .as_unique_es_symbol_type()
                 .escaped_name
                 .clone();
         }
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
         {
@@ -188,8 +188,8 @@ impl TypeChecker {
                     } else {
                         late_symbol.ref_(self).maybe_declarations().clone()
                     };
-                    let name = if !self
-                        .type_(type_)
+                    let name = if !type_
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::UniqueESSymbol)
                     {
@@ -465,15 +465,11 @@ impl TypeChecker {
                     ref_
                 });
             }
-        } else if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Intersection)
-        {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             let types = try_map(
                 {
-                    let types = self
-                        .type_(type_)
+                    let types = type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned();
@@ -485,8 +481,8 @@ impl TypeChecker {
             )?;
             return Ok(
                 if types
-                    != self
-                        .type_(type_)
+                    != type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
                 {
@@ -528,18 +524,18 @@ impl TypeChecker {
                         .as_deref(),
                 )))
             };
-            call_signatures = self
-                .type_(source)
+            call_signatures = source
+                .ref_(self)
                 .as_interface_type_with_declared_members()
                 .declared_call_signatures()
                 .clone();
-            construct_signatures = self
-                .type_(source)
+            construct_signatures = source
+                .ref_(self)
                 .as_interface_type_with_declared_members()
                 .declared_construct_signatures()
                 .clone();
-            index_infos = self
-                .type_(source)
+            index_infos = source
+                .ref_(self)
                 .as_interface_type_with_declared_members()
                 .declared_index_infos()
                 .clone();
@@ -559,22 +555,22 @@ impl TypeChecker {
                 )?,
             ));
             call_signatures = self.instantiate_signatures(
-                &*self
-                    .type_(source)
+                &*source
+                    .ref_(self)
                     .as_interface_type_with_declared_members()
                     .declared_call_signatures(),
                 mapper.clone().unwrap(),
             )?;
             construct_signatures = self.instantiate_signatures(
-                &*self
-                    .type_(source)
+                &*source
+                    .ref_(self)
                     .as_interface_type_with_declared_members()
                     .declared_construct_signatures(),
                 mapper.clone().unwrap(),
             )?;
             index_infos = self.instantiate_index_infos(
-                &*self
-                    .type_(source)
+                &*source
+                    .ref_(self)
                     .as_interface_type_with_declared_members()
                     .declared_index_infos(),
                 mapper.clone().unwrap(),
@@ -677,8 +673,8 @@ impl TypeChecker {
                 .as_interface_type()
                 .maybe_type_parameters()
                 .map(|type_parameters| type_parameters.to_owned()),
-            Some(vec![self
-                .type_(source)
+            Some(vec![source
+                .ref_(self)
                 .as_interface_type()
                 .maybe_this_type()
                 .unwrap()]),
@@ -959,8 +955,8 @@ impl TypeChecker {
                 } else {
                     self.clone_signature(&base_sig)
                 };
-                *sig.maybe_type_parameters_mut() = self
-                    .type_(class_type)
+                *sig.maybe_type_parameters_mut() = class_type
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned);

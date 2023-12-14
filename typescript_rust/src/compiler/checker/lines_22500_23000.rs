@@ -469,16 +469,15 @@ impl TypeChecker {
         {
             return Ok(None);
         }
-        if self
-            .type_(union_type)
+        if union_type
+            .ref_(self)
             .as_union_type()
             .maybe_key_property_name()
             .is_none()
         {
             let key_property_name = try_for_each(types, |&t: &Id<Type>, _| -> io::Result<_> {
                 Ok(
-                    if self
-                        .type_(t)
+                    if t.ref_(self)
                         .flags()
                         .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
                     {
@@ -503,21 +502,21 @@ impl TypeChecker {
                     .try_and_then(|key_property_name| {
                         self.map_types_by_key_property(types, key_property_name)
                     })?;
-            *self
-                .type_(union_type)
+            *union_type
+                .ref_(self)
                 .as_union_type()
                 .maybe_key_property_name() = if map_by_key_property.is_some() {
                 key_property_name
             } else {
                 Some("".to_owned())
             };
-            *self
-                .type_(union_type)
+            *union_type
+                .ref_(self)
                 .as_union_type()
                 .maybe_constituent_map() = map_by_key_property;
         }
-        let union_type_key_property_name = self
-            .type_(union_type)
+        let union_type_key_property_name = union_type
+            .ref_(self)
             .as_union_type()
             .maybe_key_property_name()
             .clone()
@@ -534,8 +533,8 @@ impl TypeChecker {
         union_type: Id<Type>, /*UnionType*/
         key_type: Id<Type>,
     ) -> Option<Id<Type>> {
-        let result = self
-            .type_(union_type)
+        let result = union_type
+            .ref_(self)
             .as_union_type()
             .maybe_constituent_map()
             .as_ref()
@@ -650,8 +649,8 @@ impl TypeChecker {
         if !source.ref_(self).flags().intersects(TypeFlags::Union) {
             return self.is_type_assignable_to(source, target);
         }
-        for &t in self
-            .type_(source)
+        for &t in source
+            .ref_(self)
             .as_union_or_intersection_type_interface()
             .types()
         {
@@ -668,8 +667,8 @@ impl TypeChecker {
         assigned_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         if declared_type != assigned_type {
-            if self
-                .type_(assigned_type)
+            if assigned_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never)
             {
@@ -678,8 +677,8 @@ impl TypeChecker {
             let mut reduced_type = self.try_filter_type(declared_type, |t: Id<Type>| {
                 self.type_maybe_assignable_to(assigned_type, t)
             })?;
-            if self
-                .type_(assigned_type)
+            if assigned_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::BooleanLiteral)
                 && self.is_fresh_literal_type(assigned_type)
@@ -704,13 +703,13 @@ impl TypeChecker {
         type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<bool> {
         let resolved = self.resolve_structured_type_members(type_)?;
-        let ret = !self
-            .type_(resolved)
+        let ret = !resolved
+            .ref_(self)
             .as_resolved_type()
             .call_signatures()
             .is_empty()
-            || !self
-                .type_(resolved)
+            || !resolved
+                .ref_(self)
                 .as_resolved_type()
                 .construct_signatures()
                 .is_empty()

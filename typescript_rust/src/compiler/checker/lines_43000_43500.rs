@@ -15,9 +15,9 @@ use crate::{
     is_variable_declaration_in_variable_statement, last, maybe_is_class_like, token_to_string,
     walk_up_parenthesized_types, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformation, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
-    HasArena, HasInitializerInterface, HasQuestionTokenInterface, HasTypeInterface, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ReadonlyTextRange,
-    ScriptTarget, SyntaxKind, TypeChecker, TypeFlags, TypeInterface, __String,
+    HasArena, HasInitializerInterface, HasQuestionTokenInterface, HasTypeInterface, InArena,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    ReadonlyTextRange, ScriptTarget, SyntaxKind, TypeChecker, TypeFlags, TypeInterface, __String,
 };
 
 impl TypeChecker {
@@ -805,7 +805,8 @@ impl TypeChecker {
             && is_entity_name_expression(&expr.as_has_expression().expression())
         {
             return Ok(self
-                .type_(self.check_expression_cached(expr, None)?)
+                .check_expression_cached(expr, None)?
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::EnumLiteral));
         }

@@ -461,8 +461,8 @@ impl TypeChecker {
                         None,
                     )?;
                 }
-            } else if self
-                .type_(array_type)
+            } else if array_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::StringLike)
             {
@@ -539,8 +539,8 @@ impl TypeChecker {
         let array_element_type = self.get_index_type_of_type_(array_type, self.number_type())?;
         if has_string_constituent {
             if let Some(array_element_type) = array_element_type {
-                if self
-                    .type_(array_element_type)
+                if array_element_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::StringLike)
                     && self.compiler_options.no_unchecked_indexed_access != Some(true)
@@ -666,8 +666,8 @@ impl TypeChecker {
         let yield_type = yield_type.unwrap_or_else(|| self.never_type());
         let return_type = return_type.unwrap_or_else(|| self.never_type());
         let next_type = next_type.unwrap_or_else(|| self.unknown_type());
-        if self
-            .type_(yield_type)
+        if yield_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Intrinsic)
             && return_type.ref_(self).flags().intersects(

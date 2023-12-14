@@ -27,8 +27,8 @@ impl TypeChecker {
         {
             return Ok(type_);
         }
-        let regular_type = self
-            .type_(type_)
+        let regular_type = type_
+            .ref_(self)
             .as_fresh_object_literal_type()
             .maybe_regular_type()
             .clone();
@@ -47,27 +47,23 @@ impl TypeChecker {
             },
             Gc::new(GcCell::new(members)),
             {
-                let call_signatures = self
-                    .type_(resolved)
+                let call_signatures = resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .call_signatures()
                     .clone();
                 call_signatures
             },
             {
-                let construct_signatures = self
-                    .type_(resolved)
+                let construct_signatures = resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .clone();
                 construct_signatures
             },
             {
-                let index_infos = self
-                    .type_(resolved)
-                    .as_resolved_type()
-                    .index_infos()
-                    .clone();
+                let index_infos = resolved.ref_(self).as_resolved_type().index_infos().clone();
                 index_infos
             },
         )?;
@@ -82,8 +78,8 @@ impl TypeChecker {
                     | resolved.ref_(self).as_resolved_type().object_flags()
                         & !ObjectFlags::FreshLiteral,
             );
-        *self
-            .type_(type_)
+        *type_
+            .ref_(self)
             .as_fresh_object_literal_type()
             .maybe_regular_type() = Some(regular_new.clone());
         Ok(regular_new)
@@ -258,8 +254,8 @@ impl TypeChecker {
                 }
             }
             let mut result: Option<Id<Type>> = None;
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::Nullable)
             {
@@ -311,16 +307,12 @@ impl TypeChecker {
                     None,
                     None,
                 )?);
-            } else if self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Intersection)
-            {
+            } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
                 result = Some(self.get_intersection_type(
                     &try_map(
                         {
-                            let types = self
-                                .type_(type_)
+                            let types = type_
+                                .ref_(self)
                                 .as_union_or_intersection_type_interface()
                                 .types()
                                 .to_owned();
@@ -363,8 +355,8 @@ impl TypeChecker {
                 )? {
                     error_reported = true;
                 } else {
-                    for t in self
-                        .type_(type_)
+                    for t in type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned()
@@ -862,15 +854,12 @@ impl TypeChecker {
         if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
             return Ok(object_flags.intersects(ObjectFlags::CouldContainTypeVariables));
         }
-        let result = self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Instantiable)
+        let result = type_.ref_(self).flags().intersects(TypeFlags::Instantiable)
             || type_.ref_(self).flags().intersects(TypeFlags::Object)
                 && !self.is_non_generic_top_level_type(type_)
                 && (object_flags.intersects(ObjectFlags::Reference)
-                    && (self
-                        .type_(type_)
+                    && (type_
+                        .ref_(self)
                         .as_type_reference_interface()
                         .maybe_node()
                         .is_some()
@@ -891,8 +880,8 @@ impl TypeChecker {
                             | ObjectFlags::ReverseMapped
                             | ObjectFlags::ObjectRestType,
                     ))
-            || self
-                .type_(type_)
+            || type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
                 && !type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral)
@@ -906,8 +895,8 @@ impl TypeChecker {
                     ),
                     Some(|&type_: &Id<Type>| self.could_contain_type_variables(type_)),
                 )?;
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::ObjectFlagsType)
         {
@@ -957,8 +946,8 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<bool> {
         Ok(type_ == type_parameter
-            || self
-                .type_(type_)
+            || type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
                 && try_some(
@@ -1115,8 +1104,11 @@ impl TypeChecker {
                 .intersects(MappedTypeModifiers::IncludeOptional)
             {
                 same_map(
-                    &self
-                        .type_(source.ref_(self).as_type_reference().target)
+                    &source
+                        .ref_(self)
+                        .as_type_reference()
+                        .target
+                        .ref_(self)
                         .as_tuple_type()
                         .element_flags,
                     |f: &ElementFlags, _| {

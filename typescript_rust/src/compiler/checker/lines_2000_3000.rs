@@ -227,8 +227,8 @@ impl TypeChecker {
 
                 if Gc::ptr_eq(&location_present, &container) && !is_static(&location_present) {
                     let declared_type = self.get_declared_type_of_symbol(class_symbol)?;
-                    let instance_type = self
-                        .type_(declared_type)
+                    let instance_type = declared_type
+                        .ref_(self)
                         .as_interface_type()
                         .maybe_this_type()
                         .unwrap();
@@ -1821,7 +1821,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         if is_class_expression(expression) {
             return Ok(self
-                .type_(self.check_expression_cached(expression, None)?)
+                .check_expression_cached(expression, None)?
+                .ref_(self)
                 .maybe_symbol());
         }
         if !is_entity_name(expression) && !is_entity_name_expression(expression) {

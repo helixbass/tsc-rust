@@ -53,8 +53,11 @@ impl TypeChecker {
                 && declaration.as_parameter_declaration().name().kind()
                     == SyntaxKind::ArrayBindingPattern
                 && self.is_tuple_type(type_)
-                && !self
-                    .type_(type_.ref_(self).as_type_reference().target)
+                && !type_
+                    .ref_(self)
+                    .as_type_reference()
+                    .target
+                    .ref_(self)
                     .as_tuple_type()
                     .has_rest_element
                 && self.get_type_reference_arity(type_)
@@ -80,11 +83,7 @@ impl TypeChecker {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_)?;
         let type_target = type_.ref_(self).as_type_reference().target;
-        let mut element_flags = self
-            .type_(type_target)
-            .as_tuple_type()
-            .element_flags
-            .clone();
+        let mut element_flags = type_target.ref_(self).as_tuple_type().element_flags.clone();
         for i in self.get_type_reference_arity(type_)..pattern_elements.len() {
             let e = &pattern_elements[i];
             if i < pattern_elements.len() - 1
@@ -140,13 +139,13 @@ impl TypeChecker {
         contextual_type: Option<Id<Type>>,
     ) -> io::Result<bool> {
         if let Some(contextual_type) = contextual_type {
-            if self
-                .type_(contextual_type)
+            if contextual_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
             {
-                let types = self
-                    .type_(contextual_type)
+                let types = contextual_type
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned();
@@ -157,8 +156,8 @@ impl TypeChecker {
                     }),
                 );
             }
-            if self
-                .type_(contextual_type)
+            if contextual_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
             {
@@ -181,23 +180,23 @@ impl TypeChecker {
                     | TypeFlags::TemplateLiteral
                     | TypeFlags::StringMapping,
             ) && self.maybe_type_of_kind(candidate_type, TypeFlags::StringLiteral)
-                || self
-                    .type_(contextual_type)
+                || contextual_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::NumberLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::NumberLiteral)
-                || self
-                    .type_(contextual_type)
+                || contextual_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::BigIntLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::BigIntLiteral)
-                || self
-                    .type_(contextual_type)
+                || contextual_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::BooleanLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::BooleanLiteral)
-                || self
-                    .type_(contextual_type)
+                || contextual_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::UniqueESSymbol)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol));

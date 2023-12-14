@@ -89,10 +89,7 @@ impl TypeChecker {
 
     pub(super) fn is_or_has_generic_conditional(&self, type_: Id<Type>) -> bool {
         type_.ref_(self).flags().intersects(TypeFlags::Conditional)
-            || self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Intersection)
+            || type_.ref_(self).flags().intersects(TypeFlags::Intersection)
                 && some(
                     Some(type_.ref_(self).as_intersection_type().types()),
                     Some(|&type_: &Id<Type>| self.is_or_has_generic_conditional(type_)),
@@ -227,8 +224,8 @@ impl TypeChecker {
                 Some(&signatures),
                 Some(|s: &Gc<Signature>| -> io::Result<_> {
                     let return_type = self.get_return_type_of_signature(s.clone())?;
-                    Ok(!self
-                        .type_(return_type)
+                    Ok(!return_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Any | TypeFlags::Never)
                         && self.check_type_related_to(
@@ -466,8 +463,8 @@ impl TypeChecker {
             let mut target_prop_type =
                 continue_if_none!(self
                     .get_best_match_indexed_access_type_or_undefined(source, target, name_type)?);
-            if self
-                .type_(target_prop_type)
+            if target_prop_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::IndexedAccess)
             {

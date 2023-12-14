@@ -788,17 +788,14 @@ impl TypeChecker {
             let type_ = self
                 .get_base_constraint_of_type(operand_type)?
                 .unwrap_or(operand_type);
-            if self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::AnyOrUnknown)
-            {
+            if type_.ref_(self).flags().intersects(TypeFlags::AnyOrUnknown) {
                 return Ok(TypeFacts::AllTypeofNE & not_equal_facts == TypeFacts::AllTypeofNE);
             }
             return Ok(self
-                .type_(self.try_filter_type(type_, |t: Id<Type>| {
+                .try_filter_type(type_, |t: Id<Type>| {
                     Ok(self.get_type_facts(t, None)? & not_equal_facts == not_equal_facts)
-                })?)
+                })?
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never));
         }

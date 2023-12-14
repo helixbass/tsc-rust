@@ -500,8 +500,8 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks
-            && !self
-                .type_(type_)
+            && !type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Never)
             && !if self.exact_optional_property_types == Some(true) {
@@ -656,8 +656,8 @@ impl TypeChecker {
         )?;
         if awaited_type == operand_type
             && !self.is_error_type(awaited_type)
-            && !self
-                .type_(operand_type)
+            && !operand_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::AnyOrUnknown)
         {
@@ -843,8 +843,8 @@ impl TypeChecker {
         if type_.ref_(self).flags().intersects(kind) {
             return true;
         }
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {

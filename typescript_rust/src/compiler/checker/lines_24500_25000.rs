@@ -709,12 +709,10 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(self
-            .type_(type_)
+        Ok(type_.ref_(self)
             .flags()
             .intersects(TypeFlags::Instantiable)
-            && self
-                .type_(self.get_base_constraint_or_type(type_)?)
+            && self.get_base_constraint_or_type(type_)?.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Nullable | TypeFlags::Union))
     }
@@ -723,8 +721,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(self
-            .type_(type_)
+        Ok(type_.ref_(self)
             .flags()
             .intersects(TypeFlags::Instantiable)
             && !self.maybe_type_of_kind(
@@ -1124,8 +1121,7 @@ impl TypeChecker {
             || type_ != self.auto_type()
                 && type_ != self.auto_array_type()
                 && (!self.strict_null_checks
-                    || self
-                        .type_(type_)
+                    || type_.ref_(self)
                         .flags()
                         .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Void)
                     || self.is_in_type_query(node)

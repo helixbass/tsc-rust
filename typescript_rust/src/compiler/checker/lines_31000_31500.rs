@@ -84,12 +84,10 @@ impl TypeChecker {
             self.check_expression_cached(&node_as_call_expression.arguments[i], None)?;
         }
 
-        if self
-            .type_(specifier_type)
+        if specifier_type.ref_(self)
             .flags()
             .intersects(TypeFlags::Undefined)
-            || self
-                .type_(specifier_type)
+            || specifier_type.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Null)
             || !self.is_type_assignable_to(specifier_type, self.string_type())?
@@ -267,8 +265,7 @@ impl TypeChecker {
                     *synth_type.ref_(self).maybe_synthetic_type() = Some(type_);
                 }
             }
-            return Ok(self
-                .type_(synth_type)
+            return Ok(synth_type.ref_(self)
                 .maybe_synthetic_type()
                 .clone()
                 .unwrap());
@@ -894,8 +891,7 @@ impl TypeChecker {
                 let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
                 return Ok(
                     length + rest_type_target.ref_(self).as_tuple_type().fixed_length
-                        - if self
-                            .type_(rest_type_target)
+                        - if rest_type_target.ref_(self)
                             .as_tuple_type()
                             .has_rest_element
                         {
@@ -967,8 +963,7 @@ impl TypeChecker {
             /*while (i >= 0)*/
             {
                 let type_ = self.get_type_at_position(signature, i)?;
-                if self
-                    .type_(self.filter_type(type_, |type_| self.accepts_void(type_)))
+                if self.filter_type(type_, |type_| self.accepts_void(type_)).ref_(self)
                     .flags()
                     .intersects(TypeFlags::Never)
                 {
@@ -991,8 +986,7 @@ impl TypeChecker {
             let rest_type =
                 self.get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
             return Ok(!self.is_tuple_type(rest_type)
-                || self
-                    .type_(rest_type.ref_(self).as_type_reference_interface().target())
+                || rest_type.ref_(self).as_type_reference_interface().target().ref_(self)
                     .as_tuple_type()
                     .has_rest_element);
         }
@@ -1010,8 +1004,7 @@ impl TypeChecker {
                 return Ok(Some(rest_type));
             }
             let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
-            if self
-                .type_(rest_type_target)
+            if rest_type_target.ref_(self)
                 .as_tuple_type()
                 .has_rest_element
             {
@@ -1033,8 +1026,7 @@ impl TypeChecker {
         rest_type.try_filter(|&rest_type| -> io::Result<_> {
             Ok(!self.is_array_type(rest_type)
                 && !self.is_type_any(Some(rest_type))
-                && !self
-                    .type_(self.get_reduced_type(rest_type)?)
+                && !self.get_reduced_type(rest_type)?.ref_(self)
                     .flags()
                     .intersects(TypeFlags::Never))
         })

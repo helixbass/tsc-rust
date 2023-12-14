@@ -448,8 +448,8 @@ impl TypeChecker {
         &self,
         resolved_external_module_type: Id<Type>,
     ) -> bool {
-        !(self
-            .type_(resolved_external_module_type)
+        !(resolved_external_module_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Primitive)
             || get_object_flags(&resolved_external_module_type.ref_(self))
@@ -820,7 +820,8 @@ impl TypeChecker {
                     .intersects(self.get_qualified_left_meaning(meaning)))
                     && container.ref_(self).flags().intersects(SymbolFlags::Type)
                     && self
-                        .type_(self.get_declared_type_of_symbol(container)?)
+                        .get_declared_type_of_symbol(container)?
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Object)
                     && meaning == SymbolFlags::Value

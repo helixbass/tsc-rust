@@ -325,8 +325,8 @@ impl TypeChecker {
         if type_construct_signatures.is_empty() {
             return Ok(type_);
         }
-        if let Some(type_object_type_without_abstract_construct_signatures) = self
-            .type_(type_)
+        if let Some(type_object_type_without_abstract_construct_signatures) = type_
+            .ref_(self)
             .as_resolved_type()
             .maybe_object_type_without_abstract_construct_signatures()
         {

@@ -506,18 +506,19 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(self.is_type_any(Some(func_type))
             || self.is_type_any(Some(apparent_func_type))
-                && self
-                    .type_(func_type)
+                && func_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeParameter)
             || num_call_signatures == 0
                 && num_construct_signatures == 0
-                && !self
-                    .type_(apparent_func_type)
+                && !apparent_func_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Union)
                 && !self
-                    .type_(self.get_reduced_type(apparent_func_type)?)
+                    .get_reduced_type(apparent_func_type)?
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Never)
                 && self.is_type_assignable_to(func_type, self.global_function_type())?)
@@ -665,8 +666,8 @@ impl TypeChecker {
             return Ok(false);
         }
         let first_base = base_types[0];
-        if self
-            .type_(first_base)
+        if first_base
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Intersection)
         {
@@ -674,8 +675,8 @@ impl TypeChecker {
             let types = first_base_ref.as_intersection_type().types();
             let mixin_flags = self.find_mixins(types)?;
             let mut i = 0;
-            for intersection_member in self
-                .type_(first_base)
+            for intersection_member in first_base
+                .ref_(self)
                 .as_intersection_type()
                 .types()
                 .to_owned()
@@ -793,8 +794,8 @@ impl TypeChecker {
             awaited_type,
             Some(awaited_type) if !self.get_signatures_of_type(awaited_type, kind)?.is_empty()
         );
-        if self
-            .type_(apparent_type)
+        if apparent_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Union)
         {

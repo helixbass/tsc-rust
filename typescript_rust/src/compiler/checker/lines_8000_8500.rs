@@ -129,8 +129,7 @@ impl TypeChecker {
             let t = types[i];
             flags |= t.ref_(self).flags();
             if !t.ref_(self).flags().intersects(TypeFlags::Nullable) {
-                if self
-                    .type_(t)
+                if t.ref_(self)
                     .flags()
                     .intersects(TypeFlags::BooleanLiteral | TypeFlags::EnumLiteral)
                 {
@@ -221,8 +220,8 @@ impl TypeChecker {
             .borrow()
             .name_type
             .clone()?;
-        if self
-            .type_(name_type)
+        if name_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
@@ -251,8 +250,8 @@ impl TypeChecker {
             }
             return Some(name);
         }
-        if self
-            .type_(name_type)
+        if name_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
         {
@@ -634,20 +633,23 @@ impl TypeChecker {
                 .borrow()
                 .declared_type
                 .is_some(),
-            TypeSystemPropertyName::ResolvedBaseConstructorType => self
-                .type_(target.as_type())
+            TypeSystemPropertyName::ResolvedBaseConstructorType => target
+                .as_type()
+                .ref_(self)
                 .as_not_actually_interface_type()
                 .maybe_resolved_base_constructor_type()
                 .is_some(),
             TypeSystemPropertyName::ResolvedReturnType => {
                 target.as_signature().maybe_resolved_return_type().is_some()
             }
-            TypeSystemPropertyName::ImmediateBaseConstraint => self
-                .type_(target.as_type())
+            TypeSystemPropertyName::ImmediateBaseConstraint => target
+                .as_type()
+                .ref_(self)
                 .maybe_immediate_base_constraint()
                 .is_some(),
-            TypeSystemPropertyName::ResolvedTypeArguments => self
-                .type_(target.as_type())
+            TypeSystemPropertyName::ResolvedTypeArguments => target
+                .as_type()
+                .ref_(self)
                 .as_type_reference()
                 .maybe_resolved_type_arguments()
                 .is_some(),
@@ -692,8 +694,8 @@ impl TypeChecker {
         let class_type =
             self.get_declared_type_of_symbol(self.get_parent_of_symbol(prototype)?.unwrap())?;
         Ok(
-            if let Some(class_type_type_parameters) = self
-                .type_(class_type)
+            if let Some(class_type_type_parameters) = class_type
+                .ref_(self)
                 .as_interface_type()
                 .maybe_type_parameters()
                 .as_deref()
@@ -786,8 +788,8 @@ impl TypeChecker {
             None,
         )?;
         if self.is_generic_object_type(source)? || self.is_generic_index_type(omit_key_type)? {
-            if self
-                .type_(omit_key_type)
+            if omit_key_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never)
             {
@@ -846,10 +848,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Instantiable)
+        Ok(type_.ref_(self).flags().intersects(TypeFlags::Instantiable)
             && self.maybe_type_of_kind(
                 self.get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| self.unknown_type()),

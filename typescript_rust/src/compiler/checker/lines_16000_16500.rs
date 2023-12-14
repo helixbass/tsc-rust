@@ -185,8 +185,8 @@ impl TypeChecker {
                 _ => unreachable!(),
             }
         } else if type_.ref_(self).flags().intersects(TypeFlags::Union) {
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .as_union_type()
                 .maybe_regular_type()
                 .is_none()
@@ -382,9 +382,10 @@ impl TypeChecker {
                     ))
             {
                 return Ok(self
-                    .type_(self.get_declared_type_of_class_or_interface(
+                    .get_declared_type_of_class_or_interface(
                         self.get_symbol_of_node(parent)?.unwrap(),
-                    )?)
+                    )?
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_this_type()
                     .unwrap());
@@ -398,15 +399,14 @@ impl TypeChecker {
                     == AssignmentDeclarationKind::Prototype
         }) {
             return Ok(self
-                .type_(
-                    self.get_declared_type_of_class_or_interface(
-                        self.get_symbol_of_node(&parent.parent().as_binary_expression().left)?
-                            .unwrap()
-                            .ref_(self)
-                            .maybe_parent()
-                            .unwrap(),
-                    )?,
-                )
+                .get_declared_type_of_class_or_interface(
+                    self.get_symbol_of_node(&parent.parent().as_binary_expression().left)?
+                        .unwrap()
+                        .ref_(self)
+                        .maybe_parent()
+                        .unwrap(),
+                )?
+                .ref_(self)
                 .as_interface_type()
                 .maybe_this_type()
                 .unwrap());
@@ -423,15 +423,14 @@ impl TypeChecker {
                     == AssignmentDeclarationKind::PrototypeProperty
         }) {
             return Ok(self
-                .type_(
-                    self.get_declared_type_of_class_or_interface(
-                        self.get_symbol_of_node(&host.parent().as_binary_expression().left)?
-                            .unwrap()
-                            .ref_(self)
-                            .maybe_parent()
-                            .unwrap(),
-                    )?,
-                )
+                .get_declared_type_of_class_or_interface(
+                    self.get_symbol_of_node(&host.parent().as_binary_expression().left)?
+                        .unwrap()
+                        .ref_(self)
+                        .maybe_parent()
+                        .unwrap(),
+                )?
+                .ref_(self)
                 .as_interface_type()
                 .maybe_this_type()
                 .unwrap());
@@ -440,9 +439,10 @@ impl TypeChecker {
             && is_node_descendant_of(node, container.as_function_like_declaration().maybe_body())
         {
             return Ok(self
-                .type_(self.get_declared_type_of_class_or_interface(
+                .get_declared_type_of_class_or_interface(
                     self.get_symbol_of_node(&container)?.unwrap(),
-                )?)
+                )?
+                .ref_(self)
                 .as_interface_type()
                 .maybe_this_type()
                 .unwrap());
@@ -1079,8 +1079,8 @@ impl TypeChecker {
         alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
-        let declaration = if self
-            .type_(type_)
+        let declaration = if type_
+            .ref_(self)
             .as_object_type()
             .object_flags()
             .intersects(ObjectFlags::Reference)
@@ -1102,15 +1102,15 @@ impl TypeChecker {
                 .clone()
         };
         let links = self.get_node_links(&declaration);
-        let target = if self
-            .type_(type_)
+        let target = if type_
+            .ref_(self)
             .as_object_type()
             .object_flags()
             .intersects(ObjectFlags::Reference)
         {
             (*links).borrow().resolved_type.clone().unwrap()
-        } else if self
-            .type_(type_)
+        } else if type_
+            .ref_(self)
             .as_object_type()
             .object_flags()
             .intersects(ObjectFlags::Instantiated)
@@ -1134,8 +1134,8 @@ impl TypeChecker {
                 );
             }
             type_parameters = Some(outer_type_parameters.unwrap_or_else(|| vec![]));
-            let all_declarations = if self
-                .type_(type_)
+            let all_declarations = if type_
+                .ref_(self)
                 .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
@@ -1150,8 +1150,8 @@ impl TypeChecker {
                     .clone()
                     .unwrap()
             };
-            type_parameters = if (self
-                .type_(target)
+            type_parameters = if (target
+                .ref_(self)
                 .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
@@ -1206,8 +1206,8 @@ impl TypeChecker {
                 self.get_type_list_id(Some(&*type_arguments)),
                 self.get_alias_id(new_alias_symbol, new_alias_type_arguments.as_deref())
             );
-            if self
-                .type_(target)
+            if target
+                .ref_(self)
                 .as_object_type()
                 .maybe_instantiations()
                 .is_none()
@@ -1231,8 +1231,8 @@ impl TypeChecker {
                         target.clone(),
                     );
             }
-            let mut result = self
-                .type_(target)
+            let mut result = target
+                .ref_(self)
                 .as_object_type()
                 .maybe_instantiations()
                 .as_ref()
@@ -1242,8 +1242,8 @@ impl TypeChecker {
             if result.is_none() {
                 let new_mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
                 result = Some(
-                    if self
-                        .type_(target)
+                    if target
+                        .ref_(self)
                         .as_object_type()
                         .object_flags()
                         .intersects(ObjectFlags::Reference)
@@ -1254,8 +1254,8 @@ impl TypeChecker {
                                 target
                             },
                             &*{
-                                let node = self
-                                    .type_(type_)
+                                let node = type_
+                                    .ref_(self)
                                     .as_type_reference()
                                     .maybe_node()
                                     .clone()
@@ -1266,8 +1266,8 @@ impl TypeChecker {
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),
                         )?
-                    } else if self
-                        .type_(target)
+                    } else if target
+                        .ref_(self)
                         .as_object_type()
                         .object_flags()
                         .intersects(ObjectFlags::Mapped)

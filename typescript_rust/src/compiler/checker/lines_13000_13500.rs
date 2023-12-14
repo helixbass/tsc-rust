@@ -199,8 +199,8 @@ impl TypeChecker {
         &self,
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
-        if self
-            .type_(type_parameter)
+        if type_parameter
+            .ref_(self)
             .as_type_parameter()
             .maybe_constraint()
             .is_none()
@@ -213,10 +213,7 @@ impl TypeChecker {
                     self.get_constraint_of_type_parameter(type_parameter_target)?;
                 let constraint = match target_constraint {
                     Some(target_constraint) => self.instantiate_type(target_constraint, {
-                        let mapper = self
-                            .type_(type_parameter)
-                            .as_type_parameter()
-                            .maybe_mapper();
+                        let mapper = type_parameter.ref_(self).as_type_parameter().maybe_mapper();
                         mapper
                     })?,
                     None => self.no_constraint_type(),
@@ -258,8 +255,8 @@ impl TypeChecker {
                 }
             }
         }
-        Ok(self
-            .type_(type_parameter)
+        Ok(type_parameter
+            .ref_(self)
             .as_type_parameter()
             .maybe_constraint()
             .and_then(|type_parameter_constraint| {
@@ -355,8 +352,8 @@ impl TypeChecker {
         type_arguments: Option<Vec<Id<Type>>>,
     ) -> Id<Type /*TypeReference*/> {
         let id = self.get_type_list_id(type_arguments.as_deref());
-        let type_ = self
-            .type_(target)
+        let type_ = target
+            .ref_(self)
             .as_generic_type()
             .instantiations()
             .get(&id)
@@ -401,8 +398,8 @@ impl TypeChecker {
                     target
                 },
                 {
-                    let resolved_type_arguments = self
-                        .type_(source)
+                    let resolved_type_arguments = source
+                        .ref_(self)
                         .as_type_reference_interface()
                         .maybe_resolved_type_arguments()
                         .clone();
@@ -447,8 +444,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<Vec<Id<Type>>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_type_reference_interface()
             .maybe_resolved_type_arguments()
             .is_none()
@@ -456,8 +453,11 @@ impl TypeChecker {
             if !self
                 .push_type_resolution(&type_.into(), TypeSystemPropertyName::ResolvedTypeArguments)
             {
-                return Ok(self
-                    .type_(type_.ref_(self).as_type_reference_interface().target())
+                return Ok(type_
+                    .ref_(self)
+                    .as_type_reference_interface()
+                    .target()
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_local_type_parameters()
                     .map_or_else(
@@ -470,8 +470,8 @@ impl TypeChecker {
                         },
                     ));
             }
-            let node = self
-                .type_(type_)
+            let node = type_
+                .ref_(self)
                 .as_type_reference_interface()
                 .maybe_node()
                 .clone();
@@ -483,8 +483,8 @@ impl TypeChecker {
                     let target = type_.ref_(self).as_type_reference_interface().target();
                     concatenate(
                         {
-                            let outer_type_parameters = self
-                                .type_(target)
+                            let outer_type_parameters = target
+                                .ref_(self)
                                 .as_interface_type()
                                 .maybe_outer_type_parameters()
                                 .map_or_else(|| vec![], ToOwned::to_owned);
@@ -493,8 +493,8 @@ impl TypeChecker {
                         self.get_effective_type_arguments(
                             &node,
                             {
-                                let local_type_parameters = self
-                                    .type_(target)
+                                let local_type_parameters = target
+                                    .ref_(self)
                                     .as_interface_type()
                                     .maybe_local_type_parameters()
                                     .map(ToOwned::to_owned);
@@ -513,12 +513,12 @@ impl TypeChecker {
                 }
             };
             if self.pop_type_resolution() {
-                *self
-                    .type_(type_)
+                *type_
+                    .ref_(self)
                     .as_type_reference_interface()
                     .maybe_resolved_type_arguments_mut() = if let Some(type_mapper) = {
-                    let mapper = self
-                        .type_(type_)
+                    let mapper = type_
+                        .ref_(self)
                         .as_type_reference_interface()
                         .maybe_mapper();
                     mapper
@@ -528,8 +528,8 @@ impl TypeChecker {
                     Some(type_arguments)
                 };
             } else {
-                *self
-                    .type_(type_)
+                *type_
+                    .ref_(self)
                     .as_type_reference_interface()
                     .maybe_resolved_type_arguments_mut() = Some(
                     type_
@@ -556,8 +556,11 @@ impl TypeChecker {
                         .maybe_node()
                         .clone()
                         .or_else(|| self.maybe_current_node()),
-                    if self
-                        .type_(type_.ref_(self).as_type_reference_interface().target())
+                    if type_
+                        .ref_(self)
+                        .as_type_reference_interface()
+                        .target()
+                        .ref_(self)
                         .maybe_symbol()
                         .is_some()
                     {
@@ -565,8 +568,11 @@ impl TypeChecker {
                     } else {
                         &Diagnostics::Tuple_type_arguments_circularly_reference_themselves
                     },
-                    if let Some(type_target_symbol) = self
-                        .type_(type_.ref_(self).as_type_reference_interface().target())
+                    if let Some(type_target_symbol) = type_
+                        .ref_(self)
+                        .as_type_reference_interface()
+                        .target()
+                        .ref_(self)
                         .maybe_symbol()
                     {
                         Some(vec![self.symbol_to_string_(
@@ -582,8 +588,8 @@ impl TypeChecker {
                 );
             }
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_type_reference_interface()
             .maybe_resolved_type_arguments()
             .clone()
@@ -609,8 +615,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_ =
             self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol)).unwrap())?;
-        let type_parameters = self
-            .type_(type_)
+        let type_parameters = type_
+            .ref_(self)
             .as_interface_type()
             .maybe_local_type_parameters()
             .map(ToOwned::to_owned);
@@ -685,8 +691,8 @@ impl TypeChecker {
             }
             let type_arguments = maybe_concatenate(
                 {
-                    let outer_type_parameters = self
-                        .type_(type_)
+                    let outer_type_parameters = type_
+                        .ref_(self)
                         .as_interface_type()
                         .maybe_outer_type_parameters()
                         .map(ToOwned::to_owned);
@@ -1039,8 +1045,8 @@ impl TypeChecker {
         base_type: Id<Type>,
         substitute: Id<Type>,
     ) -> Id<Type> {
-        if self
-            .type_(substitute)
+        if substitute
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::AnyOrUnknown)
             || substitute == base_type
@@ -1106,11 +1112,7 @@ impl TypeChecker {
             if parent.kind() == SyntaxKind::Parameter {
                 covariant = !covariant;
             }
-            if (covariant
-                || self
-                    .type_(type_)
-                    .flags()
-                    .intersects(TypeFlags::TypeVariable))
+            if (covariant || type_.ref_(self).flags().intersects(TypeFlags::TypeVariable))
                 && parent.kind() == SyntaxKind::ConditionalType
                 && Gc::ptr_eq(&node, &parent.as_conditional_type_node().true_type)
             {

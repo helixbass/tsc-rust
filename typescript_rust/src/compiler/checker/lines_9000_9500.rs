@@ -335,8 +335,8 @@ impl TypeChecker {
                 self.report_errors_from_widening(declaration, type_, None)?;
             }
 
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::UniqueESSymbol)
                 && (is_binding_element(declaration)

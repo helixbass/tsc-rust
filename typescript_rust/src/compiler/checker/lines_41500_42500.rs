@@ -379,11 +379,7 @@ impl TypeChecker {
             } else {
                 TypeReferenceSerializationKind::Unknown
             }
-        } else if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::AnyOrUnknown)
-        {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::AnyOrUnknown) {
             TypeReferenceSerializationKind::ObjectType
         } else if self.is_type_assignable_to_kind(
             type_,
@@ -439,8 +435,8 @@ impl TypeChecker {
         } else {
             self.error_type()
         };
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
             && type_.ref_(self).maybe_symbol() == symbol

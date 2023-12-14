@@ -249,8 +249,8 @@ impl TypeChecker {
         target: Id<Type>, /*UnionType*/
     ) -> io::Result<bool> {
         if source.ref_(self).flags().intersects(TypeFlags::Union) {
-            for &t in self
-                .type_(source)
+            for &t in source
+                .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .types()
             {
@@ -260,10 +260,7 @@ impl TypeChecker {
             }
             return Ok(true);
         }
-        if self
-            .type_(source)
-            .flags()
-            .intersects(TypeFlags::EnumLiteral)
+        if source.ref_(self).flags().intersects(TypeFlags::EnumLiteral)
             && self.get_base_type_of_enum_literal_type(source)? == target
         {
             return Ok(true);
@@ -311,8 +308,8 @@ impl TypeChecker {
         Ok(if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             try_some(
                 Some(&{
-                    let types = self
-                        .type_(type_)
+                    let types = type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned();
@@ -353,8 +350,8 @@ impl TypeChecker {
         type_: Id<Type>,
         mut f: impl FnMut(Id<Type>) -> bool,
     ) -> bool {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
@@ -729,19 +726,11 @@ impl TypeChecker {
 
     pub(super) fn create_final_array_type(&self, element_type: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if self
-                .type_(element_type)
-                .flags()
-                .intersects(TypeFlags::Never)
-            {
+            if element_type.ref_(self).flags().intersects(TypeFlags::Never) {
                 self.auto_array_type()
             } else {
                 self.create_array_type(
-                    if self
-                        .type_(element_type)
-                        .flags()
-                        .intersects(TypeFlags::Union)
-                    {
+                    if element_type.ref_(self).flags().intersects(TypeFlags::Union) {
                         self.get_union_type(
                             element_type.ref_(self).as_union_type().types(),
                             Some(UnionReduction::Subtype),
@@ -1229,7 +1218,8 @@ impl TypeChecker {
                         }
                     }
                     if self
-                        .type_(self.get_return_type_of_signature(signature.clone())?)
+                        .get_return_type_of_signature(signature.clone())?
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Never)
                     {

@@ -844,8 +844,8 @@ impl TypeChecker {
         }
 
         let return_type = self.get_return_type_of_signature(signature.clone())?;
-        if self
-            .type_(return_type)
+        if return_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::ESSymbolLike)
             && self.is_symbol_or_symbol_for_call(node)?

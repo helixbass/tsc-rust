@@ -139,17 +139,14 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Option<Id<Type>>> {
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
-        if self
-            .type_(constraint_type)
+        if constraint_type.ref_(self)
             .flags()
             .intersects(TypeFlags::Index)
         {
-            let type_variable = self
-                .type_(self.get_actual_type_variable(constraint_type)?)
+            let type_variable = self.get_actual_type_variable(constraint_type)?.ref_(self)
                 .as_index_type()
                 .type_;
-            if self
-                .type_(type_variable)
+            if type_variable.ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {
@@ -304,8 +301,7 @@ impl TypeChecker {
         mapped_type: Id<Type>, /*MappedType*/
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let tuple_type_target = self
-            .type_(tuple_type)
+        let tuple_type_target = tuple_type.ref_(self)
             .as_type_reference_interface()
             .target();
         let tuple_type_target_ref = tuple_type_target.ref_(self);
@@ -407,8 +403,7 @@ impl TypeChecker {
             type_.ref_(self).as_object_flags_type().object_flags() | ObjectFlags::Instantiated,
             type_.ref_(self).maybe_symbol(),
         );
-        let is_mapped_type = self
-            .type_(type_)
+        let is_mapped_type = type_.ref_(self)
             .as_object_flags_type()
             .object_flags()
             .intersects(ObjectFlags::Mapped);
@@ -492,8 +487,7 @@ impl TypeChecker {
                     if let Some(distribution_type) =
                         distribution_type.filter(|&distribution_type| {
                             check_type != distribution_type
-                                && self
-                                    .type_(distribution_type)
+                                && distribution_type.ref_(self)
                                     .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
                         })
@@ -605,15 +599,13 @@ impl TypeChecker {
                 .intersects(ObjectFlags::Reference | ObjectFlags::Anonymous | ObjectFlags::Mapped)
             {
                 if object_flags.intersects(ObjectFlags::Reference)
-                    && self
-                        .type_(type_)
+                    && type_.ref_(self)
                         .as_type_reference_interface()
                         .maybe_node()
                         .is_none()
                 {
                     let resolved_type_arguments = {
-                        let resolved_type_arguments = self
-                            .type_(type_)
+                        let resolved_type_arguments = type_.ref_(self)
                             .as_type_reference_interface()
                             .maybe_resolved_type_arguments()
                             .clone();
@@ -816,8 +808,7 @@ impl TypeChecker {
                 type_.ref_(self).as_substitution_type().base_type,
                 Some(mapper.clone()),
             )?;
-            if self
-                .type_(maybe_variable)
+            if maybe_variable.ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeVariable)
             {
@@ -866,8 +857,7 @@ impl TypeChecker {
             type_.ref_(self).as_reverse_mapped_type().constraint_type,
             Some(mapper.clone()),
         )?;
-        if !self
-            .type_(inner_index_type)
+        if !inner_index_type.ref_(self)
             .flags()
             .intersects(TypeFlags::Index)
         {
@@ -889,8 +879,7 @@ impl TypeChecker {
 
     pub(super) fn get_permissive_instantiation(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if self
-                .type_(type_)
+            if type_.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
             {
@@ -909,8 +898,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_restrictive_instantiation(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_.ref_(self)
             .flags()
             .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
         {
@@ -1051,13 +1039,11 @@ impl TypeChecker {
     pub(super) fn get_type_without_signatures(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            if !self
-                .type_(resolved)
+            if !resolved.ref_(self)
                 .as_resolved_type()
                 .construct_signatures()
                 .is_empty()
-                || !self
-                    .type_(resolved)
+                || !resolved.ref_(self)
                     .as_resolved_type()
                     .call_signatures()
                     .is_empty()
@@ -1073,8 +1059,7 @@ impl TypeChecker {
                 );
                 return Ok(self.alloc_type(result.into()));
             }
-        } else if self
-            .type_(type_)
+        } else if type_.ref_(self)
             .flags()
             .intersects(TypeFlags::Intersection)
         {
@@ -1171,8 +1156,7 @@ impl TypeChecker {
                 Some(target.ref_(self).as_union_type().types()),
                 Some(|&t: &Id<Type>| self.is_type_derived_from(source, t)),
             )?
-        } else if self
-            .type_(source)
+        } else if source.ref_(self)
             .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
         {

@@ -128,14 +128,14 @@ impl TypeChecker {
         element_type: Id<Type>,
         caller: &Node, /*JsxOpeningLikeElement*/
     ) -> io::Result<Vec<Gc<Signature>>> {
-        if self
-            .type_(element_type)
+        if element_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::String)
         {
             return Ok(vec![self.any_signature()]);
-        } else if self
-            .type_(element_type)
+        } else if element_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StringLiteral)
         {
@@ -171,8 +171,8 @@ impl TypeChecker {
             signatures = self.get_signatures_of_type(apparent_elem_type, SignatureKind::Call)?;
         }
         if signatures.is_empty()
-            && self
-                .type_(apparent_elem_type)
+            && apparent_elem_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Union)
         {
@@ -503,11 +503,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<bool> {
-        if self
-            .type_(target_type)
-            .flags()
-            .intersects(TypeFlags::Object)
-        {
+        if target_type.ref_(self).flags().intersects(TypeFlags::Object) {
             if self
                 .get_property_of_object_type(target_type, name)?
                 .is_some()
@@ -522,15 +518,15 @@ impl TypeChecker {
             {
                 return Ok(true);
             }
-        } else if self
-            .type_(target_type)
+        } else if target_type
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
             && self.is_excess_property_check_target(target_type)
         {
             for &t in &{
-                let types = self
-                    .type_(target_type)
+                let types = target_type
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned();
@@ -548,19 +544,13 @@ impl TypeChecker {
         (type_.ref_(self).flags().intersects(TypeFlags::Object)
             && !(get_object_flags(&type_.ref_(self))
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
-            || self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::NonPrimitive)
+            || type_.ref_(self).flags().intersects(TypeFlags::NonPrimitive)
             || (type_.ref_(self).flags().intersects(TypeFlags::Union)
                 && some(
                     Some(type_.ref_(self).as_union_type().types()),
                     Some(|&type_: &Id<Type>| self.is_excess_property_check_target(type_)),
                 ))
-            || (self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Intersection)
+            || (type_.ref_(self).flags().intersects(TypeFlags::Intersection)
                 && every(
                     type_.ref_(self).as_intersection_type().types(),
                     |&type_: &Id<Type>, _| self.is_excess_property_check_target(type_),
@@ -826,8 +816,8 @@ impl TypeChecker {
                     .unwrap(),
             )?;
             enclosing_class = Some(
-                if self
-                    .type_(this_type)
+                if this_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeParameter)
                 {
@@ -845,13 +835,15 @@ impl TypeChecker {
             return Ok(true);
         }
         let mut containing_type = Some(containing_type);
-        if self
-            .type_(containing_type.unwrap())
+        if containing_type
+            .unwrap()
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
-            containing_type = if self
-                .type_(containing_type.unwrap())
+            containing_type = if containing_type
+                .unwrap()
+                .ref_(self)
                 .as_type_parameter()
                 .is_this_type
                 == Some(true)

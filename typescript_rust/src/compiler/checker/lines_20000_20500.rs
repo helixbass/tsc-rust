@@ -256,8 +256,8 @@ impl TypeChecker {
             return Ok(false);
         }
 
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
@@ -270,11 +270,7 @@ impl TypeChecker {
             );
         }
 
-        if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Instantiable)
-        {
+        if type_.ref_(self).flags().intersects(TypeFlags::Instantiable) {
             let constraint = self.get_constraint_of_type(type_)?;
             if let Some(constraint) = constraint.filter(|&constraint| constraint != type_) {
                 return self.type_could_have_top_level_singleton_types(constraint);
@@ -282,8 +278,8 @@ impl TypeChecker {
         }
 
         Ok(self.is_unit_type(type_)
-            || self
-                .type_(type_)
+            || type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TemplateLiteral))
     }
@@ -420,23 +416,23 @@ impl TypeChecker {
     pub(super) fn is_weak_type(&self, type_: Id<Type>) -> io::Result<bool> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            return Ok(self
-                .type_(resolved)
+            return Ok(resolved
+                .ref_(self)
                 .as_resolved_type()
                 .call_signatures()
                 .is_empty()
-                && self
-                    .type_(resolved)
+                && resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .is_empty()
-                && self
-                    .type_(resolved)
+                && resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .index_infos()
                     .is_empty()
-                && !self
-                    .type_(resolved)
+                && !resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .properties()
                     .is_empty()
@@ -445,11 +441,7 @@ impl TypeChecker {
                     |&p: &Id<Symbol>, _| p.ref_(self).flags().intersects(SymbolFlags::Optional),
                 ));
         }
-        if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Intersection)
-        {
+        if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             return try_every(
                 type_
                     .ref_(self)
@@ -489,8 +481,8 @@ impl TypeChecker {
             type_,
             maybe_map(
                 {
-                    let type_parameters = self
-                        .type_(type_)
+                    let type_parameters = type_
+                        .ref_(self)
                         .as_generic_type()
                         .maybe_type_parameters()
                         .map(ToOwned::to_owned);
@@ -630,8 +622,8 @@ impl TypeChecker {
     pub(super) fn get_variances(&self, type_: Id<Type> /*GenericType*/) -> Vec<VarianceFlags> {
         if type_ == self.global_array_type()
             || type_ == self.global_readonly_array_type()
-            || self
-                .type_(type_)
+            || type_
+                .ref_(self)
                 .as_generic_type()
                 .object_flags()
                 .intersects(ObjectFlags::Tuple)
@@ -640,8 +632,8 @@ impl TypeChecker {
         }
         self.get_variances_worker(
             {
-                let type_parameters = self
-                    .type_(type_)
+                let type_parameters = type_
+                    .ref_(self)
                     .as_generic_type()
                     .maybe_type_parameters()
                     .map(ToOwned::to_owned);
@@ -670,8 +662,8 @@ impl TypeChecker {
     ) -> bool {
         for i in 0..variances.len() {
             if variances[i] & VarianceFlags::VarianceMask == VarianceFlags::Covariant
-                && self
-                    .type_(type_arguments[i])
+                && type_arguments[i]
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Void)
             {
@@ -682,8 +674,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_unconstrained_type_parameter(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::TypeParameter)
             && self.get_constraint_of_type_parameter(type_)?.is_none())
@@ -691,8 +683,8 @@ impl TypeChecker {
 
     pub(super) fn is_non_deferred_type_reference(&self, type_: Id<Type>) -> bool {
         get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference)
-            && self
-                .type_(type_)
+            && type_
+                .ref_(self)
                 .as_type_reference_interface()
                 .maybe_node()
                 .is_none()
@@ -719,8 +711,11 @@ impl TypeChecker {
         depth: Option<usize>,
     ) -> io::Result<String> {
         let depth = depth.unwrap_or(0);
-        let mut result = self
-            .type_(type_.ref_(self).as_type_reference_interface().target())
+        let mut result = type_
+            .ref_(self)
+            .as_type_reference_interface()
+            .target()
+            .ref_(self)
             .id()
             .to_string();
         for &t in &self.get_type_arguments(type_)? {
@@ -788,13 +783,11 @@ impl TypeChecker {
         callback: &mut impl FnMut(Id<Symbol>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Synthetic) {
-            for &t in self
-                .type_(
-                    (*prop.ref_(self).as_transient_symbol().symbol_links())
-                        .borrow()
-                        .containing_type
-                        .unwrap(),
-                )
+            for &t in (*prop.ref_(self).as_transient_symbol().symbol_links())
+                .borrow()
+                .containing_type
+                .unwrap()
+                .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .types()
             {
@@ -950,8 +943,8 @@ impl TypeChecker {
             && !self.is_object_or_array_literal_type(type_)
         {
             if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference) {
-                if let Some(type_node) = self
-                    .type_(type_)
+                if let Some(type_node) = type_
+                    .ref_(self)
                     .as_type_reference_interface()
                     .maybe_node()
                     .clone()
@@ -969,15 +962,15 @@ impl TypeChecker {
                 return type_symbol.into();
             }
             if self.is_tuple_type(type_) {
-                return self
-                    .type_(type_)
+                return type_
+                    .ref_(self)
                     .as_type_reference_interface()
                     .target()
                     .into();
             }
         }
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
@@ -986,14 +979,14 @@ impl TypeChecker {
                 Some(type_symbol) => type_symbol.into(),
             };
         }
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::IndexedAccess)
         {
             while {
-                type_ = self
-                    .type_(type_)
+                type_ = type_
+                    .ref_(self)
                     .as_indexed_access_type()
                     .object_type
                     .clone();

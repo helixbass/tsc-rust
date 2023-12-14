@@ -1192,8 +1192,8 @@ impl TypeChecker {
             .ref_(self)
             .as_interface_type()
             .set_target(type_.clone());
-        *self
-            .type_(type_)
+        *type_
+            .ref_(self)
             .as_interface_type()
             .maybe_resolved_type_arguments_mut() = type_parameters;
         type_

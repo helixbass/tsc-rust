@@ -200,8 +200,8 @@ impl TypeChecker {
                 None
             };
             let type_parameters = match class_type {
-                Some(class_type) => self
-                    .type_(class_type)
+                Some(class_type) => class_type
+                    .ref_(self)
                     .as_interface_type()
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned),
@@ -884,8 +884,8 @@ impl TypeChecker {
             try_maybe_map(
                 signature.maybe_type_parameters().as_deref(),
                 |&tp: &Id<Type>, _| -> io::Result<_> {
-                    Ok(self
-                        .type_(tp)
+                    Ok(tp
+                        .ref_(self)
                         .as_type_parameter()
                         .target
                         .try_filter(|&target| -> io::Result<_> {
@@ -1084,15 +1084,12 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_index_key_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::String | TypeFlags::Number | TypeFlags::ESSymbol)
             || self.is_pattern_literal_type(type_)
-            || self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Intersection)
+            || type_.ref_(self).flags().intersects(TypeFlags::Intersection)
                 && !self.is_generic_type(type_)?
                 && try_some(
                     Some(

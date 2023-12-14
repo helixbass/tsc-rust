@@ -152,13 +152,14 @@ impl TypeChecker {
         for i in arg_count..effective_minimum_arguments {
             let type_ = self.get_type_at_position(signature, i)?;
             if self
-                .type_(self.filter_type(type_, |type_: Id<Type>| {
+                .filter_type(type_, |type_: Id<Type>| {
                     if is_in_js_file(Some(node)) && !self.strict_null_checks {
                         self.accepts_void_undefined_unknown_or_any(type_)
                     } else {
                         self.accepts_void(type_)
                     }
-                }))
+                })
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never)
             {
@@ -210,26 +211,26 @@ impl TypeChecker {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
             if allow_members
-                || self
-                    .type_(resolved)
+                || resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .properties()
                     .is_empty()
-                    && self
-                        .type_(resolved)
+                    && resolved
+                        .ref_(self)
                         .as_resolved_type()
                         .index_infos()
                         .is_empty()
             {
                 if kind == SignatureKind::Call
-                    && self
-                        .type_(resolved)
+                    && resolved
+                        .ref_(self)
                         .as_resolved_type()
                         .call_signatures()
                         .len()
                         == 1
-                    && self
-                        .type_(resolved)
+                    && resolved
+                        .ref_(self)
                         .as_resolved_type()
                         .construct_signatures()
                         .is_empty()
@@ -239,14 +240,14 @@ impl TypeChecker {
                     ));
                 }
                 if kind == SignatureKind::Construct
-                    && self
-                        .type_(resolved)
+                    && resolved
+                        .ref_(self)
                         .as_resolved_type()
                         .construct_signatures()
                         .len()
                         == 1
-                    && self
-                        .type_(resolved)
+                    && resolved
+                        .ref_(self)
                         .as_resolved_type()
                         .call_signatures()
                         .is_empty()
@@ -563,8 +564,11 @@ impl TypeChecker {
             self.create_tuple_type(
                 &*self.get_type_arguments(type_)?,
                 Some(
-                    &self
-                        .type_(type_.ref_(self).as_type_reference().target)
+                    &type_
+                        .ref_(self)
+                        .as_type_reference()
+                        .target
+                        .ref_(self)
                         .as_tuple_type()
                         .element_flags,
                 ),

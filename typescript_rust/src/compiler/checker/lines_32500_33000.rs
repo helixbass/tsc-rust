@@ -580,12 +580,12 @@ impl TypeChecker {
                 let right_type = self.check_non_null_type(right_type, right)?;
 
                 let mut suggested_operator: Option<SyntaxKind> = None;
-                if self
-                    .type_(left_type)
+                if left_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::BooleanLike)
-                    && self
-                        .type_(right_type)
+                    && right_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::BooleanLike)
                     && {

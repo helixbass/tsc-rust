@@ -714,8 +714,7 @@ impl TypeChecker {
             self.instantiate_contextual_type(contextual_type, node, context_flags)?;
         if let Some(instantiated_type) = instantiated_type {
             if !(matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::NoConstraints))
-                && self
-                    .type_(instantiated_type)
+                && instantiated_type.ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeVariable))
             {
@@ -806,8 +805,7 @@ impl TypeChecker {
         type_: Id<Type>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_.ref_(self)
             .flags()
             .intersects(TypeFlags::Instantiable)
         {
@@ -825,8 +823,7 @@ impl TypeChecker {
                 None,
             );
         }
-        if self
-            .type_(type_)
+        if type_.ref_(self)
             .flags()
             .intersects(TypeFlags::Intersection)
         {
@@ -1062,8 +1059,7 @@ impl TypeChecker {
         }
         let tag_type =
             self.check_expression_cached(&context_as_jsx_opening_like_element.tag_name(), None)?;
-        if self
-            .type_(tag_type)
+        if tag_type.ref_(self)
             .flags()
             .intersects(TypeFlags::StringLiteral)
         {

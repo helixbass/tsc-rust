@@ -564,12 +564,12 @@ impl TypeChecker {
     }
 
     pub(super) fn is_template_literal_contextual_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::TemplateLiteral)
-            || self
-                .type_(type_)
+            || type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
                 && self.maybe_type_of_kind(

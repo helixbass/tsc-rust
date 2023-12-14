@@ -1020,8 +1020,8 @@ impl TypeChecker {
                     inferred_type = Some(
                         if let Some(inferred_covariant_type) = inferred_covariant_type.try_filter(
                             |&inferred_covariant_type| -> io::Result<_> {
-                                Ok(!self
-                                    .type_(inferred_covariant_type)
+                                Ok(!inferred_covariant_type
+                                    .ref_(self)
                                     .flags()
                                     .intersects(TypeFlags::Never)
                                     && try_some(

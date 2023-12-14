@@ -461,7 +461,8 @@ impl TypeChecker {
                 let class_name = self.get_class_name_from_prototype_method(&container);
                 if let Some(class_name) = class_name.as_ref().filter(|_| is_in_js) {
                     let class_symbol = self
-                        .type_(self.check_expression(class_name, None, None)?)
+                        .check_expression(class_name, None, None)?
+                        .ref_(self)
                         .maybe_symbol();
                     if let Some(class_symbol) = class_symbol.filter(|&class_symbol| {
                         class_symbol.ref_(self).maybe_members().is_some()
@@ -471,15 +472,17 @@ impl TypeChecker {
                                 .intersects(SymbolFlags::Function)
                     }) {
                         this_type = self
-                            .type_(self.get_declared_type_of_symbol(class_symbol)?)
+                            .get_declared_type_of_symbol(class_symbol)?
+                            .ref_(self)
                             .maybe_as_interface_type()
                             .and_then(|interface_type| interface_type.maybe_this_type());
                     }
                 } else if self.is_js_constructor(Some(&*container))? {
                     this_type = self
-                        .type_(self.get_declared_type_of_symbol(
+                        .get_declared_type_of_symbol(
                             self.get_merged_symbol(Some(container.symbol())).unwrap(),
-                        )?)
+                        )?
+                        .ref_(self)
                         .maybe_as_interface_type()
                         .and_then(|interface_type| interface_type.maybe_this_type());
                 }

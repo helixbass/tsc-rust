@@ -98,8 +98,7 @@ impl TypeChecker {
         missing_property: &str,
         containing_type: Id<Type>,
     ) -> io::Result<Option<String>> {
-        let container = return_ok_default_if_none!(self
-            .type_(self.get_apparent_type(containing_type)?)
+        let container = return_ok_default_if_none!(self.get_apparent_type(containing_type)?.ref_(self)
             .maybe_symbol());
         let all_features = get_script_target_features();
         let lib_targets = all_features.keys();
@@ -358,8 +357,7 @@ impl TypeChecker {
         source: Id<Type>, /*StringLiteralType*/
         target: Id<Type>, /*UnionType*/
     ) -> Option<Id<Type /*StringLiteralType*/>> {
-        let candidates = self
-            .type_(target)
+        let candidates = target.ref_(self)
             .as_union_type()
             .types()
             .into_iter()

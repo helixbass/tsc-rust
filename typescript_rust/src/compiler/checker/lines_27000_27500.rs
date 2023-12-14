@@ -86,11 +86,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_spread_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Instantiable)
-        {
+        if type_.ref_(self).flags().intersects(TypeFlags::Instantiable) {
             let constraint = self.get_base_constraint_of_type(type_)?;
             if let Some(constraint) = constraint {
                 return self.is_valid_spread_type(constraint);
@@ -105,13 +101,13 @@ impl TypeChecker {
             .get_falsy_flags(type_)
             .intersects(TypeFlags::DefinitelyFalsy)
             && self.is_valid_spread_type(self.remove_definitely_falsy_types(type_))?
-            || self
-                .type_(type_)
+            || type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
                 && try_every(
-                    &self
-                        .type_(type_)
+                    &type_
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types(),
                     |&type_: &Id<Type>, _| self.is_valid_spread_type(type_),

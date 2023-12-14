@@ -45,10 +45,7 @@ impl TypeChecker {
                 if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                     let type_ =
                         self.get_type_of_symbol(self.get_symbol_of_node(member)?.unwrap())?;
-                    if !(self
-                        .type_(type_)
-                        .flags()
-                        .intersects(TypeFlags::AnyOrUnknown)
+                    if !(type_.ref_(self).flags().intersects(TypeFlags::AnyOrUnknown)
                         || self.get_falsy_flags(type_).intersects(TypeFlags::Undefined))
                     {
                         if match constructor.as_ref() {

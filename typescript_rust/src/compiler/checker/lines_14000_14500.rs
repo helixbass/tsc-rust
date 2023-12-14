@@ -29,8 +29,8 @@ impl TypeChecker {
         type_arguments: Option<Vec<Id<Type>>>,
     ) -> io::Result<Id<Type>> {
         Ok(
-            if self
-                .type_(target)
+            if target
+                .ref_(self)
                 .as_object_flags_type()
                 .object_flags()
                 .intersects(ObjectFlags::Tuple)
@@ -47,16 +47,16 @@ impl TypeChecker {
         target: Id<Type>, /*TupleType*/
         element_types: Vec<Id<Type>>,
     ) -> io::Result<Id<Type>> {
-        if !self
-            .type_(target)
+        if !target
+            .ref_(self)
             .as_tuple_type()
             .combined_flags
             .intersects(ElementFlags::NonRequired)
         {
             return Ok(self.create_type_reference(target, Some(element_types)));
         }
-        if self
-            .type_(target)
+        if target
+            .ref_(self)
             .as_tuple_type()
             .combined_flags
             .intersects(ElementFlags::Variadic)
@@ -66,8 +66,7 @@ impl TypeChecker {
                 |&t: &Id<Type>, i| {
                     target.ref_(self).as_tuple_type().element_flags[i]
                         .intersects(ElementFlags::Variadic)
-                        && self
-                            .type_(t)
+                        && t.ref_(self)
                             .flags()
                             .intersects(TypeFlags::Never | TypeFlags::Union)
                 },
@@ -113,8 +112,8 @@ impl TypeChecker {
             let type_ = *type_;
             let flags = target.ref_(self).as_tuple_type().element_flags[i];
             if flags.intersects(ElementFlags::Variadic) {
-                if self
-                    .type_(type_)
+                if type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::InstantiableNonPrimitive)
                     || self.is_generic_mapped_type(type_)?
@@ -346,8 +345,8 @@ impl TypeChecker {
                 ),
                 Some(false),
                 {
-                    let labeled_element_declarations = self
-                        .type_(target)
+                    let labeled_element_declarations = target
+                        .ref_(self)
                         .as_tuple_type()
                         .labeled_element_declarations
                         .clone();
@@ -556,8 +555,8 @@ impl TypeChecker {
             i -= 1;
             let source = types[i].clone();
             if has_empty_object
-                || self
-                    .type_(source)
+                || source
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::StructuredOrInstantiable)
             {
@@ -979,8 +978,8 @@ impl TypeChecker {
                         "|{}",
                         self.get_type_list_id(Some(origin.ref_(self).as_union_type().types()))
                     )
-                } else if self
-                    .type_(origin)
+                } else if origin
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Intersection)
                 {
@@ -1007,12 +1006,12 @@ impl TypeChecker {
         let mut type_: Option<Id<Type>> = self.union_types().get(&id).map(Clone::clone);
         if type_.is_none() {
             let is_boolean = types.len() == 2
-                && self
-                    .type_(types[0])
+                && types[0]
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::BooleanLiteral)
-                && self
-                    .type_(types[1])
+                && types[1]
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::BooleanLiteral);
             let base_type = self.create_type(if is_boolean {

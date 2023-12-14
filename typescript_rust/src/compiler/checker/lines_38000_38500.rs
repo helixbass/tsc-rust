@@ -613,8 +613,8 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::TypeReference {
             let type_ = self.get_type_from_type_reference(node)?;
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {
@@ -947,8 +947,8 @@ impl TypeChecker {
                         None, None,
                     )?;
                 }
-                if self
-                    .type_(base_constructor_type)
+                if base_constructor_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeVariable)
                 {
@@ -980,8 +980,8 @@ impl TypeChecker {
                 if !matches!(
                     static_base_type.ref_(self).maybe_symbol(),
                     Some(static_base_type_symbol) if static_base_type_symbol.ref_(self).flags().intersects(SymbolFlags::Class)
-                ) && !self
-                    .type_(base_constructor_type)
+                ) && !base_constructor_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeVariable)
                 {

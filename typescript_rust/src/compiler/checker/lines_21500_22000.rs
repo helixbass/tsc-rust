@@ -118,8 +118,8 @@ impl TypeChecker {
     ) -> bool {
         let source_target = source.ref_(self).as_type_reference_interface().target();
         let target_target = target.ref_(self).as_type_reference_interface().target();
-        !self
-            .type_(target_target)
+        !target_target
+            .ref_(self)
             .as_tuple_type()
             .combined_flags
             .intersects(ElementFlags::Variadic)
@@ -237,15 +237,15 @@ impl TypeChecker {
         target: Id<Type>, /*TemplateLiteralType*/
     ) -> io::Result<bool> {
         if source == target
-            || self
-                .type_(target)
+            || target
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::String)
         {
             return Ok(true);
         }
-        if self
-            .type_(source)
+        if source
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StringLiteral)
         {
@@ -257,14 +257,14 @@ impl TypeChecker {
                 || target.ref_(self).flags().intersects(TypeFlags::BigInt)
                     && value != ""
                     && self.is_valid_big_int_string(value)
-                || self
-                    .type_(target)
+                || target
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::BooleanLiteral | TypeFlags::Nullable)
                     && value == target.ref_(self).as_intrinsic_type().intrinsic_name());
         }
-        if self
-            .type_(source)
+        if source
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::TemplateLiteral)
         {
@@ -287,8 +287,8 @@ impl TypeChecker {
         target: Id<Type>, /*TemplateLiteralType*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         Ok(
-            if self
-                .type_(source)
+            if source
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::StringLiteral)
             {
@@ -300,8 +300,8 @@ impl TypeChecker {
                     &vec![],
                     target,
                 )?
-            } else if self
-                .type_(source)
+            } else if source
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TemplateLiteral)
             {
@@ -357,8 +357,8 @@ impl TypeChecker {
 
     pub(super) fn get_string_like_type_for_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::StringLike)
             {

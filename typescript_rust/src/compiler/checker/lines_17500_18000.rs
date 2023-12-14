@@ -139,13 +139,8 @@ impl TypeChecker {
     pub(super) fn is_empty_resolved_type(&self, t: Id<Type> /*ResolvedType*/) -> bool {
         t != self.any_function_type() && {
             t.ref_(self).as_resolved_type().properties().is_empty()
-                && self
-                    .type_(t)
-                    .as_resolved_type()
-                    .call_signatures()
-                    .is_empty()
-                && self
-                    .type_(t)
+                && t.ref_(self).as_resolved_type().call_signatures().is_empty()
+                && t.ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .is_empty()
@@ -157,11 +152,7 @@ impl TypeChecker {
         Ok(if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             !self.is_generic_mapped_type(type_)?
                 && self.is_empty_resolved_type(self.resolve_structured_type_members(type_)?)
-        } else if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::NonPrimitive)
-        {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::NonPrimitive) {
             true
         } else if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             try_some(
@@ -173,11 +164,7 @@ impl TypeChecker {
                 ),
                 Some(|&type_: &Id<Type>| self.is_empty_object_type(type_)),
             )?
-        } else if self
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Intersection)
-        {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             try_every(
                 type_
                     .ref_(self)
@@ -211,14 +198,14 @@ impl TypeChecker {
             && self
                 .get_index_info_of_type_(type_, self.string_type())?
                 .is_some()
-            || self
-                .type_(type_)
+            || type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
                 && try_every(
                     &{
-                        let types = self
-                            .type_(type_)
+                        let types = type_
+                            .ref_(self)
                             .as_union_or_intersection_type_interface()
                             .types()
                             .to_owned();
@@ -390,8 +377,8 @@ impl TypeChecker {
             }
             if s.intersects(TypeFlags::Literal)
                 && t.intersects(TypeFlags::Literal)
-                && self
-                    .type_(source)
+                && source
+                    .ref_(self)
                     .as_literal_type()
                     .is_value_eq(&target.ref_(self))
                 && self.is_enum_type_related_to(
@@ -498,12 +485,12 @@ impl TypeChecker {
                 return Ok(related.intersects(RelationComparisonResult::Succeeded));
             }
         }
-        if self
-            .type_(source)
+        if source
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StructuredOrInstantiable)
-            || self
-                .type_(target)
+            || target
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
@@ -545,8 +532,8 @@ impl TypeChecker {
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
             } else if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference)
-                && self
-                    .type_(type_)
+                && type_
+                    .ref_(self)
                     .as_type_reference_interface()
                     .maybe_node()
                     .is_some()
@@ -558,27 +545,19 @@ impl TypeChecker {
                     },
                     Some(self.get_type_arguments(type_)?),
                 )
-            } else if self
-                .type_(type_)
+            } else if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
             {
                 self.get_reduced_type(type_)?
-            } else if self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Substitution)
-            {
+            } else if type_.ref_(self).flags().intersects(TypeFlags::Substitution) {
                 if writing {
                     type_.ref_(self).as_substitution_type().base_type.clone()
                 } else {
                     type_.ref_(self).as_substitution_type().substitute.clone()
                 }
-            } else if self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Simplifiable)
-            {
+            } else if type_.ref_(self).flags().intersects(TypeFlags::Simplifiable) {
                 self.get_simplified_type(type_, writing)?
             } else {
                 type_

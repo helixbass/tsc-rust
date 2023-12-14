@@ -43,13 +43,13 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_base_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {
@@ -59,15 +59,12 @@ impl TypeChecker {
                 }
             }
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::NonPrimitive | TypeFlags::Any)
             && !self.is_generic_mapped_type(type_)?
-            || self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Intersection)
+            || type_.ref_(self).flags().intersects(TypeFlags::Intersection)
                 && try_every(
                     type_
                         .ref_(self)
@@ -81,14 +78,14 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<()> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_interface_type()
             .maybe_resolved_base_types()
             .is_none()
         {
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_interface_type()
                 .maybe_resolved_base_types() = Some(Gc::new(vec![]));
         }
@@ -127,8 +124,8 @@ impl TypeChecker {
                                             .unwrap(),
                                     );
                                     resolved_base_types.push(base_type);
-                                    *self
-                                        .type_(type_)
+                                    *type_
+                                        .ref_(self)
                                         .as_interface_type()
                                         .maybe_resolved_base_types() =
                                         Some(Gc::new(resolved_base_types));
@@ -186,9 +183,8 @@ impl TypeChecker {
                                         .flags()
                                         .intersects(SymbolFlags::Interface)
                                         || self
-                                            .type_(self.get_declared_type_of_class_or_interface(
-                                                base_symbol,
-                                            )?)
+                                            .get_declared_type_of_class_or_interface(base_symbol)?
+                                            .ref_(self)
                                             .as_interface_type()
                                             .maybe_this_type()
                                             .is_some()
@@ -280,14 +276,12 @@ impl TypeChecker {
                 .into(),
             );
             if need_to_set_constraint {
-                *self
-                    .type_(
-                        type_
-                            .ref_(self)
-                            .as_interface_type()
-                            .maybe_this_type_mut()
-                            .unwrap(),
-                    )
+                *type_
+                    .ref_(self)
+                    .as_interface_type()
+                    .maybe_this_type_mut()
+                    .unwrap()
+                    .ref_(self)
                     .as_type_parameter()
                     .constraint
                     .borrow_mut() = Some(type_.clone());
@@ -305,11 +299,11 @@ impl TypeChecker {
                 .ref_(self)
                 .as_interface_type()
                 .set_target(type_.clone());
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_interface_type()
-                .maybe_resolved_type_arguments_mut() = self
-                .type_(type_)
+                .maybe_resolved_type_arguments_mut() = type_
+                .ref_(self)
                 .as_interface_type()
                 .maybe_type_parameters()
                 .map(ToOwned::to_owned);
@@ -786,8 +780,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_interface_type()
             .maybe_declared_properties()
             .is_none()

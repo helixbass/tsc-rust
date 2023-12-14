@@ -2568,8 +2568,7 @@ impl TypeChecker {
     pub fn get_default_from_type_parameter(&self, type_: Id<Type>) -> io::Result<Option<Id<Type>>> {
         /*type &&*/
         Ok(
-            if self
-                .type_(type_)
+            if type_.ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {

@@ -27,8 +27,8 @@ impl TypeChecker {
             .name_type
             .as_ref()
             .try_map(|type_declaration_name_type| -> io::Result<_> {
-                if self
-                    .type_(type_)
+                if type_
+                    .ref_(self)
                     .as_mapped_type()
                     .maybe_name_type()
                     .is_none()
@@ -39,8 +39,8 @@ impl TypeChecker {
                     )?;
                     *type_.ref_(self).as_mapped_type().maybe_name_type() = Some(name_type);
                 }
-                Ok(self
-                    .type_(type_)
+                Ok(type_
+                    .ref_(self)
                     .as_mapped_type()
                     .maybe_name_type()
                     .clone()
@@ -52,15 +52,15 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_mapped_type()
             .maybe_template_type()
             .is_none()
         {
             let template_type = if let Some(type_declaration_type) = {
-                let type_ = self
-                    .type_(type_)
+                let type_ = type_
+                    .ref_(self)
                     .as_mapped_type()
                     .declaration
                     .as_mapped_type_node()
@@ -89,8 +89,8 @@ impl TypeChecker {
             };
             *type_.ref_(self).as_mapped_type().maybe_template_type() = Some(template_type);
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_mapped_type()
             .maybe_template_type()
             .clone()
@@ -102,8 +102,8 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> Option<Gc<Node>> {
         get_effective_constraint_of_type_parameter(
-            &self
-                .type_(type_)
+            &type_
+                .ref_(self)
                 .as_mapped_type()
                 .declaration
                 .as_mapped_type_node()
@@ -126,8 +126,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_mapped_type()
             .maybe_modifiers_type()
             .is_none()
@@ -174,8 +174,8 @@ impl TypeChecker {
                 );
             }
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_mapped_type()
             .maybe_modifiers_type()
             .clone()
@@ -259,36 +259,36 @@ impl TypeChecker {
     ) -> io::Result<Id<Type /*ResolvedType*/>> {
         if !type_.ref_(self).as_resolvable_type().is_resolved() {
             if type_.ref_(self).flags().intersects(TypeFlags::Object) {
-                if self
-                    .type_(type_)
+                if type_
+                    .ref_(self)
                     .as_object_type()
                     .object_flags()
                     .intersects(ObjectFlags::Reference)
                 {
                     self.resolve_type_reference_members(type_)?;
-                } else if self
-                    .type_(type_)
+                } else if type_
+                    .ref_(self)
                     .as_object_type()
                     .object_flags()
                     .intersects(ObjectFlags::ClassOrInterface)
                 {
                     self.resolve_class_or_interface_members(type_)?;
-                } else if self
-                    .type_(type_)
+                } else if type_
+                    .ref_(self)
                     .as_object_type()
                     .object_flags()
                     .intersects(ObjectFlags::ReverseMapped)
                 {
                     self.resolve_reverse_mapped_type_members(type_)?;
-                } else if self
-                    .type_(type_)
+                } else if type_
+                    .ref_(self)
                     .as_object_type()
                     .object_flags()
                     .intersects(ObjectFlags::Anonymous)
                 {
                     self.resolve_anonymous_type_members(type_)?;
-                } else if self
-                    .type_(type_)
+                } else if type_
+                    .ref_(self)
                     .as_object_type()
                     .object_flags()
                     .intersects(ObjectFlags::Mapped)
@@ -297,11 +297,7 @@ impl TypeChecker {
                 }
             } else if type_.ref_(self).flags().intersects(TypeFlags::Union) {
                 self.resolve_union_type_members(type_)?;
-            } else if self
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Intersection)
-            {
+            } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
                 self.resolve_intersection_type_members(type_)?;
             }
         }
@@ -314,7 +310,8 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<Symbol>>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             return Ok((*self
-                .type_(self.resolve_structured_type_members(type_)?)
+                .resolve_structured_type_members(type_)?
+                .ref_(self)
                 .as_resolved_type()
                 .properties())
             .clone());
@@ -346,16 +343,16 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<impl ExactSizeIterator<Item = Id<Symbol>> + Clone> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_union_or_intersection_type_interface()
             .maybe_resolved_properties()
             .is_none()
         {
             let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             for current in {
-                let types = self
-                    .type_(type_)
+                let types = type_
+                    .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned();
@@ -380,13 +377,13 @@ impl TypeChecker {
                     break;
                 }
             }
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .maybe_resolved_properties_mut() = Some(self.get_named_members(&members)?.into());
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_union_or_intersection_type_interface()
             .maybe_resolved_properties()
             .unwrap()
@@ -399,8 +396,8 @@ impl TypeChecker {
     ) -> io::Result<impl ExactSizeIterator<Item = Id<Symbol>> + Clone> {
         let type_ = self.get_reduced_apparent_type(type_)?;
         Ok(
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
             {
@@ -417,13 +414,14 @@ impl TypeChecker {
         mut action: impl FnMut(Id<Symbol>, &__String),
     ) -> io::Result<()> {
         let type_ = self.get_reduced_apparent_type(type_)?;
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::StructuredType)
         {
             for (escaped_name, &symbol) in &*(*self
-                .type_(self.resolve_structured_type_members(type_)?)
+                .resolve_structured_type_members(type_)?
+                .ref_(self)
                 .as_resolved_type()
                 .members())
             .borrow()
@@ -487,14 +485,14 @@ impl TypeChecker {
         type_: Id<Type>, /*InstantiableType | UnionOrIntersectionType*/
     ) -> io::Result<Option<Id<Type>>> {
         Ok(
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {
                 self.get_constraint_of_type_parameter(type_)?
-            } else if self
-                .type_(type_)
+            } else if type_
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::IndexedAccess)
             {
@@ -597,16 +595,16 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_conditional_type()
             .maybe_resolved_default_constraint()
             .is_none()
         {
             let true_constraint = self.get_inferred_true_type_from_conditional_type(type_)?;
             let false_constraint = self.get_false_type_from_conditional_type(type_)?;
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_conditional_type()
                 .maybe_resolved_default_constraint() =
                 Some(if self.is_type_any(Some(true_constraint)) {
@@ -623,8 +621,8 @@ impl TypeChecker {
                     )?
                 });
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_conditional_type()
             .maybe_resolved_default_constraint()
             .clone()
@@ -672,11 +670,7 @@ impl TypeChecker {
                     Option::<Id<Symbol>>::None,
                     None,
                 )?;
-                if !self
-                    .type_(instantiated)
-                    .flags()
-                    .intersects(TypeFlags::Never)
-                {
+                if !instantiated.ref_(self).flags().intersects(TypeFlags::Never) {
                     return Ok(Some(instantiated));
                 }
             }
@@ -863,8 +857,7 @@ impl TypeChecker {
             *t.ref_(self).maybe_immediate_base_constraint() =
                 Some(result.unwrap_or_else(|| self.no_constraint_type()));
         }
-        Ok(self
-            .type_(t)
+        Ok(t.ref_(self)
             .maybe_immediate_base_constraint()
             .clone()
             .unwrap())
@@ -902,13 +895,12 @@ impl TypeChecker {
                 },
             );
         }
-        if self
-            .type_(t)
+        if t.ref_(self)
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
-            let types = &self
-                .type_(t)
+            let types = &t
+                .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .types()
                 .to_owned();
@@ -1030,20 +1022,20 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*IntersectionType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_intersection_type()
             .maybe_resolved_apparent_type()
             .is_none()
         {
             let resolved = self.get_type_with_this_argument(type_, Some(type_), Some(true))?;
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_intersection_type()
                 .maybe_resolved_apparent_type() = Some(resolved);
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_intersection_type()
             .maybe_resolved_apparent_type()
             .clone()
@@ -1054,8 +1046,8 @@ impl TypeChecker {
         &self,
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
-        if self
-            .type_(type_parameter)
+        if type_parameter
+            .ref_(self)
             .as_type_parameter()
             .maybe_default()
             .is_none()
@@ -1065,8 +1057,8 @@ impl TypeChecker {
             {
                 let target_default =
                     self.get_resolved_type_parameter_default(type_parameter_target)?;
-                *self
-                    .type_(type_parameter)
+                *type_parameter
+                    .ref_(self)
                     .as_type_parameter()
                     .maybe_default() = Some(if let Some(target_default) = target_default {
                     self.instantiate_type(
@@ -1077,8 +1069,8 @@ impl TypeChecker {
                     self.no_constraint_type()
                 });
             } else {
-                *self
-                    .type_(type_parameter)
+                *type_parameter
+                    .ref_(self)
                     .as_type_parameter()
                     .maybe_default() = Some(self.resolving_default_type());
                 let default_declaration =
@@ -1103,26 +1095,26 @@ impl TypeChecker {
                     *type_parameter.ref_(self).as_type_parameter().maybe_default(),
                     Some(default) if default == self.resolving_default_type()
                 ) {
-                    *self
-                        .type_(type_parameter)
+                    *type_parameter
+                        .ref_(self)
                         .as_type_parameter()
                         .maybe_default() = Some(default_type);
                 }
             }
-        } else if self
-            .type_(type_parameter)
+        } else if type_parameter
+            .ref_(self)
             .as_type_parameter()
             .maybe_default()
             .unwrap()
             == self.resolving_default_type()
         {
-            *self
-                .type_(type_parameter)
+            *type_parameter
+                .ref_(self)
                 .as_type_parameter()
                 .maybe_default() = Some(self.circular_constraint_type());
         }
-        Ok(self
-            .type_(type_parameter)
+        Ok(type_parameter
+            .ref_(self)
             .as_type_parameter()
             .maybe_default()
             .clone())
@@ -1165,20 +1157,20 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
-        if self
-            .type_(type_)
+        if type_
+            .ref_(self)
             .as_mapped_type()
             .maybe_resolved_apparent_type()
             .is_none()
         {
             let resolved = self.get_resolved_apparent_type_of_mapped_type(type_)?;
-            *self
-                .type_(type_)
+            *type_
+                .ref_(self)
                 .as_mapped_type()
                 .maybe_resolved_apparent_type() = Some(resolved);
         }
-        Ok(self
-            .type_(type_)
+        Ok(type_
+            .ref_(self)
             .as_mapped_type()
             .maybe_resolved_apparent_type()
             .clone()
@@ -1191,8 +1183,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_variable = self.get_homomorphic_type_variable(type_)?;
         if let Some(type_variable) = type_variable {
-            if self
-                .type_(type_)
+            if type_
+                .ref_(self)
                 .as_mapped_type()
                 .declaration
                 .as_mapped_type_node()

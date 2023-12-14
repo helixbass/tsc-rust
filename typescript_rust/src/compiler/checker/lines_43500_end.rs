@@ -754,8 +754,7 @@ impl TypeChecker {
     ) -> Option<Id<Type>> {
         let source_object_flags = get_object_flags(&source.ref_(self));
         if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
-            && self
-                .type_(union_target)
+            && union_target.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Union)
         {
@@ -796,8 +795,7 @@ impl TypeChecker {
             })?
         {
             return Ok(try_find(
-                &self
-                    .type_(union_target)
+                &union_target.ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned(),
@@ -825,8 +823,7 @@ impl TypeChecker {
             };
         if has_signatures {
             return Ok(try_find(
-                &self
-                    .type_(union_target)
+                &union_target.ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned(),
@@ -847,8 +844,7 @@ impl TypeChecker {
         let mut best_match: Option<Id<Type>> = None;
         let mut matching_count = 0;
         for target in {
-            let types = self
-                .type_(union_target)
+            let types = union_target.ref_(self)
                 .as_union_or_intersection_type_interface()
                 .types()
                 .to_owned();
@@ -867,8 +863,7 @@ impl TypeChecker {
                 matching_count = usize::MAX;
             } else if overlap.ref_(self).flags().intersects(TypeFlags::Union) {
                 let len = length(Some(&filter(
-                    &self
-                        .type_(overlap)
+                    &overlap.ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned(),
@@ -909,8 +904,7 @@ impl TypeChecker {
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         if target.ref_(self).flags().intersects(TypeFlags::Union)
-            && self
-                .type_(source)
+            && source.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Intersection | TypeFlags::Object)
         {

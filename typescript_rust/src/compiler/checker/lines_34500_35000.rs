@@ -541,8 +541,7 @@ impl TypeChecker {
                 }
                 if self.is_array_type(type_)
                     || self.is_tuple_type(type_)
-                        && self
-                            .type_(type_.ref_(self).as_type_reference_interface().target())
+                        && type_.ref_(self).as_type_reference_interface().target().ref_(self)
                             .as_tuple_type()
                             .combined_flags
                             .intersects(ElementFlags::Rest)
@@ -611,8 +610,7 @@ impl TypeChecker {
         type_: Id<Type>,
         access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
     ) -> io::Result<Id<Type>> {
-        if !self
-            .type_(type_)
+        if !type_.ref_(self)
             .flags()
             .intersects(TypeFlags::IndexedAccess)
         {
