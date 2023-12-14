@@ -30,7 +30,7 @@ use crate::{
     HasTypeArgumentsInterface, InternalSymbolName, IteratorExt, MapOrDefault, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
     OptionTry, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, SynthesizedComment, Type, TypeInterface, HasArena,
+    SyntaxKind, SynthesizedComment, Type, TypeInterface, HasArena, InArena,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -905,7 +905,7 @@ impl SymbolTableToDeclarationStatements {
             })?;
         let static_type = self.type_checker.get_type_of_symbol(symbol)?;
         let is_class = matches!(
-            self.type_checker.type_(static_type).maybe_symbol().and_then(|static_type_symbol| self.type_checker.symbol(static_type_symbol).maybe_value_declaration()).as_ref(),
+            static_type.ref_(self).maybe_symbol().and_then(|static_type_symbol| self.type_checker.symbol(static_type_symbol).maybe_value_declaration()).as_ref(),
             Some(static_type_symbol_value_declaration) if is_class_like(static_type_symbol_value_declaration)
         );
         let static_base_type = if is_class {

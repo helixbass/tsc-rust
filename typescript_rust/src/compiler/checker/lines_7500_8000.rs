@@ -21,7 +21,7 @@ use crate::{
     unescape_leading_underscores, BoolExt, Debug_, InternalSymbolName, IteratorExt, Matches,
     ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
     NodeInterface, NodeWrappered, ObjectFlags, OptionTry, SignatureKind, StrOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeInterface, HasArena,
+    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeInterface, HasArena, InArena,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -259,7 +259,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<bool> {
         let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
         Ok(
-            get_object_flags(&self.type_checker.type_(type_to_serialize))
+            get_object_flags(&type_to_serialize.ref_(self))
                 .intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
                 && self
                     .type_checker
@@ -290,7 +290,7 @@ impl SymbolTableToDeclarationStatements {
                     )
                     .is_none()
                 && !matches!(
-                    self.type_checker.type_(type_to_serialize).maybe_symbol(),
+                    type_to_serialize.ref_(self).maybe_symbol(),
                     Some(type_to_serialize_symbol) if some(
                         self.type_checker.symbol(type_to_serialize_symbol).maybe_declarations().as_deref(),
                         Some(|d: &Gc<Node>| !are_option_gcs_equal(
@@ -510,14 +510,12 @@ impl SymbolTableToDeclarationStatements {
         let mut type_args: Option<Vec<Gc<Node /*TypeNode*/>>> = Default::default();
         let mut reference: Option<Gc<Node /*Expression*/>> = Default::default();
 
-        if let Some(t_target) = self
-            .type_checker
-            .type_(t)
+        if let Some(t_target) = t.ref_(self)
             .maybe_as_type_reference_interface()
             .map(|t| t.target())
             .try_filter(|&t_target| {
                 self.type_checker.is_symbol_accessible_by_flags(
-                    self.type_checker.type_(t_target).symbol(),
+                    t_target.ref_(self).symbol(),
                     Some(&*self.enclosing_declaration),
                     flags,
                 )
@@ -536,13 +534,12 @@ impl SymbolTableToDeclarationStatements {
                     .collect::<Result<Vec<_>, _>>()?,
             );
             reference = Some(self.node_builder.symbol_to_expression_(
-                self.type_checker.type_(t_target).symbol(),
+                t_target.ref_(self).symbol(),
                 &self.context(),
                 Some(SymbolFlags::Type),
             )?);
         } else if let Some(t_symbol) =
-            self.type_checker
-                .type_(t)
+            t.ref_(self)
                 .maybe_symbol()
                 .try_filter(|&t_symbol| {
                     self.type_checker.is_symbol_accessible_by_flags(
@@ -568,8 +565,7 @@ impl SymbolTableToDeclarationStatements {
         if ref_.is_some() {
             return Ok(ref_);
         }
-        self.type_checker
-            .type_(t)
+        t.ref_(self)
             .maybe_symbol()
             .try_map(|t_symbol| -> io::Result<_> {
                 Ok(get_factory().create_expression_with_type_arguments(

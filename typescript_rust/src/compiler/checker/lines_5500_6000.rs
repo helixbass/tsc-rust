@@ -27,7 +27,7 @@ use crate::{
     NodeBuilderFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrNodeArray,
     StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
-    UnderscoreEscapedMultiMap, UserPreferencesBuilder, HasArena,
+    UnderscoreEscapedMultiMap, UserPreferencesBuilder, HasArena, InArena,
 };
 
 impl NodeBuilder {
@@ -187,12 +187,12 @@ impl NodeBuilder {
 
     pub(super) fn types_are_same_reference(&self, a: Id<Type>, b: Id<Type>) -> bool {
         a == b
-            || self.type_checker.type_(a).maybe_symbol().is_some()
-                && self.type_checker.type_(a).maybe_symbol()
-                    == self.type_checker.type_(b).maybe_symbol()
-            || self.type_checker.type_(a).maybe_alias_symbol().is_some()
-                && self.type_checker.type_(a).maybe_alias_symbol()
-                    == self.type_checker.type_(b).maybe_alias_symbol()
+            || a.ref_(self).maybe_symbol().is_some()
+                && a.ref_(self).maybe_symbol()
+                    == b.ref_(self).maybe_symbol()
+            || a.ref_(self).maybe_alias_symbol().is_some()
+                && a.ref_(self).maybe_alias_symbol()
+                    == b.ref_(self).maybe_alias_symbol()
     }
 
     pub(super) fn index_info_to_index_signature_declaration_helper(

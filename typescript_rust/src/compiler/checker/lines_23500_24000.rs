@@ -15,7 +15,7 @@ use crate::{
     is_variable_declaration, maybe_every, push_if_unique_eq, push_if_unique_gc, skip_parentheses,
     AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasArena, InArena, Node,
     NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypePredicateKind, UnionReduction,
+    TypePredicateKind, UnionReduction, AllArenas,
 };
 
 impl TypeChecker {
@@ -141,6 +141,12 @@ pub(super) struct GetFlowTypeOfReference {
     shared_flow_start: Cell<Option<usize>>,
 }
 
+impl HasArena for GetFlowTypeOfReference {
+    fn arena(&self) -> &AllArenas {
+        self.type_checker.arena()
+    }
+}
+
 impl GetFlowTypeOfReference {
     pub(super) fn new(
         type_checker: Gc<TypeChecker>,
@@ -205,7 +211,7 @@ impl GetFlowTypeOfReference {
         );
         self.type_checker
             .set_shared_flow_count(self.shared_flow_start());
-        let result_type = if get_object_flags(&self.type_checker.type_(evolved_type))
+        let result_type = if get_object_flags(&evolved_type.ref_(self))
             .intersects(ObjectFlags::EvolvingArray)
             && self
                 .type_checker
@@ -220,17 +226,11 @@ impl GetFlowTypeOfReference {
             || matches!(
                 self.reference.maybe_parent().as_ref(),
                 Some(reference_parent) if reference_parent.kind() == SyntaxKind::NonNullExpression
-            ) && !self
-                .type_checker
-                .type_(result_type)
-                .flags()
-                .intersects(TypeFlags::Never)
+            ) && !result_type.ref_(self).flags().intersects(TypeFlags::Never)
                 && self
                     .type_checker
-                    .type_(
-                        self.type_checker
-                            .get_type_with_facts(result_type, TypeFacts::NEUndefinedOrNull)?,
-                    )
+                    .get_type_with_facts(result_type, TypeFacts::NEUndefinedOrNull)?
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Never)
         {
@@ -452,8 +452,8 @@ impl GetFlowTypeOfReference {
                 );
             }
             if self
-                .type_checker
-                .type_(self.declared_type)
+                .declared_type
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Union)
             {
@@ -600,10 +600,8 @@ impl GetFlowTypeOfReference {
             }
             if self
                 .type_checker
-                .type_(
-                    self.type_checker
-                        .get_return_type_of_signature(signature.clone())?,
-                )
+                .get_return_type_of_signature(signature.clone())?
+                .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never)
             {
@@ -642,9 +640,7 @@ impl GetFlowTypeOfReference {
                 let flow_type =
                     self.get_type_at_flow_node(flow_as_flow_array_mutation.antecedent.clone())?;
                 let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
-                if get_object_flags(&self.type_checker.type_(type_))
-                    .intersects(ObjectFlags::EvolvingArray)
-                {
+                if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::EvolvingArray) {
                     let mut evolved_type = type_.clone();
                     if node.kind() == SyntaxKind::CallExpression {
                         for arg in &node.as_call_expression().arguments {
@@ -693,12 +689,7 @@ impl GetFlowTypeOfReference {
         let flow_as_flow_condition = flow.as_flow_condition();
         let flow_type = self.get_type_at_flow_node(flow_as_flow_condition.antecedent.clone())?;
         let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
-        if self
-            .type_checker
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Never)
-        {
+        if type_.ref_(self).flags().intersects(TypeFlags::Never) {
             return Ok(flow_type);
         }
         let assume_true = flow.flags().intersects(FlowFlags::TrueCondition);
@@ -758,9 +749,7 @@ impl GetFlowTypeOfReference {
                         flow_as_flow_switch_clause.clause_start,
                         flow_as_flow_switch_clause.clause_end,
                         |t: Id<Type>| {
-                            !self
-                                .type_checker
-                                .type_(t)
+                            !t.ref_(self)
                                 .flags()
                                 .intersects(TypeFlags::Undefined | TypeFlags::Never)
                         },
@@ -777,18 +766,9 @@ impl GetFlowTypeOfReference {
                         flow_as_flow_switch_clause.clause_start,
                         flow_as_flow_switch_clause.clause_end,
                         |t: Id<Type>| {
-                            !self
-                                .type_checker
-                                .type_(t)
-                                .flags()
-                                .intersects(TypeFlags::Never)
-                                || self
-                                    .type_checker
-                                    .type_(t)
-                                    .flags()
-                                    .intersects(TypeFlags::StringLiteral)
-                                    && self.type_checker.type_(t).as_string_literal_type().value
-                                        == "undefined"
+                            !t.ref_(self).flags().intersects(TypeFlags::Never)
+                                || t.ref_(self).flags().intersects(TypeFlags::StringLiteral)
+                                    && t.ref_(self).as_string_literal_type().value == "undefined"
                         },
                     )?;
                 }

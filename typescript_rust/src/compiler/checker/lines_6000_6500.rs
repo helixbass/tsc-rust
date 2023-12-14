@@ -27,7 +27,7 @@ use crate::{
     InternalSymbolName, LiteralType, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeBuilder, NodeBuilderFlags, NodeInterface, Number, ObjectFlags, OptionTry,
     ReadonlyTextRange, Signature, SignatureDeclarationInterface, Symbol, SymbolAccessibility,
-    SymbolFlags, HasArena,
+    SymbolFlags, HasArena, InArena,
 };
 
 impl NodeBuilder {
@@ -185,7 +185,7 @@ impl NodeBuilder {
                 .flags()
                 .intersects(SymbolFlags::TypeParameter)
                 && matches!(
-                    self.type_checker.type_(type_).maybe_symbol(),
+                    type_.ref_(self).maybe_symbol(),
                     Some(type_symbol) if result == type_symbol
                 )
             {
@@ -216,7 +216,7 @@ impl NodeBuilder {
             }
         }
         let mut result = self.symbol_to_name(
-            self.type_checker.type_(type_).symbol(),
+            type_.ref_(self).symbol(),
             context,
             Some(SymbolFlags::Type),
             true,
@@ -538,13 +538,11 @@ impl NodeBuilder {
             return Ok(None);
         }
         let name_type = name_type.unwrap();
-        if self
-            .type_checker
-            .type_(name_type)
+        if name_type.ref_(self)
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
-            let name = match &*self.type_checker.type_(name_type) {
+            let name = match &*name_type.ref_(self) {
                 Type::LiteralType(LiteralType::StringLiteralType(name_type)) => {
                     name_type.value.clone()
                 }
@@ -574,15 +572,13 @@ impl NodeBuilder {
                 self.create_property_name_node_for_identifier_or_literal(name, None, None),
             ));
         }
-        if self
-            .type_checker
-            .type_(name_type)
+        if name_type.ref_(self)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
         {
             return Ok(Some(get_factory().create_computed_property_name(
                 self.symbol_to_expression_(
-                    self.type_checker.type_(name_type).symbol(),
+                    name_type.ref_(self).symbol(),
                     context,
                     Some(SymbolFlags::Value),
                 )?,
@@ -681,7 +677,7 @@ impl NodeBuilder {
         existing: &Node, /*TypeNode*/
         type_: Id<Type>,
     ) -> bool {
-        !get_object_flags(&self.type_checker.type_(type_)).intersects(ObjectFlags::Reference)
+        !get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference)
             || !is_type_reference_node(existing)
             || length(
                 existing
@@ -689,13 +685,9 @@ impl NodeBuilder {
                     .maybe_type_arguments()
                     .as_double_deref(),
             ) >= self.type_checker.get_min_type_argument_count(
-                self.type_checker
-                    .type_(
-                        self.type_checker
-                            .type_(type_)
+                type_.ref_(self)
                             .as_type_reference_interface()
-                            .target(),
-                    )
+                            .target().ref_(self)
                     .as_interface_type_interface()
                     .maybe_type_parameters(),
             )
@@ -744,13 +736,11 @@ impl NodeBuilder {
             }
         }
         let old_flags = context.flags();
-        if self
-            .type_checker
-            .type_(type_)
+        if type_.ref_(self)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
             && matches!(
-                self.type_checker.type_(type_).maybe_symbol(),
+                type_.ref_(self).maybe_symbol(),
                 Some(type_symbol) if type_symbol == symbol
             )
             && match context.maybe_enclosing_declaration().as_ref() {
@@ -803,14 +793,10 @@ impl NodeBuilder {
                     .is_some()
                     {
                         let annotated = self.type_checker.get_type_from_type_node_(annotation)?;
-                        let this_instantiated = if self
-                            .type_checker
-                            .type_(annotated)
+                        let this_instantiated = if annotated.ref_(self)
                             .flags()
                             .intersects(TypeFlags::TypeParameter)
-                            && self
-                                .type_checker
-                                .type_(annotated)
+                            && annotated.ref_(self)
                                 .as_type_parameter()
                                 .is_this_type
                                 == Some(true)

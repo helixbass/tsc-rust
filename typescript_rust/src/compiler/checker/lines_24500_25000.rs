@@ -84,22 +84,18 @@ impl GetFlowTypeOfReference {
         }
 
         let is_constructed_by = |source: Id<Type>, target: Id<Type>| {
-            if self
-                .type_checker
-                .type_(source)
+            if source.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Object)
-                && get_object_flags(&self.type_checker.type_(source)).intersects(ObjectFlags::Class)
-                || self
-                    .type_checker
-                    .type_(target)
+                && get_object_flags(&source.ref_(self)).intersects(ObjectFlags::Class)
+                || target.ref_(self)
                     .flags()
                     .intersects(TypeFlags::Object)
-                    && get_object_flags(&self.type_checker.type_(target))
+                    && get_object_flags(&target.ref_(self))
                         .intersects(ObjectFlags::Class)
             {
-                return Ok(self.type_checker.type_(source).maybe_symbol()
-                    == self.type_checker.type_(target).maybe_symbol());
+                return Ok(source.ref_(self).maybe_symbol()
+                    == target.ref_(self).maybe_symbol());
             }
 
             self.type_checker.is_type_subtype_of(source, target)
@@ -192,14 +188,12 @@ impl GetFlowTypeOfReference {
         let target_type = target_type.unwrap();
 
         if !assume_true
-            && self
-                .type_checker
-                .type_(right_type)
+            && right_type.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Union)
         {
             let non_constructor_type_in_union = try_find(
-                &self.type_checker.type_(right_type).as_union_type().types(),
+                &right_type.ref_(self).as_union_type().types(),
                 |t: &Id<Type>, _| -> io::Result<_> {
                     Ok(!self.type_checker.is_constructor_type(*t)?)
                 },
@@ -232,18 +226,14 @@ impl GetFlowTypeOfReference {
                 .type_checker
                 .try_filter_type(type_, |t: Id<Type>| Ok(!is_related(t, candidate)?));
         }
-        if self
-            .type_checker
-            .type_(type_)
+        if type_.ref_(self)
             .flags()
             .intersects(TypeFlags::Union)
         {
             let assignable_type = self
                 .type_checker
                 .try_filter_type(type_, |t: Id<Type>| is_related(t, candidate))?;
-            if !self
-                .type_checker
-                .type_(assignable_type)
+            if !assignable_type.ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never)
             {

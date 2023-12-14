@@ -26,10 +26,10 @@ use crate::{
     is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
     needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_rc_node,
-    unescape_leading_underscores, HasArena, InternalSymbolName, LiteralLikeNodeInterface,
+    unescape_leading_underscores, HasArena, InArena, InternalSymbolName, LiteralLikeNodeInterface,
     ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
     NodeInterface, StrOrRcNode, Symbol, SymbolAccessibility, SymbolFlags, SymbolId,
-    SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker, TypeInterface,
+    SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker, TypeInterface, AllArenas,
 };
 
 impl NodeBuilder {
@@ -83,6 +83,12 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) symbol_table: GcCell<Gc<GcCell<SymbolTable>>>,
     #[unsafe_ignore_trace]
     pub(super) adding_declare: Cell<bool>,
+}
+
+impl HasArena for SymbolTableToDeclarationStatements {
+    fn arena(&self) -> &AllArenas {
+        self.type_checker.arena()
+    }
 }
 
 impl SymbolTableToDeclarationStatements {
@@ -933,7 +939,7 @@ impl SymbolTableToDeclarationStatements {
                         let property_access_require_parent = property_access_require.parent();
                         is_binary_expression(&property_access_require_parent) && is_identifier(&property_access_require_parent.as_binary_expression().right) &&
                             matches!(
-                                self.type_checker.type_(type_).maybe_symbol().and_then(|type_symbol| self.type_checker.symbol(type_symbol).maybe_value_declaration()),
+                                type_.ref_(self).maybe_symbol().and_then(|type_symbol| self.type_checker.symbol(type_symbol).maybe_value_declaration()),
                                 Some(type_symbol_value_declaration) if is_source_file(&type_symbol_value_declaration)
                             )
                     }) {
@@ -962,7 +968,7 @@ impl SymbolTableToDeclarationStatements {
                             ModifierFlags::None
                         );
                         self.context().tracker().track_symbol(
-                            self.type_checker.type_(type_).symbol(),
+                            type_.ref_(self).symbol(),
                             self.context().maybe_enclosing_declaration(),
                             SymbolFlags::Value,
                         ).transpose()?;

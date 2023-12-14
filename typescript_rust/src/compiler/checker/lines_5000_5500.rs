@@ -20,10 +20,10 @@ use crate::{
     node_is_synthesized, null_transformation_context, range_equals, range_equals_gc, same_map,
     set_emit_flags, set_text_range, some, symbol_name, unescape_leading_underscores,
     visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags, GetOrInsertDefault, HasArena,
-    HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node,
-    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
-    ObjectFlagsTypeInterface, PeekableExt, Signature, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface,
+    HasTypeArgumentsInterface, InArena, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags,
+    Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType,
+    ObjectFlags, ObjectFlagsTypeInterface, PeekableExt, Signature, SignatureFlags, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface,
 };
 
 impl NodeBuilder {
@@ -34,29 +34,19 @@ impl NodeBuilder {
     ) -> io::Result<Gc<Node>> {
         let check_type_node = self
             .type_to_type_node_helper(
-                Some(
-                    self.type_checker
-                        .type_(type_)
-                        .as_conditional_type()
-                        .check_type,
-                ),
+                Some(type_.ref_(self).as_conditional_type().check_type),
                 context,
             )?
             .unwrap();
         let save_infer_type_parameters = context.infer_type_parameters.borrow().clone();
         *context.infer_type_parameters.borrow_mut() =
-            (*self.type_checker.type_(type_).as_conditional_type().root)
+            (*type_.ref_(self).as_conditional_type().root)
                 .borrow()
                 .infer_type_parameters
                 .clone();
         let extends_type_node = self
             .type_to_type_node_helper(
-                Some(
-                    self.type_checker
-                        .type_(type_)
-                        .as_conditional_type()
-                        .extends_type,
-                ),
+                Some(type_.ref_(self).as_conditional_type().extends_type),
                 context,
             )?
             .unwrap();
@@ -85,12 +75,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: Id<Type>,
     ) -> io::Result<Gc<Node>> {
-        if self
-            .type_checker
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Union)
-        {
+        if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&self.type_checker.get_type_id(type_)))
             {
                 if !context
@@ -118,14 +103,8 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Gc<Node>> {
-        Debug_.assert(
-            self.type_checker
-                .type_(type_)
-                .flags()
-                .intersects(TypeFlags::Object),
-            None,
-        );
-        let type_ref = self.type_checker.type_(type_);
+        Debug_.assert(type_.ref_(self).flags().intersects(TypeFlags::Object), None);
+        let type_ref = type_.ref_(self);
         let type_declaration_as_mapped_type_node =
             type_ref.as_mapped_type().declaration.as_mapped_type_node();
         let readonly_token: Option<Gc<Node>> = type_declaration_as_mapped_type_node
@@ -208,8 +187,8 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<Gc<Node>> {
-        let type_id = self.type_checker.type_(type_).id();
-        let symbol = self.type_checker.type_(type_).maybe_symbol();
+        let type_id = type_.ref_(self).id();
+        let symbol = type_.ref_(self).maybe_symbol();
         Ok(if let Some(symbol) = symbol {
             let is_instance_type = if self.type_checker.is_class_instance_side(type_)? {
                 SymbolFlags::Type
@@ -329,15 +308,13 @@ impl NodeBuilder {
         type_: Id<Type>,
         mut transform: impl FnMut(Id<Type>) -> io::Result<Gc<Node>>,
     ) -> io::Result<Gc<Node>> {
-        let type_id = self.type_checker.type_(type_).id();
-        let is_constructor_object = get_object_flags(&self.type_checker.type_(type_))
+        let type_id = type_.ref_(self).id();
+        let is_constructor_object = get_object_flags(&type_.ref_(self))
             .intersects(ObjectFlags::Anonymous)
-            && matches!(self.type_checker.type_(type_).maybe_symbol(), Some(symbol) if self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::Class));
-        let id = if get_object_flags(&self.type_checker.type_(type_))
-            .intersects(ObjectFlags::Reference)
-            && self
-                .type_checker
-                .type_(type_)
+            && matches!(type_.ref_(self).maybe_symbol(), Some(symbol) if self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::Class));
+        let id = if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Reference)
+            && type_
+                .ref_(self)
                 .maybe_as_type_reference()
                 .and_then(|type_| type_.node.borrow().clone())
                 .is_some()
@@ -345,8 +322,8 @@ impl NodeBuilder {
             Some(format!(
                 "N{}",
                 get_node_id(
-                    self.type_checker
-                        .type_(type_)
+                    type_
+                        .ref_(self)
                         .as_type_reference()
                         .node
                         .borrow()
@@ -354,22 +331,17 @@ impl NodeBuilder {
                         .unwrap()
                 )
             ))
-        } else if self
-            .type_checker
-            .type_(type_)
-            .flags()
-            .intersects(TypeFlags::Conditional)
-        {
+        } else if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
             Some(format!(
                 "N{}",
                 get_node_id(
-                    &(*self.type_checker.type_(type_).as_conditional_type().root)
+                    &(*type_.ref_(self).as_conditional_type().root)
                         .borrow()
                         .node
                         .clone()
                 )
             ))
-        } else if let Some(type_symbol) = self.type_checker.type_(type_).maybe_symbol() {
+        } else if let Some(type_symbol) = type_.ref_(self).maybe_symbol() {
             Some(format!(
                 "{}{}",
                 if is_constructor_object { "+" } else { "" },
@@ -508,8 +480,8 @@ impl NodeBuilder {
     ) -> io::Result<Gc<Node>> {
         if self.type_checker.is_generic_mapped_type(type_)?
             || matches!(
-                self.type_checker
-                    .type_(type_)
+                type_
+                    .ref_(self)
                     .maybe_as_mapped_type()
                     .and_then(|type_| type_.maybe_contains_error()),
                 Some(true)
@@ -519,28 +491,24 @@ impl NodeBuilder {
         }
 
         let resolved = self.type_checker.resolve_structured_type_members(type_)?;
-        if self
-            .type_checker
-            .type_(resolved)
+        if resolved
+            .ref_(self)
             .as_resolved_type()
             .properties()
             .is_empty()
-            && self
-                .type_checker
-                .type_(resolved)
+            && resolved
+                .ref_(self)
                 .as_resolved_type()
                 .index_infos()
                 .is_empty()
         {
-            if self
-                .type_checker
-                .type_(resolved)
+            if resolved
+                .ref_(self)
                 .as_resolved_type()
                 .call_signatures()
                 .is_empty()
-                && self
-                    .type_checker
-                    .type_(resolved)
+                && resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .is_empty()
@@ -554,21 +522,19 @@ impl NodeBuilder {
                 ));
             }
 
-            if self
-                .type_checker
-                .type_(resolved)
+            if resolved
+                .ref_(self)
                 .as_resolved_type()
                 .call_signatures()
                 .len()
                 == 1
-                && self
-                    .type_checker
-                    .type_(resolved)
+                && resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .is_empty()
             {
-                let resolved_ref = self.type_checker.type_(resolved);
+                let resolved_ref = resolved.ref_(self);
                 let signature = &resolved_ref.as_resolved_type().call_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
                     signature.clone(),
@@ -579,21 +545,19 @@ impl NodeBuilder {
                 return signature_node;
             }
 
-            if self
-                .type_checker
-                .type_(resolved)
+            if resolved
+                .ref_(self)
                 .as_resolved_type()
                 .construct_signatures()
                 .len()
                 == 1
-                && self
-                    .type_checker
-                    .type_(resolved)
+                && resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .call_signatures()
                     .is_empty()
             {
-                let resolved_ref = self.type_checker.type_(resolved);
+                let resolved_ref = resolved.ref_(self);
                 let signature = &resolved_ref.as_resolved_type().construct_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
                     signature.clone(),
@@ -606,9 +570,8 @@ impl NodeBuilder {
         }
 
         let abstract_signatures = filter(
-            &*self
-                .type_checker
-                .type_(resolved)
+            &*resolved
+                .ref_(self)
                 .as_resolved_type()
                 .construct_signatures(),
             |signature: &Gc<Signature>| signature.flags.intersects(SignatureFlags::Abstract),
@@ -621,37 +584,24 @@ impl NodeBuilder {
                 self.type_checker
                     .get_or_create_type_from_signature(signature.clone())
             });
-            let type_element_count = self
-                .type_checker
-                .type_(resolved)
+            let type_element_count = resolved
+                .ref_(self)
                 .as_resolved_type()
                 .call_signatures()
                 .len()
-                + (self
-                    .type_checker
-                    .type_(resolved)
+                + (resolved
+                    .ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
                     .len()
                     - abstract_signatures.len())
-                + self
-                    .type_checker
-                    .type_(resolved)
-                    .as_resolved_type()
-                    .index_infos()
-                    .len()
+                + resolved.ref_(self).as_resolved_type().index_infos().len()
                 + if context
                     .flags()
                     .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
                 {
                     count_where(
-                        Some(
-                            &*self
-                                .type_checker
-                                .type_(resolved)
-                                .as_resolved_type()
-                                .properties(),
-                        ),
+                        Some(&*resolved.ref_(self).as_resolved_type().properties()),
                         |&p: &Id<Symbol>, _| {
                             !self
                                 .type_checker
@@ -661,13 +611,7 @@ impl NodeBuilder {
                         },
                     )
                 } else {
-                    length(Some(
-                        &*self
-                            .type_checker
-                            .type_(resolved)
-                            .as_resolved_type()
-                            .properties(),
-                    ))
+                    length(Some(&*resolved.ref_(self).as_resolved_type().properties()))
                 };
             if type_element_count > 0 {
                 types.push(
@@ -713,11 +657,7 @@ impl NodeBuilder {
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<Option<Gc<Node>>> {
         let type_arguments = self.type_checker.get_type_arguments(type_)?;
-        let type_target = self
-            .type_checker
-            .type_(type_)
-            .as_type_reference_interface()
-            .target();
+        let type_target = type_.ref_(self).as_type_reference_interface().target();
         Ok(
             if type_target == self.type_checker.global_array_type()
                 || type_target == self.type_checker.global_readonly_array_type()
@@ -747,9 +687,8 @@ impl NodeBuilder {
                 } else {
                     get_factory().create_type_operator_node(SyntaxKind::ReadonlyKeyword, array_type)
                 })
-            } else if self
-                .type_checker
-                .type_(type_target)
+            } else if type_target
+                .ref_(self)
                 .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Tuple)
@@ -757,10 +696,7 @@ impl NodeBuilder {
                 let type_arguments = same_map(&type_arguments, |&t: &Id<Type>, i| {
                     self.type_checker.remove_missing_type(
                         t,
-                        self.type_checker
-                            .type_(type_target)
-                            .as_tuple_type()
-                            .element_flags[i]
+                        type_target.ref_(self).as_tuple_type().element_flags[i]
                             .intersects(ElementFlags::Optional),
                     )
                 });
@@ -769,20 +705,15 @@ impl NodeBuilder {
                     let tuple_constituent_nodes =
                         self.map_to_type_nodes(Some(&type_arguments[0..arity]), context, None)?;
                     if let Some(mut tuple_constituent_nodes) = tuple_constituent_nodes {
-                        if let Some(type_target_labeled_element_declarations) = self
-                            .type_checker
-                            .type_(type_target)
+                        if let Some(type_target_labeled_element_declarations) = type_target
+                            .ref_(self)
                             .as_tuple_type()
                             .labeled_element_declarations
                             .as_ref()
                         {
                             for i in 0..tuple_constituent_nodes.len() {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
-                                let flags = self
-                                    .type_checker
-                                    .type_(type_target)
-                                    .as_tuple_type()
-                                    .element_flags[i];
+                                let flags = type_target.ref_(self).as_tuple_type().element_flags[i];
                                 tuple_constituent_nodes[i] = get_factory()
                                     .create_named_tuple_member(
                                         if flags.intersects(ElementFlags::Variable) {
@@ -819,11 +750,7 @@ impl NodeBuilder {
                         } else {
                             for i in 0..cmp::min(arity, tuple_constituent_nodes.len()) {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
-                                let flags = self
-                                    .type_checker
-                                    .type_(type_target)
-                                    .as_tuple_type()
-                                    .element_flags[i];
+                                let flags = type_target.ref_(self).as_tuple_type().element_flags[i];
                                 tuple_constituent_nodes[i] = if flags
                                     .intersects(ElementFlags::Variable)
                                 {
@@ -846,21 +773,14 @@ impl NodeBuilder {
                             get_factory().create_tuple_type_node(Some(tuple_constituent_nodes)),
                             EmitFlags::SingleLine,
                         );
-                        return Ok(Some(
-                            if self
-                                .type_checker
-                                .type_(type_target)
-                                .as_tuple_type()
-                                .readonly
-                            {
-                                get_factory().create_type_operator_node(
-                                    SyntaxKind::ReadonlyKeyword,
-                                    tuple_type_node,
-                                )
-                            } else {
-                                tuple_type_node
-                            },
-                        ));
+                        return Ok(Some(if type_target.ref_(self).as_tuple_type().readonly {
+                            get_factory().create_type_operator_node(
+                                SyntaxKind::ReadonlyKeyword,
+                                tuple_type_node,
+                            )
+                        } else {
+                            tuple_type_node
+                        }));
                     }
                 }
                 if context.encountered_error.get()
@@ -872,36 +792,27 @@ impl NodeBuilder {
                         get_factory().create_tuple_type_node(Some(vec![])),
                         EmitFlags::SingleLine,
                     );
-                    return Ok(Some(
-                        if self
-                            .type_checker
-                            .type_(type_target)
-                            .as_tuple_type()
-                            .readonly
-                        {
-                            get_factory().create_type_operator_node(
-                                SyntaxKind::ReadonlyKeyword,
-                                tuple_type_node,
-                            )
-                        } else {
-                            tuple_type_node
-                        },
-                    ));
+                    return Ok(Some(if type_target.ref_(self).as_tuple_type().readonly {
+                        get_factory()
+                            .create_type_operator_node(SyntaxKind::ReadonlyKeyword, tuple_type_node)
+                    } else {
+                        tuple_type_node
+                    }));
                 }
                 context.encountered_error.set(true);
                 return Ok(None);
             } else if context
                 .flags()
                 .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
-                && matches!(self.type_checker.symbol(self.type_checker.type_(type_).symbol()).maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
+                && matches!(self.type_checker.symbol(type_.ref_(self).symbol()).maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
                 && !self.type_checker.is_value_symbol_accessible(
-                    self.type_checker.type_(type_).symbol(),
+                    type_.ref_(self).symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 )?
             {
                 Some(self.create_anonymous_type_node(context, type_)?)
             } else {
-                let type_target_ref = self.type_checker.type_(type_target);
+                let type_target_ref = type_target.ref_(self);
                 let outer_type_parameters = type_target_ref
                     .as_interface_type()
                     .maybe_outer_type_parameters();
@@ -952,9 +863,8 @@ impl NodeBuilder {
                 }
                 let mut type_argument_nodes: Option<Vec<Gc<Node /*TypeNode*/>>> = None;
                 if !type_arguments.is_empty() {
-                    let type_parameter_count = self
-                        .type_checker
-                        .type_(type_target)
+                    let type_parameter_count = type_target
+                        .ref_(self)
                         .as_interface_type()
                         .maybe_type_parameters()
                         .map_or(0, |type_parameters| type_parameters.len());
@@ -969,7 +879,7 @@ impl NodeBuilder {
                     context.flags() | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
                 );
                 let final_ref = self.symbol_to_type_node(
-                    self.type_checker.type_(type_).symbol(),
+                    type_.ref_(self).symbol(),
                     context,
                     SymbolFlags::Type,
                     type_argument_nodes.as_deref(),
@@ -1091,9 +1001,8 @@ impl NodeBuilder {
             })]));
         }
         let mut type_elements: Vec<Gc<Node>> = vec![];
-        for signature in &*self
-            .type_checker
-            .type_(resolved_type)
+        for signature in &*resolved_type
+            .ref_(self)
             .as_resolved_type()
             .call_signatures()
         {
@@ -1104,9 +1013,8 @@ impl NodeBuilder {
                 Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
             )?);
         }
-        for signature in &*self
-            .type_checker
-            .type_(resolved_type)
+        for signature in &*resolved_type
+            .ref_(self)
             .as_resolved_type()
             .construct_signatures()
         {
@@ -1120,19 +1028,13 @@ impl NodeBuilder {
                 Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
             )?);
         }
-        for info in &*self
-            .type_checker
-            .type_(resolved_type)
-            .as_resolved_type()
-            .index_infos()
-        {
+        for info in &*resolved_type.ref_(self).as_resolved_type().index_infos() {
             type_elements.push(
                 self.index_info_to_index_signature_declaration_helper(
                     info,
                     context,
-                    if self
-                        .type_checker
-                        .type_(resolved_type)
+                    if resolved_type
+                        .ref_(self)
                         .as_resolved_type()
                         .object_flags()
                         .intersects(ObjectFlags::ReverseMapped)
@@ -1145,11 +1047,7 @@ impl NodeBuilder {
             );
         }
 
-        let properties = self
-            .type_checker
-            .type_(resolved_type)
-            .as_resolved_type()
-            .properties();
+        let properties = resolved_type.ref_(self).as_resolved_type().properties();
         // if (!properties) {
         //     return typeElements;
         // }
@@ -1244,14 +1142,14 @@ impl NodeBuilder {
                 context.reverse_mapped_stack.borrow().as_ref(),
                 Some(reverse_mapped_stack) if reverse_mapped_stack.get(0).is_some()
             ) && !get_object_flags(
-                &self.type_checker.type_(
-                    self.type_checker
-                        .symbol(*last(
-                            context.reverse_mapped_stack.borrow().as_deref().unwrap(),
-                        ))
-                        .as_reverse_mapped_symbol()
-                        .property_type,
-                ),
+                &self
+                    .type_checker
+                    .symbol(*last(
+                        context.reverse_mapped_stack.borrow().as_deref().unwrap(),
+                    ))
+                    .as_reverse_mapped_symbol()
+                    .property_type
+                    .ref_(self),
             )
             .intersects(ObjectFlags::Anonymous))
     }
@@ -1372,11 +1270,7 @@ impl NodeBuilder {
         {
             let signatures = self.type_checker.get_signatures_of_type(
                 self.type_checker.filter_type(property_type, |t| {
-                    !self
-                        .type_checker
-                        .type_(t)
-                        .flags()
-                        .intersects(TypeFlags::Undefined)
+                    !t.ref_(self).flags().intersects(TypeFlags::Undefined)
                 }),
                 SignatureKind::Call,
             )?;

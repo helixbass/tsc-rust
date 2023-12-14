@@ -90,9 +90,9 @@ impl CheckTypeRelatedTo {
         for target_info in &index_infos {
             let related = if !source_is_primitive
                 && target_has_string_index
-                && self
-                    .type_checker
-                    .type_(target_info.type_)
+                && target_info
+                    .type_
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Any)
             {

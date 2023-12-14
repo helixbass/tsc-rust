@@ -23,7 +23,7 @@ use crate::{
     ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
     TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags, push_if_unique_eq,
-    return_ok_default_if_none, HasArena,
+    return_ok_default_if_none, HasArena, InArena,
 };
 
 impl CheckTypeRelatedTo {
@@ -215,14 +215,13 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .get_non_missing_type_of_symbol(source_property)?;
             source_discriminant_types.push(
-                if self
-                    .type_checker
-                    .type_(source_property_type)
+                if source_property_type
+                    .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Union)
                 {
-                    self.type_checker
-                        .type_(source_property_type)
+                    source_property_type
+                        .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned()
@@ -242,9 +241,8 @@ impl CheckTypeRelatedTo {
         let mut matching_types: Vec<Id<Type>> = vec![];
         for combination in &discriminant_combinations {
             let mut has_match = false;
-            'outer: for &type_ in self
-                .type_checker
-                .type_(target)
+            'outer: for &type_ in target
+                .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .types()
             {
@@ -607,17 +605,12 @@ impl CheckTypeRelatedTo {
                     )
             })
         {
-            if let Some(source_symbol) =
+            if let Some(source_symbol) = source.ref_(self).maybe_symbol().filter(|&source_symbol| {
                 self.type_checker
-                    .type_(source)
-                    .maybe_symbol()
-                    .filter(|&source_symbol| {
-                        self.type_checker
-                            .symbol(source_symbol)
-                            .flags()
-                            .intersects(SymbolFlags::Class)
-                    })
-            {
+                    .symbol(source_symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Class)
+            }) {
                 let unmatched_property_value_declaration_name =
                     unmatched_property_value_declaration
                         .as_named_declaration()
@@ -648,7 +641,7 @@ impl CheckTypeRelatedTo {
                     let target_name = factory.with(|factory_| {
                         factory_.get_declaration_name(
                             self.type_checker
-                                .symbol(self.type_checker.type_(target).symbol())
+                                .symbol(target.ref_(self).symbol())
                                 .maybe_value_declaration(),
                             None,
                             None,
@@ -796,27 +789,16 @@ impl CheckTypeRelatedTo {
         }
         let mut result = Ternary::True;
         if self.type_checker.is_tuple_type(target) {
-            let target_target = self
-                .type_checker
-                .type_(target)
-                .as_type_reference_interface()
-                .target();
+            let target_target = target.ref_(self).as_type_reference_interface().target();
             if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
-                if !self
-                    .type_checker
-                    .type_(target_target)
-                    .as_tuple_type()
-                    .readonly
+                if !target_target.ref_(self).as_tuple_type().readonly
                     && (self.type_checker.is_readonly_array_type(source)
                         || self.type_checker.is_tuple_type(source)
-                            && self
-                                .type_checker
-                                .type_(
-                                    self.type_checker
-                                        .type_(source)
-                                        .as_type_reference_interface()
-                                        .target(),
-                                )
+                            && source
+                                .ref_(self)
+                                .as_type_reference_interface()
+                                .target()
+                                .ref_(self)
                                 .as_tuple_type()
                                 .readonly)
                 {
@@ -825,43 +807,31 @@ impl CheckTypeRelatedTo {
                 let source_arity = self.type_checker.get_type_reference_arity(source);
                 let target_arity = self.type_checker.get_type_reference_arity(target);
                 let source_rest_flag = if self.type_checker.is_tuple_type(source) {
-                    self.type_checker
-                        .type_(
-                            self.type_checker
-                                .type_(source)
-                                .as_type_reference_interface()
-                                .target(),
-                        )
+                    source
+                        .ref_(self)
+                        .as_type_reference_interface()
+                        .target()
+                        .ref_(self)
                         .as_tuple_type()
                         .combined_flags
                         & ElementFlags::Rest
                 } else {
                     ElementFlags::Rest
                 };
-                let target_rest_flag = self
-                    .type_checker
-                    .type_(target_target)
-                    .as_tuple_type()
-                    .combined_flags
-                    & ElementFlags::Rest;
+                let target_rest_flag =
+                    target_target.ref_(self).as_tuple_type().combined_flags & ElementFlags::Rest;
                 let source_min_length = if self.type_checker.is_tuple_type(source) {
-                    self.type_checker
-                        .type_(
-                            self.type_checker
-                                .type_(source)
-                                .as_type_reference_interface()
-                                .target(),
-                        )
+                    source
+                        .ref_(self)
+                        .as_type_reference_interface()
+                        .target()
+                        .ref_(self)
                         .as_tuple_type()
                         .min_length
                 } else {
                     0
                 };
-                let target_min_length = self
-                    .type_checker
-                    .type_(target_target)
-                    .as_tuple_type()
-                    .min_length;
+                let target_min_length = target_target.ref_(self).as_tuple_type().min_length;
                 if source_rest_flag == ElementFlags::None && source_arity < target_min_length {
                     if report_errors {
                         self.report_error(
@@ -917,10 +887,7 @@ impl CheckTypeRelatedTo {
                 let start_count = cmp::min(
                     if self.type_checker.is_tuple_type(source) {
                         self.type_checker.get_start_element_count(
-                            self.type_checker
-                                .type_(source)
-                                .as_type_reference_interface()
-                                .target(),
+                            source.ref_(self).as_type_reference_interface().target(),
                             ElementFlags::NonRest,
                         )
                     } else {
@@ -932,10 +899,7 @@ impl CheckTypeRelatedTo {
                 let end_count = cmp::min(
                     if self.type_checker.is_tuple_type(source) {
                         self.type_checker.get_end_element_count(
-                            self.type_checker
-                                .type_(source)
-                                .as_type_reference_interface()
-                                .target(),
+                            source.ref_(self).as_type_reference_interface().target(),
                             ElementFlags::NonRest,
                         )
                     } else {
@@ -958,18 +922,17 @@ impl CheckTypeRelatedTo {
                     let source_flags = if self.type_checker.is_tuple_type(source)
                         && (i < start_count || i >= target_arity - end_count)
                     {
-                        self.type_checker
-                            .type_(self.type_checker.type_(source).as_type_reference().target)
+                        source
+                            .ref_(self)
+                            .as_type_reference()
+                            .target
+                            .ref_(self)
                             .as_tuple_type()
                             .element_flags[source_index]
                     } else {
                         ElementFlags::Rest
                     };
-                    let target_flags = self
-                        .type_checker
-                        .type_(target_target)
-                        .as_tuple_type()
-                        .element_flags[i];
+                    let target_flags = target_target.ref_(self).as_tuple_type().element_flags[i];
                     if target_flags.intersects(ElementFlags::Variadic)
                         && !source_flags.intersects(ElementFlags::Variadic)
                     {
@@ -1091,9 +1054,8 @@ impl CheckTypeRelatedTo {
                 }
                 return Ok(result);
             }
-            if self
-                .type_checker
-                .type_(target_target)
+            if target_target
+                .ref_(self)
                 .as_tuple_type()
                 .combined_flags
                 .intersects(ElementFlags::Variable)
@@ -1141,9 +1103,8 @@ impl CheckTypeRelatedTo {
                     .is_none()
                 {
                     let source_type = self.type_checker.get_type_of_symbol(source_prop)?;
-                    if !self
-                        .type_checker
-                        .type_(source_type)
+                    if !source_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Undefined)
                     {
@@ -1220,16 +1181,8 @@ impl CheckTypeRelatedTo {
         target: Id<Type>,
         excluded_properties: Option<&HashSet<__String>>,
     ) -> io::Result<Ternary> {
-        if !(self
-            .type_checker
-            .type_(source)
-            .flags()
-            .intersects(TypeFlags::Object)
-            && self
-                .type_checker
-                .type_(target)
-                .flags()
-                .intersects(TypeFlags::Object))
+        if !(source.ref_(self).flags().intersects(TypeFlags::Object)
+            && target.ref_(self).flags().intersects(TypeFlags::Object))
         {
             return Ok(Ternary::False);
         }
@@ -1281,11 +1234,11 @@ impl CheckTypeRelatedTo {
         }
 
         let source_is_js_constructor = matches!(
-            self.type_checker.type_(source).maybe_symbol(),
+            source.ref_(self).maybe_symbol(),
             Some(source_symbol) if self.type_checker.is_js_constructor(self.type_checker.symbol(source_symbol).maybe_value_declaration())?
         );
         let target_is_js_constructor = matches!(
-            self.type_checker.type_(target).maybe_symbol(),
+            target.ref_(self).maybe_symbol(),
             Some(target_symbol) if self.type_checker.is_js_constructor(self.type_checker.symbol(target_symbol).maybe_value_declaration())?
         );
 
@@ -1345,12 +1298,11 @@ impl CheckTypeRelatedTo {
         } else {
             Self::report_incompatible_call_signature_return
         };
-        let source_object_flags = get_object_flags(&self.type_checker.type_(source));
-        let target_object_flags = get_object_flags(&self.type_checker.type_(target));
+        let source_object_flags = get_object_flags(&source.ref_(self));
+        let target_object_flags = get_object_flags(&target.ref_(self));
         if source_object_flags.intersects(ObjectFlags::Instantiated)
             && target_object_flags.intersects(ObjectFlags::Instantiated)
-            && self.type_checker.type_(source).maybe_symbol()
-                == self.type_checker.type_(target).maybe_symbol()
+            && source.ref_(self).maybe_symbol() == target.ref_(self).maybe_symbol()
         {
             for i in 0..target_signatures.len() {
                 let related = self.signature_related_to(
@@ -1635,9 +1587,8 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
         let key_type = target_info.key_type;
-        let props = if self
-            .type_checker
-            .type_(source)
+        let props = if source
+            .ref_(self)
             .flags()
             .intersects(TypeFlags::Intersection)
         {
@@ -1666,9 +1617,8 @@ impl CheckTypeRelatedTo {
             )? {
                 let prop_type = self.type_checker.get_non_missing_type_of_symbol(prop)?;
                 let type_ = if self.type_checker.exact_optional_property_types == Some(true)
-                    || self
-                        .type_checker
-                        .type_(prop_type)
+                    || prop_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Undefined)
                     || key_type == self.type_checker.number_type()
