@@ -304,8 +304,8 @@ impl TypeChecker {
         }
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::FunctionScopedVariable)
         {
@@ -325,8 +325,8 @@ impl TypeChecker {
             if let Some(local_declaration_symbol) =
                 local_declaration_symbol.filter(|&local_declaration_symbol| {
                     local_declaration_symbol != symbol
-                        && self
-                            .symbol(local_declaration_symbol)
+                        && local_declaration_symbol
+                            .ref_(self)
                             .flags()
                             .intersects(SymbolFlags::BlockScopedVariable)
                 })
@@ -585,8 +585,8 @@ impl TypeChecker {
                     )?;
                 }
             }
-            if let Some(symbol_declarations) = self
-                .symbol(symbol)
+            if let Some(symbol_declarations) = symbol
+                .ref_(self)
                 .maybe_declarations()
                 .as_ref()
                 .filter(|symbol_declarations| symbol_declarations.len() > 1)
@@ -616,8 +616,8 @@ impl TypeChecker {
             if !self.is_error_type(type_)
                 && !self.is_error_type(declaration_type)
                 && !self.is_type_identical_to(type_, declaration_type)?
-                && !self
-                    .symbol(symbol)
+                && !symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Assignment)
             {

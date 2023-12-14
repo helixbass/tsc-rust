@@ -181,8 +181,8 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if let Some(type_symbol) = type_.ref_(self).maybe_symbol() {
-            if self
-                .symbol(type_symbol)
+            if type_symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::TypeLiteral)
             {

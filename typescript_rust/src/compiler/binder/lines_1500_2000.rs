@@ -446,39 +446,29 @@ impl BinderType {
                 Some(self.declare_class_member(node, symbol_flags, symbol_excludes))
             }
 
-            SyntaxKind::EnumDeclaration => Some(
-                self.declare_symbol(
-                    &mut *self
-                        .symbol(self.container().symbol())
-                        .exports()
-                        .borrow_mut(),
-                    Some(self.container().symbol()),
-                    node,
-                    symbol_flags,
-                    symbol_excludes,
-                    None,
-                    None,
-                ),
-            ),
+            SyntaxKind::EnumDeclaration => Some(self.declare_symbol(
+                &mut *self.container().symbol().ref_(self).exports().borrow_mut(),
+                Some(self.container().symbol()),
+                node,
+                symbol_flags,
+                symbol_excludes,
+                None,
+                None,
+            )),
 
             SyntaxKind::TypeLiteral
             | SyntaxKind::JSDocTypeLiteral
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::JsxAttributes => Some(
-                self.declare_symbol(
-                    &mut *self
-                        .symbol(self.container().symbol())
-                        .members()
-                        .borrow_mut(),
-                    Some(self.container().symbol()),
-                    node,
-                    symbol_flags,
-                    symbol_excludes,
-                    None,
-                    None,
-                ),
-            ),
+            | SyntaxKind::JsxAttributes => Some(self.declare_symbol(
+                &mut *self.container().symbol().ref_(self).members().borrow_mut(),
+                Some(self.container().symbol()),
+                node,
+                symbol_flags,
+                symbol_excludes,
+                None,
+                None,
+            )),
 
             SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType
@@ -520,10 +510,7 @@ impl BinderType {
     ) -> Id<Symbol> {
         if is_static(node) {
             self.declare_symbol(
-                &mut *self
-                    .symbol(self.container().symbol())
-                    .exports()
-                    .borrow_mut(),
+                &mut *self.container().symbol().ref_(self).exports().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,
@@ -533,10 +520,7 @@ impl BinderType {
             )
         } else {
             self.declare_symbol(
-                &mut *self
-                    .symbol(self.container().symbol())
-                    .members()
-                    .borrow_mut(),
+                &mut *self.container().symbol().ref_(self).members().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,

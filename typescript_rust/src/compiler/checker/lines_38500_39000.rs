@@ -599,8 +599,8 @@ impl TypeChecker {
                                 },
                             );
                         if let Some(uninitialized) = uninitialized.as_ref() {
-                            if !self
-                                .symbol(derived)
+                            if !derived
+                                .ref_(self)
                                 .flags()
                                 .intersects(SymbolFlags::Transient)
                                 && !base_declaration_flags.intersects(ModifierFlags::Abstract)
@@ -662,10 +662,7 @@ impl TypeChecker {
                     continue;
                 } else if self.is_prototype_property(base) {
                     if self.is_prototype_property(derived)
-                        || self
-                            .symbol(derived)
-                            .flags()
-                            .intersects(SymbolFlags::Property)
+                        || derived.ref_(self).flags().intersects(SymbolFlags::Property)
                     {
                         continue;
                     } else {

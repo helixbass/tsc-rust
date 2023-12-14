@@ -674,8 +674,8 @@ impl TypeChecker {
                 &**first_declaration
             )
         ) {
-            if let Some(enum_symbol_declarations) = self
-                .symbol(enum_symbol)
+            if let Some(enum_symbol_declarations) = enum_symbol
+                .ref_(self)
                 .maybe_declarations()
                 .as_ref()
                 .filter(|enum_symbol_declarations| enum_symbol_declarations.len() > 1)
@@ -820,8 +820,8 @@ impl TypeChecker {
             self.check_exports_on_merged_declarations(node)?;
             let symbol = self.get_symbol_of_node(node)?.unwrap();
 
-            if self
-                .symbol(symbol)
+            if symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::ValueModule)
                 && !in_ambient_context
@@ -873,7 +873,9 @@ impl TypeChecker {
                 if is_external_module_augmentation(node) {
                     let check_body = is_global_augmentation
                         || self
-                            .symbol(self.get_symbol_of_node(node)?.unwrap())
+                            .get_symbol_of_node(node)?
+                            .unwrap()
+                            .ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Transient);
                     if check_body {
@@ -979,10 +981,8 @@ impl TypeChecker {
                 }
                 let symbol = self.get_symbol_of_node(node)?;
                 if let Some(symbol) = symbol {
-                    let mut report_error = !self
-                        .symbol(symbol)
-                        .flags()
-                        .intersects(SymbolFlags::Transient);
+                    let mut report_error =
+                        !symbol.ref_(self).flags().intersects(SymbolFlags::Transient);
                     #[allow(unused_assignments)]
                     if !report_error {
                         report_error = matches!(

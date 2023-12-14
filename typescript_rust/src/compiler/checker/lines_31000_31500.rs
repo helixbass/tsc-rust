@@ -216,8 +216,7 @@ impl TypeChecker {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
             let synth_type = type_;
             if synth_type.ref_(self).maybe_synthetic_type().is_none() {
-                let file = self
-                    .symbol(original_symbol)
+                let file = original_symbol.ref_(self)
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|original_symbol_declarations| {
@@ -303,22 +302,19 @@ impl TypeChecker {
         if resolved_require == self.require_symbol() {
             return Ok(true);
         }
-        if self
-            .symbol(resolved_require)
+        if resolved_require.ref_(self)
             .flags()
             .intersects(SymbolFlags::Alias)
         {
             return Ok(false);
         }
 
-        let target_declaration_kind = if self
-            .symbol(resolved_require)
+        let target_declaration_kind = if resolved_require.ref_(self)
             .flags()
             .intersects(SymbolFlags::Function)
         {
             SyntaxKind::FunctionDeclaration
-        } else if self
-            .symbol(resolved_require)
+        } else if resolved_require.ref_(self)
             .flags()
             .intersects(SymbolFlags::Variable)
         {
@@ -633,8 +629,7 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            return Ok(self
-                .symbol(signature.parameters()[pos])
+            return Ok(signature.parameters()[pos].ref_(self)
                 .escaped_name()
                 .to_owned());
         }
@@ -755,8 +750,7 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            let decl = self
-                .symbol(signature.parameters()[pos])
+            let decl = signature.parameters()[pos].ref_(self)
                 .maybe_value_declaration();
             return Ok(decl.filter(|decl| self.is_valid_declaration_for_tuple_label(decl)));
         }
@@ -777,8 +771,7 @@ impl TypeChecker {
                 associated_names.and_then(|associated_names| associated_names.get(index).cloned())
             );
         }
-        Ok(self
-            .symbol(rest_parameter)
+        Ok(rest_parameter.ref_(self)
             .maybe_value_declaration()
             .filter(|rest_parameter_value_declaration| {
                 self.is_valid_declaration_for_tuple_label(rest_parameter_value_declaration)

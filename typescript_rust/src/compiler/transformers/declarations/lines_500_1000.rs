@@ -195,8 +195,7 @@ impl TransformDeclarations {
             return true;
         }
 
-        let overload_signatures: Option<Vec<_>> = self
-            .symbol(input.symbol())
+        let overload_signatures: Option<Vec<_>> = input.symbol().ref_(self)
             .maybe_declarations()
             .as_ref()
             .map(|input_symbol_declarations| {

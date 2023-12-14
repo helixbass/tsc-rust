@@ -250,8 +250,8 @@ impl TypeChecker {
                 let clone_symbol_links = clone.ref_(self).as_transient_symbol().symbol_links();
                 let mut clone_symbol_links = clone_symbol_links.borrow_mut();
                 clone_symbol_links.containing_type = Some(containing_type);
-                clone_symbol_links.mapper = self
-                    .symbol(single_prop)
+                clone_symbol_links.mapper = single_prop
+                    .ref_(self)
                     .maybe_as_transient_symbol()
                     .and_then(|single_prop| (*single_prop.symbol_links()).borrow().mapper.clone());
                 return Ok(Some(clone));

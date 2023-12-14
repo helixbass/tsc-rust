@@ -410,18 +410,14 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if self
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Prototype)
-        {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Prototype) {
             return self.get_type_of_prototype_property(symbol);
         }
         if symbol == self.require_symbol() {
             return Ok(self.any_type());
         }
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::ModuleExports)
         {
@@ -516,12 +512,12 @@ impl TypeChecker {
         }
 
         if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::Type) {
-            if self
-                .symbol(symbol)
+            if symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::ValueModule)
-                && !self
-                    .symbol(symbol)
+                && !symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Assignment)
             {
@@ -636,12 +632,12 @@ impl TypeChecker {
         }
 
         if !self.pop_type_resolution() {
-            if self
-                .symbol(symbol)
+            if symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::ValueModule)
-                && !self
-                    .symbol(symbol)
+                && !symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Assignment)
             {

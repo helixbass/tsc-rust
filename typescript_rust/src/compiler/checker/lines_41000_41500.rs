@@ -433,8 +433,7 @@ impl TypeChecker {
                     self.get_property_of_type_(type_, symbol.ref_(self).escaped_name(), None)
                 },
             )?));
-        } else if self
-            .symbol(symbol)
+        } else if symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Transient)
         {
@@ -570,8 +569,7 @@ impl TypeChecker {
                 Some(self.is_name_of_module_or_enum_declaration(node)),
             )?;
             if let Some(mut symbol) = symbol {
-                if self
-                    .symbol(symbol)
+                if symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::ExportValue)
                 {
@@ -579,12 +577,10 @@ impl TypeChecker {
                         .get_merged_symbol(symbol.ref_(self).maybe_export_symbol())
                         .unwrap();
                     if prefix_locals != Some(true)
-                        && self
-                            .symbol(export_symbol)
+                        && export_symbol.ref_(self)
                             .flags()
                             .intersects(SymbolFlags::ExportHasLocal)
-                        && !self
-                            .symbol(export_symbol)
+                        && !export_symbol.ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Variable)
                     {
@@ -594,13 +590,11 @@ impl TypeChecker {
                 }
                 let parent_symbol = self.get_parent_of_symbol(symbol)?;
                 if let Some(parent_symbol) = parent_symbol {
-                    if self
-                        .symbol(parent_symbol)
+                    if parent_symbol.ref_(self)
                         .flags()
                         .intersects(SymbolFlags::ValueModule)
                     {
-                        if let Some(parent_symbol_value_declaration) = self
-                            .symbol(parent_symbol)
+                        if let Some(parent_symbol_value_declaration) = parent_symbol.ref_(self)
                             .maybe_value_declaration()
                             .as_ref()
                             .filter(|parent_symbol_value_declaration| {
@@ -671,13 +665,11 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        if self
-            .symbol(symbol)
+        if symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::BlockScoped)
         {
-            if let Some(symbol_value_declaration) = self
-                .symbol(symbol)
+            if let Some(symbol_value_declaration) = symbol.ref_(self)
                 .maybe_value_declaration()
                 .as_ref()
                 .filter(|symbol_value_declaration| !is_source_file(symbol_value_declaration))

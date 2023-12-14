@@ -10,7 +10,10 @@ pub fn rewrite_self_arena_method_to_ref_method_rule() -> Arc<dyn Rule> {
         listeners => [
             r#"
               (call_expression
-                 function: (field_expression) @method (#eq? @method "self.symbol")
+                 function: (field_expression
+                   value: (self)
+                   field: (field_identifier) @method (#eq? @method "symbol")
+                 )
                  arguments: (arguments
                    (_) @arg
                  )

@@ -881,8 +881,8 @@ impl TypeChecker {
         ) {
             return Ok(Some(self.get_type_of_symbol(symbol)?));
         }
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
         {

@@ -32,8 +32,8 @@ impl TypeChecker {
         if let Some(managed_sym) = managed_sym {
             let declared_managed_type = self.get_declared_type_of_symbol(managed_sym)?;
             let ctor_type = self.get_static_type_of_referenced_jsx_constructor(context)?;
-            if self
-                .symbol(managed_sym)
+            if managed_sym
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::TypeAlias)
             {
@@ -853,8 +853,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_symbol_with_numeric_name(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let first_decl = self
-            .symbol(symbol)
+        let first_decl = symbol
+            .ref_(self)
             .maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
@@ -869,8 +869,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_symbol_with_symbol_name(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let first_decl = self
-            .symbol(symbol)
+        let first_decl = symbol
+            .ref_(self)
             .maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());

@@ -576,8 +576,8 @@ impl TypeChecker {
         if let Some(node_locals) = node.maybe_locals().clone() {
             (*node_locals).borrow().values().try_for_each(
                 |&symbol: &Id<Symbol>| -> io::Result<_> {
-                    if self
-                        .symbol(symbol)
+                    if symbol
+                        .ref_(self)
                         .flags()
                         .intersects(SymbolFlags::TypeParameter)
                     {
@@ -815,11 +815,7 @@ impl TypeChecker {
                     target_meaning,
                 )?);
             } else {
-                if self
-                    .symbol(module_symbol)
-                    .flags()
-                    .intersects(target_meaning)
-                {
+                if module_symbol.ref_(self).flags().intersects(target_meaning) {
                     links.borrow_mut().resolved_type = Some(self.resolve_import_symbol_type(
                         node,
                         &links,
@@ -1008,14 +1004,9 @@ impl TypeChecker {
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
             } else if self.is_spreadable_property(prop) {
-                let is_setonly_accessor = self
-                    .symbol(prop)
-                    .flags()
-                    .intersects(SymbolFlags::SetAccessor)
-                    && !self
-                        .symbol(prop)
-                        .flags()
-                        .intersects(SymbolFlags::GetAccessor);
+                let is_setonly_accessor =
+                    prop.ref_(self).flags().intersects(SymbolFlags::SetAccessor)
+                        && !prop.ref_(self).flags().intersects(SymbolFlags::GetAccessor);
                 let flags = SymbolFlags::Property | SymbolFlags::Optional;
                 let result = self.alloc_symbol(
                     self.create_symbol(
@@ -1214,8 +1205,8 @@ impl TypeChecker {
             if members.contains_key(left_prop.ref_(self).escaped_name()) {
                 let right_prop = *members.get(left_prop.ref_(self).escaped_name()).unwrap();
                 let right_type = self.get_type_of_symbol(right_prop)?;
-                if self
-                    .symbol(right_prop)
+                if right_prop
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Optional)
                 {

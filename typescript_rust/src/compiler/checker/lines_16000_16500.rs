@@ -28,8 +28,8 @@ impl TypeChecker {
             Some(|declaration: &Gc<Node>| {
                 is_private_identifier_class_element_declaration(declaration)
             }),
-        ) && (!self
-            .symbol(prop)
+        ) && (!prop
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
@@ -43,14 +43,8 @@ impl TypeChecker {
         prop: Id<Symbol>,
         readonly: bool,
     ) -> io::Result<Id<Symbol>> {
-        let is_setonly_accessor = self
-            .symbol(prop)
-            .flags()
-            .intersects(SymbolFlags::SetAccessor)
-            && !self
-                .symbol(prop)
-                .flags()
-                .intersects(SymbolFlags::GetAccessor);
+        let is_setonly_accessor = prop.ref_(self).flags().intersects(SymbolFlags::SetAccessor)
+            && !prop.ref_(self).flags().intersects(SymbolFlags::GetAccessor);
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop)? {
             return Ok(prop);
         }
@@ -1161,12 +1155,16 @@ impl TypeChecker {
                 .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
-                || self
-                    .symbol(target.ref_(self).symbol())
+                || target
+                    .ref_(self)
+                    .symbol()
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Method)
-                || self
-                    .symbol(target.ref_(self).symbol())
+                || target
+                    .ref_(self)
+                    .symbol()
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::TypeLiteral))
                 && target.ref_(self).maybe_alias_type_arguments().is_none()

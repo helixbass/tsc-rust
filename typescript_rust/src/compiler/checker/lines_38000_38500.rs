@@ -257,8 +257,8 @@ impl TypeChecker {
                                     if let Some(block_local_value_declaration) =
                                         block_local.ref_(self).maybe_value_declaration().as_ref()
                                     {
-                                        if self
-                                            .symbol(block_local)
+                                        if block_local
+                                            .ref_(self)
                                             .flags()
                                             .intersects(SymbolFlags::BlockScopedVariable)
                                         {

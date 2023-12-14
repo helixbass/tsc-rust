@@ -442,8 +442,8 @@ impl TypeChecker {
                 None,
             )?;
             if let Some(symbol) = symbol {
-                if !self
-                    .symbol(symbol)
+                if !symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::NamespaceModule)
                 {
@@ -607,8 +607,8 @@ impl TypeChecker {
             let declaration_name =
                 declaration_name_to_string(get_name_of_declaration(Some(&**declaration)))
                     .into_owned();
-            if self
-                .symbol(result)
+            if result
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::BlockScopedVariable)
             {
@@ -623,8 +623,8 @@ impl TypeChecker {
                     &Diagnostics::Class_0_used_before_its_declaration,
                     Some(vec![declaration_name.clone()]),
                 ));
-            } else if self
-                .symbol(result)
+            } else if result
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::RegularEnum)
             {
@@ -701,8 +701,8 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
-        Ok(self
-            .symbol(symbol)
+        Ok(symbol
+            .ref_(self)
             .maybe_declarations()
             .as_deref()
             .try_and_then(|declarations| {
@@ -1027,8 +1027,8 @@ impl TypeChecker {
             )?;
         }
 
-        let file = self
-            .symbol(module_symbol)
+        let file = module_symbol
+            .ref_(self)
             .maybe_declarations()
             .as_ref()
             .and_then(|declarations| {
@@ -1145,16 +1145,17 @@ impl TypeChecker {
                     None,
                 )?]),
             );
-            let export_star = self
-                .symbol(module_symbol)
-                .maybe_exports()
-                .as_ref()
-                .and_then(|exports| {
-                    (**exports)
-                        .borrow()
-                        .get(InternalSymbolName::ExportStar)
-                        .cloned()
-                });
+            let export_star =
+                module_symbol
+                    .ref_(self)
+                    .maybe_exports()
+                    .as_ref()
+                    .and_then(|exports| {
+                        (**exports)
+                            .borrow()
+                            .get(InternalSymbolName::ExportStar)
+                            .cloned()
+                    });
             if let Some(export_star) = export_star {
                 let default_export = export_star.ref_(self).maybe_declarations().as_deref().try_and_then(|declarations| -> io::Result<_> {
                     Ok(declarations.iter().try_find_(|decl| -> io::Result<_> {
@@ -1236,8 +1237,8 @@ impl TypeChecker {
         if value_symbol == self.unknown_symbol() && type_symbol == self.unknown_symbol() {
             return self.unknown_symbol();
         }
-        if self
-            .symbol(value_symbol)
+        if value_symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Type | SymbolFlags::Namespace)
         {
@@ -1320,13 +1321,9 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         name: &str, /*__String*/
     ) -> io::Result<Option<Id<Symbol>>> {
-        if self
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Variable)
-        {
-            let type_annotation = self
-                .symbol(symbol)
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Variable) {
+            let type_annotation = symbol
+                .ref_(self)
                 .maybe_value_declaration()
                 .unwrap()
                 .as_variable_declaration()
@@ -1393,8 +1390,8 @@ impl TypeChecker {
             let mut symbol_from_variable: Option<Id<Symbol>>;
             if
             /*moduleSymbol &&*/
-            self
-                .symbol(module_symbol)
+            module_symbol
+                .ref_(self)
                 .maybe_exports()
                 .as_ref()
                 .and_then(|exports| {
@@ -1422,8 +1419,8 @@ impl TypeChecker {
             if symbol_from_module.is_none()
                 && name_as_identifier.escaped_text == InternalSymbolName::Default
             {
-                let file = self
-                    .symbol(module_symbol)
+                let file = module_symbol
+                    .ref_(self)
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|declarations| {
@@ -1534,20 +1531,21 @@ impl TypeChecker {
         module_symbol: Id<Symbol>,
         module_name: String,
     ) -> io::Result<()> {
-        let local_symbol = self
-            .symbol(module_symbol)
-            .maybe_value_declaration()
-            .and_then(|value_declaration| {
-                value_declaration
-                    .maybe_locals()
-                    .as_ref()
-                    .and_then(|locals| {
-                        (**locals)
-                            .borrow()
-                            .get(&name.as_identifier().escaped_text)
-                            .cloned()
-                    })
-            });
+        let local_symbol =
+            module_symbol
+                .ref_(self)
+                .maybe_value_declaration()
+                .and_then(|value_declaration| {
+                    value_declaration
+                        .maybe_locals()
+                        .as_ref()
+                        .and_then(|locals| {
+                            (**locals)
+                                .borrow()
+                                .get(&name.as_identifier().escaped_text)
+                                .cloned()
+                        })
+                });
         let module_symbol_ref = module_symbol.ref_(self);
         let exports = module_symbol_ref.maybe_exports();
         if let Some(local_symbol) = local_symbol {

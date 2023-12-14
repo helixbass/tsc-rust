@@ -160,8 +160,8 @@ impl TypeChecker {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
             let local_symbol = node.maybe_local_symbol().unwrap_or_else(|| symbol.clone());
 
-            let first_declaration = self
-                .symbol(local_symbol)
+            let first_declaration = local_symbol
+                .ref_(self)
                 .maybe_declarations()
                 .as_ref()
                 .and_then(|local_symbol_declarations| {
@@ -339,8 +339,9 @@ impl TypeChecker {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor => {
                     if !(member.kind() == SyntaxKind::SetAccessor
-                        && self
-                            .symbol(member.symbol())
+                        && member
+                            .symbol()
+                            .ref_(self)
                             .flags()
                             .intersects(SymbolFlags::GetAccessor))
                     {
@@ -622,8 +623,8 @@ impl TypeChecker {
             ),
         > = HashMap::new();
         for &local in (*node_with_locals.locals()).borrow().values() {
-            if if self
-                .symbol(local)
+            if if local
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::TypeParameter)
             {
@@ -681,15 +682,15 @@ impl TypeChecker {
                             |key: &Gc<Node>| get_node_id(key).to_string(),
                         );
                     } else {
-                        let parameter = self
-                            .symbol(local)
+                        let parameter = local
+                            .ref_(self)
                             .maybe_value_declaration()
                             .as_ref()
                             .and_then(|local_value_declaration| {
                                 self.try_get_root_parameter_declaration(local_value_declaration)
                             });
-                        let name = self
-                            .symbol(local)
+                        let name = local
+                            .ref_(self)
                             .maybe_value_declaration()
                             .as_ref()
                             .and_then(|local_value_declaration| {

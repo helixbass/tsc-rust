@@ -498,10 +498,7 @@ impl BinderType {
                 SymbolFlags::Property
             };
             let symbol = self.declare_symbol(
-                &mut self
-                    .symbol(self.container().symbol())
-                    .exports()
-                    .borrow_mut(),
+                &mut self.container().symbol().ref_(self).exports().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 flags,
@@ -582,10 +579,7 @@ impl BinderType {
             );
         } else if node_as_export_declaration.export_clause.is_none() {
             self.declare_symbol(
-                &mut self
-                    .symbol(self.container().symbol())
-                    .exports()
-                    .borrow_mut(),
+                &mut self.container().symbol().ref_(self).exports().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 SymbolFlags::ExportStar,
@@ -595,10 +589,7 @@ impl BinderType {
             );
         } else if is_namespace_export(node_as_export_declaration.export_clause.as_ref().unwrap()) {
             self.declare_symbol(
-                &mut self
-                    .symbol(self.container().symbol())
-                    .exports()
-                    .borrow_mut(),
+                &mut self.container().symbol().ref_(self).exports().borrow_mut(),
                 Some(self.container().symbol()),
                 node_as_export_declaration.export_clause.as_ref().unwrap(),
                 SymbolFlags::Alias,

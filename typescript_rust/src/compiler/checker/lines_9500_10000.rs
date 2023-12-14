@@ -96,8 +96,7 @@ impl TypeChecker {
         ) {
             return self
                 .get_widened_type_for_assignment_declaration(symbol, Option::<Id<Symbol>>::None);
-        } else if self
-            .symbol(symbol)
+        } else if symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::ValueModule)
             && matches!(
@@ -152,8 +151,7 @@ impl TypeChecker {
                 }
             } else {
                 if self.strict_null_checks
-                    && self
-                        .symbol(symbol)
+                    && symbol.ref_(self)
                         .flags()
                         .intersects(SymbolFlags::Optional)
                 {
@@ -179,8 +177,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
             let target_symbol = self.resolve_alias(symbol)?;
-            let export_symbol = self
-                .symbol(symbol)
+            let export_symbol = symbol.ref_(self)
                 .maybe_declarations()
                 .as_ref()
                 .try_and_then(|_| {
@@ -325,8 +322,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if self
-            .symbol(symbol)
+        if symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Accessor)
         {
@@ -352,8 +348,7 @@ impl TypeChecker {
         if check_flags.intersects(CheckFlags::ReverseMapped) {
             return self.get_type_of_reverse_mapped_symbol(symbol);
         }
-        if self
-            .symbol(symbol)
+        if symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
         {
@@ -368,15 +363,13 @@ impl TypeChecker {
         ) {
             return self.get_type_of_func_class_enum_module(symbol);
         }
-        if self
-            .symbol(symbol)
+        if symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::EnumMember)
         {
             return self.get_type_of_enum_member(symbol);
         }
-        if self
-            .symbol(symbol)
+        if symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Accessor)
         {
@@ -727,8 +720,7 @@ impl TypeChecker {
         type_: Id<Type>, /*InterfaceType*/
     ) -> Option<Gc<Node /*ExpressionWithTypeArguments*/>> {
         get_effective_base_type_node(
-            &self
-                .symbol(type_.ref_(self).symbol())
+            &type_.ref_(self).symbol().ref_(self)
                 .maybe_value_declaration()
                 .unwrap(),
         )
@@ -795,8 +787,7 @@ impl TypeChecker {
             .maybe_resolved_base_constructor_type()
             .is_none()
         {
-            let decl = self
-                .symbol(type_.ref_(self).symbol())
+            let decl = type_.ref_(self).symbol().ref_(self)
                 .maybe_value_declaration()
                 .unwrap();
             let extended = get_effective_base_type_node(&decl);
@@ -898,8 +889,7 @@ impl TypeChecker {
                             ctor_return = self.get_return_type_of_signature(ctor_sig_0.clone())?;
                         }
                     }
-                    if let Some(base_constructor_type_symbol_declarations) = self
-                        .symbol(base_constructor_type.ref_(self).symbol())
+                    if let Some(base_constructor_type_symbol_declarations) = base_constructor_type.ref_(self).symbol().ref_(self)
                         .maybe_declarations()
                         .as_deref()
                     {
@@ -938,8 +928,7 @@ impl TypeChecker {
         type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Vec<Id<Type /*BaseType*/>>> {
         let mut resolved_implements_types: Vec<Id<Type /*BaseType*/>> = vec![];
-        if let Some(type_symbol_declarations) = self
-            .symbol(type_.ref_(self).symbol())
+        if let Some(type_symbol_declarations) = type_.ref_(self).symbol().ref_(self)
             .maybe_declarations()
             .as_deref()
         {
@@ -997,20 +986,17 @@ impl TypeChecker {
                         .as_not_actually_interface_type()
                         .maybe_resolved_base_types() =
                         Some(Gc::new(vec![self.get_tuple_base_type(type_)?]));
-                } else if self
-                    .symbol(type_.ref_(self).symbol())
+                } else if type_.ref_(self).symbol().ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Class | SymbolFlags::Interface)
                 {
-                    if self
-                        .symbol(type_.ref_(self).symbol())
+                    if type_.ref_(self).symbol().ref_(self)
                         .flags()
                         .intersects(SymbolFlags::Class)
                     {
                         self.resolve_base_types_of_class(type_)?;
                     }
-                    if self
-                        .symbol(type_.ref_(self).symbol())
+                    if type_.ref_(self).symbol().ref_(self)
                         .flags()
                         .intersects(SymbolFlags::Interface)
                     {
@@ -1020,8 +1006,7 @@ impl TypeChecker {
                     Debug_.fail(Some("type must be class or interface"));
                 }
                 if !self.pop_type_resolution() {
-                    if let Some(type_symbol_declarations) = self
-                        .symbol(type_.ref_(self).symbol())
+                    if let Some(type_symbol_declarations) = type_.ref_(self).symbol().ref_(self)
                         .maybe_declarations()
                         .as_deref()
                     {
@@ -1133,8 +1118,7 @@ impl TypeChecker {
             symbol
         }
         .try_filter(|&base_constructor_type_symbol| -> io::Result<_> {
-            Ok(self
-                .symbol(base_constructor_type_symbol)
+            Ok(base_constructor_type_symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Class)
                 && self.are_all_outer_type_parameters_applied(original_base_type.unwrap())?)

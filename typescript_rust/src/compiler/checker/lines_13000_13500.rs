@@ -29,8 +29,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let mut inferences: Option<Vec<Id<Type>>> = None;
         if let Some(type_parameter_symbol) = type_parameter.ref_(self).maybe_symbol() {
-            if let Some(type_parameter_symbol_declarations) = self
-                .symbol(type_parameter_symbol)
+            if let Some(type_parameter_symbol_declarations) = type_parameter_symbol
+                .ref_(self)
                 .maybe_declarations()
                 .as_deref()
             {
@@ -973,18 +973,14 @@ impl TypeChecker {
             return Ok(self.error_type());
         }
         let symbol = self.get_expando_symbol(symbol)?.unwrap_or_else(|| symbol);
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
             return self.get_type_from_class_or_interface_reference(node, symbol);
         }
-        if self
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::TypeAlias)
-        {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias) {
             return self.get_type_from_type_alias_reference(node, symbol);
         }
         let res = self.try_get_declared_type_of_symbol(symbol)?;

@@ -415,8 +415,8 @@ impl BinderType {
     }
 
     pub(super) fn is_expando_symbol(&self, symbol: Id<Symbol>) -> bool {
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::NamespaceModule)
         {
@@ -593,8 +593,8 @@ impl BinderType {
                 .bind_diagnostics_mut()
                 .push(Gc::new(
                     self.create_diagnostic_for_node(
-                        &self
-                            .symbol(symbol_export)
+                        &symbol_export
+                            .ref_(self)
                             .maybe_declarations()
                             .as_ref()
                             .unwrap()[0],
@@ -708,10 +708,7 @@ impl BinderType {
         if is_parameter_property_declaration(node, &node.parent()) {
             let class_declaration = node.parent().parent();
             self.declare_symbol(
-                &mut self
-                    .symbol(class_declaration.symbol())
-                    .members()
-                    .borrow_mut(),
+                &mut class_declaration.symbol().ref_(self).members().borrow_mut(),
                 Some(class_declaration.symbol()),
                 node,
                 SymbolFlags::Property

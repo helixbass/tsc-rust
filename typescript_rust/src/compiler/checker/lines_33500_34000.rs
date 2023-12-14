@@ -746,8 +746,10 @@ impl TypeChecker {
                     .intersects(SymbolFlags::ConstEnum),
                 None,
             );
-            let const_enum_declaration = self
-                .symbol(type_.ref_(self).symbol())
+            let const_enum_declaration = type_
+                .ref_(self)
+                .symbol()
+                .ref_(self)
                 .maybe_value_declaration()
                 .unwrap();
             if const_enum_declaration

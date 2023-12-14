@@ -44,8 +44,8 @@ impl TypeChecker {
                 0
             };
         for i in 0..len {
-            let declaration = self
-                .symbol(signature.parameters()[i])
+            let declaration = signature.parameters()[i]
+                .ref_(self)
                 .maybe_value_declaration()
                 .unwrap();
             if declaration

@@ -252,12 +252,12 @@ impl TypeChecker {
             return Ok(entry.intersects(RelationComparisonResult::Succeeded));
         }
         if source_symbol.ref_(self).escaped_name() != target_symbol.ref_(self).escaped_name()
-            || !self
-                .symbol(source_symbol)
+            || !source_symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::RegularEnum)
-            || !self
-                .symbol(target_symbol)
+            || !target_symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::RegularEnum)
         {
@@ -269,8 +269,8 @@ impl TypeChecker {
         }
         let target_enum_type = self.get_type_of_symbol(target_symbol)?;
         for property in self.get_properties_of_type(self.get_type_of_symbol(source_symbol)?)? {
-            if self
-                .symbol(property)
+            if property
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::EnumMember)
             {
@@ -281,8 +281,8 @@ impl TypeChecker {
                 )?;
                 if match target_property {
                     None => true,
-                    Some(target_property) => !self
-                        .symbol(target_property)
+                    Some(target_property) => !target_property
+                        .ref_(self)
                         .flags()
                         .intersects(SymbolFlags::EnumMember),
                 } {

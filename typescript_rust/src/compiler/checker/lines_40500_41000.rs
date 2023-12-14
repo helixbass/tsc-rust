@@ -80,7 +80,9 @@ impl TypeChecker {
                         self.copy_locally_visible_export_symbols(
                             symbols,
                             &(*self
-                                .symbol(self.get_symbol_of_node(location_present)?.unwrap())
+                                .get_symbol_of_node(location_present)?
+                                .unwrap()
+                                .ref_(self)
                                 .exports())
                             .borrow(),
                             meaning & SymbolFlags::ModuleMember,
@@ -91,7 +93,9 @@ impl TypeChecker {
                     self.copy_locally_visible_export_symbols(
                         symbols,
                         &(*self
-                            .symbol(self.get_symbol_of_node(location_present)?.unwrap())
+                            .get_symbol_of_node(location_present)?
+                            .unwrap()
+                            .ref_(self)
                             .exports())
                         .borrow(),
                         meaning & SymbolFlags::ModuleMember,
@@ -101,7 +105,9 @@ impl TypeChecker {
                     self.copy_symbols(
                         symbols,
                         &(*self
-                            .symbol(self.get_symbol_of_node(location_present)?.unwrap())
+                            .get_symbol_of_node(location_present)?
+                            .unwrap()
+                            .ref_(self)
                             .exports())
                         .borrow(),
                         meaning & SymbolFlags::EnumMember,

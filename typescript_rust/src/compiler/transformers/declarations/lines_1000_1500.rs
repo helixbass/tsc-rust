@@ -371,8 +371,8 @@ impl TransformDeclarations {
                     let mut declarations = try_map_defined(
                         Some(&props),
                         |&p: &Id<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
-                            let ref p_value_declaration = return_ok_default_if_none!(self
-                                .symbol(p)
+                            let ref p_value_declaration = return_ok_default_if_none!(p
+                                .ref_(self)
                                 .maybe_value_declaration()
                                 .filter(|p_value_declaration| {
                                     is_property_access_expression(p_value_declaration)

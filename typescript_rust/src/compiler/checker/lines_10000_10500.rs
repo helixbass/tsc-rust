@@ -93,8 +93,10 @@ impl TypeChecker {
                 .maybe_resolved_base_types() = Some(Gc::new(vec![]));
         }
         if let Some(type_symbol_declarations) = {
-            let type_symbol_declarations = self
-                .symbol(type_.ref_(self).symbol())
+            let type_symbol_declarations = type_
+                .ref_(self)
+                .symbol()
+                .ref_(self)
                 .maybe_declarations()
                 .clone();
             type_symbol_declarations
@@ -179,8 +181,8 @@ impl TypeChecker {
                             if match base_symbol {
                                 None => true,
                                 Some(base_symbol) => {
-                                    !self
-                                        .symbol(base_symbol)
+                                    !base_symbol
+                                        .ref_(self)
                                         .flags()
                                         .intersects(SymbolFlags::Interface)
                                         || self
@@ -444,7 +446,9 @@ impl TypeChecker {
             SyntaxKind::Identifier => {
                 node_is_missing(Some(expr))
                     || (*self
-                        .symbol(self.get_symbol_of_node(&member.parent())?.unwrap())
+                        .get_symbol_of_node(&member.parent())?
+                        .unwrap()
+                        .ref_(self)
                         .exports())
                     .borrow()
                     .get(&expr.as_identifier().escaped_text)
@@ -607,22 +611,18 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
             return Ok(Some(self.get_declared_type_of_class_or_interface(symbol)?));
         }
-        if self
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::TypeAlias)
-        {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias) {
             return Ok(Some(self.get_declared_type_of_type_alias(symbol)?));
         }
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::TypeParameter)
         {
@@ -631,8 +631,8 @@ impl TypeChecker {
         if symbol.ref_(self).flags().intersects(SymbolFlags::Enum) {
             return Ok(Some(self.get_declared_type_of_enum(symbol)?));
         }
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::EnumMember)
         {

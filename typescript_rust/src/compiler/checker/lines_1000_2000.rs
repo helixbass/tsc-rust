@@ -532,8 +532,7 @@ impl TypeChecker {
         unidirectional: Option<bool>,
     ) -> io::Result<Id<Symbol>> {
         let unidirectional = unidirectional.unwrap_or(false);
-        if !self
-            .symbol(target)
+        if !target.ref_(self)
             .flags()
             .intersects(self.get_excluded_symbol_flags(source.ref_(self).flags()))
             || (source.ref_(self).flags() | target.ref_(self).flags())
@@ -542,8 +541,7 @@ impl TypeChecker {
             if source == target {
                 return Ok(target);
             }
-            if !self
-                .symbol(target)
+            if !target.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Transient)
             {
@@ -553,12 +551,10 @@ impl TypeChecker {
                 }
                 target = self.clone_symbol(resolved_target);
             }
-            if self
-                .symbol(source)
+            if source.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::ValueModule)
-                && self
-                    .symbol(target)
+                && target.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::ValueModule)
                 && matches!(
@@ -625,8 +621,7 @@ impl TypeChecker {
             if !unidirectional {
                 self.record_merged_symbol(target, source);
             }
-        } else if self
-            .symbol(target)
+        } else if target.ref_(self)
             .flags()
             .intersects(SymbolFlags::NamespaceModule)
         {
@@ -640,12 +635,10 @@ impl TypeChecker {
         } else {
             let is_either_enum = target.ref_(self).flags().intersects(SymbolFlags::Enum)
                 || source.ref_(self).flags().intersects(SymbolFlags::Enum);
-            let is_either_block_scoped = self
-                .symbol(target)
+            let is_either_block_scoped = target.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::BlockScopedVariable)
-                || self
-                    .symbol(source)
+                || source.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::BlockScopedVariable);
             let message = if is_either_enum {
@@ -916,8 +909,7 @@ impl TypeChecker {
         if is_global_scope_augmentation(&module_augmentation) {
             self.merge_symbol_table(
                 self.globals_rc(),
-                &mut self
-                    .symbol(module_augmentation.symbol())
+                &mut module_augmentation.symbol().ref_(self)
                     .exports()
                     .borrow_mut(),
                 None,
@@ -943,8 +935,7 @@ impl TypeChecker {
             let main_module = self
                 .resolve_external_module_symbol(Some(main_module), None)?
                 .unwrap();
-            if self
-                .symbol(main_module)
+            if main_module.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Namespace)
             {
@@ -964,8 +955,7 @@ impl TypeChecker {
                         .unwrap()
                         .insert(module_name.as_literal_like_node().text().clone(), merged);
                 } else {
-                    if self
-                        .symbol(main_module)
+                    if main_module.ref_(self)
                         .maybe_exports()
                         .as_ref()
                         .and_then(|exports| {
@@ -1582,8 +1572,7 @@ impl TypeChecker {
                                     != SymbolFlags::None
                                     && last_location_unwrapped.kind() != SyntaxKind::JSDocComment
                                 {
-                                    use_result = if self
-                                        .symbol(result_unwrapped)
+                                    use_result = if result_unwrapped.ref_(self)
                                         .flags()
                                         .intersects(SymbolFlags::TypeParameter)
                                     {
@@ -1614,8 +1603,7 @@ impl TypeChecker {
                                         &last_location_unwrapped,
                                     ) {
                                         use_result = false;
-                                    } else if self
-                                        .symbol(result_unwrapped)
+                                    } else if result_unwrapped.ref_(self)
                                         .flags()
                                         .intersects(SymbolFlags::FunctionScopedVariable)
                                     {
@@ -1762,8 +1750,7 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
-                        &*(*self
-                            .symbol(self.get_symbol_of_node(&*location_unwrapped)?.unwrap())
+                        &*(*self.get_symbol_of_node(&*location_unwrapped)?.unwrap().ref_(self)
                             .maybe_members()
                             .clone()
                             .unwrap_or_else(|| self.empty_symbols()))
@@ -1821,8 +1808,7 @@ impl TypeChecker {
                         let container = location_unwrapped.parent().parent();
                         if is_class_like(&container) {
                             result = lookup(
-                                &(*self
-                                    .symbol(self.get_symbol_of_node(&container)?.unwrap())
+                                &(*self.get_symbol_of_node(&container)?.unwrap().ref_(self)
                                     .members())
                                 .borrow(),
                                 name,
@@ -1843,8 +1829,7 @@ impl TypeChecker {
                         || grandparent.kind() == SyntaxKind::InterfaceDeclaration
                     {
                         result = lookup(
-                            &(*self
-                                .symbol(self.get_symbol_of_node(&grandparent)?.unwrap())
+                            &(*self.get_symbol_of_node(&grandparent)?.unwrap().ref_(self)
                                 .members())
                             .borrow(),
                             name,
@@ -2162,16 +2147,13 @@ impl TypeChecker {
                     let export_or_local_symbol = self
                         .get_export_symbol_of_value_symbol_if_exported(Some(result))
                         .unwrap();
-                    if self
-                        .symbol(export_or_local_symbol)
+                    if export_or_local_symbol.ref_(self)
                         .flags()
                         .intersects(SymbolFlags::BlockScopedVariable)
-                        || self
-                            .symbol(export_or_local_symbol)
+                        || export_or_local_symbol.ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Class)
-                        || self
-                            .symbol(export_or_local_symbol)
+                        || export_or_local_symbol.ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Enum)
                     {

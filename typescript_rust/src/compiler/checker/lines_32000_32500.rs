@@ -317,33 +317,24 @@ impl TypeChecker {
     pub(super) fn is_readonly_symbol(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         Ok(
             get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Readonly)
-                || self
-                    .symbol(symbol)
-                    .flags()
-                    .intersects(SymbolFlags::Property)
+                || symbol.ref_(self).flags().intersects(SymbolFlags::Property)
                     && get_declaration_modifier_flags_from_symbol(
                         self.arena(),
                         &symbol.ref_(self),
                         None,
                     )
                     .intersects(ModifierFlags::Readonly)
-                || self
-                    .symbol(symbol)
-                    .flags()
-                    .intersects(SymbolFlags::Variable)
+                || symbol.ref_(self).flags().intersects(SymbolFlags::Variable)
                     && self
                         .get_declaration_node_flags_from_symbol(symbol)
                         .intersects(NodeFlags::Const)
-                || self
-                    .symbol(symbol)
-                    .flags()
-                    .intersects(SymbolFlags::Accessor)
-                    && !self
-                        .symbol(symbol)
+                || symbol.ref_(self).flags().intersects(SymbolFlags::Accessor)
+                    && !symbol
+                        .ref_(self)
                         .flags()
                         .intersects(SymbolFlags::SetAccessor)
-                || self
-                    .symbol(symbol)
+                || symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::EnumMember)
                 || try_some(
@@ -365,10 +356,7 @@ impl TypeChecker {
             return Ok(false);
         }
         if self.is_readonly_symbol(symbol)? {
-            if self
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Property)
+            if symbol.ref_(self).flags().intersects(SymbolFlags::Property)
                 && is_access_expression(expr)
                 && expr.as_has_expression().expression().kind() == SyntaxKind::ThisKeyword
             {

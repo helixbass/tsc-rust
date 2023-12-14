@@ -148,8 +148,8 @@ impl TypeChecker {
         {
             return Ok(Some(links_cjs_export_merged));
         }
-        let merged = if self
-            .symbol(exported)
+        let merged = if exported
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Transient)
         {
@@ -160,8 +160,8 @@ impl TypeChecker {
         merged
             .ref_(self)
             .set_flags(merged.ref_(self).flags() | SymbolFlags::ValueModule);
-        let merged_exports = self
-            .symbol(merged)
+        let merged_exports = merged
+            .ref_(self)
             .maybe_exports_mut()
             .get_or_insert_with(|| {
                 Gc::new(GcCell::new(create_symbol_table(
@@ -202,8 +202,8 @@ impl TypeChecker {
 
         if !dont_resolve_alias {
             if !suppress_interop_error
-                && !self
-                    .symbol(symbol)
+                && !symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Module | SymbolFlags::Variable)
                 && get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SourceFile).is_none()
@@ -463,8 +463,8 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         Ok(
-            if self
-                .symbol(symbol)
+            if symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::LateBindingContainer)
             {
@@ -769,8 +769,8 @@ impl TypeChecker {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         if let Some(container) = container {
-            if !self
-                .symbol(symbol)
+            if !symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::TypeParameter)
             {
@@ -789,8 +789,8 @@ impl TypeChecker {
                 let object_literal_container =
                     self.get_variable_declaration_of_object_literal(container, meaning)?;
                 if let Some(enclosing_declaration) = enclosing_declaration.as_ref() {
-                    if self
-                        .symbol(container)
+                    if container
+                        .ref_(self)
                         .flags()
                         .intersects(self.get_qualified_left_meaning(meaning))
                         && self
@@ -814,8 +814,8 @@ impl TypeChecker {
                         return Ok(Some(ret));
                     }
                 }
-                let first_variable_match = if !(self
-                    .symbol(container)
+                let first_variable_match = if !(container
+                    .ref_(self)
                     .flags()
                     .intersects(self.get_qualified_left_meaning(meaning)))
                     && container.ref_(self).flags().intersects(SymbolFlags::Type)
@@ -831,8 +831,7 @@ impl TypeChecker {
                             try_for_each_entry(
                                 &*(*t).borrow(),
                                 |&s: &Id<Symbol>, _| -> io::Result<_> {
-                                    if self
-                                        .symbol(s)
+                                    if s.ref_(self)
                                         .flags()
                                         .intersects(self.get_qualified_left_meaning(meaning))
                                         && self.get_type_of_symbol(s)?

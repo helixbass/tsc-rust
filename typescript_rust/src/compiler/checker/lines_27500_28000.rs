@@ -64,10 +64,11 @@ impl TypeChecker {
                 } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
                     let jsx_element_attrib_prop_interface_sym =
                         jsx_element_attrib_prop_interface_sym.unwrap();
-                    if let Some(jsx_element_attrib_prop_interface_sym_declarations) = self
-                        .symbol(jsx_element_attrib_prop_interface_sym)
-                        .maybe_declarations()
-                        .as_ref()
+                    if let Some(jsx_element_attrib_prop_interface_sym_declarations) =
+                        jsx_element_attrib_prop_interface_sym
+                            .ref_(self)
+                            .maybe_declarations()
+                            .as_ref()
                     {
                         self.error(
                             jsx_element_attrib_prop_interface_sym_declarations
@@ -453,8 +454,8 @@ impl TypeChecker {
                     .ref_(self)
                     .set_is_referenced(Some(SymbolFlags::All));
 
-                if self
-                    .symbol(jsx_factory_sym)
+                if jsx_factory_sym
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Alias)
                     && self
@@ -608,8 +609,8 @@ impl TypeChecker {
             return true;
         }
         if is_in_js_file(symbol.ref_(self).maybe_value_declaration()) {
-            let parent = self
-                .symbol(symbol)
+            let parent = symbol
+                .ref_(self)
                 .maybe_value_declaration()
                 .unwrap()
                 .maybe_parent();

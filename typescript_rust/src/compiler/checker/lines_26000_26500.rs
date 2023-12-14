@@ -81,8 +81,7 @@ impl TypeChecker {
                 {
                     Some(self.get_type_of_expression(&binary_expression_as_binary_expression.left)?)
                 } else {
-                    let decl = return_ok_default_if_none!(self
-                        .symbol(binary_expression_as_binary_expression.left.symbol())
+                    let decl = return_ok_default_if_none!(binary_expression_as_binary_expression.left.symbol().ref_(self)
                         .maybe_value_declaration());
                     let lhs = cast(
                         Some(&*binary_expression_as_binary_expression.left),
@@ -103,8 +102,7 @@ impl TypeChecker {
                             None,
                         )?;
                         if let Some(parent_symbol) = parent_symbol {
-                            let annotated = self
-                                .symbol(parent_symbol)
+                            let annotated = parent_symbol.ref_(self)
                                 .maybe_value_declaration()
                                 .as_ref()
                                 .and_then(|parent_symbol_value_declaration| {
@@ -239,8 +237,7 @@ impl TypeChecker {
             )?));
         }
         let binary_expression_symbol = binary_expression_symbol.unwrap();
-        if let Some(binary_expression_symbol_value_declaration) = self
-            .symbol(binary_expression_symbol)
+        if let Some(binary_expression_symbol_value_declaration) = binary_expression_symbol.ref_(self)
             .maybe_value_declaration()
         {
             let annotated =

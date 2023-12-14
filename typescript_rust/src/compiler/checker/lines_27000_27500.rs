@@ -305,8 +305,8 @@ impl TypeChecker {
                         .set_value_declaration(member_value_declaration);
                 }
                 {
-                    let attribute_symbol_links = self
-                        .symbol(attribute_symbol)
+                    let attribute_symbol_links = attribute_symbol
+                        .ref_(self)
                         .as_transient_symbol()
                         .symbol_links();
                     let mut attribute_symbol_links = attribute_symbol_links.borrow_mut();

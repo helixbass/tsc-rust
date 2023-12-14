@@ -118,8 +118,7 @@ impl TypeChecker {
                     symbol.ref_(self).maybe_export_symbol().unwrap_or(symbol),
                 ))
                 .unwrap();
-            let excluded_meanings = if self
-                .symbol(symbol)
+            let excluded_meanings = if symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Value | SymbolFlags::ExportValue)
             {
@@ -131,8 +130,7 @@ impl TypeChecker {
                 SymbolFlags::Type
             } else {
                 SymbolFlags::None
-            } | if self
-                .symbol(symbol)
+            } | if symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Namespace)
             {
@@ -420,17 +418,14 @@ impl TypeChecker {
                         let module_name = get_first_identifier(
                             &node_as_import_equals_declaration.module_reference,
                         );
-                        if !self
-                            .symbol(
-                                self.resolve_entity_name(
+                        if !self.resolve_entity_name(
                                     &module_name,
                                     SymbolFlags::Value | SymbolFlags::Namespace,
                                     None,
                                     None,
                                     Option::<&Node>::None,
                                 )?
-                                .unwrap(),
-                            )
+                                .unwrap().ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Namespace)
                         {
@@ -638,8 +633,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
             Ok(
-                match self
-                    .symbol(self.get_symbol_of_node(declaration)?.unwrap())
+                match self.get_symbol_of_node(declaration)?.unwrap().ref_(self)
                     .maybe_is_referenced()
                 {
                     None => false,

@@ -174,8 +174,8 @@ impl TypeChecker {
 
                 let early_symbol =
                     early_symbols.and_then(|early_symbols| early_symbols.get(&*member_name));
-                if self
-                    .symbol(late_symbol)
+                if late_symbol
+                    .ref_(self)
                     .flags()
                     .intersects(self.get_excluded_symbol_flags(symbol_flags))
                     || early_symbol.is_some()
@@ -375,8 +375,8 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         Ok(
-            if self
-                .symbol(symbol)
+            if symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::LateBindingContainer)
             {
@@ -395,8 +395,8 @@ impl TypeChecker {
     }
 
     pub(super) fn get_late_bound_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<Symbol>> {
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::ClassMember)
             && symbol.ref_(self).escaped_name() == InternalSymbolName::Computed

@@ -60,8 +60,8 @@ impl TypeChecker {
                 continue;
             }
             if require_optional_properties
-                || !(self
-                    .symbol(target_prop)
+                || !(target_prop
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Optional)
                     || get_check_flags(&target_prop.ref_(self)).intersects(CheckFlags::Partial))

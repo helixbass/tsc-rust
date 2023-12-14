@@ -222,8 +222,8 @@ impl TypeChecker {
         node: &Node,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        if self
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
         {
@@ -609,14 +609,18 @@ impl TypeChecker {
                     ) {
                         if let Some(prop_name) = prop_name.as_ref() {
                             let global_this_symbol_exports = self
-                                .symbol(self.global_this_symbol())
+                                .global_this_symbol()
+                                .ref_(self)
                                 .maybe_exports()
                                 .clone()
                                 .unwrap();
                             let global_this_symbol_exports = (*global_this_symbol_exports).borrow();
                             if global_this_symbol_exports.contains_key(&**prop_name)
-                                && self
-                                    .symbol(*global_this_symbol_exports.get(&**prop_name).unwrap())
+                                && global_this_symbol_exports
+                                    .get(&**prop_name)
+                                    .copied()
+                                    .unwrap()
+                                    .ref_(self)
                                     .flags()
                                     .intersects(SymbolFlags::BlockScoped)
                             {

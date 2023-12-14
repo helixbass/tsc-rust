@@ -540,8 +540,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         location: &Node,
     ) -> io::Result<Id<Type>> {
-        let symbol = self
-            .symbol(symbol)
+        let symbol = symbol.ref_(self)
             .maybe_export_symbol()
             .unwrap_or_else(|| symbol);
 
@@ -899,8 +898,7 @@ impl TypeChecker {
         let local_or_export_symbol = self
             .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
             .unwrap();
-        let source_symbol = if self
-            .symbol(local_or_export_symbol)
+        let source_symbol = if local_or_export_symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Alias)
         {
@@ -924,12 +922,10 @@ impl TypeChecker {
             }
         }
 
-        let mut declaration = self
-            .symbol(local_or_export_symbol)
+        let mut declaration = local_or_export_symbol.ref_(self)
             .maybe_value_declaration();
         if let Some(declaration) = declaration.as_ref() {
-            if self
-                .symbol(local_or_export_symbol)
+            if local_or_export_symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Class)
             {
@@ -983,42 +979,35 @@ impl TypeChecker {
         let assignment_kind = get_assignment_target_kind(node);
 
         if assignment_kind != AssignmentKind::None {
-            if !self
-                .symbol(local_or_export_symbol)
+            if !local_or_export_symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Variable)
                 && !(is_in_js_file(Some(node))
-                    && self
-                        .symbol(local_or_export_symbol)
+                    && local_or_export_symbol.ref_(self)
                         .flags()
                         .intersects(SymbolFlags::ValueModule))
             {
-                let assignment_error = if self
-                    .symbol(local_or_export_symbol)
+                let assignment_error = if local_or_export_symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Enum)
                 {
                     &*Diagnostics::Cannot_assign_to_0_because_it_is_an_enum
-                } else if self
-                    .symbol(local_or_export_symbol)
+                } else if local_or_export_symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Class)
                 {
                     &*Diagnostics::Cannot_assign_to_0_because_it_is_a_class
-                } else if self
-                    .symbol(local_or_export_symbol)
+                } else if local_or_export_symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Module)
                 {
                     &*Diagnostics::Cannot_assign_to_0_because_it_is_a_namespace
-                } else if self
-                    .symbol(local_or_export_symbol)
+                } else if local_or_export_symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Function)
                 {
                     &*Diagnostics::Cannot_assign_to_0_because_it_is_a_function
-                } else if self
-                    .symbol(local_or_export_symbol)
+                } else if local_or_export_symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Alias)
                 {
@@ -1041,8 +1030,7 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
             if self.is_readonly_symbol(local_or_export_symbol)? {
-                if self
-                    .symbol(local_or_export_symbol)
+                if local_or_export_symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Variable)
                 {
@@ -1074,13 +1062,11 @@ impl TypeChecker {
             }
         }
 
-        let is_alias = self
-            .symbol(local_or_export_symbol)
+        let is_alias = local_or_export_symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Alias);
 
-        if self
-            .symbol(local_or_export_symbol)
+        if local_or_export_symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Variable)
         {
@@ -1114,8 +1100,7 @@ impl TypeChecker {
                 Some(node_parent_parent) if is_spread_assignment(node_parent) && self.is_destructuring_assignment_target(node_parent_parent)
             )
         );
-        let is_module_exports = self
-            .symbol(symbol)
+        let is_module_exports = symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::ModuleExports);
         while !matches!(

@@ -274,8 +274,8 @@ impl TypeChecker {
             None,
         )?;
         if let Some(root_symbol) = root_symbol.try_filter(|&root_symbol| -> io::Result<_> {
-            Ok(self
-                .symbol(root_symbol)
+            Ok(root_symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Alias)
                 && self.symbol_is_value(root_symbol)?

@@ -34,10 +34,7 @@ impl BinderType {
                 || node.kind() == SyntaxKind::ImportEqualsDeclaration && has_export_modifier
             {
                 self.declare_symbol(
-                    &mut self
-                        .symbol(self.container().symbol())
-                        .exports()
-                        .borrow_mut(),
+                    &mut self.container().symbol().ref_(self).exports().borrow_mut(),
                     Some(self.container().symbol()),
                     node,
                     symbol_flags,
@@ -72,10 +69,7 @@ impl BinderType {
                         && self.get_declaration_name(node).is_none()
                 {
                     return self.declare_symbol(
-                        &mut self
-                            .symbol(self.container().symbol())
-                            .exports()
-                            .borrow_mut(),
+                        &mut self.container().symbol().ref_(self).exports().borrow_mut(),
                         Some(self.container().symbol()),
                         node,
                         symbol_flags,
@@ -98,20 +92,15 @@ impl BinderType {
                     None,
                     None,
                 );
-                local.ref_(self).set_export_symbol(Some(
-                    self.declare_symbol(
-                        &mut self
-                            .symbol(self.container().symbol())
-                            .exports()
-                            .borrow_mut(),
-                        Some(self.container().symbol()),
-                        node,
-                        symbol_flags,
-                        symbol_excludes,
-                        None,
-                        None,
-                    ),
-                ));
+                local.ref_(self).set_export_symbol(Some(self.declare_symbol(
+                    &mut self.container().symbol().ref_(self).exports().borrow_mut(),
+                    Some(self.container().symbol()),
+                    node,
+                    symbol_flags,
+                    symbol_excludes,
+                    None,
+                    None,
+                )));
                 node.set_local_symbol(Some(local.clone()));
                 local
             } else {

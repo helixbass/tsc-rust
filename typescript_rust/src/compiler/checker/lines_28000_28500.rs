@@ -248,8 +248,8 @@ impl TypeChecker {
         while let Some(containing_class_present) = containing_class.as_ref() {
             let symbol = containing_class_present.symbol();
             let name = get_symbol_name_for_private_identifier(&symbol.ref_(self), prop_name);
-            let prop = self
-                .symbol(symbol)
+            let prop = symbol
+                .ref_(self)
                 .maybe_members()
                 .as_ref()
                 .and_then(|symbol_members| (**symbol_members).borrow().get(&name).cloned())
@@ -625,20 +625,20 @@ impl TypeChecker {
                         Some(left_type_symbol) if left_type_symbol == self.global_this_symbol()
                     ) {
                         let global_this_symbol_exports = self
-                            .symbol(self.global_this_symbol())
+                            .global_this_symbol()
+                            .ref_(self)
                             .maybe_exports()
                             .clone()
                             .unwrap();
                         if (*global_this_symbol_exports)
                             .borrow()
                             .contains_key(right.as_member_name().escaped_text())
-                            && self
-                                .symbol(
-                                    *(*global_this_symbol_exports)
-                                        .borrow()
-                                        .get(right.as_member_name().escaped_text())
-                                        .unwrap(),
-                                )
+                            && (*global_this_symbol_exports)
+                                .borrow()
+                                .get(right.as_member_name().escaped_text())
+                                .copied()
+                                .unwrap()
+                                .ref_(self)
                                 .flags()
                                 .intersects(SymbolFlags::BlockScoped)
                         {
@@ -1031,8 +1031,11 @@ impl TypeChecker {
         &self,
         prop: Id<Symbol>,
     ) -> io::Result<bool> {
-        if !self
-            .symbol(prop.ref_(self).maybe_parent().unwrap())
+        if !prop
+            .ref_(self)
+            .maybe_parent()
+            .unwrap()
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Class)
         {
@@ -1198,8 +1201,8 @@ impl TypeChecker {
                             message,
                             Some(vec![missing_property, container, suggested_name.clone()]),
                         ));
-                        related_info = self
-                            .symbol(suggestion)
+                        related_info = suggestion
+                            .ref_(self)
                             .maybe_value_declaration()
                             .as_ref()
                             .map(|suggestion_value_declaration| {

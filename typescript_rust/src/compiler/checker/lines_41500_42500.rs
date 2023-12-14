@@ -166,11 +166,7 @@ impl TypeChecker {
             Some(is_function_declaration)
         ));
         let symbol = return_ok_default_if_none!(self.get_symbol_of_node(declaration)?);
-        if !self
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Function)
-        {
+        if !symbol.ref_(self).flags().intersects(SymbolFlags::Function) {
             return Ok(false);
         }
         Ok(for_each_entry_bool(
@@ -434,8 +430,8 @@ impl TypeChecker {
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration)?;
         let mut type_ = if let Some(symbol) = symbol.filter(|&symbol| {
-            !self
-                .symbol(symbol)
+            !symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::TypeLiteral | SymbolFlags::Signature)
         }) {

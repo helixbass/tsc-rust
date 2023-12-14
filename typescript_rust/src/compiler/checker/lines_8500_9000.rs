@@ -840,8 +840,7 @@ impl TypeChecker {
                 return self
                     .get_type_from_type_node_(&tag.as_jsdoc_type_like_tag().type_expression());
             }
-            let container_object_type = self
-                .symbol(symbol)
+            let container_object_type = symbol.ref_(self)
                 .maybe_value_declaration()
                 .try_and_then(|value_declaration| {
                     self.get_js_container_object_type(
@@ -1170,8 +1169,7 @@ impl TypeChecker {
                     exported_member.filter(|&exported_member| exported_member != s)
                 {
                     if s.ref_(self).flags().intersects(SymbolFlags::Value)
-                        && self
-                            .symbol(exported_member)
+                        && exported_member.ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Value)
                     {
@@ -1295,8 +1293,7 @@ impl TypeChecker {
                     | get_object_flags(&type_.ref_(self)) & ObjectFlags::JSLiteral,
             );
             if let Some(result_symbol) = result.ref_(self).maybe_symbol() {
-                if self
-                    .symbol(result_symbol)
+                if result_symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Class)
                     && type_ == self.get_declared_type_of_class_or_interface(result_symbol)?

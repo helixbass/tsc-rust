@@ -394,8 +394,7 @@ impl TypeChecker {
                 return Ok(Some(candidate_name.into_owned()));
             }
 
-            if self
-                .symbol(candidate)
+            if candidate.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Alias)
             {
@@ -443,8 +442,7 @@ impl TypeChecker {
         if matches!(
             node_for_check_write_only.as_ref(),
             Some(node_for_check_write_only) if is_write_only_access(node_for_check_write_only)
-        ) && !self
-            .symbol(prop)
+        ) && !prop.ref_(self)
             .flags()
             .intersects(SymbolFlags::SetAccessor)
         {
@@ -586,8 +584,7 @@ impl TypeChecker {
             return Ok(true);
         }
 
-        if let Some(property_value_declaration) = self
-            .symbol(property)
+        if let Some(property_value_declaration) = property.ref_(self)
             .maybe_value_declaration()
             .as_ref()
             .filter(|property_value_declaration| {
@@ -654,8 +651,7 @@ impl TypeChecker {
         let e = skip_parentheses(expr, None);
         if e.kind() == SyntaxKind::Identifier {
             let symbol = self.get_resolved_symbol(&e)?;
-            if self
-                .symbol(symbol)
+            if symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Variable)
             {

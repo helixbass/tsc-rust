@@ -1033,8 +1033,8 @@ impl BinderType {
                             symbol_table
                                 .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         } else if !(includes.intersects(SymbolFlags::Variable)
-                            && self
-                                .symbol(symbol_present)
+                            && symbol_present
+                                .ref_(self)
                                 .flags()
                                 .intersects(SymbolFlags::Assignment))
                         {
@@ -1044,8 +1044,8 @@ impl BinderType {
                                     Some(node.node_wrapper()),
                                 );
                             }
-                            let mut message = if self
-                                .symbol(symbol_present)
+                            let mut message = if symbol_present
+                                .ref_(self)
                                 .flags()
                                 .intersects(SymbolFlags::BlockScopedVariable)
                             {
@@ -1055,8 +1055,8 @@ impl BinderType {
                             };
                             let mut message_needs_name = true;
 
-                            if self
-                                .symbol(symbol_present)
+                            if symbol_present
+                                .ref_(self)
                                 .flags()
                                 .intersects(SymbolFlags::Enum)
                                 || includes.intersects(SymbolFlags::Enum)

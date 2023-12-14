@@ -29,8 +29,8 @@ impl TypeChecker {
         ) {
             return Ok(Some(symbol));
         }
-        let export_equals = self
-            .symbol(container)
+        let export_equals = container
+            .ref_(self)
             .maybe_exports()
             .as_ref()
             .and_then(|exports| {
@@ -84,8 +84,8 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> Option<Id<Symbol>> {
         self.get_merged_symbol(symbol.and_then(|symbol| {
-            if self
-                .symbol(symbol)
+            if symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::ExportValue)
             {
@@ -100,7 +100,8 @@ impl TypeChecker {
         Ok(symbol.ref_(self).flags().intersects(SymbolFlags::Value)
             || symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
                 && self
-                    .symbol(self.resolve_alias(symbol)?)
+                    .resolve_alias(symbol)?
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Value)
                 && self.get_type_only_alias_declaration(symbol).is_none())
@@ -429,14 +430,16 @@ impl TypeChecker {
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
                     for (key, &member_symbol) in &*(*self
-                        .symbol(self.get_symbol_of_node(&location_unwrapped)?.unwrap())
+                        .get_symbol_of_node(&location_unwrapped)?
+                        .unwrap()
+                        .ref_(self)
                         .maybe_members()
                         .clone()
                         .unwrap_or_else(|| self.empty_symbols()))
                     .borrow()
                     {
-                        if self
-                            .symbol(member_symbol)
+                        if member_symbol
+                            .ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
                         {
@@ -683,8 +686,8 @@ impl TypeChecker {
         let result: Option<Vec<Id<Symbol>>> = try_for_each_entry(
             &*(*symbols).borrow(),
             |&symbol_from_symbol_table, _| -> io::Result<_> {
-                if self
-                    .symbol(symbol_from_symbol_table)
+                if symbol_from_symbol_table
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Alias)
                     && symbol_from_symbol_table.ref_(self).escaped_name()
@@ -860,8 +863,8 @@ impl TypeChecker {
                     return Ok(Some(()));
                 }
 
-                symbol_from_symbol_table = if self
-                    .symbol(symbol_from_symbol_table)
+                symbol_from_symbol_table = if symbol_from_symbol_table
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Alias)
                     && get_declaration_of_kind(
@@ -874,8 +877,8 @@ impl TypeChecker {
                 } else {
                     symbol_from_symbol_table
                 };
-                if self
-                    .symbol(symbol_from_symbol_table)
+                if symbol_from_symbol_table
+                    .ref_(self)
                     .flags()
                     .intersects(meaning)
                 {

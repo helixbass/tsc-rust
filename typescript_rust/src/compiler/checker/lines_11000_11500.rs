@@ -142,8 +142,8 @@ impl TypeChecker {
             );
             if ptr::eq(shorter, right) {
                 let type_ = self.maybe_instantiate_type(
-                    (*self
-                        .symbol(rest_param_symbol)
+                    (*rest_param_symbol
+                        .ref_(self)
                         .as_transient_symbol()
                         .symbol_links())
                     .borrow()
@@ -531,8 +531,8 @@ impl TypeChecker {
                 construct_signatures,
                 index_infos,
             )?;
-        } else if self
-            .symbol(symbol)
+        } else if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::TypeLiteral)
         {
@@ -642,8 +642,8 @@ impl TypeChecker {
                 vec![],
                 index_infos,
             )?;
-            if self
-                .symbol(symbol)
+            if symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Function | SymbolFlags::Method)
             {
@@ -668,11 +668,7 @@ impl TypeChecker {
                 } else {
                     vec![]
                 };
-                if self
-                    .symbol(symbol)
-                    .flags()
-                    .intersects(SymbolFlags::Function)
-                {
+                if symbol.ref_(self).flags().intersects(SymbolFlags::Function) {
                     add_range(
                         &mut construct_signatures,
                         Some(&try_map_defined(
@@ -1297,10 +1293,7 @@ impl TypeChecker {
             );
             let prop_type = self.instantiate_type(template_type, Some(mapper))?;
             let mut type_ = if self.strict_null_checks
-                && self
-                    .symbol(symbol)
-                    .flags()
-                    .intersects(SymbolFlags::Optional)
+                && symbol.ref_(self).flags().intersects(SymbolFlags::Optional)
                 && !self.maybe_type_of_kind(prop_type, TypeFlags::Undefined | TypeFlags::Void)
             {
                 self.get_optional_type_(prop_type, Some(true))?

@@ -267,12 +267,7 @@ impl TypeChecker {
             None,
         )?;
         let method_type = method
-            .filter(|&method| {
-                !self
-                    .symbol(method)
-                    .flags()
-                    .intersects(SymbolFlags::Optional)
-            })
+            .filter(|&method| !method.ref_(self).flags().intersects(SymbolFlags::Optional))
             .try_map(|method| self.get_type_of_symbol(method))?;
         if self.is_type_any(method_type) {
             return Ok(self.set_cached_iteration_types(
@@ -534,10 +529,7 @@ impl TypeChecker {
         let method_type = method
             .filter(|&method| {
                 !(method_name == "next"
-                    && self
-                        .symbol(method)
-                        .flags()
-                        .intersects(SymbolFlags::Optional))
+                    && method.ref_(self).flags().intersects(SymbolFlags::Optional))
             })
             .try_map(|method| -> io::Result<_> {
                 Ok(if method_name == "next" {

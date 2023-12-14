@@ -330,8 +330,7 @@ impl TypeChecker {
                 .resolved_symbol
                 .clone();
             if let Some(symbol) = symbol {
-                return Ok(if self
-                    .symbol(symbol)
+                return Ok(if symbol.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::TypeAlias)
                 {
@@ -419,8 +418,7 @@ impl TypeChecker {
                     );
                 }
                 if type_.ref_(self).flags().intersects(TypeFlags::Enum)
-                    && self
-                        .symbol(symbol)
+                    && symbol.ref_(self)
                         .flags()
                         .intersects(SymbolFlags::EnumMember)
                 {
@@ -941,8 +939,7 @@ impl TypeChecker {
 
         let symbol_ref = symbol.ref_(self);
         let declarations = symbol_ref.maybe_declarations();
-        let is_constructor = self
-            .symbol(symbol)
+        let is_constructor = symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Constructor);
 
@@ -1062,8 +1059,7 @@ impl TypeChecker {
 
         if has_non_ambient_class
             && !is_constructor
-            && self
-                .symbol(symbol)
+            && symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Function)
         {

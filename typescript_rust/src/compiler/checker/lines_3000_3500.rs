@@ -125,8 +125,8 @@ impl TypeChecker {
         let symbol = symbol.unwrap();
         symbol.ref_(self).flags() & (SymbolFlags::Alias | excludes) == SymbolFlags::Alias
             || symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
-                && self
-                    .symbol(symbol)
+                && symbol
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Assignment)
     }
@@ -247,8 +247,8 @@ impl TypeChecker {
                         Some(None)
                     )
             {
-                let export_symbol = self
-                    .symbol(target)
+                let export_symbol = target
+                    .ref_(self)
                     .maybe_exports()
                     .as_ref()
                     .and_then(|exports| {
@@ -258,8 +258,8 @@ impl TypeChecker {
                             .cloned()
                     })
                     .unwrap_or_else(|| target);
-                let type_only = self
-                    .symbol(export_symbol)
+                let type_only = export_symbol
+                    .ref_(self)
                     .maybe_declarations()
                     .as_deref()
                     .and_then(|declarations| {
@@ -770,8 +770,11 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node>> {
-        let decl = self
-            .symbol(symbol.ref_(self).maybe_parent().unwrap())
+        let decl = symbol
+            .ref_(self)
+            .maybe_parent()
+            .unwrap()
+            .ref_(self)
             .maybe_value_declaration()?;
         let initializer = if is_assignment_declaration(&decl) {
             get_assigned_expando_initializer(Some(&*decl))
@@ -786,10 +789,7 @@ impl TypeChecker {
     pub(super) fn get_expando_symbol(&self, symbol: Id<Symbol>) -> io::Result<Option<Id<Symbol>>> {
         let decl = return_ok_default_if_none!(symbol.ref_(self).maybe_value_declaration());
         if !is_in_js_file(Some(&*decl))
-            || self
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::TypeAlias)
+            || symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias)
             || get_expando_initializer(&decl, false).is_some()
         {
             return Ok(None);

@@ -94,8 +94,8 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) {
         if self.language_version >= ScriptTarget::ES2015
-            || !self
-                .symbol(symbol)
+            || !symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::BlockScopedVariable | SymbolFlags::Class)
             || match symbol.ref_(self).maybe_value_declaration().as_deref() {
@@ -465,8 +465,8 @@ impl TypeChecker {
                         .maybe_symbol();
                     if let Some(class_symbol) = class_symbol.filter(|&class_symbol| {
                         class_symbol.ref_(self).maybe_members().is_some()
-                            && self
-                                .symbol(class_symbol)
+                            && class_symbol
+                                .ref_(self)
                                 .flags()
                                 .intersects(SymbolFlags::Function)
                     }) {

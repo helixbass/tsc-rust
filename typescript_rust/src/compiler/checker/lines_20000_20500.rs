@@ -961,8 +961,8 @@ impl TypeChecker {
             }
             if let Some(type_symbol) = type_.ref_(self).maybe_symbol().filter(|&type_symbol| {
                 !(get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Anonymous)
-                    && self
-                        .symbol(type_symbol)
+                    && type_symbol
+                        .ref_(self)
                         .flags()
                         .intersects(SymbolFlags::Class))
             }) {

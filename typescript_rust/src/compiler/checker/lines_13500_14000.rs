@@ -878,7 +878,8 @@ impl TypeChecker {
             SyntaxKind::TypeReference => {
                 self.is_jsdoc_type_reference(node)
                     || self
-                        .symbol(self.resolve_type_reference_name(node, SymbolFlags::Type, None)?)
+                        .resolve_type_reference_name(node, SymbolFlags::Type, None)?
+                        .ref_(self)
                         .flags()
                         .intersects(SymbolFlags::TypeAlias)
             }
