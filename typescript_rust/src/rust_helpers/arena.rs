@@ -4,11 +4,11 @@ use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Symbol, Type, TypeInterface, TypeMapper};
+use crate::{Node, Symbol, Type, TypeInterface, TypeMapper};
 
 #[derive(Default)]
 pub struct AllArenas {
-    // pub nodes: RefCell<Arena<Node>>,
+    pub nodes: RefCell<Arena<Node>>,
     // pub node_arrays: RefCell<Arena<NodeArray>>,
     // pub emit_nodes: RefCell<Arena<EmitNode>>,
     pub symbols: RefCell<Arena<Symbol>>,
@@ -19,6 +19,14 @@ pub struct AllArenas {
 
 pub trait HasArena {
     fn arena(&self) -> &AllArenas;
+
+    fn node(&self, node: Id<Node>) -> Ref<Node> {
+        self.arena().node(node)
+    }
+
+    fn alloc_node(&self, node: Node) -> Id<Node> {
+        self.arena().alloc_node(node)
+    }
 
     fn type_(&self, type_: Id<Type>) -> Ref<Type> {
         self.arena().type_(type_)
@@ -48,6 +56,16 @@ pub trait HasArena {
 impl HasArena for AllArenas {
     fn arena(&self) -> &AllArenas {
         self
+    }
+
+    #[track_caller]
+    fn node(&self, node: Id<Node>) -> Ref<Node> {
+        Ref::map(self.nodes.borrow(), |nodes| &nodes[node])
+    }
+
+    fn alloc_node(&self, node: Node) -> Id<Node> {
+        let id = self.nodes.borrow_mut().alloc(node);
+        id
     }
 
     #[track_caller]
@@ -95,6 +113,14 @@ pub trait InArena {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Self::Item>;
     // fn ref_mut(&self) -> RefMut<Type>;
+}
+
+impl InArena for Id<Node> {
+    type Item = Node;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Node> {
+        has_arena.node(*self)
+    }
 }
 
 impl InArena for Id<Type> {

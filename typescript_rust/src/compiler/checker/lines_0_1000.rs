@@ -286,7 +286,7 @@ pub(crate) enum TypeSystemEntity {
 impl TypeSystemEntity {
     pub fn as_node(&self) -> Id<Node> {
         match self {
-            Self::Node(node) => &*node,
+            Self::Node(node) => *node,
             _ => panic!("Expected node"),
         }
     }
@@ -316,7 +316,7 @@ impl TypeSystemEntity {
 impl PartialEq for TypeSystemEntity {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Node(a), Self::Node(b)) => Gc::ptr_eq(a, b),
+            (Self::Node(a), Self::Node(b)) => a == b,
             (Self::Symbol(a), Self::Symbol(b)) => a == b,
             (Self::Type(a), Self::Type(b)) => a == b,
             (Self::Signature(a), Self::Signature(b)) => Gc::ptr_eq(a, b),
@@ -492,7 +492,7 @@ lazy_static! {
         ]));
 }
 
-pub fn get_node_id(node: Id<Node>) -> NodeId {
+pub fn get_node_id(node: &Node) -> NodeId {
     if node.maybe_id().is_none() {
         node.set_id(get_next_node_id());
         increment_next_node_id();
@@ -1552,8 +1552,8 @@ impl TypeChecker {
                 *packages_map = Some(HashMap::new());
             }
             let map = packages_map.as_mut().unwrap();
-            self.host.get_source_files().iter().for_each(|sf| {
-                let sf_as_source_file = sf.as_source_file();
+            self.host.get_source_files().iter().for_each(|&sf| {
+                let sf_as_source_file = sf._ref(self).as_source_file();
                 let sf_resolved_modules = sf_as_source_file.maybe_resolved_modules();
                 if sf_resolved_modules.is_none() {
                     return;
@@ -1728,20 +1728,20 @@ impl TypeChecker {
     }
 
     pub fn get_node_count(&self) -> usize {
-        sum(&*self.host.get_source_files(), |source_file| {
-            source_file.as_source_file().node_count()
+        sum(&*self.host.get_source_files(), |&source_file| {
+            source_file._ref(self).as_source_file().node_count()
         })
     }
 
     pub fn get_identifier_count(&self) -> usize {
-        sum(&*self.host.get_source_files(), |source_file| {
-            source_file.as_source_file().identifier_count()
+        sum(&*self.host.get_source_files(), |&source_file| {
+            source_file._ref(self).as_source_file().identifier_count()
         })
     }
 
     pub fn get_symbol_count(&self) -> usize {
-        sum(&*self.host.get_source_files(), |source_file| {
-            source_file.as_source_file().symbol_count()
+        sum(&*self.host.get_source_files(), |&source_file| {
+            source_file._ref(self).as_source_file().symbol_count()
         }) + self.symbol_count()
     }
 
@@ -1781,7 +1781,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(Id<Node>) -> bool>::None);
         Ok(match location {
-            Some(location) => self.get_type_of_symbol_at_location_(symbol, &location)?,
+            Some(location) => self.get_type_of_symbol_at_location_(symbol, location)?,
             None => self.error_type(),
         })
     }
@@ -1800,7 +1800,7 @@ impl TypeChecker {
         }
         let parameter = parameter.unwrap();
         self.get_symbols_of_parameter_property_declaration_(
-            &parameter,
+            parameter,
             &escape_leading_underscores(parameter_name),
         )
     }
@@ -1825,7 +1825,7 @@ impl TypeChecker {
         ));
         let prop_name = escape_leading_underscores(name);
         let lexically_scoped_identifier =
-            self.lookup_symbol_for_private_identifier_declaration(&prop_name, &node);
+            self.lookup_symbol_for_private_identifier_declaration(&prop_name, node);
         lexically_scoped_identifier.try_and_then(|lexically_scoped_identifier| {
             self.get_private_identifier_property_of_type_(left_type, lexically_scoped_identifier)
         })
@@ -1875,7 +1875,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_type_node(node)));
         Ok(if let Some(node) = node {
-            self.get_type_from_type_node_(&node)?
+            self.get_type_from_type_node_(node)?
         } else {
             self.error_type()
         })
@@ -2024,7 +2024,7 @@ impl TypeChecker {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(Id<Node>) -> bool>::None);
         location.try_map_or_else(
             || Ok(Default::default()),
-            |location| self.get_symbols_in_scope_(&location, meaning),
+            |location| self.get_symbols_in_scope_(location, meaning),
         )
     }
 
@@ -2033,7 +2033,7 @@ impl TypeChecker {
             Some(node_in),
             Option::<fn(Id<Node>) -> bool>::None
         ));
-        self.get_symbol_at_location_(&node, Some(true))
+        self.get_symbol_at_location_(node, Some(true))
     }
 
     pub fn get_index_infos_at_location(
@@ -2044,7 +2044,7 @@ impl TypeChecker {
             Some(node_in),
             Option::<fn(Id<Node>) -> bool>::None
         ));
-        self.get_index_infos_at_location_(&node)
+        self.get_index_infos_at_location_(node)
     }
 
     pub fn get_shorthand_assignment_value_symbol(
@@ -2066,7 +2066,7 @@ impl TypeChecker {
             Some(node_in),
             Some(|node: Id<Node>| is_export_specifier(node))
         ));
-        self.get_export_specifier_local_target_symbol_(&node)
+        self.get_export_specifier_local_target_symbol_(node)
     }
 
     pub fn get_export_symbol_of_symbol(&self, symbol: Id<Symbol>) -> Id<Symbol> {
@@ -2082,7 +2082,7 @@ impl TypeChecker {
     pub fn get_type_at_location(&self, node_in: Id<Node>) -> io::Result<Id<Type>> {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None);
         Ok(if let Some(node) = node {
-            self.get_type_of_node(&node)?
+            self.get_type_of_node(node)?
         } else {
             self.error_type()
         })
@@ -2097,7 +2097,7 @@ impl TypeChecker {
             Some(|node: Id<Node>| is_assignment_pattern(node)),
         );
         Ok(node
-            .try_and_then(|node| self.get_type_of_assignment_pattern_(&node))?
+            .try_and_then(|node| self.get_type_of_assignment_pattern_(node))?
             .unwrap_or_else(|| self.error_type()))
     }
 
@@ -2109,7 +2109,7 @@ impl TypeChecker {
             Some(location_in),
             Some(|node: Id<Node>| is_identifier(node))
         ));
-        self.get_property_symbol_of_destructuring_assignment_(&location)
+        self.get_property_symbol_of_destructuring_assignment_(location)
     }
 
     pub fn signature_to_string(
@@ -2246,43 +2246,43 @@ impl TypeChecker {
             Some(|node: Id<Node>| is_expression(node))
         ));
         let containing_call =
-            find_ancestor(Some(&*node), |node: Id<Node>| is_call_like_expression(node));
+            find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(node));
         let containing_call_resolved_signature: Option<Gc<Signature>> =
-            containing_call.as_ref().and_then(|containing_call| {
-                (*self.get_node_links(&containing_call))
+            containing_call.and_then(|containing_call| {
+                (*self.get_node_links(containing_call))
                     .borrow()
                     .resolved_signature
                     .clone()
             });
         if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
         {
-            if let Some(containing_call) = containing_call.as_ref() {
-                let mut to_mark_skip: Option<Id<Node>> = Some(node.node_wrapper());
+            if let Some(containing_call) = containing_call {
+                let mut to_mark_skip: Option<Id<Node>> = Some(node);
                 while {
-                    let to_mark_skip_present = to_mark_skip.as_ref().unwrap();
+                    let to_mark_skip_present = to_mark_skip.unwrap();
                     self.get_node_links(to_mark_skip_present)
                         .borrow_mut()
                         .skip_direct_inference = Some(true);
-                    to_mark_skip = to_mark_skip_present.maybe_parent();
-                    matches!(to_mark_skip.as_ref(), Some(to_mark_skip) if !Gc::ptr_eq(to_mark_skip, containing_call))
+                    to_mark_skip = to_mark_skip_present._ref(self).maybe_parent();
+                    matches!(to_mark_skip, Some(to_mark_skip) if to_mark_skip != containing_call)
                 } {}
                 self.get_node_links(containing_call)
                     .borrow_mut()
                     .resolved_signature = None;
             }
         }
-        let result = self.get_contextual_type_(&node, context_flags)?;
+        let result = self.get_contextual_type_(node, context_flags)?;
         if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
         {
-            if let Some(containing_call) = containing_call.as_ref() {
-                let mut to_mark_skip: Option<Id<Node>> = Some(node.node_wrapper());
+            if let Some(containing_call) = containing_call {
+                let mut to_mark_skip: Option<Id<Node>> = Some(node);
                 while {
-                    let to_mark_skip_present = to_mark_skip.as_ref().unwrap();
+                    let to_mark_skip_present = to_mark_skip.unwrap();
                     self.get_node_links(to_mark_skip_present)
                         .borrow_mut()
                         .skip_direct_inference = None;
-                    to_mark_skip = to_mark_skip_present.maybe_parent();
-                    matches!(to_mark_skip.as_ref(), Some(to_mark_skip) if !Gc::ptr_eq(to_mark_skip, containing_call))
+                    to_mark_skip = to_mark_skip_present._ref(self).maybe_parent();
+                    matches!(to_mark_skip, Some(to_mark_skip) if to_mark_skip != containing_call)
                 } {}
                 self.get_node_links(containing_call)
                     .borrow_mut()
@@ -2300,7 +2300,7 @@ impl TypeChecker {
             Some(node_in),
             Some(|node: Id<Node>| is_object_literal_element_like(node)),
         ));
-        self.get_contextual_type_for_object_literal_element_(&node, None)
+        self.get_contextual_type_for_object_literal_element_(node, None)
     }
 
     pub fn get_contextual_type_for_argument_at_index(
@@ -2313,7 +2313,7 @@ impl TypeChecker {
             Some(|node: Id<Node>| is_call_like_expression(node)),
         ));
         Ok(Some(self.get_contextual_type_for_argument_at_index_(
-            &node, arg_index,
+            node, arg_index,
         )?))
     }
 
@@ -2325,7 +2325,7 @@ impl TypeChecker {
             Some(node_in),
             Some(|node: Id<Node>| is_jsx_attribute_like(node)),
         ));
-        self.get_contextual_type_for_jsx_attribute_(&node)
+        self.get_contextual_type_for_jsx_attribute_(node)
     }
 
     pub fn get_resolved_signature(
@@ -2364,7 +2364,7 @@ impl TypeChecker {
             Some(node_in),
             Some(|node: Id<Node>| self.can_have_constant_value(node)),
         ));
-        self.get_constant_value_(&node)
+        self.get_constant_value_(node)
     }
 
     pub fn is_valid_property_access(
@@ -2379,7 +2379,7 @@ impl TypeChecker {
         Ok(match node {
             None => false,
             Some(node) => {
-                self.is_valid_property_access_(&node, &escape_leading_underscores(property_name))?
+                self.is_valid_property_access_(node, &escape_leading_underscores(property_name))?
             }
         })
     }
@@ -2396,7 +2396,7 @@ impl TypeChecker {
         );
         Ok(match node {
             None => false,
-            Some(node) => self.is_valid_property_access_for_completions_(&node, type_, property)?,
+            Some(node) => self.is_valid_property_access_for_completions_(node, type_, property)?,
         })
     }
 
@@ -2408,7 +2408,7 @@ impl TypeChecker {
             Some(declaration_in),
             Some(|node: Id<Node>| is_function_like(Some(node))),
         ));
-        Ok(Some(self.get_signature_from_declaration_(&declaration)?))
+        Ok(Some(self.get_signature_from_declaration_(declaration)?))
     }
 
     pub fn is_implementation_of_overload(
@@ -2419,7 +2419,7 @@ impl TypeChecker {
             Some(node_in),
             Some(|node: Id<Node>| is_function_like(Some(node))),
         ));
-        Ok(Some(self.is_implementation_of_overload_(&node)?))
+        Ok(Some(self.is_implementation_of_overload_(node)?))
     }
 
     pub fn get_aliased_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<Symbol>> {
@@ -2444,7 +2444,7 @@ impl TypeChecker {
         let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_parameter(node)));
         Ok(match node {
             None => false,
-            Some(node) => self.is_optional_parameter_(&node)?,
+            Some(node) => self.is_optional_parameter_(node)?,
         })
     }
 
@@ -2609,8 +2609,8 @@ impl TypeChecker {
         let jsx_fragment_factory = self.get_jsx_fragment_factory_entity(n)?;
         Some(
             unescape_leading_underscores(
-                &get_first_identifier(&jsx_fragment_factory)
-                    .as_identifier()
+                &get_first_identifier(jsx_fragment_factory)
+                    ._ref(self).as_identifier()
                     .escaped_text,
             )
             .to_owned(),
@@ -2625,7 +2625,7 @@ impl TypeChecker {
             Some(module_specifier_in),
             Some(|node: Id<Node>| is_expression(node)),
         ));
-        self.resolve_external_module_name_(&module_specifier, &module_specifier, Some(true))
+        self.resolve_external_module_name_(module_specifier, module_specifier, Some(true))
     }
 
     pub fn try_get_this_type_at(
@@ -2637,7 +2637,7 @@ impl TypeChecker {
             Some(node_in),
             Option::<fn(Id<Node>) -> bool>::None
         ));
-        self.try_get_this_type_at_(&node, include_global_this, Option::<Id<Node>>::None)
+        self.try_get_this_type_at_(node, include_global_this, Option::<Id<Node>>::None)
     }
 
     pub fn get_type_argument_constraint(
@@ -2648,7 +2648,7 @@ impl TypeChecker {
             Some(node_in),
             Some(|node: Id<Node>| is_type_node(node))
         ));
-        self.get_type_argument_constraint_(&node)
+        self.get_type_argument_constraint_(node)
     }
 
     pub fn get_suggestion_diagnostics(
@@ -2658,7 +2658,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(node)))
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
-        if skip_type_checking(&file, &self.compiler_options, |file_name| {
+        if skip_type_checking(file, &self.compiler_options, |file_name| {
             TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
         }) {
             return Ok(vec![]);
