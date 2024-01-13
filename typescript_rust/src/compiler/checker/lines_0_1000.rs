@@ -1553,7 +1553,7 @@ impl TypeChecker {
             }
             let map = packages_map.as_mut().unwrap();
             self.host.get_source_files().iter().for_each(|&sf| {
-                let sf_as_source_file = sf._ref(self).as_source_file();
+                let sf_as_source_file = sf.ref_(self).as_source_file();
                 let sf_resolved_modules = sf_as_source_file.maybe_resolved_modules();
                 if sf_resolved_modules.is_none() {
                     return;
@@ -1729,19 +1729,19 @@ impl TypeChecker {
 
     pub fn get_node_count(&self) -> usize {
         sum(&*self.host.get_source_files(), |&source_file| {
-            source_file._ref(self).as_source_file().node_count()
+            source_file.ref_(self).as_source_file().node_count()
         })
     }
 
     pub fn get_identifier_count(&self) -> usize {
         sum(&*self.host.get_source_files(), |&source_file| {
-            source_file._ref(self).as_source_file().identifier_count()
+            source_file.ref_(self).as_source_file().identifier_count()
         })
     }
 
     pub fn get_symbol_count(&self) -> usize {
         sum(&*self.host.get_source_files(), |&source_file| {
-            source_file._ref(self).as_source_file().symbol_count()
+            source_file.ref_(self).as_source_file().symbol_count()
         }) + self.symbol_count()
     }
 
@@ -1793,7 +1793,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<Symbol>>> {
         let parameter = get_parse_tree_node(
             Some(parameter_in),
-            Some(|node: Id<Node>| is_parameter(node)),
+            Some(|node: Id<Node>| is_parameter(&node.ref_(self))),
         );
         if parameter.is_none() {
             Debug_.fail(Some("Cannot get symbols of a synthetic parameter that cannot be resolved to a parse-tree node."));
@@ -2064,7 +2064,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_export_specifier(node))
+            Some(|node: Id<Node>| is_export_specifier(&node.ref_(self)))
         ));
         self.get_export_specifier_local_target_symbol_(node)
     }
@@ -2107,7 +2107,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let location = return_ok_none_if_none!(get_parse_tree_node(
             Some(location_in),
-            Some(|node: Id<Node>| is_identifier(node))
+            Some(|node: Id<Node>| is_identifier(&node.ref_(self)))
         ));
         self.get_property_symbol_of_destructuring_assignment_(location)
     }
@@ -2263,7 +2263,7 @@ impl TypeChecker {
                     self.get_node_links(to_mark_skip_present)
                         .borrow_mut()
                         .skip_direct_inference = Some(true);
-                    to_mark_skip = to_mark_skip_present._ref(self).maybe_parent();
+                    to_mark_skip = to_mark_skip_present.ref_(self).maybe_parent();
                     matches!(to_mark_skip, Some(to_mark_skip) if to_mark_skip != containing_call)
                 } {}
                 self.get_node_links(containing_call)
@@ -2281,7 +2281,7 @@ impl TypeChecker {
                     self.get_node_links(to_mark_skip_present)
                         .borrow_mut()
                         .skip_direct_inference = None;
-                    to_mark_skip = to_mark_skip_present._ref(self).maybe_parent();
+                    to_mark_skip = to_mark_skip_present.ref_(self).maybe_parent();
                     matches!(to_mark_skip, Some(to_mark_skip) if to_mark_skip != containing_call)
                 } {}
                 self.get_node_links(containing_call)
@@ -2392,7 +2392,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_property_access_expression(node)),
+            Some(|node: Id<Node>| is_property_access_expression(&node.ref_(self))),
         );
         Ok(match node {
             None => false,
@@ -2441,7 +2441,7 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_parameter(node)));
+        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_parameter(&node.ref_(self))));
         Ok(match node {
             None => false,
             Some(node) => self.is_optional_parameter_(node)?,
@@ -2610,7 +2610,8 @@ impl TypeChecker {
         Some(
             unescape_leading_underscores(
                 &get_first_identifier(jsx_fragment_factory)
-                    ._ref(self).as_identifier()
+                    .ref_(self)
+                    .as_identifier()
                     .escaped_text,
             )
             .to_owned(),
@@ -2656,9 +2657,9 @@ impl TypeChecker {
         file_in: Id<Node>, /*SourceFile*/
         ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
-        let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(node)))
+        let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))))
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
-        if skip_type_checking(file, &self.compiler_options, |file_name| {
+        if skip_type_checking(&file.ref_(self), &self.compiler_options, |file_name| {
             TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
         }) {
             return Ok(vec![]);
@@ -2667,9 +2668,9 @@ impl TypeChecker {
         let mut diagnostics: Option<Vec<Gc<Diagnostic>>>;
         self.set_cancellation_token(ct);
 
-        self.check_source_file(&file)?;
+        self.check_source_file(file)?;
         Debug_.assert(
-            (*self.get_node_links(&file))
+            (*self.get_node_links(file))
                 .borrow()
                 .flags
                 .intersects(NodeCheckFlags::TypeChecked),
@@ -2682,18 +2683,18 @@ impl TypeChecker {
             Some(
                 &self
                     .suggestion_diagnostics()
-                    .get_diagnostics(Some(&file.as_source_file().file_name())),
+                    .get_diagnostics(Some(&file.ref_(self).as_source_file().file_name())),
             ),
             None,
             None,
         );
         self.check_unused_identifiers(
-            &self.get_potentially_unused_identifiers(&file),
+            &self.get_potentially_unused_identifiers(file),
             |containing_node, kind, diag| {
                 if !contains_parse_error(containing_node)
                     && !self.unused_is_error(
                         kind,
-                        containing_node.flags().intersects(NodeFlags::Ambient),
+                        containing_node.ref_(self).flags().intersects(NodeFlags::Ambient),
                     )
                 {
                     diag.set_category(DiagnosticCategory::Suggestion); // TODO: is it a problem that this is being mutated?
@@ -2731,7 +2732,7 @@ impl TypeChecker {
         );
         self.set_apparent_argument_count(argument_count);
         let res = node.try_map(|node| {
-            self.get_resolved_signature_(&node, candidates_out_array, Some(check_mode))
+            self.get_resolved_signature_(node, candidates_out_array, Some(check_mode))
         })?;
         self.set_apparent_argument_count(None);
         Ok(res)

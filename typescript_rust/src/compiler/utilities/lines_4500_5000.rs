@@ -382,59 +382,59 @@ fn calculate_indent(text: &SourceTextAsChars, mut pos: usize, end: usize) -> usi
     current_line_indent
 }
 
-pub fn has_effective_modifiers(node: Id<Node>) -> bool {
+pub fn has_effective_modifiers(node: &Node) -> bool {
     get_effective_modifier_flags(node) != ModifierFlags::None
 }
 
-pub fn has_syntactic_modifiers(node: Id<Node>) -> bool {
+pub fn has_syntactic_modifiers(node: &Node) -> bool {
     get_syntactic_modifier_flags(node) != ModifierFlags::None
 }
 
-pub fn has_effective_modifier(node: Id<Node>, flags: ModifierFlags) -> bool {
+pub fn has_effective_modifier(node: &Node, flags: ModifierFlags) -> bool {
     get_selected_effective_modifier_flags(node, flags) != ModifierFlags::None
 }
 
-pub fn has_syntactic_modifier(node: Id<Node>, flags: ModifierFlags) -> bool {
+pub fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
 
-pub fn is_static(node: Id<Node>) -> bool {
+pub fn is_static(node: &Node) -> bool {
     is_class_element(node) && has_static_modifier(node) || is_class_static_block_declaration(node)
 }
 
-pub fn has_static_modifier(node: Id<Node>) -> bool {
+pub fn has_static_modifier(node: &Node) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Static)
 }
 
-pub fn has_override_modifier(node: Id<Node>) -> bool {
+pub fn has_override_modifier(node: &Node) -> bool {
     has_effective_modifier(node, ModifierFlags::Override)
 }
 
-pub fn has_abstract_modifier(node: Id<Node>) -> bool {
+pub fn has_abstract_modifier(node: &Node) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Abstract)
 }
 
-pub fn has_ambient_modifier(node: Id<Node>) -> bool {
+pub fn has_ambient_modifier(node: &Node) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Ambient)
 }
 
-pub fn has_effective_readonly_modifier(node: Id<Node>) -> bool {
+pub fn has_effective_readonly_modifier(node: &Node) -> bool {
     has_effective_modifier(node, ModifierFlags::Readonly)
 }
 
 pub fn get_selected_effective_modifier_flags(
-    node: Id<Node>,
+    node: &Node,
     flags: ModifierFlags,
 ) -> ModifierFlags {
     get_effective_modifier_flags(node) & flags
 }
 
-fn get_selected_syntactic_modifier_flags(node: Id<Node>, flags: ModifierFlags) -> ModifierFlags {
+fn get_selected_syntactic_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
     get_syntactic_modifier_flags(node) & flags
 }
 
 fn get_modifier_flags_worker(
-    node: Id<Node>,
+    node: &Node,
     include_jsdoc: bool,
     always_include_jsdoc: Option<bool>,
 ) -> ModifierFlags {
@@ -469,19 +469,19 @@ fn get_modifier_flags_worker(
         & !(ModifierFlags::HasComputedFlags | ModifierFlags::HasComputedJSDocModifiers)
 }
 
-pub fn get_effective_modifier_flags(node: Id<Node>) -> ModifierFlags {
+pub fn get_effective_modifier_flags(node: &Node) -> ModifierFlags {
     get_modifier_flags_worker(node, true, None)
 }
 
-pub fn get_effective_modifier_flags_always_include_jsdoc(node: Id<Node>) -> ModifierFlags {
+pub fn get_effective_modifier_flags_always_include_jsdoc(node: &Node) -> ModifierFlags {
     get_modifier_flags_worker(node, true, Some(true))
 }
 
-pub fn get_syntactic_modifier_flags(node: Id<Node>) -> ModifierFlags {
+pub fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
     get_modifier_flags_worker(node, false, None)
 }
 
-fn get_jsdoc_modifier_flags_no_cache(node: Id<Node>) -> ModifierFlags {
+fn get_jsdoc_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
     let mut flags = ModifierFlags::None;
     if node.maybe_parent().is_some() && !is_parameter(node) {
         if is_in_js_file(Some(node)) {
@@ -509,11 +509,11 @@ fn get_jsdoc_modifier_flags_no_cache(node: Id<Node>) -> ModifierFlags {
     flags
 }
 
-pub fn get_effective_modifier_flags_no_cache(node: Id<Node>) -> ModifierFlags {
+pub fn get_effective_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
     get_syntactic_modifier_flags_no_cache(node) | get_jsdoc_modifier_flags_no_cache(node)
 }
 
-fn get_syntactic_modifier_flags_no_cache(node: Id<Node>) -> ModifierFlags {
+fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
     let mut flags = modifiers_to_flags(node.maybe_modifiers().as_double_deref());
     if node.flags().intersects(NodeFlags::NestedNamespace)
         || node.kind() == SyntaxKind::Identifier

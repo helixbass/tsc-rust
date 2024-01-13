@@ -36,7 +36,7 @@ impl TypeChecker {
         node: Id<Node>, /*PropertyAssignment*/
         dont_recursively_resolve: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let expression = &node.as_property_assignment().initializer;
+        let expression = &node.ref_(self).as_property_assignment().initializer;
         self.get_target_of_alias_like_expression(expression, dont_recursively_resolve)
     }
 
@@ -45,12 +45,12 @@ impl TypeChecker {
         node: Id<Node>, /*AccessExpression*/
         dont_recursively_resolve: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let node_parent = node.parent();
+        let node_parent = node.ref_(self).parent();
         if !(is_binary_expression(&node_parent)) {
             return Ok(None);
         }
-        let node_parent_as_binary_expression = node_parent.as_binary_expression();
-        if !(ptr::eq(&*node_parent_as_binary_expression.left, node)
+        let node_parent_as_binary_expression = node_parent.ref_(self).as_binary_expression();
+        if node_parent_as_binary_expression.left != node
             && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken)
         {
             return Ok(None);
@@ -68,7 +68,7 @@ impl TypeChecker {
         dont_recursively_resolve: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let dont_recursively_resolve = dont_recursively_resolve.unwrap_or(false);
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
                 self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)?
             }
@@ -96,7 +96,7 @@ impl TypeChecker {
                 self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve)?,
             ),
             SyntaxKind::ShorthandPropertyAssignment => self.resolve_entity_name(
-                &node.as_shorthand_property_assignment().name(),
+                &node.ref_(self).as_shorthand_property_assignment().name(),
                 SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                 Some(true),
                 Some(dont_recursively_resolve),
@@ -160,12 +160,12 @@ impl TypeChecker {
                 Debug_.fail(None);
             }
             let node = node.unwrap();
-            let target = self.get_target_of_alias_declaration(&node, None)?;
+            let target = self.get_target_of_alias_declaration(node, None)?;
             if (*links).borrow().target.unwrap() == self.resolving_symbol() {
                 links.borrow_mut().target = Some(target.unwrap_or_else(|| self.unknown_symbol()));
             } else {
                 self.error(
-                    Some(&*node),
+                    Some(node),
                     &Diagnostics::Circular_definition_of_import_alias_0,
                     Some(vec![self.symbol_to_string_(
                         symbol,
@@ -202,19 +202,17 @@ impl TypeChecker {
         final_target: Option<Id<Symbol>>,
         overwrite_empty: bool,
     ) -> io::Result<bool> {
-        if alias_declaration.is_none() {
+        let Some(alias_declaration) = alias_declaration else {
             return Ok(false);
         }
-        let alias_declaration = alias_declaration.unwrap();
-        let alias_declaration = alias_declaration.borrow();
-        if is_property_access_expression(alias_declaration) {
+        if is_property_access_expression(&alias_declaration.ref_(self)) {
             return Ok(false);
         }
 
         let source_symbol = self.get_symbol_of_node(alias_declaration)?.unwrap();
-        if is_type_only_import_or_export_declaration(alias_declaration) {
+        if is_type_only_import_or_export_declaration(&alias_declaration.ref_(self)) {
             let links = self.get_symbol_links(source_symbol);
-            links.borrow_mut().type_only_declaration = Some(Some(alias_declaration.node_wrapper()));
+            links.borrow_mut().type_only_declaration = Some(Some(alias_declaration));
             return Ok(true);
         }
 
@@ -264,7 +262,7 @@ impl TypeChecker {
                     .as_deref()
                     .and_then(|declarations| {
                         find(declarations, |declaration: &Id<Node>, _| {
-                            is_type_only_import_or_export_declaration(declaration)
+                            is_type_only_import_or_export_declaration(&declaration.ref_(self))
                         })
                         .map(Clone::clone)
                     });
@@ -329,18 +327,16 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         if !matches!((*links).borrow().referenced, Some(true)) {
             links.borrow_mut().referenced = Some(true);
-            let node = self.get_declaration_of_alias_symbol(symbol)?;
-            if node.is_none() {
+            let Some(node) = self.get_declaration_of_alias_symbol(symbol)? else {
                 Debug_.fail(None);
-            }
-            let node = node.unwrap();
-            if is_internal_module_import_equals_declaration(&node) {
+            };
+            if is_internal_module_import_equals_declaration(&node.ref_(self)) {
                 let target = self.resolve_symbol(Some(symbol), None)?.unwrap();
                 if target == self.unknown_symbol()
                     || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(
-                        &node.as_import_equals_declaration().module_reference,
+                        node.ref_(self).as_import_equals_declaration().module_reference,
                         None,
                     )?;
                 }
@@ -359,11 +355,10 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_of_part_of_right_hand_side_of_import_equals(
         &self,
-        entity_name: Id<Node>, /*EntityName*/
+        mut entity_name: Id<Node>, /*EntityName*/
         dont_resolve_alias: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let mut entity_name = entity_name.node_wrapper();
-        if entity_name.kind() == SyntaxKind::Identifier
+        if entity_name.ref_(self).kind() == SyntaxKind::Identifier
             && is_right_side_of_qualified_name_or_property_access(&entity_name)
         {
             entity_name = entity_name.parent();
@@ -424,11 +419,10 @@ impl TypeChecker {
 
     pub(super) fn get_containing_qualified_name_node(
         &self,
-        node: Id<Node>, /*QualifiedName*/
+        mut node: Id<Node>, /*QualifiedName*/
     ) -> Id<Node> {
-        let mut node = node.node_wrapper();
-        while is_qualified_name(&node.parent()) {
-            node = node.parent();
+        while is_qualified_name(&node.ref_(self).parent().ref_(self)) {
+            node = node.ref_(self).parent();
         }
         node
     }
@@ -439,27 +433,27 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let mut left = get_first_identifier(node);
         let mut symbol = return_ok_none_if_none!(self.resolve_name_(
-            Some(&*left),
-            &left.as_identifier().escaped_text,
+            Some(left),
+            &left.ref_(self).as_identifier().escaped_text,
             SymbolFlags::Value,
             None,
             Some(left.clone()),
             true,
             None,
         )?);
-        while is_qualified_name(&left.parent()) {
+        while is_qualified_name(&left.ref_(self).parent().ref_(self)) {
             let type_ = self.get_type_of_symbol(symbol)?;
             symbol = return_ok_none_if_none!(self.get_property_of_type_(
                 type_,
                 &left
-                    .parent()
-                    .as_qualified_name()
+                    .ref_(self).parent()
+                    .ref_(self).as_qualified_name()
                     .right
-                    .as_identifier()
+                    .ref_(self).as_identifier()
                     .escaped_text,
                 None,
             )?);
-            left = left.parent();
+            left = left.ref_(self).parent();
         }
         Ok(Some(symbol))
     }
@@ -485,29 +479,28 @@ impl TypeChecker {
                 SymbolFlags::None
             };
         let symbol: Option<Id<Symbol>>;
-        let location = location.map(|location| location.borrow().node_wrapper());
-        if name.kind() == SyntaxKind::Identifier {
-            let message = if meaning == namespace_meaning || node_is_synthesized(name) {
+        if name.ref_(self).kind() == SyntaxKind::Identifier {
+            let message = if meaning == namespace_meaning || node_is_synthesized(&*name.ref_(self)) {
                 &Diagnostics::Cannot_find_namespace_0
             } else {
-                self.get_cannot_find_name_diagnostic_for_name(&get_first_identifier(name))
+                self.get_cannot_find_name_diagnostic_for_name(get_first_identifier(name))
             };
             let symbol_from_js_prototype =
-                if is_in_js_file(Some(name)) && !node_is_synthesized(name) {
+                if is_in_js_file(Some(name)) && !node_is_synthesized(&*name.ref_(self)) {
                     self.resolve_entity_name_from_assignment_declaration(name, meaning)?
                 } else {
                     None
                 };
             symbol = self.get_merged_symbol(self.resolve_name_(
                 Some(location.as_deref().unwrap_or(name)),
-                &name.as_identifier().escaped_text,
+                &name.ref_(self).as_identifier().escaped_text,
                 meaning,
                 if ignore_errors_unwrapped || symbol_from_js_prototype.is_some() {
                     None
                 } else {
                     Some(message)
                 },
-                Some(name.node_wrapper()),
+                Some(name),
                 true,
                 Some(false),
             )?);
@@ -515,18 +508,18 @@ impl TypeChecker {
                 return Ok(self.get_merged_symbol(symbol_from_js_prototype));
             }
         } else if matches!(
-            name.kind(),
+            name.ref_(self).kind(),
             SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
         ) {
-            let left = if name.kind() == SyntaxKind::QualifiedName {
-                &name.as_qualified_name().left
+            let left = if name.ref_(self).kind() == SyntaxKind::QualifiedName {
+                name.ref_(self).as_qualified_name().left
             } else {
-                &name.as_property_access_expression().expression
+                name.ref_(self).as_property_access_expression().expression
             };
-            let right = if name.kind() == SyntaxKind::QualifiedName {
-                &name.as_qualified_name().right
+            let right = if name.ref_(self).kind() == SyntaxKind::QualifiedName {
+                name.ref_(self).as_qualified_name().right
             } else {
-                &name.as_property_access_expression().name
+                name.ref_(self).as_property_access_expression().name
             };
             let namespace = self.resolve_entity_name(
                 left,
@@ -547,15 +540,15 @@ impl TypeChecker {
             if let Some(namespace_value_declaration) =
                 namespace.ref_(self).maybe_value_declaration()
             {
-                if is_in_js_file(Some(&*namespace_value_declaration))
-                    && is_variable_declaration(&namespace_value_declaration)
+                if is_in_js_file(Some(&namespace_value_declaration.ref_(self)))
+                    && is_variable_declaration(&namespace_value_declaration.ref_(self))
                 {
                     if let Some(namespace_value_declaration_initializer) =
                         namespace_value_declaration
-                            .as_variable_declaration()
+                            .ref_(self).as_variable_declaration()
                             .maybe_initializer()
                     {
-                        if self.is_common_js_require(&namespace_value_declaration_initializer)? {
+                        if self.is_common_js_require(namespace_value_declaration_initializer)? {
                             let module_name = &namespace_value_declaration_initializer
                                 .as_call_expression()
                                 .arguments[0];
@@ -608,7 +601,7 @@ impl TypeChecker {
                         return Ok(None);
                     }
 
-                    let containing_qualified_name = if is_qualified_name(name) {
+                    let containing_qualified_name = if is_qualified_name(&name.ref_(self)) {
                         Some(self.get_containing_qualified_name_node(name))
                     } else {
                         None
@@ -616,13 +609,13 @@ impl TypeChecker {
                     let can_suggest_typeof = self.maybe_global_object_type().is_some()
                         && meaning.intersects(SymbolFlags::Type)
                         && matches!(
-                            containing_qualified_name.as_ref(),
-                            Some(containing_qualified_name) if !is_type_of_expression(&containing_qualified_name.parent())
+                            containing_qualified_name,
+                            Some(containing_qualified_name) if !is_type_of_expression(&containing_qualified_name.ref_(self).parent().ref_(self))
                                 && self.try_get_qualified_name_as_value(containing_qualified_name)?.is_some()
                         );
                     if can_suggest_typeof {
                         self.error(
-                            containing_qualified_name.as_deref(),
+                            containing_qualified_name,
                             &Diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
                             Some(vec![entity_name_to_string(containing_qualified_name.as_ref().unwrap()).into_owned()])
                         );

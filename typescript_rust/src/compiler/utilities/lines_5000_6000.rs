@@ -54,7 +54,7 @@ pub fn get_first_identifier(node: Id<Node>) -> Id<Node /*Identifier*/> {
     }
 }
 
-pub fn is_dotted_name(node: Id<Node> /*Expression*/) -> bool {
+pub fn is_dotted_name(node: &Node /*Expression*/) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier
@@ -67,7 +67,7 @@ pub fn is_dotted_name(node: Id<Node> /*Expression*/) -> bool {
             && is_dotted_name(&node.as_parenthesized_expression().expression)
 }
 
-pub fn is_property_access_entity_name_expression(node: Id<Node>) -> bool {
+pub fn is_property_access_entity_name_expression(node: &Node) -> bool {
     if !is_property_access_expression(node) {
         return false;
     }
@@ -120,7 +120,7 @@ pub fn try_get_property_access_or_identifier_to_string<'expr>(
     None
 }
 
-pub fn is_prototype_access(node: Id<Node>) -> bool {
+pub fn is_prototype_access(node: &Node) -> bool {
     is_bindable_static_access_expression(node, None)
         && match get_element_or_property_access_name(node) {
             Some(name) => name == "prototype",
@@ -128,7 +128,7 @@ pub fn is_prototype_access(node: Id<Node>) -> bool {
         }
 }
 
-pub fn is_right_side_of_qualified_name_or_property_access(node: Id<Node>) -> bool {
+pub fn is_right_side_of_qualified_name_or_property_access(node: &Node) -> bool {
     node.parent().kind() == SyntaxKind::QualifiedName
         && ptr::eq(&*node.parent().as_qualified_name().right, node)
         || node.parent().kind() == SyntaxKind::PropertyAccessExpression
@@ -136,7 +136,7 @@ pub fn is_right_side_of_qualified_name_or_property_access(node: Id<Node>) -> boo
 }
 
 pub fn is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(
-    node: Id<Node>,
+    node: &Node,
 ) -> bool {
     is_qualified_name(&node.parent()) && ptr::eq(&*node.parent().as_qualified_name().right, node)
         || is_property_access_expression(&node.parent())
@@ -145,7 +145,7 @@ pub fn is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(
             && ptr::eq(&*node.parent().as_jsdoc_member_name().right, node)
 }
 
-pub fn is_empty_object_literal(expression: Id<Node>) -> bool {
+pub fn is_empty_object_literal(expression: &Node) -> bool {
     expression.kind() == SyntaxKind::ObjectLiteralExpression
         && expression
             .as_object_literal_expression()
@@ -153,7 +153,7 @@ pub fn is_empty_object_literal(expression: Id<Node>) -> bool {
             .is_empty()
 }
 
-pub fn is_empty_array_literal(expression: Id<Node>) -> bool {
+pub fn is_empty_array_literal(expression: &Node) -> bool {
     expression.kind() == SyntaxKind::ArrayLiteralExpression
         && expression.as_array_literal_expression().elements.is_empty()
 }

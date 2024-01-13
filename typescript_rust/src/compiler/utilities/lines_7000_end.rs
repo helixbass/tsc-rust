@@ -13,13 +13,13 @@ use crate::{
     parameter_is_this_keyword, some, string_contains, CharacterCodes, CompilerOptions, Debug_,
     FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
-    ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind,
+    ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, HasArena, InArena,
 };
 
-pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
-    source_file: Id<Node>, /*SourceFile*/
+pub fn skip_type_checking(
+    source_file: &Node, /*SourceFile*/
     options: &CompilerOptions,
-    is_source_of_project_reference_redirect: TIsSourceOfProjectReferenceRedirect,
+    is_source_of_project_reference_redirect: impl Fn(&str) -> bool,
 ) -> bool {
     let source_file_as_source_file = source_file.as_source_file();
     (options.skip_lib_check == Some(true) && source_file_as_source_file.is_declaration_file()
@@ -128,7 +128,7 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
     )
 }
 
-pub fn is_valid_type_only_alias_use_site(use_site: Id<Node>) -> bool {
+pub fn is_valid_type_only_alias_use_site(use_site: &Node) -> bool {
     use_site.flags().intersects(NodeFlags::Ambient)
         || is_part_of_type_query(use_site)
         || is_identifier_in_non_emitting_heritage_clause(use_site)
@@ -136,7 +136,7 @@ pub fn is_valid_type_only_alias_use_site(use_site: Id<Node>) -> bool {
         || !(is_expression_node(use_site) || is_shorthand_property_name_use_site(use_site))
 }
 
-fn is_shorthand_property_name_use_site(use_site: Id<Node>) -> bool {
+fn is_shorthand_property_name_use_site(use_site: &Node) -> bool {
     is_identifier(use_site)
         && is_shorthand_property_assignment(&use_site.parent())
         && ptr::eq(
@@ -145,7 +145,7 @@ fn is_shorthand_property_name_use_site(use_site: Id<Node>) -> bool {
         )
 }
 
-fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(node: Id<Node>) -> bool {
+fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(node: &Node) -> bool {
     let mut node = node.node_wrapper();
     while matches!(
         node.kind(),
@@ -166,7 +166,7 @@ fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(node: Id<No
     )
 }
 
-fn is_identifier_in_non_emitting_heritage_clause(node: Id<Node>) -> bool {
+fn is_identifier_in_non_emitting_heritage_clause(node: &Node) -> bool {
     if node.kind() != SyntaxKind::Identifier {
         return false;
     }
@@ -184,7 +184,7 @@ fn is_identifier_in_non_emitting_heritage_clause(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_identifier_type_reference(node: Id<Node>) -> bool {
+pub fn is_identifier_type_reference(node: &Node) -> bool {
     is_type_reference_node(node) && is_identifier(&node.as_type_reference_node().type_name)
 }
 
@@ -229,28 +229,25 @@ pub fn set_text_range_pos_width(range: &impl ReadonlyTextRange, pos: isize, widt
     set_text_range_pos_end(range, pos, pos + width);
 }
 
-pub fn set_node_flags(node: Option<Id<Node>>, new_flags: NodeFlags) -> Option<Id<Node>> {
+pub fn set_node_flags(node: Option<&Node>, new_flags: NodeFlags) -> Option<&Node> {
     node.map(|node| {
-        let node = node.borrow();
         node.set_flags(new_flags);
-        node.node_wrapper()
+        node
     })
 }
 
-pub fn set_parent(child: Id<Node>, parent: Option<Id<Node>>) -> Id<Node> {
+pub fn set_parent(child: &Node, parent: Option<Id<Node>>) -> &Node {
     if let Some(parent) = parent {
-        let parent = parent.borrow();
-        child.set_parent(Some(parent.node_wrapper()));
+        child.set_parent(Some(parent));
     }
     child
 }
 
 pub fn maybe_set_parent(
-    child: Option<Id<Node>>,
+    child: Option<&Node>,
     parent: Option<Id<Node>>,
-) -> Option<Id<Node>> {
-    if let Some(child) = child.as_ref() {
-        let child = child.borrow();
+) -> Option<&Node> {
+    if let Some(child) = child {
         if let Some(parent) = parent {
             child.set_parent(Some(parent.clone()));
         }
@@ -258,12 +255,11 @@ pub fn maybe_set_parent(
     child
 }
 
-pub fn set_parent_recursive(root_node: Option<Id<Node>>, incremental: bool) {
+pub fn set_parent_recursive(root_node: Option<&Node>, incremental: bool) {
     if root_node.is_none() {
         return /*rootNode*/;
     }
     let root_node = root_node.unwrap();
-    let root_node: Id<Node> = root_node.borrow();
     let is_jsdoc_node_root_node = is_jsdoc_node(root_node);
     for_each_child_recursively(
         root_node,

@@ -109,7 +109,7 @@ impl DebugType {
         panic!("{}", message);
     }
 
-    pub fn fail_bad_syntax_kind(&self, node: Id<Node>, message: Option<&str>) -> ! {
+    pub fn fail_bad_syntax_kind(&self, node: &Node, message: Option<&str>) -> ! {
         self.fail(Some(&format!(
             "{}\r\nNode {} was unexpected.",
             &message.map_or_else(

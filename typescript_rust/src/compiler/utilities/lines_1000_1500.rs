@@ -370,7 +370,7 @@ pub fn is_external_or_common_js_module(file: Id<Node> /*SourceFile*/) -> bool {
             .is_some()
 }
 
-pub fn is_json_source_file(file: Id<Node> /*SourceFile*/) -> bool {
+pub fn is_json_source_file(file: &Node /*SourceFile*/) -> bool {
     file.as_source_file().script_kind() == ScriptKind::JSON
 }
 

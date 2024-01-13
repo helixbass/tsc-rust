@@ -71,44 +71,40 @@ pub fn get_external_module_require_argument(node: Id<Node>) -> Option<Id<Node /*
     }
 }
 
-pub fn is_internal_module_import_equals_declaration(node: Id<Node>) -> bool {
+pub fn is_internal_module_import_equals_declaration(node: &Node) -> bool {
     node.kind() == SyntaxKind::ImportEqualsDeclaration
         && node.as_import_equals_declaration().module_reference.kind()
             != SyntaxKind::ExternalModuleReference
 }
 
-pub fn is_source_file_js(file: Id<Node> /*SourceFile*/) -> bool {
+pub fn is_source_file_js(file: &Node /*SourceFile*/) -> bool {
     is_in_js_file(Some(file))
 }
 
-pub fn is_source_file_not_js(file: Id<Node> /*SourceFile*/) -> bool {
+pub fn is_source_file_not_js(file: &Node /*SourceFile*/) -> bool {
     !is_in_js_file(Some(file))
 }
 
-pub fn is_in_js_file(node: Option<Id<Node>>) -> bool {
+pub fn is_in_js_file(node: Option<&Node>) -> bool {
     node.map_or(false, |node| {
-        node.borrow().flags().intersects(NodeFlags::JavaScriptFile)
+        node.flags().intersects(NodeFlags::JavaScriptFile)
     })
 }
 
-pub fn is_in_json_file(node: Option<Id<Node>>) -> bool {
-    node.map_or(false, |node| {
-        node.borrow().flags().intersects(NodeFlags::JsonFile)
-    })
+pub fn is_in_json_file(node: Option<&Node>) -> bool {
+    node.map_or(false, |node| node.flags().intersects(NodeFlags::JsonFile))
 }
 
-pub fn is_source_file_not_json(file: Id<Node> /*SourceFile*/) -> bool {
+pub fn is_source_file_not_json(file: &Node /*SourceFile*/) -> bool {
     !is_json_source_file(file)
 }
 
-pub fn is_in_jsdoc(node: Option<Id<Node>>) -> bool {
-    node.map_or(false, |node| {
-        node.borrow().flags().intersects(NodeFlags::JSDoc)
-    })
+pub fn is_in_jsdoc(node: Option<&Node>) -> bool {
+    node.map_or(false, |node| node.flags().intersects(NodeFlags::JSDoc))
 }
 
 pub fn is_jsdoc_index_signature(
-    node: Id<Node>, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+    node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
 ) -> bool {
     if !is_type_reference_node(node) {
         return false;
@@ -274,9 +270,7 @@ pub fn has_expando_value_property(
     })
 }
 
-pub fn get_assigned_expando_initializer(
-    node: Option<Id<Node>>,
-) -> Option<Id<Node /*Expression*/>> {
+pub fn get_assigned_expando_initializer(node: Option<Id<Node>>) -> Option<Id<Node /*Expression*/>> {
     if node.is_none() {
         return None;
     }

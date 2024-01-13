@@ -793,9 +793,7 @@ pub fn get_source_file_of_node(node: Id<Node>) -> Id<Node /*SourceFile*/> {
     node
 }
 
-pub fn maybe_get_source_file_of_node(
-    node: Option<Id<Node>>,
-) -> Option<Id<Node /*SourceFile*/>> {
+pub fn maybe_get_source_file_of_node(node: Option<Id<Node>>) -> Option<Id<Node /*SourceFile*/>> {
     // node.map(|node| get_source_file_of_node(node.borrow()))
     let mut node = node.map(|node| {
         let node = node.borrow();
@@ -1096,10 +1094,7 @@ pub fn get_token_pos_of_node(
     )
 }
 
-pub fn get_non_decorator_token_pos_of_node(
-    node: Id<Node>,
-    source_file: Option<Id<Node>>,
-) -> isize {
+pub fn get_non_decorator_token_pos_of_node(node: Id<Node>, source_file: Option<Id<Node>>) -> isize {
     if node_is_missing(Some(node)) || node.maybe_decorators().is_none() {
         return get_token_pos_of_node(node, source_file, None);
     }
@@ -1686,10 +1681,7 @@ pub fn is_effective_strict_mode_source_file(
     false
 }
 
-pub fn is_block_scope(
-    node: Id<Node>,
-    parent_node: Option<Id<Node>>,
-) -> bool {
+pub fn is_block_scope(node: Id<Node>, parent_node: Option<Id<Node>>) -> bool {
     match node.kind() {
         SyntaxKind::SourceFile
         | SyntaxKind::CaseBlock
@@ -1871,7 +1863,7 @@ pub fn get_text_of_property_name<'name>(
 }
 
 pub fn entity_name_to_string<'node>(
-    name: Id<Node>, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
+    name: &Node, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
 ) -> Cow<'node, str> {
     match name.kind() {
         SyntaxKind::ThisKeyword => "this".into(),

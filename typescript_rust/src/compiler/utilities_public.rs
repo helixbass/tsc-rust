@@ -1215,33 +1215,33 @@ pub fn get_effective_constraint_of_type_parameter(
     None
 }
 
-pub fn is_member_name(node: Id<Node>) -> bool {
+pub fn is_member_name(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier
     )
 }
 
-pub(crate) fn is_get_or_set_accessor_declaration(node: Id<Node>) -> bool {
+pub(crate) fn is_get_or_set_accessor_declaration(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::SetAccessor | SyntaxKind::GetAccessor
     )
 }
 
-pub fn is_property_access_chain(node: Id<Node>) -> bool {
+pub fn is_property_access_chain(node: &Node) -> bool {
     is_property_access_expression(node) && node.flags().intersects(NodeFlags::OptionalChain)
 }
 
-pub fn is_element_access_chain(node: Id<Node>) -> bool {
+pub fn is_element_access_chain(node: &Node) -> bool {
     is_element_access_expression(node) && node.flags().intersects(NodeFlags::OptionalChain)
 }
 
-pub fn is_call_chain(node: Id<Node>) -> bool {
+pub fn is_call_chain(node: &Node) -> bool {
     is_call_expression(node) && node.flags().intersects(NodeFlags::OptionalChain)
 }
 
-pub fn is_optional_chain(node: Id<Node>) -> bool {
+pub fn is_optional_chain(node: &Node) -> bool {
     node.flags().intersects(NodeFlags::OptionalChain)
         && matches!(
             node.kind(),
@@ -1252,7 +1252,7 @@ pub fn is_optional_chain(node: Id<Node>) -> bool {
         )
 }
 
-pub(crate) fn is_optional_chain_root(node: Id<Node> /*OptionalChain*/) -> bool {
+pub(crate) fn is_optional_chain_root(node: &Node /*OptionalChain*/) -> bool {
     is_optional_chain(node)
         && !is_non_null_expression(node)
         && node
@@ -1261,18 +1261,18 @@ pub(crate) fn is_optional_chain_root(node: Id<Node> /*OptionalChain*/) -> bool {
             .is_some()
 }
 
-pub(crate) fn is_expression_of_optional_chain_root(node: Id<Node> /*OptionalChain*/) -> bool {
+pub(crate) fn is_expression_of_optional_chain_root(node: &Node /*OptionalChain*/) -> bool {
     is_optional_chain_root(&node.parent())
         && ptr::eq(&*node.parent().as_has_expression().expression(), node)
 }
 
-pub(crate) fn is_outermost_optional_chain(node: Id<Node> /*OptionalChain*/) -> bool {
+pub(crate) fn is_outermost_optional_chain(node: &Node /*OptionalChain*/) -> bool {
     !is_optional_chain(&node.parent())
         || is_optional_chain_root(&node.parent())
         || !ptr::eq(node, &*node.parent().as_has_expression().expression())
 }
 
-pub fn is_nullish_coalesce(node: Id<Node>) -> bool {
+pub fn is_nullish_coalesce(node: &Node) -> bool {
     match node {
         Node::BinaryExpression(node) => {
             node.operator_token.kind() == SyntaxKind::QuestionQuestionToken
@@ -1281,7 +1281,7 @@ pub fn is_nullish_coalesce(node: Id<Node>) -> bool {
     }
 }
 
-pub fn is_const_type_reference(node: Id<Node>) -> bool {
+pub fn is_const_type_reference(node: &Node) -> bool {
     // match node {
     //     Node::TypeNode(TypeNode::TypeReferenceNode(node)) => {
     //         match &*node.type_name {
@@ -1312,32 +1312,32 @@ pub fn skip_partially_emitted_expressions(node: Id<Node>) -> Id<Node> {
     )
 }
 
-pub fn is_non_null_chain(node: Id<Node>) -> bool {
+pub fn is_non_null_chain(node: &Node) -> bool {
     is_non_null_expression(node) && node.flags().intersects(NodeFlags::OptionalChain)
 }
 
-pub fn is_break_or_continue_statement(node: Id<Node>) -> bool {
+pub fn is_break_or_continue_statement(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement
     )
 }
 
-pub fn is_named_export_bindings(node: Id<Node>) -> bool {
+pub fn is_named_export_bindings(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::NamespaceExport | SyntaxKind::NamedExports
     )
 }
 
-pub fn is_unparsed_text_like(node: Id<Node>) -> bool {
+pub fn is_unparsed_text_like(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::UnparsedText | SyntaxKind::UnparsedInternalText
     )
 }
 
-pub fn is_unparsed_node(node: Id<Node>) -> bool {
+pub fn is_unparsed_node(node: &Node) -> bool {
     is_unparsed_text_like(node)
         || matches!(
             node.kind(),
@@ -1345,7 +1345,7 @@ pub fn is_unparsed_node(node: Id<Node>) -> bool {
         )
 }
 
-pub fn is_jsdoc_property_like_tag(node: Id<Node>) -> bool {
+pub fn is_jsdoc_property_like_tag(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag
@@ -1353,7 +1353,7 @@ pub fn is_jsdoc_property_like_tag(node: Id<Node>) -> bool {
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_node(node: Id<Node>) -> bool {
+pub(crate) fn is_node(node: &Node) -> bool {
     is_node_kind(node.kind())
 }
 
@@ -1365,7 +1365,7 @@ pub fn is_token_kind(kind: SyntaxKind) -> bool {
     kind >= SyntaxKind::FirstToken && kind <= SyntaxKind::LastToken
 }
 
-pub fn is_token(n: Id<Node>) -> bool {
+pub fn is_token(n: &Node) -> bool {
     is_token_kind(n.kind())
 }
 
@@ -1375,7 +1375,7 @@ pub fn is_literal_kind(kind: SyntaxKind) -> bool {
     SyntaxKind::FirstLiteralToken <= kind && kind <= SyntaxKind::LastLiteralToken
 }
 
-pub fn is_literal_expression(node: Id<Node>) -> bool {
+pub fn is_literal_expression(node: &Node) -> bool {
     is_literal_kind(node.kind())
 }
 
@@ -1383,22 +1383,22 @@ pub(crate) fn is_template_literal_kind(kind: SyntaxKind) -> bool {
     SyntaxKind::FirstTemplateToken <= kind && kind <= SyntaxKind::LastTemplateToken
 }
 
-pub fn is_template_literal_token(node: Id<Node>) -> bool {
+pub fn is_template_literal_token(node: &Node) -> bool {
     is_template_literal_kind(node.kind())
 }
 
-pub fn is_template_middle_or_template_tail(node: Id<Node>) -> bool {
+pub fn is_template_middle_or_template_tail(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::TemplateMiddle | SyntaxKind::TemplateTail
     )
 }
 
-pub fn is_import_or_export_specifier(node: Id<Node>) -> bool {
+pub fn is_import_or_export_specifier(node: &Node) -> bool {
     is_import_specifier(node) || is_export_specifier(node)
 }
 
-pub fn is_type_only_import_or_export_declaration(node: Id<Node>) -> bool {
+pub fn is_type_only_import_or_export_declaration(node: &Node) -> bool {
     match node.kind() {
         SyntaxKind::ImportSpecifier | SyntaxKind::ExportSpecifier => {
             node.as_has_is_type_only().is_type_only()
@@ -1412,15 +1412,15 @@ pub fn is_type_only_import_or_export_declaration(node: Id<Node>) -> bool {
     }
 }
 
-pub fn is_assertion_key(node: Id<Node>) -> bool {
+pub fn is_assertion_key(node: &Node) -> bool {
     is_string_literal(node) || is_identifier(node)
 }
 
-pub fn is_string_text_containing_node(node: Id<Node>) -> bool {
+pub fn is_string_text_containing_node(node: &Node) -> bool {
     node.kind() == SyntaxKind::StringLiteral || is_template_literal_kind(node.kind())
 }
 
-pub(crate) fn is_generated_identifier(node: Id<Node>) -> bool {
+pub(crate) fn is_generated_identifier(node: &Node) -> bool {
     is_identifier(node)
         && matches!(
             node.as_identifier().maybe_auto_generate_flags(),
@@ -1428,12 +1428,12 @@ pub(crate) fn is_generated_identifier(node: Id<Node>) -> bool {
         )
 }
 
-pub(crate) fn is_private_identifier_class_element_declaration(node: Id<Node>) -> bool {
+pub(crate) fn is_private_identifier_class_element_declaration(node: &Node) -> bool {
     (is_property_declaration(node) || is_method_or_accessor(node))
         && is_private_identifier(&*node.as_named_declaration().name())
 }
 
-pub(crate) fn is_private_identifier_property_access_expression(node: Id<Node>) -> bool {
+pub(crate) fn is_private_identifier_property_access_expression(node: &Node) -> bool {
     is_property_access_expression(node)
         && is_private_identifier(&*node.as_property_access_expression().name())
 }
@@ -1560,7 +1560,7 @@ pub(crate) fn is_function_or_module_block(node: Id<Node>) -> bool {
         || is_block(node) && is_function_like(node.maybe_parent())
 }
 
-pub fn is_class_element(node: Id<Node>) -> bool {
+pub fn is_class_element(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Constructor

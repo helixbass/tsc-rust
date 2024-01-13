@@ -234,7 +234,7 @@ pub fn parse_json_text(file_name: &str, source_text: String) -> Id<Node /*JsonSo
     Parser().parse_json_text(file_name, source_text, None, None, None)
 }
 
-pub fn is_external_module(file: Id<Node> /*SourceFile*/) -> bool {
+pub fn is_external_module(file: &Node /*SourceFile*/) -> bool {
     file.as_source_file()
         .maybe_external_module_indicator()
         .is_some()
