@@ -16,7 +16,7 @@ use crate::{
     is_property_access_expression, is_prototype_access, is_string_literal_like,
     is_string_or_numeric_literal_like, is_type_reference_node, is_variable_declaration,
     is_variable_statement, is_void_expression, length, AssignmentDeclarationKind, CharacterCodes,
-    Debug_, HasInitializerInterface, LiteralLikeNodeInterface, Node,
+    Debug_, HasInitializerInterface, LiteralLikeNodeInterface, Node, InArena, HasArena,
 };
 
 pub fn is_part_of_type_query(node: Id<Node>) -> bool {
@@ -201,7 +201,7 @@ pub fn is_string_double_quoted(
     get_source_text_of_node_from_source_file(source_file, str, None).starts_with("\"")
 }
 
-pub fn is_assignment_declaration(decl: Id<Node> /*Declaration*/) -> bool {
+pub fn is_assignment_declaration(decl: &Node /*Declaration*/) -> bool {
     is_binary_expression(decl)
         || is_access_expression(decl)
         || is_identifier(decl)
@@ -270,13 +270,9 @@ pub fn has_expando_value_property(
     })
 }
 
-pub fn get_assigned_expando_initializer(node: Option<Id<Node>>) -> Option<Id<Node /*Expression*/>> {
-    if node.is_none() {
-        return None;
-    }
-    let node = node.unwrap();
-    let node = node.borrow();
-    let node_parent = node.maybe_parent();
+pub fn get_assigned_expando_initializer(node: Option<Id<Node>>, arena: &impl HasArena) -> Option<Id<Node /*Expression*/>> {
+    let node = node?;
+    let node_parent = node.ref_(arena).maybe_parent();
     if let Some(node_parent) = node_parent {
         if is_binary_expression(&node_parent) {
             let node_parent_as_binary_expression = node_parent.as_binary_expression();
@@ -494,7 +490,7 @@ pub fn is_module_exports_access_expression(node: Id<Node>) -> bool {
 }
 
 pub fn get_assignment_declaration_kind(
-    expr: Id<Node>, /*BinaryExpression | CallExpression*/
+    expr: &Node, /*BinaryExpression | CallExpression*/
 ) -> AssignmentDeclarationKind {
     let special = get_assignment_declaration_kind_worker(expr);
     if special == AssignmentDeclarationKind::Property || is_in_js_file(Some(expr)) {
@@ -504,7 +500,7 @@ pub fn get_assignment_declaration_kind(
     }
 }
 
-pub fn is_bindable_object_define_property_call(expr: Id<Node> /*CallExpression*/) -> bool {
+pub fn is_bindable_object_define_property_call(expr: &Node /*CallExpression*/) -> bool {
     let expr = expr.as_call_expression();
     if !length(Some(&expr.arguments)) == 3 {
         return false;
@@ -530,11 +526,11 @@ pub fn is_bindable_object_define_property_call(expr: Id<Node> /*CallExpression*/
     is_bindable_static_name_expression(&expr_arguments[0], Some(true))
 }
 
-pub fn is_literal_like_access(node: Id<Node>) -> bool {
+pub fn is_literal_like_access(node: &Node) -> bool {
     is_property_access_expression(node) || is_literal_like_element_access(node)
 }
 
-pub fn is_literal_like_element_access(node: Id<Node>) -> bool {
+pub fn is_literal_like_element_access(node: &Node) -> bool {
     if !is_element_access_expression(node) {
         return false;
     }
@@ -543,7 +539,7 @@ pub fn is_literal_like_element_access(node: Id<Node>) -> bool {
 }
 
 pub fn is_bindable_static_access_expression(
-    node: Id<Node>,
+    node: &Node,
     exclude_this_keyword: Option<bool>,
 ) -> bool {
     let exclude_this_keyword_unwrapped = exclude_this_keyword.unwrap_or(false);
@@ -564,7 +560,7 @@ pub fn is_bindable_static_access_expression(
 }
 
 pub fn is_bindable_static_element_access_expression(
-    node: Id<Node>,
+    node: &Node,
     exclude_this_keyword: Option<bool>,
 ) -> bool {
     let exclude_this_keyword = exclude_this_keyword.unwrap_or(false);
@@ -582,7 +578,7 @@ pub fn is_bindable_static_element_access_expression(
 }
 
 pub fn is_bindable_static_name_expression(
-    node: Id<Node>,
+    node: &Node,
     exclude_this_keyword: Option<bool>,
 ) -> bool {
     is_entity_name_expression(node)
@@ -642,7 +638,7 @@ fn get_assignment_declaration_kind_worker(
     get_assignment_declaration_property_access_kind(&expr_as_binary_expression.left)
 }
 
-fn is_void_zero(node: Id<Node>) -> bool {
+fn is_void_zero(node: &Node) -> bool {
     if !is_void_expression(node) {
         return false;
     }

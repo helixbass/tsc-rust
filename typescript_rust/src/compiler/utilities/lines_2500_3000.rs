@@ -19,7 +19,7 @@ use crate::{
     last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, try_for_each_bool,
     AsDoubleDeref, AssignmentDeclarationKind, Debug_, HasQuestionTokenInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
-    SignatureDeclarationInterface, Symbol, SyntaxKind,
+    SignatureDeclarationInterface, Symbol, SyntaxKind, HasArena, InArena,
 };
 
 pub fn try_get_import_from_module_specifier(
@@ -130,7 +130,7 @@ pub fn get_namespace_declaration_node(
 }
 
 pub fn is_default_import(
-    node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+    node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
 ) -> bool {
     node.kind() == SyntaxKind::ImportDeclaration
         && node
@@ -178,7 +178,7 @@ pub fn try_for_each_import_clause_declaration_bool<TError>(
     Ok(false)
 }
 
-pub fn has_question_token(node: Id<Node>) -> bool {
+pub fn has_question_token(node: &Node) -> bool {
     // if (node) {
     match node.kind() {
         SyntaxKind::Parameter => node.as_parameter_declaration().question_token.is_some(),
@@ -199,7 +199,7 @@ pub fn has_question_token(node: Id<Node>) -> bool {
     // }
 }
 
-pub fn is_jsdoc_construct_signature(node: Id<Node>) -> bool {
+pub fn is_jsdoc_construct_signature(node: &Node) -> bool {
     let param: Option<Id<Node>> = if is_jsdoc_function_type(node) {
         first_or_undefined(&node.as_jsdoc_function_type().parameters()).cloned()
     } else {
@@ -223,14 +223,14 @@ pub fn is_jsdoc_construct_signature(node: Id<Node>) -> bool {
     name.as_identifier().escaped_text == "new"
 }
 
-pub fn is_jsdoc_type_alias(node: Id<Node>) -> bool {
+pub fn is_jsdoc_type_alias(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocEnumTag
     )
 }
 
-pub fn is_type_alias(node: Id<Node>) -> bool {
+pub fn is_type_alias(node: &Node) -> bool {
     is_jsdoc_type_alias(node) || is_type_alias_declaration(node)
 }
 
@@ -546,9 +546,8 @@ pub fn get_host_signature_from_jsdoc(node: Id<Node>) -> Option<Id<Node /*Signatu
     host.filter(|host| is_function_like(Some(&**host)))
 }
 
-pub fn get_effective_jsdoc_host(node: Id<Node>) -> Option<Id<Node>> {
-    let host = get_jsdoc_host(node);
-    let host = host?;
+pub fn get_effective_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
+    let host = get_jsdoc_host(node, arena)?;
     get_source_of_defaulted_assignment(&host).or_else(|| {
         get_source_of_assignment(&host).or_else(|| {
             get_single_initializer_of_variable_statement_or_property_declaration(&host).or_else(
@@ -561,23 +560,22 @@ pub fn get_effective_jsdoc_host(node: Id<Node>) -> Option<Id<Node>> {
     })
 }
 
-pub fn get_jsdoc_host(node: Id<Node>) -> Option<Id<Node /*HasJSDoc*/>> {
-    let js_doc = get_jsdoc_root(node)?;
+pub fn get_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*HasJSDoc*/>> {
+    let js_doc = get_jsdoc_root(node, arena)?;
 
-    let host = js_doc.maybe_parent();
-    host.filter(|host| {
-        let host_js_doc = host.maybe_js_doc();
-        if host_js_doc.is_none() {
-            return false;
-        }
-        let host_js_doc = host_js_doc.unwrap();
-        // TODO: seems weird that .maybe_js_doc() is returning a Vec rather than a slice?
-        matches!(last_or_undefined(&host_js_doc), Some(last) if Gc::ptr_eq(&js_doc, last))
-    })
+    let host = js_doc.ref_(arena).maybe_parent()?;
+    let Some(host_js_doc) = host.ref_(arena).maybe_js_doc() else {
+        return false;
+    };
+    // TODO: seems weird that .maybe_js_doc() is returning a Vec rather than a slice?
+    matches!(
+        last_or_undefined(&host_js_doc),
+        Some(&last) if js_doc == last
+    )
 }
 
-pub fn get_jsdoc_root(node: Id<Node>) -> Option<Id<Node /*JSDoc*/>> {
-    find_ancestor(node.maybe_parent(), |node| is_jsdoc(node))
+pub fn get_jsdoc_root(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDoc*/>> {
+    find_ancestor(node.ref_(arena).maybe_parent(), arena, |node| is_jsdoc(&node.ref_(arena)))
 }
 
 pub fn get_type_parameter_from_js_doc(
@@ -603,7 +601,7 @@ pub fn get_type_parameter_from_js_doc(
         .map(Clone::clone)
 }
 
-pub fn has_rest_parameter(node: Id<Node> /*SignatureDeclaration | JSDocSignature*/) -> bool {
+pub fn has_rest_parameter(node: &Node /*SignatureDeclaration | JSDocSignature*/) -> bool {
     let last = match node.kind() {
         SyntaxKind::JSDocSignature => {
             last_or_undefined(&node.as_jsdoc_signature().parameters).cloned()
@@ -617,7 +615,7 @@ pub fn has_rest_parameter(node: Id<Node> /*SignatureDeclaration | JSDocSignature
     is_rest_parameter(last)
 }
 
-pub fn is_rest_parameter(node: Id<Node> /*ParameterDeclaration | JSDocParameterTag*/) -> bool {
+pub fn is_rest_parameter(node: &Node /*ParameterDeclaration | JSDocParameterTag*/) -> bool {
     let type_: Option<Id<Node>> = if is_jsdoc_parameter_tag(node) {
         node.as_jsdoc_property_like_tag()
             .type_expression
@@ -633,7 +631,7 @@ pub fn is_rest_parameter(node: Id<Node> /*ParameterDeclaration | JSDocParameterT
             .is_some()
 }
 
-pub fn has_type_arguments(node: Id<Node>) -> bool {
+pub fn has_type_arguments(node: &Node) -> bool {
     node.as_has_type_arguments()
         .maybe_type_arguments()
         .is_some()
@@ -737,7 +735,7 @@ pub fn is_assignment_target(node: Id<Node>) -> bool {
     get_assignment_target_kind(node) != AssignmentKind::None
 }
 
-pub fn is_node_with_possible_hoisted_declaration(node: Id<Node>) -> bool {
+pub fn is_node_with_possible_hoisted_declaration(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Block
@@ -759,7 +757,7 @@ pub fn is_node_with_possible_hoisted_declaration(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_value_signature_declaration(node: Id<Node>) -> bool {
+pub fn is_value_signature_declaration(node: &Node) -> bool {
     is_function_expression(node)
         || is_arrow_function(node)
         || is_method_or_accessor(node)

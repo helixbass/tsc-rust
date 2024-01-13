@@ -617,13 +617,13 @@ impl TypeChecker {
                         self.error(
                             containing_qualified_name,
                             &Diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
-                            Some(vec![entity_name_to_string(containing_qualified_name.as_ref().unwrap()).into_owned()])
+                            Some(vec![entity_name_to_string(&containing_qualified_name.unwrap().ref_(self)).into_owned()])
                         );
                         return Ok(None);
                     }
 
                     if meaning.intersects(SymbolFlags::Namespace)
-                        && is_qualified_name(&name.parent())
+                        && is_qualified_name(&name.ref_(self).parent().ref_(self))
                     {
                         let exported_type_symbol = self.get_merged_symbol(self.get_symbol(
                             &(*self.get_exports_of_symbol(namespace)?).borrow(),
@@ -632,11 +632,11 @@ impl TypeChecker {
                         )?);
                         if let Some(exported_type_symbol) = exported_type_symbol {
                             self.error(
-                                Some(&*name.parent().as_qualified_name().right),
+                                Some(name.ref_(self).parent().ref_(self).as_qualified_name().right),
                                 &Diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
                                 Some(vec![
                                     self.symbol_to_string_(exported_type_symbol, Option::<Id<Node>>::None, None, None, None)?,
-                                    unescape_leading_underscores(&name.parent().as_qualified_name().right.as_identifier().escaped_text).to_owned()
+                                    unescape_leading_underscores(&name.ref_(self).parent().ref_(self).as_qualified_name().right.ref_(self).as_identifier().escaped_text).to_owned()
                                 ])
                             );
                             return Ok(None);
@@ -659,10 +659,10 @@ impl TypeChecker {
             !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated),
             Some("Should never get an instantiated symbol here."),
         );
-        if !node_is_synthesized(name)
+        if !node_is_synthesized(&*name.ref_(self))
             && is_entity_name(name)
             && (symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
-                || name.parent().kind() == SyntaxKind::ExportAssignment)
+                || name.ref_(self).parent().kind() == SyntaxKind::ExportAssignment)
         {
             self.mark_symbol_of_alias_declaration_if_type_only(
                 get_alias_declaration_from_name(name),
@@ -685,15 +685,15 @@ impl TypeChecker {
         name: Id<Node>, /*Identifier*/
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
-        if self.is_jsdoc_type_reference(&name.parent()) {
-            let secondary_location = self.get_assignment_declaration_location(&name.parent())?;
+        if self.is_jsdoc_type_reference(name.ref_(self).parent()) {
+            let secondary_location = self.get_assignment_declaration_location(name.ref_(self).parent())?;
             if let Some(secondary_location) = secondary_location {
                 return self.resolve_name_(
                     Some(secondary_location),
-                    &name.as_identifier().escaped_text,
+                    &name.ref_(self).as_identifier().escaped_text,
                     meaning,
                     None,
-                    Some(name.node_wrapper()),
+                    Some(name),
                     true,
                     None,
                 );
@@ -707,20 +707,20 @@ impl TypeChecker {
         node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Option<Id<Node>>> {
         let type_alias = find_ancestor(Some(node), |node| {
-            if !(is_jsdoc_node(node) || node.flags().intersects(NodeFlags::JSDoc)) {
+            if !(is_jsdoc_node(&node.ref_(self)) || node.ref_(self).flags().intersects(NodeFlags::JSDoc)) {
                 FindAncestorCallbackReturn::Quit
             } else {
-                is_jsdoc_type_alias(node).into()
+                is_jsdoc_type_alias(&node.ref_(self)).into()
             }
         });
         if type_alias.is_some() {
             return Ok(None);
         }
-        let host = get_jsdoc_host(node);
-        if let Some(host) = host.as_ref() {
-            if is_expression_statement(host) {
-                let host_as_expression_statement = host.as_expression_statement();
-                if is_binary_expression(&host_as_expression_statement.expression)
+        let host = get_jsdoc_host(node, self);
+        if let Some(host) = host {
+            if is_expression_statement(&host.ref_(self)) {
+                let host_as_expression_statement = host.ref_(self).as_expression_statement();
+                if is_binary_expression(&host_as_expression_statement.expression.ref_(self))
                     && get_assignment_declaration_kind(&host_as_expression_statement.expression)
                         == AssignmentDeclarationKind::PrototypeProperty
                 {
@@ -736,23 +736,23 @@ impl TypeChecker {
                 }
             }
         }
-        if let Some(host) = host.as_ref() {
-            if (is_object_literal_method(host) || is_property_assignment(host))
-                && is_binary_expression(&host.parent().parent())
-                && get_assignment_declaration_kind(&host.parent().parent())
+        if let Some(host) = host {
+            if (is_object_literal_method(&host.ref_(self)) || is_property_assignment(&host.ref_(self)))
+                && is_binary_expression(&host.ref_(self).parent().ref_(self).parent().ref_(self))
+                && get_assignment_declaration_kind(&host.ref_(self).parent().ref_(self).parent().ref_(self))
                     == AssignmentDeclarationKind::Prototype
             {
                 let symbol =
-                    self.get_symbol_of_node(&host.parent().parent().as_binary_expression().left)?;
+                    self.get_symbol_of_node(host.ref_(self).parent().ref_(self).parent().ref_(self).as_binary_expression().left)?;
                 if let Some(symbol) = symbol {
                     return Ok(self.get_declaration_of_js_prototype_container(symbol));
                 }
             }
         }
-        let sig = get_effective_jsdoc_host(node);
+        let sig = get_effective_jsdoc_host(node, self);
         if let Some(sig) = sig {
-            if is_function_like(Some(&*sig)) {
-                let symbol = self.get_symbol_of_node(&sig)?;
+            if is_function_like(Some(&sig.ref_(self))) {
+                let symbol = self.get_symbol_of_node(sig)?;
                 return Ok(symbol.and_then(|symbol| symbol.ref_(self).maybe_value_declaration()));
             }
         }
@@ -769,7 +769,7 @@ impl TypeChecker {
             .unwrap()
             .ref_(self)
             .maybe_value_declaration()?;
-        let initializer = if is_assignment_declaration(&decl) {
+        let initializer = if is_assignment_declaration(&decl.ref_(self)) {
             get_assigned_expando_initializer(Some(&*decl))
         } else if has_only_expression_initializer(&decl) {
             get_declared_expando_initializer(&decl)

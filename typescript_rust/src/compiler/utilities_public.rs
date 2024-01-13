@@ -41,7 +41,7 @@ use crate::{
     HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeFlags, NodeInterface, OuterExpressionKinds, Push, ReadonlyTextRange, ScriptTarget,
     SortedArray, StringOrNodeArray, Symbol, SymbolInterface, SyntaxKind, System, TextChangeRange,
-    TextSpan,
+    TextSpan, InArena,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -458,21 +458,22 @@ impl From<bool> for FindAncestorCallbackReturn {
 
 pub fn find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>>(
     node: Option<Id<Node>>,
+    arena: &impl HasArena,
     mut callback: impl FnMut(Id<Node>) -> TCallbackReturn,
 ) -> Option<Id<Node>> {
-    try_find_ancestor(node, |node: Id<Node>| -> Result<_, ()> {
+    try_find_ancestor(node, arena, |node: Id<Node>| -> Result<_, ()> {
         Ok(callback(node))
     })
     .unwrap()
 }
 
 pub fn try_find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>, TError>(
-    node: Option<Id<Node>>,
+    mut node: Option<Id<Node>>,
+    arena: &impl HasArena,
     mut callback: impl FnMut(Id<Node>) -> Result<TCallbackReturn, TError>,
 ) -> Result<Option<Id<Node>>, TError> {
-    let mut node = node.map(|node| node.borrow().node_wrapper());
-    while let Some(rc_node_ref) = node.as_ref() {
-        let result = callback(&**rc_node_ref)?.into();
+    while let Some(node_present) = node {
+        let result = callback(node_present)?.into();
         match result {
             FindAncestorCallbackReturn::Quit => {
                 return Ok(None);
@@ -482,7 +483,7 @@ pub fn try_find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>, TErr
             }
             _ => (),
         }
-        node = rc_node_ref.maybe_parent();
+        node = node_present.ref_(arena).maybe_parent();
     }
     Ok(None)
 }
@@ -1468,18 +1469,18 @@ pub(crate) fn is_class_member_modifier(id_token: SyntaxKind) -> bool {
         )
 }
 
-pub fn is_modifier(node: Id<Node>) -> bool {
+pub fn is_modifier(node: &Node) -> bool {
     is_modifier_kind(node.kind())
 }
 
-pub fn is_entity_name(node: Id<Node>) -> bool {
+pub fn is_entity_name(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::QualifiedName | SyntaxKind::Identifier
     )
 }
 
-pub fn is_property_name(node: Id<Node>) -> bool {
+pub fn is_property_name(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier
@@ -1490,29 +1491,29 @@ pub fn is_property_name(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_binding_name(node: Id<Node>) -> bool {
+pub fn is_binding_name(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier | SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
     )
 }
 
-pub fn is_function_like(node: Option<Id<Node>>) -> bool {
-    node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
+pub fn is_function_like(node: Option<&Node>) -> bool {
+    node.map_or(false, |node| is_function_like_kind(node.kind()))
 }
 
-pub(crate) fn is_function_like_or_class_static_block_declaration(node: Option<Id<Node>>) -> bool {
+pub(crate) fn is_function_like_or_class_static_block_declaration(node: Option<&Node>) -> bool {
     node.map_or(false, |node| {
         let node = node.borrow();
         is_function_like_kind(node.kind()) || is_class_static_block_declaration(node)
     })
 }
 
-pub(crate) fn is_function_like_declaration(node: Id<Node>) -> bool {
+pub(crate) fn is_function_like_declaration(node: &Node) -> bool {
     is_function_like_declaration_kind(node.kind())
 }
 
-pub(crate) fn maybe_is_function_like_declaration(node: Option<Id<Node>>) -> bool {
+pub(crate) fn maybe_is_function_like_declaration(node: Option<&Node>) -> bool {
     matches!(
         node,
         Some(node) if is_function_like_declaration(node)
@@ -1520,7 +1521,7 @@ pub(crate) fn maybe_is_function_like_declaration(node: Option<Id<Node>>) -> bool
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_boolean_literal(node: Id<Node>) -> bool {
+pub(crate) fn is_boolean_literal(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword
@@ -1554,7 +1555,7 @@ pub(crate) fn is_function_like_kind(kind: SyntaxKind) -> bool {
     }
 }
 
-pub(crate) fn is_function_or_module_block(node: Id<Node>) -> bool {
+pub(crate) fn is_function_or_module_block(node: &Node) -> bool {
     is_source_file(node)
         || is_module_block(node)
         || is_block(node) && is_function_like(node.maybe_parent())
@@ -1574,14 +1575,14 @@ pub fn is_class_element(node: &Node) -> bool {
     )
 }
 
-pub fn is_class_like(node: Id<Node>) -> bool {
+pub fn is_class_like(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
     )
 }
 
-pub fn maybe_is_class_like(node: Option<Id<Node>>) -> bool {
+pub fn maybe_is_class_like(node: Option<&Node>) -> bool {
     node.is_some()
         && matches!(
             node.unwrap().borrow().kind(),
@@ -1589,7 +1590,7 @@ pub fn maybe_is_class_like(node: Option<Id<Node>>) -> bool {
         )
 }
 
-pub fn is_accessor(node: Id<Node>) -> bool {
+pub fn is_accessor(node: &Node) -> bool {
     /*node && */
     matches!(
         node.kind(),
@@ -1597,14 +1598,14 @@ pub fn is_accessor(node: Id<Node>) -> bool {
     )
 }
 
-pub(crate) fn is_method_or_accessor(node: Id<Node>) -> bool {
+pub(crate) fn is_method_or_accessor(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
     )
 }
 
-pub fn is_type_element(node: Id<Node>) -> bool {
+pub fn is_type_element(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ConstructSignature
@@ -1615,11 +1616,11 @@ pub fn is_type_element(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_class_or_type_element(node: Id<Node>) -> bool {
+pub fn is_class_or_type_element(node: &Node) -> bool {
     is_type_element(node) || is_class_element(node)
 }
 
-pub fn is_object_literal_element_like(node: Id<Node>) -> bool {
+pub fn is_object_literal_element_like(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::PropertyAssignment
@@ -1631,18 +1632,18 @@ pub fn is_object_literal_element_like(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_type_node(node: Id<Node>) -> bool {
+pub fn is_type_node(node: &Node) -> bool {
     is_type_node_kind(node.kind())
 }
 
-pub fn is_function_or_constructor_type_node(node: Id<Node>) -> bool {
+pub fn is_function_or_constructor_type_node(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::FunctionType | SyntaxKind::ConstructorType
     )
 }
 
-pub fn is_binding_pattern(node: Option<impl Borrow<Node>>) -> bool {
+pub fn is_binding_pattern(node: Option<&Node>) -> bool {
     if let Some(node) = node {
         let kind = node.borrow().kind();
         return matches!(
@@ -1654,14 +1655,14 @@ pub fn is_binding_pattern(node: Option<impl Borrow<Node>>) -> bool {
     false
 }
 
-pub(crate) fn is_assignment_pattern(node: Id<Node>) -> bool {
+pub(crate) fn is_assignment_pattern(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
     )
 }
 
-pub(crate) fn is_array_binding_element(node: Id<Node>) -> bool {
+pub(crate) fn is_array_binding_element(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::BindingElement | SyntaxKind::OmittedExpression
@@ -1669,7 +1670,7 @@ pub(crate) fn is_array_binding_element(node: Id<Node>) -> bool {
 }
 
 pub(crate) fn is_declaration_binding_element(
-    binding_element: Id<Node>, /*BindingOrAssignmentElement*/
+    binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> bool {
     matches!(
         binding_element.kind(),
@@ -1679,13 +1680,13 @@ pub(crate) fn is_declaration_binding_element(
 
 #[allow(dead_code)]
 pub(crate) fn is_binding_or_assigment_pattern(
-    node: Id<Node>, /*BindingOrAssignmentElementTarget*/
+    node: &Node, /*BindingOrAssignmentElementTarget*/
 ) -> bool {
     is_object_binding_or_assigment_pattern(node) || is_array_binding_or_assigment_pattern(node)
 }
 
 pub(crate) fn is_object_binding_or_assigment_pattern(
-    node: Id<Node>, /*BindingOrAssignmentElementTarget*/
+    node: &Node, /*BindingOrAssignmentElementTarget*/
 ) -> bool {
     matches!(
         node.kind(),
@@ -1694,7 +1695,7 @@ pub(crate) fn is_object_binding_or_assigment_pattern(
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_object_binding_or_assignment_element(node: Id<Node>) -> bool {
+pub(crate) fn is_object_binding_or_assignment_element(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::BindingElement
@@ -1705,7 +1706,7 @@ pub(crate) fn is_object_binding_or_assignment_element(node: Id<Node>) -> bool {
 }
 
 pub(crate) fn is_array_binding_or_assigment_pattern(
-    node: Id<Node>, /*BindingOrAssignmentElement*/
+    node: &Node, /*BindingOrAssignmentElement*/
 ) -> bool {
     matches!(
         node.kind(),
@@ -1713,21 +1714,21 @@ pub(crate) fn is_array_binding_or_assigment_pattern(
     )
 }
 
-pub(crate) fn is_property_access_or_qualified_name_or_import_type_node(node: Id<Node>) -> bool {
+pub(crate) fn is_property_access_or_qualified_name_or_import_type_node(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName | SyntaxKind::ImportType
     )
 }
 
-pub fn is_property_access_or_qualified_name(node: Id<Node>) -> bool {
+pub fn is_property_access_or_qualified_name(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName
     )
 }
 
-pub fn is_call_like_expression(node: Id<Node>) -> bool {
+pub fn is_call_like_expression(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JsxOpeningElement
@@ -1739,21 +1740,21 @@ pub fn is_call_like_expression(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_call_or_new_expression(node: Id<Node>) -> bool {
+pub fn is_call_or_new_expression(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::CallExpression | SyntaxKind::NewExpression
     )
 }
 
-pub fn is_template_literal(node: Id<Node>) -> bool {
+pub fn is_template_literal(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::TemplateExpression | SyntaxKind::NoSubstitutionTemplateLiteral
     )
 }
 
-pub(crate) fn is_left_hand_side_expression(node: Id<Node>) -> bool {
+pub(crate) fn is_left_hand_side_expression(node: &Node) -> bool {
     is_left_hand_side_expression_kind(skip_partially_emitted_expressions(node).kind())
 }
 
@@ -1792,7 +1793,7 @@ fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
     )
 }
 
-pub(crate) fn is_unary_expression(node: Id<Node>) -> bool {
+pub(crate) fn is_unary_expression(node: &Node) -> bool {
     is_unary_expression_kind(skip_partially_emitted_expressions(node).kind())
 }
 
@@ -1810,7 +1811,7 @@ fn is_unary_expression_kind(kind: SyntaxKind) -> bool {
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_unary_expression_with_write(expr: Id<Node>) -> bool {
+pub(crate) fn is_unary_expression_with_write(expr: &Node) -> bool {
     match expr.kind() {
         SyntaxKind::PostfixUnaryExpression => true,
         SyntaxKind::PrefixUnaryExpression => matches!(
@@ -1821,7 +1822,7 @@ pub(crate) fn is_unary_expression_with_write(expr: Id<Node>) -> bool {
     }
 }
 
-pub fn is_expression(node: Id<Node>) -> bool {
+pub fn is_expression(node: &Node) -> bool {
     is_expression_kind(skip_partially_emitted_expressions(node).kind())
 }
 
@@ -1839,7 +1840,7 @@ fn is_expression_kind(kind: SyntaxKind) -> bool {
     }
 }
 
-pub fn is_assertion_expression(node: Id<Node>) -> bool {
+pub fn is_assertion_expression(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression
@@ -1847,11 +1848,11 @@ pub fn is_assertion_expression(node: Id<Node>) -> bool {
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_not_emitted_or_partially_emitted_node(node: Id<Node>) -> bool {
+pub(crate) fn is_not_emitted_or_partially_emitted_node(node: &Node) -> bool {
     is_not_emitted_statement(node) || is_partially_emitted_expression(node)
 }
 
-pub fn is_iteration_statement(node: Id<Node>, look_in_labeled_statements: bool) -> bool {
+pub fn is_iteration_statement(node: &Node, look_in_labeled_statements: bool) -> bool {
     match node.kind() {
         SyntaxKind::ForStatement
         | SyntaxKind::ForInStatement
@@ -1869,7 +1870,7 @@ pub fn is_iteration_statement(node: Id<Node>, look_in_labeled_statements: bool) 
     }
 }
 
-pub(crate) fn is_scope_marker(node: Id<Node>) -> bool {
+pub(crate) fn is_scope_marker(node: &Node) -> bool {
     is_export_assignment(node) || is_export_declaration(node)
 }
 
@@ -1880,40 +1881,40 @@ pub(crate) fn has_scope_marker(statements: &[Id<Node /*Statement*/>]) -> bool {
     )
 }
 
-pub(crate) fn needs_scope_marker(result: Id<Node> /*Statement*/) -> bool {
+pub(crate) fn needs_scope_marker(result: &Node /*Statement*/) -> bool {
     !is_any_import_or_re_export(result)
         && !is_export_assignment(result)
         && !has_syntactic_modifier(result, ModifierFlags::Export)
         && !is_ambient_module(result)
 }
 
-pub(crate) fn is_external_module_indicator(result: Id<Node> /*Statement*/) -> bool {
+pub(crate) fn is_external_module_indicator(result: &Node /*Statement*/) -> bool {
     is_any_import_or_re_export(result)
         || is_export_assignment(result)
         || has_syntactic_modifier(result, ModifierFlags::Export)
 }
 
-pub(crate) fn is_for_in_or_of_statement(node: Id<Node>) -> bool {
+pub(crate) fn is_for_in_or_of_statement(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
     )
 }
 
-pub(crate) fn is_concise_body(node: Id<Node>) -> bool {
+pub(crate) fn is_concise_body(node: &Node) -> bool {
     is_block(node) || is_expression(node)
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_function_body(node: Id<Node>) -> bool {
+pub(crate) fn is_function_body(node: &Node) -> bool {
     is_block(node)
 }
 
-pub(crate) fn is_for_initializer(node: Id<Node>) -> bool {
+pub(crate) fn is_for_initializer(node: &Node) -> bool {
     is_variable_declaration_list(node) || is_expression(node)
 }
 
-pub(crate) fn is_module_body(node: Id<Node>) -> bool {
+pub(crate) fn is_module_body(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ModuleBlock | SyntaxKind::ModuleDeclaration | SyntaxKind::Identifier
@@ -1921,7 +1922,7 @@ pub(crate) fn is_module_body(node: Id<Node>) -> bool {
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_namespace_body(node: Id<Node>) -> bool {
+pub(crate) fn is_namespace_body(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ModuleBlock | SyntaxKind::ModuleDeclaration
@@ -1929,21 +1930,21 @@ pub(crate) fn is_namespace_body(node: Id<Node>) -> bool {
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_jsdoc_namespace_body(node: Id<Node>) -> bool {
+pub(crate) fn is_jsdoc_namespace_body(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier | SyntaxKind::ModuleDeclaration
     )
 }
 
-pub(crate) fn is_named_import_bindings(node: Id<Node>) -> bool {
+pub(crate) fn is_named_import_bindings(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::NamedImports | SyntaxKind::NamespaceImport
     )
 }
 
-pub(crate) fn is_module_or_enum_declaration(node: Id<Node>) -> bool {
+pub(crate) fn is_module_or_enum_declaration(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ModuleDeclaration | SyntaxKind::EnumDeclaration
@@ -2036,7 +2037,7 @@ fn is_statement_kind_but_not_declaration_kind(kind: SyntaxKind) -> bool {
     )
 }
 
-pub(crate) fn is_declaration(node: Id<Node>) -> bool {
+pub(crate) fn is_declaration(node: &Node) -> bool {
     if node.kind() == SyntaxKind::TypeParameter {
         return node.maybe_parent().map_or(false, |parent| {
             parent.kind() != SyntaxKind::JSDocTemplateTag
@@ -2046,22 +2047,22 @@ pub(crate) fn is_declaration(node: Id<Node>) -> bool {
     is_declaration_kind(node.kind())
 }
 
-pub(crate) fn is_declaration_statement(node: Id<Node>) -> bool {
+pub(crate) fn is_declaration_statement(node: &Node) -> bool {
     is_declaration_statement_kind(node.kind())
 }
 
-pub(crate) fn is_statement_but_not_declaration(node: Id<Node>) -> bool {
+pub(crate) fn is_statement_but_not_declaration(node: &Node) -> bool {
     is_statement_kind_but_not_declaration_kind(node.kind())
 }
 
-pub(crate) fn is_statement(node: Id<Node>) -> bool {
+pub(crate) fn is_statement(node: &Node) -> bool {
     let kind = node.kind();
     is_statement_kind_but_not_declaration_kind(kind)
         || is_declaration_statement_kind(kind)
         || is_block_statement(node)
 }
 
-fn is_block_statement(node: Id<Node>) -> bool {
+fn is_block_statement(node: &Node) -> bool {
     if node.kind() != SyntaxKind::Block {
         return false;
     }
@@ -2076,28 +2077,28 @@ fn is_block_statement(node: Id<Node>) -> bool {
     !is_function_block(node)
 }
 
-pub(crate) fn is_statement_or_block(node: Id<Node>) -> bool {
+pub(crate) fn is_statement_or_block(node: &Node) -> bool {
     let kind = node.kind();
     is_statement_kind_but_not_declaration_kind(kind)
         || is_declaration_statement_kind(kind)
         || kind == SyntaxKind::Block
 }
 
-pub(crate) fn is_module_reference(node: Id<Node>) -> bool {
+pub(crate) fn is_module_reference(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ExternalModuleReference | SyntaxKind::QualifiedName | SyntaxKind::Identifier
     )
 }
 
-pub(crate) fn is_jsx_tag_name_expression(node: Id<Node>) -> bool {
+pub(crate) fn is_jsx_tag_name_expression(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ThisKeyword | SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression
     )
 }
 
-pub(crate) fn is_jsx_child(node: Id<Node>) -> bool {
+pub(crate) fn is_jsx_child(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JsxElement
@@ -2108,39 +2109,39 @@ pub(crate) fn is_jsx_child(node: Id<Node>) -> bool {
     )
 }
 
-pub(crate) fn is_jsx_attribute_like(node: Id<Node>) -> bool {
+pub(crate) fn is_jsx_attribute_like(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute
     )
 }
 
-pub(crate) fn is_string_literal_or_jsx_expression(node: Id<Node>) -> bool {
+pub(crate) fn is_string_literal_or_jsx_expression(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::StringLiteral | SyntaxKind::JsxExpression
     )
 }
 
-pub fn is_jsx_opening_like_element(node: Id<Node>) -> bool {
+pub fn is_jsx_opening_like_element(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
     )
 }
 
-pub fn is_case_or_default_clause(node: Id<Node>) -> bool {
+pub fn is_case_or_default_clause(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::CaseClause | SyntaxKind::DefaultClause
     )
 }
 
-pub(crate) fn is_jsdoc_node(node: Id<Node>) -> bool {
+pub(crate) fn is_jsdoc_node(node: &Node) -> bool {
     node.kind() >= SyntaxKind::FirstJSDocNode && node.kind() <= SyntaxKind::LastJSDocNode
 }
 
-pub fn is_jsdoc_comment_containing_node(node: Id<Node>) -> bool {
+pub fn is_jsdoc_comment_containing_node(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JSDocComment | SyntaxKind::JSDocNamepathType | SyntaxKind::JSDocText
@@ -2150,35 +2151,35 @@ pub fn is_jsdoc_comment_containing_node(node: Id<Node>) -> bool {
         || is_jsdoc_signature(node)
 }
 
-pub(crate) fn is_jsdoc_tag(node: Id<Node>) -> bool {
+pub(crate) fn is_jsdoc_tag(node: &Node) -> bool {
     node.kind() >= SyntaxKind::FirstJSDocTagNode && node.kind() <= SyntaxKind::LastJSDocTagNode
 }
 
-pub fn is_set_accessor(node: Id<Node>) -> bool {
+pub fn is_set_accessor(node: &Node) -> bool {
     node.kind() == SyntaxKind::SetAccessor
 }
 
-pub fn is_get_accessor(node: Id<Node>) -> bool {
+pub fn is_get_accessor(node: &Node) -> bool {
     node.kind() == SyntaxKind::GetAccessor
 }
 
-pub(crate) fn has_jsdoc_nodes(node: Id<Node>) -> bool {
+pub(crate) fn has_jsdoc_nodes(node: &Node) -> bool {
     node.maybe_js_doc().map_or(false, |jsdoc| !jsdoc.is_empty())
 }
 
-pub(crate) fn has_type(node: Id<Node>) -> bool {
+pub(crate) fn has_type(node: &Node) -> bool {
     node.maybe_as_has_type()
         .and_then(|node| node.maybe_type())
         .is_some()
 }
 
-pub(crate) fn has_initializer(node: Id<Node>) -> bool {
+pub(crate) fn has_initializer(node: &Node) -> bool {
     node.maybe_as_has_initializer()
         .and_then(|node| node.maybe_initializer())
         .is_some()
 }
 
-pub fn has_only_expression_initializer(node: Id<Node>) -> bool {
+pub fn has_only_expression_initializer(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::VariableDeclaration
@@ -2191,14 +2192,14 @@ pub fn has_only_expression_initializer(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_object_literal_element(node: Id<Node>) -> bool {
+pub fn is_object_literal_element(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute
     ) || is_object_literal_element_like(node)
 }
 
-pub(crate) fn is_type_reference_type(node: Id<Node>) -> bool {
+pub(crate) fn is_type_reference_type(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::TypeReference | SyntaxKind::ExpressionWithTypeArguments
@@ -2235,14 +2236,14 @@ pub(crate) fn guess_indentation(lines: &[&str]) -> Option<usize> {
     }
 }
 
-pub fn is_string_literal_like(node: Id<Node>) -> bool {
+pub fn is_string_literal_like(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
     )
 }
 
-pub fn is_jsdoc_link_like(node: Id<Node>) -> bool {
+pub fn is_jsdoc_link_like(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JSDocLink | SyntaxKind::JSDocLinkCode | SyntaxKind::JSDocLinkPlain
