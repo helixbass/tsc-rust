@@ -20,10 +20,10 @@ use crate::{
     maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, text_char_at_index,
     text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange, DetachedCommentInfo,
     EmitTextWriter, ModifierFlags, ModifiersArray, Node, NodeFlags, NodeInterface,
-    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
+    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange, HasArena,
 };
 
-pub fn get_effective_type_annotation_node(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>> {
+pub fn get_effective_type_annotation_node(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*TypeNode*/>> {
     if !is_in_js_file(Some(node)) && is_function_declaration(node) {
         return None;
     }
@@ -39,7 +39,7 @@ pub fn get_effective_type_annotation_node(node: Id<Node>) -> Option<Id<Node /*Ty
             .as_ref()
             .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
     } else {
-        get_jsdoc_type(node)
+        get_jsdoc_type(node, arena)
     }
 }
 
@@ -49,7 +49,7 @@ pub fn get_type_annotation_node(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>>
 }
 
 pub fn get_effective_return_type_node(
-    node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
+    node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/ arena: &impl HasArena
 ) -> Option<Id<Node /*TypeNode*/>> {
     if is_jsdoc_signature(node) {
         node.as_jsdoc_signature()
@@ -60,7 +60,7 @@ pub fn get_effective_return_type_node(
     } else {
         node.as_signature_declaration().maybe_type().or_else(|| {
             if is_in_js_file(Some(node)) {
-                get_jsdoc_return_type(node)
+                get_jsdoc_return_type(node, arena)
             } else {
                 None
             }
@@ -69,9 +69,9 @@ pub fn get_effective_return_type_node(
 }
 
 pub fn get_jsdoc_type_parameter_declarations(
-    node: Id<Node>, /*DeclarationWithTypeParameters*/
+    node: Id<Node>, /*DeclarationWithTypeParameters*/ arena: &impl HasArena
 ) -> Vec<Id<Node /*TypeParameterDeclaration*/>> {
-    flat_map(Some(get_jsdoc_tags(node)), |tag, _| {
+    flat_map(Some(get_jsdoc_tags(node, arena)), |tag, _| {
         if is_non_type_alias_template(&tag) {
             tag.as_jsdoc_template_tag().type_parameters.to_vec()
         } else {
@@ -89,10 +89,10 @@ pub fn is_non_type_alias_template(tag: Id<Node> /*JSDocTag*/) -> bool {
 }
 
 pub fn get_effective_set_accessor_type_annotation_node(
-    node: Id<Node>, /*SetAccessorDeclaration*/
+    node: Id<Node>, /*SetAccessorDeclaration*/ arena: &impl HasArena
 ) -> Option<Id<Node /*TypeNode*/>> {
     let parameter = get_set_accessor_value_parameter(node);
-    parameter.and_then(|parameter| get_effective_type_annotation_node(&parameter))
+    parameter.and_then(|parameter| get_effective_type_annotation_node(parameter, arena))
 }
 
 pub fn emit_new_line_before_leading_comments<TNode: ReadonlyTextRange>(
@@ -436,7 +436,7 @@ fn get_selected_syntactic_modifier_flags(node: &Node, flags: ModifierFlags) -> M
 fn get_modifier_flags_worker(
     node: &Node,
     include_jsdoc: bool,
-    always_include_jsdoc: Option<bool>,
+    always_include_jsdoc: Option<bool>, arena: &impl HasArena
 ) -> ModifierFlags {
     if node.kind() >= SyntaxKind::FirstToken && node.kind() <= SyntaxKind::LastToken {
         return ModifierFlags::None;
@@ -460,7 +460,7 @@ fn get_modifier_flags_worker(
     {
         node.set_modifier_flags_cache(
             node.modifier_flags_cache()
-                | get_jsdoc_modifier_flags_no_cache(node)
+                | get_jsdoc_modifier_flags_no_cache(node, arena)
                 | ModifierFlags::HasComputedJSDocModifiers,
         );
     }
@@ -481,27 +481,27 @@ pub fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
     get_modifier_flags_worker(node, false, None)
 }
 
-fn get_jsdoc_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+fn get_jsdoc_modifier_flags_no_cache(node: &Node, arena: &impl HasArena) -> ModifierFlags {
     let mut flags = ModifierFlags::None;
     if node.maybe_parent().is_some() && !is_parameter(node) {
         if is_in_js_file(Some(node)) {
-            if get_jsdoc_public_tag_no_cache(node).is_some() {
+            if get_jsdoc_public_tag_no_cache(node, arena).is_some() {
                 flags |= ModifierFlags::Public;
             }
-            if get_jsdoc_private_tag_no_cache(node).is_some() {
+            if get_jsdoc_private_tag_no_cache(node, arena).is_some() {
                 flags |= ModifierFlags::Private;
             }
-            if get_jsdoc_protected_tag_no_cache(node).is_some() {
+            if get_jsdoc_protected_tag_no_cache(node, arena).is_some() {
                 flags |= ModifierFlags::Protected;
             }
-            if get_jsdoc_readonly_tag_no_cache(node).is_some() {
+            if get_jsdoc_readonly_tag_no_cache(node, arena).is_some() {
                 flags |= ModifierFlags::Readonly;
             }
-            if get_jsdoc_override_tag_no_cache(node).is_some() {
+            if get_jsdoc_override_tag_no_cache(node, arena).is_some() {
                 flags |= ModifierFlags::Override;
             }
         }
-        if get_jsdoc_deprecated_tag_no_cache(node).is_some() {
+        if get_jsdoc_deprecated_tag_no_cache(node, arena).is_some() {
             flags |= ModifierFlags::Deprecated;
         }
     }
@@ -509,8 +509,8 @@ fn get_jsdoc_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
     flags
 }
 
-pub fn get_effective_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
-    get_syntactic_modifier_flags_no_cache(node) | get_jsdoc_modifier_flags_no_cache(node)
+pub fn get_effective_modifier_flags_no_cache(node: Id<Node>, arena: &impl HasArena) -> ModifierFlags {
+    get_syntactic_modifier_flags_no_cache(node) | get_jsdoc_modifier_flags_no_cache(node, arena)
 }
 
 fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {

@@ -250,7 +250,7 @@ impl TypeChecker {
                 .intersects(SymbolFlags::EnumMember)
         }) {
             let ref member = symbol.ref_(self).maybe_value_declaration().unwrap();
-            if is_enum_const(&member.parent()) {
+            if is_enum_const(member.parent(), self) {
                 return self.get_enum_member_value(member);
             }
         }
@@ -573,7 +573,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> io::Result<bool> {
-        if is_declaration_readonly(node) || is_variable_declaration(node) && is_var_const(node) {
+        if is_declaration_readonly(node, self) || is_variable_declaration(node) && is_var_const(node, self) {
             return Ok(self.is_fresh_literal_type(
                 self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?,
             ));

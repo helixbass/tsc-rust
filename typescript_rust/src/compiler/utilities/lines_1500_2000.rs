@@ -17,7 +17,7 @@ use crate::{
     maybe_is_class_like, some, try_cast, ClassLikeDeclarationInterface, Debug_,
     FindAncestorCallbackReturn, HasInitializerInterface, HasStatementsInterface,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface, SyntaxKind,
-    TypePredicate, TypePredicateKind,
+    TypePredicate, TypePredicateKind, HasArena, InArena,
 };
 
 pub fn introduces_arguments_exotic_object(node: Id<Node>) -> bool {
@@ -81,19 +81,19 @@ pub fn is_this_type_predicate(predicate: &TypePredicate) -> bool {
     predicate.kind == TypePredicateKind::This
 }
 
-pub fn get_property_assignment<'key_and_key2>(
+pub fn get_property_assignment<'a>(
     object_literal: Id<Node>, /*ObjectLiteralExpression*/
-    key: &'key_and_key2 str,
-    key2: Option<&'key_and_key2 str>,
-) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + Clone + 'key_and_key2 {
+    key: &'a str,
+    key2: Option<&'a str>, arena: &'a impl HasArena,
+) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + Clone + 'a {
     object_literal
-        .as_object_literal_expression()
+        .ref_(arena).as_object_literal_expression()
         .properties
         .owned_iter()
-        .filter(move |property| {
-            if property.kind() == SyntaxKind::PropertyAssignment {
-                let property_name = property.as_property_assignment().name();
-                let prop_name = get_text_of_property_name(&property_name);
+        .filter(move |&property| {
+            if property.ref_(arena).kind() == SyntaxKind::PropertyAssignment {
+                let property_name = property.ref_(arena).as_property_assignment().name();
+                let prop_name = get_text_of_property_name(&property_name, arena);
                 return prop_name == key || matches!(key2, Some(key2) if prop_name == key2);
             }
             false
@@ -184,16 +184,18 @@ pub fn get_ts_config_prop_array_element_value(
     )
 }
 
-pub fn get_ts_config_prop_array<'prop_key>(
+pub fn get_ts_config_prop_array<'a>(
     ts_config_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
-    prop_key: &'prop_key str,
-) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + 'prop_key {
+    prop_key: &'a str,
+    arena: &'a impl HasArena,
+) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + 'a {
     let json_object_literal = get_ts_config_object_literal_expression(ts_config_source_file);
     match json_object_literal {
         Some(json_object_literal) => Either::Left(get_property_assignment(
-            &json_object_literal,
+            json_object_literal,
             prop_key,
             None,
+            arena,
         )),
         None => Either::Right(iter::empty()),
     }

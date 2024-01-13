@@ -79,11 +79,7 @@ pub fn create_diagnostic_for_node_from_message_chain(
     )
 }
 
-fn assert_diagnostic_location(
-    file: Option<Id<Node> /*SourceFile*/>,
-    start: isize,
-    length: isize,
-) {
+fn assert_diagnostic_location(file: Option<Id<Node> /*SourceFile*/>, start: isize, length: isize) {
     Debug_.assert_greater_than_or_equal(start, 0);
     Debug_.assert_greater_than_or_equal(length, 0);
 
@@ -374,21 +370,21 @@ pub fn is_json_source_file(file: &Node /*SourceFile*/) -> bool {
     file.as_source_file().script_kind() == ScriptKind::JSON
 }
 
-pub fn is_enum_const(node: Id<Node> /*EnumDeclaration*/) -> bool {
-    get_combined_modifier_flags(node).intersects(ModifierFlags::Const)
+pub fn is_enum_const(node: Id<Node> /*EnumDeclaration*/, arena: &impl HasArena) -> bool {
+    get_combined_modifier_flags(node, arena).intersects(ModifierFlags::Const)
 }
 
-pub fn is_declaration_readonly(declaration: Id<Node> /*Declaration*/) -> bool {
-    get_combined_modifier_flags(declaration).intersects(ModifierFlags::Readonly)
+pub fn is_declaration_readonly(declaration: Id<Node> /*Declaration*/, arena: &impl HasArena) -> bool {
+    get_combined_modifier_flags(declaration, arena).intersects(ModifierFlags::Readonly)
         && !is_parameter_property_declaration(declaration, &declaration.parent())
 }
 
-pub fn is_var_const(node: Id<Node> /*VariableDeclaration | VariableDeclarationList*/) -> bool {
-    get_combined_node_flags(node).intersects(NodeFlags::Const)
+pub fn is_var_const(node: Id<Node> /*VariableDeclaration | VariableDeclarationList*/, arena: &impl HasArena) -> bool {
+    get_combined_node_flags(node, arena).intersects(NodeFlags::Const)
 }
 
-pub fn is_let(node: Id<Node>) -> bool {
-    get_combined_node_flags(node).intersects(NodeFlags::Let)
+pub fn is_let(node: Id<Node>, arena: &impl HasArena) -> bool {
+    get_combined_node_flags(node, arena).intersects(NodeFlags::Let)
 }
 
 pub fn is_super_call(n: Id<Node>) -> bool {
@@ -837,7 +833,7 @@ pub fn get_members_of_declaration(
     }
 }
 
-pub fn is_variable_like(node: Id<Node>) -> bool {
+pub fn is_variable_like(node: &Node) -> bool {
     /* if node {*/
     match node.kind() {
         SyntaxKind::BindingElement

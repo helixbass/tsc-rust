@@ -19,61 +19,62 @@ use crate::{
     Debug_, HasInitializerInterface, LiteralLikeNodeInterface, Node, InArena, HasArena,
 };
 
-pub fn is_part_of_type_query(node: Id<Node>) -> bool {
-    let mut node = node.node_wrapper();
+pub fn is_part_of_type_query(mut node: Id<Node>, arena: &impl HasArena) -> bool {
     while matches!(
         node.kind(),
         SyntaxKind::QualifiedName | SyntaxKind::Identifier
     ) {
-        node = node.parent();
+        node = node.ref_(arena).parent();
     }
     node.kind() == SyntaxKind::TypeQuery
 }
 
-pub fn is_namespace_reexport_declaration(node: Id<Node>) -> bool {
-    is_namespace_export(node)
+pub fn is_namespace_reexport_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_namespace_export(&node.ref_(arena))
         && node
+            .ref_(arena)
             .parent()
+            .ref_(arena)
             .as_export_declaration()
             .module_specifier
             .is_some()
 }
 
-pub fn is_external_module_import_equals_declaration(node: Id<Node>) -> bool {
-    node.kind() == SyntaxKind::ImportEqualsDeclaration
-        && node.as_import_equals_declaration().module_reference.kind()
+pub fn is_external_module_import_equals_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
+    node.ref_(arena).kind() == SyntaxKind::ImportEqualsDeclaration
+        && node.ref_(arena).as_import_equals_declaration().module_reference.ref_(arena).kind()
             == SyntaxKind::ExternalModuleReference
 }
 
 pub fn get_external_module_import_equals_declaration_expression(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena
 ) -> Id<Node /*Expression*/> {
-    Debug_.assert(is_external_module_import_equals_declaration(node), None);
-    node.as_import_equals_declaration()
+    Debug_.assert(is_external_module_import_equals_declaration(node, arena), None);
+    node.ref_(arena).as_import_equals_declaration()
         .module_reference
+        .ref_(arena)
         .as_external_module_reference()
         .expression
-        .clone()
 }
 
-pub fn get_external_module_require_argument(node: Id<Node>) -> Option<Id<Node /*StringLiteral*/>> {
-    if is_require_variable_declaration(node) {
+pub fn get_external_module_require_argument(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*StringLiteral*/>> {
+    if is_require_variable_declaration(node, arena) {
         Some(
             get_leftmost_access_expression(
-                &node.as_variable_declaration().maybe_initializer().unwrap(),
+                node.ref_(arena).as_variable_declaration().maybe_initializer().unwrap(),
+                arena,
             )
-            .as_call_expression()
+            .ref_(arena).as_call_expression()
             .arguments[0]
-                .clone(),
         )
     } else {
         None
     }
 }
 
-pub fn is_internal_module_import_equals_declaration(node: &Node) -> bool {
-    node.kind() == SyntaxKind::ImportEqualsDeclaration
-        && node.as_import_equals_declaration().module_reference.kind()
+pub fn is_internal_module_import_equals_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
+    node.ref_(arena).kind() == SyntaxKind::ImportEqualsDeclaration
+        && node.ref_(arena).as_import_equals_declaration().module_reference.ref_(arena).kind()
             != SyntaxKind::ExternalModuleReference
 }
 
@@ -153,8 +154,7 @@ pub fn is_require_call(
     !require_string_literal_like_argument || is_string_literal_like(arg)
 }
 
-pub fn is_require_variable_declaration(node: Id<Node>) -> bool {
-    let mut node = node.node_wrapper();
+pub fn is_require_variable_declaration(mut node: Id<Node>, arena: &impl HasArena) -> bool {
     if node.kind() == SyntaxKind::BindingElement {
         node = node.parent().parent();
     }

@@ -43,7 +43,7 @@ use crate::{
     ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
     SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
-    TokenFlags, Type, UnderscoreEscapedMap,
+    TokenFlags, Type, UnderscoreEscapedMap, InArena,
 };
 
 thread_local! {
@@ -1826,29 +1826,30 @@ pub fn is_computed_non_literal_name(name: Id<Node> /*PropertyName*/) -> bool {
 }
 
 pub fn get_text_of_property_name<'name>(
-    name: Id<Node>, /*PropertyName | NoSubstitutionTemplateLiteral*/
+    name: Id<Node>, /*PropertyName | NoSubstitutionTemplateLiteral*/ arena: &impl HasArena
 ) -> Cow<'name, str> /*__String*/ {
-    match name.kind() {
-        SyntaxKind::Identifier => (&*name.as_identifier().escaped_text).into(),
-        SyntaxKind::PrivateIdentifier => (&*name.as_private_identifier().escaped_text).into(),
-        SyntaxKind::StringLiteral => escape_leading_underscores(&name.as_string_literal().text())
+    match name.ref_(arena).kind() {
+        SyntaxKind::Identifier => (&*name.ref_(arena).as_identifier().escaped_text).into(),
+        SyntaxKind::PrivateIdentifier => (&*name.ref_(arena).as_private_identifier().escaped_text).into(),
+        SyntaxKind::StringLiteral => escape_leading_underscores(&name.ref_(arena).as_string_literal().text())
             .into_owned()
             .into(),
-        SyntaxKind::NumericLiteral => escape_leading_underscores(&name.as_numeric_literal().text())
+        SyntaxKind::NumericLiteral => escape_leading_underscores(&name.ref_(arena).as_numeric_literal().text())
             .into_owned()
             .into(),
         SyntaxKind::NoSubstitutionTemplateLiteral => {
-            escape_leading_underscores(&name.as_template_literal_like_node().text())
+            escape_leading_underscores(&name.ref_(arena).as_template_literal_like_node().text())
                 .into_owned()
                 .into()
         }
         SyntaxKind::ComputedPropertyName => {
-            let name_as_computed_property_name = name.as_computed_property_name();
-            if is_string_or_numeric_literal_like(&name_as_computed_property_name.expression) {
+            let name_ref = name.ref_(arena);
+            let name_as_computed_property_name = name_ref.as_computed_property_name();
+            if is_string_or_numeric_literal_like(&name_as_computed_property_name.expression.ref_(arena)) {
                 return escape_leading_underscores(
                     &name_as_computed_property_name
                         .expression
-                        .as_literal_like_node()
+                        .ref_(arena).as_literal_like_node()
                         .text(),
                 )
                 .into_owned()

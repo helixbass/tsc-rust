@@ -332,13 +332,13 @@ fn get_nested_module_declaration(node: Id<Node>) -> Option<Id<Node>> {
 
 pub fn get_jsdoc_comments_and_tags(
     host_node: Id<Node>,
-    no_cache: Option<bool>,
+    no_cache: Option<bool>, arena: &impl HasArena,
 ) -> Vec<Id<Node /*JSDoc | JSDocTag*/>> {
     let no_cache = no_cache.unwrap_or(false);
     let mut result: Option<Vec<Id<Node>>> = None;
-    if is_variable_like(host_node)
-        && has_initializer(host_node)
-        && has_jsdoc_nodes(&host_node.as_has_initializer().maybe_initializer().unwrap())
+    if is_variable_like(&host_node.ref_(arena))
+        && has_initializer(&host_node.ref_(arena))
+        && has_jsdoc_nodes(&host_node.ref_(arena).as_has_initializer().maybe_initializer().unwrap().ref_(arena))
     {
         result = Some(vec![]);
         /*result =*/
@@ -346,15 +346,16 @@ pub fn get_jsdoc_comments_and_tags(
             result.as_mut().unwrap(),
             filter_owned_jsdoc_tags(
                 host_node,
-                &last(
+                *last(
                     host_node
-                        .as_has_initializer()
+                        .ref_(arena).as_has_initializer()
                         .maybe_initializer()
                         .unwrap()
-                        .maybe_js_doc()
+                        .ref_(arena).maybe_js_doc()
                         .as_deref()
                         .unwrap(),
                 ),
+                arena,
             )
             .as_deref(),
             None,
@@ -362,10 +363,10 @@ pub fn get_jsdoc_comments_and_tags(
         );
     }
 
-    let mut node: Option<Id<Node>> = Some(host_node.node_wrapper());
-    while matches!(node.as_ref(), Some(node) if node.maybe_parent().is_some()) {
-        let node_present = node.as_ref().unwrap();
-        if has_jsdoc_nodes(node_present) {
+    let mut node: Option<Id<Node>> = Some(host_node);
+    while matches!(node, Some(node) if node.ref_(arena).maybe_parent().is_some()) {
+        let node_present = node.unwrap();
+        if has_jsdoc_nodes(&node_present.ref_(arena)) {
             if result.is_none() {
                 result = Some(vec![]);
             }
@@ -374,7 +375,8 @@ pub fn get_jsdoc_comments_and_tags(
                 result.as_mut().unwrap(),
                 filter_owned_jsdoc_tags(
                     host_node,
-                    &last(node_present.maybe_js_doc().as_deref().unwrap()),
+                    *last(node_present.ref_(arena).maybe_js_doc().as_deref().unwrap()),
+                    arena,
                 )
                 .as_deref(),
                 None,
@@ -382,7 +384,7 @@ pub fn get_jsdoc_comments_and_tags(
             );
         }
 
-        if node_present.kind() == SyntaxKind::Parameter {
+        if node_present.ref_(arena).kind() == SyntaxKind::Parameter {
             if result.is_none() {
                 result = Some(vec![]);
             }
@@ -390,9 +392,9 @@ pub fn get_jsdoc_comments_and_tags(
             add_range(
                 result.as_mut().unwrap(),
                 Some(&if no_cache {
-                    get_jsdoc_parameter_tags_no_cache(node_present).collect::<Vec<_>>()
+                    get_jsdoc_parameter_tags_no_cache(node_present, arena).collect::<Vec<_>>()
                 } else {
-                    get_jsdoc_parameter_tags(node_present).collect::<Vec<_>>()
+                    get_jsdoc_parameter_tags(node_present, arena).collect::<Vec<_>>()
                 }),
                 None,
                 None,
@@ -406,9 +408,9 @@ pub fn get_jsdoc_comments_and_tags(
             add_range(
                 result.as_mut().unwrap(),
                 Some(&if no_cache {
-                    get_jsdoc_type_parameter_tags_no_cache(node_present).collect::<Vec<_>>()
+                    get_jsdoc_type_parameter_tags_no_cache(node_present, arena).collect::<Vec<_>>()
                 } else {
-                    get_jsdoc_type_parameter_tags(node_present).collect::<Vec<_>>()
+                    get_jsdoc_type_parameter_tags(node_present, arena).collect::<Vec<_>>()
                 }),
                 None,
                 None,
@@ -422,35 +424,41 @@ pub fn get_jsdoc_comments_and_tags(
 fn filter_owned_jsdoc_tags(
     host_node: Id<Node>,
     js_doc: Id<Node>, /*JSDoc | JSDocTag*/
+    arena: &impl HasArena
 ) -> Option<Vec<Id<Node /*JSDoc | JSDocTag*/>>> {
-    if is_jsdoc(js_doc) {
+    if is_jsdoc(&js_doc.ref_(arena)) {
         let owned_tags = maybe_filter(
-            js_doc.as_jsdoc().tags.as_double_deref(),
-            |tag: &Id<Node>| owns_jsdoc_tag(host_node, tag),
+            js_doc.ref_(arena).as_jsdoc().tags.as_double_deref(),
+            |&tag: &Id<Node>| owns_jsdoc_tag(host_node, tag, arena),
         );
-        return if match (js_doc.as_jsdoc().tags.as_ref(), owned_tags.as_ref()) {
+        return if match (js_doc.ref_(arena).as_jsdoc().tags.as_ref(), owned_tags.as_ref()) {
             (Some(js_doc_tags), Some(owned_tags)) if js_doc_tags.len() == owned_tags.len() => true,
             (None, None) => true,
             _ => false,
         } {
-            Some(vec![js_doc.node_wrapper()])
+            Some(vec![js_doc])
         } else {
             owned_tags
         };
     }
-    if owns_jsdoc_tag(host_node, js_doc) {
-        Some(vec![js_doc.node_wrapper()])
+    if owns_jsdoc_tag(host_node, js_doc, arena) {
+        Some(vec![js_doc])
     } else {
         None
     }
 }
 
-fn owns_jsdoc_tag(host_node: Id<Node>, tag: Id<Node> /*JSDocTag*/) -> bool {
-    !is_jsdoc_type_tag(tag)
-        || tag.maybe_parent().is_none()
-        || !is_jsdoc(&tag.parent())
-        || !matches!(tag.parent().maybe_parent(), Some(grandparent) if is_parenthesized_expression(&grandparent))
-        || matches!(tag.parent().maybe_parent(), Some(grandparent) if ptr::eq(&*grandparent, host_node))
+fn owns_jsdoc_tag(host_node: Id<Node>, tag: Id<Node> /*JSDocTag*/, arena: &impl HasArena) -> bool {
+    !is_jsdoc_type_tag(&tag.ref_(arena))
+        || tag.ref_(arena).maybe_parent().is_none()
+        || !is_jsdoc(&tag.ref_(arena).parent().ref_(arena))
+        || !matches!(
+            tag.ref_(arena).parent().ref_(arena).maybe_parent(),
+            Some(grandparent) if is_parenthesized_expression(&grandparent.ref_(arena))
+        ) || matches!(
+            tag.ref_(arena).parent().ref_(arena).maybe_parent(),
+            Some(grandparent) if grandparent == host_node
+        )
 }
 
 pub fn get_next_jsdoc_comment_location(node: Id<Node>) -> Option<Id<Node>> {
@@ -541,8 +549,8 @@ pub fn get_effective_container_for_jsdoc_template_tag(
     get_host_signature_from_jsdoc(node)
 }
 
-pub fn get_host_signature_from_jsdoc(node: Id<Node>) -> Option<Id<Node /*SignatureDeclaration*/>> {
-    let host = get_effective_jsdoc_host(node);
+pub fn get_host_signature_from_jsdoc(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*SignatureDeclaration*/>> {
+    let host = get_effective_jsdoc_host(node, arena);
     host.filter(|host| is_function_like(Some(&**host)))
 }
 

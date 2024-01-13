@@ -51,7 +51,7 @@ impl TypeChecker {
         }
         let node_parent_as_binary_expression = node_parent.ref_(self).as_binary_expression();
         if node_parent_as_binary_expression.left != node
-            && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken)
+            && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
         {
             return Ok(None);
         }
@@ -204,7 +204,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let Some(alias_declaration) = alias_declaration else {
             return Ok(false);
-        }
+        };
         if is_property_access_expression(&alias_declaration.ref_(self)) {
             return Ok(false);
         }

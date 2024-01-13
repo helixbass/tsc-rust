@@ -6,6 +6,7 @@ members = [
     "harness",
     "test_runner",
 ]
+resolver = "2"
 
 [profile.test]
 # opt-level = 3

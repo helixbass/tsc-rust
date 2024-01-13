@@ -174,9 +174,8 @@ bitflags! {
 pub type NodeId = usize;
 
 pub trait NodeInterface: ReadonlyTextRange {
-    fn node_wrapper(&self) -> Id<Node>;
-    fn set_node_wrapper(&self, wrapper: Id<Node>);
-    fn wrap(self) -> Id<Node>;
+    fn arena_id(&self) -> Id<Node>;
+    fn set_arena_id(&self, id: Id<Node>);
     fn kind(&self) -> SyntaxKind;
     fn modifier_flags_cache(&self) -> ModifierFlags;
     fn set_modifier_flags_cache(&self, flags: ModifierFlags);
@@ -1706,9 +1705,8 @@ impl Node {
 
 #[derive(Finalize, Trace)]
 pub struct BaseNode {
-    _node_wrapper: GcCell<Option<Id<Node>>>,
-    _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
-    _symbol_override: GcCell<Option<Gc<Box<dyn NodeSymbolOverride>>>>,
+    #[unsafe_ignore_trace]
+    _arena_id: Cell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub kind: SyntaxKind,
     #[unsafe_ignore_trace]
@@ -1744,9 +1742,7 @@ pub struct BaseNode {
 impl fmt::Debug for BaseNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BaseNode")
-            // .field("_node_wrapper", &self._node_wrapper)
-            // .field("_id_override", &self._id_override)
-            // .field("_symbol_override", &self._symbol_override)
+            // .field("_arena_id", &self._arena_id)
             .field("kind", &self.kind)
             .field("flags", &self.flags)
             // .field("modifier_flags_cache", &self.modifier_flags_cache)
@@ -1782,9 +1778,7 @@ impl BaseNode {
         end: isize,
     ) -> Self {
         Self {
-            _node_wrapper: Default::default(),
-            _id_override: Default::default(),
-            _symbol_override: Default::default(),
+            _arena_id: Default::default(),
             kind,
             flags: Cell::new(flags),
             modifier_flags_cache: Cell::new(ModifierFlags::None),
@@ -1812,20 +1806,12 @@ impl BaseNode {
 }
 
 impl NodeInterface for BaseNode {
-    fn node_wrapper(&self) -> Id<Node> {
-        self._node_wrapper.borrow().clone().unwrap()
+    fn arena_id(&self) -> Id<Node> {
+        self._arena_id.get().unwrap()
     }
 
-    fn set_node_wrapper(&self, wrapper: Id<Node>) {
-        let mut node_wrapper = self._node_wrapper.borrow_mut();
-        debug_assert!(node_wrapper.is_none());
-        *node_wrapper = Some(wrapper);
-    }
-
-    fn wrap(self) -> Id<Node> {
-        let rc = Gc::new(Node::from(self));
-        rc.set_node_wrapper(rc.clone());
-        rc
+    fn set_arena_id(&self, id: Id<Node>) {
+        self._arena_id.set(Some(id));
     }
 
     fn kind(&self) -> SyntaxKind {

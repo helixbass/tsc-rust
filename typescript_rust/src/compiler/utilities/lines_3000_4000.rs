@@ -232,10 +232,7 @@ pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind) -> Opt
     None
 }
 
-pub fn get_ancestor(
-    node: Option<Id<Node>>,
-    kind: SyntaxKind,
-) -> Option<Id<Node>> {
+pub fn get_ancestor(node: Option<Id<Node>>, kind: SyntaxKind) -> Option<Id<Node>> {
     let node = node?;
     let node = node.borrow();
     let mut node = Some(node.node_wrapper());
@@ -293,9 +290,7 @@ bitflags! {
     }
 }
 
-pub fn get_function_flags(
-    node: Option<Id<Node> /*SignatureDeclaration*/>,
-) -> FunctionFlags {
+pub fn get_function_flags(node: Option<Id<Node> /*SignatureDeclaration*/>) -> FunctionFlags {
     if node.is_none() {
         return FunctionFlags::Invalid;
     }
@@ -355,7 +350,7 @@ pub fn is_async_function(node: Id<Node>) -> bool {
     }
 }
 
-pub fn is_string_or_numeric_literal_like(node: Id<Node>) -> bool {
+pub fn is_string_or_numeric_literal_like(node: &Node) -> bool {
     is_string_literal_like(node) || is_numeric_literal(node)
 }
 

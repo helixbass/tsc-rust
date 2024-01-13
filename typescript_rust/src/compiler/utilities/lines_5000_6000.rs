@@ -28,7 +28,7 @@ use crate::{
     Extension, HasArena, HasInitializerInterface, MapLike, ModifierFlags,
     NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
     ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind,
+    SymbolFlags, SymbolInterface, SyntaxKind, InArena,
 };
 
 pub fn get_first_identifier(node: Id<Node>) -> Id<Node /*Identifier*/> {
@@ -687,10 +687,9 @@ pub fn is_bundle_file_text_like(_section: &BundleFileSection) -> bool {
     unimplemented!()
 }
 
-pub fn get_leftmost_access_expression(expr: Id<Node>, /*Expression*/) -> Id<Node /*Expression*/> {
-    let mut expr = expr.node_wrapper();
-    while is_access_expression(&expr) {
-        expr = expr.as_has_expression().expression();
+pub fn get_leftmost_access_expression(mut expr: Id<Node>, /*Expression*/ arena: &impl HasArena) -> Id<Node /*Expression*/> {
+    while is_access_expression(&expr.ref_(arena)) {
+        expr = expr.ref_(arena).as_has_expression().expression();
     }
     expr
 }

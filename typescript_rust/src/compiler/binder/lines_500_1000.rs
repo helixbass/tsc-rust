@@ -26,12 +26,13 @@ impl BinderType {
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Id<Symbol> {
-        let has_export_modifier = get_combined_modifier_flags(node)
+        let has_export_modifier = get_combined_modifier_flags(node, self)
             .intersects(ModifierFlags::Export)
             || self.jsdoc_treat_as_exported(node);
         if symbol_flags.intersects(SymbolFlags::Alias) {
-            if node.kind() == SyntaxKind::ExportSpecifier
-                || node.kind() == SyntaxKind::ImportEqualsDeclaration && has_export_modifier
+            if node.ref_(self).kind() == SyntaxKind::ExportSpecifier
+                || node.ref_(self).kind() == SyntaxKind::ImportEqualsDeclaration
+                    && has_export_modifier
             {
                 self.declare_symbol(
                     &mut self.container().symbol().ref_(self).exports().borrow_mut(),

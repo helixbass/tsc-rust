@@ -63,36 +63,18 @@ fn get_ast_struct_interface_impl(
     interface_name: &str,
     first_field_name: &Ident,
     ast_type_name: &Ident,
-    should_impl_from: bool,
 ) -> TokenStream2 {
     match interface_name {
         "NodeInterface" => {
-            let wrap = if should_impl_from {
-                quote! {
-                    fn wrap(self) -> ::id_arena::Id<crate::Node> {
-                        let rc = ::gc::Gc::new(Into::<crate::Node>::into(self));
-                        crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
-                        rc
-                    }
-                }
-            } else {
-                quote! {
-                    fn wrap(self) -> ::id_arena::Id<crate::Node> {
-                        unreachable!()
-                    }
-                }
-            };
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
-                    fn node_wrapper(&self) -> ::id_arena::Id<crate::Node> {
-                        self.#first_field_name.node_wrapper()
+                    fn arena_id(&self) -> ::id_arena::Id<crate::Node> {
+                        self.#first_field_name.arena_id()
                     }
 
-                    fn set_node_wrapper(&self, wrapper: ::id_arena::Id<crate::Node>) {
-                        self.#first_field_name.set_node_wrapper(wrapper)
+                    fn set_arena_id(&self, id: ::id_arena::Id<crate::Node>) {
+                        self.#first_field_name.set_arena_id(id)
                     }
-
-                    #wrap
 
                     fn kind(&self) -> crate::SyntaxKind {
                         self.#first_field_name.kind()
@@ -521,40 +503,22 @@ fn get_ast_enum_interface_impl(
     interface_name: &str,
     variant_names: &[&Ident],
     ast_type_name: &Ident,
-    should_impl_from: bool,
 ) -> TokenStream2 {
     match interface_name {
         "NodeInterface" => {
-            let wrap = if should_impl_from {
-                quote! {
-                    fn wrap(self) -> ::id_arena::Id<crate::Node> {
-                        let rc = ::gc::Gc::new(Into::<crate::Node>::into(self));
-                        crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
-                        rc
-                    }
-                }
-            } else {
-                quote! {
-                    fn wrap(self) -> ::id_arena::Id<crate::Node> {
-                        unreachable!()
-                    }
-                }
-            };
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
-                    fn node_wrapper(&self) -> ::id_arena::Id<crate::Node> {
+                    fn arena_id(&self) -> ::id_arena::Id<crate::Node> {
                         match self {
-                            #(#ast_type_name::#variant_names(nested) => nested.node_wrapper()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.arena_id()),*
                         }
                     }
 
-                    fn set_node_wrapper(&self, wrapper: ::id_arena::Id<crate::Node>) {
+                    fn set_arena_id(&self, id: ::id_arena::Id<crate::Node>) {
                         match self {
-                            #(#ast_type_name::#variant_names(nested) => nested.set_node_wrapper(wrapper)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_arena_id(id)),*
                         }
                     }
-
-                    #wrap
 
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
@@ -1154,7 +1118,6 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
                     &interface,
                     &first_field_name,
                     &ast_type_name,
-                    args.should_impl_from(),
                 );
                 interface_impls = quote! {
                     #interface_impls
@@ -1177,7 +1140,6 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
                     &interface,
                     &variant_names,
                     &ast_type_name,
-                    args.should_impl_from(),
                 );
                 interface_impls = quote! {
                     #interface_impls

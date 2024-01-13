@@ -37,11 +37,11 @@ use crate::{
     is_variable_declaration_list, is_variable_statement, is_white_space_like, modifier_to_flag,
     normalize_path, path_is_relative, set_localized_diagnostic_messages, set_ui_locale,
     skip_outer_expressions, some, sort_and_deduplicate, AssignmentDeclarationKind, CompilerOptions,
-    Debug_, Diagnostic, Diagnostics, GeneratedIdentifierFlags, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    Debug_, Diagnostic, Diagnostics, GeneratedIdentifierFlags, HasArena, HasTypeArgumentsInterface,
+    HasTypeParametersInterface, InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeFlags, NodeInterface, OuterExpressionKinds, Push, ReadonlyTextRange, ScriptTarget,
     SortedArray, StringOrNodeArray, Symbol, SymbolInterface, SyntaxKind, System, TextChangeRange,
-    TextSpan, InArena,
+    TextSpan,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -255,60 +255,61 @@ pub fn is_empty_binding_element(node: Id<Node> /*BindingElement*/) -> bool {
     is_empty_binding_pattern(&node.as_named_declaration().name())
 }
 
-pub fn walk_up_binding_elements_and_patterns(binding: Id<Node>, /*BindingElement*/) -> Id<Node> /*VariableDeclaration | ParameterDeclaration*/
+pub fn walk_up_binding_elements_and_patterns(binding: Id<Node>, /*BindingElement*/ arena: &impl HasArena) -> Id<Node> /*VariableDeclaration | ParameterDeclaration*/
 {
-    let mut node = binding.parent();
-    while is_binding_element(&*node.parent()) {
-        node = node.parent().parent();
+    let mut node = binding.ref_(arena).parent();
+    while is_binding_element(&node.ref_(arena).parent().ref_(arena)) {
+        node = node.ref_(arena).parent().ref_(arena).parent();
     }
-    node.parent()
+    node.ref_(arena).parent()
 }
 
 fn get_combined_flags<
-    TNode: NodeInterface,
     TFlags: BitOrAssign,
-    TGetFlags: FnMut(Id<Node>) -> TFlags,
 >(
-    node: &TNode,
-    mut get_flags: TGetFlags,
+    node: Id<Node>,
+    arena: &impl HasArena,
+    mut get_flags: impl FnMut(&Node) -> TFlags,
 ) -> TFlags {
-    let mut node = Some(node.node_wrapper());
-    if is_binding_element(&**node.as_ref().unwrap()) {
+    let mut node = Some(node);
+    if is_binding_element(&node.unwrap().ref_(arena)) {
         node = Some(walk_up_binding_elements_and_patterns(
-            node.as_ref().unwrap(),
+            node.unwrap(),
+            arena,
         ));
     }
-    let mut flags = get_flags(node.as_ref().unwrap());
-    if node.as_ref().unwrap().kind() == SyntaxKind::VariableDeclaration {
-        node = node.as_ref().unwrap().maybe_parent();
+    let mut flags = get_flags(&node.unwrap().ref_(arena));
+    if node.unwrap().ref_(arena).kind() == SyntaxKind::VariableDeclaration {
+        node = node.unwrap().ref_(arena).maybe_parent();
     }
-    if let Some(node_present) = node.as_ref() {
-        if node_present.kind() == SyntaxKind::VariableDeclarationList {
-            flags |= get_flags(node_present);
-            node = node_present.maybe_parent();
+    if let Some(node_present) = node {
+        if node_present.ref_(arena).kind() == SyntaxKind::VariableDeclarationList {
+            flags |= get_flags(&node_present.ref_(arena));
+            node = node_present.ref_(arena).maybe_parent();
         }
     }
     if let Some(node) = node {
-        if node.kind() == SyntaxKind::VariableStatement {
-            flags |= get_flags(&*node);
+        if node.ref_(arena).kind() == SyntaxKind::VariableStatement {
+            flags |= get_flags(&node.ref_(arena));
         }
     }
     flags
 }
 
-pub fn get_combined_modifier_flags(node: Id<Node> /*Declaration*/) -> ModifierFlags {
-    get_combined_flags(node, get_effective_modifier_flags)
+pub fn get_combined_modifier_flags(node: Id<Node> /*Declaration*/, arena: &impl HasArena) -> ModifierFlags {
+    get_combined_flags(node, arena, get_effective_modifier_flags)
 }
 
 #[allow(dead_code)]
 pub(crate) fn get_combined_node_flags_always_include_jsdoc(
     node: Id<Node>, /*Declaration*/
+    arena: &impl HasArena
 ) -> ModifierFlags {
-    get_combined_flags(node, get_effective_modifier_flags_always_include_jsdoc)
+    get_combined_flags(node, arena, get_effective_modifier_flags_always_include_jsdoc)
 }
 
-pub fn get_combined_node_flags(node: Id<Node>) -> NodeFlags {
-    get_combined_flags(node, |n| n.flags())
+pub fn get_combined_node_flags(node: Id<Node>, arena: &impl HasArena) -> NodeFlags {
+    get_combined_flags(node, arena, |n| n.flags())
 }
 
 lazy_static! {
@@ -788,44 +789,45 @@ pub(crate) fn get_assigned_name(node: Id<Node>) -> Option<Id<Node /*DeclarationN
     None
 }
 
-fn get_jsdoc_parameter_tags_worker(
+fn get_jsdoc_parameter_tags_worker<'a>(
     param: Id<Node>, /*ParameterDeclaration*/
     no_cache: Option<bool>,
-) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> {
-    let param_as_parameter_declaration = param.as_parameter_declaration();
+    arena: &'a impl HasArena,
+) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> + 'a {
+    let param_ref = param.ref_(arena);
+    let param_as_parameter_declaration = param_ref.as_parameter_declaration();
     /*if param.name {*/
-    if is_identifier(&*param_as_parameter_declaration.name()) {
+    if is_identifier(&param_as_parameter_declaration.name().ref_(arena)) {
         let name = param_as_parameter_declaration
             .name()
-            .as_identifier()
+            .ref_(arena).as_identifier()
             .escaped_text
             .clone();
-        return Either3::One(
-            get_jsdoc_tags_worker(&param.parent(), no_cache).filter(move |tag| {
-                if !is_jsdoc_parameter_tag(tag) {
-                    return false;
-                }
-                let tag_as_jsdoc_parameter_tag = tag.as_jsdoc_property_like_tag();
-                if !is_identifier(&tag_as_jsdoc_parameter_tag.name) {
-                    return false;
-                }
-                tag_as_jsdoc_parameter_tag.name.as_identifier().escaped_text == name
-            }),
-        );
+        return Either3::One(get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena).filter(move |tag| {
+            if !is_jsdoc_parameter_tag(&tag.ref_(arena)) {
+                return false;
+            }
+            let tag_ref = tag.ref_(arena);
+            let tag_as_jsdoc_parameter_tag = tag_ref.as_jsdoc_property_like_tag();
+            if !is_identifier(&tag_as_jsdoc_parameter_tag.name.ref_(arena)) {
+                return false;
+            }
+            tag_as_jsdoc_parameter_tag.name.ref_(arena).as_identifier().escaped_text == name
+        }));
     } else {
         let i = param
-            .parent()
-            .as_signature_declaration()
+            .ref_(arena).parent()
+            .ref_(arena).as_signature_declaration()
             .parameters()
             .iter()
-            .position(|parameter| ptr::eq(&**parameter, param));
+            .position(|&parameter| parameter == param);
         Debug_.assert(
             i.is_some(),
             Some("Parameters should always be in their parent's parameter lists"),
         );
         let i = i.unwrap();
-        let mut param_tags = get_jsdoc_tags_worker(&param.parent(), no_cache)
-            .filter(|tag| is_jsdoc_parameter_tag(tag));
+        let mut param_tags = get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena)
+            .filter(|&tag| is_jsdoc_parameter_tag(&tag.ref_(arena)));
         if
         /*i < paramTags.length*/
         let Some(param_tags_i) = param_tags.nth(i) {
@@ -836,143 +838,144 @@ fn get_jsdoc_parameter_tags_worker(
     Either3::Three(iter::empty())
 }
 
-pub fn get_jsdoc_parameter_tags(
-    param: Id<Node>, /*ParameterDeclaration*/
-) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> {
-    get_jsdoc_parameter_tags_worker(param, Some(false))
+pub fn get_jsdoc_parameter_tags<'a>(
+    param: Id<Node>, /*ParameterDeclaration*/ arena: &'a impl HasArena
+) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> + 'a {
+    get_jsdoc_parameter_tags_worker(param, Some(false), arena)
 }
 
-pub(crate) fn get_jsdoc_parameter_tags_no_cache(
-    param: Id<Node>, /*ParameterDeclaration*/
-) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> {
-    get_jsdoc_parameter_tags_worker(param, Some(true))
+pub(crate) fn get_jsdoc_parameter_tags_no_cache<'a>(
+    param: Id<Node>, /*ParameterDeclaration*/ arena: &'a impl HasArena
+) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> + 'a {
+    get_jsdoc_parameter_tags_worker(param, Some(true), arena)
 }
 
-fn get_jsdoc_type_parameter_tags_worker(
+fn get_jsdoc_type_parameter_tags_worker<'a>(
     param: Id<Node>, /*TypeParameterDeclaration*/
-    no_cache: Option<bool>,
-) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> {
+    no_cache: Option<bool>, arena: &'a impl HasArena
+) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> + 'a {
     let name = param
-        .as_type_parameter_declaration()
+        .ref_(arena).as_type_parameter_declaration()
         .name()
-        .as_identifier()
+        .ref_(arena).as_identifier()
         .escaped_text
         .clone();
-    get_jsdoc_tags_worker(&param.parent(), no_cache).filter(move |tag| {
-        if !is_jsdoc_template_tag(&**tag) {
+    get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena).filter(move |&tag| {
+        if !is_jsdoc_template_tag(&tag.ref_(arena)) {
             return false;
         }
-        let tag_as_jsdoc_template_tag = tag.as_jsdoc_template_tag();
+        let tag_ref = tag.ref_(arena);
+        let tag_as_jsdoc_template_tag = tag_ref.as_jsdoc_template_tag();
         tag_as_jsdoc_template_tag.type_parameters.iter().any(|tp| {
-            tp.as_type_parameter_declaration()
+            tp.ref_(arena).as_type_parameter_declaration()
                 .name()
-                .as_identifier()
+                .ref_(arena).as_identifier()
                 .escaped_text
                 == name
         })
     })
 }
 
-pub fn get_jsdoc_type_parameter_tags(
-    param: Id<Node>, /*TypeParameterDeclaration*/
-) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> {
-    get_jsdoc_type_parameter_tags_worker(param, Some(false))
+pub fn get_jsdoc_type_parameter_tags<'a>(
+    param: Id<Node>, /*TypeParameterDeclaration*/ arena: &'a impl HasArena
+) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> + 'a {
+    get_jsdoc_type_parameter_tags_worker(param, Some(false), arena)
 }
 
-pub(crate) fn get_jsdoc_type_parameter_tags_no_cache(
-    param: Id<Node>, /*TypeParameterDeclaration*/
-) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> {
-    get_jsdoc_type_parameter_tags_worker(param, Some(true))
+pub(crate) fn get_jsdoc_type_parameter_tags_no_cache<'a>(
+    param: Id<Node>, /*TypeParameterDeclaration*/ arena: &'a impl HasArena
+) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> + 'a {
+    get_jsdoc_type_parameter_tags_worker(param, Some(true), arena)
 }
 
 pub fn has_jsdoc_parameter_tags(
-    node: Id<Node>, /*FunctionLikeDeclaration | SignatureDeclaration*/
+    node: Id<Node>, /*FunctionLikeDeclaration | SignatureDeclaration*/ arena: &impl HasArena
 ) -> bool {
-    get_first_jsdoc_tag(node, is_jsdoc_parameter_tag, None).is_some()
+    get_first_jsdoc_tag(node, is_jsdoc_parameter_tag, None, arena).is_some()
 }
 
-pub fn get_jsdoc_augments_tag(node: Id<Node>) -> Option<Id<Node /*JSDocAugmentsTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_augments_tag, None)
+pub fn get_jsdoc_augments_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocAugmentsTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_augments_tag, None, arena)
 }
 
-pub fn get_jsdoc_implements_tags(node: Id<Node>) -> Vec<Id<Node /*JSDocImplementsTag*/>> {
-    get_all_jsdoc_tags(node, is_jsdoc_implements_tag)
+pub fn get_jsdoc_implements_tags(node: Id<Node>, arena: &impl HasArena) -> Vec<Id<Node /*JSDocImplementsTag*/>> {
+    get_all_jsdoc_tags(node, is_jsdoc_implements_tag, arena)
 }
 
-pub fn get_jsdoc_class_tag(node: Id<Node>) -> Option<Id<Node /*JSDocClassTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_class_tag, None)
+pub fn get_jsdoc_class_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocClassTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_class_tag, None, arena)
 }
 
-pub fn get_jsdoc_public_tag(node: Id<Node>) -> Option<Id<Node /*JSDocPublicTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_public_tag, None)
+pub fn get_jsdoc_public_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocPublicTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_public_tag, None, arena)
 }
 
-pub(crate) fn get_jsdoc_public_tag_no_cache(node: Id<Node>) -> Option<Id<Node /*JSDocPublicTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_public_tag, Some(true))
+pub(crate) fn get_jsdoc_public_tag_no_cache(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocPublicTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_public_tag, Some(true), arena)
 }
 
-pub fn get_jsdoc_private_tag(node: Id<Node>) -> Option<Id<Node /*JSDocPrivateTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_private_tag, None)
+pub fn get_jsdoc_private_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocPrivateTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_private_tag, None, arena)
 }
 
 pub(crate) fn get_jsdoc_private_tag_no_cache(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena
 ) -> Option<Id<Node /*JSDocPrivateTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_private_tag, Some(true))
+    get_first_jsdoc_tag(node, is_jsdoc_private_tag, Some(true), arena)
 }
 
-pub fn get_jsdoc_protected_tag(node: Id<Node>) -> Option<Id<Node /*JSDocProtectedTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_protected_tag, None)
+pub fn get_jsdoc_protected_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocProtectedTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_protected_tag, None, arena)
 }
 
 pub(crate) fn get_jsdoc_protected_tag_no_cache(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena,
 ) -> Option<Id<Node /*JSDocProtectedTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_protected_tag, Some(true))
+    get_first_jsdoc_tag(node, is_jsdoc_protected_tag, Some(true), arena)
 }
 
-pub fn get_jsdoc_readonly_tag(node: Id<Node>) -> Option<Id<Node /*JSDocReadonlyTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_readonly_tag, None)
+pub fn get_jsdoc_readonly_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocReadonlyTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_readonly_tag, None, arena)
 }
 
 pub(crate) fn get_jsdoc_readonly_tag_no_cache(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena,
 ) -> Option<Id<Node /*JSDocReadonlyTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_readonly_tag, Some(true))
+    get_first_jsdoc_tag(node, is_jsdoc_readonly_tag, Some(true), arena)
 }
 
-pub fn get_jsdoc_override_tag_no_cache(node: Id<Node>) -> Option<Id<Node /*JSDocOverrideTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_override_tag, Some(true))
+pub fn get_jsdoc_override_tag_no_cache(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocOverrideTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_override_tag, Some(true), arena)
 }
 
-pub fn get_jsdoc_deprecated_tag(node: Id<Node>) -> Option<Id<Node /*JSDocDeprecatedTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_deprecated_tag, None)
+pub fn get_jsdoc_deprecated_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocDeprecatedTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_deprecated_tag, None, arena)
 }
 
 pub(crate) fn get_jsdoc_deprecated_tag_no_cache(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena,
 ) -> Option<Id<Node /*JSDocDeprecatedTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_deprecated_tag, Some(true))
+    get_first_jsdoc_tag(node, is_jsdoc_deprecated_tag, Some(true), arena)
 }
 
-pub fn get_jsdoc_enum_tag(node: Id<Node>) -> Option<Id<Node /*JSDocEnumTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_enum_tag, None)
+pub fn get_jsdoc_enum_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocEnumTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_enum_tag, None, arena)
 }
 
-pub fn get_jsdoc_this_tag(node: Id<Node>) -> Option<Id<Node /*JSDocThisTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_this_tag, None)
+pub fn get_jsdoc_this_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocThisTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_this_tag, None, arena)
 }
 
-pub fn get_jsdoc_return_tag(node: Id<Node>) -> Option<Id<Node /*JSDocReturnTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_return_tag, None)
+pub fn get_jsdoc_return_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocReturnTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_return_tag, None, arena)
 }
 
-pub fn get_jsdoc_template_tag(node: Id<Node>) -> Option<Id<Node /*JSDocTemplateTag*/>> {
-    get_first_jsdoc_tag(node, is_jsdoc_template_tag, None)
+pub fn get_jsdoc_template_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocTemplateTag*/>> {
+    get_first_jsdoc_tag(node, is_jsdoc_template_tag, None, arena)
 }
 
-pub fn get_jsdoc_type_tag(node: Id<Node>) -> Option<Id<Node /*JSDocTypeTag*/>> {
-    let tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
+pub fn get_jsdoc_type_tag(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDocTypeTag*/>> {
+    let tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None, arena);
     // if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_like_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
     if tag.is_some() {
         return tag;
@@ -980,10 +983,10 @@ pub fn get_jsdoc_type_tag(node: Id<Node>) -> Option<Id<Node /*JSDocTypeTag*/>> {
     None
 }
 
-pub fn get_jsdoc_type(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>> {
-    let mut tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
+pub fn get_jsdoc_type(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*TypeNode*/>> {
+    let mut tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None, arena);
     if tag.is_none() && is_parameter(node) {
-        tag = get_jsdoc_parameter_tags(node)
+        tag = get_jsdoc_parameter_tags(node, arena)
             .find(|tag| tag.as_jsdoc_property_like_tag().type_expression.is_some());
     }
 
@@ -991,8 +994,8 @@ pub fn get_jsdoc_type(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>> {
         .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
 }
 
-pub fn get_jsdoc_return_type(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>> {
-    let return_tag = get_jsdoc_return_tag(node);
+pub fn get_jsdoc_return_type(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*TypeNode*/>> {
+    let return_tag = get_jsdoc_return_tag(node, arena);
     if let Some(return_tag) = return_tag {
         let return_tag_as_jsdoc_return_tag = return_tag.as_jsdoc_type_like_tag();
         if let Some(return_tag_as_jsdoc_return_tag_type_expression) = return_tag_as_jsdoc_return_tag
@@ -1007,7 +1010,7 @@ pub fn get_jsdoc_return_type(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>> {
             );
         }
     }
-    let type_tag = get_jsdoc_type_tag(node);
+    let type_tag = get_jsdoc_type_tag(node, arena);
     if let Some(type_tag) = type_tag {
         // && typeTag.typeExpression
         let type_tag_type_expression = &type_tag.as_jsdoc_type_like_tag().type_expression();
@@ -1027,20 +1030,20 @@ pub fn get_jsdoc_return_type(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>> {
 
 fn get_jsdoc_tags_worker(
     node: Id<Node>,
-    no_cache: Option<bool>,
+    no_cache: Option<bool>, arena: &impl HasArena,
 ) -> impl DoubleEndedIterator<Item = Id<Node /*JSDocTag*/>>
        + ExactSizeIterator<Item = Id<Node /*JSDocTag*/>> {
-    let mut tags = node.maybe_js_doc_cache();
+    let mut tags = node.ref_(arena).maybe_js_doc_cache();
     if tags.is_none() || no_cache == Some(true) {
-        let comments = get_jsdoc_comments_and_tags(node, no_cache);
+        let comments = get_jsdoc_comments_and_tags(node, no_cache, arena);
         Debug_.assert(
-            comments.len() < 2 || !Gc::ptr_eq(&comments[0], &comments[1]),
+            comments.len() < 2 || comments[0] != comments[1],
             None,
         );
         tags = Some(
             flat_map(Some(comments), |j, _| {
-                if is_jsdoc(&*j) {
-                    j.as_jsdoc()
+                if is_jsdoc(&j.ref_(arena)) {
+                    j.ref_(arena).as_jsdoc()
                         .tags
                         .as_ref()
                         .map_or(vec![], |tags| tags.iter().map(Clone::clone).collect())
@@ -1051,46 +1054,46 @@ fn get_jsdoc_tags_worker(
             .into(),
         );
         if !no_cache.unwrap_or(false) {
-            node.set_js_doc_cache(tags.clone());
+            node.ref_(arena).set_js_doc_cache(tags.clone());
         }
     }
     tags.unwrap().owned_iter()
 }
 
 pub fn get_jsdoc_tags(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena
 ) -> impl DoubleEndedIterator<Item = Id<Node /*JSDocTag*/>>
        + ExactSizeIterator<Item = Id<Node /*JSDocTag*/>> {
-    get_jsdoc_tags_worker(node, Some(false))
+    get_jsdoc_tags_worker(node, Some(false), arena)
 }
 
 #[allow(dead_code)]
 pub(crate) fn get_jsdoc_tags_no_cache(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena
 ) -> impl Iterator<Item = Id<Node /*JSDocTag*/>> {
-    get_jsdoc_tags_worker(node, Some(true))
+    get_jsdoc_tags_worker(node, Some(true), arena)
 }
 
 fn get_first_jsdoc_tag(
     node: Id<Node>,
     mut predicate: impl FnMut(Id<Node> /*JSDocTag*/) -> bool,
-    no_cache: Option<bool>,
+    no_cache: Option<bool>, arena: &impl HasArena
 ) -> Option<Id<Node>> {
-    get_jsdoc_tags_worker(node, no_cache).find(|element| predicate(element))
+    get_jsdoc_tags_worker(node, no_cache, arena).find(|element| predicate(element))
 }
 
-pub fn get_all_jsdoc_tags<TPredicate: FnMut(Id<Node> /*JSDocTag*/) -> bool>(
+pub fn get_all_jsdoc_tags(
     node: Id<Node>,
-    mut predicate: TPredicate,
+    mut predicate: impl FnMut(Id<Node> /*JSDocTag*/) -> bool, arena: &impl HasArena,
 ) -> Vec<Id<Node>> {
-    get_jsdoc_tags(node)
+    get_jsdoc_tags(node, arena)
         .into_iter()
         .filter(|rc_ref| predicate(rc_ref))
         .collect()
 }
 
-pub fn get_all_jsdoc_tags_of_kind(node: Id<Node>, kind: SyntaxKind) -> Vec<Id<Node /*JSDocTag*/>> {
-    get_jsdoc_tags(node)
+pub fn get_all_jsdoc_tags_of_kind(node: Id<Node>, kind: SyntaxKind, arena: &impl HasArena) -> Vec<Id<Node /*JSDocTag*/>> {
+    get_jsdoc_tags(node, arena)
         .into_iter()
         .filter(|rc_ref| rc_ref.kind() == kind)
         .collect()
@@ -1158,7 +1161,7 @@ pub fn get_text_of_jsdoc_comment<'str>(
 }
 
 pub fn get_effective_type_parameter_declarations(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena,
 ) -> Vec<Id<Node /*TypeParameterDeclaration*/>> {
     if is_jsdoc_signature(node) {
         return vec![];
@@ -1178,11 +1181,11 @@ pub fn get_effective_type_parameter_declarations(
         return type_parameters.to_vec();
     }
     if is_in_js_file(Some(node)) {
-        let decls = get_jsdoc_type_parameter_declarations(node);
+        let decls = get_jsdoc_type_parameter_declarations(node, arena);
         if !decls.is_empty() {
             return decls;
         }
-        let type_tag = get_jsdoc_type(node);
+        let type_tag = get_jsdoc_type(node, arena);
         if let Some(type_tag) = type_tag {
             if is_function_type_node(&*type_tag) {
                 let type_tag_as_function_type_node = type_tag.as_function_type_node();
