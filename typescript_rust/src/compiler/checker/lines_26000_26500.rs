@@ -27,7 +27,8 @@ impl TypeChecker {
         binary_expression: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let kind = get_assignment_declaration_kind(binary_expression);
-        let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
+        let binary_expression_ref = binary_expression.ref_(self);
+        let binary_expression_as_binary_expression = binary_expression_ref.as_binary_expression();
         Ok(match kind {
             AssignmentDeclarationKind::None | AssignmentDeclarationKind::ThisProperty => {
                 let lhs_symbol =
@@ -35,12 +36,11 @@ impl TypeChecker {
                 let decl = lhs_symbol
                     .and_then(|lhs_symbol| lhs_symbol.ref_(self).maybe_value_declaration());
                 if let Some(decl) = decl
-                    .as_ref()
-                    .filter(|decl| is_property_declaration(decl) || is_property_signature(decl))
+                    .filter(|decl| is_property_declaration(&decl.ref_(self)) || is_property_signature(&decl.ref_(self)))
                 {
-                    let overall_annotation = get_effective_type_annotation_node(decl);
+                    let overall_annotation = get_effective_type_annotation_node(decl, self);
                     return Ok(
-                        if let Some(overall_annotation) = overall_annotation.as_ref() {
+                        if let Some(overall_annotation) = overall_annotation {
                             Some(
                                 self.instantiate_type(
                                     self.get_type_from_type_node_(overall_annotation)?,
@@ -54,7 +54,7 @@ impl TypeChecker {
                             None
                         }
                         .try_or_else(|| -> io::Result<_> {
-                            Ok(if decl.as_has_initializer().maybe_initializer().is_some() {
+                            Ok(if decl.ref_(self).as_has_initializer().maybe_initializer().is_some() {
                                 Some(self.get_type_of_expression(
                                     &binary_expression_as_binary_expression.left,
                                 )?)
@@ -88,10 +88,10 @@ impl TypeChecker {
                         .maybe_value_declaration());
                     let lhs = cast(
                         Some(&*binary_expression_as_binary_expression.left),
-                        |node: &Id<Node>| is_access_expression(node),
+                        |node: &Id<Node>| is_access_expression(&node.ref_(self)),
                     );
-                    let overall_annotation = get_effective_type_annotation_node(&decl);
-                    if let Some(overall_annotation) = overall_annotation.as_ref() {
+                    let overall_annotation = get_effective_type_annotation_node(decl, self);
+                    if let Some(overall_annotation) = overall_annotation {
                         return Ok(Some(self.get_type_from_type_node_(overall_annotation)?));
                     } else if is_identifier(&lhs.as_has_expression().expression()) {
                         let id = &lhs.as_has_expression().expression();
@@ -108,13 +108,13 @@ impl TypeChecker {
                             let annotated = parent_symbol
                                 .ref_(self)
                                 .maybe_value_declaration()
-                                .as_ref()
                                 .and_then(|parent_symbol_value_declaration| {
                                     get_effective_type_annotation_node(
                                         parent_symbol_value_declaration,
+                                        self,
                                     )
                                 });
-                            if let Some(annotated) = annotated.as_ref() {
+                            if let Some(annotated) = annotated {
                                 let name_str = get_element_or_property_access_name(lhs);
                                 if let Some(name_str) = name_str.as_ref() {
                                     return self.get_type_of_property_of_contextual_type(
@@ -157,8 +157,8 @@ impl TypeChecker {
                                 .maybe_value_declaration()
                         })
                 });
-                let annotated = value_declaration.as_ref().and_then(|value_declaration| {
-                    get_effective_type_annotation_node(value_declaration)
+                let annotated = value_declaration.and_then(|value_declaration| {
+                    get_effective_type_annotation_node(value_declaration, self)
                 });
                 annotated
                     .as_ref()
@@ -175,11 +175,10 @@ impl TypeChecker {
                                 .maybe_value_declaration()
                         })
                 });
-                let annotated = value_declaration.as_ref().and_then(|value_declaration| {
-                    get_effective_type_annotation_node(value_declaration)
+                let annotated = value_declaration.and_then(|value_declaration| {
+                    get_effective_type_annotation_node(value_declaration, self)
                 });
                 annotated
-                    .as_ref()
                     .try_map(|annotated| self.get_type_from_type_node_(annotated))?
             }
             AssignmentDeclarationKind::ObjectDefinePropertyValue
@@ -199,7 +198,8 @@ impl TypeChecker {
         if kind == AssignmentDeclarationKind::ThisProperty {
             return Ok(true);
         }
-        let declaration_as_binary_expression = declaration.as_binary_expression();
+        let declaration_ref = declaration.ref_(self);
+        let declaration_as_binary_expression = declaration_ref.as_binary_expression();
         if !is_in_js_file(Some(declaration))
             || kind != AssignmentDeclarationKind::Property
             || !is_identifier(
@@ -236,8 +236,9 @@ impl TypeChecker {
         &self,
         binary_expression: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Type>>> {
-        let binary_expression_symbol = binary_expression.maybe_symbol();
-        let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
+        let binary_expression_symbol = binary_expression.ref_(self).maybe_symbol();
+        let binary_expression_ref = binary_expression.ref_(self);
+        let binary_expression_as_binary_expression = binary_expression_ref.as_binary_expression();
         if binary_expression_symbol.is_none() {
             return Ok(Some(self.get_type_of_expression(
                 &binary_expression_as_binary_expression.left,
@@ -249,8 +250,8 @@ impl TypeChecker {
             .maybe_value_declaration()
         {
             let annotated =
-                get_effective_type_annotation_node(&binary_expression_symbol_value_declaration);
-            if let Some(annotated) = annotated.as_ref() {
+                get_effective_type_annotation_node(binary_expression_symbol_value_declaration, self);
+            if let Some(annotated) = annotated {
                 let type_ = self.get_type_from_type_node_(annotated)?;
                 // if (type) {
                 return Ok(Some(type_));
@@ -342,7 +343,7 @@ impl TypeChecker {
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         Debug_.assert(is_object_literal_method(node), None);
-        if node.flags().intersects(NodeFlags::InWithStatement) {
+        if node.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
             return Ok(None);
         }
         self.get_contextual_type_for_object_literal_element_(node, context_flags)
@@ -353,8 +354,8 @@ impl TypeChecker {
         element: Id<Node>, /*ObjectLiteralElementLike*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
-        let object_literal = element.parent();
-        let property_assignment_type = if is_property_assignment(element) {
+        let object_literal = element.ref_(self).parent();
+        let property_assignment_type = if is_property_assignment(&element.ref_(self)) {
             self.get_contextual_type_for_variable_like_declaration(element)?
         } else {
             None
@@ -373,8 +374,8 @@ impl TypeChecker {
                         .escaped_name(),
                 );
             }
-            if let Some(element_name) = element.as_named_declaration().maybe_name() {
-                let name_type = self.get_literal_type_from_property_name(&element_name)?;
+            if let Some(element_name) = element.ref_(self).as_named_declaration().maybe_name() {
+                let name_type = self.get_literal_type_from_property_name(element_name)?;
                 return self.try_map_type(
                     type_,
                     &mut |t: Id<Type>| {
@@ -424,13 +425,14 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
-        let conditional = node.parent();
-        let conditional_as_conditional_expression = conditional.as_conditional_expression();
+        let conditional = node.ref_(self).parent();
+        let conditional_ref = conditional.ref_(self);
+        let conditional_as_conditional_expression = conditional_ref.as_conditional_expression();
         Ok(
-            if ptr::eq(node, &*conditional_as_conditional_expression.when_true)
-                || ptr::eq(node, &*conditional_as_conditional_expression.when_false)
+            if node == conditional_as_conditional_expression.when_true
+                || node == conditional_as_conditional_expression.when_false
             {
-                self.get_contextual_type_(&conditional, context_flags)?
+                self.get_contextual_type_(conditional, context_flags)?
             } else {
                 None
             },
@@ -442,7 +444,8 @@ impl TypeChecker {
         node: Id<Node>,  /*JsxElement*/
         child: Id<Node>, /*JsxChild*/
     ) -> io::Result<Option<Id<Type>>> {
-        let node_as_jsx_element = node.as_jsx_element();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_element = node_ref.as_jsx_element();
         let attributes_type = self.get_apparent_type_of_contextual_type(
             &node_as_jsx_element
                 .opening_element
@@ -466,7 +469,7 @@ impl TypeChecker {
         let real_children = get_semantic_jsx_children(&node_as_jsx_element.children);
         let child_index = real_children
             .iter()
-            .position(|real_child| ptr::eq(&**real_child, child))
+            .position(|&real_child| real_child == child)
             .unwrap();
         let child_field_type = self.get_type_of_property_of_contextual_type(
             attributes_type,
@@ -502,7 +505,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxExpression*/
     ) -> io::Result<Option<Id<Type>>> {
-        let expr_parent = node.parent();
+        let expr_parent = node.ref_(self).parent();
         Ok(if is_jsx_attribute_like(&expr_parent) {
             self.get_contextual_type_(node, None)?
         } else if is_jsx_element(&expr_parent) {
@@ -516,7 +519,7 @@ impl TypeChecker {
         &self,
         attribute: Id<Node>, /*JsxAttribute | JsxSpreadAttribute*/
     ) -> io::Result<Option<Id<Type>>> {
-        Ok(if is_jsx_attribute(attribute) {
+        Ok(if is_jsx_attribute(&attribute.ref_(self)) {
             let attributes_type = return_ok_default_if_none!(
                 self.get_apparent_type_of_contextual_type(&attribute.parent(), None)?
             );

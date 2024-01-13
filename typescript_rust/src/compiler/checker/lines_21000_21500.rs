@@ -429,7 +429,7 @@ impl TypeChecker {
             return Ok(());
         }
         let diagnostic: &'static DiagnosticMessage;
-        match declaration.kind() {
+        match declaration.ref_(self).kind() {
             SyntaxKind::BinaryExpression
             | SyntaxKind::PropertyDeclaration
             | SyntaxKind::PropertySignature => {
@@ -441,17 +441,18 @@ impl TypeChecker {
             }
             SyntaxKind::Parameter => {
                 let param = declaration;
-                let param_as_parameter_declaration = param.as_parameter_declaration();
+                let param_ref = param.ref_(self);
+                let param_as_parameter_declaration = param_ref.as_parameter_declaration();
                 if is_identifier(&param_as_parameter_declaration.name())
-                    && (is_call_signature_declaration(&param.parent())
-                        || is_method_signature(&param.parent())
-                        || is_function_type_node(&param.parent()))
+                    && (is_call_signature_declaration(&param.ref_(self).parent())
+                        || is_method_signature(&param.ref_(self).parent())
+                        || is_function_type_node(&param.ref_(self).parent()))
                     && param
-                        .parent()
+                        .ref_(self).parent()
                         .as_signature_declaration()
                         .parameters()
                         .into_iter()
-                        .position(|parameter: &Id<Node>| ptr::eq(param, &**parameter))
+                        .position(|&parameter: &Id<Node>| param == parameter)
                         .is_some()
                     && (self
                         .resolve_name_(
@@ -480,11 +481,11 @@ impl TypeChecker {
                     let new_name = format!(
                         "arg{}",
                         param
-                            .parent()
+                            .ref_(self).parent()
                             .as_signature_declaration()
                             .parameters()
                             .into_iter()
-                            .position(|parameter: &Id<Node>| ptr::eq(param, &**parameter))
+                            .position(|&parameter: &Id<Node>| param == parameter)
                             .unwrap()
                             .to_string()
                     );
@@ -506,7 +507,7 @@ impl TypeChecker {
                     return Ok(());
                 }
                 diagnostic = if declaration
-                    .as_parameter_declaration()
+                    .ref_(self).as_parameter_declaration()
                     .dot_dot_dot_token
                     .is_some()
                 {
@@ -546,7 +547,7 @@ impl TypeChecker {
             | SyntaxKind::SetAccessor
             | SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction => {
-                if self.no_implicit_any && declaration.as_named_declaration().maybe_name().is_none()
+                if self.no_implicit_any && declaration.ref_(self).as_named_declaration().maybe_name().is_none()
                 {
                     if widening_kind == Some(WideningKind::GeneratorYield) {
                         self.error(
@@ -921,18 +922,19 @@ impl TypeChecker {
                     SyntaxKind::TypeAliasDeclaration,
                 );
                 return matches!(
-                    declaration.as_ref(),
+                    declaration,
                     Some(declaration) if find_ancestor(
-                        declaration.maybe_parent(),
+                        declaration.ref_(self).maybe_parent(),
                         |n: Id<Node>| {
-                            if n.kind() == SyntaxKind::SourceFile {
+                            if n.ref_(self).kind() == SyntaxKind::SourceFile {
                                 FindAncestorCallbackReturn::Bool(true)
-                            } else if n.kind() == SyntaxKind::ModuleDeclaration {
+                            } else if n.ref_(self).kind() == SyntaxKind::ModuleDeclaration {
                                 FindAncestorCallbackReturn::Bool(false)
                             } else {
                                 FindAncestorCallbackReturn::Quit
                             }
-                        }
+                        },
+                        self,
                     ).is_some()
                 );
             }

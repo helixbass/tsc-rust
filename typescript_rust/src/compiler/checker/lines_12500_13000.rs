@@ -104,7 +104,8 @@ impl TypeChecker {
                 flags |= SignatureFlags::IsUntypedSignatureInJSFile;
             }
 
-            let declaration_as_signature_declaration = declaration.as_signature_declaration();
+            let declaration_ref = declaration.ref_(self);
+            let declaration_as_signature_declaration = declaration_ref.as_signature_declaration();
             for (i, param) in declaration_as_signature_declaration
                 .parameters()
                 .iter()
@@ -159,8 +160,8 @@ impl TypeChecker {
                             || param_as_parameter_declaration.question_token.is_some()
                             || is_rest_parameter(param)
                             || matches!(
-                                iife.as_ref(),
-                                Some(iife) if parameters.len() > iife.as_call_expression().arguments.len()
+                                iife,
+                                Some(iife) if parameters.len() > iife.ref_(self).as_call_expression().arguments.len()
                             ) && type_.is_none()
                             || self.is_jsdoc_optional_parameter(param)
                     };
@@ -170,12 +171,12 @@ impl TypeChecker {
             }
 
             if matches!(
-                declaration.kind(),
+                declaration.ref_(self).kind(),
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
             ) && self.has_bindable_name(declaration)?
                 && (!has_this_parameter || this_parameter.is_none())
             {
-                let other_kind = if declaration.kind() == SyntaxKind::GetAccessor {
+                let other_kind = if declaration.ref_(self).kind() == SyntaxKind::GetAccessor {
                     SyntaxKind::SetAccessor
                 } else {
                     SyntaxKind::GetAccessor
@@ -185,14 +186,14 @@ impl TypeChecker {
                     other_kind,
                 );
                 if let Some(other) = other {
-                    this_parameter = self.get_annotated_accessor_this_parameter(&other);
+                    this_parameter = self.get_annotated_accessor_this_parameter(other);
                 }
             }
 
-            let class_type: Option<Id<Type>> = if declaration.kind() == SyntaxKind::Constructor {
+            let class_type: Option<Id<Type>> = if declaration.ref_(self).kind() == SyntaxKind::Constructor {
                 Some(
                     self.get_declared_type_of_class_or_interface(
-                        self.get_merged_symbol(declaration.parent().maybe_symbol())
+                        self.get_merged_symbol(declaration.ref_(self).parent().ref_(self).maybe_symbol())
                             .unwrap(),
                     )?,
                 )
@@ -216,12 +217,12 @@ impl TypeChecker {
             if is_constructor_type_node(declaration)
                 && has_syntactic_modifier(declaration, ModifierFlags::Abstract)
                 || is_constructor_declaration(declaration)
-                    && has_syntactic_modifier(&declaration.parent(), ModifierFlags::Abstract)
+                    && has_syntactic_modifier(&declaration.ref_(self).parent(), ModifierFlags::Abstract)
             {
                 flags |= SignatureFlags::Abstract;
             }
             let resolved_signature = Gc::new(self.create_signature(
-                Some(declaration.node_wrapper()),
+                Some(declaration),
                 type_parameters,
                 this_parameter,
                 parameters,
@@ -245,22 +246,21 @@ impl TypeChecker {
             return Ok(false);
         }
         let last_param =
-            last_or_undefined(&declaration.as_signature_declaration().parameters()).cloned();
+            last_or_undefined(&declaration.ref_(self).as_signature_declaration().parameters()).cloned();
         let last_param_tags = if let Some(last_param) = last_param.as_ref() {
-            Either::Left(get_jsdoc_parameter_tags(last_param))
+            Either::Left(get_jsdoc_parameter_tags(last_param, self))
         } else {
             Either::Right(
-                get_jsdoc_tags(declaration).filter(|tag: &Id<Node>| is_jsdoc_parameter_tag(tag)),
+                get_jsdoc_tags(declaration, self).filter(|tag: &Id<Node>| is_jsdoc_parameter_tag(&tag.ref_(self))),
             )
         };
         let last_param_variadic_type = first_defined(last_param_tags, |p: Id<Node>, _| {
-            p.as_jsdoc_property_like_tag()
+            p.ref_(self).as_jsdoc_property_like_tag()
                 .type_expression
-                .as_ref()
                 .filter(|type_expression| {
-                    is_jsdoc_variadic_type(&type_expression.as_jsdoc_type_expression().type_)
+                    is_jsdoc_variadic_type(&type_expression.ref_(self).as_jsdoc_type_expression().type_.ref_(self))
                 })
-                .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
+                .map(|type_expression| type_expression.ref_(self).as_jsdoc_type_expression().type_)
         });
         let synthetic_args_symbol = self.alloc_symbol(
             self.create_symbol(
@@ -305,16 +305,15 @@ impl TypeChecker {
         if !(is_in_js_file(Some(node)) && is_function_like_declaration(node)) {
             return Ok(None);
         }
-        let type_tag = get_jsdoc_type_tag(node);
+        let type_tag = get_jsdoc_type_tag(node, self);
         type_tag
             .and_then(|type_tag| {
                 type_tag
-                    .as_base_jsdoc_type_like_tag()
+                    .ref_(self).as_base_jsdoc_type_like_tag()
                     .type_expression
-                    .clone()
             })
             .try_and_then(|type_expression| {
-                self.get_single_call_signature(self.get_type_from_type_node_(&type_expression)?)
+                self.get_single_call_signature(self.get_type_from_type_node_(type_expression)?)
             })
     }
 
@@ -341,7 +340,7 @@ impl TypeChecker {
             } else {
                 self.contains_arguments_reference_traverse(
                     declaration
-                        .maybe_as_function_like_declaration()
+                        .ref_(self).maybe_as_function_like_declaration()
                         .and_then(|declaration| declaration.maybe_body()),
                 )?
             };
@@ -356,10 +355,9 @@ impl TypeChecker {
         node: Option<Id<Node>>,
     ) -> io::Result<bool> {
         let node = return_ok_false_if_none!(node);
-        let node = node.borrow();
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::Identifier => {
-                &node.as_identifier().escaped_text
+                &node.ref_(self).as_identifier().escaped_text
                     == self.arguments_symbol().ref_(self).escaped_name()
                     && matches!(
                         self.get_referenced_value_symbol(node, None)?,
@@ -371,14 +369,14 @@ impl TypeChecker {
             | SyntaxKind::MethodDeclaration
             | SyntaxKind::GetAccessor
             | SyntaxKind::SetAccessor => {
-                let name = node.as_named_declaration().name();
+                let name = node.ref_(self).as_named_declaration().name();
                 name.kind() == SyntaxKind::ComputedPropertyName
                     && self.contains_arguments_reference_traverse(Some(name))?
             }
 
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => self
                 .contains_arguments_reference_traverse(Some(
-                    node.as_has_expression().expression(),
+                    node.ref_(self).as_has_expression().expression(),
                 ))?,
 
             _ => {
@@ -405,20 +403,20 @@ impl TypeChecker {
         }
         let symbol_declarations = symbol_declarations.as_ref().unwrap();
         let mut result: Vec<Gc<Signature>> = vec![];
-        for (i, decl) in symbol_declarations.iter().enumerate() {
+        for (i, &decl) in symbol_declarations.iter().enumerate() {
             if !is_function_like(Some(&**decl)) {
                 continue;
             }
             if i > 0
                 && decl
-                    .maybe_as_function_like_declaration()
+                    .ref_(self).maybe_as_function_like_declaration()
                     .and_then(|decl| decl.maybe_body())
                     .is_some()
             {
                 let previous = &symbol_declarations[i - 1];
-                if Gc::ptr_eq(&decl.parent(), &previous.parent())
-                    && decl.kind() == previous.kind()
-                    && decl.pos() == previous.end()
+                if decl.ref_(self).parent() == previous.ref_(self).parent()
+                    && decl.ref_(self).kind() == previous.ref_(self).kind()
+                    && decl.ref_(self).pos() == previous.ref_(self).end()
                 {
                     continue;
                 }
@@ -483,12 +481,11 @@ impl TypeChecker {
             } else {
                 let type_ = signature
                     .declaration
-                    .as_ref()
-                    .and_then(|declaration| get_effective_return_type_node(declaration));
+                    .and_then(|declaration| get_effective_return_type_node(declaration, self));
                 let mut jsdoc_predicate: Option<Gc<TypePredicate>> = None;
                 if type_.is_none() && is_in_js_file(signature.declaration.as_deref()) {
                     let jsdoc_signature =
-                        self.get_signature_of_type_tag(signature.declaration.as_ref().unwrap())?;
+                        self.get_signature_of_type_tag(signature.declaration.unwrap())?;
                     if let Some(jsdoc_signature) = jsdoc_signature
                         .filter(|jsdoc_signature| !ptr::eq(signature, &**jsdoc_signature))
                     {
@@ -496,9 +493,9 @@ impl TypeChecker {
                     }
                 }
                 *signature.maybe_resolved_type_predicate_mut() = Some(
-                    if let Some(type_) = type_.filter(|type_| is_type_predicate_node(type_)) {
+                    if let Some(type_) = type_.filter(|type_| is_type_predicate_node(&type_.ref_(self))) {
                         Gc::new(
-                            self.create_type_predicate_from_type_predicate_node(&type_, signature)?,
+                            self.create_type_predicate_from_type_predicate_node(type_, signature)?,
                         )
                     } else {
                         jsdoc_predicate.unwrap_or_else(|| self.no_type_predicate())
@@ -524,7 +521,8 @@ impl TypeChecker {
         node: Id<Node>, /*TypePredicateNode*/
         signature: &Signature,
     ) -> io::Result<TypePredicate> {
-        let node_as_type_predicate_node = node.as_type_predicate_node();
+        let node_ref = node.ref_(self);
+        let node_as_type_predicate_node = node_ref.as_type_predicate_node();
         let parameter_name = &node_as_type_predicate_node.parameter_name;
         let type_ = node_as_type_predicate_node
             .type_
@@ -614,13 +612,13 @@ impl TypeChecker {
                     signature.mapper.clone(),
                 )?
             } else {
-                let signature_declaration = signature.declaration.as_ref().unwrap();
+                let signature_declaration = signature.declaration.unwrap();
                 self.get_return_type_from_annotation(signature_declaration)?
                     .try_unwrap_or_else(|| -> io::Result<_> {
                         Ok(
                             if node_is_missing(
                                 signature_declaration
-                                    .maybe_as_function_like_declaration()
+                                    .ref_(self).maybe_as_function_like_declaration()
                                     .and_then(|function_like_declaration| {
                                         function_like_declaration.maybe_body()
                                     }),
@@ -638,8 +636,8 @@ impl TypeChecker {
                 type_ = self.get_optional_type_(type_, None)?;
             }
             if !self.pop_type_resolution() {
-                if let Some(signature_declaration) = signature.declaration.as_ref() {
-                    let type_node = get_effective_return_type_node(signature_declaration);
+                if let Some(signature_declaration) = signature.declaration {
+                    let type_node = get_effective_return_type_node(signature_declaration, self);
                     if let Some(type_node) = type_node {
                         self.error(
                             Some(type_node),
@@ -659,7 +657,7 @@ impl TypeChecker {
                             );
                         } else {
                             self.error(
-                                Some(&**declaration),
+                                Some(declaration),
                                 &Diagnostics::Function_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
                                 None,
                             );
@@ -677,10 +675,10 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
     ) -> io::Result<Option<Id<Type>>> {
-        if declaration.kind() == SyntaxKind::Constructor {
+        if declaration.ref_(self).kind() == SyntaxKind::Constructor {
             return Ok(Some(
                 self.get_declared_type_of_class_or_interface(
-                    self.get_merged_symbol(declaration.parent().maybe_symbol())
+                    self.get_merged_symbol(declaration.ref_(self).parent().ref_(self).maybe_symbol())
                         .unwrap(),
                 )?,
             ));
@@ -688,18 +686,18 @@ impl TypeChecker {
         if is_jsdoc_construct_signature(declaration) {
             return Ok(Some(
                 self.get_type_from_type_node_(
-                    &declaration.as_signature_declaration().parameters()[0]
-                        .as_parameter_declaration()
+                    declaration.ref_(self).as_signature_declaration().parameters()[0]
+                        .ref_(self).as_parameter_declaration()
                         .maybe_type()
                         .unwrap(),
                 )?,
             ));
         }
-        let type_node = get_effective_return_type_node(declaration);
+        let type_node = get_effective_return_type_node(declaration, self);
         if let Some(type_node) = type_node {
-            return Ok(Some(self.get_type_from_type_node_(&type_node)?));
+            return Ok(Some(self.get_type_from_type_node_(type_node)?));
         }
-        if declaration.kind() == SyntaxKind::GetAccessor && self.has_bindable_name(declaration)? {
+        if declaration.ref_(self).kind() == SyntaxKind::GetAccessor && self.has_bindable_name(declaration)? {
             let js_doc_type = if is_in_js_file(Some(declaration)) {
                 self.get_type_for_declaration_from_jsdoc_comment(declaration)?
             } else {
@@ -956,8 +954,7 @@ impl TypeChecker {
         if signature.maybe_isolated_signature_type().is_none() {
             let kind = signature
                 .declaration
-                .as_ref()
-                .map_or_else(|| SyntaxKind::Unknown, |declaration| declaration.kind());
+                .map_or_else(|| SyntaxKind::Unknown, |declaration| declaration.ref_(self).kind());
             let is_constructor = matches!(
                 kind,
                 SyntaxKind::Constructor
@@ -1039,9 +1036,10 @@ impl TypeChecker {
             index_symbol.ref_(self).maybe_declarations().as_ref()
         {
             let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
-            for declaration in index_symbol_declarations {
+            for &declaration in index_symbol_declarations {
+                let declaration_ref = declaration.ref_(self);
                 let declaration_as_index_signature_declaration =
-                    declaration.as_index_signature_declaration();
+                    declaration_ref.as_index_signature_declaration();
                 if declaration_as_index_signature_declaration
                     .parameters()
                     .len()
@@ -1051,7 +1049,7 @@ impl TypeChecker {
                     if let Some(parameter_type) = parameter.as_parameter_declaration().maybe_type()
                     {
                         self.try_for_each_type(
-                            self.get_type_from_type_node_(&parameter_type)?,
+                            self.get_type_from_type_node_(parameter_type)?,
                             |key_type| {
                                 if self.is_valid_index_key_type(key_type)?
                                     && self.find_index_info(&index_infos, key_type).is_none()
@@ -1061,7 +1059,7 @@ impl TypeChecker {
                                         if let Some(declaration_type) =
                                             declaration_as_index_signature_declaration.maybe_type()
                                         {
-                                            self.get_type_from_type_node_(&declaration_type)?
+                                            self.get_type_from_type_node_(declaration_type)?
                                         } else {
                                             self.any_type()
                                         },
@@ -1113,7 +1111,7 @@ impl TypeChecker {
                     .maybe_symbol()
                     .and_then(|symbol| symbol.ref_(self).maybe_declarations().clone())
                     .as_deref(),
-                |node: &Id<Node>| is_type_parameter_declaration(node),
+                |node: &Id<Node>| is_type_parameter_declaration(&node.ref_(self)),
             ),
             |node, _| get_effective_constraint_of_type_parameter(&node),
         )

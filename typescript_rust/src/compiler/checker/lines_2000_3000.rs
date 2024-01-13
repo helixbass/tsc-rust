@@ -43,7 +43,9 @@ impl TypeChecker {
         if !is_valid_type_only_alias_use_site(use_site) {
             let type_only_declaration = self.get_type_only_alias_declaration(symbol);
             if let Some(type_only_declaration) = type_only_declaration {
-                let message = if type_only_declaration.kind() == SyntaxKind::ExportSpecifier {
+                let message = if type_only_declaration.ref_(self).kind()
+                    == SyntaxKind::ExportSpecifier
+                {
                     &*Diagnostics::_0_cannot_be_used_as_a_value_because_it_was_exported_using_export_type
                 } else {
                     &*Diagnostics::_0_cannot_be_used_as_a_value_because_it_was_imported_using_import_type
@@ -62,24 +64,21 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn add_type_only_declaration_related_info<
-        TTypeOnlyDeclaration: Borrow<Node /*TypeOnlyCompatibleAliasDeclaration*/>,
-    >(
+    pub(super) fn add_type_only_declaration_related_info(
         &self,
         diagnostic: Gc<Diagnostic>,
-        type_only_declaration: Option<TTypeOnlyDeclaration>,
+        type_only_declaration: Option<Id<Node>>,
         unescaped_name: &str,
     ) -> Gc<Diagnostic> {
         if type_only_declaration.is_none() {
             return diagnostic;
         }
         let type_only_declaration = type_only_declaration.unwrap();
-        let type_only_declaration = type_only_declaration.borrow();
         add_related_info(
             &diagnostic,
             vec![create_diagnostic_for_node(
                 type_only_declaration,
-                if type_only_declaration.kind() == SyntaxKind::ExportSpecifier {
+                if type_only_declaration.ref_(self).kind() == SyntaxKind::ExportSpecifier {
                     &Diagnostics::_0_was_exported_here
                 } else {
                     &Diagnostics::_0_was_imported_here
@@ -96,34 +95,33 @@ impl TypeChecker {
         location: Id<Node>,
         last_location: Option<Id<Node>>,
     ) -> bool {
-        let last_location =
-            last_location.map(|last_location| last_location.borrow().node_wrapper());
         if !matches!(
-            location.kind(),
+            location.ref_(self).kind(),
             SyntaxKind::ArrowFunction | SyntaxKind::FunctionExpression
         ) {
-            return is_type_query_node(location)
+            return is_type_query_node(&location.ref_(self))
                 || ((is_function_like_declaration(location)
-                    || location.kind() == SyntaxKind::PropertyDeclaration
+                    || location.ref_(self).kind() == SyntaxKind::PropertyDeclaration
                         && !is_static(location))
                     && !matches!(
-                        last_location.as_ref(),
+                        last_location,
                         Some(last_location) if matches!(
-                            location.as_named_declaration().maybe_name(),
-                            Some(name) if Gc::ptr_eq(last_location, &name)
+                            location.ref_(self).as_named_declaration().maybe_name(),
+                            Some(name) if last_location == name
                         )
                     ));
         }
         if matches!(
-            last_location.as_ref(),
+            last_location,
             Some(last_location) if matches!(
-                location.as_named_declaration().maybe_name(),
-                Some(name) if Gc::ptr_eq(last_location, &name)
+                location.ref_(self).as_named_declaration().maybe_name(),
+                Some(name) if last_location == name
             )
         ) {
             return false;
         }
         if location
+            .ref_(self)
             .as_function_like_declaration()
             .maybe_asterisk_token()
             .is_some()
@@ -136,7 +134,7 @@ impl TypeChecker {
 
     pub(super) fn is_self_reference_location(&self, node: Id<Node>) -> bool {
         matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::FunctionDeclaration
                 | SyntaxKind::ClassDeclaration
                 | SyntaxKind::InterfaceDeclaration
@@ -163,17 +161,23 @@ impl TypeChecker {
     ) -> bool {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             for decl in symbol_declarations {
-                if decl.kind() == SyntaxKind::TypeParameter {
-                    let decl_parent = decl.parent();
-                    let parent = if is_jsdoc_template_tag(&decl_parent) {
-                        get_jsdoc_host(&decl_parent)
+                if decl.ref_(self).kind() == SyntaxKind::TypeParameter {
+                    let decl_parent = decl.ref_(self).parent();
+                    let parent = if is_jsdoc_template_tag(&decl_parent.ref_(self)) {
+                        get_jsdoc_host(decl_parent, self)
                     } else {
-                        decl.maybe_parent()
+                        decl.ref_(self).maybe_parent()
                     };
-                    if matches!(parent, Some(parent) if ptr::eq(&*parent, container)) {
+                    if matches!(parent, Some(parent) if parent == container) {
                         return !(is_jsdoc_template_tag(&decl_parent)
                             && find(
-                                decl_parent.parent().as_jsdoc().tags.as_deref().unwrap(),
+                                decl_parent
+                                    .ref_(self)
+                                    .parent()
+                                    .as_jsdoc()
+                                    .tags
+                                    .as_deref()
+                                    .unwrap(),
                                 |tag: &Id<Node>, _| is_jsdoc_type_alias(tag),
                             )
                             .is_some());
@@ -191,8 +195,8 @@ impl TypeChecker {
         name: &str, /*__String*/
         name_arg: ResolveNameNameArg<'name_arg>,
     ) -> io::Result<bool> {
-        if !is_identifier(error_location)
-            || &error_location.as_identifier().escaped_text != name
+        if !is_identifier(&error_location.ref_(self))
+            || &error_location.ref_(self).as_identifier().escaped_text != name
             || self.is_type_reference_identifier(error_location)
             || self.is_in_type_query(error_location)
         {
@@ -202,9 +206,9 @@ impl TypeChecker {
         let container = get_this_container(error_location, false);
         let mut location: Option<Id<Node>> = Some(container.clone());
         while let Some(location_present) = location {
-            if maybe_is_class_like(location_present.maybe_parent()) {
+            if maybe_is_class_like(location_present.ref_(self).maybe_parent()) {
                 let class_symbol =
-                    break_if_none!(self.get_symbol_of_node(&location_present.parent())?);
+                    break_if_none!(self.get_symbol_of_node(location_present.ref_(self).parent())?);
 
                 let constructor_type = self.get_type_of_symbol(class_symbol)?;
                 if self.get_property_of_type(constructor_type, name)?.is_some() {
@@ -225,7 +229,7 @@ impl TypeChecker {
                     return Ok(true);
                 }
 
-                if Gc::ptr_eq(&location_present, &container) && !is_static(&location_present) {
+                if location_present == container && !is_static(&location_present) {
                     let declared_type = self.get_declared_type_of_symbol(class_symbol)?;
                     let instance_type = declared_type
                         .ref_(self)
@@ -243,7 +247,7 @@ impl TypeChecker {
                 }
             }
 
-            location = location_present.maybe_parent();
+            location = location_present.ref_(self).maybe_parent();
         }
         Ok(false)
     }
@@ -256,7 +260,7 @@ impl TypeChecker {
         if let Some(expression) = expression {
             if self
                 .resolve_entity_name(
-                    &expression,
+                    expression,
                     SymbolFlags::Interface,
                     Some(true),
                     None,
@@ -279,13 +283,15 @@ impl TypeChecker {
         &self,
         node: Id<Node>,
     ) -> Option<Id<Node /*EntityNameExpression*/>> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression => node
+                .ref_(self)
                 .maybe_parent()
-                .and_then(|node_parent| self.get_entity_name_for_extending_interface(&node_parent)),
+                .and_then(|node_parent| self.get_entity_name_for_extending_interface(node_parent)),
             SyntaxKind::ExpressionWithTypeArguments => {
+                let node_ref = node.ref_(self);
                 let node_as_expression_with_type_arguments =
-                    node.as_expression_with_type_arguments();
+                    node_ref.as_expression_with_type_arguments();
                 if is_entity_name_expression(&node_as_expression_with_type_arguments.expression) {
                     return Some(node_as_expression_with_type_arguments.expression.clone());
                 }
@@ -320,12 +326,13 @@ impl TypeChecker {
                 )?,
                 None,
             )?;
-            let parent = error_location.parent();
+            let parent = error_location.ref_(self).parent();
             if let Some(symbol) = symbol {
                 if is_qualified_name(&parent) {
-                    let parent_as_qualified_name = parent.as_qualified_name();
+                    let parent_ref = parent.ref_(self);
+                    let parent_as_qualified_name = parent_ref.as_qualified_name();
                     Debug_.assert(
-                        ptr::eq(&*parent_as_qualified_name.left, error_location),
+                        parent_as_qualified_name.left == error_location,
                         Some("Should only be resolving left side of qualified name as a namespace"),
                     );
                     let prop_name = &parent_as_qualified_name.right.as_identifier().escaped_text;
@@ -402,7 +409,7 @@ impl TypeChecker {
         name: &str, /*__String*/
     ) -> bool {
         if self.is_primitive_type_name(name)
-            && error_location.parent().kind() == SyntaxKind::ExportSpecifier
+            && error_location.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportSpecifier
         {
             self.error(
                 Some(error_location),
@@ -476,18 +483,23 @@ impl TypeChecker {
     }
 
     pub(super) fn maybe_mapped_type(&self, node: Id<Node>, symbol: Id<Symbol>) -> io::Result<bool> {
-        let container = find_ancestor(node.maybe_parent(), |n| {
-            if is_computed_property_name(n) || is_property_signature(n) {
-                false.into()
-            } else {
-                if is_type_literal_node(n) {
-                    true.into()
+        let container = find_ancestor(
+            node.ref_(self).maybe_parent(),
+            |n| {
+                if is_computed_property_name(&n.ref_(self)) || is_property_signature(&n.ref_(self))
+                {
+                    false.into()
                 } else {
-                    FindAncestorCallbackReturn::Quit
+                    if is_type_literal_node(&n.ref_(self)) {
+                        true.into()
+                    } else {
+                        FindAncestorCallbackReturn::Quit
+                    }
                 }
-            }
-        });
-        if matches!(container, Some(container) if container.as_type_literal_node().members.len() == 1)
+            },
+            self,
+        );
+        if matches!(container, Some(container) if container.ref_(self).as_type_literal_node().members.len() == 1)
         {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
             return Ok(type_.ref_(self).flags().intersects(TypeFlags::Union)
@@ -589,7 +601,7 @@ impl TypeChecker {
             declarations.iter().find(|d| {
                 is_block_or_catch_scoped(d)
                     || is_class_like(d)
-                    || d.kind() == SyntaxKind::EnumDeclaration
+                    || d.ref_(self).kind() == SyntaxKind::EnumDeclaration
             })
         });
 
@@ -600,8 +612,8 @@ impl TypeChecker {
         }
         let declaration = declaration.unwrap();
 
-        if !declaration.flags().intersects(NodeFlags::Ambient)
-            && !self.is_block_scoped_name_declared_before_use(&declaration, error_location)?
+        if !declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
+            && !self.is_block_scoped_name_declared_before_use(declaration, error_location)?
         {
             let mut diagnostic_message: Option<Gc<Diagnostic>> = None;
             let declaration_name =
@@ -673,14 +685,13 @@ impl TypeChecker {
             return false;
         }
         let parent = parent.unwrap();
-        let parent = parent.borrow();
         find_ancestor(Some(initial), |n| {
-            if ptr::eq(n, stop_at) || is_function_like(Some(n)) {
+            if n == stop_at || is_function_like(Some(n)) {
                 FindAncestorCallbackReturn::Quit
             } else {
-                ptr::eq(n, parent).into()
+                (n == parent).into()
             }
-        })
+        }, self)
         .is_some()
     }
 
@@ -688,11 +699,11 @@ impl TypeChecker {
         &self,
         node: Id<Node>,
     ) -> Option<Id<Node /*AnyImportSyntax*/>> {
-        match node.kind() {
-            SyntaxKind::ImportEqualsDeclaration => Some(node.node_wrapper()),
-            SyntaxKind::ImportClause => node.maybe_parent(),
-            SyntaxKind::NamespaceImport => node.parent().maybe_parent(),
-            SyntaxKind::ImportSpecifier => node.parent().parent().maybe_parent(),
+        match node.ref_(self).kind() {
+            SyntaxKind::ImportEqualsDeclaration => Some(node),
+            SyntaxKind::ImportClause => node.ref_(self).maybe_parent(),
+            SyntaxKind::NamespaceImport => node.ref_(self).parent().ref_(self).maybe_parent(),
+            SyntaxKind::ImportSpecifier => node.ref_(self).parent().ref_(self).parent().ref_(self).maybe_parent(),
             _ => None,
         }
     }
@@ -706,7 +717,7 @@ impl TypeChecker {
             .maybe_declarations()
             .as_deref()
             .try_and_then(|declarations| {
-                try_find_last(declarations, |declaration, _| {
+                try_find_last(declarations, |&declaration, _| {
                     self.is_alias_symbol_declaration(declaration)
                 })
             })?
@@ -715,35 +726,36 @@ impl TypeChecker {
 
     pub(super) fn is_alias_symbol_declaration(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::NamespaceExportDeclaration
-        ) || node.kind() == SyntaxKind::ImportClause && node.as_import_clause().name.is_some()
+        ) || node.ref_(self).kind() == SyntaxKind::ImportClause && node.ref_(self).as_import_clause().name.is_some()
             || matches!(
-                node.kind(),
+                node.ref_(self).kind(),
                 SyntaxKind::NamespaceImport
                     | SyntaxKind::NamespaceExport
                     | SyntaxKind::ImportSpecifier
                     | SyntaxKind::ExportSpecifier
             )
-            || node.kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node)
-            || is_binary_expression(node)
+            || node.ref_(self).kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node)
+            || is_binary_expression(&node.ref_(self))
                 && get_assignment_declaration_kind(node)
                     == AssignmentDeclarationKind::ModuleExports
                 && export_assignment_is_alias(node)
-            || is_access_expression(node) && is_binary_expression(&node.parent()) && {
-                let node_parent = node.parent();
-                let node_parent_as_binary_expression = node_parent.as_binary_expression();
-                ptr::eq(&*node_parent_as_binary_expression.left, node)
-                    && node_parent_as_binary_expression.operator_token.kind()
+            || is_access_expression(node) && is_binary_expression(&node.ref_(self).parent().ref_(self)) && {
+                let node_parent = node.ref_(self).parent();
+                let node_parent_ref = node_parent.ref_(self);
+                let node_parent_as_binary_expression = node_parent_ref.as_binary_expression();
+                node_parent_as_binary_expression.left == node
+                    && node_parent_as_binary_expression.operator_token.ref_(self).kind()
                         == SyntaxKind::EqualsToken
                     && self
                         .is_aliasable_or_js_expression(&node_parent_as_binary_expression.right)?
             }
-            || node.kind() == SyntaxKind::ShorthandPropertyAssignment
-            || node.kind() == SyntaxKind::PropertyAssignment
+            || node.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment
+            || node.ref_(self).kind() == SyntaxKind::PropertyAssignment
                 && self
-                    .is_aliasable_or_js_expression(&node.as_property_assignment().initializer)?
-            || is_require_variable_declaration(node))
+                    .is_aliasable_or_js_expression(node.ref_(self).as_property_assignment().initializer)?
+            || is_require_variable_declaration(node, self))
     }
 
     pub(super) fn is_aliasable_or_js_expression(

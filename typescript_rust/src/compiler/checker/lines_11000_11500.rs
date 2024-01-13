@@ -680,7 +680,7 @@ impl TypeChecker {
                                 .maybe_call_signatures()
                                 .as_deref(),
                             |sig: &Gc<Signature>, _| -> io::Result<_> {
-                                Ok(if self.is_js_constructor(sig.declaration.as_deref())? {
+                                Ok(if self.is_js_constructor(sig.declaration)? {
                                     Some(Gc::new(self.create_signature(
                                         sig.declaration.clone(),
                                         sig.maybe_type_parameters().clone(),
@@ -1342,9 +1342,9 @@ impl TypeChecker {
                         .ref_(self)
                         .as_mapped_type()
                         .declaration
+                        .ref_(self)
                         .as_mapped_type_node()
-                        .type_parameter
-                        .clone();
+                        .type_parameter;
                     type_parameter
                 })?
                 .unwrap(),
