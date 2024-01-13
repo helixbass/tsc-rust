@@ -50,8 +50,8 @@ impl TypeChecker {
             return Ok(None);
         }
         let node_parent_as_binary_expression = node_parent.ref_(self).as_binary_expression();
-        if node_parent_as_binary_expression.left != node
-            && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
+        if !(node_parent_as_binary_expression.left == node
+            && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken)
         {
             return Ok(None);
         }
@@ -336,7 +336,9 @@ impl TypeChecker {
                     || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(
-                        node.ref_(self).as_import_equals_declaration().module_reference,
+                        node.ref_(self)
+                            .as_import_equals_declaration()
+                            .module_reference,
                         None,
                     )?;
                 }
@@ -446,10 +448,13 @@ impl TypeChecker {
             symbol = return_ok_none_if_none!(self.get_property_of_type_(
                 type_,
                 &left
-                    .ref_(self).parent()
-                    .ref_(self).as_qualified_name()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_qualified_name()
                     .right
-                    .ref_(self).as_identifier()
+                    .ref_(self)
+                    .as_identifier()
                     .escaped_text,
                 None,
             )?);
@@ -480,7 +485,8 @@ impl TypeChecker {
             };
         let symbol: Option<Id<Symbol>>;
         if name.ref_(self).kind() == SyntaxKind::Identifier {
-            let message = if meaning == namespace_meaning || node_is_synthesized(&*name.ref_(self)) {
+            let message = if meaning == namespace_meaning || node_is_synthesized(&*name.ref_(self))
+            {
                 &Diagnostics::Cannot_find_namespace_0
             } else {
                 self.get_cannot_find_name_diagnostic_for_name(get_first_identifier(name))
@@ -545,7 +551,8 @@ impl TypeChecker {
                 {
                     if let Some(namespace_value_declaration_initializer) =
                         namespace_value_declaration
-                            .ref_(self).as_variable_declaration()
+                            .ref_(self)
+                            .as_variable_declaration()
                             .maybe_initializer()
                     {
                         if self.is_common_js_require(namespace_value_declaration_initializer)? {
@@ -686,7 +693,8 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
         if self.is_jsdoc_type_reference(name.ref_(self).parent()) {
-            let secondary_location = self.get_assignment_declaration_location(name.ref_(self).parent())?;
+            let secondary_location =
+                self.get_assignment_declaration_location(name.ref_(self).parent())?;
             if let Some(secondary_location) = secondary_location {
                 return self.resolve_name_(
                     Some(secondary_location),
@@ -707,7 +715,9 @@ impl TypeChecker {
         node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Option<Id<Node>>> {
         let type_alias = find_ancestor(Some(node), |node| {
-            if !(is_jsdoc_node(&node.ref_(self)) || node.ref_(self).flags().intersects(NodeFlags::JSDoc)) {
+            if !(is_jsdoc_node(&node.ref_(self))
+                || node.ref_(self).flags().intersects(NodeFlags::JSDoc))
+            {
                 FindAncestorCallbackReturn::Quit
             } else {
                 is_jsdoc_type_alias(&node.ref_(self)).into()
@@ -737,13 +747,22 @@ impl TypeChecker {
             }
         }
         if let Some(host) = host {
-            if (is_object_literal_method(&host.ref_(self)) || is_property_assignment(&host.ref_(self)))
+            if (is_object_literal_method(&host.ref_(self))
+                || is_property_assignment(&host.ref_(self)))
                 && is_binary_expression(&host.ref_(self).parent().ref_(self).parent().ref_(self))
-                && get_assignment_declaration_kind(&host.ref_(self).parent().ref_(self).parent().ref_(self))
-                    == AssignmentDeclarationKind::Prototype
+                && get_assignment_declaration_kind(
+                    &host.ref_(self).parent().ref_(self).parent().ref_(self),
+                ) == AssignmentDeclarationKind::Prototype
             {
-                let symbol =
-                    self.get_symbol_of_node(host.ref_(self).parent().ref_(self).parent().ref_(self).as_binary_expression().left)?;
+                let symbol = self.get_symbol_of_node(
+                    host.ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_binary_expression()
+                        .left,
+                )?;
                 if let Some(symbol) = symbol {
                     return Ok(self.get_declaration_of_js_prototype_container(symbol));
                 }
