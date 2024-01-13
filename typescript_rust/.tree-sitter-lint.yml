@@ -46,6 +46,12 @@ rules:
         _d:
           module: crate
           kind: function
+        # HasArena:
+        #   module: crate
+        #   kind: type
+        # InArena:
+        #   module: crate
+        #   kind: type
         # arena:
         #   module: crate
         #   kind: trait_method

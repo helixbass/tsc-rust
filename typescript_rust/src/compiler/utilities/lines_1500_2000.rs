@@ -93,7 +93,7 @@ pub fn get_property_assignment<'a>(
         .filter(move |&property| {
             if property.ref_(arena).kind() == SyntaxKind::PropertyAssignment {
                 let property_name = property.ref_(arena).as_property_assignment().name();
-                let prop_name = get_text_of_property_name(&property_name, arena);
+                let prop_name = get_text_of_property_name(property_name, arena);
                 return prop_name == key || matches!(key2, Some(key2) if prop_name == key2);
             }
             false
@@ -104,9 +104,10 @@ pub fn get_property_array_element_value(
     object_literal: Id<Node>, /*ObjectLiteralExpression*/
     prop_key: &str,
     element_value: &str,
+    arena: &impl HasArena
 ) -> Option<Id<Node /*StringLiteral*/>> {
     first_defined(
-        get_property_assignment(object_literal, prop_key, None),
+        get_property_assignment(object_literal, prop_key, None, arena),
         |property, _| {
             let property_as_property_assignment = property.as_property_assignment();
             if is_array_literal_expression(
@@ -156,10 +157,10 @@ pub fn get_ts_config_object_literal_expression(
 pub fn get_ts_config_prop_array_element_value(
     ts_config_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     prop_key: &str,
-    element_value: &str,
+    element_value: &str, arena: &impl HasArena
 ) -> Option<Id<Node /*StringLiteral*/>> {
     first_defined(
-        get_ts_config_prop_array(ts_config_source_file, prop_key),
+        get_ts_config_prop_array(ts_config_source_file, prop_key, arena),
         |property, _| {
             let property_as_property_assignment = property.as_property_assignment();
             if is_array_literal_expression(
@@ -201,39 +202,39 @@ pub fn get_ts_config_prop_array<'a>(
     }
 }
 
-pub fn get_containing_function(node: Id<Node>) -> Option<Id<Node /*SignatureDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: Id<Node>| {
+pub fn get_containing_function(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*SignatureDeclaration*/>> {
+    find_ancestor(node.ref_(arena).maybe_parent(), |node: Id<Node>| {
         is_function_like(Some(node))
-    })
+    }, arena)
 }
 
 pub fn get_containing_function_declaration(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena,
 ) -> Option<Id<Node /*FunctionLikeDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: Id<Node>| {
+    find_ancestor(node.ref_(arena).maybe_parent(), |node: Id<Node>| {
         is_function_like_declaration(node)
-    })
+    }, arena)
 }
 
-pub fn get_containing_class(node: Id<Node>) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: Id<Node>| is_class_like(node))
+pub fn get_containing_class(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
+    find_ancestor(node.ref_(arena).maybe_parent(), |node: Id<Node>| is_class_like(&node.ref_(arena)), arena)
 }
 
-pub fn get_containing_class_static_block(node: Id<Node>) -> Option<Id<Node>> {
-    find_ancestor(node.maybe_parent(), |n: Id<Node>| {
-        if is_class_like(n) || is_function_like(Some(n)) {
+pub fn get_containing_class_static_block(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
+    find_ancestor(node.ref_(arena).maybe_parent(), |n: Id<Node>| {
+        if is_class_like(&n.ref_(arena)) || is_function_like(Some(&n.ref_(arena))) {
             return FindAncestorCallbackReturn::Quit;
         }
-        is_class_static_block_declaration(n).into()
-    })
+        is_class_static_block_declaration(&n.ref_(arena)).into()
+    }, arena)
 }
 
 pub fn get_containing_function_or_class_static_block(
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena,
 ) -> Option<Id<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: Id<Node>| {
-        is_function_like_or_class_static_block_declaration(Some(node))
-    })
+    find_ancestor(node.ref_(arena).maybe_parent(), |node: Id<Node>| {
+        is_function_like_or_class_static_block_declaration(Some(&node.ref_(arena)))
+    }, arena)
 }
 
 pub fn get_this_container(node: Id<Node>, include_arrow_functions: bool) -> Id<Node> {

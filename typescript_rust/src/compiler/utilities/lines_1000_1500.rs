@@ -22,11 +22,12 @@ use crate::{
     BaseDiagnosticRelatedInformation, CharacterCodes, ClassLikeDeclarationInterface, CommentRange,
     Debug_, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeArgumentsInterface,
+    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasTypeArgumentsInterface,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
     TextSpan,
 };
+use crate::InArena;
 
 pub fn create_diagnostic_for_node(
     node: Id<Node>,
@@ -374,12 +375,18 @@ pub fn is_enum_const(node: Id<Node> /*EnumDeclaration*/, arena: &impl HasArena) 
     get_combined_modifier_flags(node, arena).intersects(ModifierFlags::Const)
 }
 
-pub fn is_declaration_readonly(declaration: Id<Node> /*Declaration*/, arena: &impl HasArena) -> bool {
+pub fn is_declaration_readonly(
+    declaration: Id<Node>, /*Declaration*/
+    arena: &impl HasArena,
+) -> bool {
     get_combined_modifier_flags(declaration, arena).intersects(ModifierFlags::Readonly)
         && !is_parameter_property_declaration(declaration, &declaration.parent())
 }
 
-pub fn is_var_const(node: Id<Node> /*VariableDeclaration | VariableDeclarationList*/, arena: &impl HasArena) -> bool {
+pub fn is_var_const(
+    node: Id<Node>, /*VariableDeclaration | VariableDeclarationList*/
+    arena: &impl HasArena,
+) -> bool {
     get_combined_node_flags(node, arena).intersects(NodeFlags::Const)
 }
 
@@ -854,21 +861,35 @@ pub fn is_variable_like_or_accessor(node: Id<Node>) -> bool {
 }
 
 pub fn is_variable_declaration_in_variable_statement(
-    node: Id<Node>, /*VariableDeclaration*/
+    node: Id<Node>,
+    /*VariableDeclaration*/ arena: &impl HasArena,
 ) -> bool {
-    node.parent().kind() == SyntaxKind::VariableDeclarationList
-        && node.parent().parent().kind() == SyntaxKind::VariableStatement
+    node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::VariableDeclarationList
+        && node
+            .ref_(arena)
+            .parent()
+            .ref_(arena)
+            .parent()
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::VariableStatement
 }
 
-pub fn is_valid_es_symbol_declaration(node: Id<Node>) -> bool {
-    if is_variable_declaration(node) {
-        is_var_const(node)
-            && is_identifier(&node.as_variable_declaration().name())
-            && is_variable_declaration_in_variable_statement(node)
-    } else if is_property_declaration(node) {
-        has_effective_readonly_modifier(node) && has_static_modifier(node)
-    } else if is_property_signature(node) {
-        has_effective_readonly_modifier(node)
+pub fn is_valid_es_symbol_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
+    if is_variable_declaration(&node.ref_(arena)) {
+        is_var_const(node, arena)
+            && is_identifier(
+                &node
+                    .ref_(arena)
+                    .as_variable_declaration()
+                    .name()
+                    .ref_(arena),
+            )
+            && is_variable_declaration_in_variable_statement(node, arena)
+    } else if is_property_declaration(&node.ref_(arena)) {
+        has_effective_readonly_modifier(&node.ref_(arena)) && has_static_modifier(&node.ref_(arena))
+    } else if is_property_signature(&node.ref_(arena)) {
+        has_effective_readonly_modifier(&node.ref_(arena))
     } else {
         false
     }
