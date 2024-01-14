@@ -386,7 +386,7 @@ impl TransformClassFields {
         member: Id<Node>, /*ClassElement*/
     ) -> bool {
         if is_static(member)
-            || has_syntactic_modifier(&get_original_node(member), ModifierFlags::Abstract)
+            || has_syntactic_modifier(get_original_node(member), ModifierFlags::Abstract, self)
         {
             return false;
         }
@@ -742,7 +742,7 @@ impl TransformClassFields {
         }
 
         let ref property_original_node = get_original_node(property);
-        if has_syntactic_modifier(property_original_node, ModifierFlags::Abstract) {
+        if has_syntactic_modifier(property_original_node, ModifierFlags::Abstract, self) {
             return None;
         }
 

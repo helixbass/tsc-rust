@@ -107,7 +107,7 @@ impl TypeChecker {
                 None,
             );
         } else {
-            if has_syntactic_modifier(node, ModifierFlags::Abstract) {
+            if has_syntactic_modifier(node, ModifierFlags::Abstract, self) {
                 self.error(
                     Some(&*error_node),
                     &Diagnostics::All_declarations_of_an_abstract_method_must_be_consecutive,

@@ -407,7 +407,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
-        let node_as_signature_declaration = node.as_signature_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_signature_declaration = node_ref.as_signature_declaration();
         let parameter = node_as_signature_declaration.parameters().get(0).cloned();
         if node_as_signature_declaration.parameters().len() != 1 {
             if let Some(parameter) = parameter.as_ref() {
@@ -428,7 +429,7 @@ impl TypeChecker {
             Some(&node_as_signature_declaration.parameters()),
             Some(&Diagnostics::An_index_signature_cannot_have_a_trailing_comma),
         );
-        let ref parameter = parameter.unwrap();
+        let parameter = parameter.unwrap();
         let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
         if let Some(parameter_dot_dot_dot_token) = parameter_as_parameter_declaration
             .dot_dot_dot_token
@@ -440,7 +441,7 @@ impl TypeChecker {
                 None,
             ));
         }
-        if has_effective_modifiers(parameter) {
+        if has_effective_modifiers(parameter, self) {
             return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_cannot_have_an_accessibility_modifier,

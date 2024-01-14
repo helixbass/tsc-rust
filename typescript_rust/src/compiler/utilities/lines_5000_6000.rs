@@ -25,10 +25,10 @@ use crate::{
     BaseType, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    Extension, HasArena, HasInitializerInterface, MapLike, ModifierFlags,
+    Extension, HasArena, HasInitializerInterface, InArena, MapLike, ModifierFlags,
     NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
     ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, InArena,
+    SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 pub fn get_first_identifier(node: Id<Node>) -> Id<Node /*Identifier*/> {
@@ -687,7 +687,10 @@ pub fn is_bundle_file_text_like(_section: &BundleFileSection) -> bool {
     unimplemented!()
 }
 
-pub fn get_leftmost_access_expression(mut expr: Id<Node>, /*Expression*/ arena: &impl HasArena) -> Id<Node /*Expression*/> {
+pub fn get_leftmost_access_expression(
+    mut expr: Id<Node>,
+    /*Expression*/ arena: &impl HasArena,
+) -> Id<Node /*Expression*/> {
     while is_access_expression(&expr.ref_(arena)) {
         expr = expr.ref_(arena).as_has_expression().expression();
     }
@@ -959,7 +962,7 @@ pub fn create_file_diagnostic(
         BaseDiagnosticRelatedInformation::new(
             message.category,
             message.code,
-            Some(file.node_wrapper()),
+            Some(file),
             Some(start),
             Some(length),
             text,

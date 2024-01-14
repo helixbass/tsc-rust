@@ -93,8 +93,8 @@ impl TypeChecker {
                         }),
                     ) || some(
                         Some(&*node_as_constructor_declaration.parameters()),
-                        Some(|p: &Id<Node>| {
-                            has_syntactic_modifier(p, ModifierFlags::ParameterPropertyModifier)
+                        Some(|&p: &Id<Node>| {
+                            has_syntactic_modifier(p, ModifierFlags::ParameterPropertyModifier, self)
                         }),
                     ));
 
@@ -191,8 +191,8 @@ impl TypeChecker {
                         {
                             self.get_node_links(getter).borrow_mut().flags |=
                                 NodeCheckFlags::TypeChecked;
-                            let getter_flags = get_effective_modifier_flags(getter);
-                            let setter_flags = get_effective_modifier_flags(setter);
+                            let getter_flags = get_effective_modifier_flags(getter, self);
+                            let setter_flags = get_effective_modifier_flags(setter, self);
                             if getter_flags & ModifierFlags::Abstract
                                 != setter_flags & ModifierFlags::Abstract
                             {
@@ -892,7 +892,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_private_within_ambient(&self, node: Id<Node>) -> bool {
-        (has_effective_modifier(node, ModifierFlags::Private)
+        (has_effective_modifier(node, ModifierFlags::Private, self)
             || is_private_identifier_class_element_declaration(node))
             && node.flags().intersects(NodeFlags::Ambient)
     }
@@ -1127,6 +1127,7 @@ impl TypeChecker {
                     && !has_syntactic_modifier(
                         last_seen_non_ambient_declaration,
                         ModifierFlags::Abstract,
+                        self,
                     )
                     && last_seen_non_ambient_declaration_as_function_like_declaration
                         .maybe_question_token()

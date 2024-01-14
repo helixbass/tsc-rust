@@ -72,7 +72,7 @@ impl TypeChecker {
                 .clone();
             if matches!(
                 target,
-                Some(target) if get_effective_modifier_flags(node).intersects(ModifierFlags::Export) &&
+                Some(target) if get_effective_modifier_flags(node, self).intersects(ModifierFlags::Export) &&
                     target.ref_(self).flags().intersects(SymbolFlags::Value) && (
                         should_preserve_const_enums(&self.compiler_options) ||
                         !self.is_const_enum_or_const_enum_only_module(target)
@@ -129,7 +129,7 @@ impl TypeChecker {
                 .as_parameter_declaration()
                 .maybe_initializer()
                 .is_some()
-            && !has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier))
+            && !has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier, self))
     }
 
     pub(super) fn is_optional_uninitialized_parameter_property(
@@ -142,7 +142,7 @@ impl TypeChecker {
                 .as_parameter_declaration()
                 .maybe_initializer()
                 .is_none()
-            && has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier))
+            && has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier, self))
     }
 
     pub(super) fn is_optional_uninitialized_parameter_(
@@ -1581,7 +1581,7 @@ impl TypeChecker {
                             );
                         }
                         if !(node.parent().kind() == SyntaxKind::ClassDeclaration
-                            && has_syntactic_modifier(&node.parent(), ModifierFlags::Abstract))
+                            && has_syntactic_modifier(node.parent(), ModifierFlags::Abstract, self))
                         {
                             return self.grammar_error_on_node(
                                 modifier,

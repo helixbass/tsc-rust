@@ -121,7 +121,7 @@ impl TypeChecker {
             base_with_this,
             type_,
             type_with_this,
-            has_override_modifier(member),
+            has_override_modifier(member, self),
             has_abstract_modifier(member),
             is_static(member),
             member_is_parameter_property,
@@ -322,10 +322,10 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if !signatures.is_empty() {
-            let declaration = signatures[0].declaration.as_ref();
+            let declaration = signatures[0].declaration;
             if matches!(
                 declaration,
-                Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private)
+                Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private, self)
             ) {
                 let type_class_declaration =
                     get_class_like_declaration_of_symbol(&type_.ref_(self).symbol().ref_(self))
@@ -383,9 +383,9 @@ impl TypeChecker {
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
         let member_has_override_modifier = if member.maybe_parent().is_some() {
-            has_override_modifier(member)
+            has_override_modifier(member, self)
         } else {
-            has_syntactic_modifier(member, ModifierFlags::Override)
+            has_syntactic_modifier(member, ModifierFlags::Override, self)
         };
 
         let text_of_property_name = get_text_of_property_name(&member_name);
@@ -460,7 +460,8 @@ impl TypeChecker {
                     get_class_like_declaration_of_symbol(&type_.ref_(self).symbol().ref_(self))
                         .unwrap();
 
-                if base_declaration_flags.intersects(ModifierFlags::Abstract) && /* !derivedClassDecl ||*/ !has_syntactic_modifier(&derived_class_decl, ModifierFlags::Abstract)
+                if base_declaration_flags.intersects(ModifierFlags::Abstract) &&
+                    /* !derivedClassDecl ||*/ !has_syntactic_modifier(derived_class_decl, ModifierFlags::Abstract, self)
                 {
                     for &other_base_type in &self.get_base_types(type_)? {
                         if other_base_type == base_type {

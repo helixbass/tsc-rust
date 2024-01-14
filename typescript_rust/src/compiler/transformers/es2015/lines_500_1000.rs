@@ -366,8 +366,8 @@ impl TransformES2015 {
             .start_on_new_line();
         statements.push(statement.clone());
 
-        if has_syntactic_modifier(node, ModifierFlags::Export) {
-            let export_statement = if has_syntactic_modifier(node, ModifierFlags::Default) {
+        if has_syntactic_modifier(node, ModifierFlags::Export, self) {
+            let export_statement = if has_syntactic_modifier(node, ModifierFlags::Default, self) {
                 self.factory
                     .create_export_default(self.factory.get_local_name(node, None, None))
             } else {

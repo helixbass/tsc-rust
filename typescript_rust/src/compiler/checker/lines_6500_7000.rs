@@ -309,8 +309,8 @@ impl SymbolTableToDeclarationStatements {
                     .as_ref()
                     .filter(|ns_body| is_module_block(ns_body))
                 {
-                    let excess_exports = filter(&statements, |s: &Id<Node>| {
-                        get_effective_modifier_flags(s).intersects(ModifierFlags::Export)
+                    let excess_exports = filter(&statements, |&s: &Id<Node>| {
+                        get_effective_modifier_flags(s, self).intersects(ModifierFlags::Export)
                     });
                     let ref name = ns.as_module_declaration().name.clone();
                     let mut body = ns_body.clone();
@@ -370,7 +370,7 @@ impl SymbolTableToDeclarationStatements {
                         self.set_results(vec![]);
                         let body_as_module_block = body.as_module_block();
                         let mixin_export_flag = !body_as_module_block.statements.iter().any(|s| {
-                            has_syntactic_modifier(s, ModifierFlags::Export)
+                            has_syntactic_modifier(s, ModifierFlags::Export, self)
                                 || is_export_assignment(s)
                                 || is_export_declaration(s)
                         });
@@ -641,7 +641,7 @@ impl SymbolTableToDeclarationStatements {
         node: Id<Node>, /*Extract<HasModifiers, Statement>*/
     ) -> Id<Node> {
         let flags =
-            (get_effective_modifier_flags(node) | ModifierFlags::Export) & !ModifierFlags::Ambient;
+            (get_effective_modifier_flags(node, self) | ModifierFlags::Export) & !ModifierFlags::Ambient;
         get_factory().update_modifiers(node, flags)
     }
 
@@ -649,7 +649,7 @@ impl SymbolTableToDeclarationStatements {
         &self,
         node: Id<Node>, /*Extract<HasModifiers, Statement>*/
     ) -> Id<Node> {
-        let flags = get_effective_modifier_flags(node) & !ModifierFlags::Export;
+        let flags = get_effective_modifier_flags(node, self) & !ModifierFlags::Export;
         get_factory().update_modifiers(node, flags)
     }
 

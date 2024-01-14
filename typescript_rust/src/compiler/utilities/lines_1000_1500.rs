@@ -32,14 +32,14 @@ use crate::InArena;
 pub fn create_diagnostic_for_node(
     node: Id<Node>,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<String>>, arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
-    let source_file = get_source_file_of_node(node);
-    create_diagnostic_for_node_in_source_file(&source_file, node, message, args)
+    let source_file = get_source_file_of_node(node, arena);
+    create_diagnostic_for_node_in_source_file(&source_file, node, message, args, arena)
 }
 
 pub fn create_diagnostic_for_node_array(
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     nodes: &NodeArray,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
@@ -51,28 +51,28 @@ pub fn create_diagnostic_for_node_array(
         None,
         None,
     );
-    create_file_diagnostic(&source_file, start, nodes.end() - start, message, args)
+    create_file_diagnostic(source_file.arena_id(), start, nodes.end() - start, message, args)
 }
 
 pub fn create_diagnostic_for_node_in_source_file(
     source_file: Id<Node>, /*SourceFile*/
     node: Id<Node>,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<String>>, arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
-    let span = get_error_span_for_node(source_file, node);
+    let span = get_error_span_for_node(source_file, node, arena);
     create_file_diagnostic(source_file, span.start, span.length, message, args)
 }
 
 pub fn create_diagnostic_for_node_from_message_chain(
     node: Id<Node>,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>, arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
-    let source_file = get_source_file_of_node(node);
-    let span = get_error_span_for_node(&source_file, node);
+    let source_file = get_source_file_of_node(node, arena);
+    let span = get_error_span_for_node(source_file, node, arena);
     create_file_diagnostic_from_message_chain(
-        &source_file,
+        &source_file.ref_(arena),
         span.start,
         span.length,
         message_chain,
@@ -80,12 +80,11 @@ pub fn create_diagnostic_for_node_from_message_chain(
     )
 }
 
-fn assert_diagnostic_location(file: Option<Id<Node> /*SourceFile*/>, start: isize, length: isize) {
+fn assert_diagnostic_location(file: Option<&Node /*SourceFile*/>, start: isize, length: isize) {
     Debug_.assert_greater_than_or_equal(start, 0);
     Debug_.assert_greater_than_or_equal(length, 0);
 
     if let Some(file) = file {
-        let file = file.borrow();
         let file_as_source_file = file.as_source_file();
         Debug_.assert_less_than_or_equal(
             start,
@@ -107,7 +106,7 @@ fn assert_diagnostic_location(file: Option<Id<Node> /*SourceFile*/>, start: isiz
 }
 
 pub fn create_file_diagnostic_from_message_chain(
-    file: Id<Node>, /*SourceFile*/
+    file: &Node, /*SourceFile*/
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
@@ -118,7 +117,7 @@ pub fn create_file_diagnostic_from_message_chain(
         BaseDiagnosticRelatedInformation::new(
             message_chain.category,
             message_chain.code,
-            Some(file.node_wrapper()),
+            Some(file.arena_id()),
             Some(start),
             Some(length),
             if message_chain.next.is_some() {
@@ -140,7 +139,7 @@ pub fn create_diagnostic_for_file_from_message_chain(
         BaseDiagnosticRelatedInformation::new(
             message_chain.category,
             message_chain.code,
-            Some(source_file.node_wrapper()),
+            Some(source_file),
             Some(0),
             Some(0),
             if message_chain.next.is_some() {
@@ -162,7 +161,7 @@ pub fn create_diagnostic_for_range<TRange: TextRange>(
         BaseDiagnosticRelatedInformation::new(
             message.category,
             message.code,
-            Some(source_file.node_wrapper()),
+            Some(source_file),
             Some(range.pos()),
             Some(range.end() - range.pos()),
             message.message.clone().into_owned(),
@@ -172,7 +171,7 @@ pub fn create_diagnostic_for_range<TRange: TextRange>(
 }
 
 pub fn get_span_of_token_at_position(
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     pos: usize,
 ) -> TextSpan {
     let source_file_as_source_file = source_file.as_source_file();
@@ -197,26 +196,29 @@ pub fn get_span_of_token_at_position(
 fn get_error_span_for_arrow_function(
     source_file: Id<Node>, /*SourceFile*/
     node: Id<Node>,        /*ArrowFunction*/
+    arena: &impl HasArena
 ) -> TextSpan {
-    let source_file_as_source_file = source_file.as_source_file();
+    let source_file_ref = source_file.ref_(arena);
+    let source_file_as_source_file = source_file_ref.as_source_file();
     let pos = skip_trivia(
         &source_file_as_source_file.text_as_chars(),
-        node.pos(),
+        node.ref_(arena).pos(),
         None,
         None,
         None,
     );
-    let node_as_arrow_function = node.as_arrow_function();
+    let node_ref = node.ref_(arena);
+    let node_as_arrow_function = node_ref.as_arrow_function();
     if let Some(node_body) = node_as_arrow_function.maybe_body() {
-        if node_body.kind() == SyntaxKind::Block {
+        if node_body.ref_(arena).kind() == SyntaxKind::Block {
             let start_line = get_line_and_character_of_position(
                 source_file_as_source_file,
-                node_body.pos().try_into().unwrap(),
+                node_body.ref_(arena).pos().try_into().unwrap(),
             )
             .line;
             let end_line = get_line_and_character_of_position(
                 source_file_as_source_file,
-                node_body.end().try_into().unwrap(),
+                node_body.ref_(arena).end().try_into().unwrap(),
             )
             .line;
             if start_line < end_line {
@@ -233,16 +235,17 @@ fn get_error_span_for_arrow_function(
             }
         }
     }
-    create_text_span_from_bounds(pos, node.end())
+    create_text_span_from_bounds(pos, node_ref.end())
 }
 
 pub fn get_error_span_for_node(
     source_file: Id<Node>, /*SourceFile*/
-    node: Id<Node>,
+    node: Id<Node>, arena: &impl HasArena,
 ) -> TextSpan {
-    let mut error_node: Option<Id<Node>> = Some(node.node_wrapper());
-    let source_file_as_source_file = source_file.as_source_file();
-    match node.kind() {
+    let mut error_node: Option<Id<Node>> = Some(node);
+    let source_file_ref = source_file.ref_(arena);
+    let source_file_as_source_file = source_file_ref.as_source_file();
+    match node.ref_(arena).kind() {
         SyntaxKind::SourceFile => {
             let pos = skip_trivia(
                 &source_file_as_source_file.text_as_chars(),
@@ -255,7 +258,7 @@ pub fn get_error_span_for_node(
             if pos_as_usize == source_file_as_source_file.text_as_chars().len() {
                 return create_text_span(0, 0);
             }
-            return get_span_of_token_at_position(source_file, pos_as_usize);
+            return get_span_of_token_at_position(&source_file_ref, pos_as_usize);
         }
         SyntaxKind::VariableDeclaration
         | SyntaxKind::BindingElement
@@ -274,40 +277,42 @@ pub fn get_error_span_for_node(
         | SyntaxKind::PropertyDeclaration
         | SyntaxKind::PropertySignature
         | SyntaxKind::NamespaceImport => {
-            error_node = node.as_named_declaration().maybe_name();
+            error_node = node.ref_(arena).as_named_declaration().maybe_name();
         }
         SyntaxKind::ArrowFunction => {
-            return get_error_span_for_arrow_function(source_file, node);
+            return get_error_span_for_arrow_function(source_file, node, arena);
         }
         SyntaxKind::CaseClause => {
-            let node_as_case_clause = node.as_case_clause();
+            let node_ref = node.ref_(arena);
+            let node_as_case_clause = node_ref.as_case_clause();
             let start = skip_trivia(
                 &source_file_as_source_file.text_as_chars(),
-                node.pos(),
+                node_ref.pos(),
                 None,
                 None,
                 None,
             );
             let end = if !node_as_case_clause.statements.is_empty() {
-                node_as_case_clause.statements[0].pos()
+                node_as_case_clause.statements[0].ref_(arena).pos()
             } else {
-                node.end()
+                node_ref.end()
             };
             return create_text_span_from_bounds(start, end);
         }
         SyntaxKind::DefaultClause => {
-            let node_as_default_clause = node.as_default_clause();
+            let node_ref = node.ref_(arena);
+            let node_as_default_clause = node_ref.as_default_clause();
             let start = skip_trivia(
                 &source_file_as_source_file.text_as_chars(),
-                node.pos(),
+                node.ref_(arena).pos(),
                 None,
                 None,
                 None,
             );
             let end = if !node_as_default_clause.statements.is_empty() {
-                node_as_default_clause.statements[0].pos()
+                node_as_default_clause.statements[0].ref_(arena).pos()
             } else {
-                node.end()
+                node_ref.end()
             };
             return create_text_span_from_bounds(start, end);
         }
@@ -315,19 +320,19 @@ pub fn get_error_span_for_node(
     }
 
     if error_node.is_none() {
-        return get_span_of_token_at_position(source_file, node.pos().try_into().unwrap());
+        return get_span_of_token_at_position(&source_file_ref, node.ref_(arena).pos().try_into().unwrap());
     }
     let error_node = error_node.unwrap();
 
-    Debug_.assert(!is_jsdoc(&error_node), None);
+    Debug_.assert(!is_jsdoc(&error_node.ref_(arena)), None);
 
-    let is_missing = node_is_missing(Some(&*error_node));
-    let pos = if is_missing || is_jsx_text(&error_node) {
-        error_node.pos()
+    let is_missing = node_is_missing(Some(&error_node.ref_(arena)));
+    let pos = if is_missing || is_jsx_text(&error_node.ref_(arena)) {
+        error_node.ref_(arena).pos()
     } else {
         skip_trivia(
             &source_file_as_source_file.text_as_chars(),
-            error_node.pos(),
+            error_node.ref_(arena).pos(),
             None,
             None,
             None,
@@ -336,28 +341,28 @@ pub fn get_error_span_for_node(
 
     if is_missing {
         Debug_.assert(
-            pos == error_node.pos(),
+            pos == error_node.ref_(arena).pos(),
             Some("This failure could trigger https://github.com/Microsoft/TypeScript/issues/20809"),
         );
         Debug_.assert(
-            pos == error_node.end(),
+            pos == error_node.ref_(arena).end(),
             Some("This failure could trigger https://github.com/Microsoft/TypeScript/issues/20809"),
         );
     } else {
         Debug_.assert(
-            pos >= error_node.pos(),
+            pos >= error_node.ref_(arena).pos(),
             Some("This failure could trigger https://github.com/Microsoft/TypeScript/issues/20809"),
         );
         Debug_.assert(
-            pos <= error_node.end(),
+            pos <= error_node.ref_(arena).end(),
             Some("This failure could trigger https://github.com/Microsoft/TypeScript/issues/20809"),
         );
     }
 
-    create_text_span_from_bounds(pos, error_node.end())
+    create_text_span_from_bounds(pos, error_node.ref_(arena).end())
 }
 
-pub fn is_external_or_common_js_module(file: Id<Node> /*SourceFile*/) -> bool {
+pub fn is_external_or_common_js_module(file: &Node /*SourceFile*/) -> bool {
     let file_as_source_file = file.as_source_file();
     file_as_source_file
         .maybe_external_module_indicator()
@@ -380,7 +385,7 @@ pub fn is_declaration_readonly(
     arena: &impl HasArena,
 ) -> bool {
     get_combined_modifier_flags(declaration, arena).intersects(ModifierFlags::Readonly)
-        && !is_parameter_property_declaration(declaration, &declaration.parent())
+        && !is_parameter_property_declaration(declaration, &declaration.ref_(arena).parent())
 }
 
 pub fn is_var_const(
@@ -887,9 +892,9 @@ pub fn is_valid_es_symbol_declaration(node: Id<Node>, arena: &impl HasArena) -> 
             )
             && is_variable_declaration_in_variable_statement(node, arena)
     } else if is_property_declaration(&node.ref_(arena)) {
-        has_effective_readonly_modifier(&node.ref_(arena)) && has_static_modifier(&node.ref_(arena))
+        has_effective_readonly_modifier(node, arena) && has_static_modifier(&node.ref_(arena))
     } else if is_property_signature(&node.ref_(arena)) {
-        has_effective_readonly_modifier(&node.ref_(arena))
+        has_effective_readonly_modifier(node, arena)
     } else {
         false
     }

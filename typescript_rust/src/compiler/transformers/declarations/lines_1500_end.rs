@@ -11,7 +11,7 @@ use crate::{
     is_external_module, is_internal_declaration, return_ok_default_if_none, some, try_map_defined,
     try_visit_nodes, AllAccessorDeclarations, Debug_, GetSymbolAccessibilityDiagnostic,
     HasTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind,
+    NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind, HasArena,
 };
 
 impl TransformDeclarations {
@@ -142,7 +142,7 @@ impl TransformDeclarations {
     }
 
     pub(super) fn ensure_modifiers(&self, node: Id<Node>) -> Option<NodeArrayOrVec> {
-        let current_flags = get_effective_modifier_flags(node);
+        let current_flags = get_effective_modifier_flags(node, self);
         let new_flags = self.ensure_modifier_flags(node);
         if current_flags == new_flags {
             return node.maybe_modifiers().map(Into::into);
@@ -275,10 +275,11 @@ pub(super) fn mask_modifier_flags(
     node: Id<Node>,
     modifier_mask: Option<ModifierFlags>,
     modifier_additions: Option<ModifierFlags>,
+    arena: &impl HasArena,
 ) -> ModifierFlags {
     let modifier_mask = modifier_mask.unwrap_or(ModifierFlags::All ^ ModifierFlags::Public);
     let modifier_additions = modifier_additions.unwrap_or(ModifierFlags::None);
-    let mut flags = (get_effective_modifier_flags(node) & modifier_mask) | modifier_additions;
+    let mut flags = (get_effective_modifier_flags(node, arena) & modifier_mask) | modifier_additions;
     if flags.intersects(ModifierFlags::Default) && !flags.intersects(ModifierFlags::Export) {
         flags ^= ModifierFlags::Export;
     }
@@ -310,7 +311,7 @@ pub(super) fn get_type_annotation_from_accessor(
 pub(super) fn can_have_literal_initializer(node: Id<Node>) -> bool {
     match node.kind() {
         SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => {
-            !has_effective_modifier(node, ModifierFlags::Private)
+            !has_effective_modifier(node, ModifierFlags::Private, self)
         }
         SyntaxKind::Parameter | SyntaxKind::VariableDeclaration => true,
         _ => false,

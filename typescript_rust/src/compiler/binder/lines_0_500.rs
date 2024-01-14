@@ -142,7 +142,7 @@ pub(super) fn get_module_instance_state_worker(
             }
         }
         SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration => {
-            if !has_syntactic_modifier(node, ModifierFlags::Export) {
+            if !has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 return ModuleInstanceState::NonInstantiated;
             }
         }
@@ -974,7 +974,7 @@ impl BinderType {
         let is_computed_name = is_computed_name.unwrap_or(false);
         Debug_.assert(is_computed_name || !has_dynamic_name(node), None);
 
-        let is_default_export = has_syntactic_modifier(node, ModifierFlags::Default)
+        let is_default_export = has_syntactic_modifier(node, ModifierFlags::Default, self)
             || is_export_specifier(node)
                 && node.as_export_specifier().name.as_identifier().escaped_text == "default";
 
@@ -1096,7 +1096,7 @@ impl BinderType {
                                 vec![];
                             if is_type_alias_declaration(node)
                                 && node_is_missing(Some(&*node.as_type_alias_declaration().type_))
-                                && has_syntactic_modifier(node, ModifierFlags::Export)
+                                && has_syntactic_modifier(node, ModifierFlags::Export, self)
                                 && symbol_present.ref_(self).flags().intersects(
                                     SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
                                 )

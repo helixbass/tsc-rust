@@ -74,7 +74,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*AccessorDeclaration*/
     ) -> bool {
         !(node_is_missing(node.as_function_like_declaration().maybe_body())
-            && has_syntactic_modifier(node, ModifierFlags::Abstract))
+            && has_syntactic_modifier(node, ModifierFlags::Abstract, self))
     }
 
     pub(super) fn visit_get_accessor(
@@ -668,7 +668,7 @@ impl TransformTypeScript {
 
         let container_name = self.get_namespace_container_name(node);
 
-        let export_name = if has_syntactic_modifier(node, ModifierFlags::Export) {
+        let export_name = if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             self.factory.get_external_module_or_namespace_export_name(
                 self.maybe_current_namespace_container_name(),
                 node,

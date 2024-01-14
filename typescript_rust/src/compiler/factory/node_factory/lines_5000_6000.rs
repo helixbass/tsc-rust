@@ -1274,7 +1274,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Id<Node /*Identifier | PropertyAccessExpression*/> {
-        if let Some(ns) = ns.filter(|_| has_syntactic_modifier(node, ModifierFlags::Export)) {
+        if let Some(ns) = ns.filter(|_| has_syntactic_modifier(node, ModifierFlags::Export, self)) {
             let ns = ns.borrow();
             return self.get_namespace_member_name(
                 ns,

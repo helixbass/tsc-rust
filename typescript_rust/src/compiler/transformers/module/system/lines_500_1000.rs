@@ -138,7 +138,7 @@ impl TransformSystemModule {
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
-        if has_syntactic_modifier(node, ModifierFlags::Export) {
+        if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             self.maybe_hoisted_statements_mut()
                 .get_or_insert_default_()
                 .push(
@@ -283,7 +283,7 @@ impl TransformSystemModule {
         }
 
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
-        let is_exported_declaration = has_syntactic_modifier(node, ModifierFlags::Export);
+        let is_exported_declaration = has_syntactic_modifier(node, ModifierFlags::Export, self);
         let is_marked_declaration = self.has_associated_end_of_declaration_marker(node);
         for variable in &node_as_variable_statement
             .declaration_list
@@ -454,7 +454,7 @@ impl TransformSystemModule {
         {
             let id = get_original_node_id(node);
             let is_exported_declaration =
-                has_syntactic_modifier(&node.maybe_original().unwrap(), ModifierFlags::Export);
+                has_syntactic_modifier(node.maybe_original().unwrap(), ModifierFlags::Export, self);
             self.append_exports_of_variable_statement(
                 self.deferred_exports_mut().entry(id).or_default(),
                 &node.maybe_original().unwrap(),

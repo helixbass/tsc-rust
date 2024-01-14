@@ -269,26 +269,26 @@ pub fn walk_up_binding_elements_and_patterns(
 
 fn get_combined_flags<TFlags: BitOrAssign>(
     node: Id<Node>,
+    mut get_flags: impl FnMut(Id<Node>) -> TFlags,
     arena: &impl HasArena,
-    mut get_flags: impl FnMut(&Node) -> TFlags,
 ) -> TFlags {
     let mut node = Some(node);
     if is_binding_element(&node.unwrap().ref_(arena)) {
         node = Some(walk_up_binding_elements_and_patterns(node.unwrap(), arena));
     }
-    let mut flags = get_flags(&node.unwrap().ref_(arena));
+    let mut flags = get_flags(node.unwrap());
     if node.unwrap().ref_(arena).kind() == SyntaxKind::VariableDeclaration {
         node = node.unwrap().ref_(arena).maybe_parent();
     }
     if let Some(node_present) = node {
         if node_present.ref_(arena).kind() == SyntaxKind::VariableDeclarationList {
-            flags |= get_flags(&node_present.ref_(arena));
+            flags |= get_flags(node_present);
             node = node_present.ref_(arena).maybe_parent();
         }
     }
     if let Some(node) = node {
         if node.ref_(arena).kind() == SyntaxKind::VariableStatement {
-            flags |= get_flags(&node.ref_(arena));
+            flags |= get_flags(node);
         }
     }
     flags
@@ -298,7 +298,7 @@ pub fn get_combined_modifier_flags(
     node: Id<Node>, /*Declaration*/
     arena: &impl HasArena,
 ) -> ModifierFlags {
-    get_combined_flags(node, arena, get_effective_modifier_flags)
+    get_combined_flags(node, |node| get_effective_modifier_flags(node, arena), arena)
 }
 
 #[allow(dead_code)]
@@ -308,13 +308,13 @@ pub(crate) fn get_combined_node_flags_always_include_jsdoc(
 ) -> ModifierFlags {
     get_combined_flags(
         node,
+        |node| get_effective_modifier_flags_always_include_jsdoc(node, arena),
         arena,
-        get_effective_modifier_flags_always_include_jsdoc,
     )
 }
 
 pub fn get_combined_node_flags(node: Id<Node>, arena: &impl HasArena) -> NodeFlags {
-    get_combined_flags(node, arena, |n| n.flags())
+    get_combined_flags(node, |n| n.ref_(arena).flags(), arena)
 }
 
 lazy_static! {

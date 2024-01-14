@@ -66,7 +66,7 @@ impl BinderType {
                         .intersects(NodeFlags::ExportContext))
             {
                 if self.container().maybe_locals().is_none()
-                    || has_syntactic_modifier(node, ModifierFlags::Default)
+                    || has_syntactic_modifier(node, ModifierFlags::Default, self)
                         && self.get_declaration_name(node).is_none()
                 {
                     return self.declare_symbol(
@@ -185,7 +185,7 @@ impl BinderType {
             let save_active_label_list = self.maybe_active_label_list();
             let save_has_explicit_return = self.maybe_has_explicit_return();
             let is_iife = container_flags.intersects(ContainerFlags::IsFunctionExpression)
-                && !has_syntactic_modifier(node, ModifierFlags::Async)
+                && !has_syntactic_modifier(node, ModifierFlags::Async, self)
                 && node
                     .as_function_like_declaration()
                     .maybe_asterisk_token()

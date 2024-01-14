@@ -215,9 +215,9 @@ impl TypeChecker {
                 flags |= SignatureFlags::HasRestParameter;
             }
             if is_constructor_type_node(declaration)
-                && has_syntactic_modifier(declaration, ModifierFlags::Abstract)
+                && has_syntactic_modifier(declaration, ModifierFlags::Abstract, self)
                 || is_constructor_declaration(declaration)
-                    && has_syntactic_modifier(&declaration.ref_(self).parent(), ModifierFlags::Abstract)
+                    && has_syntactic_modifier(declaration.ref_(self).parent(), ModifierFlags::Abstract, self)
             {
                 flags |= SignatureFlags::Abstract;
             }
@@ -1066,6 +1066,7 @@ impl TypeChecker {
                                         has_effective_modifier(
                                             declaration,
                                             ModifierFlags::Readonly,
+                                            self,
                                         ),
                                         Some(declaration.clone()),
                                     )));

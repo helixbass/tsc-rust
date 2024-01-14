@@ -847,7 +847,7 @@ impl TypeChecker {
                         &Diagnostics::The_arguments_object_cannot_be_referenced_in_an_arrow_function_in_ES3_and_ES5_Consider_using_a_standard_function_expression,
                         None,
                     );
-                } else if has_syntactic_modifier(&container, ModifierFlags::Async) {
+                } else if has_syntactic_modifier(container, ModifierFlags::Async, self) {
                     self.error(
                         Some(node),
                         &Diagnostics::The_arguments_object_cannot_be_referenced_in_an_async_function_or_method_in_ES3_and_ES5_Consider_using_a_standard_function_or_method,

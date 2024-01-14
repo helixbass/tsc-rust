@@ -592,7 +592,7 @@ impl BinderType {
     pub(super) fn bind_module_declaration(&self, node: Id<Node> /*ModuleDeclaration*/) {
         self.set_export_context_flag(node);
         if is_ambient_module(node) {
-            if has_syntactic_modifier(node, ModifierFlags::Export) {
+            if has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 self.error_on_first_token(node, &Diagnostics::export_modifier_cannot_be_applied_to_ambient_modules_and_module_augmentations_since_they_are_always_visible, None);
             }
             if is_module_augmentation_external(node) {

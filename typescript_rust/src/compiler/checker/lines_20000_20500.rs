@@ -209,10 +209,12 @@ impl CheckTypeRelatedTo {
         let source_accessibility = get_selected_effective_modifier_flags(
             source_signature_declaration,
             ModifierFlags::NonPublicAccessibilityModifier,
+            self,
         );
         let target_accessibility = get_selected_effective_modifier_flags(
             target_signature_declaration,
             ModifierFlags::NonPublicAccessibilityModifier,
+            self,
         );
 
         if target_accessibility == ModifierFlags::Private {

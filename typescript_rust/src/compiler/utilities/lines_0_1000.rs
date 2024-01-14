@@ -37,13 +37,13 @@ use crate::{
     options_affecting_program_structure, skip_trivia, starts_with_use_strict, text_char_at_index,
     text_substring, trim_string_start, AllArenas, CharacterCodes, CommandLineOption,
     CommentDirective, CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_,
-    EmitFlags, EmitTextWriter, HasArena, HasStatementsInterface, IndexInfo,
+    EmitFlags, EmitTextWriter, HasArena, HasStatementsInterface, InArena, IndexInfo,
     LiteralLikeNodeInterface, ModeAwareCache, ModuleKind, NamedDeclarationInterface, Node,
     NodeArray, NodeFlags, NodeInterface, PackageId, ProjectReference, ReadonlyCollection,
     ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
     SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
-    TokenFlags, Type, UnderscoreEscapedMap, InArena,
+    TokenFlags, Type, UnderscoreEscapedMap,
 };
 
 thread_local! {
@@ -785,10 +785,12 @@ fn aggregate_child_data(node: Id<Node>) {
     }
 }
 
-pub fn get_source_file_of_node(node: Id<Node>) -> Id<Node /*SourceFile*/> {
-    let mut node = node.node_wrapper();
-    while node.kind() != SyntaxKind::SourceFile {
-        node = node.parent();
+pub fn get_source_file_of_node(
+    mut node: Id<Node>,
+    arena: &impl HasArena,
+) -> Id<Node /*SourceFile*/> {
+    while node.ref_(arena).kind() != SyntaxKind::SourceFile {
+        node = node.ref_(arena).parent();
     }
     node
 }
@@ -876,17 +878,15 @@ pub fn is_file_level_unique_name(
         .contains_key(name)
 }
 
-pub fn node_is_missing(node: Option<Id<Node>>) -> bool {
-    if node.is_none() {
+pub fn node_is_missing(node: Option<&Node>) -> bool {
+    let Some(node) = node else {
         return true;
-    }
-    let node = node.unwrap();
-    let node = node.borrow();
+    };
 
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
-pub fn node_is_present(node: Option<Id<Node>>) -> bool {
+pub fn node_is_present(node: Option<&Node>) -> bool {
     !node_is_missing(node)
 }
 
@@ -1826,17 +1826,24 @@ pub fn is_computed_non_literal_name(name: Id<Node> /*PropertyName*/) -> bool {
 }
 
 pub fn get_text_of_property_name<'name>(
-    name: Id<Node>, /*PropertyName | NoSubstitutionTemplateLiteral*/ arena: &impl HasArena
+    name: Id<Node>,
+    /*PropertyName | NoSubstitutionTemplateLiteral*/ arena: &impl HasArena,
 ) -> Cow<'name, str> /*__String*/ {
     match name.ref_(arena).kind() {
         SyntaxKind::Identifier => (&*name.ref_(arena).as_identifier().escaped_text).into(),
-        SyntaxKind::PrivateIdentifier => (&*name.ref_(arena).as_private_identifier().escaped_text).into(),
-        SyntaxKind::StringLiteral => escape_leading_underscores(&name.ref_(arena).as_string_literal().text())
-            .into_owned()
-            .into(),
-        SyntaxKind::NumericLiteral => escape_leading_underscores(&name.ref_(arena).as_numeric_literal().text())
-            .into_owned()
-            .into(),
+        SyntaxKind::PrivateIdentifier => {
+            (&*name.ref_(arena).as_private_identifier().escaped_text).into()
+        }
+        SyntaxKind::StringLiteral => {
+            escape_leading_underscores(&name.ref_(arena).as_string_literal().text())
+                .into_owned()
+                .into()
+        }
+        SyntaxKind::NumericLiteral => {
+            escape_leading_underscores(&name.ref_(arena).as_numeric_literal().text())
+                .into_owned()
+                .into()
+        }
         SyntaxKind::NoSubstitutionTemplateLiteral => {
             escape_leading_underscores(&name.ref_(arena).as_template_literal_like_node().text())
                 .into_owned()
@@ -1845,11 +1852,14 @@ pub fn get_text_of_property_name<'name>(
         SyntaxKind::ComputedPropertyName => {
             let name_ref = name.ref_(arena);
             let name_as_computed_property_name = name_ref.as_computed_property_name();
-            if is_string_or_numeric_literal_like(&name_as_computed_property_name.expression.ref_(arena)) {
+            if is_string_or_numeric_literal_like(
+                &name_as_computed_property_name.expression.ref_(arena),
+            ) {
                 return escape_leading_underscores(
                     &name_as_computed_property_name
                         .expression
-                        .ref_(arena).as_literal_like_node()
+                        .ref_(arena)
+                        .as_literal_like_node()
                         .text(),
                 )
                 .into_owned()

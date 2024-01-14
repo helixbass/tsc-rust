@@ -73,7 +73,7 @@ impl TransformDeclarations {
         node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> bool {
         node.parent().kind() == SyntaxKind::MethodDeclaration
-            && has_effective_modifier(&node.parent(), ModifierFlags::Private)
+            && has_effective_modifier(node.parent(), ModifierFlags::Private, self)
     }
 
     pub(super) fn visit_declaration_statements(&self, input: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
@@ -178,14 +178,14 @@ impl TransformDeclarations {
         statement: Id<Node>, /*Statement*/
     ) -> Id<Node /*Statement*/> {
         if is_import_equals_declaration(statement)
-            || has_effective_modifier(statement, ModifierFlags::Default)
+            || has_effective_modifier(statement, ModifierFlags::Default, self)
             || !can_have_modifiers(statement)
         {
-            return statement.node_wrapper();
+            return statement;
         }
 
         let modifiers = self.factory.create_modifiers_from_modifier_flags(
-            get_effective_modifier_flags(statement) & (ModifierFlags::All ^ ModifierFlags::Export),
+            get_effective_modifier_flags(statement, self) & (ModifierFlags::All ^ ModifierFlags::Export),
         );
         self.factory.update_modifiers(statement, modifiers)
     }
@@ -348,7 +348,7 @@ impl TransformDeclarations {
                     Ok(self.resolver.is_expando_function_declaration(input)?
                         && self.should_emit_function_properties(input))
                 })? {
-                    let ref clean = clean.as_single_node();
+                    let clean = clean.as_single_node();
                     let clean_as_function_declaration = clean.as_function_declaration();
                     let props = self.resolver.get_properties_of_container_function(input)?;
                     let fakespace = get_parse_node_factory().create_module_declaration(
@@ -455,12 +455,12 @@ impl TransformDeclarations {
                         Some(self.factory.create_module_block(Some(declarations))),
                         Some(NodeFlags::Namespace),
                     );
-                    if !has_effective_modifier(clean, ModifierFlags::Default) {
+                    if !has_effective_modifier(clean, ModifierFlags::Default, self) {
                         return Ok(Some(vec![clean.clone(), namespace_decl].into()));
                     }
 
                     let modifiers = self.factory.create_modifiers_from_modifier_flags(
-                        (get_effective_modifier_flags(clean) & !ModifierFlags::ExportDefault)
+                        (get_effective_modifier_flags(clean, self) & !ModifierFlags::ExportDefault)
                             | ModifierFlags::Ambient,
                     );
                     let clean_declaration = self.factory.update_function_declaration(
@@ -638,6 +638,7 @@ impl TransformDeclarations {
                             if !has_syntactic_modifier(
                                 param,
                                 ModifierFlags::ParameterPropertyModifier,
+                                self,
                             ) || self.should_strip_internal(param)
                             {
                                 return Ok(vec![]);

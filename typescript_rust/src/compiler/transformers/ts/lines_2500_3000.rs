@@ -181,7 +181,7 @@ impl TransformTypeScript {
 
         let container_name = self.get_namespace_container_name(node);
 
-        let export_name = if has_syntactic_modifier(node, ModifierFlags::Export) {
+        let export_name = if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             self.factory.get_external_module_or_namespace_export_name(
                 self.maybe_current_namespace_container_name(),
                 node,

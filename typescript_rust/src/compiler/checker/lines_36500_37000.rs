@@ -738,8 +738,8 @@ impl TypeChecker {
             | ModifierFlags::Readonly
             | ModifierFlags::Static;
 
-        get_selected_effective_modifier_flags(left, interesting_flags)
-            == get_selected_effective_modifier_flags(right, interesting_flags)
+        get_selected_effective_modifier_flags(left, interesting_flags, self)
+            == get_selected_effective_modifier_flags(right, interesting_flags, self)
     }
 
     pub(super) fn check_variable_declaration(

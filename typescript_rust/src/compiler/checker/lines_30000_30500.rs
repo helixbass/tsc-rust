@@ -591,8 +591,7 @@ impl TypeChecker {
                         get_class_like_declaration_of_symbol(&expression_type_symbol.ref_(self))
                     });
             if value_decl
-                .as_ref()
-                .matches(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract))
+                .matches(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract, self))
             {
                 self.error(
                     Some(node),
@@ -724,6 +723,7 @@ impl TypeChecker {
         let modifiers = get_selected_effective_modifier_flags(
             declaration,
             ModifierFlags::NonPublicAccessibilityModifier,
+            self,
         );
 
         if modifiers == ModifierFlags::None || declaration.kind() != SyntaxKind::Constructor {

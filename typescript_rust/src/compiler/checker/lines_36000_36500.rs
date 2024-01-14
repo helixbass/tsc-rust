@@ -352,7 +352,7 @@ impl TypeChecker {
                         if match symbol.ref_(self).maybe_is_referenced() {
                             None => true,
                             Some(symbol_is_referenced) => symbol_is_referenced == SymbolFlags::None,
-                        } && (has_effective_modifier(member, ModifierFlags::Private)
+                        } && (has_effective_modifier(member, ModifierFlags::Private, self)
                             || is_named_declaration(member)
                                 && is_private_identifier(&member.as_named_declaration().name()))
                             && !member.flags().intersects(NodeFlags::Ambient)
@@ -385,7 +385,7 @@ impl TypeChecker {
                             Some(parameter_symbol_is_referenced) => {
                                 parameter_symbol_is_referenced == SymbolFlags::None
                             }
-                        } && has_syntactic_modifier(parameter, ModifierFlags::Private)
+                        } && has_syntactic_modifier(parameter, ModifierFlags::Private, self)
                         {
                             add_diagnostic(
                                 parameter,

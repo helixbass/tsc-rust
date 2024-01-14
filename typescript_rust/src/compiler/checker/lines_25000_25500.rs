@@ -863,7 +863,7 @@ impl TypeChecker {
 
         let container = container.unwrap();
         if container.kind() == SyntaxKind::MethodDeclaration
-            && has_syntactic_modifier(&container, ModifierFlags::Async)
+            && has_syntactic_modifier(container, ModifierFlags::Async, self)
         {
             if is_super_property(&node.parent()) && is_assignment_target(&node.parent()) {
                 self.get_node_links(&container).borrow_mut().flags |=

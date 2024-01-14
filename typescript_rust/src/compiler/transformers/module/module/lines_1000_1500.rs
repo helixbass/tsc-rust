@@ -33,7 +33,7 @@ impl TransformModule {
 
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if self.module_kind != ModuleKind::AMD {
-            if has_syntactic_modifier(node, ModifierFlags::Export) {
+            if has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 statements.get_or_insert_default_().push(
                     self.factory
                         .create_expression_statement(self.create_export_expression(
@@ -72,7 +72,7 @@ impl TransformModule {
                 );
             }
         } else {
-            if has_syntactic_modifier(node, ModifierFlags::Export) {
+            if has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 statements.get_or_insert_default_().push(
                     self.factory
                         .create_expression_statement(self.create_export_expression(
@@ -306,7 +306,7 @@ impl TransformModule {
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
-        if has_syntactic_modifier(node, ModifierFlags::Export) {
+        if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             statements.get_or_insert_default_().push(
                 self.factory
                     .create_function_declaration(
@@ -370,7 +370,7 @@ impl TransformModule {
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
-        if has_syntactic_modifier(node, ModifierFlags::Export) {
+        if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             statements.get_or_insert_default_().push(
                 self.factory
                     .create_class_declaration(
@@ -439,7 +439,7 @@ impl TransformModule {
         let mut variables: Option<Vec<Id<Node /*VariableDeclaration*/>>> = _d();
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
 
-        if has_syntactic_modifier(node, ModifierFlags::Export) {
+        if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             let mut modifiers: Option<Gc<NodeArray /*Modifier*/>> = _d();
             let mut remove_comments_on_expressions = false;
 

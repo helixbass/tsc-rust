@@ -76,7 +76,7 @@ pub fn create_get_symbol_accessibility_diagnostic_for_node(
         GetReturnTypeVisibilityError::new(node)
     } else if is_parameter(node) {
         if is_parameter_property_declaration(node, &node.parent())
-            && has_syntactic_modifier(&node.parent(), ModifierFlags::Private)
+            && has_syntactic_modifier(node.parent(), ModifierFlags::Private, self)
         {
             return GetVariableDeclarationTypeVisibilityError::new(node);
         }
@@ -130,7 +130,7 @@ fn get_variable_declaration_type_visibility_diagnostic_message(
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::PropertySignature
     ) || node.kind() == SyntaxKind::Parameter
-        && has_syntactic_modifier(&node.parent(), ModifierFlags::Private)
+        && has_syntactic_modifier(node.parent(), ModifierFlags::Private, self)
     {
         if is_static(node) {
             return Some(

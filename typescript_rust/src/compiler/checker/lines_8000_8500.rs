@@ -433,7 +433,7 @@ impl TypeChecker {
             | SyntaxKind::SetAccessor
             | SyntaxKind::MethodDeclaration
             | SyntaxKind::MethodSignature => {
-                if has_effective_modifier(node, ModifierFlags::Private | ModifierFlags::Protected) {
+                if has_effective_modifier(node, ModifierFlags::Private | ModifierFlags::Protected, self) {
                     return false;
                 }
                 self.is_declaration_visible(&node.parent())

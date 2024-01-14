@@ -86,7 +86,7 @@ impl TypeChecker {
         self.check_variable_like_declaration(node)?;
         let func = get_containing_function(node).unwrap();
         let node_as_parameter_declaration = node.as_parameter_declaration();
-        if has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier) {
+        if has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier, self) {
             if !(func.kind() == SyntaxKind::Constructor
                 && node_is_present(func.as_function_like_declaration().maybe_body()))
             {
@@ -803,7 +803,7 @@ impl TypeChecker {
                 }
             }
         }
-        if has_syntactic_modifier(node, ModifierFlags::Abstract)
+        if has_syntactic_modifier(node, ModifierFlags::Abstract, self)
             && node.kind() == SyntaxKind::PropertyDeclaration
             && node.as_has_initializer().maybe_initializer().is_some()
         {
@@ -847,7 +847,7 @@ impl TypeChecker {
 
         self.check_function_or_method_declaration(node)?;
 
-        if has_syntactic_modifier(node, ModifierFlags::Abstract)
+        if has_syntactic_modifier(node, ModifierFlags::Abstract, self)
             && node.kind() == SyntaxKind::MethodDeclaration
             && node.as_function_like_declaration().maybe_body().is_some()
         {

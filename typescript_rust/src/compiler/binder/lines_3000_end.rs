@@ -965,13 +965,13 @@ fn is_executable_statement(s: Id<Node> /*Statement*/) -> bool {
                 .any(|d| d.as_variable_declaration().maybe_initializer().is_none()))
 }
 
-fn is_purely_type_declaration(s: Id<Node> /*Statement*/) -> bool {
+fn is_purely_type_declaration(s: Id<Node> /*Statement*/, arena: &impl HasArena) -> bool {
     match s.kind() {
         SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeAliasDeclaration => true,
         SyntaxKind::ModuleDeclaration => {
             get_module_instance_state(s, None) != ModuleInstanceState::Instantiated
         }
-        SyntaxKind::EnumDeclaration => has_syntactic_modifier(s, ModifierFlags::Const),
+        SyntaxKind::EnumDeclaration => has_syntactic_modifier(s, ModifierFlags::Const, arena),
         _ => false,
     }
 }

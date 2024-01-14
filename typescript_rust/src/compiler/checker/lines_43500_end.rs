@@ -464,6 +464,7 @@ impl TypeChecker {
         ) || has_syntactic_modifier(
             node,
             ModifierFlags::Ambient | ModifierFlags::Export | ModifierFlags::Default,
+            self,
         ) {
             return false;
         }

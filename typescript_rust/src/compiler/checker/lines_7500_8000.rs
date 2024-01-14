@@ -386,10 +386,11 @@ impl SymbolTableToDeclarationStatements {
             }
             let mut private_protected = ModifierFlags::None;
             for s in &signatures {
-                if let Some(s_declaration) = s.declaration.as_ref() {
+                if let Some(s_declaration) = s.declaration {
                     private_protected |= get_selected_effective_modifier_flags(
                         s_declaration,
                         ModifierFlags::Private | ModifierFlags::Protected,
+                        self,
                     );
                 }
             }

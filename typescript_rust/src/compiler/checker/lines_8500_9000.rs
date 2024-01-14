@@ -513,7 +513,7 @@ impl TypeChecker {
                 let constructor = self.find_constructor_declaration(&declaration.parent());
                 let type_ = if let Some(constructor) = constructor {
                     self.get_flow_type_in_constructor(declaration.symbol(), &constructor)?
-                } else if get_effective_modifier_flags(declaration)
+                } else if get_effective_modifier_flags(declaration, self)
                     .intersects(ModifierFlags::Ambient)
                 {
                     self.get_type_of_property_in_base_class(declaration.symbol())?
@@ -529,7 +529,7 @@ impl TypeChecker {
                 );
                 let type_ = if !static_blocks.is_empty() {
                     self.get_flow_type_in_static_blocks(declaration.symbol(), &static_blocks)?
-                } else if get_effective_modifier_flags(declaration)
+                } else if get_effective_modifier_flags(declaration, self)
                     .intersects(ModifierFlags::Ambient)
                 {
                     self.get_type_of_property_in_base_class(declaration.symbol())?
@@ -815,7 +815,7 @@ impl TypeChecker {
             Ok(if matches!(
                 prop.ref_(self).maybe_value_declaration(),
                 Some(value_declaration) if !self.is_auto_typed_property(prop)
-                    || get_effective_modifier_flags(&value_declaration).intersects(ModifierFlags::Ambient)
+                    || get_effective_modifier_flags(value_declaration, self).intersects(ModifierFlags::Ambient)
             ) {
                 self.get_type_of_property_in_base_class(prop)?
             } else {

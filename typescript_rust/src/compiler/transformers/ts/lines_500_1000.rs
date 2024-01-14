@@ -136,7 +136,7 @@ impl TransformTypeScript {
         #[allow(clippy::nonminimal_bool)]
         if !self.is_class_like_declaration_with_type_script_syntax(node)
             && !(self.maybe_current_namespace().is_some()
-                && has_syntactic_modifier(node, ModifierFlags::Export))
+                && has_syntactic_modifier(node, ModifierFlags::Export, self))
         {
             return Ok(try_maybe_visit_each_child(
                 Some(node),

@@ -425,7 +425,7 @@ impl TypeChecker {
         }
         let value_declaration = value_declaration.unwrap();
         let has_private_modifier =
-            has_effective_modifier(&value_declaration, ModifierFlags::Private);
+            has_effective_modifier(value_declaration, ModifierFlags::Private, self);
         let has_private_identifier = matches!(
             prop.ref_(self).maybe_value_declaration().as_ref(),
             Some(prop_value_declaration) if is_named_declaration(prop_value_declaration) &&

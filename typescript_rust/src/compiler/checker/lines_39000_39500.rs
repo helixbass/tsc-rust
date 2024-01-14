@@ -36,7 +36,7 @@ impl TypeChecker {
         }
         let constructor = self.find_constructor_declaration(node);
         for member in &node.as_class_like_declaration().members() {
-            if get_effective_modifier_flags(member).intersects(ModifierFlags::Ambient) {
+            if get_effective_modifier_flags(member, self).intersects(ModifierFlags::Ambient) {
                 continue;
             }
             if !is_static(member) && self.is_property_without_initializer(member) {

@@ -194,7 +194,7 @@ impl TransformES2015 {
         let node_as_variable_statement = node.as_variable_statement();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::None,
-            if has_syntactic_modifier(node, ModifierFlags::Export) {
+            if has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 HierarchyFacts::ExportedVariableStatement
             } else {
                 HierarchyFacts::None

@@ -35,7 +35,7 @@ impl TransformDeclarations {
         type_: Option<Id<Node> /*TypeNode*/>,
         ignore_private: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        if ignore_private != Some(true) && has_effective_modifier(node, ModifierFlags::Private) {
+        if ignore_private != Some(true) && has_effective_modifier(node, ModifierFlags::Private, self) {
             return Ok(None);
         }
         if self.should_print_with_initializer(node)? {
@@ -250,7 +250,7 @@ impl TransformDeclarations {
         params: Option<&NodeArray /*<ParameterDeclaration>*/>,
         modifier_mask: Option<ModifierFlags>,
     ) -> io::Result<Option<Gc<NodeArray> /*<ParameterDeclaration>*/>> {
-        if has_effective_modifier(node, ModifierFlags::Private) {
+        if has_effective_modifier(node, ModifierFlags::Private, self) {
             return Ok(None);
         }
         let new_params = return_ok_default_if_none!(try_maybe_map(params, |p: &Id<Node>, _| {
@@ -313,7 +313,7 @@ impl TransformDeclarations {
         node: Id<Node>,
         params: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
     ) -> io::Result<Option<Gc<NodeArray>>> {
-        Ok(if has_effective_modifier(node, ModifierFlags::Private) {
+        Ok(if has_effective_modifier(node, ModifierFlags::Private, self) {
             None
         } else {
             try_maybe_visit_nodes(
@@ -720,7 +720,7 @@ impl TransformDeclarations {
             != SyntaxKind::TypeAliasDeclaration;
 
         if is_method_declaration(input) || is_method_signature(input) {
-            if has_effective_modifier(input, ModifierFlags::Private) {
+            if has_effective_modifier(input, ModifierFlags::Private, self) {
                 if matches!(
                     input.maybe_symbol(),
                     Some(input_symbol) if matches!(
@@ -971,7 +971,7 @@ impl TransformDeclarations {
                             input_as_get_accessor_declaration.name(),
                             self.update_accessor_params_list(
                                 input,
-                                has_effective_modifier(input, ModifierFlags::Private),
+                                has_effective_modifier(input, ModifierFlags::Private, self),
                             )?,
                             self.ensure_type(input, accessor_type.as_deref(), None)?,
                             None,
@@ -1005,7 +1005,7 @@ impl TransformDeclarations {
                             input_as_set_accessor_declaration.name(),
                             self.update_accessor_params_list(
                                 input,
-                                has_effective_modifier(input, ModifierFlags::Private),
+                                has_effective_modifier(input, ModifierFlags::Private, self),
                             )?,
                             None,
                         )),

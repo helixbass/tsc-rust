@@ -80,10 +80,9 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn add_result(
         &self,
-        node: Id<Node>, /*Statement*/
+        mut node: Id<Node>, /*Statement*/
         additional_modifier_flags: ModifierFlags,
     ) {
-        let mut node = node.node_wrapper();
         if can_have_modifiers(&node) {
             let mut new_modifier_flags = ModifierFlags::None;
             let enclosing_declaration = self.context().maybe_enclosing_declaration().and_then(
@@ -131,7 +130,7 @@ impl SymbolTableToDeclarationStatements {
             if new_modifier_flags != ModifierFlags::None {
                 node = get_factory().update_modifiers(
                     &node,
-                    new_modifier_flags | get_effective_modifier_flags(&node),
+                    new_modifier_flags | get_effective_modifier_flags(node, self),
                 );
             }
         }
@@ -715,7 +714,7 @@ impl SymbolTableToDeclarationStatements {
             });
             let export_modifier_stripped = if default_replaced
                 .iter()
-                .all(|d| has_syntactic_modifier(d, ModifierFlags::Export))
+                .all(|d| has_syntactic_modifier(d, ModifierFlags::Export, self))
             {
                 map(&default_replaced, |node: &Id<Node>, _| {
                     self.remove_export_modifier(node)

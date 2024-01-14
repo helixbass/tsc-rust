@@ -329,7 +329,7 @@ impl TypeChecker {
         ) {
             return Ok(());
         }
-        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
+        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node, self) {
             self.grammar_error_on_first_token(
                 node,
                 &Diagnostics::An_import_declaration_cannot_have_modifiers,
@@ -404,7 +404,7 @@ impl TypeChecker {
             || self.check_external_import_or_export_declaration(node)
         {
             self.check_import_binding(node)?;
-            if has_syntactic_modifier(node, ModifierFlags::Export) {
+            if has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 self.mark_export_as_referenced(node)?;
             }
             let node_as_import_equals_declaration = node.as_import_equals_declaration();
@@ -485,7 +485,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
+        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node, self) {
             self.grammar_error_on_first_token(
                 node,
                 &Diagnostics::An_export_declaration_cannot_have_modifiers,
@@ -857,7 +857,7 @@ impl TypeChecker {
 
             return Ok(());
         }
-        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
+        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node, self) {
             self.grammar_error_on_first_token(
                 node,
                 &Diagnostics::An_export_assignment_cannot_have_modifiers,

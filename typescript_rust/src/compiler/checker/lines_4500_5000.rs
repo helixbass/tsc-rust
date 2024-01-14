@@ -85,8 +85,9 @@ impl TypeChecker {
         if !self.is_declaration_visible(declaration) {
             let any_import_syntax = self.get_any_import_syntax(declaration);
             if matches!(
-                any_import_syntax.as_ref(),
-                Some(any_import_syntax) if !has_syntactic_modifier(any_import_syntax, ModifierFlags::Export) && self.is_declaration_visible(&any_import_syntax.parent())
+                any_import_syntax,
+                Some(any_import_syntax) if !has_syntactic_modifier(any_import_syntax, ModifierFlags::Export, self)
+                    && self.is_declaration_visible(&any_import_syntax.parent())
             ) {
                 return self.add_visible_alias(
                     should_compute_aliases_to_make_visible,
@@ -96,7 +97,7 @@ impl TypeChecker {
                 );
             } else if is_variable_declaration(declaration)
                 && is_variable_statement(&declaration.parent().parent())
-                && !has_syntactic_modifier(&declaration.parent().parent(), ModifierFlags::Export)
+                && !has_syntactic_modifier(declaration.parent().parent(), ModifierFlags::Export, self)
                 && self.is_declaration_visible(&declaration.parent().parent().parent())
             {
                 return self.add_visible_alias(
@@ -106,7 +107,7 @@ impl TypeChecker {
                     &declaration.parent().parent(),
                 );
             } else if is_late_visibility_painted_statement(declaration)
-                && !has_syntactic_modifier(declaration, ModifierFlags::Export)
+                && !has_syntactic_modifier(declaration, ModifierFlags::Export, self)
                 && self.is_declaration_visible(&declaration.parent())
             {
                 return self.add_visible_alias(
@@ -132,8 +133,9 @@ impl TypeChecker {
                         {
                             if is_variable_statement(&declaration_parent_parent_parent_parent)
                                 && !has_syntactic_modifier(
-                                    &declaration_parent_parent_parent_parent,
+                                    declaration_parent_parent_parent_parent,
                                     ModifierFlags::Export,
+                                    self,
                                 )
                             {
                                 let declaration_parent_parent_parent_parent_parent =

@@ -309,13 +309,13 @@ pub fn get_function_flags(node: Option<Id<Node> /*SignatureDeclaration*/>) -> Fu
             {
                 flags |= FunctionFlags::Generator;
             }
-            if has_syntactic_modifier(node, ModifierFlags::Async) {
+            if has_syntactic_modifier(node, ModifierFlags::Async, self) {
                 flags |= FunctionFlags::Async;
             }
         }
 
         SyntaxKind::ArrowFunction => {
-            if has_syntactic_modifier(node, ModifierFlags::Async) {
+            if has_syntactic_modifier(node, ModifierFlags::Async, self) {
                 flags |= FunctionFlags::Async;
             }
         }
@@ -344,7 +344,7 @@ pub fn is_async_function(node: Id<Node>) -> bool {
                 && node_as_function_like_declaration
                     .maybe_asterisk_token()
                     .is_none()
-                && has_syntactic_modifier(node, ModifierFlags::Async)
+                && has_syntactic_modifier(node, ModifierFlags::Async, self)
         }
         _ => false,
     }

@@ -336,7 +336,7 @@ impl TypeChecker {
                 );
             }
             if accessor_as_function_like_declaration.maybe_body().is_none()
-                && !has_syntactic_modifier(accessor, ModifierFlags::Abstract)
+                && !has_syntactic_modifier(accessor, ModifierFlags::Abstract, self)
             {
                 return self.grammar_error_at_pos(
                     accessor,
@@ -348,7 +348,7 @@ impl TypeChecker {
             }
         }
         if let Some(accessor_body) = accessor_as_function_like_declaration.maybe_body().as_ref() {
-            if has_syntactic_modifier(accessor, ModifierFlags::Abstract) {
+            if has_syntactic_modifier(accessor, ModifierFlags::Abstract, self) {
                 return self.grammar_error_on_node(
                     accessor,
                     &Diagnostics::An_abstract_accessor_cannot_have_an_implementation,
@@ -516,7 +516,7 @@ impl TypeChecker {
                 }
 
                 SyntaxKind::PropertyDeclaration => {
-                    if !is_static(&parent) || !has_effective_readonly_modifier(&parent) {
+                    if !is_static(&parent) || !has_effective_readonly_modifier(parent, self) {
                         return self.grammar_error_on_node(
                             &parent.as_property_declaration().name(),
                             &Diagnostics::A_property_of_a_class_whose_type_is_a_unique_symbol_type_must_be_both_static_and_readonly,
@@ -526,7 +526,7 @@ impl TypeChecker {
                 }
 
                 SyntaxKind::PropertySignature => {
-                    if !has_syntactic_modifier(&parent, ModifierFlags::Readonly) {
+                    if !has_syntactic_modifier(parent, ModifierFlags::Readonly, self) {
                         return self.grammar_error_on_node(
                             &parent.as_property_signature().name(),
                             &Diagnostics::A_property_of_an_interface_or_type_literal_whose_type_is_a_unique_symbol_type_must_be_readonly,
@@ -927,7 +927,7 @@ impl TypeChecker {
                 .parent()
                 .flags()
                 .intersects(NodeFlags::Ambient)
-            && has_syntactic_modifier(&node.parent().parent(), ModifierFlags::Export)
+            && has_syntactic_modifier(node.parent().parent(), ModifierFlags::Export, self)
         {
             self.check_es_module_marker(&node_as_variable_declaration.name());
         }

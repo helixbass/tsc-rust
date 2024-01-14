@@ -125,7 +125,7 @@ impl TypeChecker {
             .as_function_like_declaration()
             .maybe_asterisk_token()
             .is_some()
-            || has_syntactic_modifier(location, ModifierFlags::Async)
+            || has_syntactic_modifier(location, ModifierFlags::Async, self)
         {
             return true;
         }
@@ -763,7 +763,7 @@ impl TypeChecker {
         e: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         Ok(is_aliasable_expression(e)
-            || is_function_expression(e) && self.is_js_constructor(Some(e))?)
+            || is_function_expression(&e.ref_(self)) && self.is_js_constructor(Some(e))?)
     }
 
     pub(super) fn get_target_of_import_equals_declaration(
@@ -773,12 +773,13 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let common_js_property_access = self.get_common_js_property_access(node);
         if let Some(common_js_property_access) = common_js_property_access {
+            let common_js_property_access_ref = common_js_property_access.ref_(self);
             let common_js_property_access_as_property_access_expression =
-                common_js_property_access.as_property_access_expression();
+                common_js_property_access_ref.as_property_access_expression();
             let leftmost = get_leftmost_access_expression(
                 &common_js_property_access_as_property_access_expression.expression,
             );
-            let name = &leftmost.as_call_expression().arguments[0];
+            let name = leftmost.ref_(self).as_call_expression().arguments[0];
             return Ok(
                 if is_identifier(&common_js_property_access_as_property_access_expression.name) {
                     self.resolve_symbol(
@@ -796,8 +797,8 @@ impl TypeChecker {
                 },
             );
         }
-        if is_variable_declaration(node)
-            || node.as_import_equals_declaration().module_reference.kind()
+        if is_variable_declaration(&node.ref_(self))
+            || node.ref_(self).as_import_equals_declaration().module_reference.kind()
                 == SyntaxKind::ExternalModuleReference
         {
             let immediate = self.resolve_external_module_name_(
@@ -817,7 +818,7 @@ impl TypeChecker {
             return Ok(resolved);
         }
         let resolved = self.get_symbol_of_part_of_right_hand_side_of_import_equals(
-            &node.as_import_equals_declaration().module_reference,
+            &node.ref_(self).as_import_equals_declaration().module_reference,
             Some(dont_resolve_alias),
         )?;
         self.check_and_report_error_for_resolving_import_alias_to_type_only_symbol(node, resolved)?;
@@ -829,7 +830,8 @@ impl TypeChecker {
         node: Id<Node>, /*ImportEqualsDeclaration*/
         resolved: Option<Id<Symbol>>,
     ) -> io::Result<()> {
-        let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
         if self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             Option::<Id<Symbol>>::None,
@@ -902,7 +904,7 @@ impl TypeChecker {
     pub(super) fn is_syntactic_default(&self, node: Id<Node>) -> bool {
         is_export_assignment(node)
             && !matches!(node.as_export_assignment().is_export_equals, Some(true))
-            || has_syntactic_modifier(node, ModifierFlags::Default)
+            || has_syntactic_modifier(node, ModifierFlags::Default, self)
             || is_export_specifier(node)
     }
 

@@ -809,7 +809,7 @@ impl TypeChecker {
             );
         }
         if node_as_class_declaration.maybe_name().is_none()
-            && !has_syntactic_modifier(node, ModifierFlags::Default)
+            && !has_syntactic_modifier(node, ModifierFlags::Default, self)
         {
             self.grammar_error_on_first_token(
                 node,
@@ -977,7 +977,7 @@ impl TypeChecker {
                         if construct_signatures
                             .iter()
                             .any(|signature| signature.flags.intersects(SignatureFlags::Abstract))
-                            && !has_syntactic_modifier(node, ModifierFlags::Abstract)
+                            && !has_syntactic_modifier(node, ModifierFlags::Abstract, self)
                         {
                             self.error(
                                 Some(node_as_class_like_declaration.maybe_name().unwrap_or_else(|| node.node_wrapper())),

@@ -359,7 +359,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<VisitResult> /*<Node>*/ {
         if node.flags().intersects(NodeFlags::Ambient)
-            || has_syntactic_modifier(node, ModifierFlags::Abstract)
+            || has_syntactic_modifier(node, ModifierFlags::Abstract, self)
         {
             return Ok(None);
         }

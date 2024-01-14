@@ -909,7 +909,10 @@ impl TypeChecker {
             self.get_signatures_of_type(base_constructor_type, SignatureKind::Construct)?;
         let declaration =
             get_class_like_declaration_of_symbol(&class_type.ref_(self).symbol().ref_(self));
-        let is_abstract = matches!(declaration.as_ref(), Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract));
+        let is_abstract = matches!(
+            declaration,
+            Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract, self)
+        );
         if base_signatures.is_empty() {
             return Ok(vec![Gc::new(
                 self.create_signature(

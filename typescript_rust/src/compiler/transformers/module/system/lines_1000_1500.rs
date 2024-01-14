@@ -63,8 +63,8 @@ impl TransformSystemModule {
         }
 
         let mut exclude_name = None;
-        if has_syntactic_modifier(decl, ModifierFlags::Export) {
-            let export_name = &if has_syntactic_modifier(decl, ModifierFlags::Default) {
+        if has_syntactic_modifier(decl, ModifierFlags::Export, self) {
+            let export_name = &if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
                 self.factory
                     .create_string_literal("default".to_owned(), None, None)
             } else {

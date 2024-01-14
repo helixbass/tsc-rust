@@ -423,7 +423,7 @@ impl TransformEcmascriptModule {
         node: Id<Node>, /*ImportEqualsDeclaration*/
     ) {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
-        if has_syntactic_modifier(node, ModifierFlags::Export) {
+        if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             statements
                 .get_or_insert_default_()
                 .push(self.factory.create_export_declaration(

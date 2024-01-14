@@ -147,7 +147,7 @@ pub fn collect_external_module_info(
     context: &dyn TransformationContext,
     source_file: Id<Node>, /*SourceFile*/
     resolver: &dyn EmitResolver,
-    compiler_options: &CompilerOptions,
+    compiler_options: &CompilerOptions, arena: &impl HasArena,
 ) -> io::Result<ExternalModuleInfo> {
     let source_file_as_source_file = source_file.as_source_file();
     let mut external_imports: Vec<
@@ -235,7 +235,7 @@ pub fn collect_external_module_info(
                 }
             }
             SyntaxKind::VariableStatement => {
-                if has_syntactic_modifier(node, ModifierFlags::Export) {
+                if has_syntactic_modifier(node, ModifierFlags::Export, arena) {
                     for decl in &node
                         .as_variable_statement()
                         .declaration_list
@@ -251,8 +251,8 @@ pub fn collect_external_module_info(
                 }
             }
             SyntaxKind::FunctionDeclaration => {
-                if has_syntactic_modifier(node, ModifierFlags::Export) {
-                    if has_syntactic_modifier(node, ModifierFlags::Default) {
+                if has_syntactic_modifier(node, ModifierFlags::Export, arena) {
+                    if has_syntactic_modifier(node, ModifierFlags::Default, arena) {
                         if !has_export_default {
                             exported_bindings
                                 .entry(get_original_node_id(node))
@@ -278,8 +278,8 @@ pub fn collect_external_module_info(
                 }
             }
             SyntaxKind::ClassDeclaration => {
-                if has_syntactic_modifier(node, ModifierFlags::Export) {
-                    if has_syntactic_modifier(node, ModifierFlags::Default) {
+                if has_syntactic_modifier(node, ModifierFlags::Export, arena) {
+                    if has_syntactic_modifier(node, ModifierFlags::Default, arena) {
                         if !has_export_default {
                             exported_bindings
                                 .entry(get_original_node_id(node))

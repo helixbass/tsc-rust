@@ -376,7 +376,7 @@ impl TransformTypeScript {
                 self.set_current_scope_first_declarations_of_name(None);
             }
             SyntaxKind::ClassDeclaration | SyntaxKind::FunctionDeclaration => 'case: {
-                if has_syntactic_modifier(node, ModifierFlags::Ambient) {
+                if has_syntactic_modifier(node, ModifierFlags::Ambient, self) {
                     break 'case;
                 }
 
@@ -385,7 +385,7 @@ impl TransformTypeScript {
                 } else {
                     Debug_.assert(
                         node.kind() == SyntaxKind::ClassDeclaration
-                            || has_syntactic_modifier(node, ModifierFlags::Default),
+                            || has_syntactic_modifier(node, ModifierFlags::Default, self),
                         None,
                     );
                 }
@@ -481,7 +481,7 @@ impl TransformTypeScript {
         } else if node
             .transform_flags()
             .intersects(TransformFlags::ContainsTypeScript)
-            || has_syntactic_modifier(node, ModifierFlags::Export)
+            || has_syntactic_modifier(node, ModifierFlags::Export, self)
         {
             return self.visit_type_script(node);
         }
@@ -525,7 +525,7 @@ impl TransformTypeScript {
     }
 
     pub(super) fn visit_type_script(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
-        if is_statement(node) && has_syntactic_modifier(node, ModifierFlags::Ambient) {
+        if is_statement(node) && has_syntactic_modifier(node, ModifierFlags::Ambient, self) {
             return Ok(Some(
                 self.factory
                     .create_not_emitted_statement(node.node_wrapper())

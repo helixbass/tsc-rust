@@ -86,8 +86,8 @@ impl TransformModule {
             return /*statements*/;
         }
 
-        if has_syntactic_modifier(decl, ModifierFlags::Export) {
-            let export_name = &if has_syntactic_modifier(decl, ModifierFlags::Default) {
+        if has_syntactic_modifier(decl, ModifierFlags::Export, self) {
+            let export_name = &if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
                 self.factory.create_identifier("default")
             } else {
                 self.factory.get_declaration_name(Some(decl), None, None)

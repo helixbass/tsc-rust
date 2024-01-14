@@ -1031,7 +1031,7 @@ impl TransformES2018 {
 
     fn visit_variable_statement(&self, node: Id<Node> /*VariableStatement*/) -> VisitResult /*<VariableStatement>*/
     {
-        if has_syntactic_modifier(node, ModifierFlags::Export) {
+        if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             let saved_exported_variable_statement = self.exported_variable_statement();
             self.set_exported_variable_statement(true);
             let visited =

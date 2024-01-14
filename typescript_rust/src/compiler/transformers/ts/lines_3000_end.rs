@@ -13,21 +13,21 @@ use crate::{
 impl TransformTypeScript {
     pub(super) fn is_export_of_namespace(&self, node: Id<Node>) -> bool {
         self.maybe_current_namespace().is_some()
-            && has_syntactic_modifier(node, ModifierFlags::Export)
+            && has_syntactic_modifier(node, ModifierFlags::Export, self)
     }
 
     pub(super) fn is_external_module_export(&self, node: Id<Node>) -> bool {
         self.maybe_current_namespace().is_none()
-            && has_syntactic_modifier(node, ModifierFlags::Export)
+            && has_syntactic_modifier(node, ModifierFlags::Export, self)
     }
 
     pub(super) fn is_named_external_module_export(&self, node: Id<Node>) -> bool {
         self.is_external_module_export(node)
-            && !has_syntactic_modifier(node, ModifierFlags::Default)
+            && !has_syntactic_modifier(node, ModifierFlags::Default, self)
     }
 
     pub(super) fn is_default_external_module_export(&self, node: Id<Node>) -> bool {
-        self.is_external_module_export(node) && has_syntactic_modifier(node, ModifierFlags::Default)
+        self.is_external_module_export(node) && has_syntactic_modifier(node, ModifierFlags::Default, self)
     }
 
     pub(super) fn expression_to_statement(&self, expression: Id<Node /*Expression*/>) -> Id<Node> {
