@@ -38,7 +38,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_expression_statement.expression,
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -65,7 +65,7 @@ impl TransformSystemModule {
                                 self.visitor(node)
                             }
                         }),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -92,7 +92,7 @@ impl TransformSystemModule {
                                 self.visitor(node)
                             }
                         }),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -231,7 +231,7 @@ impl TransformSystemModule {
                 let mut expression/*: Expression*/ = try_visit_node(
                     &node_operand,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?;
                 if is_prefix_unary_expression(node) {

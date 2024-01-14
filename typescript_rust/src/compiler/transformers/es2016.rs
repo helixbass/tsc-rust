@@ -76,13 +76,13 @@ impl TransformES2016 {
         let ref left = visit_node(
             &node_as_binary_expression.left,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let ref right = visit_node(
             &node_as_binary_expression.right,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         if is_element_access_expression(left) {
@@ -175,13 +175,13 @@ impl TransformES2016 {
         let left = visit_node(
             &node_as_binary_expression.left,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let right = visit_node(
             &node_as_binary_expression.right,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         set_text_range_rc_node(

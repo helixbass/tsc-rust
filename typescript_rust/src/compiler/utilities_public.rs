@@ -627,7 +627,7 @@ fn name_for_nameless_jsdoc_typedef(
             return get_declaration_identifier(host_node.expression, arena);
         }
         Node::LabeledStatement(host_node) => {
-            if is_declaration(&host_node.statement) || is_expression(&host_node.statement) {
+            if is_declaration(&host_node.statement) || is_expression(host_node.statement, arena) {
                 return get_declaration_identifier(host_node.statement, arena);
             }
         }
@@ -1402,10 +1402,11 @@ pub fn is_const_type_reference(node: &Node) -> bool {
         && node_as_type_reference_node.maybe_type_arguments().is_none()
 }
 
-pub fn skip_partially_emitted_expressions(node: Id<Node>) -> Id<Node> {
+pub fn skip_partially_emitted_expressions(node: Id<Node>, arena: &impl HasArena) -> Id<Node> {
     skip_outer_expressions(
         node,
         Some(OuterExpressionKinds::PartiallyEmittedExpressions),
+        arena,
     )
 }
 
@@ -1850,8 +1851,8 @@ pub fn is_template_literal(node: &Node) -> bool {
     )
 }
 
-pub(crate) fn is_left_hand_side_expression(node: &Node) -> bool {
-    is_left_hand_side_expression_kind(skip_partially_emitted_expressions(node).kind())
+pub(crate) fn is_left_hand_side_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_left_hand_side_expression_kind(skip_partially_emitted_expressions(node, arena).kind())
 }
 
 fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
@@ -1889,8 +1890,8 @@ fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
     )
 }
 
-pub(crate) fn is_unary_expression(node: &Node) -> bool {
-    is_unary_expression_kind(skip_partially_emitted_expressions(node).kind())
+pub(crate) fn is_unary_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_unary_expression_kind(skip_partially_emitted_expressions(node, arena).kind())
 }
 
 fn is_unary_expression_kind(kind: SyntaxKind) -> bool {
@@ -1918,8 +1919,8 @@ pub(crate) fn is_unary_expression_with_write(expr: &Node) -> bool {
     }
 }
 
-pub fn is_expression(node: &Node) -> bool {
-    is_expression_kind(skip_partially_emitted_expressions(node).kind())
+pub fn is_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_expression_kind(skip_partially_emitted_expressions(node, arena).kind())
 }
 
 fn is_expression_kind(kind: SyntaxKind) -> bool {
@@ -1997,8 +1998,8 @@ pub(crate) fn is_for_in_or_of_statement(node: &Node) -> bool {
     )
 }
 
-pub(crate) fn is_concise_body(node: &Node) -> bool {
-    is_block(node) || is_expression(node)
+pub(crate) fn is_concise_body(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_block(node) || is_expression(node, arena)
 }
 
 #[allow(dead_code)]
@@ -2006,8 +2007,8 @@ pub(crate) fn is_function_body(node: &Node) -> bool {
     is_block(node)
 }
 
-pub(crate) fn is_for_initializer(node: &Node) -> bool {
-    is_variable_declaration_list(node) || is_expression(node)
+pub(crate) fn is_for_initializer(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_variable_declaration_list(node) || is_expression(node, arena)
 }
 
 pub(crate) fn is_module_body(node: &Node) -> bool {

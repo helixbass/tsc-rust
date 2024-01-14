@@ -295,7 +295,7 @@ impl BinderType {
         if is_optional_chain(node) {
             self.bind_optional_chain_flow(node);
         } else {
-            let expr = skip_parentheses(&node_as_call_expression.expression, None);
+            let expr = skip_parentheses(node_as_call_expression.expression, None, self);
             if matches!(
                 expr.kind(),
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction

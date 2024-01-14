@@ -831,7 +831,7 @@ impl TypeChecker {
             if prop.kind() == SyntaxKind::SpreadAssignment {
                 if in_destructuring {
                     let expression =
-                        skip_parentheses(&prop.as_spread_assignment().expression, None);
+                        skip_parentheses(prop.as_spread_assignment().expression, None, self);
                     if is_array_literal_expression(&expression)
                         || is_object_literal_expression(&expression)
                     {

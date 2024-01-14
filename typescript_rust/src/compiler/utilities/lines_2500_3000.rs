@@ -25,10 +25,10 @@ use crate::{
 pub fn try_get_import_from_module_specifier(
     node: Id<Node>, /*StringLiteralLike*/ arena: &impl HasArena
 ) -> Option<Id<Node /*AnyValidImportOrReExport*/>> {
-    let node_parent = node.parent();
-    match node_parent.kind() {
+    let node_parent = node.ref_(arena).parent();
+    match node_parent.ref_(arena).kind() {
         SyntaxKind::ImportDeclaration | SyntaxKind::ExportDeclaration => Some(node_parent),
-        SyntaxKind::ExternalModuleReference => Some(node_parent.parent()),
+        SyntaxKind::ExternalModuleReference => Some(node_parent.ref_(arena).parent()),
         SyntaxKind::CallExpression => {
             if is_import_call(node_parent, arena) || is_require_call(node_parent, false, arena) {
                 Some(node_parent)
@@ -37,8 +37,8 @@ pub fn try_get_import_from_module_specifier(
             }
         }
         SyntaxKind::LiteralType => {
-            Debug_.assert(is_string_literal(node), None);
-            try_cast(node_parent.parent(), |node| is_import_type_node(&node))
+            Debug_.assert(is_string_literal(&node.ref_(arena)), None);
+            try_cast(node_parent.parent(), |node| is_import_type_node(&node.ref_(arena)))
         }
         _ => None,
     }
@@ -48,22 +48,22 @@ pub fn get_external_module_name(
     node: Id<Node>, /*AnyImportOrReExport | ImportTypeNode | ImportCall | ModuleDeclaration*/
     arena: &impl HasArena,
 ) -> Option<Id<Node /*Expression*/>> {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::ImportDeclaration => {
-            Some(node.as_import_declaration().module_specifier.clone())
+            Some(node.ref_(arena).as_import_declaration().module_specifier)
         }
-        SyntaxKind::ExportDeclaration => node.as_export_declaration().module_specifier.clone(),
+        SyntaxKind::ExportDeclaration => node.ref_(arena).as_export_declaration().module_specifier,
         SyntaxKind::ImportEqualsDeclaration => {
-            let node_as_import_equals_declaration = node.as_import_equals_declaration();
-            if node_as_import_equals_declaration.module_reference.kind()
+            let node_ref = node.ref_(arena);
+            let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
+            if node_as_import_equals_declaration.module_reference.ref_(arena).kind()
                 == SyntaxKind::ExternalModuleReference
             {
                 Some(
                     node_as_import_equals_declaration
                         .module_reference
-                        .as_external_module_reference()
+                        .ref_(arena).as_external_module_reference()
                         .expression
-                        .clone(),
                 )
             } else {
                 None
@@ -72,20 +72,20 @@ pub fn get_external_module_name(
         SyntaxKind::ImportType => {
             if is_literal_import_type_node(node, arena) {
                 Some(
-                    node.as_import_type_node()
+                    node.ref_(arena).as_import_type_node()
                         .argument
-                        .as_literal_type_node()
-                        .literal
-                        .clone(),
+                        .ref_(arena).as_literal_type_node()
+                        .literal,
                 )
             } else {
                 None
             }
         }
-        SyntaxKind::CallExpression => node.as_call_expression().arguments.get(0).map(Clone::clone),
+        SyntaxKind::CallExpression => node.ref_(arena).as_call_expression().arguments.get(0).copied(),
         SyntaxKind::ModuleDeclaration => {
-            let node_as_module_declaration = node.as_module_declaration();
-            if node_as_module_declaration.name().kind() == SyntaxKind::StringLiteral {
+            let node_ref = node.ref_(arena);
+            let node_as_module_declaration = node_ref.as_module_declaration();
+            if node_as_module_declaration.name().ref_(arena).kind() == SyntaxKind::StringLiteral {
                 Some(node_as_module_declaration.name())
             } else {
                 None
@@ -97,79 +97,79 @@ pub fn get_external_module_name(
 
 pub fn get_namespace_declaration_node(
     node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*ImportEqualsDeclaration | NamespaceImport | NamespaceExport*/>> {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::ImportDeclaration => {
-            let node_import_clause = node.as_import_declaration().import_clause.as_ref();
+            let node_import_clause = node.ref_(arena).as_import_declaration().import_clause;
             node_import_clause
                 .and_then(|node_import_clause| {
                     node_import_clause
-                        .as_import_clause()
+                        .ref_(arena).as_import_clause()
                         .named_bindings
-                        .as_ref()
                         .and_then(|named_bindings| {
                             try_cast(named_bindings, |named_bindings| {
-                                is_namespace_import(named_bindings)
+                                is_namespace_import(&named_bindings.ref_(arena))
                             })
                         })
                 })
-                .map(Clone::clone)
         }
-        SyntaxKind::ImportEqualsDeclaration => Some(node.node_wrapper()),
+        SyntaxKind::ImportEqualsDeclaration => Some(node),
         SyntaxKind::ExportDeclaration => node
-            .as_export_declaration()
+            .ref_(arena).as_export_declaration()
             .export_clause
-            .as_ref()
             .and_then(|export_clause| {
                 try_cast(export_clause, |export_clause| {
-                    is_namespace_export(export_clause)
+                    is_namespace_export(&export_clause.ref_(arena))
                 })
             })
-            .map(Clone::clone),
         _ => Debug_.assert_never(node, None),
     }
 }
 
 pub fn is_default_import(
-    node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+    node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+    arena: &impl HasArena,
 ) -> bool {
-    node.kind() == SyntaxKind::ImportDeclaration
+    node.ref_(arena).kind() == SyntaxKind::ImportDeclaration
         && node
-            .as_import_declaration()
+            .ref_(arena).as_import_declaration()
             .import_clause
-            .as_ref()
-            .and_then(|import_clause| import_clause.as_import_clause().name.as_ref())
+            .and_then(|import_clause| import_clause.ref_(arena).as_import_clause().name)
             .is_some()
 }
 
 pub fn for_each_import_clause_declaration_bool(
     node: Id<Node>, /*ImportClause*/
     mut action: impl FnMut(Id<Node>) -> bool,
+    arena: &impl HasArena,
 ) -> bool {
     try_for_each_import_clause_declaration_bool(node, |node: Id<Node>| -> Result<_, ()> {
         Ok(action(node))
-    })
+    }, arena)
     .unwrap()
 }
 
 pub fn try_for_each_import_clause_declaration_bool<TError>(
     node: Id<Node>, /*ImportClause*/
     mut action: impl FnMut(Id<Node>) -> Result<bool, TError>,
+    arena: &impl HasArena,
 ) -> Result<bool, TError> {
-    let node_as_import_clause = node.as_import_clause();
+    let node_ref = node.ref_(arena);
+    let node_as_import_clause = node_ref.as_import_clause();
     if node_as_import_clause.name.is_some() {
         let result = action(node)?;
         if result {
             return Ok(result);
         }
     }
-    if let Some(node_named_bindings) = node_as_import_clause.named_bindings.as_ref() {
-        let result = if is_namespace_import(node_named_bindings) {
+    if let Some(node_named_bindings) = node_as_import_clause.named_bindings {
+        let result = if is_namespace_import(&node_named_bindings.ref_(arena)) {
             action(node_named_bindings)?
         } else {
             try_for_each_bool(
-                &node_named_bindings.as_named_imports().elements,
-                |element, _| action(element),
+                &node_named_bindings.ref_(arena).as_named_imports().elements,
+                |&element, _| action(element),
             )?
         };
         if result {
@@ -200,28 +200,24 @@ pub fn has_question_token(node: &Node) -> bool {
     // }
 }
 
-pub fn is_jsdoc_construct_signature(node: &Node) -> bool {
-    let param: Option<Id<Node>> = if is_jsdoc_function_type(node) {
-        first_or_undefined(&node.as_jsdoc_function_type().parameters()).cloned()
+pub fn is_jsdoc_construct_signature(node: Id<Node>, arena: &impl HasArena) -> bool {
+    let Some(param) = (if is_jsdoc_function_type(&node.ref_(arena)) {
+        first_or_undefined(&node.ref_(arena).as_jsdoc_function_type().parameters()).cloned()
     } else {
         None
-    };
-    if param.is_none() {
+    }) else {
         return false;
-    }
-    let param = param.unwrap();
-    let name = try_cast(param.as_parameter_declaration().maybe_name(), |name| {
+    };
+    let Some(name) = try_cast(param.ref_(arena).as_parameter_declaration().maybe_name(), |&name| {
         matches!(
-            name.as_ref(),
-            Some(name) if is_identifier(name)
+            name,
+            Some(name) if is_identifier(&name.ref_(arena))
         )
     })
-    .flatten();
-    if name.is_none() {
+    .flatten() else {
         return false;
-    }
-    let name = name.unwrap();
-    name.as_identifier().escaped_text == "new"
+    };
+    name.ref_(arena).as_identifier().escaped_text == "new"
 }
 
 pub fn is_jsdoc_type_alias(node: &Node) -> bool {
@@ -235,18 +231,21 @@ pub fn is_type_alias(node: &Node) -> bool {
     is_jsdoc_type_alias(node) || is_type_alias_declaration(node)
 }
 
-fn get_source_of_assignment(node: Id<Node>) -> Option<Id<Node>> {
-    if !is_expression_statement(node) {
+fn get_source_of_assignment(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
+    if !is_expression_statement(&node.ref_(arena)) {
         return None;
     }
-    let node_as_expression_statement = node.as_expression_statement();
-    if !is_binary_expression(&node_as_expression_statement.expression) {
+    let node_ref = node.ref_(arena);
+    let node_as_expression_statement = node_ref.as_expression_statement();
+    if !is_binary_expression(&node_as_expression_statement.expression.ref_(arena)) {
         return None;
     }
-    let node_expression_as_binary_expression = node_as_expression_statement
+    let node_expression_ref = node_as_expression_statement
         .expression
+        .ref_(arena);
+    let node_expression_as_binary_expression = node_expression_ref
         .as_binary_expression();
-    if node_expression_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken {
+    if node_expression_as_binary_expression.operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken {
         Some(get_right_most_assigned_expression(
             &node_as_expression_statement.expression,
         ))
@@ -811,14 +810,14 @@ pub fn walk_up_parenthesized_types_and_get_parent_and_child(
     (child, node)
 }
 
-pub fn skip_parentheses(node: Id<Node>, exclude_jsdoc_type_assertions: Option<bool>) -> Id<Node> {
+pub fn skip_parentheses(node: Id<Node>, exclude_jsdoc_type_assertions: Option<bool>, arena: &impl HasArena) -> Id<Node> {
     let exclude_jsdoc_type_assertions = exclude_jsdoc_type_assertions.unwrap_or(false);
     let flags = if exclude_jsdoc_type_assertions {
         OuterExpressionKinds::Parentheses | OuterExpressionKinds::ExcludeJSDocTypeAssertion
     } else {
         OuterExpressionKinds::Parentheses
     };
-    skip_outer_expressions(node, Some(flags))
+    skip_outer_expressions(node, Some(flags), arena)
 }
 
 pub fn is_delete_target(node: Id<Node>) -> bool {

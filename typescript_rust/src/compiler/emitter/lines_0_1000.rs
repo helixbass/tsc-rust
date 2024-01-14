@@ -2313,7 +2313,7 @@ impl Printer {
                 Debug_.assert(is_identifier(node), Some("Expected an Identifier node."));
             }
             EmitHint::Expression => {
-                Debug_.assert(is_expression(node), Some("Expected an Expression node."));
+                Debug_.assert(is_expression(node, self), Some("Expected an Expression node."));
             }
             _ => (),
         }

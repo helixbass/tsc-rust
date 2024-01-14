@@ -725,7 +725,7 @@ impl Printer {
                 | SyntaxKind::MergeDeclarationMarker => return Ok(()),
                 _ => (),
             }
-            if is_expression(&node) {
+            if is_expression(node, self) {
                 hint = EmitHint::Expression;
                 if !self.is_substitute_node_no_emit_substitution() {
                     let substitute = self

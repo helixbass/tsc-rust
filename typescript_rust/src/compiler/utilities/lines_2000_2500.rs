@@ -348,7 +348,7 @@ pub fn get_expando_initializer(
     is_prototype_assignment: bool,
 ) -> Option<Id<Node /*Expression*/>> {
     if is_call_expression(initializer) {
-        let e = skip_parentheses(&initializer.as_call_expression().expression, None);
+        let e = skip_parentheses(initializer.as_call_expression().expression, None, self);
         return if matches!(
             e.kind(),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
@@ -699,7 +699,7 @@ pub(crate) fn get_element_or_property_access_argument_expression_or_name(
         return Some(node.as_property_access_expression().name.clone());
     }
     let node_as_element_access_expression = node.as_element_access_expression();
-    let arg = skip_parentheses(&node_as_element_access_expression.argument_expression, None);
+    let arg = skip_parentheses(node_as_element_access_expression.argument_expression, None, self);
     if is_numeric_literal(&arg) || is_string_literal_like(&arg) {
         return Some(arg);
     }
@@ -754,7 +754,7 @@ pub fn get_assignment_declaration_property_access_kind(
             return AssignmentDeclarationKind::ExportsProperty;
         }
         if is_bindable_static_name_expression(lhs, Some(true), arena)
-            || is_element_access_expression(&lhs) && is_dynamic_name(&lhs)
+            || is_element_access_expression(&lhs) && is_dynamic_name(lhs, arena)
         {
             return AssignmentDeclarationKind::Property;
         }

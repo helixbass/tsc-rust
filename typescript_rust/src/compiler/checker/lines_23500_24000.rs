@@ -516,7 +516,7 @@ impl GetFlowTypeOfReference {
         type_: Id<Type>,
         expr: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
-        let node = skip_parentheses(expr, Some(true));
+        let node = skip_parentheses(expr, Some(true), self);
         if node.kind() == SyntaxKind::FalseKeyword {
             return Ok(self.type_checker.unreachable_never_type());
         }

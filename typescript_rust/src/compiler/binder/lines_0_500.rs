@@ -923,7 +923,7 @@ impl BinderType {
                 }
                 Debug_.fail(Some("Unknown binary declaration kind"));
             }
-            SyntaxKind::JSDocFunctionType => Some(if is_jsdoc_construct_signature(node) {
+            SyntaxKind::JSDocFunctionType => Some(if is_jsdoc_construct_signature(node, self) {
                 InternalSymbolName::New.into()
             } else {
                 InternalSymbolName::Call.into()

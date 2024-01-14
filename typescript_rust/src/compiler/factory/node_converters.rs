@@ -118,7 +118,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 None => expression,
             };
         }
-        cast(Some(element), |element| is_expression(element)).node_wrapper()
+        cast(Some(element), |element| is_expression(element, self)).node_wrapper()
     }
 
     fn convert_to_object_assignment_element(
@@ -237,7 +237,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if is_binding_pattern(Some(node)) {
             return self.convert_to_assignment_pattern(node);
         }
-        cast(Some(node), |node| is_expression(node)).node_wrapper()
+        cast(Some(node), |node| is_expression(node, self)).node_wrapper()
     }
 }
 

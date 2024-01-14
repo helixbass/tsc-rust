@@ -808,7 +808,7 @@ impl TransformClassFields {
             let receiver = visit_node(
                 &node_as_binary_expression.right,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
 
@@ -1046,7 +1046,7 @@ impl TransformClassFields {
             &visit_node(
                 receiver,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
         )

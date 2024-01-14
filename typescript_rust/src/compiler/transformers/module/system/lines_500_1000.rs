@@ -107,7 +107,7 @@ impl TransformSystemModule {
         let expression = try_visit_node(
             &node_as_export_assignment.expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let original = node.maybe_original();
@@ -389,7 +389,7 @@ impl TransformSystemModule {
                     &*try_visit_node(
                         &node_initializer,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     None,

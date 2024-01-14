@@ -21,11 +21,11 @@ use crate::{
 
 impl TypeChecker {
     pub(super) fn is_type_assertion(&self, node: Id<Node> /*Expression*/) -> bool {
-        let node = skip_parentheses(node, Some(true));
+        let node = skip_parentheses(node, Some(true), self);
         matches!(
             node.kind(),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression
-        ) || is_jsdoc_type_assertion(&node)
+        ) || is_jsdoc_type_assertion(node, self)
     }
 
     pub(super) fn check_declaration_initializer(
@@ -208,7 +208,7 @@ impl TypeChecker {
         let parent = node.parent();
         is_assertion_expression(&parent)
             && is_const_type_reference(&parent.as_has_type().maybe_type().unwrap())
-            || is_jsdoc_type_assertion(&parent)
+            || is_jsdoc_type_assertion(parent, self)
                 && is_const_type_reference(&get_jsdoc_type_assertion_type(&parent))
             || (is_parenthesized_expression(&parent)
                 || is_array_literal_expression(&parent)
@@ -619,14 +619,14 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
-        let mut expr = skip_parentheses(node, Some(true));
-        if is_jsdoc_type_assertion(&expr) {
+        let mut expr = skip_parentheses(node, Some(true), self);
+        if is_jsdoc_type_assertion(expr, self) {
             let type_ = get_jsdoc_type_assertion_type(&expr);
             if !is_const_type_reference(&type_) {
                 return Ok(Some(self.get_type_from_type_node_(&type_)?));
             }
         }
-        expr = skip_parentheses(node, None);
+        expr = skip_parentheses(node, None, self);
         if is_call_expression(node)
             && expr.as_call_expression().expression.kind() != SyntaxKind::SuperKeyword
             && !is_require_call(expr, true, self)
@@ -770,7 +770,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
-        if has_jsdoc_nodes(node) && is_jsdoc_type_assertion(node) {
+        if has_jsdoc_nodes(node) && is_jsdoc_type_assertion(node, self) {
             let type_ = get_jsdoc_type_assertion_type(node);
             return self.check_assertion_worker(
                 &type_,

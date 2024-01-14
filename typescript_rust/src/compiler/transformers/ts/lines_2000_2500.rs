@@ -310,7 +310,7 @@ impl TransformTypeScript {
             try_maybe_visit_node(
                 node_as_parameter_declaration.maybe_initializer(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         );
@@ -394,7 +394,7 @@ impl TransformTypeScript {
                     try_visit_node(
                         &node_as_variable_declaration.maybe_initializer().unwrap(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -422,7 +422,7 @@ impl TransformTypeScript {
                     try_maybe_visit_node(
                         node_as_variable_declaration.maybe_initializer(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -435,15 +435,16 @@ impl TransformTypeScript {
         node: Id<Node>, /*ParenthesizedExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
-        let ref inner_expression = skip_outer_expressions(
-            &node_as_parenthesized_expression.expression,
+        let inner_expression = skip_outer_expressions(
+            node_as_parenthesized_expression.expression,
             Some(!OuterExpressionKinds::Assertions),
+            self,
         );
         if is_assertion_expression(inner_expression) {
             let expression = try_visit_node(
                 &node_as_parenthesized_expression.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
 
@@ -469,7 +470,7 @@ impl TransformTypeScript {
         let expression = try_visit_node(
             &node.as_has_expression().expression(),
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(self
@@ -484,7 +485,7 @@ impl TransformTypeScript {
         let expression = try_visit_node(
             &node.as_non_null_expression().expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_left_hand_side_expression),
+            Some(|node| is_left_hand_side_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(self
@@ -504,14 +505,14 @@ impl TransformTypeScript {
                     try_visit_node(
                         &node_as_call_expression.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
                         &node_as_call_expression.arguments,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         None,
                         None,
                     )?,
@@ -532,14 +533,14 @@ impl TransformTypeScript {
                     try_visit_node(
                         &node_as_new_expression.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_maybe_visit_nodes(
                         node_as_new_expression.arguments.as_deref(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         None,
                         None,
                     )?,
@@ -560,14 +561,14 @@ impl TransformTypeScript {
                     try_visit_node(
                         &node_as_tagged_template_expression.tag,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
                         &node_as_tagged_template_expression.template,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -811,7 +812,7 @@ impl TransformTypeScript {
                 try_visit_node(
                     member_initializer,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             } else {

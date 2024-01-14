@@ -497,14 +497,14 @@ impl TransformES2017 {
                 try_visit_node(
                     &node_as_for_in_statement.initializer,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_for_initializer),
+                    Some(|node| is_for_initializer(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
                 &node_as_for_in_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
@@ -540,14 +540,14 @@ impl TransformES2017 {
                 try_visit_node(
                     &node_as_for_of_statement.initializer,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_for_initializer),
+                    Some(|node| is_for_initializer(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
                 &node_as_for_of_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
@@ -575,20 +575,20 @@ impl TransformES2017 {
                 try_maybe_visit_node(
                     initializer,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_for_initializer),
+                    Some(|node| is_for_initializer(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
@@ -617,7 +617,7 @@ impl TransformES2017 {
                     try_maybe_visit_node(
                         Some(&*node.as_await_expression().expression),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 ),
@@ -834,7 +834,7 @@ impl TransformES2017 {
                             ),
                     ),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
             }
@@ -886,7 +886,7 @@ impl TransformES2017 {
         Ok(try_visit_node(
             &converted,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?)
     }
@@ -1096,7 +1096,7 @@ impl TransformES2017 {
                 &*try_visit_node(
                     body,
                     Some(|node: Id<Node>| self.async_body_visitor(node)),
-                    Some(is_concise_body),
+                    Some(|node| is_concise_body(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 None,

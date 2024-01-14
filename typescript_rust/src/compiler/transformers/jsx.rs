@@ -758,7 +758,7 @@ impl TransformJsx {
         self.factory.create_spread_assignment(visit_node(
             &node_as_jsx_spread_attribute.expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         ))
     }
@@ -859,7 +859,7 @@ impl TransformJsx {
         visit_node(
             &node_as_jsx_spread_attribute.expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )
     }
@@ -906,7 +906,7 @@ impl TransformJsx {
             visit_node(
                 node_as_jsx_expression.expression.as_ref().unwrap(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )
         } else {
@@ -1043,7 +1043,7 @@ impl TransformJsx {
         let expression = maybe_visit_node(
             node_as_jsx_expression.expression.as_deref(),
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         if node_as_jsx_expression.dot_dot_dot_token.is_some() {

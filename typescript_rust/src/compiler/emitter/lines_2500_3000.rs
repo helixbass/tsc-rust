@@ -1171,7 +1171,7 @@ impl EmitBinaryExpressionStateMachine {
             Debug_.assert_is_defined(&self.printer.maybe_last_substitution(), None);
             next = parenthesizer_rule.call(&*cast(
                 self.printer.maybe_last_substitution(),
-                |node: &Id<Node>| is_expression(node),
+                |&node: &Id<Node>| is_expression(node, self),
             ));
             pipeline_phase = self.printer.get_next_pipeline_phase(
                 PipelinePhase::Substitution,

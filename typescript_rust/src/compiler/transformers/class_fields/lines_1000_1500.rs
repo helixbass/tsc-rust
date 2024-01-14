@@ -68,6 +68,7 @@ impl TransformClassFields {
                     .as_expression_with_type_arguments()
                     .expression,
                 None,
+                self,
             )
             .kind()
                 != SyntaxKind::NullKeyword
@@ -142,6 +143,7 @@ impl TransformClassFields {
                     .as_expression_with_type_arguments()
                     .expression,
                 None,
+                self,
             )
             .kind()
                 != SyntaxKind::NullKeyword
@@ -711,7 +713,7 @@ impl TransformClassFields {
                             maybe_visit_node(
                                 property_as_property_declaration.maybe_initializer(),
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             private_identifier_info.brand_check_identifier(),
@@ -722,7 +724,7 @@ impl TransformClassFields {
                             maybe_visit_node(
                                 property_as_property_declaration.maybe_initializer(),
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         ));
@@ -755,7 +757,7 @@ impl TransformClassFields {
             maybe_visit_node(
                 property_as_property_declaration.maybe_initializer(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )
             .unwrap_or_else(|| self.factory.create_void_zero())

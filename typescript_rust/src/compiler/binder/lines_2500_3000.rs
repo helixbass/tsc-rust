@@ -43,7 +43,7 @@ impl BinderType {
                     );
                 } else {
                     if let Some(current_flow) = self.maybe_current_flow() {
-                        if is_expression(&node.ref_(self))
+                        if is_expression(node, self)
                             || self.parent().ref_(self).kind()
                                 == SyntaxKind::ShorthandPropertyAssignment
                         {
@@ -55,7 +55,7 @@ impl BinderType {
             }
             SyntaxKind::ThisKeyword => {
                 if let Some(current_flow) = self.maybe_current_flow() {
-                    if is_expression(&node.ref_(self))
+                    if is_expression(node, self)
                         || self.parent().ref_(self).kind()
                             == SyntaxKind::ShorthandPropertyAssignment
                     {

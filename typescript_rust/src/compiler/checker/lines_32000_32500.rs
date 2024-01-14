@@ -413,7 +413,7 @@ impl TypeChecker {
             return Ok(true);
         }
         if is_access_expression(expr) {
-            let node = skip_parentheses(&expr.as_has_expression().expression(), None);
+            let node = skip_parentheses(expr.as_has_expression().expression(), None, self);
             if node.kind() == SyntaxKind::Identifier {
                 let symbol = (*self.get_node_links(&node))
                     .borrow()
@@ -441,6 +441,7 @@ impl TypeChecker {
         let node = skip_outer_expressions(
             expr,
             Some(OuterExpressionKinds::Assertions | OuterExpressionKinds::Parentheses),
+            self,
         );
         if node.kind() != SyntaxKind::Identifier && !is_access_expression(&node) {
             self.error(Some(expr), invalid_reference_message, None);
@@ -459,7 +460,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node_as_delete_expression = node.as_delete_expression();
         self.check_expression(&node_as_delete_expression.expression, None, None)?;
-        let expr = skip_parentheses(&node_as_delete_expression.expression, None);
+        let expr = skip_parentheses(node_as_delete_expression.expression, None, self);
         if !is_access_expression(&expr) {
             self.error(
                 Some(&*expr),

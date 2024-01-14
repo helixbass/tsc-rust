@@ -644,7 +644,7 @@ impl TypeChecker {
                     Some(is_referenced) => is_referenced != SymbolFlags::None,
                 },
             )
-        })
+        }, self)
     }
 
     pub(super) fn import_clause_contains_const_enum_used_as_value(
@@ -658,7 +658,7 @@ impl TypeChecker {
                     .const_enum_referenced
                     == Some(true),
             )
-        })
+        }, self)
     }
 
     pub(super) fn can_convert_import_declaration_to_type_only(

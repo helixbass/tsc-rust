@@ -113,7 +113,7 @@ impl BinderType {
     }
 
     pub(super) fn is_logical_assignment_expression(&self, node: Id<Node>) -> bool {
-        let node = skip_parentheses(node, None);
+        let node = skip_parentheses(node, None, self);
         is_binary_expression(&node)
             && is_logical_or_coalescing_assignment_operator(
                 node.as_binary_expression().operator_token.kind(),

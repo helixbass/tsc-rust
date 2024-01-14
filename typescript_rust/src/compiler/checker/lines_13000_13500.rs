@@ -120,8 +120,9 @@ impl TypeChecker {
                             grand_parent_as_mapped_type_node.type_.is_some()
                                 && Gc::ptr_eq(
                                     &skip_parentheses(
-                                        grand_parent_as_mapped_type_node.type_.as_ref().unwrap(),
+                                        grand_parent_as_mapped_type_node.type_.unwrap(),
                                         None,
+                                        self,
                                     ),
                                     &declaration.parent(),
                                 )

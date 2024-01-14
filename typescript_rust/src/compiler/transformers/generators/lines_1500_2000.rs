@@ -36,7 +36,7 @@ impl TransformGenerators {
                     visit_node(
                         &node_as_for_in_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     self.factory.create_expression_statement(
@@ -88,7 +88,7 @@ impl TransformGenerators {
                 visit_node(
                     initializer,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )
             };
@@ -145,7 +145,7 @@ impl TransformGenerators {
                 visit_node(
                     &node.as_for_in_statement().expression,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 visit_node(
@@ -251,7 +251,7 @@ impl TransformGenerators {
             maybe_visit_node(
                 node_as_return_statement.expression.as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             Some(node),
@@ -268,7 +268,7 @@ impl TransformGenerators {
                 maybe_visit_node(
                     node_as_return_statement.expression.as_deref(),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Some(node),
@@ -283,7 +283,7 @@ impl TransformGenerators {
             self.begin_with_block(self.cache_expression(&visit_node(
                 &node_as_with_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )));
             self.transform_and_emit_embedded_statement(&node_as_with_statement.statement);
@@ -312,7 +312,7 @@ impl TransformGenerators {
             let expression = self.cache_expression(&visit_node(
                 &node_as_switch_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
 
@@ -353,7 +353,7 @@ impl TransformGenerators {
                             visit_node(
                                 &clause_as_case_clause.expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             vec![self.create_inline_break(
@@ -474,7 +474,7 @@ impl TransformGenerators {
             visit_node(
                 &node_as_throw_statement.expression, /*?? factory.createVoidZero()*/
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             Some(node),

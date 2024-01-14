@@ -940,7 +940,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
         if let Some(outer_expression) = outer_expression.filter(|outer_expression| {
             let outer_expression = outer_expression.borrow();
-            is_outer_expression(outer_expression, Some(kinds))
+            is_outer_expression(outer_expression, Some(kinds), self)
                 && !self.is_ignorable_paren(outer_expression)
         }) {
             let outer_expression = outer_expression.borrow();
@@ -995,7 +995,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*Expression*/
         cache_identifiers: bool,
     ) -> bool {
-        let target = skip_parentheses(node, None);
+        let target = skip_parentheses(node, None, self);
         match target.kind() {
             SyntaxKind::Identifier => cache_identifiers,
             SyntaxKind::ThisKeyword
@@ -1024,7 +1024,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         cache_identifiers: Option<bool>,
     ) -> CallBinding {
         let cache_identifiers = cache_identifiers.unwrap_or_default();
-        let callee = &skip_outer_expressions(expression, Some(OuterExpressionKinds::All));
+        let callee = skip_outer_expressions(expression, Some(OuterExpressionKinds::All), self);
         let this_arg: Id<Node /*Expression*/>;
         let target: Id<Node /*LeftHandSideExpression*/>;
         if is_super_property(callee) {

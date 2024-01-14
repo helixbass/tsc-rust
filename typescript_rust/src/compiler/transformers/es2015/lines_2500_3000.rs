@@ -28,7 +28,7 @@ impl TransformES2015 {
         let ref expression = try_visit_node(
             &node_as_for_of_statement.expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let iterator = if is_identifier(expression) {
@@ -660,7 +660,7 @@ impl TransformES2015 {
                     node_as_for_statement.initializer.clone()
                 },
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
-                Some(is_for_initializer),
+                Some(|node| is_for_initializer(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
@@ -670,7 +670,7 @@ impl TransformES2015 {
                     node_as_for_statement.condition.as_deref()
                 },
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
@@ -680,7 +680,7 @@ impl TransformES2015 {
                     node_as_for_statement.incrementor.as_deref()
                 },
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             converted_loop_body.node_wrapper(),
@@ -699,13 +699,13 @@ impl TransformES2015 {
             try_visit_node(
                 &node_as_for_of_statement.initializer,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_for_initializer),
+                Some(|node| is_for_initializer(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_node(
                 &node_as_for_of_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             converted_loop_body.node_wrapper(),
@@ -723,13 +723,13 @@ impl TransformES2015 {
             try_visit_node(
                 &node_as_for_in_statement.initializer,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_for_initializer),
+                Some(|node| is_for_initializer(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_node(
                 &node_as_for_in_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             converted_loop_body.node_wrapper(),
@@ -748,7 +748,7 @@ impl TransformES2015 {
             try_visit_node(
                 &node_as_do_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         ))
@@ -765,7 +765,7 @@ impl TransformES2015 {
             try_visit_node(
                 &node_as_while_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             converted_loop_body.node_wrapper(),

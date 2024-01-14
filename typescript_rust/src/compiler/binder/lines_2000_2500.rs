@@ -504,7 +504,7 @@ impl BinderType {
     ) {
         let node_as_binary_expression = node.as_binary_expression();
         if matches!(self.maybe_in_strict_mode(), Some(true))
-            && is_left_hand_side_expression(&node_as_binary_expression.left)
+            && is_left_hand_side_expression(node_as_binary_expression.left, self)
             && is_assignment_operator(node_as_binary_expression.operator_token.kind())
         {
             self.check_strict_mode_eval_or_arguments(node, Some(&*node_as_binary_expression.left));

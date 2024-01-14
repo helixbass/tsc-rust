@@ -371,13 +371,13 @@ pub fn is_signed_numeric_literal(node: Id<Node>) -> bool {
 pub fn has_dynamic_name(declaration: Id<Node> /*Declaration*/, arena: &impl HasArena) -> bool {
     let name = get_name_of_declaration(Some(declaration), arena);
     if let Some(name) = name {
-        is_dynamic_name(&name)
+        is_dynamic_name(name, arena)
     } else {
         false
     }
 }
 
-pub fn is_dynamic_name(name: Id<Node> /*DeclarationName*/) -> bool {
+pub fn is_dynamic_name(name: Id<Node> /*DeclarationName*/, arena: &impl HasArena) -> bool {
     if !matches!(
         name.kind(),
         SyntaxKind::ComputedPropertyName | SyntaxKind::ElementAccessExpression
@@ -388,6 +388,7 @@ pub fn is_dynamic_name(name: Id<Node> /*DeclarationName*/) -> bool {
         skip_parentheses(
             &name.as_element_access_expression().argument_expression,
             None,
+            arena,
         )
     } else {
         name.as_computed_property_name().expression.clone()

@@ -219,19 +219,19 @@ impl TransformSystemModule {
                         self.discarded_value_visitor(node)?
                     })
                 }),
-                Some(is_for_initializer),
+                Some(|node| is_for_initializer(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
@@ -265,7 +265,7 @@ impl TransformSystemModule {
             try_visit_node(
                 &node_as_for_in_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
@@ -294,7 +294,7 @@ impl TransformSystemModule {
             try_visit_node(
                 &node_as_for_of_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
@@ -342,7 +342,7 @@ impl TransformSystemModule {
             try_visit_node(
                 node,
                 Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?
         })
@@ -365,7 +365,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_do_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -385,7 +385,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_while_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_iteration_body(
@@ -431,7 +431,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_with_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_node(
@@ -457,7 +457,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_switch_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_node(
@@ -506,7 +506,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_case_clause.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_nodes(

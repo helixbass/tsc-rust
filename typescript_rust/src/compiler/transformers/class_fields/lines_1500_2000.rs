@@ -41,7 +41,7 @@ impl TransformClassFields {
                 visit_node(
                     &node.as_element_access_expression().argument_expression,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             )
@@ -57,10 +57,10 @@ impl TransformClassFields {
             let expression = visit_node(
                 &name.as_computed_property_name().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
-            let ref inner_expression = skip_partially_emitted_expressions(&expression);
+            let ref inner_expression = skip_partially_emitted_expressions(expression, self);
             let inlinable = is_simple_inlineable_expression(inner_expression);
             let already_transformed = is_assignment_expression(inner_expression, None)
                 && is_generated_identifier(&inner_expression.as_binary_expression().left);
@@ -456,7 +456,7 @@ impl TransformClassFields {
                     visit_node(
                         &node_as_property_access_expression.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                 ));
@@ -546,7 +546,7 @@ impl TransformClassFields {
                             visit_node(
                                 &node_as_binary_expression.right,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         )
@@ -607,7 +607,7 @@ impl TransformClassFields {
                                 Some(visit_node(
                                     &target.as_element_access_expression().argument_expression,
                                     Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(is_expression),
+                                    Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ))
                             } else if is_identifier(&target.as_property_access_expression().name())
@@ -667,7 +667,7 @@ impl TransformClassFields {
                                 visit_node(
                                     &node_as_property_assignment.initializer,
                                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
-                                    Some(is_expression),
+                                    Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
                             },
@@ -685,7 +685,7 @@ impl TransformClassFields {
                                 visit_node(
                                     &node_as_spread_assignment.expression,
                                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
-                                    Some(is_expression),
+                                    Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
                             }),

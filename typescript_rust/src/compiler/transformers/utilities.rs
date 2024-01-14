@@ -100,7 +100,7 @@ pub fn get_export_needs_import_star_helper(node: Id<Node> /*ExportDeclaration*/)
     get_namespace_declaration_node(node).is_some()
 }
 
-pub fn get_import_needs_import_star_helper(node: Id<Node> /*ImportDeclaration*/) -> bool {
+pub fn get_import_needs_import_star_helper(node: Id<Node> /*ImportDeclaration*/, arena: &impl HasArena) -> bool {
     let node_as_import_declaration = node.as_import_declaration();
     if get_namespace_declaration_node(node).is_some() {
         return true;
@@ -122,13 +122,13 @@ pub fn get_import_needs_import_star_helper(node: Id<Node> /*ImportDeclaration*/)
 
     default_ref_count > 0 && default_ref_count != bindings_as_named_imports.elements.len()
         || (bindings_as_named_imports.elements.len() - default_ref_count) != 0
-            && is_default_import(node)
+            && is_default_import(node, arena)
 }
 
-pub fn get_import_needs_import_default_helper(node: Id<Node> /*ImportDeclaration*/) -> bool {
+pub fn get_import_needs_import_default_helper(node: Id<Node> /*ImportDeclaration*/, arena: &impl HasArena) -> bool {
     let node_as_import_declaration = node.as_import_declaration();
-    !get_import_needs_import_star_helper(node)
-        && (is_default_import(node)
+    !get_import_needs_import_star_helper(node, arena)
+        && (is_default_import(node, arena)
             || node_as_import_declaration
                 .import_clause
                 .as_ref()
@@ -167,10 +167,10 @@ pub fn collect_external_module_info(
         match node.kind() {
             SyntaxKind::ImportDeclaration => {
                 external_imports.push(node.clone());
-                if !has_import_star && get_import_needs_import_star_helper(node) {
+                if !has_import_star && get_import_needs_import_star_helper(node, arena) {
                     has_import_star = true;
                 }
-                if !has_import_default && get_import_needs_import_default_helper(node) {
+                if !has_import_default && get_import_needs_import_default_helper(node, arena) {
                     has_import_default = true;
                 }
             }

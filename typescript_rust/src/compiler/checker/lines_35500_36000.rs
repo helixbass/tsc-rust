@@ -646,7 +646,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if self.produce_diagnostics
             && node.as_jsdoc_function_type().maybe_type().is_none()
-            && !is_jsdoc_construct_signature(node)
+            && !is_jsdoc_construct_signature(node, self)
         {
             self.report_implicit_any(node, self.any_type(), None)?;
         }

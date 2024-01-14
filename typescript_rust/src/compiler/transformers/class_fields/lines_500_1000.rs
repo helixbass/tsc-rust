@@ -58,7 +58,7 @@ impl TransformClassFields {
                                     visit_node(
                                         &node_as_element_access_expression.argument_expression,
                                         Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(is_expression),
+                                        Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     ),
                                     Some(class_constructor.clone()),
@@ -100,7 +100,7 @@ impl TransformClassFields {
                     let ref receiver = visit_node(
                         &node_operand.as_property_access_expression().expression,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     );
                     let CopiableReceiverExpr {
@@ -216,7 +216,7 @@ impl TransformClassFields {
                                                 &node_operand_as_element_access_expression
                                                     .argument_expression,
                                                 Some(|node: Id<Node>| self.visitor(node)),
-                                                Some(is_expression),
+                                                Some(|node| is_expression(node, self)),
                                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                             ),
                                         ),
@@ -288,19 +288,19 @@ impl TransformClassFields {
                     maybe_visit_node(
                         node_as_for_statement.initializer.as_deref(),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                        Some(is_for_initializer),
+                        Some(|node| is_for_initializer(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
                         node_as_for_statement.condition.as_deref(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
                         node_as_for_statement.incrementor.as_deref(),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     visit_iteration_body(
@@ -325,7 +325,7 @@ impl TransformClassFields {
                     visit_node(
                         &node_as_expression_statement.expression,
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                 )
@@ -399,14 +399,14 @@ impl TransformClassFields {
                             vec![visit_node(
                                 &this_arg,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )]
                             .and_extend(
                                 visit_nodes(
                                     &node_as_call_expression.arguments,
                                     Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(is_expression),
+                                    Some(|node| is_expression(node, self)),
                                     None,
                                     None,
                                 )
@@ -433,14 +433,14 @@ impl TransformClassFields {
                         vec![visit_node(
                             &this_arg,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )]
                         .and_extend(
                             visit_nodes(
                                 &node_as_call_expression.arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 None,
                                 None,
                             )
@@ -472,14 +472,14 @@ impl TransformClassFields {
                             visit_node(
                                 &node_as_call_expression.expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             current_class_lexical_environment_class_constructor.clone(),
                             visit_nodes(
                                 &node_as_call_expression.arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 None,
                                 None,
                             ),
@@ -530,7 +530,7 @@ impl TransformClassFields {
                             Some(vec![visit_node(
                                 &this_arg,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )]),
                         ),
@@ -566,7 +566,7 @@ impl TransformClassFields {
                         visit_node(
                             &node_as_tagged_template_expression.tag,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         ),
                         current_class_lexical_environment_class_constructor.clone(),
@@ -738,7 +738,7 @@ impl TransformClassFields {
                                     visit_node(
                                         &node_as_binary_expression.right,
                                         Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(is_expression),
+                                        Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     ),
                                 )
@@ -755,7 +755,7 @@ impl TransformClassFields {
                                             .as_element_access_expression()
                                             .argument_expression,
                                         Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(is_expression),
+                                        Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     ))
                                 } else if is_identifier(
@@ -779,7 +779,7 @@ impl TransformClassFields {
                                 let mut expression = visit_node(
                                     &node_as_binary_expression.right,
                                     Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(is_expression),
+                                    Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 );
                                 if is_compound_assignment(
@@ -878,13 +878,13 @@ impl TransformClassFields {
         let mut receiver = visit_node(
             receiver,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let mut right = visit_node(
             right,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
 
@@ -1100,7 +1100,7 @@ impl TransformClassFields {
                             visit_node(
                                 &node_as_expression_with_type_arguments.expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         ),

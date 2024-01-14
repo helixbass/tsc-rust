@@ -378,7 +378,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_side_effect_free(&self, node: Id<Node>) -> bool {
-        let node = skip_parentheses(node, None);
+        let node = skip_parentheses(node, None, self);
         match node.kind() {
             SyntaxKind::Identifier
             | SyntaxKind::StringLiteral

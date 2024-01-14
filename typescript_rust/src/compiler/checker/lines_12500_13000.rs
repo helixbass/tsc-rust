@@ -94,7 +94,7 @@ impl TypeChecker {
             let mut this_parameter: Option<Id<Symbol>> = None;
             let mut has_this_parameter = false;
             let iife = get_immediately_invoked_function_expression(declaration);
-            let is_js_construct_signature = is_jsdoc_construct_signature(declaration);
+            let is_js_construct_signature = is_jsdoc_construct_signature(declaration, self);
             let is_untyped_signature_in_js_file = iife.is_none()
                 && is_in_js_file(Some(declaration))
                 && is_value_signature_declaration(declaration)
@@ -683,7 +683,7 @@ impl TypeChecker {
                 )?,
             ));
         }
-        if is_jsdoc_construct_signature(declaration) {
+        if is_jsdoc_construct_signature(declaration, self) {
             return Ok(Some(
                 self.get_type_from_type_node_(
                     declaration.ref_(self).as_signature_declaration().parameters()[0]

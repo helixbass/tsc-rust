@@ -178,7 +178,7 @@ impl TransformGenerators {
                         self.cache_expression(&visit_node(
                             &left_as_property_access_expression.expression,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_left_hand_side_expression),
+                            Some(|node| is_left_hand_side_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
                         left_as_property_access_expression.name.clone(),
@@ -191,13 +191,13 @@ impl TransformGenerators {
                         self.cache_expression(&visit_node(
                             &left_as_element_access_expression.expression,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_left_hand_side_expression),
+                            Some(|node| is_left_hand_side_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
                         self.cache_expression(&visit_node(
                             &left_as_element_access_expression.argument_expression,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
                     )
@@ -205,7 +205,7 @@ impl TransformGenerators {
                 _ => visit_node(
                     left,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             };
@@ -223,7 +223,7 @@ impl TransformGenerators {
                                 visit_node(
                                     right,
                                     Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(is_expression),
+                                    Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ),
                             )
@@ -238,7 +238,7 @@ impl TransformGenerators {
                     visit_node(
                         right,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                 );
@@ -265,14 +265,14 @@ impl TransformGenerators {
                 self.cache_expression(&visit_node(
                     &node_as_binary_expression.left,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )),
                 node_as_binary_expression.operator_token.clone(),
                 visit_node(
                     &node_as_binary_expression.right,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             );
@@ -331,7 +331,7 @@ impl TransformGenerators {
             pending_expressions.push(visit_node(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
@@ -366,7 +366,7 @@ impl TransformGenerators {
                 pending_expressions.push(visit_node(
                     elem,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ));
             }
@@ -387,7 +387,7 @@ impl TransformGenerators {
             visit_node(
                 &node_as_binary_expression.left,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             Some(&*node_as_binary_expression.left),
@@ -411,7 +411,7 @@ impl TransformGenerators {
             visit_node(
                 &node_as_binary_expression.right,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             Some(&*node_as_binary_expression.right),
@@ -436,7 +436,7 @@ impl TransformGenerators {
                 visit_node(
                     &node_as_conditional_expression.condition,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Some(&*node_as_conditional_expression.condition),
@@ -446,7 +446,7 @@ impl TransformGenerators {
                 visit_node(
                     &node_as_conditional_expression.when_true,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Some(&*node_as_conditional_expression.when_true),
@@ -458,7 +458,7 @@ impl TransformGenerators {
                 visit_node(
                     &node_as_conditional_expression.when_false,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Some(&*node_as_conditional_expression.when_false),
@@ -479,7 +479,7 @@ impl TransformGenerators {
         let expression = maybe_visit_node(
             node_as_yield_expression.expression.as_deref(),
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         if node_as_yield_expression.asterisk_token.is_some() {
@@ -537,7 +537,7 @@ impl TransformGenerators {
             let initial_elements = visit_nodes(
                 elements,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Some(0),
                 Some(num_initial_elements),
             );

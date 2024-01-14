@@ -362,7 +362,7 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        let parent_type = return_ok_none_if_none!(if is_expression(&declaration.parent()) {
+        let parent_type = return_ok_none_if_none!(if is_expression(declaration.parent(), self) {
             self.get_contextual_type_(&declaration.parent(), None)?
         } else {
             None

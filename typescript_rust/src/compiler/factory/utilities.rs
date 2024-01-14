@@ -623,10 +623,10 @@ pub fn is_comma_sequence(node: Id<Node> /*Expression*/) -> bool {
         || node.kind() == SyntaxKind::CommaListExpression
 }
 
-pub fn is_jsdoc_type_assertion(node: Id<Node>) -> bool {
-    is_parenthesized_expression(node)
-        && is_in_js_file(Some(node))
-        && get_jsdoc_type_tag(node).is_some()
+pub fn is_jsdoc_type_assertion(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_parenthesized_expression(&node.ref_(arena))
+        && is_in_js_file(Some(&node.ref_(arena)))
+        && get_jsdoc_type_tag(node, arena).is_some()
 }
 
 pub fn get_jsdoc_type_assertion_type(node: Id<Node> /*JSDocTypeAssertion*/) -> Id<Node> {
@@ -635,12 +635,12 @@ pub fn get_jsdoc_type_assertion_type(node: Id<Node> /*JSDocTypeAssertion*/) -> I
     type_.unwrap()
 }
 
-pub fn is_outer_expression(node: Id<Node>, kinds: Option<OuterExpressionKinds>) -> bool {
+pub fn is_outer_expression(node: Id<Node>, kinds: Option<OuterExpressionKinds>, arena: &impl HasArena) -> bool {
     let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
     match node.kind() {
         SyntaxKind::ParenthesizedExpression => {
             if kinds.intersects(OuterExpressionKinds::ExcludeJSDocTypeAssertion)
-                && is_jsdoc_type_assertion(node)
+                && is_jsdoc_type_assertion(node, arena)
             {
                 return false;
             }
@@ -657,11 +657,10 @@ pub fn is_outer_expression(node: Id<Node>, kinds: Option<OuterExpressionKinds>) 
     }
 }
 
-pub fn skip_outer_expressions(node: Id<Node>, kinds: Option<OuterExpressionKinds>) -> Id<Node> {
+pub fn skip_outer_expressions(mut node: Id<Node>, kinds: Option<OuterExpressionKinds>, arena: &impl HasArena) -> Id<Node> {
     let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
-    let mut node = node.node_wrapper();
-    while is_outer_expression(&node, Some(kinds)) {
-        node = node.as_has_expression().expression();
+    while is_outer_expression(node, Some(kinds), arena) {
+        node = node.ref_(arena).as_has_expression().expression();
     }
     node
 }
@@ -861,10 +860,11 @@ pub fn get_local_name_for_external_import<
     factory: &NodeFactory<TBaseNodeFactory>,
     node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
     source_file: Id<Node>, /*SourceFile*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Identifier*/>> {
     let namespace_declaration = get_namespace_declaration_node(node);
     if let Some(namespace_declaration) = namespace_declaration
-        .filter(|_| !is_default_import(node) && !is_export_namespace_as_default_declaration(node))
+        .filter(|_| !is_default_import(node, arena) && !is_export_namespace_as_default_declaration(node))
     {
         let name = namespace_declaration.as_named_declaration().name();
         return Some(if is_generated_identifier(&name) {

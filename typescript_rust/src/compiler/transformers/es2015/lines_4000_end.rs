@@ -34,7 +34,7 @@ impl TransformES2015 {
         let mut expression = try_visit_node(
             &node_as_spread_element.expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
 
@@ -71,7 +71,7 @@ impl TransformES2015 {
                     .factory
                     .create_node_array(Some(chunk), Some(has_trailing_comma)),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 None,
                 None,
             )?),
@@ -90,7 +90,7 @@ impl TransformES2015 {
             try_visit_node(
                 &node_as_spread_element.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?
             .into(),
@@ -177,7 +177,7 @@ impl TransformES2015 {
             let mut args = vec![try_visit_node(
                 &span_as_template_span.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?];
 

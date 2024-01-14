@@ -188,10 +188,10 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
     ) -> io::Result<()> {
         Debug_.assert_node(
             Some(target),
-            Some(if self.create_assignment_callback.is_some() {
-                is_identifier
+            Some(|node| if self.create_assignment_callback.is_some() {
+                is_identifier(node)
             } else {
-                is_expression
+                is_expression(node, self)
             }),
             None,
         );
@@ -209,7 +209,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
                                 self.visitor
                                     .as_ref()
                                     .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
                             value.node_wrapper(),
@@ -334,7 +334,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                     visitor
                         .as_ref()
                         .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
             }
@@ -357,7 +357,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
             visitor
                 .as_ref()
                 .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?);
 
@@ -782,7 +782,7 @@ fn flatten_binding_or_assignment_element(
             flatten_context
                 .is_visitor_supported()
                 .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         if let Some(initializer) = initializer {

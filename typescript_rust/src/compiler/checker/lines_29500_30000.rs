@@ -90,8 +90,8 @@ impl TypeChecker {
         } else {
             None
         };
-        if let Some(expression) = expression.as_ref() {
-            let callee = skip_outer_expressions(expression, None);
+        if let Some(expression) = expression {
+            let callee = skip_outer_expressions(expression, None, self);
             if is_access_expression(&callee) {
                 return callee.as_has_expression().maybe_expression();
             }

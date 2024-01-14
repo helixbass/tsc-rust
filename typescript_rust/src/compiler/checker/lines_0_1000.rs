@@ -2243,7 +2243,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_expression(node))
+            Some(|node: Id<Node>| is_expression(node, self))
         ));
         let containing_call =
             find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(node));
@@ -2624,7 +2624,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let module_specifier = return_ok_default_if_none!(get_parse_tree_node(
             Some(module_specifier_in),
-            Some(|node: Id<Node>| is_expression(node)),
+            Some(|node: Id<Node>| is_expression(node, self)),
         ));
         self.resolve_external_module_name_(module_specifier, module_specifier, Some(true))
     }

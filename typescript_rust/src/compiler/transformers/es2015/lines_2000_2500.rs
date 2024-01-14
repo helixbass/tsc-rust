@@ -101,7 +101,7 @@ impl TransformES2015 {
                 try_visit_node(
                     &node_as_binary_expression.left,
                     Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 node_as_binary_expression.operator_token.clone(),
@@ -114,7 +114,7 @@ impl TransformES2015 {
                             self.visitor(node)?
                         })
                     }),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
             ));
@@ -146,7 +146,7 @@ impl TransformES2015 {
                         self.visitor(node)?
                     })
                 }),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
             if result.is_some() || !Gc::ptr_eq(&visited, element) {
@@ -245,7 +245,7 @@ impl TransformES2015 {
                                 try_visit_node(
                                     &decl_initializer,
                                     Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(is_expression),
+                                    Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?,
                             )
@@ -650,19 +650,19 @@ impl TransformES2015 {
             try_maybe_visit_node(
                 node_as_for_statement.initializer.as_deref(),
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
-                Some(is_for_initializer),
+                Some(|node| is_for_initializer(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_node(
@@ -835,7 +835,7 @@ impl TransformES2015 {
                         .create_expression_statement(try_visit_node(
                             assignment,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                         )?)
                         .set_text_range(Some(&ReadonlyTextRangeConcrete::from(move_range_end(
@@ -908,7 +908,7 @@ impl TransformES2015 {
         let ref expression = try_visit_node(
             &node_as_for_of_statement.expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
 

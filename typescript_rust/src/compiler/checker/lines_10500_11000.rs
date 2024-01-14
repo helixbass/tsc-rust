@@ -48,7 +48,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*DeclarationName*/
     ) -> io::Result<bool> {
-        Ok(is_dynamic_name(node) && !self.is_late_bindable_name(node)?)
+        Ok(is_dynamic_name(node, self) && !self.is_late_bindable_name(node)?)
     }
 
     pub(super) fn get_property_name_from_type(

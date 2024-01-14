@@ -156,7 +156,7 @@ impl TransformES2015 {
                                     try_visit_node(
                                         node_expression,
                                         Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(is_expression),
+                                        Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     )
                                 },
@@ -471,7 +471,7 @@ impl TransformES2015 {
                                 .as_expression_with_type_arguments()
                                 .expression,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?])
                     },
@@ -682,10 +682,11 @@ impl TransformES2015 {
             .as_ref()
             .matches(|extends_clause_element| {
                 skip_outer_expressions(
-                    &extends_clause_element
+                    extends_clause_element
                         .as_expression_with_type_arguments()
                         .expression,
                     None,
+                    self,
                 )
                 .kind()
                     != SyntaxKind::NullKeyword

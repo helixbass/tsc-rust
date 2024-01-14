@@ -228,7 +228,7 @@ impl ParserType {
                 .into();
         }
 
-        if is_left_hand_side_expression(&expr)
+        if is_left_hand_side_expression(expr, self)
             && is_assignment_operator(self.re_scan_greater_token())
         {
             return self
@@ -968,7 +968,7 @@ impl ParserType {
 
         let expression = self.parse_left_hand_side_expression_or_higher();
 
-        Debug_.assert(is_left_hand_side_expression(&expression), None);
+        Debug_.assert(is_left_hand_side_expression(expression, self), None);
         if matches!(
             self.token(),
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken

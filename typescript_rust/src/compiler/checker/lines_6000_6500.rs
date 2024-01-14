@@ -1183,7 +1183,7 @@ impl NodeBuilder {
         }
         if is_jsdoc_function_type(node) {
             let node_as_jsdoc_function_type = node.as_jsdoc_function_type();
-            if is_jsdoc_construct_signature(node) {
+            if is_jsdoc_construct_signature(node, self) {
                 let mut new_type_node: Option<Id<Node>> = None;
                 return Ok(Some(
                     get_factory().create_constructor_type_node(

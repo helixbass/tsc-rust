@@ -911,7 +911,7 @@ impl TypeChecker {
                     parse_node_factory_.create_string_literal(prop_name, None, None)
                 });
                 set_text_range(&*literal, Some(node));
-                let lhs_expr = if is_left_hand_side_expression(&parent_access) {
+                let lhs_expr = if is_left_hand_side_expression(parent_access, self) {
                     parent_access.clone()
                 } else {
                     parse_node_factory.with(|parse_node_factory_| {

@@ -152,7 +152,7 @@ impl TransformES2015 {
                         self.factory.create_expression_statement(try_visit_node(
                             node_incrementor,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?),
                         Some(
@@ -202,7 +202,7 @@ impl TransformES2015 {
                             try_visit_node(
                                 node_as_for_statement.condition.as_deref().unwrap(),
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
                         ),
@@ -717,7 +717,7 @@ impl TransformES2015 {
                 try_visit_node(
                     &property_as_property_assignment.maybe_initializer().unwrap(),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
             )

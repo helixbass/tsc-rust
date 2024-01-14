@@ -658,17 +658,18 @@ pub fn try_get_class_implementing_or_extending_expression_with_type_arguments(
     }
 }
 
-pub fn is_assignment_expression(node: Id<Node>, exclude_compound_assignment: Option<bool>) -> bool {
+pub fn is_assignment_expression(node: Id<Node>, exclude_compound_assignment: Option<bool>, arena: &impl HasArena) -> bool {
     let exclude_compound_assignment = exclude_compound_assignment.unwrap_or(false);
-    if !is_binary_expression(node) {
+    if !is_binary_expression(&node.ref_(arena)) {
         return false;
     }
-    let node_as_binary_expression = node.as_binary_expression();
+    let node_ref = node.ref_(arena);
+    let node_as_binary_expression = node_ref.as_binary_expression();
     (if exclude_compound_assignment {
-        node_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
+        node_as_binary_expression.operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken
     } else {
-        is_assignment_operator(node_as_binary_expression.operator_token.kind())
-    }) && is_left_hand_side_expression(&node_as_binary_expression.left)
+        is_assignment_operator(node_as_binary_expression.operator_token.ref_(arena).kind())
+    }) && is_left_hand_side_expression(node_as_binary_expression.ref_(arena).left, arena)
 }
 
 pub fn is_left_hand_side_of_assignment(node: Id<Node>) -> bool {

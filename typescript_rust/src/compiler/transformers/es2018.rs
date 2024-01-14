@@ -502,7 +502,7 @@ impl TransformES2018 {
                         Some(self.emit_helpers().create_await_helper(visit_node(
                             &node.as_await_expression().expression,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         ))),
                     )
@@ -530,7 +530,7 @@ impl TransformES2018 {
                 let expression = visit_node(
                     Debug_.check_defined(node_as_yield_expression.expression.as_deref(), None),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
 
@@ -577,7 +577,7 @@ impl TransformES2018 {
                                     visit_node(
                                         node_expression,
                                         Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(is_expression),
+                                        Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     )
                                 },
@@ -615,7 +615,7 @@ impl TransformES2018 {
                                     visit_node(
                                         node_expression,
                                         Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(is_expression),
+                                        Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     )
                                 },
@@ -691,7 +691,7 @@ impl TransformES2018 {
                 objects.push(visit_node(
                     target,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ));
             } else {
@@ -703,7 +703,7 @@ impl TransformES2018 {
                             visit_node(
                                 &e_as_property_assignment.maybe_initializer().unwrap(),
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         )
@@ -887,7 +887,7 @@ impl TransformES2018 {
                 visit_node(
                     &node_as_binary_expression.left,
                     Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 node_as_binary_expression.operator_token.clone(),
@@ -900,7 +900,7 @@ impl TransformES2018 {
                             self.visitor(node)
                         }
                     }),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             );
@@ -932,7 +932,7 @@ impl TransformES2018 {
                         self.visitor(node)
                     }
                 }),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
             if result.is_some() || !Gc::ptr_eq(&visited, element) {
@@ -1103,19 +1103,19 @@ impl TransformES2018 {
                     maybe_visit_node(
                         node_as_for_statement.initializer.as_deref(),
                         Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
-                        Some(is_for_initializer),
+                        Some(|node| is_for_initializer(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
                         node_as_for_statement.condition.as_deref(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
                         node_as_for_statement.incrementor.as_deref(),
                         Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     visit_iteration_body(
@@ -1186,7 +1186,7 @@ impl TransformES2018 {
     ) -> Id<Node> {
         let node_as_for_of_statement = node.as_for_of_statement();
         let initializer_without_parens =
-            skip_parentheses(&node_as_for_of_statement.initializer, None);
+            skip_parentheses(node_as_for_of_statement.initializer, None, self);
         if is_variable_declaration_list(&initializer_without_parens)
             || is_assignment_pattern(&initializer_without_parens)
         {
@@ -1325,7 +1325,7 @@ impl TransformES2018 {
         let expression = visit_node(
             &node_as_for_of_statement.expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let iterator = if is_identifier(&expression) {
@@ -1540,7 +1540,7 @@ impl TransformES2018 {
                 maybe_visit_node(
                     node_as_parameter_declaration.maybe_initializer(),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             );
@@ -1986,7 +1986,7 @@ impl TransformES2018 {
         let body = maybe_visit_node(
             node_as_function_like_declaration.maybe_body(),
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_concise_body),
+            Some(|node| is_concise_body(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )
         .unwrap_or_else(|| self.factory.create_block(vec![], None));

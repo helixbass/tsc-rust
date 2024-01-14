@@ -183,19 +183,19 @@ impl TransformModule {
                     try_maybe_visit_node(
                         node_as_for_statement.initializer.as_deref(),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                        Some(is_for_initializer),
+                        Some(|node| is_for_initializer(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_maybe_visit_node(
                         node_as_for_statement.condition.as_deref(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_maybe_visit_node(
                         node_as_for_statement.incrementor.as_deref(),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_iteration_body(
@@ -220,7 +220,7 @@ impl TransformModule {
                     try_visit_node(
                         &node_as_expression_statement.expression,
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -247,7 +247,7 @@ impl TransformModule {
                                 self.visitor(node)
                             }
                         }),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -274,7 +274,7 @@ impl TransformModule {
                                 self.visitor(node)
                             }
                         }),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -302,7 +302,7 @@ impl TransformModule {
                 let mut expression/*: Expression*/ = try_visit_node(
                     &node_as_unary_expression.operand(),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_expression),
+                    Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?;
                 if is_prefix_unary_expression(node) {
@@ -627,10 +627,10 @@ impl TransformModule {
         {
             return inner_expr;
         }
-        if get_import_needs_import_star_helper(node) {
+        if get_import_needs_import_star_helper(node, self) {
             return self.emit_helpers().create_import_star_helper(inner_expr);
         }
-        if get_import_needs_import_default_helper(node) {
+        if get_import_needs_import_default_helper(node, self) {
             return self.emit_helpers().create_import_default_helper(inner_expr);
         }
         inner_expr
@@ -655,8 +655,7 @@ impl TransformModule {
             } else {
                 let mut variables: Vec<Id<Node /*VariableDeclaration*/>> = _d();
                 if let Some(namespace_declaration) = namespace_declaration
-                    .as_ref()
-                    .filter(|_| !is_default_import(node))
+                    .filter(|_| !is_default_import(node, self))
                 {
                     variables.push(
                         self.factory.create_variable_declaration(
@@ -685,8 +684,7 @@ impl TransformModule {
                     ));
 
                     if let Some(namespace_declaration) = namespace_declaration
-                        .as_ref()
-                        .filter(|_| is_default_import(node))
+                        .filter(|_| is_default_import(node, self))
                     {
                         variables.push(self.factory.create_variable_declaration(
                             Some(
@@ -719,8 +717,7 @@ impl TransformModule {
                 );
             }
         } else if let Some(namespace_declaration) = namespace_declaration
-            .as_ref()
-            .filter(|_| is_default_import(node))
+            .filter(|_| is_default_import(node, self))
         {
             statements.get_or_insert_default_().push(
                 self.factory.create_variable_statement(

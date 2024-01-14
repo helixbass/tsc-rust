@@ -68,10 +68,11 @@ impl TransformTypeScript {
         let extends_clause_element = get_effective_base_type_node(node);
         if extends_clause_element.matches(|extends_clause_element| {
             skip_outer_expressions(
-                &extends_clause_element
+                extends_clause_element
                     .as_expression_with_type_arguments()
                     .expression,
                 None,
+                self,
             )
             .kind()
                 != SyntaxKind::NullKeyword

@@ -528,7 +528,7 @@ impl TypeChecker {
         let symbol = symbol.unwrap();
         Ok(matches!(
             symbol.ref_(self).maybe_value_declaration(),
-            Some(value_declaration) if is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)?
+            Some(value_declaration) if is_expression(value_declaration, self) && !self.is_context_sensitive(&value_declaration)?
         ))
     }
 

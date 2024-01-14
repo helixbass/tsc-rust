@@ -286,7 +286,7 @@ impl TransformTypeScript {
         try_visit_node(
             &decorator.as_decorator().expression,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_expression),
+            Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )
     }

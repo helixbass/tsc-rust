@@ -1037,7 +1037,7 @@ impl Printer {
         &self,
         expression: Id<Node>, /*Expression*/
     ) -> bool {
-        let ref expression = skip_partially_emitted_expressions(expression);
+        let expression = skip_partially_emitted_expressions(expression, self);
         if is_numeric_literal(expression) {
             let text = self.get_literal_text_of_node(expression, Some(true), false);
             return expression.as_numeric_literal().numeric_literal_flags == TokenFlags::None

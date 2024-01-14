@@ -747,7 +747,7 @@ impl TransformES2015 {
             let expression = try_visit_node(
                 body,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
             let return_statement = self

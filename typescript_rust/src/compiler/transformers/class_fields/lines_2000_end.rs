@@ -21,7 +21,7 @@ impl TransformClassFields {
                         visit_nodes(
                             &node_as_array_literal_expression.elements,
                             Some(|node: Id<Node>| self.visit_array_assignment_target(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             None,
                             None,
                         ),

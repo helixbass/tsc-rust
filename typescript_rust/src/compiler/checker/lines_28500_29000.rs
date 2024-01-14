@@ -645,7 +645,7 @@ impl TypeChecker {
         &self,
         expr: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
-        let e = skip_parentheses(expr, None);
+        let e = skip_parentheses(expr, None, self);
         if e.kind() == SyntaxKind::Identifier {
             let symbol = self.get_resolved_symbol(&e)?;
             if symbol.ref_(self).flags().intersects(SymbolFlags::Variable) {

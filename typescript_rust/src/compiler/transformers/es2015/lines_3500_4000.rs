@@ -269,7 +269,7 @@ impl TransformES2015 {
             return self.visit_type_script_class_wrapper(node);
         }
 
-        let ref expression = skip_outer_expressions(&node_as_call_expression.expression, None);
+        let ref expression = skip_outer_expressions(node_as_call_expression.expression, None, self);
         if expression.kind() == SyntaxKind::SuperKeyword
             || is_super_property(expression)
             || some(
@@ -290,14 +290,14 @@ impl TransformES2015 {
                     try_visit_node(
                         &node_as_call_expression.expression,
                         Some(|node: Id<Node>| self.call_expression_visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
                         &node_as_call_expression.arguments,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         None,
                         None,
                     )?,
@@ -313,7 +313,7 @@ impl TransformES2015 {
         let node_as_call_expression = node.as_call_expression();
         let body = cast_present(
             cast_present(
-                skip_outer_expressions(&node_as_call_expression.expression, None),
+                skip_outer_expressions(node_as_call_expression.expression, None, self),
                 |node: &Id<Node>| is_arrow_function(node),
             )
             .as_arrow_function()
@@ -351,11 +351,12 @@ impl TransformES2015 {
             .as_variable_declaration_list()
             .declarations[0];
         let variable_as_variable_declaration = variable.as_variable_declaration();
-        let ref initializer = skip_outer_expressions(
-            &variable_as_variable_declaration
+        let initializer = skip_outer_expressions(
+            variable_as_variable_declaration
                 .maybe_initializer()
                 .unwrap(),
             None,
+            self,
         );
 
         let mut alias_assignment = try_cast(initializer.clone(), |initializer: &Id<Node>| {
@@ -375,14 +376,14 @@ impl TransformES2015 {
             alias_assignment.as_ref().map_or_else(
                 || initializer.clone(),
                 |alias_assignment| {
-                    skip_outer_expressions(&alias_assignment.as_binary_expression().right, None)
+                    skip_outer_expressions(alias_assignment.as_binary_expression().right, None, self)
                 },
             ),
             |node: &Id<Node>| is_call_expression(node),
         );
         let call_as_call_expression = call.as_call_expression();
         let func = cast_present(
-            skip_outer_expressions(&call_as_call_expression.expression, None),
+            skip_outer_expressions(call_as_call_expression.expression, None, self),
             |node: &Id<Node>| is_function_expression(node),
         );
         let func_as_function_expression = func.as_function_expression();
@@ -525,8 +526,9 @@ impl TransformES2015 {
             .intersects(TransformFlags::ContainsRestOrSpread)
             || node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword
             || is_super_property(&skip_outer_expressions(
-                &node_as_call_expression.expression,
+                node_as_call_expression.expression,
                 None,
+                self,
             ))
         {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
@@ -550,7 +552,7 @@ impl TransformES2015 {
                     try_visit_node(
                         &target,
                         Some(|node: Id<Node>| self.call_expression_visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
@@ -559,7 +561,7 @@ impl TransformES2015 {
                         try_visit_node(
                             &this_arg,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?
                     },
@@ -577,7 +579,7 @@ impl TransformES2015 {
                         try_visit_node(
                             &target,
                             Some(|node: Id<Node>| self.call_expression_visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
                         if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
@@ -586,14 +588,14 @@ impl TransformES2015 {
                             try_visit_node(
                                 &this_arg,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_expression),
+                                Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?
                         },
                         try_visit_nodes(
                             &node_as_call_expression.arguments,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_expression),
+                            Some(|node| is_expression(node, self)),
                             None,
                             None,
                         )?,
@@ -651,7 +653,7 @@ impl TransformES2015 {
                     try_visit_node(
                         &target,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_expression),
+                        Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     this_arg,

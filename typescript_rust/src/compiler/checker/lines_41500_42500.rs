@@ -486,7 +486,7 @@ impl TypeChecker {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        let expr = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node)));
+        let expr = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)));
         if expr.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         }

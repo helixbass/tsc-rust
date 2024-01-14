@@ -1104,11 +1104,12 @@ impl TypeChecker {
             );
         }
         let invoked_expression =
-            skip_parentheses(&call_expression_as_call_expression.expression, None);
+            skip_parentheses(call_expression_as_call_expression.expression, None, self);
         if is_access_expression(&invoked_expression) {
             Some(skip_parentheses(
-                &invoked_expression.as_has_expression().expression(),
+                invoked_expression.as_has_expression().expression(),
                 None,
+                self,
             ))
         } else {
             None
@@ -1151,7 +1152,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_false_expression(&self, expr: Id<Node> /*Expression*/) -> bool {
-        let node = skip_parentheses(expr, Some(true));
+        let node = skip_parentheses(expr, Some(true), self);
         node.kind() == SyntaxKind::FalseKeyword
             || node.kind() == SyntaxKind::BinaryExpression && {
                 let node_as_binary_expression = node.as_binary_expression();

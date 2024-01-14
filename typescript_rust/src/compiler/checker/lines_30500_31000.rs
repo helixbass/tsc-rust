@@ -823,7 +823,7 @@ impl TypeChecker {
                     SyntaxKind::Constructor
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
-                ) && !is_jsdoc_construct_signature(declaration)
+                ) && !is_jsdoc_construct_signature(declaration, self)
                     && !self.is_js_constructor(Some(&**declaration))?)
             })? {
                 if self.no_implicit_any {
@@ -949,7 +949,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_deprecated_suggestion_node(&self, node: Id<Node>) -> Id<Node> {
-        let node = skip_parentheses(node, None);
+        let node = skip_parentheses(node, None, self);
         match node.kind() {
             SyntaxKind::CallExpression | SyntaxKind::Decorator | SyntaxKind::NewExpression => {
                 self.get_deprecated_suggestion_node(&node.as_has_expression().expression())

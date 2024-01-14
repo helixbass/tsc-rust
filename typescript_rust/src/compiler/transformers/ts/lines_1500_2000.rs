@@ -293,10 +293,10 @@ impl TransformTypeScript {
             let expression = try_visit_node(
                 &name_as_computed_property_name.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_expression),
+                Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
-            let ref inner_expression = skip_partially_emitted_expressions(&expression);
+            let ref inner_expression = skip_partially_emitted_expressions(expression, self);
             if !is_simple_inlineable_expression(inner_expression) {
                 let generated_name = self
                     .factory
@@ -340,7 +340,7 @@ impl TransformTypeScript {
             try_visit_node(
                 &node.as_expression_with_type_arguments().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_left_hand_side_expression),
+                Some(|node| is_left_hand_side_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             Option::<Gc<NodeArray>>::None,

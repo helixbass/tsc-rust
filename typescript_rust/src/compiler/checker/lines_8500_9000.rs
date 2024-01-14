@@ -285,14 +285,14 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
-        let expr = skip_parentheses(node, Some(true));
+        let expr = skip_parentheses(node, Some(true), self);
         Ok(expr.kind() == SyntaxKind::NullKeyword
             || expr.kind() == SyntaxKind::Identifier
                 && self.get_resolved_symbol(&expr)? == self.undefined_symbol())
     }
 
     pub(super) fn is_empty_array_literal(&self, node: Id<Node> /*Expression*/) -> bool {
-        let expr = skip_parentheses(node, Some(true));
+        let expr = skip_parentheses(node, Some(true), self);
         expr.kind() == SyntaxKind::ArrayLiteralExpression
             && expr.as_array_literal_expression().elements.is_empty()
     }

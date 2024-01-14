@@ -47,7 +47,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             get_operator_precedence(SyntaxKind::BinaryExpression, binary_operator, None);
         let binary_operator_associativity =
             get_operator_associativity(SyntaxKind::BinaryExpression, binary_operator, None);
-        let emitted_operand = skip_partially_emitted_expressions(operand);
+        let emitted_operand = skip_partially_emitted_expressions(operand, self);
         if !is_left_side_of_binary
             && operand.kind() == SyntaxKind::ArrowFunction
             && binary_operator_precedence > OperatorPrecedence::Assignment
@@ -118,7 +118,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         &self,
         node: Id<Node>, /*Expression*/
     ) -> SyntaxKind {
-        let node = skip_partially_emitted_expressions(node);
+        let node = skip_partially_emitted_expressions(node, self);
 
         if is_literal_kind(node.kind()) {
             return node.kind();
@@ -163,7 +163,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         is_left_side_of_binary: bool,
         left_operand: Option<Id<Node> /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        let skipped = skip_partially_emitted_expressions(operand);
+        let skipped = skip_partially_emitted_expressions(operand, self);
 
         if skipped.kind() == SyntaxKind::ParenthesizedExpression {
             return operand.node_wrapper();
@@ -236,7 +236,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             SyntaxKind::QuestionToken,
             None,
         );
-        let emitted_condition = skip_partially_emitted_expressions(condition);
+        let emitted_condition = skip_partially_emitted_expressions(condition, self);
         let condition_precedence = get_expression_precedence(&emitted_condition);
         if compare_values(Some(condition_precedence), Some(conditional_precedence))
             != Comparison::GreaterThan
@@ -249,7 +249,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 
     fn parenthesize_branch_of_conditional_expression(&self, branch: Id<Node>) -> Id<Node> {
-        let emitted_expression = skip_partially_emitted_expressions(branch);
+        let emitted_expression = skip_partially_emitted_expressions(branch, self);
         if is_comma_sequence(&emitted_expression) {
             self.factory
                 .create_parenthesized_expression(branch.node_wrapper())
@@ -259,7 +259,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 
     fn parenthesize_expression_of_export_default(&self, expression: Id<Node>) -> Id<Node> {
-        let check = skip_partially_emitted_expressions(expression);
+        let check = skip_partially_emitted_expressions(expression, self);
         let mut needs_parens = is_comma_sequence(&check);
         if !needs_parens {
             match get_leftmost_expression(&check, false).kind() {
@@ -301,8 +301,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 
     fn parenthesize_left_side_of_access(&self, expression: Id<Node>) -> Id<Node> {
-        let emitted_expression = skip_partially_emitted_expressions(expression);
-        if is_left_hand_side_expression(&emitted_expression)
+        let emitted_expression = skip_partially_emitted_expressions(expression, self);
+        if is_left_hand_side_expression(emitted_expression, self)
             && (emitted_expression.kind() != SyntaxKind::NewExpression
                 || emitted_expression.as_new_expression().arguments.is_some())
         {
@@ -319,7 +319,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 
     fn parenthesize_operand_of_postfix_unary(&self, operand: Id<Node>) -> Id<Node> {
-        if is_left_hand_side_expression(operand) {
+        if is_left_hand_side_expression(operand, self) {
             operand.node_wrapper()
         } else {
             set_text_range(
@@ -333,7 +333,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 
     fn parenthesize_operand_of_prefix_unary(&self, operand: Id<Node>) -> Id<Node> {
-        if is_unary_expression(operand) {
+        if is_unary_expression(operand, self) {
             operand.node_wrapper()
         } else {
             set_text_range(
@@ -377,7 +377,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 
     fn parenthesize_expression_for_disallowed_comma(&self, expression: Id<Node>) -> Id<Node> {
-        let emitted_expression = skip_partially_emitted_expressions(expression);
+        let emitted_expression = skip_partially_emitted_expressions(expression, self);
         let expression_precedence = get_expression_precedence(&emitted_expression);
         let comma_precedence =
             get_operator_precedence(SyntaxKind::BinaryExpression, SyntaxKind::CommaToken, None);
@@ -395,11 +395,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 
     fn parenthesize_expression_of_expression_statement(&self, expression: Id<Node>) -> Id<Node> {
-        let emitted_expression = skip_partially_emitted_expressions(expression);
+        let emitted_expression = skip_partially_emitted_expressions(expression, self);
         if is_call_expression(&emitted_expression) {
             let emitted_expression_as_call_expression = emitted_expression.as_call_expression();
             let callee = &emitted_expression_as_call_expression.expression;
-            let kind = skip_partially_emitted_expressions(callee).kind();
+            let kind = skip_partially_emitted_expressions(callee, self).kind();
             if matches!(
                 kind,
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
