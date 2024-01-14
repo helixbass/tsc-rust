@@ -579,9 +579,7 @@ pub fn get_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /
     let js_doc = get_jsdoc_root(node, arena)?;
 
     let host = js_doc.ref_(arena).maybe_parent()?;
-    let Some(host_js_doc) = host.ref_(arena).maybe_js_doc() else {
-        return false;
-    };
+    let host_js_doc = host.ref_(arena).maybe_js_doc()?;
     // TODO: seems weird that .maybe_js_doc() is returning a Vec rather than a slice?
     matches!(
         last_or_undefined(&host_js_doc),
@@ -590,59 +588,57 @@ pub fn get_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /
 }
 
 pub fn get_jsdoc_root(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDoc*/>> {
-    find_ancestor(node.ref_(arena).maybe_parent(), arena, |node| is_jsdoc(&node.ref_(arena)))
+    find_ancestor(node.ref_(arena).maybe_parent(), |node| is_jsdoc(&node.ref_(arena)), arena)
 }
 
 pub fn get_type_parameter_from_js_doc(
     node: Id<Node>, /*TypeParameterDeclaration & { parent: JSDocTemplateTag }*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeParameterDeclaration*/>> {
-    let node_name = node.as_type_parameter_declaration().name();
-    let name = &node_name.as_identifier().escaped_text;
-    let node_parent_parent_parent = node.parent().parent().parent();
+    let node_name_ref = node.ref_(arena).as_type_parameter_declaration().name().ref_(arena);
+    let name = &node_name_ref.as_identifier().escaped_text;
+    let node_parent_parent_parent = node.ref_(arena).parent().ref_(arena).parent().ref_(arena).parent();
     let type_parameters = node_parent_parent_parent
-        .as_has_type_parameters()
+        .ref_(arena).as_has_type_parameters()
         .maybe_type_parameters();
     type_parameters
         .as_ref()
         .and_then(|type_parameters| {
             find(type_parameters, |p, _| {
-                &p.as_type_parameter_declaration()
+                &p.ref_(arena).as_type_parameter_declaration()
                     .name()
-                    .as_identifier()
+                    .ref_(arena).as_identifier()
                     .escaped_text
                     == name
             })
         })
-        .map(Clone::clone)
+        .copied()
 }
 
-pub fn has_rest_parameter(node: &Node /*SignatureDeclaration | JSDocSignature*/) -> bool {
-    let last = match node.kind() {
+pub fn has_rest_parameter(node: Id<Node> /*SignatureDeclaration | JSDocSignature*/, arena: &impl HasArena) -> bool {
+    let Some(last) = (match node.ref_(arena).kind() {
         SyntaxKind::JSDocSignature => {
-            last_or_undefined(&node.as_jsdoc_signature().parameters).cloned()
+            last_or_undefined(&node.ref_(arena).as_jsdoc_signature().parameters).copied()
         }
-        _ => last_or_undefined(&node.as_signature_declaration().parameters()).cloned(),
-    };
-    if last.is_none() {
+        _ => last_or_undefined(&node.ref_(arena).as_signature_declaration().parameters()).copied(),
+    }) else {
         return false;
-    }
-    let ref last = last.unwrap();
-    is_rest_parameter(last)
+    };
+    is_rest_parameter(last, arena)
 }
 
-pub fn is_rest_parameter(node: &Node /*ParameterDeclaration | JSDocParameterTag*/) -> bool {
-    let type_: Option<Id<Node>> = if is_jsdoc_parameter_tag(node) {
-        node.as_jsdoc_property_like_tag()
+pub fn is_rest_parameter(node: Id<Node> /*ParameterDeclaration | JSDocParameterTag*/, arena: &impl HasArena) -> bool {
+    let type_: Option<Id<Node>> = if is_jsdoc_parameter_tag(&node.ref_(arena)) {
+        node.ref_(arena).as_jsdoc_property_like_tag()
             .type_expression
-            .as_ref()
-            .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
+            .map(|type_expression| type_expression.ref_(arena).as_jsdoc_type_expression().type_)
     } else {
-        node.as_parameter_declaration().maybe_type()
+        node.ref_(arena).as_parameter_declaration().maybe_type()
     };
-    node.kind() == SyntaxKind::Parameter
-        && node.as_parameter_declaration().dot_dot_dot_token.is_some()
+    node.ref_(arena).kind() == SyntaxKind::Parameter
+        && node.ref_(arena).as_parameter_declaration().dot_dot_dot_token.is_some()
         || type_
-            .filter(|type_| type_.kind() == SyntaxKind::JSDocVariadicType)
+            .filter(|type_| type_.ref_(arena).kind() == SyntaxKind::JSDocVariadicType)
             .is_some()
 }
 

@@ -440,7 +440,7 @@ impl TypeChecker {
                                 last_param_declaration.maybe_symbol(),
                                 Some(last_param_declaration_symbol) if last_param_declaration_symbol == symbol
                             )
-                        ) && is_rest_parameter(last_param_declaration)
+                        ) && is_rest_parameter(last_param_declaration, self)
                     }
                 } {
                     return Ok(self.create_array_type(type_, None));

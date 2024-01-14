@@ -993,7 +993,7 @@ impl TypeChecker {
         node: Id<Node>, /*SignatureDeclaration*/
     ) {
         if self.language_version >= ScriptTarget::ES2015
-            || !has_rest_parameter(node)
+            || !has_rest_parameter(node, self)
             || node.flags().intersects(NodeFlags::Ambient)
             || node_is_missing(
                 node.maybe_as_function_like_declaration()

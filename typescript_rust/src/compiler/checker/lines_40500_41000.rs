@@ -531,7 +531,7 @@ impl TypeChecker {
             && name.parent().parent().kind() == SyntaxKind::JSDocTemplateTag
         {
             Debug_.assert(!is_in_js_file(Some(&**name)), None);
-            let type_parameter = get_type_parameter_from_js_doc(&name.parent());
+            let type_parameter = get_type_parameter_from_js_doc(name.parent(), self);
             return Ok(type_parameter.and_then(|type_parameter| type_parameter.maybe_symbol()));
         }
 

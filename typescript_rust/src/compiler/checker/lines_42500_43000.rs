@@ -241,7 +241,7 @@ impl TypeChecker {
                 .maybe_initializer()
                 .is_some()
                 || is_binding_pattern(parameter_as_parameter_declaration.maybe_name())
-                || is_rest_parameter(parameter)
+                || is_rest_parameter(parameter, self)
         })
     }
 

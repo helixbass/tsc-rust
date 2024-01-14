@@ -158,7 +158,7 @@ impl TypeChecker {
                         let param_as_parameter_declaration = param.as_parameter_declaration();
                         param_as_parameter_declaration.maybe_initializer().is_some()
                             || param_as_parameter_declaration.question_token.is_some()
-                            || is_rest_parameter(param)
+                            || is_rest_parameter(param, self)
                             || matches!(
                                 iife,
                                 Some(iife) if parameters.len() > iife.ref_(self).as_call_expression().arguments.len()
@@ -208,7 +208,7 @@ impl TypeChecker {
                     .map(ToOwned::to_owned),
                 None => self.get_type_parameters_from_declaration(declaration),
             };
-            if has_rest_parameter(declaration)
+            if has_rest_parameter(declaration, self)
                 || is_in_js_file(Some(declaration))
                     && self.maybe_add_js_synthetic_rest_parameter(declaration, &mut parameters)?
             {

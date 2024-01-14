@@ -550,7 +550,7 @@ impl TypeChecker {
                         parameter,
                         if is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
                             &*Diagnostics::An_argument_matching_this_binding_pattern_was_not_provided
-                        } else if is_rest_parameter(parameter) {
+                        } else if is_rest_parameter(parameter, self) {
                             &*Diagnostics::Arguments_for_the_rest_parameter_0_were_not_provided
                         } else {
                             &*Diagnostics::An_argument_for_0_was_not_provided

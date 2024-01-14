@@ -643,7 +643,7 @@ impl NodeBuilder {
         };
         let is_rest = matches!(
             parameter_declaration.as_ref(),
-            Some(parameter_declaration) if is_rest_parameter(parameter_declaration)
+            Some(parameter_declaration) if is_rest_parameter(parameter_declaration, self)
         ) || get_check_flags(&parameter_symbol.ref_(self))
             .intersects(CheckFlags::RestParameter);
         let dot_dot_dot_token: Option<Id<Node>> = if is_rest {
