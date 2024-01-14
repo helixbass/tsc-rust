@@ -44,7 +44,7 @@ impl TransformES2021 {
         match node.kind() {
             SyntaxKind::BinaryExpression => {
                 let binary_expression = node;
-                if is_logical_or_coalescing_assignment_expression(binary_expression) {
+                if is_logical_or_coalescing_assignment_expression(binary_expression, self) {
                     return self.transform_logical_assignment(binary_expression);
                 }
                 maybe_visit_each_child(

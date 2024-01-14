@@ -83,7 +83,7 @@ impl TransformES2015 {
         expression_result_is_unused: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_binary_expression = node.as_binary_expression();
-        if is_destructuring_assignment(node) {
+        if is_destructuring_assignment(node, self) {
             return try_flatten_destructuring_assignment(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -822,7 +822,7 @@ impl TransformES2015 {
             let ref assignment = self
                 .factory
                 .create_assignment(initializer.clone(), bound_value.node_wrapper());
-            if is_destructuring_assignment(assignment) {
+            if is_destructuring_assignment(assignment, self) {
                 statements.push(
                     self.factory.create_expression_statement(
                         self.visit_binary_expression(assignment, true)?,

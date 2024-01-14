@@ -286,6 +286,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
             ) -> io::Result<Id<Node /*Expression*/>>
             + 'create_assignment_callback,
     >,
+    arena: &impl HasArena,
 ) -> io::Result<Id<Node /*Expression*/>> {
     let mut location/*: TextRange*/ = node.node_wrapper();
     let mut value: Option<Id<Node /*Expression*/>> = _d();
@@ -319,12 +320,12 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                 >,
             >
     });
-    if is_destructuring_assignment(&node) {
+    if is_destructuring_assignment(node, self) {
         value = Some(node.as_binary_expression().right.clone());
         while is_empty_array_literal(&node.as_binary_expression().left)
             || is_empty_object_literal(&node.as_binary_expression().left)
         {
-            if is_destructuring_assignment(value.as_ref().unwrap()) {
+            if is_destructuring_assignment(value.unwrap(), arena) {
                 node = value.clone().unwrap();
                 location = value.clone().unwrap();
                 value = Some(node.as_binary_expression().right.clone());
@@ -391,7 +392,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
         &node,
         value.as_deref(),
         &*location,
-        Some(is_destructuring_assignment(&node)),
+        Some(is_destructuring_assignment(node, arena)),
     )?;
 
     if let Some(value) = value.filter(|_| needs_value == Some(true)) {

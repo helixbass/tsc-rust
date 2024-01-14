@@ -70,7 +70,7 @@ impl TransformModule {
                 }
             }
             SyntaxKind::BinaryExpression => {
-                if is_destructuring_assignment(node) {
+                if is_destructuring_assignment(node, self) {
                     return Ok(Some(
                         self.visit_destructuring_assignment(node, value_is_discarded)?
                             .into(),

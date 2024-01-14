@@ -1779,7 +1779,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         location_in: Id<Node>,
     ) -> io::Result<Id<Type>> {
-        let location = get_parse_tree_node(Some(location_in), Option::<fn(Id<Node>) -> bool>::None);
+        let location = get_parse_tree_node(Some(location_in), Option::<fn(Id<Node>) -> bool>::None, self);
         Ok(match location {
             Some(location) => self.get_type_of_symbol_at_location_(symbol, location)?,
             None => self.error_type(),
@@ -1794,6 +1794,7 @@ impl TypeChecker {
         let parameter = get_parse_tree_node(
             Some(parameter_in),
             Some(|node: Id<Node>| is_parameter(&node.ref_(self))),
+            self,
         );
         if parameter.is_none() {
             Debug_.fail(Some("Cannot get symbols of a synthetic parameter that cannot be resolved to a parse-tree node."));
@@ -1822,6 +1823,7 @@ impl TypeChecker {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(location),
             Option::<fn(Id<Node>) -> bool>::None
+            self,
         ));
         let prop_name = escape_leading_underscores(name);
         let lexically_scoped_identifier =
@@ -1873,7 +1875,7 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_type_node(node)));
+        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_type_node(node)), self);
         Ok(if let Some(node) = node {
             self.get_type_from_type_node_(node)?
         } else {
@@ -2021,7 +2023,7 @@ impl TypeChecker {
         location_in: Id<Node>,
         meaning: SymbolFlags,
     ) -> io::Result<Vec<Id<Symbol>>> {
-        let location = get_parse_tree_node(Some(location_in), Option::<fn(Id<Node>) -> bool>::None);
+        let location = get_parse_tree_node(Some(location_in), Option::<fn(Id<Node>) -> bool>::None, self);
         location.try_map_or_else(
             || Ok(Default::default()),
             |location| self.get_symbols_in_scope_(location, meaning),
@@ -2032,6 +2034,7 @@ impl TypeChecker {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Option::<fn(Id<Node>) -> bool>::None
+            self,
         ));
         self.get_symbol_at_location_(node, Some(true))
     }
@@ -2043,6 +2046,7 @@ impl TypeChecker {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Option::<fn(Id<Node>) -> bool>::None
+            self,
         ));
         self.get_index_infos_at_location_(node)
     }
@@ -2054,6 +2058,7 @@ impl TypeChecker {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             node_in,
             Option::<fn(Id<Node>) -> bool>::None
+            self,
         ));
         self.get_shorthand_assignment_value_symbol_(Some(node))
     }
@@ -2065,6 +2070,7 @@ impl TypeChecker {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_export_specifier(&node.ref_(self)))
+            self,
         ));
         self.get_export_specifier_local_target_symbol_(node)
     }
@@ -2080,7 +2086,7 @@ impl TypeChecker {
     }
 
     pub fn get_type_at_location(&self, node_in: Id<Node>) -> io::Result<Id<Type>> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None);
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None, self);
         Ok(if let Some(node) = node {
             self.get_type_of_node(node)?
         } else {
@@ -2095,6 +2101,7 @@ impl TypeChecker {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_assignment_pattern(node)),
+            self,
         );
         Ok(node
             .try_and_then(|node| self.get_type_of_assignment_pattern_(node))?
@@ -2108,6 +2115,7 @@ impl TypeChecker {
         let location = return_ok_none_if_none!(get_parse_tree_node(
             Some(location_in),
             Some(|node: Id<Node>| is_identifier(&node.ref_(self)))
+            self,
         ));
         self.get_property_symbol_of_destructuring_assignment_(location)
     }
@@ -2121,7 +2129,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None),
+            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
             flags,
             kind,
             None,
@@ -2136,7 +2144,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.type_to_string_(
             type_,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None),
+            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
             flags,
             None,
         )
@@ -2151,7 +2159,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None),
+            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
             meaning,
             flags,
             None,
@@ -2166,7 +2174,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None),
+            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
             flags,
             None,
         )
@@ -2182,7 +2190,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None),
+            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
             flags,
             kind,
             writer,
@@ -2198,7 +2206,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.type_to_string_(
             type_,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None),
+            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
             flags,
             writer,
         )
@@ -2214,7 +2222,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None),
+            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
             meaning,
             flags,
             writer,
@@ -2230,7 +2238,7 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None),
+            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
             flags,
             writer,
         )
@@ -2244,6 +2252,7 @@ impl TypeChecker {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_expression(node, self))
+            self,
         ));
         let containing_call =
             find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(node));
@@ -2299,6 +2308,7 @@ impl TypeChecker {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_object_literal_element_like(node)),
+            self,
         ));
         self.get_contextual_type_for_object_literal_element_(node, None)
     }
@@ -2311,6 +2321,7 @@ impl TypeChecker {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_call_like_expression(node)),
+            self,
         ));
         Ok(Some(self.get_contextual_type_for_argument_at_index_(
             node, arg_index,
@@ -2324,6 +2335,7 @@ impl TypeChecker {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_jsx_attribute_like(node)),
+            self,
         ));
         self.get_contextual_type_for_jsx_attribute_(node)
     }
@@ -2363,6 +2375,7 @@ impl TypeChecker {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| self.can_have_constant_value(node)),
+            self,
         ));
         self.get_constant_value_(node)
     }
@@ -2375,6 +2388,7 @@ impl TypeChecker {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_property_access_or_qualified_name_or_import_type_node(node)),
+            self,
         );
         Ok(match node {
             None => false,
@@ -2393,6 +2407,7 @@ impl TypeChecker {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_property_access_expression(&node.ref_(self))),
+            self,
         );
         Ok(match node {
             None => false,
@@ -2407,6 +2422,7 @@ impl TypeChecker {
         let declaration = return_ok_none_if_none!(get_parse_tree_node(
             Some(declaration_in),
             Some(|node: Id<Node>| is_function_like(Some(node))),
+            self,
         ));
         Ok(Some(self.get_signature_from_declaration_(declaration)?))
     }
@@ -2418,6 +2434,7 @@ impl TypeChecker {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_function_like(Some(node))),
+            self,
         ));
         Ok(Some(self.is_implementation_of_overload_(node)?))
     }
@@ -2441,7 +2458,7 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_parameter(&node.ref_(self))));
+        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_parameter(&node.ref_(self))), self);
         Ok(match node {
             None => false,
             Some(node) => self.is_optional_parameter_(node)?,
@@ -2625,6 +2642,7 @@ impl TypeChecker {
         let module_specifier = return_ok_default_if_none!(get_parse_tree_node(
             Some(module_specifier_in),
             Some(|node: Id<Node>| is_expression(node, self)),
+            self,
         ));
         self.resolve_external_module_name_(module_specifier, module_specifier, Some(true))
     }
@@ -2637,6 +2655,7 @@ impl TypeChecker {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Option::<fn(Id<Node>) -> bool>::None
+            self,
         ));
         self.try_get_this_type_at_(node, include_global_this, Option::<Id<Node>>::None)
     }
@@ -2648,6 +2667,7 @@ impl TypeChecker {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_type_node(node))
+            self,
         ));
         self.get_type_argument_constraint_(node)
     }
@@ -2657,7 +2677,7 @@ impl TypeChecker {
         file_in: Id<Node>, /*SourceFile*/
         ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
-        let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))))
+        let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))), self)
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
         if skip_type_checking(&file.ref_(self), &self.compiler_options, |file_name| {
             TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
@@ -2729,6 +2749,7 @@ impl TypeChecker {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_call_like_expression(node)),
+            self,
         );
         self.set_apparent_argument_count(argument_count);
         let res = node.try_map(|node| {

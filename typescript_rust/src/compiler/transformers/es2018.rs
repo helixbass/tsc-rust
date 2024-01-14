@@ -866,7 +866,7 @@ impl TransformES2018 {
         expression_result_is_unused: bool,
     ) -> Id<Node /*Expression*/> {
         let node_as_binary_expression = node.as_binary_expression();
-        if is_destructuring_assignment(node)
+        if is_destructuring_assignment(node, self)
             && node_as_binary_expression
                 .left
                 .transform_flags()

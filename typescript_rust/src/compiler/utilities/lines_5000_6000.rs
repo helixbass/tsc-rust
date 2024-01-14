@@ -133,21 +133,22 @@ pub fn is_prototype_access(node: Id<Node>, arena: &impl HasArena) -> bool {
         }
 }
 
-pub fn is_right_side_of_qualified_name_or_property_access(node: &Node) -> bool {
-    node.parent().kind() == SyntaxKind::QualifiedName
-        && ptr::eq(&*node.parent().as_qualified_name().right, node)
-        || node.parent().kind() == SyntaxKind::PropertyAccessExpression
-            && ptr::eq(&*node.parent().as_property_access_expression().name, node)
+pub fn is_right_side_of_qualified_name_or_property_access(node: Id<Node>, arena: &impl HasArena) -> bool {
+    node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::QualifiedName
+        && node.ref_(arena).parent().ref_(arena).as_qualified_name().right == node
+        || node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::PropertyAccessExpression
+            && node.ref_(arena).parent().ref_(arena).as_property_access_expression().name == node
 }
 
 pub fn is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(
-    node: &Node,
+    node: Id<Node>,
+    arena: &impl HasArena,
 ) -> bool {
-    is_qualified_name(&node.parent()) && ptr::eq(&*node.parent().as_qualified_name().right, node)
-        || is_property_access_expression(&node.parent())
-            && ptr::eq(&*node.parent().as_property_access_expression().name, node)
-        || is_jsdoc_member_name(&node.parent())
-            && ptr::eq(&*node.parent().as_jsdoc_member_name().right, node)
+    is_qualified_name(&node.ref_(arena).parent().ref_(arena)) && node.ref_(arena).parent().ref_(arena).as_qualified_name().right == node
+        || is_property_access_expression(&node.ref_(arena).parent().ref_(arena))
+            && node.ref_(arena).parent().ref_(arena).as_property_access_expression().name == node
+        || is_jsdoc_member_name(&node.ref_(arena).parent().ref_(arena))
+            && node.ref_(arena).parent().ref_(arena).as_jsdoc_member_name().right == node
 }
 
 pub fn is_empty_object_literal(expression: &Node) -> bool {
@@ -167,10 +168,10 @@ pub fn get_local_symbol_for_export_default(
     symbol: Id<Symbol>,
     arena: &impl HasArena,
 ) -> Option<Id<Symbol>> {
-    if !is_export_default_symbol(symbol, arena) || symbol.maybe_declarations().is_none() {
+    if !is_export_default_symbol(symbol, arena) || symbol.ref_(arena).maybe_declarations().is_none() {
         return None;
     }
-    for decl in symbol.maybe_declarations().as_ref().unwrap() {
+    for decl in symbol.ref_(arena).maybe_declarations().as_ref().unwrap() {
         if let Some(decl_local_symbol) = decl.maybe_local_symbol() {
             return Some(decl_local_symbol);
         }
@@ -181,7 +182,7 @@ pub fn get_local_symbol_for_export_default(
 fn is_export_default_symbol(symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
     /*symbol &&*/
     match symbol
-        .maybe_declarations()
+        .ref_(arena).maybe_declarations()
         .as_ref()
         .filter(|declarations| !declarations.is_empty())
     {
@@ -282,7 +283,7 @@ pub fn move_range_pos(range: &impl ReadonlyTextRange, pos: isize) -> BaseTextRan
     create_range(pos, Some(range.end()))
 }
 
-pub fn move_range_past_decorators(node: Id<Node>) -> BaseTextRange {
+pub fn move_range_past_decorators(node: &Node) -> BaseTextRange {
     if let Some(node_decorators) = node
         .maybe_decorators()
         .filter(|node_decorators| !node_decorators.is_empty())
@@ -293,7 +294,7 @@ pub fn move_range_past_decorators(node: Id<Node>) -> BaseTextRange {
     }
 }
 
-pub fn move_range_past_modifiers(node: Id<Node>) -> BaseTextRange {
+pub fn move_range_past_modifiers(node: &Node) -> BaseTextRange {
     if let Some(node_modifiers) = node
         .maybe_modifiers()
         .filter(|node_modifiers| !node_modifiers.is_empty())
@@ -374,14 +375,14 @@ pub fn get_lines_between_range_end_and_range_start(
 pub fn positions_are_on_same_line(
     pos1: isize,
     pos2: isize,
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
 ) -> bool {
     get_lines_between_positions(source_file.as_source_file(), pos1, pos2) == 0
 }
 
 pub fn get_start_position_of_range(
     range: &impl ReadonlyTextRange,
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     include_comments: bool,
 ) -> isize {
     if position_is_synthesized(range.pos()) {
@@ -415,15 +416,12 @@ pub fn get_lines_between_position_and_next_non_whitespace_character(
     unimplemented!()
 }
 
-pub fn is_declaration_name_of_enum_or_namespace(node: Id<Node> /*Identifier*/) -> bool {
-    let parse_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
+pub fn is_declaration_name_of_enum_or_namespace(node: Id<Node> /*Identifier*/, arena: &impl HasArena) -> bool {
+    let parse_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, arena);
     if let Some(parse_node) = parse_node {
-        match parse_node.parent().kind() {
+        match parse_node.ref_(arena).parent().ref_(arena).kind() {
             SyntaxKind::EnumDeclaration | SyntaxKind::ModuleDeclaration => {
-                return Gc::ptr_eq(
-                    &parse_node,
-                    &parse_node.parent().as_named_declaration().name(),
-                );
+                return parse_node == parse_node.ref_(arena).parent().ref_(arena).as_named_declaration().name();
             }
             _ => (),
         }

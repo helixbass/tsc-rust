@@ -35,7 +35,7 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>) -> Gc<GcCell<EmitNode>> {
                     return ret;
                 }
 
-                let ref source_file = maybe_get_source_file_of_node(get_parse_tree_node(
+                let source_file = maybe_get_source_file_of_node(get_parse_tree_node(
                     maybe_get_source_file_of_node(Some(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                 ))

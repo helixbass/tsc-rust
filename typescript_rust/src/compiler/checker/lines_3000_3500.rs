@@ -361,7 +361,7 @@ impl TypeChecker {
         dont_resolve_alias: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if entity_name.ref_(self).kind() == SyntaxKind::Identifier
-            && is_right_side_of_qualified_name_or_property_access(&entity_name)
+            && is_right_side_of_qualified_name_or_property_access(entity_name, self)
         {
             entity_name = entity_name.parent();
         }

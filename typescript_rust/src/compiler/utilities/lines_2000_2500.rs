@@ -337,7 +337,7 @@ pub fn get_assigned_expando_initializer(
         let result = has_expando_value_property(
             node_as_call_expression.arguments[2],
             &*node_as_call_expression.arguments[1]
-                .as_literal_like_node()
+                .ref_(arena).as_literal_like_node()
                 .text()
                 == "prototype",
             arena,
@@ -355,7 +355,7 @@ pub fn get_expando_initializer(
     arena: &impl HasArena,
 ) -> Option<Id<Node /*Expression*/>> {
     if is_call_expression(&initializer.ref_(arena)) {
-        let e = skip_parentheses(initializer.as_call_expression().expression, None, arena);
+        let e = skip_parentheses(initializer.ref_(arena).as_call_expression().expression, None, arena);
         return if matches!(
             e.ref_(arena).kind(),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
@@ -615,7 +615,7 @@ pub fn is_bindable_static_access_expression(
 }
 
 pub fn is_bindable_static_element_access_expression(
-    node: &Node,
+    node: Id<Node>,
     exclude_this_keyword: Option<bool>,
     arena: &impl HasArena,
 ) -> bool {

@@ -1475,7 +1475,7 @@ impl TypeChecker {
                 };
             if symbol.is_none() {
                 let module_name = self.get_fully_qualified_name(module_symbol, Some(node))?;
-                let declaration_name = declaration_name_to_string(Some(name) self);
+                let declaration_name = declaration_name_to_string(Some(name), self);
                 let suggestion =
                     self.get_suggested_symbol_for_nonexistent_module(&name, target_symbol)?;
                 if let Some(suggestion) = suggestion {

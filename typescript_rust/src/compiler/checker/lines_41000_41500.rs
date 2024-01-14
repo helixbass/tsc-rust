@@ -323,7 +323,7 @@ impl TypeChecker {
         expr: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let mut expr = expr.node_wrapper();
-        if is_right_side_of_qualified_name_or_property_access(&expr) {
+        if is_right_side_of_qualified_name_or_property_access(expr, self) {
             expr = expr.parent();
         }
         Ok(self.get_regular_type_of_literal_type(self.get_type_of_expression(&expr)?))
@@ -477,7 +477,7 @@ impl TypeChecker {
         if is_generated_identifier(node_in) {
             return Ok(false);
         }
-        let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
+        let node = get_parse_tree_node(Some(node_in), Some(is_identifier), self);
         if node.is_none() {
             return Ok(false);
         }
@@ -561,7 +561,7 @@ impl TypeChecker {
         node_in: Id<Node>, /*Identifier*/
         prefix_locals: Option<bool>,
     ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
-        let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
+        let node = get_parse_tree_node(Some(node_in), Some(is_identifier), self);
         if let Some(node) = node.as_ref() {
             let symbol = self.get_referenced_value_symbol(
                 node,
@@ -639,7 +639,7 @@ impl TypeChecker {
         {
             return Ok(Some(node_in_generated_import_reference));
         }
-        let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
+        let node = get_parse_tree_node(Some(node_in), Some(is_identifier), self);
         if let Some(node) = node.as_ref() {
             let symbol = self.get_referenced_value_symbol(node, None)?;
             if self.is_non_local_alias(symbol, Some(SymbolFlags::Value))
@@ -739,7 +739,7 @@ impl TypeChecker {
         node_in: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         if !is_generated_identifier(node_in) {
-            let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
+            let node = get_parse_tree_node(Some(node_in), Some(is_identifier), self);
             if let Some(node) = node.as_ref() {
                 let symbol = self.get_referenced_value_symbol(node, None)?;
                 if let Some(symbol) = symbol.try_filter(|&symbol| {
@@ -757,7 +757,7 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node| is_declaration(node, self)));
+        let node = get_parse_tree_node(Some(node_in), Some(|node| is_declaration(node, self)), self);
         if let Some(node) = node.as_ref() {
             let symbol = self.get_symbol_of_node(node)?;
             if let Some(symbol) = symbol {
@@ -814,7 +814,7 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Some(is_import_equals_declaration));
+        let node = get_parse_tree_node(Some(node_in), Some(is_import_equals_declaration), self);
         if match node.as_ref() {
             None => true,
             Some(node) => {

@@ -106,7 +106,7 @@ impl TransformDeclarations {
         self.set_error_name_node(node.as_named_declaration().maybe_name());
         Debug_.assert(
             self.resolver.is_late_bound(
-                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
+                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
             )?,
             None,
         );

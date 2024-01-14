@@ -391,7 +391,7 @@ impl NodeBuilder {
         if kind == SyntaxKind::ConstructorType
             && signature.flags.intersects(SignatureFlags::Abstract)
         {
-            let flags = modifiers_to_flags(modifiers.as_deref());
+            let flags = modifiers_to_flags(modifiers.as_deref(), self);
             modifiers = Some(
                 get_factory().create_modifiers_from_modifier_flags(flags | ModifierFlags::Abstract),
             );

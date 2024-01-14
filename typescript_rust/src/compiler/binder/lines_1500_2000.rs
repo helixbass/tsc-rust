@@ -696,7 +696,7 @@ impl BindBinaryExpressionFlowStateMachine {
     ) -> Option<Id<Node /*BinaryExpression*/>> {
         if
         /*node &&*/
-        is_binary_expression(node) && !is_destructuring_assignment(node) {
+        is_binary_expression(node) && !is_destructuring_assignment(node, self) {
             return Some(node.node_wrapper());
         }
         self.binder.bind(Some(node));

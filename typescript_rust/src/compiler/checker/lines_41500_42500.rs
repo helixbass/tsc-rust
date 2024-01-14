@@ -161,9 +161,10 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
-        let ref declaration = return_ok_default_if_none!(get_parse_tree_node(
+        let declaration = return_ok_default_if_none!(get_parse_tree_node(
             Some(node),
-            Some(is_function_declaration)
+            Some(is_function_declaration),
+            self,
         ));
         let symbol = return_ok_default_if_none!(self.get_symbol_of_node(declaration)?);
         if !symbol.ref_(self).flags().intersects(SymbolFlags::Function) {
@@ -185,7 +186,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> io::Result<impl Iterator<Item = Id<Symbol>>> {
-        let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
+        let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration), self);
         if declaration.is_none() {
             return Ok(Either::Right(iter::empty()));
         }
@@ -270,7 +271,7 @@ impl TypeChecker {
         type_name_in: Id<Node>, /*EntityName*/
         location: Option<Id<Node>>,
     ) -> io::Result<TypeReferenceSerializationKind> {
-        let type_name = get_parse_tree_node(Some(type_name_in), Some(is_entity_name));
+        let type_name = get_parse_tree_node(Some(type_name_in), Some(is_entity_name), self);
         if type_name.is_none() {
             return Ok(TypeReferenceSerializationKind::Unknown);
         }
@@ -279,7 +280,7 @@ impl TypeChecker {
         let mut location = location.map(|location| location.borrow().node_wrapper());
         if location.is_some() {
             location =
-                get_parse_tree_node(location.as_deref(), Option::<fn(Id<Node>) -> bool>::None);
+                get_parse_tree_node(location.as_deref(), Option::<fn(Id<Node>) -> bool>::None, self);
             if location.is_none() {
                 return Ok(TypeReferenceSerializationKind::Unknown);
             }
@@ -420,6 +421,7 @@ impl TypeChecker {
         let declaration = get_parse_tree_node(
             Some(declaration_in),
             Some(|node: Id<Node>| is_variable_like_or_accessor(&node.ref_(self))),
+            self,
         );
         if declaration.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
@@ -465,6 +467,7 @@ impl TypeChecker {
         let signature_declaration = get_parse_tree_node(
             Some(signature_declaration_in),
             Some(|node: Id<Node>| is_function_like(Some(node))),
+            self,
         );
         if signature_declaration.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
@@ -486,7 +489,7 @@ impl TypeChecker {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        let expr = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)));
+        let expr = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)), self);
         if expr.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         }
@@ -553,6 +556,7 @@ impl TypeChecker {
             let reference = get_parse_tree_node(
                 Some(reference_in),
                 Some(|node: Id<Node>| is_identifier(node)),
+                self,
             );
             if let Some(reference) = reference.as_ref() {
                 let symbol = self.get_referenced_value_symbol(reference, None)?;

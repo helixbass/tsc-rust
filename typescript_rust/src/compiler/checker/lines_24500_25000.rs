@@ -527,7 +527,7 @@ impl TypeChecker {
             location.kind(),
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier
         ) {
-            if is_right_side_of_qualified_name_or_property_access(&location) {
+            if is_right_side_of_qualified_name_or_property_access(location, self) {
                 location = location.parent();
             }
             if is_expression_node(location, self)

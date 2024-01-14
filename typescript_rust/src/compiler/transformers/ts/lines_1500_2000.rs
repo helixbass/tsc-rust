@@ -209,6 +209,7 @@ impl TransformTypeScript {
                 .and_set_parent(get_parse_tree_node(
                     self.maybe_current_lexical_scope(),
                     Option::<fn(Id<Node>) -> bool>::None,
+                    self,
                 )),
             SyntaxKind::QualifiedName => self.serialize_qualified_name_as_expression(node),
             _ => unreachable!(),

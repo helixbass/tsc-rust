@@ -239,7 +239,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             if question_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsTypeScript);
             }
-            if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
                 .intersects(ModifierFlags::ParameterPropertyModifier)
             {
                 node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
@@ -425,7 +425,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
         }
         if question_or_exclamation_token_is_some
-            || modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            || modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
                 .intersects(ModifierFlags::Ambient)
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);

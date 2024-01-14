@@ -496,40 +496,33 @@ pub fn try_find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>, TErr
     Ok(None)
 }
 
-pub fn is_parse_tree_node(node: Id<Node>) -> bool {
+pub fn is_parse_tree_node(node: &Node) -> bool {
     !node.flags().intersects(NodeFlags::Synthesized)
 }
 
 pub fn get_parse_tree_node(
     node: Option<Id<Node>>,
     node_test: Option<impl FnOnce(Id<Node>) -> bool>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node>> {
-    let node = node.map(|node| node.borrow().node_wrapper());
-
-    match node {
-        None => {
-            return node;
-        }
-        Some(node) if is_parse_tree_node(&node) => {
-            return Some(node);
-        }
-        _ => (),
+    let node = node?;
+    if is_parse_tree_node(&node.ref_(arena)) {
+        return Some(node);
     }
-    let node = node.unwrap();
 
-    let mut node = node.maybe_original();
-    while let Some(node_present) = node.clone() {
-        if is_parse_tree_node(&node_present) {
+    let mut node = node.ref_(arena).maybe_original();
+    while let Some(node_present) = node {
+        if is_parse_tree_node(&node_present.ref_(arena)) {
             return if match node_test {
                 None => true,
-                Some(node_test) => node_test(&node_present),
+                Some(node_test) => node_test(node_present),
             } {
                 node
             } else {
                 None
             };
         }
-        node = node_present.maybe_original();
+        node = node_present.ref_(arena).maybe_original();
     }
     None
 }

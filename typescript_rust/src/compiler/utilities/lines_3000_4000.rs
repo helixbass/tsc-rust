@@ -548,12 +548,13 @@ pub fn node_is_synthesized<TRange: ReadonlyTextRange>(range: &TRange) -> bool {
     position_is_synthesized(range.pos()) || position_is_synthesized(range.end())
 }
 
-pub fn get_original_source_file(source_file: Id<Node>, /*SourceFile*/) -> Id<Node /*SourceFile*/> {
+pub fn get_original_source_file(source_file: Id<Node> /*SourceFile*/, arena: &impl HasArena) -> Id<Node /*SourceFile*/> {
     get_parse_tree_node(
         Some(source_file),
-        Some(|node: Id<Node>| is_source_file(node)),
+        Some(|node: Id<Node>| is_source_file(&node.ref_(arena))),
+        arena,
     )
-    .unwrap_or_else(|| source_file.node_wrapper())
+    .unwrap_or(source_file)
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

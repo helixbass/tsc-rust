@@ -653,7 +653,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
             .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
             && !is_internal_name(node)
         {
-            let original = get_parse_tree_node(Some(node), Some(is_identifier));
+            let original = get_parse_tree_node(Some(node), Some(is_identifier), self);
             if let Some(original) = original
                 .try_filter(|original| self.is_name_of_declaration_with_colliding_name(original))?
             {
@@ -739,7 +739,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
         node: Id<Node>,        /*Identifier*/
     ) -> bool {
         let mut current_node =
-            get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
+            get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);
         if current_node.as_ref().is_none_or_matches(|current_node| {
             ptr::eq(&**current_node, declaration)
                 || current_node.end() <= declaration.pos()

@@ -433,7 +433,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportAssignment | ExportDeclaration*/
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        let parsed = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
+        let parsed = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);
         if !parsed.matches(|parsed| ptr::eq(&*parsed, node)) {
             if node
                 .transform_flags()

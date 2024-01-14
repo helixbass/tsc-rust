@@ -56,7 +56,7 @@ impl TransformDeclarations {
                 );
             }
         }
-        if get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).is_none() {
+        if get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).is_none() {
             return Ok(if let Some(type_) = type_ {
                 try_maybe_visit_node(
                     Some(type_),
@@ -171,7 +171,7 @@ impl TransformDeclarations {
         node: Id<Node>, /*NamedDeclaration*/
     ) -> bool {
         let ref node =
-            get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap();
+            get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap();
         match node.kind() {
             SyntaxKind::FunctionDeclaration
             | SyntaxKind::ModuleDeclaration
@@ -687,7 +687,7 @@ impl TransformDeclarations {
             }
             if has_dynamic_name(input, self)
                 && !self.resolver.is_late_bound(
-                    &get_parse_tree_node(Some(input), Option::<fn(Id<Node>) -> bool>::None)
+                    &get_parse_tree_node(Some(input), Option::<fn(Id<Node>) -> bool>::None, self)
                         .unwrap(),
                 )?
             {

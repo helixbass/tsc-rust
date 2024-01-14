@@ -1009,7 +1009,7 @@ impl Printer {
         context_node: Id<Node>,
         indent_leading: Option<bool>,
     ) -> isize {
-        let node = get_parse_tree_node(Some(context_node), Option::<fn(Id<Node>) -> bool>::None);
+        let node = get_parse_tree_node(Some(context_node), Option::<fn(Id<Node>) -> bool>::None, self);
         let is_similar_node = matches!(
             node.as_ref(),
             Some(node) if node.kind() == context_node.kind()

@@ -825,7 +825,7 @@ impl TransformTypeScript {
         &self,
         node_in: Id<Node>, /*ModuleDeclaration*/
     ) -> bool {
-        let node = get_parse_tree_node(Some(node_in), Some(is_module_declaration));
+        let node = get_parse_tree_node(Some(node_in), Some(is_module_declaration), self);
         if node.is_none() {
             return true;
         }

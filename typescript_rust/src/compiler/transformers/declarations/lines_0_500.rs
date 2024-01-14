@@ -1197,7 +1197,7 @@ impl TransformDeclarations {
     pub(super) fn should_print_with_initializer(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(can_have_literal_initializer(node, self)
             && self.resolver.is_literal_const_declaration(
-                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
+                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
             )?)
     }
 
@@ -1207,7 +1207,7 @@ impl TransformDeclarations {
     ) -> io::Result<Option<Id<Node>>> {
         if self.should_print_with_initializer(node)? {
             return Ok(Some(self.resolver.create_literal_const_value(
-                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
+                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
                 self.symbol_tracker(),
             )?));
         }

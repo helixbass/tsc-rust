@@ -1125,7 +1125,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     }
 
     fn is_value_alias_declaration(&self, node_in: Id<Node>) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None);
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None, self);
         node.as_ref().try_map_or(false, |node| {
             self.type_checker.is_value_alias_declaration(node)
         })
@@ -1136,7 +1136,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         node_in: Id<Node>,
         check_children: Option<bool>,
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None);
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None, self);
         node.as_ref().try_map_or(false, |node| {
             self.type_checker
                 .is_referenced_alias_declaration(node, check_children)
@@ -1152,7 +1152,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     }
 
     fn get_node_check_flags(&self, node_in: Id<Node>) -> NodeCheckFlags {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None);
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None, self);
         node.as_ref().map_or(NodeCheckFlags::None, |node| {
             self.type_checker.get_node_check_flags(node)
         })
@@ -1163,7 +1163,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     }
 
     fn is_late_bound(&self, node: Id<Node> /*Declaration*/) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
+        let node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);
         let symbol = node
             .as_ref()
             .try_and_then(|node| self.type_checker.get_symbol_of_node(node))?;
@@ -1304,6 +1304,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| self.type_checker.can_have_constant_value(node)),
+            self,
         );
         node.as_ref()
             .try_and_then(|node| self.type_checker.get_constant_value(node))
@@ -1352,6 +1353,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| has_possible_external_module_reference(node, self)),
+            self,
         );
         node.as_ref().try_and_then(|node| {
             self.type_checker
@@ -1448,7 +1450,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<AllAccessorDeclarations> {
         let ref accessor =
-            get_parse_tree_node(Some(accessor), Some(is_get_or_set_accessor_declaration)).unwrap();
+            get_parse_tree_node(Some(accessor), Some(is_get_or_set_accessor_declaration), self).unwrap();
         let other_kind = if accessor.kind() == SyntaxKind::SetAccessor {
             SyntaxKind::GetAccessor
         } else {
@@ -1505,8 +1507,8 @@ impl EmitResolver for EmitResolverCreateResolver {
         node: Id<Node>,
         decl: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) -> io::Result<bool> {
-        let parse_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
-        let parse_decl = get_parse_tree_node(Some(decl), Option::<fn(Id<Node>) -> bool>::None);
+        let parse_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);
+        let parse_decl = get_parse_tree_node(Some(decl), Option::<fn(Id<Node>) -> bool>::None, self);
         Ok(matches!(
             (parse_node, parse_decl),
             (Some(ref parse_node), Some(ref parse_decl)) if (
@@ -1523,7 +1525,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>> {
-        let n = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
+        let n = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);
         Debug_.assert(
             matches!(
                 n.as_ref(),

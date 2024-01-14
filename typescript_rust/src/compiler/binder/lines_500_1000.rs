@@ -396,7 +396,7 @@ impl BinderType {
             SyntaxKind::PrefixUnaryExpression => self.bind_prefix_unary_expression_flow(node),
             SyntaxKind::PostfixUnaryExpression => self.bind_postfix_unary_expression_flow(node),
             SyntaxKind::BinaryExpression => {
-                if is_destructuring_assignment(node) {
+                if is_destructuring_assignment(node, self) {
                     self.set_in_assignment_pattern(save_in_assignment_pattern);
                     self.bind_destructuring_assignment_flow(node);
                     return;

@@ -611,7 +611,7 @@ impl TransformSystemModule {
                 return self.visit_partially_emitted_expression(node, value_is_discarded)
             }
             SyntaxKind::BinaryExpression => {
-                if is_destructuring_assignment(node) {
+                if is_destructuring_assignment(node, self) {
                     return self.visit_destructuring_assignment(node, value_is_discarded);
                 }
             }

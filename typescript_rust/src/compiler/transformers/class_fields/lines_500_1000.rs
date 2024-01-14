@@ -652,7 +652,7 @@ impl TransformClassFields {
         value_is_discarded: bool,
     ) -> VisitResult {
         let mut node = node.node_wrapper();
-        if is_destructuring_assignment(&node) {
+        if is_destructuring_assignment(node, self) {
             let saved_pending_expressions = self.maybe_pending_expressions().clone();
             self.set_pending_expressions(None);
             node = self.factory.update_binary_expression(

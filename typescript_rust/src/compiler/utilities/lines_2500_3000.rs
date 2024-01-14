@@ -38,7 +38,7 @@ pub fn try_get_import_from_module_specifier(
         }
         SyntaxKind::LiteralType => {
             Debug_.assert(is_string_literal(&node.ref_(arena)), None);
-            try_cast(node_parent.parent(), |node| is_import_type_node(&node.ref_(arena)))
+            try_cast(node_parent.ref_(arena).parent(), |node| is_import_type_node(&node.ref_(arena)))
         }
         _ => None,
     }
@@ -122,7 +122,7 @@ pub fn get_namespace_declaration_node(
                 try_cast(export_clause, |export_clause| {
                     is_namespace_export(&export_clause.ref_(arena))
                 })
-            })
+            }),
         _ => Debug_.assert_never(node, None),
     }
 }
@@ -559,7 +559,7 @@ pub fn get_effective_container_for_jsdoc_template_tag(
 
 pub fn get_host_signature_from_jsdoc(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*SignatureDeclaration*/>> {
     let host = get_effective_jsdoc_host(node, arena);
-    host.filter(|host| is_function_like(Some(host.ref_(arena))))
+    host.filter(|host| is_function_like(Some(&host.ref_(arena))))
 }
 
 pub fn get_effective_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
@@ -585,7 +585,7 @@ pub fn get_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /
     matches!(
         last_or_undefined(&host_js_doc),
         Some(&last) if js_doc == last
-    )
+    ).then_some(host)
 }
 
 pub fn get_jsdoc_root(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDoc*/>> {
@@ -866,7 +866,7 @@ pub fn maybe_is_node_descendant_of(
 pub fn is_declaration_name(name: Id<Node>, arena: &impl HasArena) -> bool {
     !is_source_file(&name.ref_(arena))
         && !is_binding_pattern(Some(&name.ref_(arena)))
-        && is_declaration(name.parent(), arena)
+        && is_declaration(name.ref_(arena).parent(), arena)
         && matches!(
             name.ref_(arena).parent().ref_(arena).as_named_declaration().maybe_name(),
             Some(parent_name) if parent_name == name

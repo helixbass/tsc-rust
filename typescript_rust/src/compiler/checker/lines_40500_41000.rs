@@ -495,7 +495,7 @@ impl TypeChecker {
         }
 
         let mut name = name.node_wrapper();
-        while is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(&name) {
+        while is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(name, self) {
             name = name.parent();
         }
         let name = &name;
