@@ -436,7 +436,7 @@ impl TransformTypeScript {
                 .parameters()
                 .owned_iter()
                 .filter(|p| {
-                    is_parameter_property_declaration(p, constructor)
+                    is_parameter_property_declaration(p, constructor, self)
                 });
         if parameters_with_property_assignments
             .clone()

@@ -73,7 +73,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_property_without_initializer(&self, node: Id<Node>) -> bool {
-        node.kind() == SyntaxKind::PropertyDeclaration && !has_abstract_modifier(node) && {
+        node.kind() == SyntaxKind::PropertyDeclaration && !has_abstract_modifier(node, self) && {
             let node_as_property_declaration = node.as_property_declaration();
             node_as_property_declaration.exclamation_token.is_none()
                 && node_as_property_declaration.maybe_initializer().is_none()

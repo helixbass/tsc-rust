@@ -234,8 +234,8 @@ pub fn get_type_parameter_owner(d: Id<Node> /*Declaration*/) -> Option<Id<Node>>
 }
 
 // export type ParameterPropertyDeclaration = ParameterDeclaration & { parent: ConstructorDeclaration, name: Identifier };
-pub fn is_parameter_property_declaration(node: Id<Node>, parent: Id<Node>) -> bool {
-    has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier)
+pub fn is_parameter_property_declaration(node: Id<Node>, parent: Id<Node>, arena: &impl HasArena) -> bool {
+    has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier, arena)
         && parent.kind() == SyntaxKind::Constructor
 }
 
@@ -1971,17 +1971,17 @@ pub(crate) fn has_scope_marker(statements: &[Id<Node /*Statement*/>]) -> bool {
     )
 }
 
-pub(crate) fn needs_scope_marker(result: &Node /*Statement*/) -> bool {
+pub(crate) fn needs_scope_marker(result: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
     !is_any_import_or_re_export(result)
         && !is_export_assignment(result)
-        && !has_syntactic_modifier(result, ModifierFlags::Export)
+        && !has_syntactic_modifier(result, ModifierFlags::Export, arena)
         && !is_ambient_module(result)
 }
 
-pub(crate) fn is_external_module_indicator(result: &Node /*Statement*/) -> bool {
+pub(crate) fn is_external_module_indicator(result: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
     is_any_import_or_re_export(result)
         || is_export_assignment(result)
-        || has_syntactic_modifier(result, ModifierFlags::Export)
+        || has_syntactic_modifier(result, ModifierFlags::Export, arena)
 }
 
 pub(crate) fn is_for_in_or_of_statement(node: &Node) -> bool {

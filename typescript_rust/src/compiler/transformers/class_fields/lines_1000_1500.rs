@@ -500,7 +500,7 @@ impl TransformClassFields {
                 let after_parameter_properties = find_index(
                     &constructor_body.as_block().statements,
                     |s: &Id<Node>, _| {
-                        !is_parameter_property_declaration(&get_original_node(s), constructor)
+                        !is_parameter_property_declaration(get_original_node(s), constructor, self)
                     },
                     Some(index_of_first_statement),
                 );
@@ -760,7 +760,8 @@ impl TransformClassFields {
             .unwrap_or_else(|| self.factory.create_void_zero())
         } else if is_parameter_property_declaration(
             property_original_node,
-            &property_original_node.parent(),
+            property_original_node.parent(),
+            self,
         ) && is_identifier(property_name)
         {
             property_name.clone()

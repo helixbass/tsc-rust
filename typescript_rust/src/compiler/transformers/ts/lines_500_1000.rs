@@ -421,7 +421,7 @@ impl TransformTypeScript {
                 .as_constructor_declaration()
                 .parameters()
                 .owned_iter()
-                .filter(|p| is_parameter_property_declaration(p, constructor))
+                .filter(|p| is_parameter_property_declaration(p, constructor, self))
         });
         if let Some(parameters_with_property_assignments) = parameters_with_property_assignments {
             for parameter in parameters_with_property_assignments {

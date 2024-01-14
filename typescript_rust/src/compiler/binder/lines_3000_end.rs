@@ -705,7 +705,7 @@ impl BinderType {
             );
         }
 
-        if is_parameter_property_declaration(node, &node.parent()) {
+        if is_parameter_property_declaration(node, node.parent(), self) {
             let class_declaration = node.parent().parent();
             self.declare_symbol(
                 &mut class_declaration.symbol().ref_(self).members().borrow_mut(),

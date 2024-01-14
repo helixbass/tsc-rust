@@ -40,7 +40,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         use_site: Id<Node>,
     ) {
-        if !is_valid_type_only_alias_use_site(use_site) {
+        if !is_valid_type_only_alias_use_site(use_site, self) {
             let type_only_declaration = self.get_type_only_alias_declaration(symbol);
             if let Some(type_only_declaration) = type_only_declaration {
                 let message = if type_only_declaration.ref_(self).kind()

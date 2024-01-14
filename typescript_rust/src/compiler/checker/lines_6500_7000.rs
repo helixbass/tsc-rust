@@ -613,11 +613,11 @@ impl SymbolTableToDeclarationStatements {
             || is_module_declaration(&self.enclosing_declaration))
             && (!statements
                 .iter()
-                .any(|statement| is_external_module_indicator(statement))
+                .any(|statement| is_external_module_indicator(statement, self))
                 || !has_scope_marker(&statements)
                     && statements
                         .iter()
-                        .any(|statement| needs_scope_marker(statement)))
+                        .any(|statement| needs_scope_marker(statement, self)))
         {
             statements.push(create_empty_exports(&get_factory()));
         }

@@ -385,7 +385,7 @@ pub fn is_declaration_readonly(
     arena: &impl HasArena,
 ) -> bool {
     get_combined_modifier_flags(declaration, arena).intersects(ModifierFlags::Readonly)
-        && !is_parameter_property_declaration(declaration, &declaration.ref_(arena).parent())
+        && !is_parameter_property_declaration(declaration, declaration.ref_(arena).parent(), arena)
 }
 
 pub fn is_var_const(

@@ -158,8 +158,8 @@ pub fn is_empty_array_literal(expression: &Node) -> bool {
         && expression.as_array_literal_expression().elements.is_empty()
 }
 
-pub fn get_local_symbol_for_export_default(symbol: &Symbol) -> Option<Id<Symbol>> {
-    if !is_export_default_symbol(symbol) || symbol.maybe_declarations().is_none() {
+pub fn get_local_symbol_for_export_default(symbol: Id<Symbol>, arena: &impl HasArena) -> Option<Id<Symbol>> {
+    if !is_export_default_symbol(symbol, arena) || symbol.maybe_declarations().is_none() {
         return None;
     }
     for decl in symbol.maybe_declarations().as_ref().unwrap() {
@@ -170,7 +170,7 @@ pub fn get_local_symbol_for_export_default(symbol: &Symbol) -> Option<Id<Symbol>
     None
 }
 
-fn is_export_default_symbol(symbol: &Symbol) -> bool {
+fn is_export_default_symbol(symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
     /*symbol &&*/
     match symbol
         .maybe_declarations()
@@ -179,7 +179,7 @@ fn is_export_default_symbol(symbol: &Symbol) -> bool {
     {
         None => false,
         Some(symbol_declarations) => {
-            has_syntactic_modifier(&symbol_declarations[0], ModifierFlags::Default)
+            has_syntactic_modifier(&symbol_declarations[0], ModifierFlags::Default, arena)
         }
     }
 }

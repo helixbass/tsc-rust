@@ -49,7 +49,7 @@ impl TypeChecker {
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
         for member in &node.as_class_like_declaration().members() {
-            if has_ambient_modifier(member) {
+            if has_ambient_modifier(member, self) {
                 continue;
             }
 
@@ -57,7 +57,7 @@ impl TypeChecker {
                 try_for_each(
                     &member.as_constructor_declaration().parameters(),
                     |param: &Id<Node>, _| -> io::Result<Option<()>> {
-                        if is_parameter_property_declaration(param, member) {
+                        if is_parameter_property_declaration(param, member, self) {
                             self.check_existing_member_for_override_modifier(
                                 node,
                                 static_type,
@@ -122,7 +122,7 @@ impl TypeChecker {
             type_,
             type_with_this,
             has_override_modifier(member, self),
-            has_abstract_modifier(member),
+            has_abstract_modifier(member, self),
             is_static(member, self),
             member_is_parameter_property,
             &symbol_name(&declared_prop.ref_(self)),
@@ -183,7 +183,7 @@ impl TypeChecker {
             ) {
                 let base_has_abstract = some(
                     Some(base_prop_declarations),
-                    Some(|declaration: &Id<Node>| has_abstract_modifier(declaration)),
+                    Some(|&declaration: &Id<Node>| has_abstract_modifier(declaration, self)),
                 );
                 if member_has_override_modifier {
                     return Ok(MemberOverrideStatus::Ok);
@@ -399,7 +399,7 @@ impl TypeChecker {
             type_,
             type_with_this,
             member_has_override_modifier,
-            has_abstract_modifier(member),
+            has_abstract_modifier(member, self),
             is_static(member, self),
             false,
             &member_name,

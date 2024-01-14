@@ -495,7 +495,7 @@ impl TypeChecker {
         for member in &node.as_class_like_declaration().members() {
             if member.kind() == SyntaxKind::Constructor {
                 for param in &member.as_constructor_declaration().parameters() {
-                    if is_parameter_property_declaration(param, member)
+                    if is_parameter_property_declaration(param, member, self)
                         && !is_binding_pattern(param.as_named_declaration().maybe_name())
                     {
                         self.add_name(

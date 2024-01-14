@@ -1193,7 +1193,7 @@ impl TypeChecker {
                     usage,
                     false,
                 ));
-            } else if is_parameter_property_declaration(declaration, &declaration.parent()) {
+            } else if is_parameter_property_declaration(declaration, declaration.parent(), self) {
                 return Ok(!(get_emit_script_target(&self.compiler_options)
                     == ScriptTarget::ESNext
                     && self.use_define_for_class_fields
@@ -1236,7 +1236,7 @@ impl TypeChecker {
                 && self.use_define_for_class_fields
                 && get_containing_class(declaration).is_some()
                 && (is_property_declaration(declaration)
-                    || is_parameter_property_declaration(declaration, &declaration.parent()))
+                    || is_parameter_property_declaration(declaration, declaration.parent(), self))
             {
                 return Ok(!self.is_property_immediately_referenced_within_declaration(
                     declaration,
@@ -1384,7 +1384,8 @@ impl TypeChecker {
                             && Gc::ptr_eq(&node.parent(), &declaration.parent())
                             || is_parameter_property_declaration(
                                 declaration,
-                                &declaration.parent(),
+                                declaration.parent(),
+                                self,
                             ) && Gc::ptr_eq(&node.parent(), &declaration.parent().parent()))
                     {
                         FindAncestorCallbackReturn::Quit
@@ -1670,7 +1671,8 @@ impl TypeChecker {
                             result = module_exports.get(InternalSymbolName::Default).cloned();
                             if let Some(result_unwrapped) = result {
                                 let local_symbol = get_local_symbol_for_export_default(
-                                    &result_unwrapped.ref_(self),
+                                    result_unwrapped,
+                                    self,
                                 );
                                 if local_symbol.is_some()
                                     && result_unwrapped.ref_(self).flags().intersects(meaning)

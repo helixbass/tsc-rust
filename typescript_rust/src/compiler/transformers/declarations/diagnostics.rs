@@ -54,7 +54,7 @@ pub fn can_produce_diagnostics(node: Id<Node>) -> bool {
 }
 
 pub fn create_get_symbol_accessibility_diagnostic_for_node(
-    node: Id<Node>, /*DeclarationDiagnosticProducing*/
+    node: Id<Node>, /*DeclarationDiagnosticProducing*/ arena: &impl HasArena
 ) -> GetSymbolAccessibilityDiagnostic {
     if is_variable_declaration(node)
         || is_property_declaration(node)
@@ -75,8 +75,8 @@ pub fn create_get_symbol_accessibility_diagnostic_for_node(
     {
         GetReturnTypeVisibilityError::new(node)
     } else if is_parameter(node) {
-        if is_parameter_property_declaration(node, &node.parent())
-            && has_syntactic_modifier(node.parent(), ModifierFlags::Private, self)
+        if is_parameter_property_declaration(node, node.parent(), arena)
+            && has_syntactic_modifier(node.parent(), ModifierFlags::Private, arena)
         {
             return GetVariableDeclarationTypeVisibilityError::new(node);
         }

@@ -410,12 +410,12 @@ pub fn has_override_modifier(node: Id<Node>, arena: &impl HasArena) -> bool {
     has_effective_modifier(node, ModifierFlags::Override, arena)
 }
 
-pub fn has_abstract_modifier(node: &Node) -> bool {
-    has_syntactic_modifier(node, ModifierFlags::Abstract)
+pub fn has_abstract_modifier(node: Id<Node>, arena: &impl HasArena) -> bool {
+    has_syntactic_modifier(node, ModifierFlags::Abstract, arena)
 }
 
-pub fn has_ambient_modifier(node: &Node) -> bool {
-    has_syntactic_modifier(node, ModifierFlags::Ambient)
+pub fn has_ambient_modifier(node: Id<Node>, arena: &impl HasArena) -> bool {
+    has_syntactic_modifier(node, ModifierFlags::Ambient, arena)
 }
 
 pub fn has_effective_readonly_modifier(node: Id<Node>, arena: &impl HasArena) -> bool {

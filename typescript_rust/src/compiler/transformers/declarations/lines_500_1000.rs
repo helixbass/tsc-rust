@@ -657,14 +657,14 @@ impl TransformDeclarations {
                 if let Some(result) = result.as_ref() {
                     if result
                         .into_iter()
-                        .any(|node: &Id<Node>| needs_scope_marker(node))
+                        .any(|&node: &Id<Node>| needs_scope_marker(node, self))
                     {
                         self.set_needs_scope_fix_marker(true);
                     }
                     if is_source_file(&statement.parent())
                         && result
                             .into_iter()
-                            .any(|node: &Id<Node>| is_external_module_indicator(node))
+                            .any(|&node: &Id<Node>| is_external_module_indicator(node, self))
                     {
                         self.set_result_has_external_module_indicator(true);
                     }

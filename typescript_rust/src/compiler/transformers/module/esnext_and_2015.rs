@@ -190,7 +190,7 @@ impl TransformEcmascriptModule {
                     .as_source_file()
                     .statements()
                     .iter()
-                    .any(|statement| is_external_module_indicator(statement))
+                    .any(|statement| is_external_module_indicator(statement, self))
             {
                 return Ok(result);
             }

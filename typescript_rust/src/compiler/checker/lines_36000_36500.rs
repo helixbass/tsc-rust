@@ -700,7 +700,7 @@ impl TypeChecker {
                                 get_name_of_declaration(Some(&**local_value_declaration))
                             });
                         if let (Some(parameter), Some(name)) = (parameter.as_ref(), name.as_ref()) {
-                            if !is_parameter_property_declaration(parameter, &parameter.parent())
+                            if !is_parameter_property_declaration(parameter, parameter.parent(), self)
                                 && !parameter_is_this_keyword(parameter)
                                 && !self.is_identifier_that_starts_with_underscore(name)
                             {
