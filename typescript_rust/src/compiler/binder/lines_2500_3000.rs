@@ -110,7 +110,7 @@ impl BinderType {
                 }
             }
             SyntaxKind::BinaryExpression => {
-                let special_kind = get_assignment_declaration_kind(node);
+                let special_kind = get_assignment_declaration_kind(node, self);
                 match special_kind {
                     AssignmentDeclarationKind::ExportsProperty => {
                         self.bind_exports_property_assignment(node);
@@ -293,7 +293,7 @@ impl BinderType {
             }
 
             SyntaxKind::CallExpression => {
-                let assignment_kind = get_assignment_declaration_kind(node);
+                let assignment_kind = get_assignment_declaration_kind(node, self);
                 match assignment_kind {
                     AssignmentDeclarationKind::ObjectDefinePropertyValue => {
                         return self.bind_object_define_property_assignment(node);
@@ -536,7 +536,7 @@ impl BinderType {
                 node.ref_(self).as_export_assignment().is_export_equals,
                 Some(true)
             ) {
-                set_value_declaration(&symbol.ref_(self), node);
+                set_value_declaration(symbol, node, self);
             }
         }
     }
@@ -827,7 +827,7 @@ impl BinderType {
             None,
             None,
         );
-        set_value_declaration(&symbol.ref_(self), node);
+        set_value_declaration(symbol, node, self);
     }
 
     pub(super) fn bind_export_assigned_object_member_alias(
@@ -884,8 +884,8 @@ impl BinderType {
                         == SyntaxKind::EqualsToken
                     {
                         let l = &this_container_parent_as_binary_expression.left;
-                        if is_bindable_static_access_expression(l, None)
-                            && is_prototype_access(&l.as_has_expression().expression())
+                        if is_bindable_static_access_expression(l, None, self)
+                            && is_prototype_access(l.as_has_expression().expression(), self)
                         {
                             constructor_symbol = self.lookup_symbol_for_property_access(
                                 &l.as_has_expression()
@@ -919,7 +919,7 @@ impl BinderType {
                         };
                         let mut constructor_symbol_members =
                             constructor_symbol_members.borrow_mut();
-                        if has_dynamic_name(node) {
+                        if has_dynamic_name(node, self) {
                             self.bind_dynamically_named_this_property_assignment(
                                 node,
                                 constructor_symbol,
@@ -958,7 +958,7 @@ impl BinderType {
                     containing_class.symbol().ref_(self).members()
                 };
                 let mut symbol_table = symbol_table.borrow_mut();
-                if has_dynamic_name(node) {
+                if has_dynamic_name(node, self) {
                     self.bind_dynamically_named_this_property_assignment(
                         node,
                         containing_class.symbol(),
@@ -977,7 +977,7 @@ impl BinderType {
                 }
             }
             SyntaxKind::SourceFile => {
-                if has_dynamic_name(node) {
+                if has_dynamic_name(node, self) {
                     return;
                 } else if this_container
                     .ref_(self)
@@ -1056,10 +1056,10 @@ impl BinderType {
         let node_as_has_expression = node.ref_(self).as_has_expression();
         if node_as_has_expression.expression().kind() == SyntaxKind::ThisKeyword {
             self.bind_this_property_assignment(node);
-        } else if is_bindable_static_access_expression(node, None)
+        } else if is_bindable_static_access_expression(node, None, self)
             && node.ref_(self).parent().ref_(self).parent().kind() == SyntaxKind::SourceFile
         {
-            if is_prototype_access(&node_as_has_expression.expression()) {
+            if is_prototype_access(node_as_has_expression.expression(), self) {
                 self.bind_prototype_property_assignment(node, node.ref_(self).parent());
             } else {
                 self.bind_static_property_assignment(node);

@@ -264,13 +264,16 @@ impl BinderType {
             self.set_parent(Some(type_alias.clone()));
             let type_alias_as_jsdoc_type_like_tag = type_alias.as_jsdoc_type_like_tag();
             self.bind(type_alias_as_jsdoc_type_like_tag.maybe_type_expression());
-            let decl_name = get_name_of_declaration(Some(&**type_alias));
+            let decl_name = get_name_of_declaration(Some(type_alias), self);
             if (is_jsdoc_enum_tag(type_alias)
                 || type_alias
                     .as_jsdoc_typedef_or_callback_tag()
                     .maybe_full_name()
                     .is_none())
-                && matches!(decl_name.as_ref(), Some(decl_name) if is_property_access_entity_name_expression(&decl_name.parent()))
+                && matches!(
+                    decl_name,
+                    Some(decl_name) if is_property_access_entity_name_expression(decl_name.parent(), self)
+                )
             {
                 let decl_name = decl_name.unwrap();
                 let is_top_level = self.is_top_level_namespace_assignment(&decl_name.parent());
@@ -291,7 +294,7 @@ impl BinderType {
                         false,
                     );
                     let old_container = self.maybe_container();
-                    match get_assignment_declaration_property_access_kind(&decl_name.parent()) {
+                    match get_assignment_declaration_property_access_kind(decl_name.parent(), self) {
                         AssignmentDeclarationKind::ExportsProperty
                         | AssignmentDeclarationKind::ModuleExports => {
                             if !is_external_or_common_js_module(&self.file()) {

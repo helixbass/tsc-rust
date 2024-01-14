@@ -480,7 +480,7 @@ impl TypeChecker {
         Ok(name.kind() == SyntaxKind::ThisKeyword
             || matches!(
                 parent,
-                Some(parent) if is_entity_name_expression(name) &&
+                Some(parent) if is_entity_name_expression(name, self) &&
                     parent == self.get_resolved_symbol(
                         &get_first_identifier(name)
                     )?

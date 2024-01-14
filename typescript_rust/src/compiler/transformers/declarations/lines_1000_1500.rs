@@ -40,7 +40,7 @@ impl TransformDeclarations {
         old_within_object_literal_type: Option<bool>,
         return_value: Option<Id<Node>>,
     ) -> io::Result<VisitResult> {
-        if return_value.is_some() && can_produce_diagnostic && has_dynamic_name(input) {
+        if return_value.is_some() && can_produce_diagnostic && has_dynamic_name(input, self) {
             self.check_name(input)?;
         }
         if self.is_enclosing_declaration(input) {
@@ -720,7 +720,8 @@ impl TransformDeclarations {
                     let extends_clause_as_expression_with_type_arguments =
                         extends_clause.as_expression_with_type_arguments();
                     !is_entity_name_expression(
-                        &extends_clause_as_expression_with_type_arguments.expression,
+                        extends_clause_as_expression_with_type_arguments.expression,
+                        self,
                     ) && extends_clause_as_expression_with_type_arguments
                         .expression
                         .kind()
@@ -822,8 +823,9 @@ impl TransformDeclarations {
                                                         let t_as_expression_with_type_arguments =
                                                             t.as_expression_with_type_arguments();
                                                         is_entity_name_expression(
-                                                            &t_as_expression_with_type_arguments
+                                                            t_as_expression_with_type_arguments
                                                                 .expression,
+                                                            self,
                                                         ) || t_as_expression_with_type_arguments
                                                             .expression
                                                             .kind()

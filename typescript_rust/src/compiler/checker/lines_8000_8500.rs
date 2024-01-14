@@ -293,18 +293,18 @@ impl TypeChecker {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
                 let mut declaration = first_defined(symbol_declarations, |d: &Id<Node>, _| {
-                    if get_name_of_declaration(Some(&**d)).is_some() {
+                    if get_name_of_declaration(Some(d), self).is_some() {
                         Some(d)
                     } else {
                         None
                     }
                 });
                 let name = declaration
-                    .and_then(|declaration| get_name_of_declaration(Some(&**declaration)));
+                    .and_then(|declaration| get_name_of_declaration(Some(declaration), self));
                 if let Some(declaration) = declaration {
                     if let Some(name) = name {
                         if is_call_expression(declaration)
-                            && is_bindable_object_define_property_call(declaration)
+                            && is_bindable_object_define_property_call(declaration, self)
                         {
                             return symbol_name(&symbol.ref_(self)).into_owned().into();
                         }

@@ -685,7 +685,7 @@ impl TransformDeclarations {
             if self.is_declaration_and_not_visible(input) {
                 return Ok(None);
             }
-            if has_dynamic_name(input)
+            if has_dynamic_name(input, self)
                 && !self.resolver.is_late_bound(
                     &get_parse_tree_node(Some(input), Option::<fn(Id<Node>) -> bool>::None)
                         .unwrap(),
@@ -777,7 +777,8 @@ impl TransformDeclarations {
                         input.as_expression_with_type_arguments();
                     if is_entity_name(&input_as_expression_with_type_arguments.expression)
                         || is_entity_name_expression(
-                            &input_as_expression_with_type_arguments.expression,
+                            input_as_expression_with_type_arguments.expression,
+                            self,
                         )
                     {
                         self.check_entity_name_visibility(

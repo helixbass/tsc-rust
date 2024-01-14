@@ -599,7 +599,7 @@ impl TypeChecker {
             declaration,
             diagnostic,
             Some(vec![
-                declaration_name_to_string(get_name_of_declaration(Some(declaration))).into_owned(),
+                declaration_name_to_string(get_name_of_declaration(Some(declaration), self)).into_owned(),
                 type_as_string,
             ]),
         );

@@ -215,7 +215,7 @@ impl TypeChecker {
         name.kind() == SyntaxKind::Identifier
             && self.is_type_declaration(&name.parent())
             && matches!(
-                get_name_of_declaration(name.maybe_parent()).as_ref(),
+                get_name_of_declaration(name.maybe_parent(), self),
                 Some(name_of_declaration) if ptr::eq(
                     &**name_of_declaration,
                     name
@@ -392,7 +392,7 @@ impl TypeChecker {
         entity_name: Id<Node>, /*EntityName | PropertyAccessExpression*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let special_property_assignment_kind =
-            get_assignment_declaration_kind(&entity_name.parent().parent());
+            get_assignment_declaration_kind(entity_name.parent().parent(), self);
         Ok(match special_property_assignment_kind {
             AssignmentDeclarationKind::ExportsProperty
             | AssignmentDeclarationKind::PrototypeProperty => {
@@ -457,7 +457,7 @@ impl TypeChecker {
             }
         }
 
-        if name.parent().kind() == SyntaxKind::ExportAssignment && is_entity_name_expression(name) {
+        if name.parent().kind() == SyntaxKind::ExportAssignment && is_entity_name_expression(name, self) {
             let success = self.resolve_entity_name(
                 name,
                 SymbolFlags::Value
@@ -513,7 +513,7 @@ impl TypeChecker {
             }
 
             meaning |= SymbolFlags::Alias;
-            let entity_name_symbol = if is_entity_name_expression(name) {
+            let entity_name_symbol = if is_entity_name_expression(name, self) {
                 self.resolve_entity_name(name, meaning, None, None, Option::<Id<Node>>::None)?
             } else {
                 None
@@ -853,7 +853,7 @@ impl TypeChecker {
                             node,
                         )
                     )
-                    || (is_in_js_file(Some(node)) && is_require_call(&node.parent(), false)
+                    || (is_in_js_file(Some(node)) && is_require_call(node.parent(), false, self)
                         || is_import_call(node.parent(), self))
                     || is_literal_type_node(&node.parent())
                         && is_literal_import_type_node(node.parent().parent(), self)
@@ -865,7 +865,7 @@ impl TypeChecker {
                     return self.resolve_external_module_name_(node, node, ignore_errors);
                 }
                 if is_call_expression(parent)
-                    && is_bindable_object_define_property_call(parent)
+                    && is_bindable_object_define_property_call(parent, self)
                     && ptr::eq(&*parent.as_call_expression().arguments[1], node)
                 {
                     return self.get_symbol_of_node(parent);

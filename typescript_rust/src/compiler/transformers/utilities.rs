@@ -16,7 +16,7 @@ use crate::{
     is_private_identifier, is_property_declaration, is_statement, is_static,
     is_string_literal_like, is_super_call, return_default_if_none, try_visit_node,
     FunctionLikeDeclarationInterface, HasInitializerInterface, InternalSymbolName, Matches,
-    ModifierFlags, MultiMap,
+    ModifierFlags, MultiMap, HasArena,
 };
 
 pub fn get_original_node_id(node: Id<Node>) -> NodeId {

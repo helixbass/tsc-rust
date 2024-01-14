@@ -1195,7 +1195,7 @@ impl TransformDeclarations {
     }
 
     pub(super) fn should_print_with_initializer(&self, node: Id<Node>) -> io::Result<bool> {
-        Ok(can_have_literal_initializer(node)
+        Ok(can_have_literal_initializer(node, self)
             && self.resolver.is_literal_const_declaration(
                 &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None).unwrap(),
             )?)
@@ -1273,7 +1273,7 @@ impl TransformDeclarationsSymbolTracker {
         } else if let Some(error_fallback_node_name) = self
             .transform_declarations
             .maybe_error_fallback_node()
-            .and_then(|error_fallback_node| get_name_of_declaration(Some(error_fallback_node)))
+            .and_then(|error_fallback_node| get_name_of_declaration(Some(error_fallback_node), self))
         {
             declaration_name_to_string(Some(error_fallback_node_name))
         } else if let Some(ref error_fallback_node) = self

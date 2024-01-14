@@ -946,7 +946,11 @@ pub fn insert_statements_after_standard_prologue(
     insert_statements_after_prologue(to, from, |node| is_prologue_directive(node, arena))
 }
 
-pub fn insert_statements_after_custom_prologue(to: &mut Vec<Id<Node>>, from: Option<&[Id<Node>]>, arena: &impl HasArena) {
+pub fn insert_statements_after_custom_prologue(
+    to: &mut Vec<Id<Node>>,
+    from: Option<&[Id<Node>]>,
+    arena: &impl HasArena,
+) {
     insert_statements_after_prologue(to, from, |node| is_any_prologue_directive(node, arena))
 }
 
@@ -958,7 +962,11 @@ pub fn insert_statement_after_standard_prologue(
     insert_statement_after_prologue(to, statement, |node| is_prologue_directive(node, arena))
 }
 
-pub fn insert_statement_after_custom_prologue(to: &mut Vec<Id<Node>>, statement: Option<Id<Node>>, arena: &impl HasArena) {
+pub fn insert_statement_after_custom_prologue(
+    to: &mut Vec<Id<Node>>,
+    statement: Option<Id<Node>>,
+    arena: &impl HasArena,
+) {
     insert_statement_after_prologue(to, statement, |node| is_any_prologue_directive(node, arena))
 }
 
@@ -1573,7 +1581,7 @@ pub fn is_non_global_ambient_module(node: Id<Node>) -> bool {
     is_module_declaration(node) && is_string_literal(&node.as_module_declaration().name)
 }
 
-pub fn is_effective_module_declaration(node: Id<Node>) -> bool {
+pub fn is_effective_module_declaration(node: &Node) -> bool {
     is_module_declaration(node) || is_identifier(node)
 }
 

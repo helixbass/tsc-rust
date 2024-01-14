@@ -682,6 +682,7 @@ impl TypeChecker {
                     self.error(
                         get_name_of_declaration(
                             member.symbol().ref_(self).maybe_value_declaration(),
+                            self,
                         ),
                         &Diagnostics::Duplicate_identifier_0,
                         Some(vec![member_name.clone()]),

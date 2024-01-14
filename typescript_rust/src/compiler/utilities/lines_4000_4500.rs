@@ -1276,7 +1276,7 @@ pub fn get_all_accessor_declarations(
     let mut second_accessor: Option<Id<Node>> = None;
     let mut get_accessor: Option<Id<Node>> = None;
     let mut set_accessor: Option<Id<Node>> = None;
-    if has_dynamic_name(accessor) {
+    if has_dynamic_name(accessor, arena) {
         first_accessor = Some(accessor.node_wrapper());
         if accessor.kind() == SyntaxKind::GetAccessor {
             get_accessor = Some(accessor.node_wrapper());

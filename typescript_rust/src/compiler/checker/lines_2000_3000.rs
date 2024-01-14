@@ -292,7 +292,7 @@ impl TypeChecker {
                 let node_ref = node.ref_(self);
                 let node_as_expression_with_type_arguments =
                     node_ref.as_expression_with_type_arguments();
-                if is_entity_name_expression(&node_as_expression_with_type_arguments.expression) {
+                if is_entity_name_expression(node_as_expression_with_type_arguments.expression, self) {
                     return Some(node_as_expression_with_type_arguments.expression.clone());
                 }
                 None
@@ -617,7 +617,7 @@ impl TypeChecker {
         {
             let mut diagnostic_message: Option<Gc<Diagnostic>> = None;
             let declaration_name =
-                declaration_name_to_string(get_name_of_declaration(Some(&**declaration)))
+                declaration_name_to_string(get_name_of_declaration(Some(declaration), self))
                     .into_owned();
             if result
                 .ref_(self)
@@ -738,7 +738,7 @@ impl TypeChecker {
             )
             || node.ref_(self).kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node)
             || is_binary_expression(&node.ref_(self))
-                && get_assignment_declaration_kind(node)
+                && get_assignment_declaration_kind(node, self)
                     == AssignmentDeclarationKind::ModuleExports
                 && export_assignment_is_alias(node)
             || is_access_expression(node) && is_binary_expression(&node.ref_(self).parent().ref_(self)) && {
@@ -1839,7 +1839,7 @@ impl TypeChecker {
                 .ref_(self)
                 .maybe_symbol());
         }
-        if !is_entity_name(expression) && !is_entity_name_expression(expression) {
+        if !is_entity_name(expression) && !is_entity_name_expression(expression, self) {
             return Ok(None);
         }
         let alias_like = self.resolve_entity_name(

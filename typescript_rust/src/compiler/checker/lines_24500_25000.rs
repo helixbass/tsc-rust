@@ -773,7 +773,7 @@ impl TypeChecker {
             let parent = parent.unwrap();
             if is_export_assignment(&parent) {
                 return (ptr::eq(&*parent.as_export_assignment().expression, n)
-                    && is_entity_name_expression(n))
+                    && is_entity_name_expression(n, self))
                 .into();
             }
             if is_export_specifier(&parent) {
@@ -1151,7 +1151,7 @@ impl TypeChecker {
             if flow_type == self.auto_type() || flow_type == self.auto_array_type() {
                 if self.no_implicit_any {
                     self.error(
-                        get_name_of_declaration(Some(&*declaration)),
+                        get_name_of_declaration(Some(declaration), self),
                         &Diagnostics::Variable_0_implicitly_has_type_1_in_some_locations_where_its_type_cannot_be_determined,
                         Some(vec![
                             self.symbol_to_string_(

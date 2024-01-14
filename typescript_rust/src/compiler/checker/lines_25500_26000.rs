@@ -566,7 +566,8 @@ impl TypeChecker {
         kind: IterationTypeKind,
         function_decl: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        let is_async = get_function_flags(Some(function_decl), self).intersects(FunctionFlags::Async);
+        let is_async =
+            get_function_flags(Some(function_decl), self).intersects(FunctionFlags::Async);
         let contextual_return_type = self.get_contextual_return_type(function_decl)?;
         if let Some(contextual_return_type) = contextual_return_type {
             return self.get_iteration_type_of_generator_function_return_type(
@@ -704,7 +705,7 @@ impl TypeChecker {
                 if ptr::eq(node, &**right)
                     && match type_ {
                         Some(type_) => type_.ref_(self).maybe_pattern().is_some(),
-                        None => !is_defaulted_expando_initializer(&binary_expression),
+                        None => !is_defaulted_expando_initializer(binary_expression, self),
                     }
                 {
                     Some(self.get_type_of_expression(left)?)

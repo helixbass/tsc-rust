@@ -646,7 +646,7 @@ impl TypeChecker {
                         );
                     } else if self.no_implicit_any {
                         let declaration = signature_declaration;
-                        let name = get_name_of_declaration(Some(&**declaration));
+                        let name = get_name_of_declaration(Some(declaration), self);
                         if let Some(name) = name {
                             self.error(
                                 Some(name.clone()),

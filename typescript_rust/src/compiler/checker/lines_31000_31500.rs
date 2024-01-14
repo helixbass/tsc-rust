@@ -279,7 +279,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_common_js_require(&self, node: Id<Node>) -> io::Result<bool> {
-        if !is_require_call(node, true) {
+        if !is_require_call(node, true, self) {
             return Ok(false);
         }
         let node_as_call_expression = node.as_call_expression();

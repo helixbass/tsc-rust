@@ -181,7 +181,7 @@ impl TypeChecker {
             for d in symbol.ref_(self).maybe_declarations().as_ref().unwrap() {
                 let declaration_spaces = self.get_declaration_spaces(d)?;
 
-                let name = get_name_of_declaration(Some(&**d));
+                let name = get_name_of_declaration(Some(d), self);
                 if declaration_spaces
                     .intersects(common_declaration_spaces_for_default_and_non_default)
                 {
@@ -244,7 +244,7 @@ impl TypeChecker {
                 } else {
                     node.as_binary_expression().right.clone()
                 };
-                if !is_entity_name_expression(&expression) {
+                if !is_entity_name_expression(expression, self) {
                     return Ok(DeclarationSpaces::ExportValue);
                 }
 

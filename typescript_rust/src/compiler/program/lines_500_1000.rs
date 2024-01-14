@@ -40,7 +40,7 @@ use crate::{
     ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
     TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    VecExt,
+    VecExt, HasArena,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
@@ -168,11 +168,12 @@ pub(crate) fn get_mode_for_resolution_at_index(
 pub(crate) fn get_mode_for_usage_location(
     implied_node_format: Option<ModuleKind>,
     usage: Id<Node>, /*StringLiteralLike*/
+    arena: &impl HasArena,
 ) -> Option<ModuleKind> {
     let implied_node_format = implied_node_format?;
     if implied_node_format != ModuleKind::ESNext {
         return Some(
-            if is_import_call(walk_up_parenthesized_expressions(&usage.parent()).unwrap(), self) {
+            if is_import_call(walk_up_parenthesized_expressions(&usage.parent()).unwrap(), arena) {
                 ModuleKind::ESNext
             } else {
                 ModuleKind::CommonJS

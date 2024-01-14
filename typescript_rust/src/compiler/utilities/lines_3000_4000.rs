@@ -30,7 +30,7 @@ use crate::{
     Node, NodeArray, NodeInterface, ReadonlyTextRange, SortedArray, Symbol, SymbolInterface,
     SyntaxKind, TokenFlags, __String, escape_leading_underscores, get_name_of_declaration,
     insert_sorted, is_member_name, Diagnostic, DiagnosticCollection,
-    DiagnosticRelatedInformationInterface,
+    DiagnosticRelatedInformationInterface, HasArena,
 };
 
 pub fn is_literal_computed_property_declaration_name(node: Id<Node>) -> bool {
@@ -65,7 +65,7 @@ pub fn is_identifier_name(node: Id<Node> /*Identifier*/) -> bool {
     }
 }
 
-pub fn is_alias_symbol_declaration(node: Id<Node>) -> bool {
+pub fn is_alias_symbol_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ImportEqualsDeclaration | SyntaxKind::NamespaceExportDeclaration
@@ -79,7 +79,7 @@ pub fn is_alias_symbol_declaration(node: Id<Node>) -> bool {
         )
         || node.kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node)
         || is_binary_expression(node)
-            && get_assignment_declaration_kind(node) == AssignmentDeclarationKind::ModuleExports
+            && get_assignment_declaration_kind(node, arena) == AssignmentDeclarationKind::ModuleExports
             && export_assignment_is_alias(node)
         || is_property_access_expression(node) && is_binary_expression(&node.parent()) && {
             let node_parent = node.parent();
@@ -290,7 +290,10 @@ bitflags! {
     }
 }
 
-pub fn get_function_flags(node: Option<Id<Node> /*SignatureDeclaration*/>, arena: &impl HasArena) -> FunctionFlags {
+pub fn get_function_flags(
+    node: Option<Id<Node> /*SignatureDeclaration*/>,
+    arena: &impl HasArena,
+) -> FunctionFlags {
     if node.is_none() {
         return FunctionFlags::Invalid;
     }
@@ -365,8 +368,8 @@ pub fn is_signed_numeric_literal(node: Id<Node>) -> bool {
     ) && is_numeric_literal(&node_as_prefix_unary_expression.operand)
 }
 
-pub fn has_dynamic_name(declaration: Id<Node> /*Declaration*/) -> bool {
-    let name = get_name_of_declaration(Some(declaration));
+pub fn has_dynamic_name(declaration: Id<Node> /*Declaration*/, arena: &impl HasArena) -> bool {
+    let name = get_name_of_declaration(Some(declaration), arena);
     if let Some(name) = name {
         is_dynamic_name(&name)
     } else {

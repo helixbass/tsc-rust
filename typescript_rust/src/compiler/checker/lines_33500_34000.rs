@@ -629,7 +629,7 @@ impl TypeChecker {
         expr = skip_parentheses(node, None);
         if is_call_expression(node)
             && expr.as_call_expression().expression.kind() != SyntaxKind::SuperKeyword
-            && !is_require_call(&expr, true)
+            && !is_require_call(expr, true, self)
             && !self.is_symbol_or_symbol_for_call(&expr)?
         {
             let type_ = if is_call_chain(&expr) {

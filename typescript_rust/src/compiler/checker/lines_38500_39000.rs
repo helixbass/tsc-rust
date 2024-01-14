@@ -570,7 +570,7 @@ impl TypeChecker {
                             &*Diagnostics::_0_is_defined_as_a_property_in_class_1_but_is_overridden_here_in_2_as_an_accessor
                         };
                         self.error(
-                            get_name_of_declaration(derived.ref_(self).maybe_value_declaration())
+                            get_name_of_declaration(derived.ref_(self).maybe_value_declaration(), self)
                                 .or_else(|| derived.ref_(self).maybe_value_declaration()),
                             error_message,
                             Some(vec![
@@ -642,6 +642,7 @@ impl TypeChecker {
                                     self.error(
                                         get_name_of_declaration(
                                             derived.ref_(self).maybe_value_declaration(),
+                                            self,
                                         )
                                         .or_else(|| derived.ref_(self).maybe_value_declaration()),
                                         error_message,
@@ -686,7 +687,7 @@ impl TypeChecker {
                 }
 
                 self.error(
-                    get_name_of_declaration(derived.ref_(self).maybe_value_declaration())
+                    get_name_of_declaration(derived.ref_(self).maybe_value_declaration(), self)
                         .or_else(|| derived.ref_(self).maybe_value_declaration()),
                     error_message,
                     Some(vec![

@@ -9,9 +9,9 @@ use crate::{
     get_effective_modifier_flags, get_factory, get_parse_tree_node, has_effective_modifier,
     is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
     is_external_module, is_internal_declaration, return_ok_default_if_none, some, try_map_defined,
-    try_visit_nodes, AllAccessorDeclarations, Debug_, GetSymbolAccessibilityDiagnostic,
+    try_visit_nodes, AllAccessorDeclarations, Debug_, GetSymbolAccessibilityDiagnostic, HasArena,
     HasTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind, HasArena,
+    NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind,
 };
 
 impl TransformDeclarations {
@@ -220,7 +220,8 @@ impl TransformDeclarations {
                                             let t_as_expression_with_type_arguments =
                                                 t.as_expression_with_type_arguments();
                                             is_entity_name_expression(
-                                                &t_as_expression_with_type_arguments.expression,
+                                                t_as_expression_with_type_arguments.expression,
+                                                self,
                                             ) || clause_as_heritage_clause.token
                                                 == SyntaxKind::ExtendsKeyword
                                                 && t_as_expression_with_type_arguments
@@ -279,7 +280,8 @@ pub(super) fn mask_modifier_flags(
 ) -> ModifierFlags {
     let modifier_mask = modifier_mask.unwrap_or(ModifierFlags::All ^ ModifierFlags::Public);
     let modifier_additions = modifier_additions.unwrap_or(ModifierFlags::None);
-    let mut flags = (get_effective_modifier_flags(node, arena) & modifier_mask) | modifier_additions;
+    let mut flags =
+        (get_effective_modifier_flags(node, arena) & modifier_mask) | modifier_additions;
     if flags.intersects(ModifierFlags::Default) && !flags.intersects(ModifierFlags::Export) {
         flags ^= ModifierFlags::Export;
     }
@@ -308,10 +310,10 @@ pub(super) fn get_type_annotation_from_accessor(
     // }
 }
 
-pub(super) fn can_have_literal_initializer(node: Id<Node>) -> bool {
+pub(super) fn can_have_literal_initializer(node: Id<Node>, arena: &impl HasArena) -> bool {
     match node.kind() {
         SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => {
-            !has_effective_modifier(node, ModifierFlags::Private, self)
+            !has_effective_modifier(node, ModifierFlags::Private, arena)
         }
         SyntaxKind::Parameter | SyntaxKind::VariableDeclaration => true,
         _ => false,

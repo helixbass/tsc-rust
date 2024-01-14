@@ -891,7 +891,7 @@ impl TypeChecker {
             }
             SyntaxKind::EqualsToken => {
                 let decl_kind = if is_binary_expression(&left.parent()) {
-                    get_assignment_declaration_kind(&left.parent())
+                    get_assignment_declaration_kind(left.parent(), self)
                 } else {
                     AssignmentDeclarationKind::None
                 };

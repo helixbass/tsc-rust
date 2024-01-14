@@ -749,7 +749,7 @@ impl TypeChecker {
                 .name_type
                 .clone();
             if type_.is_none() {
-                let name = get_name_of_declaration(prop.ref_(self).maybe_value_declaration());
+                let name = get_name_of_declaration(prop.ref_(self).maybe_value_declaration(), self);
                 type_ = if prop.ref_(self).escaped_name() == InternalSymbolName::Default {
                     Some(self.get_string_literal_type("default"))
                 } else if let Some(name) = name {

@@ -215,7 +215,8 @@ impl TypeChecker {
                 let heritage_element_as_expression_with_type_arguments =
                     heritage_element.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
-                    &heritage_element_as_expression_with_type_arguments.expression,
+                    heritage_element_as_expression_with_type_arguments.expression,
+                    self,
                 ) || is_optional_chain(
                     &heritage_element_as_expression_with_type_arguments.expression,
                 ) {
@@ -683,7 +684,7 @@ impl TypeChecker {
                     |decl: &Id<Node>, _| -> Option<()> {
                         if is_enum_declaration(decl) && is_enum_const(decl) != enum_is_const {
                             self.error(
-                                get_name_of_declaration(Some(&**decl)),
+                                get_name_of_declaration(Some(decl), self),
                                 &Diagnostics::Enum_declarations_must_all_be_const_or_non_const,
                                 None,
                             );

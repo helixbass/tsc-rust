@@ -437,6 +437,7 @@ pub fn is_this_initialized_object_binding_expression(
 
 pub fn get_entity_name_from_type_node(
     node: Id<Node>, /*TypeNode*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*EntityNameOrEntityNameExpression*/>> {
     match node.kind() {
         SyntaxKind::TypeReference => {
@@ -444,7 +445,7 @@ pub fn get_entity_name_from_type_node(
         }
         SyntaxKind::ExpressionWithTypeArguments => {
             let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
-            return if is_entity_name_expression(&node_as_expression_with_type_arguments.expression)
+            return if is_entity_name_expression(node_as_expression_with_type_arguments.expression, arena)
             {
                 Some(node_as_expression_with_type_arguments.expression.clone())
             } else {

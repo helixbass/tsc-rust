@@ -312,7 +312,7 @@ impl TypeChecker {
         name: &str,
         add_diagnostic: &mut TAddDiagnostic,
     ) {
-        let node = get_name_of_declaration(Some(declaration))
+        let node = get_name_of_declaration(Some(declaration), self)
             .unwrap_or_else(|| declaration.node_wrapper());
         let message = if self.is_type_declaration(declaration) {
             &*Diagnostics::_0_is_declared_but_never_used
@@ -697,7 +697,7 @@ impl TypeChecker {
                             .maybe_value_declaration()
                             .as_ref()
                             .and_then(|local_value_declaration| {
-                                get_name_of_declaration(Some(&**local_value_declaration))
+                                get_name_of_declaration(Some(local_value_declaration), self)
                             });
                         if let (Some(parameter), Some(name)) = (parameter.as_ref(), name.as_ref()) {
                             if !is_parameter_property_declaration(parameter, parameter.parent(), self)

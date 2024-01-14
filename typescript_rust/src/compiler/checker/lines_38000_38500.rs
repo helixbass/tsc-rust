@@ -358,7 +358,7 @@ impl TypeChecker {
         prop_type: Id<Type>,
     ) -> io::Result<()> {
         let declaration = prop.ref_(self).maybe_value_declaration();
-        let name = get_name_of_declaration(declaration.as_deref());
+        let name = get_name_of_declaration(declaration, self);
         if matches!(
             name.as_ref(),
             Some(name) if is_private_identifier(name)
@@ -1032,7 +1032,8 @@ impl TypeChecker {
                 let type_ref_node_as_expression_with_type_arguments =
                     type_ref_node.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
-                    &type_ref_node_as_expression_with_type_arguments.expression,
+                    type_ref_node_as_expression_with_type_arguments.expression,
+                    self,
                 ) || is_optional_chain(
                     &type_ref_node_as_expression_with_type_arguments.expression,
                 ) {

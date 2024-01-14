@@ -166,7 +166,8 @@ impl TypeChecker {
                         let node_as_expression_with_type_arguments =
                             node.as_expression_with_type_arguments();
                         if is_entity_name_expression(
-                            &node_as_expression_with_type_arguments.expression,
+                            node_as_expression_with_type_arguments.expression,
+                            self,
                         ) {
                             let base_symbol = self.resolve_entity_name(
                                 &node_as_expression_with_type_arguments.expression,
@@ -847,7 +848,7 @@ impl TypeChecker {
         } else {
             &node.as_element_access_expression().argument_expression
         };
-        Ok(is_entity_name_expression(expr)
+        Ok(is_entity_name_expression(expr, self)
             && self.is_type_usable_as_property_name(if is_computed_property_name(node) {
                 self.check_computed_property_name(node)?
             } else {

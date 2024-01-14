@@ -725,7 +725,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
                 return Ok(self
                     .transform_es2015
                     .factory
-                    .get_generated_name_for_node(get_name_of_declaration(Some(declaration)), None)
+                    .get_generated_name_for_node(get_name_of_declaration(Some(declaration), self), None)
                     .set_text_range(Some(node)));
             }
         }

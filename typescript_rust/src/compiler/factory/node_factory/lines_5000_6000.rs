@@ -1163,7 +1163,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Id<Node> {
         let mut emit_flags = emit_flags.unwrap_or_default();
         let node = node.node_wrappered();
-        let node_name = get_name_of_declaration(node.as_deref());
+        let node_name = get_name_of_declaration(node, self);
         if let Some(ref node_name) = node_name
             .filter(|node_name| is_identifier(node_name) && !is_generated_identifier(node_name))
         {

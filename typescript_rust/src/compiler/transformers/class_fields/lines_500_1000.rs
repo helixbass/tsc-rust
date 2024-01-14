@@ -965,7 +965,7 @@ impl TransformClassFields {
         self.start_class_lexical_environment();
 
         if self.should_transform_private_elements_or_class_static_blocks {
-            let name = get_name_of_declaration(Some(node));
+            let name = get_name_of_declaration(Some(node), self);
             if let Some(ref name) = name.filter(|name| is_identifier(name)) {
                 self.get_private_identifier_environment()
                     .borrow_mut()

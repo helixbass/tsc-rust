@@ -474,7 +474,7 @@ impl TypeChecker {
             node = node.unwrap().maybe_parent();
             if let Some(node_present) = node.as_ref() {
                 if is_binary_expression(node_present) {
-                    let assignment_kind = get_assignment_declaration_kind(node_present);
+                    let assignment_kind = get_assignment_declaration_kind(node_present, self);
                     if matches!(
                         assignment_kind,
                         AssignmentDeclarationKind::Prototype

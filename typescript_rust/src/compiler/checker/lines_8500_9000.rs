@@ -489,7 +489,7 @@ impl TypeChecker {
                 let container_object_type = self.get_js_container_object_type(
                     declaration,
                     self.get_symbol_of_node(declaration)?,
-                    get_declared_expando_initializer(declaration),
+                    get_declared_expando_initializer(declaration, self),
                 )?;
                 if container_object_type.is_some() {
                     return Ok(container_object_type);
@@ -892,9 +892,9 @@ impl TypeChecker {
                     let expression = expression.unwrap();
 
                     let kind = if is_access_expression(&expression) {
-                        get_assignment_declaration_property_access_kind(&expression)
+                        get_assignment_declaration_property_access_kind(expression, self)
                     } else {
-                        get_assignment_declaration_kind(&expression)
+                        get_assignment_declaration_kind(expression, self)
                     };
                     if kind == AssignmentDeclarationKind::ThisProperty
                         || is_binary_expression(&expression)

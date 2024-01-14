@@ -395,7 +395,7 @@ impl TypeChecker {
         if let Some(parent) = parent.as_ref().filter(|parent| {
             is_object_literal_expression(parent)
                 && is_binary_expression(&parent.parent())
-                && get_assignment_declaration_kind(&parent.parent())
+                && get_assignment_declaration_kind(parent.parent(), self)
                     == AssignmentDeclarationKind::Prototype
         }) {
             return Ok(self
@@ -419,7 +419,7 @@ impl TypeChecker {
         if let Some(host) = host.as_ref().filter(|host| {
             is_function_expression(host)
                 && is_binary_expression(&host.parent())
-                && get_assignment_declaration_kind(&host.parent())
+                && get_assignment_declaration_kind(host.parent(), self)
                     == AssignmentDeclarationKind::PrototypeProperty
         }) {
             return Ok(self

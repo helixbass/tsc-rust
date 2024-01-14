@@ -55,7 +55,7 @@ impl TypeChecker {
             this_container.kind(),
             SyntaxKind::Constructor | SyntaxKind::FunctionDeclaration
         ) || this_container.kind() == SyntaxKind::FunctionExpression
-            && !is_prototype_property_assignment(&this_container.parent())
+            && !is_prototype_property_assignment(this_container.parent(), self)
     }
 
     pub(super) fn get_constructor_defined_this_assignment_types(
@@ -544,7 +544,7 @@ impl TypeChecker {
             || is_in_js_file(Some(declaration))
                 && (is_call_expression(declaration)
                     || (is_property_access_expression(declaration)
-                        || is_bindable_static_element_access_expression(declaration, None))
+                        || is_bindable_static_element_access_expression(declaration, None, self))
                         && is_binary_expression(&declaration.parent()))
         {
             type_ = self

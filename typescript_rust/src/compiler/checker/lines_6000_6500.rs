@@ -446,7 +446,7 @@ impl NodeBuilder {
     }
 
     pub(super) fn is_string_named(&self, d: Id<Node> /*Declaration*/) -> bool {
-        let name = get_name_of_declaration(Some(d));
+        let name = get_name_of_declaration(Some(d), self);
         matches!(
             name.as_ref(),
             Some(name) if is_string_literal(name)
@@ -454,7 +454,7 @@ impl NodeBuilder {
     }
 
     pub(super) fn is_single_quoted_string_named(&self, d: Id<Node> /*Declaration*/) -> bool {
-        let name = get_name_of_declaration(Some(d));
+        let name = get_name_of_declaration(Some(d), self);
         matches!(
             name.as_ref(),
             Some(name) if is_string_literal(name) && (
@@ -1124,7 +1124,7 @@ impl NodeBuilder {
             ));
         }
         if (is_expression_with_type_arguments(node) || is_type_reference_node(node))
-            && is_jsdoc_index_signature(node)
+            && is_jsdoc_index_signature(node, self)
         {
             return Ok(Some(
                 get_factory()
@@ -1369,7 +1369,7 @@ impl NodeBuilder {
             unimplemented!();
         }
 
-        if is_entity_name(node) || is_entity_name_expression(node) {
+        if is_entity_name(node) || is_entity_name_expression(node, self) {
             let TrackExistingEntityNameReturn {
                 introduces_error,
                 node: result,

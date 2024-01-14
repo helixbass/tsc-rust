@@ -808,7 +808,7 @@ impl TypeChecker {
                 && self.is_string_or_number_literal_expression(
                     &expr.as_element_access_expression().argument_expression,
                 ))
-            && is_entity_name_expression(&expr.as_has_expression().expression())
+            && is_entity_name_expression(expr.as_has_expression().expression(), self)
         {
             return Ok(self
                 .check_expression_cached(expr, None)?

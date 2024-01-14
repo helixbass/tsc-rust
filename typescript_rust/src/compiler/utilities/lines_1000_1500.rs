@@ -35,7 +35,7 @@ pub fn create_diagnostic_for_node(
     args: Option<Vec<String>>, arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node, arena);
-    create_diagnostic_for_node_in_source_file(&source_file, node, message, args, arena)
+    create_diagnostic_for_node_in_source_file(source_file, node, message, args, arena)
 }
 
 pub fn create_diagnostic_for_node_array(

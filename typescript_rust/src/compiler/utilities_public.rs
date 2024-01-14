@@ -570,6 +570,7 @@ pub fn symbol_name<'a>(symbol: &'a Symbol) -> Cow<'a, str> {
 
 fn name_for_nameless_jsdoc_typedef(
     declaration: Id<Node>, /*JSDocTypedefTag | JSDocEnumTag*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Identifier | PrivateIdentifier*/>> {
     let host_node = declaration.parent().maybe_parent();
     if host_node.is_none() {
@@ -577,7 +578,7 @@ fn name_for_nameless_jsdoc_typedef(
     }
     let host_node = host_node.unwrap();
     if is_declaration(&host_node) {
-        return get_declaration_identifier(&host_node);
+        return get_declaration_identifier(host_node, arena);
     }
     match &*host_node {
         Node::VariableStatement(host_node) => {
@@ -590,10 +591,11 @@ fn name_for_nameless_jsdoc_typedef(
                 .is_empty()
             {
                 return get_declaration_identifier(
-                    &host_node
+                    host_node
                         .declaration_list
                         .as_variable_declaration_list()
                         .declarations[0],
+                    arena,
                 );
             }
         }
@@ -622,11 +624,11 @@ fn name_for_nameless_jsdoc_typedef(
             }
         }
         Node::ParenthesizedExpression(host_node) => {
-            return get_declaration_identifier(&host_node.expression);
+            return get_declaration_identifier(host_node.expression, arena);
         }
         Node::LabeledStatement(host_node) => {
             if is_declaration(&host_node.statement) || is_expression(&host_node.statement) {
-                return get_declaration_identifier(&host_node.statement);
+                return get_declaration_identifier(host_node.statement, arena);
             }
         }
         _ => (),
@@ -636,8 +638,9 @@ fn name_for_nameless_jsdoc_typedef(
 
 fn get_declaration_identifier(
     node: Id<Node>, /*Declaration | Expression*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Identifier*/>> {
-    let name = get_name_of_declaration(Some(node));
+    let name = get_name_of_declaration(Some(node), arena);
     name.filter(|name| is_identifier(&**name))
 }
 
@@ -667,12 +670,13 @@ pub(crate) fn node_has_name(statement: Id<Node>, name: Id<Node> /*Identifier*/) 
 
 pub fn get_name_of_jsdoc_typedef(
     declaration: Id<Node>, /*JSDocTypedefTag*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Identifier | PrivateIdentifier*/>> {
     declaration
         .as_jsdoc_typedef_tag()
         .name
         .clone()
-        .or_else(|| name_for_nameless_jsdoc_typedef(declaration))
+        .or_else(|| name_for_nameless_jsdoc_typedef(declaration, arena))
 }
 
 pub(crate) fn is_named_declaration(node: Id<Node>) -> bool {
@@ -682,6 +686,7 @@ pub(crate) fn is_named_declaration(node: Id<Node>) -> bool {
 
 pub(crate) fn get_non_assigned_name_of_declaration(
     declaration: Id<Node>, /*Declaration | Expression*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*DeclarationName*/>> {
     match declaration.kind() {
         SyntaxKind::Identifier => {
@@ -695,7 +700,7 @@ pub(crate) fn get_non_assigned_name_of_declaration(
         }
         SyntaxKind::CallExpression | SyntaxKind::BinaryExpression => {
             let expr = declaration;
-            match get_assignment_declaration_kind(expr) {
+            match get_assignment_declaration_kind(expr, arena) {
                 AssignmentDeclarationKind::ExportsProperty
                 | AssignmentDeclarationKind::ThisProperty
                 | AssignmentDeclarationKind::Property
@@ -715,10 +720,10 @@ pub(crate) fn get_non_assigned_name_of_declaration(
             }
         }
         SyntaxKind::JSDocTypedefTag => {
-            return get_name_of_jsdoc_typedef(declaration);
+            return get_name_of_jsdoc_typedef(declaration, arena);
         }
         SyntaxKind::JSDocEnumTag => {
-            return name_for_nameless_jsdoc_typedef(declaration);
+            return name_for_nameless_jsdoc_typedef(declaration, arena);
         }
         SyntaxKind::ExportAssignment => {
             let expression = &declaration.as_export_assignment().expression;
@@ -747,13 +752,14 @@ pub(crate) fn get_non_assigned_name_of_declaration(
 
 pub fn get_name_of_declaration(
     declaration: Option<Id<Node> /*Declaration | Expression*/>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*DeclarationName*/>> {
     if declaration.is_none() {
         return None;
     }
     let declaration = declaration.unwrap();
     let declaration = declaration.borrow();
-    get_non_assigned_name_of_declaration(declaration).or_else(|| {
+    get_non_assigned_name_of_declaration(declaration, arena).or_else(|| {
         if is_function_expression(declaration)
             || is_arrow_function(declaration)
             || is_class_expression(declaration)

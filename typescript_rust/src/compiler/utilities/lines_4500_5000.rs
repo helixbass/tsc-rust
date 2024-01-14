@@ -19,11 +19,14 @@ use crate::{
     is_pinned_comment, is_property_access_entity_name_expression, is_white_space_single_line, last,
     maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, text_char_at_index,
     text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange, DetachedCommentInfo,
-    EmitTextWriter, ModifierFlags, ModifiersArray, Node, NodeFlags, NodeInterface,
-    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange, HasArena, InArena,
+    EmitTextWriter, HasArena, InArena, ModifierFlags, ModifiersArray, Node, NodeFlags,
+    NodeInterface, ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
-pub fn get_effective_type_annotation_node(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*TypeNode*/>> {
+pub fn get_effective_type_annotation_node(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*TypeNode*/>> {
     if !is_in_js_file(Some(node)) && is_function_declaration(node) {
         return None;
     }
@@ -49,7 +52,8 @@ pub fn get_type_annotation_node(node: Id<Node>) -> Option<Id<Node /*TypeNode*/>>
 }
 
 pub fn get_effective_return_type_node(
-    node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/ arena: &impl HasArena
+    node: Id<Node>,
+    /*SignatureDeclaration | JSDocSignature*/ arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
     if is_jsdoc_signature(node) {
         node.as_jsdoc_signature()
@@ -69,7 +73,8 @@ pub fn get_effective_return_type_node(
 }
 
 pub fn get_jsdoc_type_parameter_declarations(
-    node: Id<Node>, /*DeclarationWithTypeParameters*/ arena: &impl HasArena
+    node: Id<Node>,
+    /*DeclarationWithTypeParameters*/ arena: &impl HasArena,
 ) -> Vec<Id<Node /*TypeParameterDeclaration*/>> {
     flat_map(Some(get_jsdoc_tags(node, arena)), |tag, _| {
         if is_non_type_alias_template(&tag) {
@@ -89,7 +94,8 @@ pub fn is_non_type_alias_template(tag: Id<Node> /*JSDocTag*/) -> bool {
 }
 
 pub fn get_effective_set_accessor_type_annotation_node(
-    node: Id<Node>, /*SetAccessorDeclaration*/ arena: &impl HasArena
+    node: Id<Node>,
+    /*SetAccessorDeclaration*/ arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
     let parameter = get_set_accessor_value_parameter(node);
     parameter.and_then(|parameter| get_effective_type_annotation_node(parameter, arena))
@@ -399,7 +405,8 @@ pub fn has_syntactic_modifier(node: Id<Node>, flags: ModifierFlags, arena: &impl
 }
 
 pub fn is_static(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_class_element(node) && has_static_modifier(node, arena) || is_class_static_block_declaration(node)
+    is_class_element(node) && has_static_modifier(node, arena)
+        || is_class_static_block_declaration(node)
 }
 
 pub fn has_static_modifier(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -424,19 +431,25 @@ pub fn has_effective_readonly_modifier(node: Id<Node>, arena: &impl HasArena) ->
 
 pub fn get_selected_effective_modifier_flags(
     node: &Node,
-    flags: ModifierFlags, arena: &impl HasArena,
+    flags: ModifierFlags,
+    arena: &impl HasArena,
 ) -> ModifierFlags {
     get_effective_modifier_flags(node, arena) & flags
 }
 
-fn get_selected_syntactic_modifier_flags(node: Id<Node>, flags: ModifierFlags, arena: &impl HasArena) -> ModifierFlags {
+fn get_selected_syntactic_modifier_flags(
+    node: Id<Node>,
+    flags: ModifierFlags,
+    arena: &impl HasArena,
+) -> ModifierFlags {
     get_syntactic_modifier_flags(node, arena) & flags
 }
 
 fn get_modifier_flags_worker(
     node: Id<Node>,
     include_jsdoc: bool,
-    always_include_jsdoc: Option<bool>, arena: &impl HasArena
+    always_include_jsdoc: Option<bool>,
+    arena: &impl HasArena,
 ) -> ModifierFlags {
     if node.kind() >= SyntaxKind::FirstToken && node.kind() <= SyntaxKind::LastToken {
         return ModifierFlags::None;
@@ -473,7 +486,10 @@ pub fn get_effective_modifier_flags(node: Id<Node>, arena: &impl HasArena) -> Mo
     get_modifier_flags_worker(node, true, None, arena)
 }
 
-pub fn get_effective_modifier_flags_always_include_jsdoc(node: Id<Node>, arena: &impl HasArena) -> ModifierFlags {
+pub fn get_effective_modifier_flags_always_include_jsdoc(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> ModifierFlags {
     get_modifier_flags_worker(node, true, Some(true), arena)
 }
 
@@ -509,7 +525,10 @@ fn get_jsdoc_modifier_flags_no_cache(node: Id<Node>, arena: &impl HasArena) -> M
     flags
 }
 
-pub fn get_effective_modifier_flags_no_cache(node: Id<Node>, arena: &impl HasArena) -> ModifierFlags {
+pub fn get_effective_modifier_flags_no_cache(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> ModifierFlags {
     get_syntactic_modifier_flags_no_cache(node) | get_jsdoc_modifier_flags_no_cache(node, arena)
 }
 
@@ -615,11 +634,23 @@ pub fn try_get_class_implementing_or_extending_expression_with_type_arguments(
 ) -> Option<ClassImplementingOrExtendingExpressionWithTypeArguments> {
     if is_expression_with_type_arguments(&node.ref_(arena))
         && is_heritage_clause(&node.ref_(arena).parent().ref_(arena))
-        && maybe_is_class_like(node.ref_(arena).parent().ref_(arena).maybe_parent().map(|parent| parent.ref_(arena)).as_deref())
+        && maybe_is_class_like(
+            node.ref_(arena)
+                .parent()
+                .ref_(arena)
+                .maybe_parent()
+                .map(|parent| parent.ref_(arena))
+                .as_deref(),
+        )
     {
         Some(ClassImplementingOrExtendingExpressionWithTypeArguments {
             class: node.ref_(arena).parent().ref_(arena).parent(),
-            is_implements: node.ref_(arena).parent().ref_(arena).as_heritage_clause().token
+            is_implements: node
+                .ref_(arena)
+                .parent()
+                .ref_(arena)
+                .as_heritage_clause()
+                .token
                 == SyntaxKind::ImplementsKeyword,
         })
     } else {
@@ -657,10 +688,13 @@ pub fn is_destructuring_assignment(node: Id<Node>) -> bool {
     false
 }
 
-pub fn is_expression_with_type_arguments_in_class_extends_clause(node: Id<Node>, arena: &impl HasArena) -> bool {
+pub fn is_expression_with_type_arguments_in_class_extends_clause(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> bool {
     try_get_class_extending_expression_with_type_arguments(node, arena).is_some()
 }
 
-pub fn is_entity_name_expression(node: Id<Node>) -> bool {
-    node.kind() == SyntaxKind::Identifier || is_property_access_entity_name_expression(node)
+pub fn is_entity_name_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
+    node.kind() == SyntaxKind::Identifier || is_property_access_entity_name_expression(node, arena)
 }

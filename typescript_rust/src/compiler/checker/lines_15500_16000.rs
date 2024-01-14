@@ -31,9 +31,9 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_indexed_access_type_node = node_ref.as_indexed_access_type_node();
             let object_type =
-                self.get_type_from_type_node_(&node_as_indexed_access_type_node.object_type)?;
+                self.get_type_from_type_node_(node_as_indexed_access_type_node.object_type)?;
             let index_type =
-                self.get_type_from_type_node_(&node_as_indexed_access_type_node.index_type)?;
+                self.get_type_from_type_node_(node_as_indexed_access_type_node.index_type)?;
             let potential_alias = self.get_alias_symbol_for_type_node(node)?;
             let resolved = self.get_indexed_access_type(
                 object_type,
@@ -130,14 +130,14 @@ impl TypeChecker {
     ) -> bool {
         !(*root).borrow().is_distributive
             && self.is_singleton_tuple_type(
-                &(*root)
+                (*root)
                     .borrow()
                     .node
                     .ref_(self).as_conditional_type_node()
                     .check_type,
             )
             && self.is_singleton_tuple_type(
-                &(*root)
+                (*root)
                     .borrow()
                     .node
                     .ref_(self).as_conditional_type_node()
@@ -150,8 +150,8 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_tuple_type_node = node_ref.as_tuple_type_node();
             length(Some(&*node_as_tuple_type_node.elements)) == 1
-                && !is_optional_type_node(&node_as_tuple_type_node.elements[0])
-                && !is_rest_type_node(&node_as_tuple_type_node.elements[0])
+                && !is_optional_type_node(node_as_tuple_type_node.elements[0])
+                && !is_rest_type_node(node_as_tuple_type_node.elements[0])
         }
     }
 
@@ -614,7 +614,7 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_conditional_type_node = node_ref.as_conditional_type_node();
             let check_type =
-                self.get_type_from_type_node_(&node_as_conditional_type_node.check_type)?;
+                self.get_type_from_type_node_(node_as_conditional_type_node.check_type)?;
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol)?;
             let all_outer_type_parameters = self.get_outer_type_parameters(node, Some(true))?;
@@ -629,7 +629,7 @@ impl TypeChecker {
             let root = Gc::new(GcCell::new(ConditionalRoot::new(
                 node,
                 check_type.clone(),
-                self.get_type_from_type_node_(&node_as_conditional_type_node.extends_type)?,
+                self.get_type_from_type_node_(node_as_conditional_type_node.extends_type)?,
                 {
                     let intersects = check_type
                         .ref_(self)
@@ -684,7 +684,7 @@ impl TypeChecker {
         } else {
             let node_ref = node.ref_(self);
             let node_as_qualified_name = node_ref.as_qualified_name();
-            let mut ret = self.get_identifier_chain(&node_as_qualified_name.left);
+            let mut ret = self.get_identifier_chain(node_as_qualified_name.left);
             append(&mut ret, Some(node_as_qualified_name.right.clone()));
             ret
         }
@@ -714,7 +714,7 @@ impl TypeChecker {
             }
             if !is_literal_import_type_node(node, self) {
                 self.error(
-                    Some(&*node_as_import_type_node.argument),
+                    Some(node_as_import_type_node.argument),
                     &Diagnostics::String_literal_expected,
                     None,
                 );
@@ -733,9 +733,9 @@ impl TypeChecker {
             };
             let inner_module_symbol = self.resolve_external_module_name_(
                 node,
-                &node_as_import_type_node
+                node_as_import_type_node
                     .argument
-                    .as_literal_type_node()
+                    .ref_(arena).as_literal_type_node()
                     .literal,
                 None,
             )?;
@@ -750,9 +750,9 @@ impl TypeChecker {
             let module_symbol = self
                 .resolve_external_module_symbol(Some(inner_module_symbol), Some(false))?
                 .unwrap();
-            if !node_is_missing(node_as_import_type_node.qualifier.as_deref()) {
+            if !node_is_missing(node_as_import_type_node.qualifier) {
                 let mut name_stack: Vec<Id<Node /*Identifier*/>> =
-                    self.get_identifier_chain(node_as_import_type_node.qualifier.as_ref().unwrap());
+                    self.get_identifier_chain(node_as_import_type_node.qualifier.unwrap());
                 let mut current_namespace = module_symbol.clone();
                 let mut current: Option<Id<Node /*Identifier*/>>;
                 while {
@@ -794,7 +794,7 @@ impl TypeChecker {
                                     current_namespace,
                                     Option::<Id<Node>>::None,
                                 )?,
-                                declaration_name_to_string(Some(&*current)).into_owned(),
+                                declaration_name_to_string(Some(current)).into_owned(),
                             ]),
                         );
                         let ret = self.error_type();
@@ -834,9 +834,9 @@ impl TypeChecker {
                         error_message,
                         Some(vec![node_as_import_type_node
                             .argument
-                            .as_literal_type_node()
+                            .ref_(arena).as_literal_type_node()
                             .literal
-                            .as_literal_like_node()
+                            .ref_(arena).as_literal_like_node()
                             .text()
                             .clone()]),
                     );

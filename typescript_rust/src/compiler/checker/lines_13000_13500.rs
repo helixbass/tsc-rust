@@ -864,7 +864,7 @@ impl TypeChecker {
             }
             SyntaxKind::ExpressionWithTypeArguments => {
                 let expr = &node.as_expression_with_type_arguments().expression;
-                if is_entity_name_expression(expr) {
+                if is_entity_name_expression(expr, self) {
                     return Some(expr.clone());
                 }
             }
@@ -1249,7 +1249,7 @@ impl TypeChecker {
                 "Object" => {
                     if let Some(type_args) = type_args {
                         if type_args.len() == 2 {
-                            if is_jsdoc_index_signature(node) {
+                            if is_jsdoc_index_signature(node, self) {
                                 let indexed = self.get_type_from_type_node_(&type_args[0])?;
                                 let target = self.get_type_from_type_node_(&type_args[1])?;
                                 let index_info = if indexed == self.string_type()

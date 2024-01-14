@@ -607,7 +607,7 @@ impl TypeChecker {
             return matches!(
                 parent.as_ref(),
                 Some(parent) if is_binary_expression(parent) &&
-                    get_assignment_declaration_kind(parent) == AssignmentDeclarationKind::PrototypeProperty
+                    get_assignment_declaration_kind(parent, self) == AssignmentDeclarationKind::PrototypeProperty
             );
         }
         false

@@ -104,7 +104,7 @@ impl TypeChecker {
 
                     for statement in statements {
                         if statement.kind() == SyntaxKind::ExpressionStatement
-                            && is_super_call(statement.as_expression_statement(, self).expression)
+                            && is_super_call(statement.as_expression_statement().expression, self)
                         {
                             super_call_statement = Some(statement.node_wrapper());
                             break;
@@ -1057,7 +1057,7 @@ impl TypeChecker {
                 |declaration: &Id<Node>, _| -> Option<()> {
                     self.error(
                         Some(
-                            get_name_of_declaration(Some(&**declaration))
+                            get_name_of_declaration(Some(declaration), self)
                                 .unwrap_or_else(|| declaration.clone()),
                         ),
                         &Diagnostics::Duplicate_function_implementation,
@@ -1102,7 +1102,7 @@ impl TypeChecker {
                         add_related_info(
                             &self.error(
                                 Some(
-                                    get_name_of_declaration(Some(&**declaration))
+                                    get_name_of_declaration(Some(declaration), self)
                                         .unwrap_or_else(|| declaration.clone()),
                                 ),
                                 diagnostic,
@@ -1230,25 +1230,25 @@ impl TypeChecker {
                     self.get_effective_declaration_flags(o, flags_to_check) ^ canonical_flags;
                 if deviation.intersects(ModifierFlags::Export) {
                     self.error(
-                        get_name_of_declaration(Some(&**o)),
+                        get_name_of_declaration(Some(o), self),
                         &Diagnostics::Overload_signatures_must_all_be_exported_or_non_exported,
                         None,
                     );
                 } else if deviation.intersects(ModifierFlags::Ambient) {
                     self.error(
-                        get_name_of_declaration(Some(&**o)),
+                        get_name_of_declaration(Some(o), self),
                         &Diagnostics::Overload_signatures_must_all_be_ambient_or_non_ambient,
                         None,
                     );
                 } else if deviation.intersects(ModifierFlags::Private | ModifierFlags::Protected) {
                     self.error(
-                        Some(get_name_of_declaration(Some(&**o)).unwrap_or_else(|| o.clone())),
+                        Some(get_name_of_declaration(Some(o), self).unwrap_or_else(|| o.clone())),
                         &Diagnostics::Overload_signatures_must_all_be_public_private_or_protected,
                         None,
                     );
                 } else if deviation.intersects(ModifierFlags::Abstract) {
                     self.error(
-                        get_name_of_declaration(Some(&**o)),
+                        get_name_of_declaration(Some(o), self),
                         &Diagnostics::Overload_signatures_must_all_be_abstract_or_non_abstract,
                         None,
                     );
@@ -1272,7 +1272,7 @@ impl TypeChecker {
                 let deviation = has_question_token(o) != canonical_has_question_token;
                 if deviation {
                     self.error(
-                        get_name_of_declaration(Some(&**o)),
+                        get_name_of_declaration(Some(o), self),
                         &Diagnostics::Overload_signatures_must_all_be_optional_or_required,
                         None,
                     );

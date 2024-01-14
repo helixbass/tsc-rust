@@ -242,7 +242,7 @@ impl TypeChecker {
         node: Id<Node>, /*TypeNode*/
     ) -> io::Result<()> {
         self.mark_entity_name_or_entity_expression_as_reference(
-            /*node &&*/ get_entity_name_from_type_node(node),
+            /*node &&*/ get_entity_name_from_type_node(node, self),
         )?;
 
         Ok(())

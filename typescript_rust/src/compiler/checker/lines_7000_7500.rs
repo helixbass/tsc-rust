@@ -601,7 +601,7 @@ impl SymbolTableToDeclarationStatements {
         {
             let ref signature_declaration_parent = signature_declaration.parent();
             if is_binary_expression(signature_declaration_parent)
-                && get_assignment_declaration_kind(signature_declaration_parent)
+                && get_assignment_declaration_kind(signature_declaration_parent, self)
                     == AssignmentDeclarationKind::Property
             {
                 return Some(signature_declaration_parent.clone());
@@ -756,7 +756,7 @@ impl SymbolTableToDeclarationStatements {
             let old_enclosing = self.context().maybe_enclosing_declaration();
             self.context().set_enclosing_declaration(Some(e.clone()));
             let mut expr = e_as_expression_with_type_arguments.expression.clone();
-            if is_entity_name_expression(&expr) {
+            if is_entity_name_expression(expr, self) {
                 if is_identifier(&expr) && id_text(&expr) == "" {
                     return Ok(self.sanitize_jsdoc_implements_cleanup(old_enclosing, None));
                 }
@@ -1063,7 +1063,7 @@ impl SymbolTableToDeclarationStatements {
                 }
             }
             if self.type_checker.is_alias_symbol_declaration(d)? {
-                let name = get_name_of_declaration(Some(&**d));
+                let name = get_name_of_declaration(Some(d), self);
                 if let Some(name) = name.as_ref().filter(|name| is_identifier(name)) {
                     return Ok(Some(id_text(name).to_owned()));
                 }

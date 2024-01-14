@@ -32,7 +32,7 @@ impl TypeChecker {
                 let is_declaration = node.kind() != SyntaxKind::Identifier;
                 if is_declaration {
                     self.error(
-                            get_name_of_declaration(Some(node)),
+                            get_name_of_declaration(Some(node), self),
                             &Diagnostics::Duplicate_identifier_this_Compiler_uses_variable_declaration_this_to_capture_this_reference,
                             None,
                         );
@@ -58,7 +58,7 @@ impl TypeChecker {
                 let is_declaration = node.kind() != SyntaxKind::Identifier;
                 if is_declaration {
                     self.error(
-                            get_name_of_declaration(Some(node)),
+                            get_name_of_declaration(Some(node), self),
                             &Diagnostics::Duplicate_identifier_newTarget_Compiler_uses_variable_declaration_newTarget_to_capture_new_target_meta_property_reference,
                             None,
                         );
@@ -545,7 +545,7 @@ impl TypeChecker {
         }
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         if symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
-            && is_require_variable_declaration(node)
+            && is_require_variable_declaration(node, self)
         {
             self.check_alias_symbol(node)?;
             return Ok(());
@@ -567,7 +567,7 @@ impl TypeChecker {
                         .as_object_literal_expression()
                         .properties
                         .is_empty()
-                        || is_prototype_access(&node_name))
+                        || is_prototype_access(node_name, self))
                     && matches!(
                         symbol.ref_(self).maybe_exports().as_ref(),
                         Some(symbol_exports) if !(**symbol_exports).borrow().is_empty()
@@ -678,7 +678,7 @@ impl TypeChecker {
         next_declaration: Id<Node>, /*Declaration*/
         next_type: Id<Type>,
     ) -> io::Result<()> {
-        let next_declaration_name = get_name_of_declaration(Some(next_declaration));
+        let next_declaration_name = get_name_of_declaration(Some(next_declaration), self);
         let message = if matches!(
             next_declaration.kind(),
             SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature

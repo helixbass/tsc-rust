@@ -26,7 +26,7 @@ impl TypeChecker {
         &self,
         binary_expression: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Type>>> {
-        let kind = get_assignment_declaration_kind(binary_expression);
+        let kind = get_assignment_declaration_kind(binary_expression, self);
         let binary_expression_ref = binary_expression.ref_(self);
         let binary_expression_as_binary_expression = binary_expression_ref.as_binary_expression();
         Ok(match kind {
@@ -194,7 +194,7 @@ impl TypeChecker {
         declaration: Id<Node>, /*BinaryExpression*/
         kind: Option<AssignmentDeclarationKind>,
     ) -> io::Result<bool> {
-        let kind = kind.unwrap_or_else(|| get_assignment_declaration_kind(declaration));
+        let kind = kind.unwrap_or_else(|| get_assignment_declaration_kind(declaration, self));
         if kind == AssignmentDeclarationKind::ThisProperty {
             return Ok(true);
         }

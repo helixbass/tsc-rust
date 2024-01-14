@@ -67,13 +67,14 @@ pub fn is_dotted_name(node: &Node /*Expression*/) -> bool {
             && is_dotted_name(&node.as_parenthesized_expression().expression)
 }
 
-pub fn is_property_access_entity_name_expression(node: &Node) -> bool {
-    if !is_property_access_expression(node) {
+pub fn is_property_access_entity_name_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
+    if !is_property_access_expression(&node.ref_(arena)) {
         return false;
     }
-    let node_as_property_access_expression = node.as_property_access_expression();
-    is_identifier(&node_as_property_access_expression.name)
-        && is_entity_name_expression(&node_as_property_access_expression.expression)
+    let node_ref = node.ref_(arena);
+    let node_as_property_access_expression = node_ref.as_property_access_expression();
+    is_identifier(&node_as_property_access_expression.name.ref_(arena))
+        && is_entity_name_expression(node_as_property_access_expression.expression, arena)
 }
 
 pub fn try_get_property_access_or_identifier_to_string<'expr>(
@@ -120,8 +121,8 @@ pub fn try_get_property_access_or_identifier_to_string<'expr>(
     None
 }
 
-pub fn is_prototype_access(node: &Node) -> bool {
-    is_bindable_static_access_expression(node, None)
+pub fn is_prototype_access(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_bindable_static_access_expression(node, None, arena)
         && match get_element_or_property_access_name(node) {
             Some(name) => name == "prototype",
             None => false,
@@ -158,7 +159,10 @@ pub fn is_empty_array_literal(expression: &Node) -> bool {
         && expression.as_array_literal_expression().elements.is_empty()
 }
 
-pub fn get_local_symbol_for_export_default(symbol: Id<Symbol>, arena: &impl HasArena) -> Option<Id<Symbol>> {
+pub fn get_local_symbol_for_export_default(
+    symbol: Id<Symbol>,
+    arena: &impl HasArena,
+) -> Option<Id<Symbol>> {
     if !is_export_default_symbol(symbol, arena) || symbol.maybe_declarations().is_none() {
         return None;
     }
@@ -676,7 +680,7 @@ pub fn is_type_node_kind(kind: SyntaxKind) -> bool {
         )
 }
 
-pub fn is_access_expression(node: Id<Node>) -> bool {
+pub fn is_access_expression(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression

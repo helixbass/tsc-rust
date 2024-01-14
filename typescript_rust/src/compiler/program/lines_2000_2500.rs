@@ -1064,7 +1064,7 @@ impl Program {
                 // TODO: I think this needs to use "char count" rather than "byte count" somehow?
                 match_.end().try_into().unwrap(),
             );
-            if is_java_script_file && is_require_call(node, true) {
+            if is_java_script_file && is_require_call(node, true, self) {
                 set_parent_recursive(Some(&**node), false);
                 if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
                 {

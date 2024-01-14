@@ -572,7 +572,7 @@ impl TypeChecker {
     ) -> Option<Id<Node>> {
         if container.kind() == SyntaxKind::FunctionExpression
             && is_binary_expression(&container.parent())
-            && get_assignment_declaration_kind(&container.parent())
+            && get_assignment_declaration_kind(container.parent(), self)
                 == AssignmentDeclarationKind::PrototypeProperty
         {
             return Some(
@@ -589,7 +589,7 @@ impl TypeChecker {
         } else if container.kind() == SyntaxKind::MethodDeclaration
             && container.parent().kind() == SyntaxKind::ObjectLiteralExpression
             && is_binary_expression(&container.parent().parent())
-            && get_assignment_declaration_kind(&container.parent().parent())
+            && get_assignment_declaration_kind(container.parent().parent(), self)
                 == AssignmentDeclarationKind::Prototype
         {
             return Some(
@@ -606,7 +606,7 @@ impl TypeChecker {
             && container.parent().kind() == SyntaxKind::PropertyAssignment
             && container.parent().parent().kind() == SyntaxKind::ObjectLiteralExpression
             && is_binary_expression(&container.parent().parent().parent())
-            && get_assignment_declaration_kind(&container.parent().parent().parent())
+            && get_assignment_declaration_kind(container.parent().parent().parent(), self)
                 == AssignmentDeclarationKind::Prototype
         {
             return Some(
@@ -649,7 +649,7 @@ impl TypeChecker {
                                     &container_parent_parent
                                 )
                             ) &&
-                            get_assignment_declaration_kind(&container_parent_parent_parent) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
+                            get_assignment_declaration_kind(container_parent_parent_parent, self) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                                     }
                             }
                     }
@@ -688,7 +688,7 @@ impl TypeChecker {
                                     &container_parent
                                 )
                             )
-                            && get_assignment_declaration_kind(&container_parent_parent)
+                            && get_assignment_declaration_kind(container_parent_parent, self)
                                 == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                     }
                 }

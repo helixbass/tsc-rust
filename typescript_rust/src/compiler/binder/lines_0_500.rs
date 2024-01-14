@@ -131,6 +131,7 @@ pub fn get_module_instance_state_cached(
 pub(super) fn get_module_instance_state_worker(
     node: Id<Node>, /*ModuleDeclaration*/
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
+    arena: &impl HasArena,
 ) -> ModuleInstanceState {
     match node.kind() {
         SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeAliasDeclaration => {
@@ -142,7 +143,7 @@ pub(super) fn get_module_instance_state_worker(
             }
         }
         SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration => {
-            if !has_syntactic_modifier(node, ModifierFlags::Export, self) {
+            if !has_syntactic_modifier(node, ModifierFlags::Export, arena) {
                 return ModuleInstanceState::NonInstantiated;
             }
         }
@@ -825,7 +826,7 @@ impl BinderType {
         }
 
         if symbol_flags.intersects(SymbolFlags::Value) {
-            set_value_declaration(&symbol.ref_(self), node);
+            set_value_declaration(symbol, node, self);
         }
     }
 
@@ -843,7 +844,7 @@ impl BinderType {
             );
         }
 
-        let name = get_name_of_declaration(Some(node));
+        let name = get_name_of_declaration(Some(node), self);
         if let Some(name) = name {
             if is_ambient_module(node) {
                 let module_name = get_text_of_identifier_or_literal(&name);
@@ -916,7 +917,7 @@ impl BinderType {
             SyntaxKind::ExportDeclaration => Some(InternalSymbolName::ExportStar.into()),
             SyntaxKind::SourceFile => Some(InternalSymbolName::ExportEquals.into()),
             SyntaxKind::BinaryExpression => {
-                if get_assignment_declaration_kind(node) == AssignmentDeclarationKind::ModuleExports
+                if get_assignment_declaration_kind(node, self) == AssignmentDeclarationKind::ModuleExports
                 {
                     return Some(InternalSymbolName::ExportEquals.into());
                 }
@@ -972,7 +973,7 @@ impl BinderType {
     ) -> Id<Symbol> {
         let is_replaceable_by_method = is_replaceable_by_method.unwrap_or(false);
         let is_computed_name = is_computed_name.unwrap_or(false);
-        Debug_.assert(is_computed_name || !has_dynamic_name(node), None);
+        Debug_.assert(is_computed_name || !has_dynamic_name(node, self), None);
 
         let is_default_export = has_syntactic_modifier(node, ModifierFlags::Default, self)
             || is_export_specifier(node)
@@ -1120,12 +1121,12 @@ impl BinderType {
                                 ));
                             }
 
-                            let declaration_name: Id<Node> = get_name_of_declaration(Some(node))
+                            let declaration_name: Id<Node> = get_name_of_declaration(Some(node), self)
                                 .unwrap_or_else(|| node.node_wrapper());
                             maybe_for_each(
                                 symbol_present.ref_(self).maybe_declarations().as_ref(),
                                 |declaration: &Id<Node>, index| {
-                                    let decl = get_name_of_declaration(Some(&**declaration))
+                                    let decl = get_name_of_declaration(Some(declaration), self)
                                         .unwrap_or_else(|| declaration.node_wrapper());
                                     let diag: Gc<Diagnostic> = Gc::new(
                                         self.create_diagnostic_for_node(

@@ -273,7 +273,7 @@ impl TypeChecker {
         if !is_call_expression(d) {
             return Ok(false);
         }
-        if !is_bindable_object_define_property_call(d) {
+        if !is_bindable_object_define_property_call(d, self) {
             return Ok(false);
         }
         let d_as_call_expression = d.as_call_expression();

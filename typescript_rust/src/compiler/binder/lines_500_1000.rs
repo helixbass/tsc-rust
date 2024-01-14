@@ -134,13 +134,13 @@ impl BinderType {
         {
             return true;
         }
-        let decl_name = get_name_of_declaration(Some(&*node));
+        let decl_name = get_name_of_declaration(Some(node), self);
         if decl_name.is_none() {
             return false;
         }
         let decl_name = decl_name.unwrap();
         let decl_name_parent = decl_name.parent();
-        if is_property_access_entity_name_expression(&decl_name_parent)
+        if is_property_access_entity_name_expression(decl_name_parent, self)
             && self.is_top_level_namespace_assignment(&decl_name_parent)
         {
             return true;

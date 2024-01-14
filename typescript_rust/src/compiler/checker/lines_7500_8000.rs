@@ -90,8 +90,7 @@ impl SymbolTableToDeclarationStatements {
                     }
                 });
                 let first = expr
-                    .as_ref()
-                    .filter(|expr| is_entity_name_expression(expr))
+                    .filter(|&expr| is_entity_name_expression(expr, self))
                     .map(|expr| {
                         self.type_checker
                             .get_first_non_module_exports_identifier(expr)
@@ -1014,7 +1013,7 @@ impl MakeSerializePropertySymbol {
                     .declaration
                     .as_ref()
                     .filter(|sig_declaration| {
-                        is_prototype_property_assignment(&sig_declaration.parent())
+                        is_prototype_property_assignment(sig_declaration.parent(), self)
                     })
                     .map(|sig_declaration| sig_declaration.parent())
                     .or_else(|| sig.declaration.clone());

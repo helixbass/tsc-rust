@@ -11,7 +11,7 @@ use crate::{
     is_property_access_expression, is_property_declaration, is_property_signature, is_set_accessor,
     is_static, is_type_alias_declaration, is_type_parameter_declaration, is_variable_declaration,
     Debug_, DiagnosticMessage, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeInterface, NonEmpty, SymbolAccessibility, SymbolAccessibilityResult, SyntaxKind,
+    NodeInterface, NonEmpty, SymbolAccessibility, SymbolAccessibilityResult, SyntaxKind, HasArena,
 };
 
 pub trait GetSymbolAccessibilityDiagnosticInterface: Trace + Finalize {
@@ -130,7 +130,7 @@ fn get_variable_declaration_type_visibility_diagnostic_message(
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::PropertySignature
     ) || node.kind() == SyntaxKind::Parameter
-        && has_syntactic_modifier(node.parent(), ModifierFlags::Private, self)
+        && has_syntactic_modifier(node.parent(), ModifierFlags::Private, arena)
     {
         if is_static(node, arena) {
             return Some(
@@ -485,8 +485,9 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetParameterDeclarationTypeVi
 }
 
 fn get_parameter_declaration_type_visibility_diagnostic_message(
-    node: Id<Node>
-    symbol_accessibility_result: &SymbolAccessibilityResult, arena: &impl HasArena,
+    node: Id<Node>,
+    symbol_accessibility_result: &SymbolAccessibilityResult,
+    arena: &impl HasArena,
 ) -> &'static DiagnosticMessage {
     match node.parent().kind() {
         SyntaxKind::Constructor => {
@@ -737,7 +738,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityEr
         Some(Gc::new(SymbolAccessibilityDiagnostic {
             diagnostic_message,
             error_node: self.node.clone(),
-            type_name: get_name_of_declaration(self.node.parent().maybe_parent()),
+            type_name: get_name_of_declaration(self.node.parent().maybe_parent(), self),
         }))
     }
 }
@@ -806,7 +807,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeAliasDeclarationVisibi
                 self.node.as_type_alias_declaration().type_.clone()
             },
             type_name: if is_jsdoc_type_alias(&self.node) {
-                get_name_of_declaration(Some(&*self.node))
+                get_name_of_declaration(Some(self.node), self)
             } else {
                 self.node.as_type_alias_declaration().maybe_name()
             },

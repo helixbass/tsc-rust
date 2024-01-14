@@ -886,7 +886,7 @@ impl TypeChecker {
                                 .left
                                 .as_has_expression()
                                 .expression();
-                            if is_entity_name_expression(&d_parent_left_expression) {
+                            if is_entity_name_expression(d_parent_left_expression, self) {
                                 if is_module_exports_access_expression(
                                     &d_parent_as_binary_expression.left,
                                 ) || is_exports_identifier(&d_parent_left_expression)

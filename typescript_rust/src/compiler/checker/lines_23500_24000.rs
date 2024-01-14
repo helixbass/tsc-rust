@@ -477,7 +477,7 @@ impl GetFlowTypeOfReference {
             }
             if is_variable_declaration(node) && (is_in_js_file(Some(&**node)) || is_var_const(node))
             {
-                let init = get_declared_expando_initializer(node);
+                let init = get_declared_expando_initializer(node, self);
                 if matches!(
                     init.as_ref(),
                     Some(init) if matches!(

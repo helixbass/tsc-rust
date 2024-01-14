@@ -1,6 +1,6 @@
 plugins:
-  rustfmt:
-    path: ../../tree-sitter-lint-plugin-rustfmt
+  # rustfmt:
+  #   path: ../../tree-sitter-lint-plugin-rustfmt
   rust-known-imports:
     path: ../../tree-sitter-lint-plugin-rust-known-imports
 rules:
@@ -10,91 +10,94 @@ rules:
   #   level: error
   # rewrite-ref-type-to-id-type:
   #   level: error
-  rustfmt/rustfmt:
-    level: error
+  # rustfmt/rustfmt:
+  #   level: error
   rust-known-imports/known-imports:
     level: error
     options:
       known_imports:
-        AllArenas:
-          module: crate
-          kind: type
-        EmitNode:
-          module: crate
-          kind: type
-        Node:
-          module: crate
-          kind: type
-        NodeArray:
-          module: crate
-          kind: type
         ReadonlyTextRangeConcrete:
           module: crate
           kind: type
-        Symbol:
-          module: crate
-          kind: type
-        SymbolTable:
-          module: crate
-          kind: type
-        Type:
-          module: crate
-          kind: type
-        set_text_range_node:
-          module: crate
-          kind: function
-        _d:
-          module: crate
-          kind: function
-        # HasArena:
+        # AllArenas:
         #   module: crate
         #   kind: type
-        # InArena:
+        # EmitNode:
         #   module: crate
         #   kind: type
-        # arena:
+        # Node:
+        #   module: crate
+        #   kind: type
+        # NodeArray:
+        #   module: crate
+        #   kind: type
+        # ReadonlyTextRangeConcrete:
+        #   module: crate
+        #   kind: type
+        # Symbol:
+        #   module: crate
+        #   kind: type
+        # SymbolTable:
+        #   module: crate
+        #   kind: type
+        # Type:
+        #   module: crate
+        #   kind: type
+        # set_text_range_node:
+        #   module: crate
+        #   kind: function
+        # _d:
+        #   module: crate
+        #   kind: function
+        # # HasArena:
+        # #   module: crate
+        # #   kind: type
+        # # InArena:
+        # #   module: crate
+        # #   kind: type
+        # # arena:
+        # #   module: crate
+        # #   kind: trait_method
+        # #   trait: HasArena
+        # # type_:
+        # #   module: crate
+        # #   kind: trait_method
+        # #   trait: HasArena
+        # # alloc_type:
+        # #   module: crate
+        # #   kind: trait_method
+        # #   trait: HasArena
+        # # type_mapper:
+        # #   module: crate
+        # #   kind: trait_method
+        # #   trait: HasArena
+        # # alloc_type_mapper:
+        # #   module: crate
+        # #   kind: trait_method
+        # #   trait: HasArena
+        # # symbol:
+        # #   module: crate
+        # #   kind: trait_method
+        # #   trait: HasArena
+        # # alloc_symbol:
+        # #   module: crate
+        # #   kind: trait_method
+        # #   trait: HasArena
+        # ref_:
         #   module: crate
         #   kind: trait_method
-        #   trait: HasArena
-        # type_:
-        #   module: crate
-        #   kind: trait_method
-        #   trait: HasArena
-        # alloc_type:
-        #   module: crate
-        #   kind: trait_method
-        #   trait: HasArena
-        # type_mapper:
-        #   module: crate
-        #   kind: trait_method
-        #   trait: HasArena
-        # alloc_type_mapper:
-        #   module: crate
-        #   kind: trait_method
-        #   trait: HasArena
-        # symbol:
-        #   module: crate
-        #   kind: trait_method
-        #   trait: HasArena
-        # alloc_symbol:
-        #   module: crate
-        #   kind: trait_method
-        #   trait: HasArena
-        ref_:
-          module: crate
-          kind: trait_method
-          trait: InArena
-        Id:
-          module: id_arena
-          kind: type
-        Arena:
-          module: id_arena
-          kind: type
-        RefCell:
-          module: std::cell
-          kind: type
-        Cell:
-          module: std::cell
-          kind: type
+        #   trait: InArena
+        # Id:
+        #   module: id_arena
+        #   kind: type
+        # Arena:
+        #   module: id_arena
+        #   kind: type
+        # RefCell:
+        #   module: std::cell
+        #   kind: type
+        # Cell:
+        #   module: std::cell
+        #   kind: type
 tree-sitter-lint-dependency:
   path: ../../tree-sitter-lint

@@ -907,7 +907,7 @@ impl TypeChecker {
         self.check_external_module_exports(container)?;
 
         if node.flags().intersects(NodeFlags::Ambient)
-            && !is_entity_name_expression(&node_as_export_assignment.expression)
+            && !is_entity_name_expression(node_as_export_assignment.expression, self)
         {
             self.grammar_error_on_node(
                 &node_as_export_assignment.expression,

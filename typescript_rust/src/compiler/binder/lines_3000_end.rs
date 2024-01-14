@@ -166,7 +166,7 @@ impl BinderType {
             )
         {
             self.bind_exports_property_assignment(node);
-        } else if has_dynamic_name(node) {
+        } else if has_dynamic_name(node, self) {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::Property | SymbolFlags::Assignment,
@@ -186,7 +186,7 @@ impl BinderType {
         } else {
             self.bind_static_property_assignment(cast(
                 Some(&*node_as_binary_expression.left),
-                |node| is_bindable_static_name_expression(node, None),
+                |node| is_bindable_static_name_expression(node, None, self),
             ));
         }
     }
@@ -324,7 +324,7 @@ impl BinderType {
             includes = SymbolFlags::Method;
             excludes = SymbolFlags::MethodExcludes;
         } else if is_call_expression(declaration)
-            && is_bindable_object_define_property_call(declaration)
+            && is_bindable_object_define_property_call(declaration, self)
         {
             let declaration_as_call_expression = declaration.as_call_expression();
             if some(
@@ -334,7 +334,7 @@ impl BinderType {
                         .properties,
                 ),
                 Some(|p: &Id<Node>| {
-                    let id = get_name_of_declaration(Some(&**p));
+                    let id = get_name_of_declaration(Some(p), self);
                     matches!(id, Some(id) if is_identifier(&id) && id_text(&id) == "set")
                 }),
             ) {
@@ -348,7 +348,7 @@ impl BinderType {
                         .properties,
                 ),
                 Some(|p: &Id<Node>| {
-                    let id = get_name_of_declaration(Some(&**p));
+                    let id = get_name_of_declaration(Some(p), self);
                     matches!(id, Some(id) if is_identifier(&id) && id_text(&id) == "get")
                 }),
             ) {
@@ -443,13 +443,13 @@ impl BinderType {
         if let Some(init) = init {
             let node = node.unwrap();
             let is_prototype_assignment =
-                is_prototype_access(&*if is_variable_declaration(&node) {
+                is_prototype_access(if is_variable_declaration(&node) {
                     node.as_variable_declaration().name()
                 } else if is_binary_expression(&node) {
                     node.as_binary_expression().left.clone()
                 } else {
                     node.node_wrapper()
-                });
+                }, self);
             return get_expando_initializer(
                 if is_binary_expression(&init)
                     && matches!(
@@ -548,7 +548,7 @@ impl BinderType {
             .as_source_file()
             .maybe_common_js_module_indicator()
             .is_none()
-            && is_require_call(node, false)
+            && is_require_call(node, false, self)
         {
             self.set_common_js_module_indicator(node);
         }
@@ -638,7 +638,7 @@ impl BinderType {
 
         if !is_binding_pattern(Some(node_as_named_declaration.name())) {
             if is_in_js_file(Some(node))
-                && is_require_variable_declaration(node)
+                && is_require_variable_declaration(node, self)
                 && get_jsdoc_type_tag(node).is_none()
             {
                 self.declare_symbol_and_add_to_symbol_table(
@@ -791,7 +791,7 @@ impl BinderType {
             }
         }
 
-        if has_dynamic_name(node) {
+        if has_dynamic_name(node, self) {
             Some(self.bind_anonymous_declaration(
                 node,
                 symbol_flags,

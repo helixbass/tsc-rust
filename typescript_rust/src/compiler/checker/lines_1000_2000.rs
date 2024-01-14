@@ -564,9 +564,9 @@ impl TypeChecker {
                 .ref_(self)
                 .set_flags(target.ref_(self).flags() | source.ref_(self).flags());
             if let Some(source_value_declaration) =
-                source.ref_(self).maybe_value_declaration().as_ref()
+                source.ref_(self).maybe_value_declaration()
             {
-                set_value_declaration(&target.ref_(self), source_value_declaration);
+                set_value_declaration(target, source_value_declaration, self);
             }
             if let Some(source_declarations) = source.ref_(self).maybe_declarations().as_deref() {
                 let target_ref = target.ref_(self);
@@ -621,7 +621,7 @@ impl TypeChecker {
         {
             if target != self.global_this_symbol() {
                 self.error(
-                    source.ref_(self).maybe_declarations().as_ref().and_then(|source_declarations| get_name_of_declaration(source_declarations.get(0).map(Clone::clone))),
+                    source.ref_(self).maybe_declarations().as_ref().and_then(|source_declarations| get_name_of_declaration(source_declarations.get(0).map(Clone::clone), self)),
                     &Diagnostics::Cannot_augment_module_0_with_value_exports_because_it_resolves_to_a_non_module_entity,
                     Some(vec![self.symbol_to_string_(target, Option::<Id<Node>>::None, None, None, None)?])
                 );
@@ -783,7 +783,7 @@ impl TypeChecker {
         let error_node = (if get_expando_initializer(node, false).is_some() {
             get_name_of_expando(node)
         } else {
-            get_name_of_declaration(Some(node))
+            get_name_of_declaration(Some(node), self)
         })
         .unwrap_or_else(|| node.node_wrapper());
         let err = self.lookup_or_issue_error(
@@ -796,7 +796,7 @@ impl TypeChecker {
                 let adjusted_node = (if get_expando_initializer(related_node, false).is_some() {
                     get_name_of_expando(related_node)
                 } else {
-                    get_name_of_declaration(Some(&**related_node))
+                    get_name_of_declaration(Some(related_node), self)
                 })
                 .unwrap_or_else(|| related_node.node_wrapper());
                 if Gc::ptr_eq(&adjusted_node, &error_node) {
@@ -2010,7 +2010,7 @@ impl TypeChecker {
             if let Some(original_location) = original_location.as_ref() {
                 if is_in_js_file(Some(&**original_location)) {
                     if let Some(original_location_parent) = original_location.maybe_parent() {
-                        if is_require_call(&original_location_parent, false) {
+                        if is_require_call(original_location_parent, false, self) {
                             return Ok(Some(self.require_symbol()));
                         }
                     }

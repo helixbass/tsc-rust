@@ -30,7 +30,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
-        let name = get_name_of_declaration(Some(node));
+        let name = get_name_of_declaration(Some(node), self);
         Ok(match name {
             None => false,
             Some(name) => self.is_late_bindable_name(&name)?,
@@ -41,7 +41,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
-        Ok(!has_dynamic_name(node) || self.has_late_bindable_name(node)?)
+        Ok(!has_dynamic_name(node, self) || self.has_late_bindable_name(node)?)
     }
 
     pub(super) fn is_non_bindable_dynamic_name(
@@ -203,7 +203,7 @@ impl TypeChecker {
                     maybe_for_each(declarations.as_deref(), |declaration: &Id<Node>, _| {
                         self.error(
                             Some(
-                                get_name_of_declaration(Some(&**declaration))
+                                get_name_of_declaration(Some(declaration), self)
                                     .unwrap_or_else(|| declaration.clone()),
                             ),
                             &Diagnostics::Property_0_was_also_declared_here,
@@ -300,7 +300,7 @@ impl TypeChecker {
                 if let Some(assignments) = assignments.as_ref() {
                     let decls = assignments.values();
                     for member in decls {
-                        let assignment_kind = get_assignment_declaration_kind(member);
+                        let assignment_kind = get_assignment_declaration_kind(member, self);
                         let is_instance_member = assignment_kind
                             == AssignmentDeclarationKind::PrototypeProperty
                             || is_binary_expression(member)

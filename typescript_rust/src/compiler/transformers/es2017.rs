@@ -1109,7 +1109,7 @@ impl TransformES2017 {
         type_: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Option<Id<Node>>> {
         type_
-            .and_then(get_entity_name_from_type_node)
+            .and_then(|type_| get_entity_name_from_type_node(type_, self))
             .filter(|type_name| is_entity_name(type_name))
             .try_and_then(|type_name| -> io::Result<_> {
                 let serialization_kind = self

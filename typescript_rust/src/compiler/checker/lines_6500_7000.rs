@@ -272,12 +272,12 @@ impl SymbolTableToDeclarationStatements {
                 .as_variable_declaration_list()
                 .declarations
                 .iter()
-                .map(|declaration| get_name_of_declaration(Some(&**declaration)))
+                .map(|declaration| get_name_of_declaration(Some(declaration), self))
                 .filter(|declaration| self.is_identifier_and_not_undefined(declaration.as_deref()))
                 .map(Option::unwrap)
                 .collect();
         }
-        [get_name_of_declaration(Some(statement))]
+        [get_name_of_declaration(Some(statement), self)]
             .into_iter()
             .filter(|declaration| self.is_identifier_and_not_undefined(declaration.as_deref()))
             .map(Option::unwrap)

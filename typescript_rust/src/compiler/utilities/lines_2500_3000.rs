@@ -30,7 +30,7 @@ pub fn try_get_import_from_module_specifier(
         SyntaxKind::ImportDeclaration | SyntaxKind::ExportDeclaration => Some(node_parent),
         SyntaxKind::ExternalModuleReference => Some(node_parent.parent()),
         SyntaxKind::CallExpression => {
-            if is_import_call(node_parent, arena) || is_require_call(&node_parent, false) {
+            if is_import_call(node_parent, arena) || is_require_call(node_parent, false, arena) {
                 Some(node_parent)
             } else {
                 None
@@ -255,7 +255,7 @@ fn get_source_of_assignment(node: Id<Node>) -> Option<Id<Node>> {
     }
 }
 
-fn get_source_of_defaulted_assignment(node: Id<Node>) -> Option<Id<Node>> {
+fn get_source_of_defaulted_assignment(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
     if !is_expression_statement(node) {
         return None;
     }
@@ -263,7 +263,7 @@ fn get_source_of_defaulted_assignment(node: Id<Node>) -> Option<Id<Node>> {
     if !is_binary_expression(&node_as_expression_statement.expression) {
         return None;
     }
-    if !(get_assignment_declaration_kind(&node_as_expression_statement.expression)
+    if !(get_assignment_declaration_kind(node_as_expression_statement.expression, arena)
         != AssignmentDeclarationKind::None)
     {
         return None;
@@ -417,7 +417,7 @@ pub fn get_jsdoc_comments_and_tags(
                 None,
             );
         }
-        node = get_next_jsdoc_comment_location(node_present);
+        node = get_next_jsdoc_comment_location(node_present, arena);
     }
     result.unwrap_or_else(|| vec![])
 }
@@ -462,7 +462,7 @@ fn owns_jsdoc_tag(host_node: Id<Node>, tag: Id<Node> /*JSDocTag*/, arena: &impl 
         )
 }
 
-pub fn get_next_jsdoc_comment_location(node: Id<Node>) -> Option<Id<Node>> {
+pub fn get_next_jsdoc_comment_location(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
     let parent = node.maybe_parent();
     if matches!(
         parent.as_ref(),
@@ -503,7 +503,7 @@ pub fn get_next_jsdoc_comment_location(node: Id<Node>) -> Option<Id<Node>> {
                     node,
                 )
             )
-            || get_source_of_defaulted_assignment(great_grandparent).is_some()
+            || get_source_of_defaulted_assignment(great_grandparent, arena).is_some()
     ) {
         return great_grandparent;
     }
@@ -557,7 +557,7 @@ pub fn get_host_signature_from_jsdoc(node: Id<Node>, arena: &impl HasArena) -> O
 
 pub fn get_effective_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
     let host = get_jsdoc_host(node, arena)?;
-    get_source_of_defaulted_assignment(&host).or_else(|| {
+    get_source_of_defaulted_assignment(host, arena).or_else(|| {
         get_source_of_assignment(&host).or_else(|| {
             get_single_initializer_of_variable_statement_or_property_declaration(&host).or_else(
                 || {
@@ -862,7 +862,7 @@ pub fn is_declaration_name(name: Id<Node>) -> bool {
         && matches!(name.parent().as_named_declaration().maybe_name(), Some(parent_name) if ptr::eq(&*parent_name, name))
 }
 
-pub fn get_declaration_from_name(name: Id<Node>) -> Option<Id<Node /*Declaration*/>> {
+pub fn get_declaration_from_name(name: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*Declaration*/>> {
     let parent = name.parent();
     match name.kind() {
         SyntaxKind::StringLiteral
@@ -890,10 +890,13 @@ pub fn get_declaration_from_name(name: Id<Node>) -> Option<Id<Node /*Declaration
             } else {
                 let bin_exp = parent.parent();
                 if is_binary_expression(&bin_exp)
-                    && get_assignment_declaration_kind(&bin_exp) != AssignmentDeclarationKind::None
+                    && get_assignment_declaration_kind(bin_exp, arena) != AssignmentDeclarationKind::None
                     && (bin_exp.as_binary_expression().left.maybe_symbol().is_some()
                         || bin_exp.maybe_symbol().is_some())
-                    && matches!(get_name_of_declaration(Some(&*bin_exp)), Some(name_of_declaration) if ptr::eq(&*name_of_declaration, name))
+                    && matches!(
+                        get_name_of_declaration(Some(bin_exp), self),
+                        Some(name_of_declaration) if ptr::eq(&*name_of_declaration, name)
+                    )
                 {
                     Some(bin_exp)
                 } else {
@@ -921,10 +924,13 @@ pub fn get_declaration_from_name(name: Id<Node>) -> Option<Id<Node /*Declaration
             } else {
                 let bin_exp = parent.parent();
                 if is_binary_expression(&bin_exp)
-                    && get_assignment_declaration_kind(&bin_exp) != AssignmentDeclarationKind::None
+                    && get_assignment_declaration_kind(bin_exp, arena) != AssignmentDeclarationKind::None
                     && (bin_exp.as_binary_expression().left.maybe_symbol().is_some()
                         || bin_exp.maybe_symbol().is_some())
-                    && matches!(get_name_of_declaration(Some(&*bin_exp)), Some(name_of_declaration) if ptr::eq(&*name_of_declaration, name))
+                    && matches!(
+                        get_name_of_declaration(Some(bin_exp), self),
+                        Some(name_of_declaration) if ptr::eq(&*name_of_declaration, name)
+                    )
                 {
                     Some(bin_exp)
                 } else {

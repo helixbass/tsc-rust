@@ -884,7 +884,7 @@ impl TypeChecker {
             && matches!(
                 prop.and_then(|prop| prop.ref_(self).maybe_value_declaration()).as_ref(),
                 Some(prop_value_declaration) if is_property_access_expression(prop_value_declaration) &&
-                    get_assignment_declaration_property_access_kind(prop_value_declaration) != AssignmentDeclarationKind::None &&
+                    get_assignment_declaration_property_access_kind(prop_value_declaration, self) != AssignmentDeclarationKind::None &&
                     Gc::ptr_eq(
                         &self.get_control_flow_container(node),
                         &self.get_control_flow_container(prop_value_declaration),

@@ -740,7 +740,7 @@ impl TypeChecker {
                 if match name.as_ref() {
                     None => true,
                     Some(name) => {
-                        !is_bindable_static_name_expression(name, None)
+                        !is_bindable_static_name_expression(name, None, self)
                             || !is_same_entity_name(name, &parent_node.as_binary_expression().left)
                     }
                 } {
@@ -754,7 +754,7 @@ impl TypeChecker {
 
         let decl = return_ok_default_if_none!(decl);
         let name = return_ok_default_if_none!(name);
-        if !allow_declaration && get_expando_initializer(node, is_prototype_access(&name)).is_none()
+        if !allow_declaration && get_expando_initializer(node, is_prototype_access(name, self)).is_none()
         {
             return Ok(None);
         }
@@ -775,7 +775,7 @@ impl TypeChecker {
         if let Some(parent) = parent.as_ref().filter(|parent| {
             is_binary_expression(parent) && {
                 let parent_as_binary_expression = parent.as_binary_expression();
-                is_prototype_access(&parent_as_binary_expression.left)
+                is_prototype_access(parent_as_binary_expression.left, self)
                     && parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
             }
         }) {

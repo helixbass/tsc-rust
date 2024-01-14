@@ -731,7 +731,7 @@ impl TypeChecker {
             if is_expression_statement(&host.ref_(self)) {
                 let host_as_expression_statement = host.ref_(self).as_expression_statement();
                 if is_binary_expression(&host_as_expression_statement.expression.ref_(self))
-                    && get_assignment_declaration_kind(&host_as_expression_statement.expression)
+                    && get_assignment_declaration_kind(host_as_expression_statement.expression, self)
                         == AssignmentDeclarationKind::PrototypeProperty
                 {
                     let symbol = self.get_symbol_of_node(
@@ -751,7 +751,8 @@ impl TypeChecker {
                 || is_property_assignment(&host.ref_(self)))
                 && is_binary_expression(&host.ref_(self).parent().ref_(self).parent().ref_(self))
                 && get_assignment_declaration_kind(
-                    &host.ref_(self).parent().ref_(self).parent().ref_(self),
+                    host.ref_(self).parent().ref_(self).parent(),
+                    self,
                 ) == AssignmentDeclarationKind::Prototype
             {
                 let symbol = self.get_symbol_of_node(
@@ -791,7 +792,7 @@ impl TypeChecker {
         let initializer = if is_assignment_declaration(&decl.ref_(self)) {
             get_assigned_expando_initializer(Some(&*decl))
         } else if has_only_expression_initializer(&decl) {
-            get_declared_expando_initializer(&decl)
+            get_declared_expando_initializer(decl, self)
         } else {
             None
         };
@@ -807,7 +808,7 @@ impl TypeChecker {
             return Ok(None);
         }
         let init = if is_variable_declaration(&decl) {
-            get_declared_expando_initializer(&decl)
+            get_declared_expando_initializer(decl, self)
         } else {
             get_assigned_expando_initializer(Some(&*decl))
         };

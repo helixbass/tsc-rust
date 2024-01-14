@@ -1155,11 +1155,12 @@ impl NodeBuilder {
                 let decl: &Id<Node> = first(property_symbol_declarations);
                 if self.type_checker.has_late_bindable_name(decl)? {
                     if is_binary_expression(decl) {
-                        let name = get_name_of_declaration(Some(&**decl));
+                        let name = get_name_of_declaration(Some(decl), self);
                         if let Some(name) = name.as_ref().filter(|name| {
                             is_element_access_expression(name)
                                 && is_property_access_entity_name_expression(
-                                    &name.as_element_access_expression().argument_expression,
+                                    name.as_element_access_expression().argument_expression,
+                                    self,
                                 )
                         }) {
                             self.track_computed_name(
