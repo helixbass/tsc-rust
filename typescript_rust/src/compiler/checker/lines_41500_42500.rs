@@ -419,7 +419,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let declaration = get_parse_tree_node(
             Some(declaration_in),
-            Some(|node: Id<Node>| is_variable_like_or_accessor(node)),
+            Some(|node: Id<Node>| is_variable_like_or_accessor(&node.ref_(self))),
         );
         if declaration.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));

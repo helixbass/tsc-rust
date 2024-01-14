@@ -542,7 +542,7 @@ impl TransformTypeScript {
                     .is_some()
                 {
                     expressions.push(self.serialize_type_node(get_rest_parameter_element_type(
-                        parameter_as_parameter_declaration.maybe_type(),
+                        parameter_as_parameter_declaration.maybe_type().refed(self),
                     ))?);
                 } else {
                     expressions.push(self.serialize_type_of_node(parameter)?);

@@ -130,10 +130,10 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
 
 pub fn is_valid_type_only_alias_use_site(use_site: Id<Node>, arena: &impl HasArena) -> bool {
     use_site.flags().intersects(NodeFlags::Ambient)
-        || is_part_of_type_query(use_site)
+        || is_part_of_type_query(use_site, arena)
         || is_identifier_in_non_emitting_heritage_clause(use_site)
         || is_part_of_possibly_valid_type_or_abstract_computed_property_name(use_site, arena)
-        || !(is_expression_node(use_site, self) || is_shorthand_property_name_use_site(use_site))
+        || !(is_expression_node(use_site, arena) || is_shorthand_property_name_use_site(use_site))
 }
 
 fn is_shorthand_property_name_use_site(use_site: &Node) -> bool {

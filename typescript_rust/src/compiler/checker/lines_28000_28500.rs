@@ -210,7 +210,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_qualified_name = node.as_qualified_name();
-        let left_type = if is_part_of_type_query(node)
+        let left_type = if is_part_of_type_query(node, self)
             && is_this_identifier(Some(&*node_as_qualified_name.left))
         {
             self.check_non_null_type(

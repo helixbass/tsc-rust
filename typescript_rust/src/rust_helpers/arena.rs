@@ -147,6 +147,20 @@ impl InArena for Id<Symbol> {
     }
 }
 
+pub trait OptionInArena {
+    type Item;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<&'a Self::Item>;
+}
+
+impl OptionInArena for Option<Id<Node>> {
+    type Item = Node;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<&'a Node> {
+        self.map(|node| has_arena.node(node)).as_deref()
+    }
+}
+
 thread_local! {
     static ARENA: Lazy<Rc<AllArenas>> = Lazy::new(Default::default);
 }

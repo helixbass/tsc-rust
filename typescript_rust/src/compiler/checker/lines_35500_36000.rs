@@ -15,7 +15,7 @@ use crate::{
     try_for_each, Debug_, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, HasArena,
     HasTypeInterface, InArena, NamedDeclarationInterface, Node, NodeInterface, OptionTry,
     ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    TypeInterface, OptionInArena,
 };
 
 impl TypeChecker {
@@ -379,7 +379,7 @@ impl TypeChecker {
     ) -> Option<Id<Node /*TypeNode*/>> {
         let type_node = get_effective_type_annotation_node(node);
         if is_rest_parameter(node) {
-            get_rest_parameter_element_type(type_node)
+            get_rest_parameter_element_type(type_node.refed(self))
         } else {
             type_node
         }

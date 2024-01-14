@@ -843,15 +843,13 @@ fn try_for_each_yield_expression_traverse<TError>(
 }
 
 pub fn get_rest_parameter_element_type(
-    node: Option<Id<Node> /*TypeNode*/>,
+    node: Option<&Node /*TypeNode*/>,
 ) -> Option<Id<Node /*TypeNode*/>> {
-    if node.is_none() {
+    let Some(node) = node else {
         return None;
-    }
-    let node = node.unwrap();
-    let node = node.borrow();
+    };
     match node.kind() {
-        SyntaxKind::ArrayType => Some(node.as_array_type_node().element_type.clone()),
+        SyntaxKind::ArrayType => Some(node.as_array_type_node().element_type),
         SyntaxKind::TypeReference => single_or_undefined(
             node.as_type_reference_node()
                 .maybe_type_arguments()
@@ -863,7 +861,7 @@ pub fn get_rest_parameter_element_type(
 }
 
 pub fn get_members_of_declaration(
-    node: Id<Node>, /*Declaration*/
+    node: &Node, /*Declaration*/
 ) -> Option<Gc<NodeArray> /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
     match node.kind() {
         SyntaxKind::InterfaceDeclaration => Some(node.as_interface_declaration().members.clone()),
@@ -893,7 +891,7 @@ pub fn is_variable_like(node: &Node) -> bool {
     /*}*/
 }
 
-pub fn is_variable_like_or_accessor(node: Id<Node>) -> bool {
+pub fn is_variable_like_or_accessor(node: &Node) -> bool {
     is_variable_like(node) || is_accessor(node)
 }
 

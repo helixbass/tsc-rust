@@ -21,12 +21,12 @@ use crate::{
 
 pub fn is_part_of_type_query(mut node: Id<Node>, arena: &impl HasArena) -> bool {
     while matches!(
-        node.kind(),
+        node.ref_(arena).kind(),
         SyntaxKind::QualifiedName | SyntaxKind::Identifier
     ) {
         node = node.ref_(arena).parent();
     }
-    node.kind() == SyntaxKind::TypeQuery
+    node.ref_(arena).kind() == SyntaxKind::TypeQuery
 }
 
 pub fn is_namespace_reexport_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
