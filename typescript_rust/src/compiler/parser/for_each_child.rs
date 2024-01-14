@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub fn for_each_child(
-    node: Id<Node>,
+    node: &Node,
     mut cb_node: impl FnMut(Id<Node>),
     mut cb_nodes: Option<impl FnMut(&NodeArray)>,
 ) {
@@ -1168,7 +1168,7 @@ pub fn for_each_child(
 }
 
 pub fn try_for_each_child<TError>(
-    node: Id<Node>,
+    node: &Node,
     mut cb_node: impl FnMut(Id<Node>) -> Result<(), TError>,
     mut cb_nodes: Option<impl FnMut(&NodeArray) -> Result<(), TError>>,
 ) -> Result<(), TError> {

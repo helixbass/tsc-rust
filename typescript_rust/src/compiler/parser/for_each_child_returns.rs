@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub fn for_each_child_returns<TReturn>(
-    node: Id<Node>,
+    node: &Node,
     mut cb_node: impl FnMut(Id<Node>) -> Option<TReturn>,
     mut cb_nodes: Option<impl FnMut(&NodeArray) -> Option<TReturn>>,
 ) -> Option<TReturn> {
@@ -1453,7 +1453,7 @@ pub fn for_each_child_returns<TReturn>(
 }
 
 pub fn try_for_each_child_returns<TReturn, TError>(
-    node: Id<Node>,
+    node: &Node,
     mut cb_node: impl FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
     mut cb_nodes: Option<impl FnMut(&NodeArray) -> Result<Option<TReturn>, TError>>,
 ) -> Result<Option<TReturn>, TError> {
@@ -2892,7 +2892,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
 }
 
 pub fn for_each_child_bool(
-    node: Id<Node>,
+    node: &Node,
     mut cb_node: impl FnMut(Id<Node>) -> bool,
     cb_nodes: Option<impl FnMut(&NodeArray) -> bool>,
 ) -> bool {
@@ -2928,7 +2928,7 @@ pub fn for_each_child_bool(
 }
 
 pub fn try_for_each_child_bool<TError>(
-    node: Id<Node>,
+    node: &Node,
     mut cb_node: impl FnMut(Id<Node>) -> Result<bool, TError>,
     cb_nodes: Option<impl FnMut(&NodeArray) -> Result<bool, TError>>,
 ) -> Result<bool, TError> {

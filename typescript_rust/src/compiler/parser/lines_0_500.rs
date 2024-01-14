@@ -129,7 +129,7 @@ pub fn with_parse_base_node_factory_and_factory<TReturn>(
 
 pub(super) fn visit_node(cb_node: &mut impl FnMut(Id<Node>), node: Option<Id<Node>>) {
     if let Some(node) = node {
-        cb_node(node.borrow());
+        cb_node(node);
     }
 }
 
@@ -138,7 +138,7 @@ pub(super) fn try_visit_node<TError>(
     node: Option<Id<Node>>,
 ) -> Result<(), TError> {
     if let Some(node) = node {
-        cb_node(node.borrow())?;
+        cb_node(node)?;
     }
 
     Ok(())
@@ -148,7 +148,7 @@ pub(super) fn visit_node_returns<TReturn, TNodeCallback: FnMut(Id<Node>) -> Opti
     cb_node: &mut TNodeCallback,
     node: Option<Id<Node>>,
 ) -> Option<TReturn> {
-    node.and_then(|node| cb_node(node.borrow()))
+    node.and_then(|node| cb_node(node))
 }
 
 pub(super) fn try_visit_node_returns<
@@ -159,7 +159,7 @@ pub(super) fn try_visit_node_returns<
     cb_node: &mut TNodeCallback,
     node: Option<Id<Node>>,
 ) -> Result<Option<TReturn>, TError> {
-    node.try_and_then(|node| cb_node(node.borrow()))
+    node.try_and_then(|node| cb_node(node))
 }
 
 pub(super) fn visit_nodes(

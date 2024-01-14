@@ -1675,7 +1675,7 @@ pub fn is_class_like(node: &Node) -> bool {
 pub fn maybe_is_class_like(node: Option<&Node>) -> bool {
     node.is_some()
         && matches!(
-            node.unwrap().borrow().kind(),
+            node.unwrap().kind(),
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
         )
 }

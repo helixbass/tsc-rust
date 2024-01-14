@@ -1492,7 +1492,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let left_hoisted_variables_end = self.find_span_end(
             &*statements,
-            |node: &Id<Node>| is_hoisted_variable_statement(node),
+            |node: &Id<Node>| is_hoisted_variable_statement(node, self),
             left_hoisted_functions_end,
         );
 
@@ -1508,7 +1508,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let right_hoisted_variables_end = self.find_span_end(
             declarations,
-            |node: &Id<Node>| is_hoisted_variable_statement(node),
+            |node: &Id<Node>| is_hoisted_variable_statement(node, self),
             right_hoisted_functions_end,
         );
         let right_custom_prologue_end = self.find_span_end(

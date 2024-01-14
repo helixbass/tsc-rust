@@ -381,7 +381,7 @@ impl TypeChecker {
 
             _ => {
                 !node_starts_new_lexical_environment(node)
-                    && !is_part_of_type_node(node)
+                    && !is_part_of_type_node(node, self)
                     && try_for_each_child_bool(
                         node,
                         |child| self.contains_arguments_reference_traverse(Some(child)),

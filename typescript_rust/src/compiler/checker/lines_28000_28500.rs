@@ -278,7 +278,7 @@ impl TypeChecker {
                 None,
             );
         }
-        if !is_expression_node(priv_id) {
+        if !is_expression_node(priv_id, self) {
             return self.grammar_error_on_node(
                 priv_id,
                 &Diagnostics::Private_identifiers_are_only_allowed_in_class_bodies_and_may_only_be_used_as_part_of_a_class_member_declaration_property_access_or_on_the_left_hand_side_of_an_in_expression,
@@ -314,7 +314,7 @@ impl TypeChecker {
         &self,
         priv_id: Id<Node>, /*PrivateIdentifier*/
     ) -> Option<Id<Symbol>> {
-        if !is_expression_node(priv_id) {
+        if !is_expression_node(priv_id, self) {
             return None;
         }
 
@@ -1018,7 +1018,7 @@ impl TypeChecker {
                 }
             }
             _ => {
-                if is_expression_node(node) {
+                if is_expression_node(node, self) {
                     false.into()
                 } else {
                     FindAncestorCallbackReturn::Quit

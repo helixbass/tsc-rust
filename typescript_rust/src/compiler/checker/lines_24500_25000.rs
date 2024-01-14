@@ -530,7 +530,7 @@ impl TypeChecker {
             if is_right_side_of_qualified_name_or_property_access(&location) {
                 location = location.parent();
             }
-            if is_expression_node(&location)
+            if is_expression_node(location, self)
                 && (!is_assignment_target(&location) || is_write_access(&location))
             {
                 let type_ = self.get_type_of_expression(&location)?;

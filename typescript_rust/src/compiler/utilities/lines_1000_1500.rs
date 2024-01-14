@@ -25,7 +25,7 @@ use crate::{
     FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasTypeArgumentsInterface,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
-    TextSpan,
+    TextSpan, contains,
 };
 use crate::InArena;
 
@@ -442,36 +442,37 @@ pub fn is_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
         && node.ref_(arena).as_expression_statement().expression.ref_(arena).kind() == SyntaxKind::StringLiteral
 }
 
-pub fn is_custom_prologue(node: Id<Node> /*Statement*/) -> bool {
+pub fn is_custom_prologue(node: &Node /*Statement*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
 }
 
-pub fn is_hoisted_function(node: Id<Node> /*Statement*/) -> bool {
+pub fn is_hoisted_function(node: &Node /*Statement*/) -> bool {
     is_custom_prologue(node) && is_function_declaration(node)
 }
 
-fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/) -> bool {
-    let node_as_variable_declaration = node.as_variable_declaration();
-    is_identifier(&node_as_variable_declaration.name())
+fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/, arena: &impl HasArena) -> bool {
+    let node_ref = node.ref_(arena);
+    let node_as_variable_declaration = node_ref.as_variable_declaration();
+    is_identifier(&node_as_variable_declaration.name().ref_(arena))
         && node_as_variable_declaration.maybe_initializer().is_none()
 }
 
-pub fn is_hoisted_variable_statement(node: Id<Node> /*Statement*/) -> bool {
-    is_custom_prologue(node)
-        && is_variable_statement(node)
+pub fn is_hoisted_variable_statement(node: Id<Node> /*Statement*/, arena: &impl HasArena) -> bool {
+    is_custom_prologue(&node.ref_(arena))
+        && is_variable_statement(&node.ref_(arena))
         && every(
             &node
-                .as_variable_statement()
+                .ref_(arena).as_variable_statement()
                 .declaration_list
-                .as_variable_declaration_list()
+                .ref_(arena).as_variable_declaration_list()
                 .declarations,
-            |declaration, _| is_hoisted_variable(declaration),
+            |&declaration, _| is_hoisted_variable(declaration, arena),
         )
 }
 
 pub fn get_leading_comment_ranges_of_node(
-    node: Id<Node>,
-    source_file_of_node: Id<Node>, /*SourceFile*/
+    node: &Node,
+    source_file_of_node: &Node, /*SourceFile*/
 ) -> Option<Vec<CommentRange>> {
     if node.kind() != SyntaxKind::JsxText {
         get_leading_comment_ranges(
@@ -538,13 +539,12 @@ lazy_static! {
             .unwrap();
 }
 
-pub fn is_part_of_type_node(node: Id<Node>) -> bool {
-    if SyntaxKind::FirstTypeNode <= node.kind() && node.kind() <= SyntaxKind::LastTypeNode {
+pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
+    if SyntaxKind::FirstTypeNode <= node.ref_(arena).kind() && node.ref_(arena).kind() <= SyntaxKind::LastTypeNode {
         return true;
     }
 
-    let mut node = node.node_wrapper();
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::AnyKeyword
         | SyntaxKind::UnknownKeyword
         | SyntaxKind::NumberKeyword
@@ -558,56 +558,71 @@ pub fn is_part_of_type_node(node: Id<Node>) -> bool {
             return true;
         }
         SyntaxKind::VoidKeyword => {
-            return node.parent().kind() != SyntaxKind::VoidExpression;
+            return node.ref_(arena).parent().ref_(arena).kind() != SyntaxKind::VoidExpression;
         }
         SyntaxKind::ExpressionWithTypeArguments => {
-            return !is_expression_with_type_arguments_in_class_extends_clause(&node)
+            return !is_expression_with_type_arguments_in_class_extends_clause(node, arena)
         }
         SyntaxKind::TypeParameter => {
             return matches!(
-                node.parent().kind(),
+                node.ref_(arena).parent().ref_(arena).kind(),
                 SyntaxKind::MappedType | SyntaxKind::InferType
             );
         }
 
         SyntaxKind::Identifier => {
-            if node.parent().kind() == SyntaxKind::QualifiedName
-                && Gc::ptr_eq(&node.parent().as_qualified_name().right, &node)
+            if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::QualifiedName
+                && node.ref_(arena).parent().ref_(arena).as_qualified_name().right == node
             {
-                node = node.parent();
-            } else if node.parent().kind() == SyntaxKind::PropertyAccessExpression
-                && Gc::ptr_eq(&node.parent().as_property_access_expression().name, &node)
+                node = node.ref_(arena).parent();
+            } else if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::PropertyAccessExpression
+                && node.ref_(arena).parent().ref_(arena).as_property_access_expression().name == node
             {
-                node = node.parent();
+                node = node.ref_(arena).parent();
             }
-            Debug_.assert(matches!(node.kind(), SyntaxKind::Identifier | SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression), Some("'node' was expected to be a qualified name, identifier or property access in 'isPartOfTypeNode'."));
-            let parent = node.parent();
-            if parent.kind() == SyntaxKind::TypeQuery {
+            Debug_.assert(
+                matches!(
+                    node.ref_(arena).kind(),
+                    SyntaxKind::Identifier | SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
+                ),
+                Some("'node' was expected to be a qualified name, identifier or property access in 'isPartOfTypeNode'.")
+            );
+            let parent = node.ref_(arena).parent();
+            if parent.ref_(arena).kind() == SyntaxKind::TypeQuery {
                 return false;
             }
-            if parent.kind() == SyntaxKind::ImportType {
-                return !parent.as_import_type_node().is_type_of();
+            if parent.ref_(arena).kind() == SyntaxKind::ImportType {
+                return !parent.ref_(arena).as_import_type_node().is_type_of();
             }
-            if SyntaxKind::FirstTypeNode <= parent.kind()
-                && parent.kind() <= SyntaxKind::LastTypeNode
+            if SyntaxKind::FirstTypeNode <= parent.ref_(arena).kind()
+                && parent.ref_(arena).kind() <= SyntaxKind::LastTypeNode
             {
                 return true;
             }
-            match parent.kind() {
+            match parent.ref_(arena).kind() {
                 SyntaxKind::ExpressionWithTypeArguments => {
-                    return !is_expression_with_type_arguments_in_class_extends_clause(&parent);
+                    return !is_expression_with_type_arguments_in_class_extends_clause(parent, arena);
                 }
                 SyntaxKind::TypeParameter => {
-                    return matches!(parent.as_type_parameter_declaration().constraint.clone(), Some(constraint) if Gc::ptr_eq(&node, &constraint));
+                    return matches!(
+                        parent.ref_(arena).as_type_parameter_declaration().constraint,
+                        Some(constraint) if node == constraint
+                    );
                 }
                 SyntaxKind::JSDocTemplateTag => {
-                    return matches!(parent.as_jsdoc_template_tag().constraint.clone(), Some(constraint) if Gc::ptr_eq(&node, &constraint));
+                    return matches!(
+                        parent.ref_(arena).as_jsdoc_template_tag().constraint,
+                        Some(constraint) if node == constraint
+                    );
                 }
                 SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertySignature
                 | SyntaxKind::Parameter
                 | SyntaxKind::VariableDeclaration => {
-                    return matches!(parent.as_has_type().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
+                    return matches!(
+                        parent.ref_(arena).as_has_type().maybe_type(),
+                        Some(type_) if node == type_
+                    );
                 }
                 SyntaxKind::FunctionDeclaration
                 | SyntaxKind::FunctionExpression
@@ -617,29 +632,35 @@ pub fn is_part_of_type_node(node: Id<Node>) -> bool {
                 | SyntaxKind::MethodSignature
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor => {
-                    return matches!(parent.as_function_like_declaration().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
+                    return matches!(
+                        parent.ref_(arena).as_function_like_declaration().maybe_type(),
+                        Some(type_) if node == type_
+                    );
                 }
                 SyntaxKind::CallSignature
                 | SyntaxKind::ConstructSignature
                 | SyntaxKind::IndexSignature => {
-                    return matches!(parent.as_signature_declaration().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
+                    return matches!(
+                        parent.ref_(arena).as_signature_declaration().maybe_type(),
+                        Some(type_) if node == type_
+                    );
                 }
                 SyntaxKind::TypeAssertionExpression => {
-                    return Gc::ptr_eq(&node, &parent.as_type_assertion().type_);
+                    return node == parent.ref_(arena).as_type_assertion().type_;
                 }
                 SyntaxKind::CallExpression => {
-                    return contains_gc(
+                    return contains(
                         parent
-                            .as_call_expression()
+                            .ref_(arena).as_call_expression()
                             .maybe_type_arguments()
                             .as_double_deref(),
                         &node,
                     );
                 }
                 SyntaxKind::NewExpression => {
-                    return contains_gc(
+                    return contains(
                         parent
-                            .as_new_expression()
+                            .ref_(arena).as_new_expression()
                             .maybe_type_arguments()
                             .as_double_deref(),
                         &node,
@@ -657,13 +678,13 @@ pub fn is_part_of_type_node(node: Id<Node>) -> bool {
     false
 }
 
-pub fn is_child_of_node_with_kind(node: Id<Node>, kind: SyntaxKind) -> bool {
-    let mut node: Option<Id<Node>> = Some(node.node_wrapper());
+pub fn is_child_of_node_with_kind(node: Id<Node>, kind: SyntaxKind, arena: &impl HasArena) -> bool {
+    let mut node: Option<Id<Node>> = Some(node);
     while let Some(node_present) = node {
-        if node_present.kind() == kind {
+        if node_present.ref_(arena).kind() == kind {
             return true;
         }
-        node = node_present.maybe_parent();
+        node = node_present.ref_(arena).maybe_parent();
     }
     false
 }
@@ -671,25 +692,28 @@ pub fn is_child_of_node_with_kind(node: Id<Node>, kind: SyntaxKind) -> bool {
 pub fn for_each_return_statement(
     body: Id<Node>, /*Block | Statement*/
     mut visitor: impl FnMut(Id<Node>),
+    arena: &impl HasArena,
 ) {
     try_for_each_return_statement(body, |node: Id<Node>| -> Result<_, ()> {
         Ok(visitor(node))
-    })
+    }, arena)
     .unwrap()
 }
 
 pub fn try_for_each_return_statement<TError>(
     body: Id<Node>, /*Block | Statement*/
     mut visitor: impl FnMut(Id<Node>) -> Result<(), TError>,
+    arena: &impl HasArena,
 ) -> Result<(), TError> {
-    try_for_each_return_statement_traverse(body, &mut visitor)
+    try_for_each_return_statement_traverse(body, &mut visitor, arena)
 }
 
 fn try_for_each_return_statement_traverse<TError>(
     node: Id<Node>,
     visitor: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
+    arena: &impl HasArena,
 ) -> Result<(), TError> {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::ReturnStatement => {
             visitor(node)?;
         }
@@ -709,8 +733,8 @@ fn try_for_each_return_statement_traverse<TError>(
         | SyntaxKind::TryStatement
         | SyntaxKind::CatchClause => {
             try_for_each_child(
-                node,
-                |node| try_for_each_return_statement_traverse(node, visitor),
+                &node.ref_(arena),
+                |node| try_for_each_return_statement_traverse(node, visitor, arena),
                 Option::<fn(&NodeArray) -> Result<(), TError>>::None,
             )?;
         }
@@ -723,15 +747,17 @@ fn try_for_each_return_statement_traverse<TError>(
 pub fn for_each_return_statement_bool(
     body: Id<Node>, /*Block | Statement*/
     mut visitor: impl FnMut(Id<Node>) -> bool,
+    arena: &impl HasArena,
 ) -> bool {
-    for_each_return_statement_bool_traverse(body, &mut visitor)
+    for_each_return_statement_bool_traverse(body, &mut visitor, arena)
 }
 
 fn for_each_return_statement_bool_traverse(
     node: Id<Node>,
     visitor: &mut impl FnMut(Id<Node>) -> bool,
+    arena: &impl HasArena,
 ) -> bool {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::ReturnStatement => visitor(node),
         SyntaxKind::CaseBlock
         | SyntaxKind::Block
@@ -748,38 +774,40 @@ fn for_each_return_statement_bool_traverse(
         | SyntaxKind::LabeledStatement
         | SyntaxKind::TryStatement
         | SyntaxKind::CatchClause => for_each_child_bool(
-            node,
-            |node| for_each_return_statement_bool_traverse(node, visitor),
+            &node.ref_(arena),
+            |node| for_each_return_statement_bool_traverse(node, visitor, arena),
             Option::<fn(&NodeArray) -> bool>::None,
         ),
         _ => false,
     }
 }
 
-pub fn for_each_yield_expression(body: Id<Node> /*Block*/, mut visitor: impl FnMut(Id<Node>)) {
+pub fn for_each_yield_expression(body: Id<Node> /*Block*/, mut visitor: impl FnMut(Id<Node>), arena: &impl HasArena) {
     try_for_each_yield_expression(body, |node: Id<Node>| -> Result<(), ()> {
         Ok(visitor(node))
-    })
+    }, arena)
     .unwrap()
 }
 
 pub fn try_for_each_yield_expression<TError>(
     body: Id<Node>, /*Block*/
     mut visitor: impl FnMut(Id<Node>) -> Result<(), TError>,
+    arena: &impl HasArena,
 ) -> Result<(), TError> {
-    try_for_each_yield_expression_traverse(body, &mut visitor)
+    try_for_each_yield_expression_traverse(body, &mut visitor, arena)
 }
 
 fn try_for_each_yield_expression_traverse<TError>(
     node: Id<Node>,
     visitor: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
+    arena: &impl HasArena,
 ) -> Result<(), TError> {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::YieldExpression => {
             visitor(node)?;
-            let operand = node.as_yield_expression().expression.as_ref();
+            let operand = node.ref_(arena).as_yield_expression().expression;
             if let Some(operand) = operand {
-                try_for_each_yield_expression_traverse(operand, visitor)?;
+                try_for_each_yield_expression_traverse(operand, visitor, arena)?;
             }
             return Ok(());
         }
@@ -790,20 +818,21 @@ fn try_for_each_yield_expression_traverse<TError>(
             return Ok(());
         }
         _ => {
-            if is_function_like(Some(node)) {
-                if let Some(node_name) = node.as_signature_declaration().maybe_name() {
-                    if node_name.kind() == SyntaxKind::ComputedPropertyName {
+            if is_function_like(Some(&node.ref_(arena))) {
+                if let Some(node_name) = node.ref_(arena).as_signature_declaration().maybe_name() {
+                    if node_name.ref_(arena).kind() == SyntaxKind::ComputedPropertyName {
                         try_for_each_yield_expression_traverse(
-                            &node_name.as_computed_property_name().expression,
+                            node_name.ref_(arena).as_computed_property_name().expression,
                             visitor,
+                            arena,
                         )?;
                         return Ok(());
                     }
                 }
-            } else if !is_part_of_type_node(node) {
+            } else if !is_part_of_type_node(node, arena) {
                 try_for_each_child(
-                    node,
-                    |node| try_for_each_yield_expression_traverse(node, visitor),
+                    &node.ref_(arena),
+                    |node| try_for_each_yield_expression_traverse(node, visitor, arena),
                     Option::<fn(&NodeArray) -> Result<(), TError>>::None,
                 )?;
             }

@@ -505,7 +505,7 @@ impl TypeChecker {
             if name.parent().kind() == SyntaxKind::ExpressionWithTypeArguments {
                 meaning = SymbolFlags::Type;
 
-                if is_expression_with_type_arguments_in_class_extends_clause(&name.parent()) {
+                if is_expression_with_type_arguments_in_class_extends_clause(name.parent(), self) {
                     meaning |= SymbolFlags::Value;
                 }
             } else {
@@ -535,7 +535,7 @@ impl TypeChecker {
             return Ok(type_parameter.and_then(|type_parameter| type_parameter.maybe_symbol()));
         }
 
-        if is_expression_node(name) {
+        if is_expression_node(name, self) {
             if node_is_missing(Some(&**name)) {
                 return Ok(None);
             }
@@ -799,7 +799,7 @@ impl TypeChecker {
                         return Ok(sig_this_parameter);
                     }
                 }
-                if is_in_expression_context(node) {
+                if is_in_expression_context(node, self) {
                     return Ok(self
                         .check_expression(node, None, None)?
                         .ref_(self)

@@ -543,10 +543,10 @@ impl TypeChecker {
             let mut diagnostic_message: Option<&'static DiagnosticMessage> = None;
             if self.language_version >= ScriptTarget::ES5 {
                 diagnostic_message = Some(&Diagnostics::Octal_literals_are_not_available_when_targeting_ECMAScript_5_and_higher_Use_the_syntax_0);
-            } else if is_child_of_node_with_kind(node, SyntaxKind::LiteralType) {
+            } else if is_child_of_node_with_kind(node, SyntaxKind::LiteralType, self) {
                 diagnostic_message =
                     Some(&Diagnostics::Octal_literal_types_must_use_ES2015_syntax_Use_the_syntax_0);
-            } else if is_child_of_node_with_kind(node, SyntaxKind::EnumMember) {
+            } else if is_child_of_node_with_kind(node, SyntaxKind::EnumMember, self) {
                 diagnostic_message = Some(&Diagnostics::Octal_literals_are_not_allowed_in_enums_members_initializer_Use_the_syntax_0);
             }
             if let Some(diagnostic_message) = diagnostic_message {

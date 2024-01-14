@@ -194,7 +194,7 @@ impl TypeChecker {
     ) -> io::Result<SymbolVisibilityResult> {
         let meaning: SymbolFlags;
         if entity_name.parent().kind() == SyntaxKind::TypeQuery
-            || is_expression_with_type_arguments_in_class_extends_clause(&entity_name.parent())
+            || is_expression_with_type_arguments_in_class_extends_clause(entity_name.parent(), self)
             || entity_name.parent().kind() == SyntaxKind::ComputedPropertyName
         {
             meaning = SymbolFlags::Value | SymbolFlags::ExportValue;

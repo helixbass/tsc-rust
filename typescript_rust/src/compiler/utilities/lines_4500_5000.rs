@@ -20,7 +20,7 @@ use crate::{
     maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, text_char_at_index,
     text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange, DetachedCommentInfo,
     EmitTextWriter, ModifierFlags, ModifiersArray, Node, NodeFlags, NodeInterface,
-    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange, HasArena,
+    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange, HasArena, InArena,
 };
 
 pub fn get_effective_type_annotation_node(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*TypeNode*/>> {
@@ -598,8 +598,9 @@ pub fn is_assignment_operator(token: SyntaxKind) -> bool {
 
 pub fn try_get_class_extending_expression_with_type_arguments(
     node: Id<Node>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
-    let cls = try_get_class_implementing_or_extending_expression_with_type_arguments(node);
+    let cls = try_get_class_implementing_or_extending_expression_with_type_arguments(node, arena);
     cls.filter(|cls| !cls.is_implements).map(|cls| cls.class)
 }
 
@@ -607,16 +608,18 @@ pub struct ClassImplementingOrExtendingExpressionWithTypeArguments {
     pub class: Id<Node /*ClassLikeDeclaration*/>,
     pub is_implements: bool,
 }
+
 pub fn try_get_class_implementing_or_extending_expression_with_type_arguments(
     node: Id<Node>,
+    arena: &impl HasArena,
 ) -> Option<ClassImplementingOrExtendingExpressionWithTypeArguments> {
-    if is_expression_with_type_arguments(node)
-        && is_heritage_clause(&node.parent())
-        && maybe_is_class_like(node.parent().maybe_parent())
+    if is_expression_with_type_arguments(&node.ref_(arena))
+        && is_heritage_clause(&node.ref_(arena).parent().ref_(arena))
+        && maybe_is_class_like(node.ref_(arena).parent().ref_(arena).maybe_parent().map(|parent| parent.ref_(arena)).as_deref())
     {
         Some(ClassImplementingOrExtendingExpressionWithTypeArguments {
-            class: node.parent().parent(),
-            is_implements: node.parent().as_heritage_clause().token
+            class: node.ref_(arena).parent().ref_(arena).parent(),
+            is_implements: node.ref_(arena).parent().ref_(arena).as_heritage_clause().token
                 == SyntaxKind::ImplementsKeyword,
         })
     } else {
@@ -654,8 +657,8 @@ pub fn is_destructuring_assignment(node: Id<Node>) -> bool {
     false
 }
 
-pub fn is_expression_with_type_arguments_in_class_extends_clause(node: Id<Node>) -> bool {
-    try_get_class_extending_expression_with_type_arguments(node).is_some()
+pub fn is_expression_with_type_arguments_in_class_extends_clause(node: Id<Node>, arena: &impl HasArena) -> bool {
+    try_get_class_extending_expression_with_type_arguments(node, arena).is_some()
 }
 
 pub fn is_entity_name_expression(node: Id<Node>) -> bool {

@@ -642,6 +642,7 @@ impl TypeChecker {
 
                 Ok(())
             },
+            self,
         )?;
         Ok(CheckAndAggregateYieldOperandTypesReturn {
             yield_types,
@@ -843,7 +844,7 @@ impl TypeChecker {
         let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
         try_for_each_return_statement(
-            &func.as_function_like_declaration().maybe_body().unwrap(),
+            func.as_function_like_declaration().maybe_body().unwrap(),
             |return_statement: Id<Node>| -> io::Result<_> {
                 let expr = return_statement.as_return_statement().expression.as_ref();
                 if let Some(expr) = expr {
@@ -872,6 +873,7 @@ impl TypeChecker {
 
                 Ok(())
             },
+            self,
         )?;
         if aggregated_types.is_empty()
             && !has_return_with_no_expression

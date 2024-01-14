@@ -97,7 +97,7 @@ impl TypeChecker {
             }
             SyntaxKind::Identifier => {
                 !matches!(tp.ref_(self).as_type_parameter().is_this_type, Some(true))
-                    && is_part_of_type_node(node)
+                    && is_part_of_type_node(node, self)
                     && self.maybe_type_parameter_reference(node)
                     && self.get_type_from_type_node_worker(node)? == tp
             }

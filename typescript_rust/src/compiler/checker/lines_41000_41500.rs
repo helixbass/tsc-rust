@@ -130,13 +130,13 @@ impl TypeChecker {
         }
 
         let class_decl =
-            try_get_class_implementing_or_extending_expression_with_type_arguments(node);
+            try_get_class_implementing_or_extending_expression_with_type_arguments(node, self);
         let class_type = class_decl.as_ref().try_map(|class_decl| {
             self.get_declared_type_of_class_or_interface(
                 self.get_symbol_of_node(&class_decl.class)?.unwrap(),
             )
         })?;
-        if is_part_of_type_node(node) {
+        if is_part_of_type_node(node, self) {
             let type_from_type_node = self.get_type_from_type_node_(node)?;
             return Ok(if let Some(class_type) = class_type {
                 self.get_type_with_this_argument(
@@ -149,7 +149,7 @@ impl TypeChecker {
             });
         }
 
-        if is_expression_node(node) {
+        if is_expression_node(node, self) {
             return self.get_regular_type_of_expression(node);
         }
 

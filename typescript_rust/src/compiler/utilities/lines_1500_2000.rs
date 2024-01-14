@@ -570,8 +570,7 @@ pub fn is_jsx_tag_name(node: Id<Node>) -> bool {
     }
 }
 
-pub fn is_expression_node(node: Id<Node>) -> bool {
-    let mut node = node.node_wrapper();
+pub fn is_expression_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
     match node.kind() {
         SyntaxKind::SuperKeyword
         | SyntaxKind::NullKeyword
@@ -646,18 +645,18 @@ pub fn is_expression_node(node: Id<Node>) -> bool {
             {
                 return true;
             }
-            is_in_expression_context(&node)
+            is_in_expression_context(node, arena)
         }
         SyntaxKind::NumericLiteral
         | SyntaxKind::BigIntLiteral
         | SyntaxKind::StringLiteral
         | SyntaxKind::NoSubstitutionTemplateLiteral
-        | SyntaxKind::ThisKeyword => is_in_expression_context(&node),
+        | SyntaxKind::ThisKeyword => is_in_expression_context(node, arena),
         _ => false,
     }
 }
 
-pub fn is_in_expression_context(node: Id<Node>) -> bool {
+pub fn is_in_expression_context(node: Id<Node>, arena: &impl HasArena) -> bool {
     let parent = node.parent();
     match parent.kind() {
         SyntaxKind::VariableDeclaration
@@ -716,11 +715,11 @@ pub fn is_in_expression_context(node: Id<Node>) -> bool {
             ptr::eq(
                 &*parent.as_expression_with_type_arguments().expression,
                 node,
-            ) && is_expression_with_type_arguments_in_class_extends_clause(&parent)
+            ) && is_expression_with_type_arguments_in_class_extends_clause(parent, arena)
         }
         SyntaxKind::ShorthandPropertyAssignment => {
             matches!(parent.as_shorthand_property_assignment().object_assignment_initializer.as_ref(), Some(object_assignment_initializer) if ptr::eq(&**object_assignment_initializer, node))
         }
-        _ => is_expression_node(&parent),
+        _ => is_expression_node(parent, arena),
     }
 }

@@ -141,7 +141,7 @@ impl TypeChecker {
                     if elements.len() + expanded_types.len() >= 10_000 {
                         self.error(
                             self.maybe_current_node(),
-                            if is_part_of_type_node(&self.maybe_current_node().unwrap()) {
+                            if is_part_of_type_node(self.maybe_current_node().unwrap(), self) {
                                 &Diagnostics::Type_produces_a_tuple_type_that_is_too_large_to_represent
                             } else {
                                 &Diagnostics::Expression_produces_a_tuple_type_that_is_too_large_to_represent

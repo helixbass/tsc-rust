@@ -1221,7 +1221,7 @@ pub fn index_of_node(node_array: &[Id<Node>], node: Id<Node>) -> isize {
     )
 }
 
-pub fn get_emit_flags(node: Id<Node>) -> EmitFlags {
+pub fn get_emit_flags(node: &Node) -> EmitFlags {
     node.maybe_emit_node()
         .and_then(|emit_node| (*emit_node).borrow().flags)
         .unwrap_or(EmitFlags::None)

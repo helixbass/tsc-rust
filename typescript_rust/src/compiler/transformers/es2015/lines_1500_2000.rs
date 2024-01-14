@@ -690,7 +690,7 @@ impl TransformES2015 {
                 &mut prologue,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_hoisted_variable_statement),
+                Some(|node| is_hoisted_variable_statement(node, self)),
             )?;
         }
 
