@@ -482,7 +482,7 @@ impl TypeChecker {
                 parent,
                 Some(parent) if is_entity_name_expression(name, self) &&
                     parent == self.get_resolved_symbol(
-                        &get_first_identifier(name)
+                        &get_first_identifier(name, self)
                     )?
             ))
     }

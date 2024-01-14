@@ -114,8 +114,8 @@ impl TypeChecker {
                 Some(name),
                 &Diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module,
                 Some(vec![
-                    declaration_name_to_string(Some(name)).into_owned(),
-                    declaration_name_to_string(Some(name)).into_owned(),
+                    declaration_name_to_string(Some(name), self).into_owned(),
+                    declaration_name_to_string(Some(name), self).into_owned(),
                 ])
             );
         }
@@ -153,8 +153,8 @@ impl TypeChecker {
                 Some(name),
                 &Diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module_containing_async_functions,
                 Some(vec![
-                    declaration_name_to_string(Some(name)).into_owned(),
-                    declaration_name_to_string(Some(name)).into_owned(),
+                    declaration_name_to_string(Some(name), self).into_owned(),
+                    declaration_name_to_string(Some(name), self).into_owned(),
                 ])
             );
         }
@@ -256,7 +256,7 @@ impl TypeChecker {
                 Some(node),
                 &Diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_when_emitting_super_references_in_static_initializers,
                 Some(vec![
-                    declaration_name_to_string(node.as_named_declaration().maybe_name()).into_owned(),
+                    declaration_name_to_string(node.as_named_declaration().maybe_name(), self).into_owned(),
                     "Reflect".to_owned()
                 ])
             );
@@ -603,7 +603,7 @@ impl TypeChecker {
                         Some(&*node_name),
                         &Diagnostics::All_declarations_of_0_must_have_identical_modifiers,
                         Some(vec![
-                            declaration_name_to_string(Some(&*node_name)).into_owned()
+                            declaration_name_to_string(Some(node_name), self).into_owned()
                         ]),
                     );
                 }
@@ -649,7 +649,7 @@ impl TypeChecker {
                     Some(&*node_name),
                     &Diagnostics::All_declarations_of_0_must_have_identical_modifiers,
                     Some(vec![
-                        declaration_name_to_string(Some(&*node_name)).into_owned()
+                        declaration_name_to_string(Some(node_name), self).into_owned()
                     ]),
                 );
             }
@@ -687,7 +687,7 @@ impl TypeChecker {
         } else {
             &*Diagnostics::Subsequent_variable_declarations_must_have_the_same_type_Variable_0_must_be_of_type_1_but_here_has_type_2
         };
-        let decl_name = declaration_name_to_string(next_declaration_name.as_deref()).into_owned();
+        let decl_name = declaration_name_to_string(next_declaration_name, self).into_owned();
         let err = self.error(
             next_declaration_name.as_deref(),
             message,

@@ -1170,7 +1170,7 @@ impl TypeChecker {
                 } else if node.kind() == SyntaxKind::TypeReference
                 /*&& node.as_type_reference_node().type_name.is_some()*/
                 {
-                    declaration_name_to_string(Some(&*node.as_type_reference_node().type_name))
+                    declaration_name_to_string(Some(node.as_type_reference_node().type_name), self)
                         .into_owned()
                 } else {
                     anon.to_owned()

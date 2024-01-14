@@ -926,13 +926,15 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                 let property_name = if is_property_access_expression(original_node) {
                     declaration_name_to_string(
                         original_node.as_property_access_expression().maybe_name(),
+                        self,
                     )
                 } else {
                     get_text_of_node(
-                        &original_node
+                        original_node
                             .as_element_access_expression()
                             .argument_expression,
                         None,
+                        self,
                     )
                 };
 

@@ -463,7 +463,7 @@ impl BinderType {
     }
 
     pub(super) fn is_narrowable_reference(&self, expr: Id<Node> /*Expression*/) -> bool {
-        is_dotted_name(expr)
+        is_dotted_name(expr, self)
             || (is_property_access_expression(expr)
                 || is_non_null_expression(expr)
                 || is_parenthesized_expression(expr))

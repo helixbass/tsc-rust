@@ -155,6 +155,7 @@ impl ParserType {
                                 &self.source_text_as_chars(),
                                 &opening_as_jsx_opening_element.tag_name,
                                 None,
+                                self,
                             )
                             .into_owned()]),
                         );
@@ -166,6 +167,7 @@ impl ParserType {
                                 &self.source_text_as_chars(),
                                 &opening_as_jsx_opening_element.tag_name,
                                 None,
+                                self,
                             )
                             .into_owned()]),
                         );
@@ -273,6 +275,7 @@ impl ParserType {
                             &self.source_text_as_chars(),
                             &opening_tag_as_jsx_opening_element.tag_name,
                             None,
+                            self,
                         )
                         .into_owned()]),
                     );

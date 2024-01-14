@@ -16,7 +16,7 @@ use regex::{Captures, Regex};
 
 use super::is_quote_or_backtick;
 use crate::{
-    binary_search, compare_diagnostics, compare_diagnostics_skip_related_information,
+InArena,    binary_search, compare_diagnostics, compare_diagnostics_skip_related_information,
     compare_strings_case_sensitive, concatenate, filter, flat_map_to_mutable,
     get_assignment_declaration_kind, get_jsdoc_augments_tag, get_jsdoc_implements_tags,
     get_parse_tree_node, get_symbol_id, has_syntactic_modifier, id_text, is_binary_expression,
@@ -357,15 +357,16 @@ pub fn is_string_or_numeric_literal_like(node: &Node) -> bool {
     is_string_literal_like(node) || is_numeric_literal(node)
 }
 
-pub fn is_signed_numeric_literal(node: Id<Node>) -> bool {
-    if !is_prefix_unary_expression(node) {
+pub fn is_signed_numeric_literal(node: Id<Node>, arena: &impl HasArena) -> bool {
+    if !is_prefix_unary_expression(&node.ref_(arena)) {
         return false;
     }
-    let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+    let node_ref = node.ref_(arena);
+    let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
     matches!(
         node_as_prefix_unary_expression.operator,
         SyntaxKind::PlusToken | SyntaxKind::MinusToken
-    ) && is_numeric_literal(&node_as_prefix_unary_expression.operand)
+    ) && is_numeric_literal(&node_as_prefix_unary_expression.operand.ref_(arena))
 }
 
 pub fn has_dynamic_name(declaration: Id<Node> /*Declaration*/, arena: &impl HasArena) -> bool {
@@ -393,31 +394,33 @@ pub fn is_dynamic_name(name: Id<Node> /*DeclarationName*/, arena: &impl HasArena
     } else {
         name.as_computed_property_name().expression.clone()
     };
-    !is_string_or_numeric_literal_like(&expr) && !is_signed_numeric_literal(&expr)
+    !is_string_or_numeric_literal_like(&expr) && !is_signed_numeric_literal(expr, arena)
 }
 
-pub fn get_property_name_for_property_name_node<'name>(
+pub fn get_property_name_for_property_name_node(
     name: Id<Node>, /*PropertyName*/
-) -> Option<Cow<'name, str> /*__String*/> {
-    match name.kind() {
-        SyntaxKind::Identifier => Some((&*name.as_identifier().escaped_text).into()),
-        SyntaxKind::PrivateIdentifier => Some((&*name.as_private_identifier().escaped_text).into()),
+    arena: &impl HasArena,
+) -> Option<Cow<'_, str> /*__String*/> {
+    match name.ref_(arena).kind() {
+        SyntaxKind::Identifier => Some((&*name.ref_(arena).as_identifier().escaped_text).into()),
+        SyntaxKind::PrivateIdentifier => Some((&*name.ref_(arena).as_private_identifier().escaped_text).into()),
         SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral => Some(
-            escape_leading_underscores(&name.as_literal_like_node().text())
+            escape_leading_underscores(&name.ref_(arena).as_literal_like_node().text())
                 .into_owned()
                 .into(),
         ),
         SyntaxKind::ComputedPropertyName => {
-            let name_expression = &name.as_computed_property_name().expression;
-            if is_string_or_numeric_literal_like(name_expression) {
+            let name_expression = name.as_computed_property_name().expression;
+            if is_string_or_numeric_literal_like(&name_expression.ref_(arena)) {
                 Some(
-                    escape_leading_underscores(&name_expression.as_literal_like_node().text())
+                    escape_leading_underscores(&name_expression.ref_(arena).as_literal_like_node().text())
                         .into_owned()
                         .into(),
                 )
-            } else if is_signed_numeric_literal(name_expression) {
+            } else if is_signed_numeric_literal(name_expression, arena) {
+                let name_expression_ref = name_expression.ref_(arena);
                 let name_expression_as_prefix_unary_expression =
-                    name_expression.as_prefix_unary_expression();
+                    name_expression_ref.as_prefix_unary_expression();
                 if name_expression_as_prefix_unary_expression.operator == SyntaxKind::MinusToken {
                     Some(
                         format!(
@@ -426,6 +429,7 @@ pub fn get_property_name_for_property_name_node<'name>(
                                 .unwrap(),
                             name_expression_as_prefix_unary_expression
                                 .operand
+                                .ref_(arena)
                                 .as_literal_like_node()
                                 .text()
                         )
@@ -435,7 +439,7 @@ pub fn get_property_name_for_property_name_node<'name>(
                     Some(
                         name_expression_as_prefix_unary_expression
                             .operand
-                            .as_literal_like_node()
+                            .ref_(arena).as_literal_like_node()
                             .text()
                             .clone()
                             .into(),

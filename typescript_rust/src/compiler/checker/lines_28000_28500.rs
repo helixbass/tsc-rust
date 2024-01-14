@@ -1117,7 +1117,7 @@ impl TypeChecker {
                         error_info,
                         &Diagnostics::Property_0_does_not_exist_on_type_1,
                         Some(vec![
-                            declaration_name_to_string(Some(prop_node)).into_owned(),
+                            declaration_name_to_string(Some(prop_node), self).into_owned(),
                             self.type_to_string_(subtype, Option::<Id<Node>>::None, None, None)?,
                         ]),
                     ));
@@ -1128,7 +1128,7 @@ impl TypeChecker {
         if self
             .type_has_static_property(&prop_node.as_member_name().escaped_text(), containing_type)?
         {
-            let prop_name = declaration_name_to_string(Some(prop_node)).into_owned();
+            let prop_name = declaration_name_to_string(Some(prop_node), self).into_owned();
             let type_name =
                 self.type_to_string_(containing_type, Option::<Id<Node>>::None, None, None)?;
             error_info = Some(chain_diagnostic_messages(
@@ -1155,7 +1155,7 @@ impl TypeChecker {
                     error_info,
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
-                        declaration_name_to_string(Some(prop_node)).into_owned(),
+                        declaration_name_to_string(Some(prop_node), self).into_owned(),
                         self.type_to_string_(
                             containing_type,
                             Option::<Id<Node>>::None,
@@ -1173,7 +1173,7 @@ impl TypeChecker {
                     .into(),
                 ));
             } else {
-                let missing_property = declaration_name_to_string(Some(prop_node)).into_owned();
+                let missing_property = declaration_name_to_string(Some(prop_node), self).into_owned();
                 let container =
                     self.type_to_string_(containing_type, Option::<Id<Node>>::None, None, None)?;
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(

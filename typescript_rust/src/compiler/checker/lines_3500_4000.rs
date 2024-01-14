@@ -527,9 +527,9 @@ impl TypeChecker {
                                     export_node
                                         .as_export_declaration()
                                         .module_specifier
-                                        .as_ref()
                                         .unwrap(),
                                     None,
+                                    self,
                                 )
                                 .into_owned(),
                                 exports_with_duplicate: None,

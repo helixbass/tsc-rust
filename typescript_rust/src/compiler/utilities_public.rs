@@ -1222,6 +1222,7 @@ impl<'a> From<&'a StringOrNodeArray> for StrOrNodeArray<'a> {
 
 pub fn get_text_of_jsdoc_comment<'str>(
     comment: Option<impl Into<StrOrNodeArray<'str>>>,
+    arena: &impl HasArena,
 ) -> Option<Cow<'str, str>> {
     match comment {
         Some(comment) => match comment.into() {
@@ -1237,7 +1238,7 @@ pub fn get_text_of_jsdoc_comment<'str>(
                             format!(
                                 "{{@link {}{}}}",
                                 if let Some(c_name) = c_as_jsdoc_link_like.maybe_name() {
-                                    format!("{} ", entity_name_to_string(&c_name))
+                                    format!("{} ", entity_name_to_string(c_name, arena))
                                 } else {
                                     "".to_owned()
                                 },

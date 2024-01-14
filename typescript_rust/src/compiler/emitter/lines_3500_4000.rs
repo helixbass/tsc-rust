@@ -539,8 +539,8 @@ impl Printer {
     pub(super) fn emit_jsdoc(&self, node: Id<Node> /*JSDoc*/) -> io::Result<()> {
         self.write("/**");
         let node_as_jsdoc = node.as_jsdoc();
-        if let Some(node_comment) = node_as_jsdoc.comment.as_ref() {
-            let text = get_text_of_jsdoc_comment(Some(node_comment));
+        if let Some(node_comment) = node_as_jsdoc.comment {
+            let text = get_text_of_jsdoc_comment(Some(node_comment), self);
             if let Some(text) = text.filter(|text| !text.is_empty()) {
                 lazy_static! {
                     static ref lines_regex: Regex = Regex::new(r"\r\n?|\n").unwrap();
@@ -816,7 +816,7 @@ impl Printer {
     }
 
     pub(super) fn emit_jsdoc_comment(&self, comment: Option<StrOrNodeArray>) {
-        let text = get_text_of_jsdoc_comment(comment);
+        let text = get_text_of_jsdoc_comment(comment, self);
         if let Some(text) = text.filter(|text| !text.is_empty()) {
             self.write_space();
             self.write(&text);

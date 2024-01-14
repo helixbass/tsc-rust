@@ -30,7 +30,7 @@ use crate::{
     CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
-    FileExtensionInfo, GetCanonicalFileName, GetOrInsertDefault, HasArena, JsxEmit,
+    FileExtensionInfo, GetCanonicalFileName, GetOrInsertDefault, HasArena, InArena, JsxEmit,
     LanguageVariant, MapLike, Matches, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray,
     NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange,
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike,
@@ -103,13 +103,12 @@ pub fn concatenate_diagnostic_message_chains(
     }
 }
 
-fn get_diagnostic_file_path<
-    TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface,
->(
-    diagnostic: &TDiagnosticRelatedInformation,
+fn get_diagnostic_file_path(
+    diagnostic: &impl DiagnosticRelatedInformationInterface,
+    arena: &impl HasArena,
 ) -> Option<String> {
     diagnostic.maybe_file().and_then(|file| {
-        file.as_source_file()
+        file.ref_(arena).as_source_file()
             .maybe_path()
             .as_ref()
             .map(|path| path.to_string())
@@ -771,10 +770,9 @@ pub fn get_compiler_option_value(
 
 pub fn get_jsx_implicit_import_base(
     compiler_options: &CompilerOptions,
-    file: Option<Id<Node> /*SourceFile*/>,
+    file: Option<&Node /*SourceFile*/>,
 ) -> Option<String> {
-    let file: Option<Id<Node>> = file.map(|file| file.borrow().node_wrapper());
-    let jsx_import_source_pragmas = file.as_ref().and_then(|file| {
+    let jsx_import_source_pragmas = file.and_then(|file| {
         file.as_source_file()
             .pragmas()
             .get(&PragmaName::Jsximportsource)
@@ -984,7 +982,7 @@ impl SymlinkCache {
         self.set_has_processed_resolutions(true);
         for file in files {
             if let Some(file_resolved_modules) =
-                file.as_source_file().maybe_resolved_modules().as_ref()
+                file.ref_(self).as_source_file().maybe_resolved_modules().as_ref()
             {
                 file_resolved_modules.for_each(|resolution, _, _| {
                     self.process_resolution(resolution.clone().map(Into::into))
@@ -1970,7 +1968,7 @@ pub fn try_get_extension_from_path(path: &str) -> Option<Extension> {
 }
 
 pub fn is_check_js_enabled_for_file(
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     compiler_options: &CompilerOptions,
 ) -> bool {
     source_file
@@ -2073,15 +2071,15 @@ pub struct MinAndMax {
     pub max: usize,
 }
 
-pub fn range_of_node(node: Id<Node>) -> BaseTextRange {
+pub fn range_of_node(node: Id<Node>, arena: &impl HasArena) -> BaseTextRange {
     BaseTextRange::new(
-        get_token_pos_of_node(node, Option::<Id<Node>>::None, None),
-        node.end(),
+        get_token_pos_of_node(node, Option::<Id<Node>>::None, None, arena),
+        node.ref_(arena).end(),
     )
 }
 
 pub fn range_of_type_parameters(
-    source_file: Id<Node>,       /*SourceFile*/
+    source_file: &Node,       /*SourceFile*/
     type_parameters: &NodeArray, /*<TypeParameterDeclaration>*/
 ) -> BaseTextRange {
     let pos = type_parameters.pos() - 1;

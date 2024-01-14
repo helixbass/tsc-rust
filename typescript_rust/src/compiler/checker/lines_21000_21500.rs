@@ -491,7 +491,7 @@ impl TypeChecker {
                     );
                     let type_name = format!(
                         "{}{}",
-                        declaration_name_to_string(Some(param_as_parameter_declaration.name())),
+                        declaration_name_to_string(Some(param_as_parameter_declaration.name()), self),
                         if param_as_parameter_declaration.dot_dot_dot_token.is_some() {
                             "[]"
                         } else {
@@ -599,7 +599,7 @@ impl TypeChecker {
             declaration,
             diagnostic,
             Some(vec![
-                declaration_name_to_string(get_name_of_declaration(Some(declaration), self)).into_owned(),
+                declaration_name_to_string(get_name_of_declaration(Some(declaration), self), self).into_owned(),
                 type_as_string,
             ]),
         );

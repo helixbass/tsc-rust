@@ -879,7 +879,7 @@ impl TypeChecker {
                         self.grammar_error_on_node(
                             mod_,
                             &Diagnostics::_0_modifier_cannot_be_used_here,
-                            Some(vec![get_text_of_node(mod_, None).into_owned()]),
+                            Some(vec![get_text_of_node(mod_, None, self).into_owned()]),
                         );
                     }
                 }
@@ -927,7 +927,7 @@ impl TypeChecker {
             }
 
             if !in_destructuring {
-                let effective_name = get_property_name_for_property_name_node(&name);
+                let effective_name = get_property_name_for_property_name_node(name, self);
                 if effective_name.is_none() {
                     continue;
                 }
@@ -946,7 +946,7 @@ impl TypeChecker {
                             self.grammar_error_on_node(
                                 &name,
                                 &Diagnostics::Duplicate_identifier_0,
-                                Some(vec![get_text_of_node(&name, None).into_owned()]),
+                                Some(vec![get_text_of_node(name, None, self).into_owned()]),
                             );
                         } else if current_kind.intersects(DeclarationMeaning::GetOrSetAccessor)
                             && existing_kind.intersects(DeclarationMeaning::GetOrSetAccessor)

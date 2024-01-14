@@ -794,7 +794,7 @@ impl TypeChecker {
                                     current_namespace,
                                     Option::<Id<Node>>::None,
                                 )?,
-                                declaration_name_to_string(Some(current)).into_owned(),
+                                declaration_name_to_string(Some(current), self).into_owned(),
                             ]),
                         );
                         let ret = self.error_type();

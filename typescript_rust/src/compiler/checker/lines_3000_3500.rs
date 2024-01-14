@@ -433,7 +433,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*QualifiedName*/
     ) -> io::Result<Option<Id<Symbol>>> {
-        let mut left = get_first_identifier(node);
+        let mut left = get_first_identifier(node, self);
         let mut symbol = return_ok_none_if_none!(self.resolve_name_(
             Some(left),
             &left.ref_(self).as_identifier().escaped_text,
@@ -489,7 +489,7 @@ impl TypeChecker {
             {
                 &Diagnostics::Cannot_find_namespace_0
             } else {
-                self.get_cannot_find_name_diagnostic_for_name(get_first_identifier(name))
+                self.get_cannot_find_name_diagnostic_for_name(get_first_identifier(name, self))
             };
             let symbol_from_js_prototype =
                 if is_in_js_file(Some(name)) && !node_is_synthesized(&*name.ref_(self)) {
@@ -584,7 +584,7 @@ impl TypeChecker {
                 if !ignore_errors_unwrapped {
                     let namespace_name =
                         self.get_fully_qualified_name(namespace, Option::<Id<Node>>::None)?;
-                    let declaration_name = declaration_name_to_string(Some(&**right));
+                    let declaration_name = declaration_name_to_string(Some(right), self);
                     let suggestion_for_nonexistent_module =
                         self.get_suggested_symbol_for_nonexistent_module(right, namespace)?;
                     if let Some(suggestion_for_nonexistent_module) =
@@ -624,7 +624,7 @@ impl TypeChecker {
                         self.error(
                             containing_qualified_name,
                             &Diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
-                            Some(vec![entity_name_to_string(&containing_qualified_name.unwrap().ref_(self)).into_owned()])
+                            Some(vec![entity_name_to_string(containing_qualified_name.unwrap(), self).into_owned()])
                         );
                         return Ok(None);
                     }

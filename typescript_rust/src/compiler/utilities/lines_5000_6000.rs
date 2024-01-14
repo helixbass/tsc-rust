@@ -31,22 +31,20 @@ use crate::{
     SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
-pub fn get_first_identifier(node: Id<Node>) -> Id<Node /*Identifier*/> {
-    match node.kind() {
-        SyntaxKind::Identifier => node.node_wrapper(),
+pub fn get_first_identifier(mut node: Id<Node>, arena: &impl HasArena) -> Id<Node /*Identifier*/> {
+    match node.ref_(arena).kind() {
+        SyntaxKind::Identifier => node,
         SyntaxKind::QualifiedName => {
-            let mut node = node.node_wrapper();
             while {
-                node = node.as_qualified_name().left.clone();
-                node.kind() != SyntaxKind::Identifier
+                node = node.ref_(arena).as_qualified_name().left;
+                node.ref_(arena).kind() != SyntaxKind::Identifier
             } {}
             node
         }
         SyntaxKind::PropertyAccessExpression => {
-            let mut node = node.node_wrapper();
             while {
-                node = node.as_property_access_expression().expression.clone();
-                node.kind() != SyntaxKind::Identifier
+                node = node.ref_(arena).as_property_access_expression().expression;
+                node.ref_(arena).kind() != SyntaxKind::Identifier
             } {}
             node
         }
@@ -54,17 +52,17 @@ pub fn get_first_identifier(node: Id<Node>) -> Id<Node /*Identifier*/> {
     }
 }
 
-pub fn is_dotted_name(node: &Node /*Expression*/) -> bool {
+pub fn is_dotted_name(node: Id<Node> /*Expression*/, arena: &impl HasArena) -> bool {
     matches!(
-        node.kind(),
+        node.ref_(arena).kind(),
         SyntaxKind::Identifier
             | SyntaxKind::ThisKeyword
             | SyntaxKind::SuperKeyword
             | SyntaxKind::MetaProperty
-    ) || node.kind() == SyntaxKind::PropertyAccessExpression
-        && is_dotted_name(&node.as_property_access_expression().expression)
-        || node.kind() == SyntaxKind::ParenthesizedExpression
-            && is_dotted_name(&node.as_parenthesized_expression().expression)
+    ) || node.ref_(arena).kind() == SyntaxKind::PropertyAccessExpression
+        && is_dotted_name(node.ref_(arena).as_property_access_expression().expression, arena)
+        || node.ref_(arena).kind() == SyntaxKind::ParenthesizedExpression
+            && is_dotted_name(node.ref_(arena).as_parenthesized_expression().expression, arena)
 }
 
 pub fn is_property_access_entity_name_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -77,37 +75,43 @@ pub fn is_property_access_entity_name_expression(node: Id<Node>, arena: &impl Ha
         && is_entity_name_expression(node_as_property_access_expression.expression, arena)
 }
 
-pub fn try_get_property_access_or_identifier_to_string<'expr>(
+pub fn try_get_property_access_or_identifier_to_string(
     expr: Id<Node>, /*Expression*/
-) -> Option<Cow<'expr, str>> {
-    if is_property_access_expression(expr) {
-        let expr_as_property_access_expression = expr.as_property_access_expression();
+    arena: &impl HasArena,
+) -> Option<Cow<'_, str>> {
+    if is_property_access_expression(&expr.ref_(arena)) {
+        let expr_ref = expr.ref_(arena);
+        let expr_as_property_access_expression = expr_ref.as_property_access_expression();
         let base_str = try_get_property_access_or_identifier_to_string(
-            &expr_as_property_access_expression.expression,
+            expr_as_property_access_expression.expression,
+            arena,
         );
         if let Some(base_str) = base_str {
             return Some(
                 format!(
                     "{}.{}",
                     base_str,
-                    entity_name_to_string(&expr_as_property_access_expression.name)
+                    entity_name_to_string(expr_as_property_access_expression.name, arena)
                 )
                 .into(),
             );
         }
-    } else if is_element_access_expression(expr) {
-        let expr_as_element_access_expression = expr.as_element_access_expression();
+    } else if is_element_access_expression(&expr.ref_(arena)) {
+        let expr_ref = expr.ref_(arena);
+        let expr_as_element_access_expression = expr_ref.as_element_access_expression();
         let base_str = try_get_property_access_or_identifier_to_string(
-            &expr_as_element_access_expression.expression,
+            expr_as_element_access_expression.expression,
+            arena,
         );
         if let Some(base_str) = base_str {
-            if is_property_name(&expr_as_element_access_expression.argument_expression) {
+            if is_property_name(&expr_as_element_access_expression.argument_expression.ref_(arena)) {
                 return Some(
                     format!(
                         "{}.{}",
                         base_str,
                         &*get_property_name_for_property_name_node(
-                            &expr_as_element_access_expression.argument_expression
+                            expr_as_element_access_expression.argument_expression,
+                            arena,
                         )
                         .unwrap()
                     )
@@ -115,8 +119,8 @@ pub fn try_get_property_access_or_identifier_to_string<'expr>(
                 );
             }
         }
-    } else if is_identifier(expr) {
-        return Some(unescape_leading_underscores(&expr.as_identifier().escaped_text).into());
+    } else if is_identifier(&expr.ref_(arena)) {
+        return Some(unescape_leading_underscores(&expr.ref_(arena).as_identifier().escaped_text).into());
     }
     None
 }

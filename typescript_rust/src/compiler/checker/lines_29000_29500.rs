@@ -914,10 +914,11 @@ impl TypeChecker {
                     &Diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
                     Some(vec![
                         entity_name_to_string(
-                            &node_as_jsx_opening_like_element.tag_name()
+                            node_as_jsx_opening_like_element.tag_name(),
+                            self,
                         ).into_owned(),
                         absolute_min_arg_count.to_string(),
-                        entity_name_to_string(&factory).into_owned(),
+                        entity_name_to_string(factory, self).into_owned(),
                         max_param_count.to_string(),
                     ])
                 ).into()
@@ -933,7 +934,8 @@ impl TypeChecker {
                             tag_name_declaration,
                             &Diagnostics::_0_is_declared_here,
                             Some(vec![entity_name_to_string(
-                                &node_as_jsx_opening_like_element.tag_name(),
+                                node_as_jsx_opening_like_element.tag_name(),
+                                self,
                             )
                             .into_owned()]),
                         )

@@ -415,7 +415,8 @@ impl TypeChecker {
                 if target != self.unknown_symbol() {
                     if target.ref_(self).flags().intersects(SymbolFlags::Value) {
                         let module_name = get_first_identifier(
-                            &node_as_import_equals_declaration.module_reference,
+                            node_as_import_equals_declaration.module_reference,
+                            self,
                         );
                         if !self
                             .resolve_entity_name(
@@ -434,7 +435,7 @@ impl TypeChecker {
                                 Some(&*module_name),
                                 &Diagnostics::Module_0_is_hidden_by_a_local_declaration_with_the_same_name,
                                 Some(vec![
-                                    declaration_name_to_string(Some(&*module_name)).into_owned()
+                                    declaration_name_to_string(Some(module_name), self).into_owned()
                                 ])
                             );
                         }

@@ -198,7 +198,7 @@ impl TypeChecker {
                     {
                         unescape_leading_underscores(&member_name).to_owned()
                     } else {
-                        declaration_name_to_string(Some(&*decl_name)).into_owned()
+                        declaration_name_to_string(Some(decl_name), self).into_owned()
                     };
                     maybe_for_each(declarations.as_deref(), |declaration: &Id<Node>, _| {
                         self.error(

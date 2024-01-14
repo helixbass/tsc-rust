@@ -208,7 +208,7 @@ impl TypeChecker {
             meaning = SymbolFlags::Type;
         }
 
-        let first_identifier = get_first_identifier(entity_name);
+        let first_identifier = get_first_identifier(entity_name, self);
         let symbol = self.resolve_name_(
             Some(enclosing_declaration),
             &first_identifier.as_identifier().escaped_text,
@@ -235,7 +235,7 @@ impl TypeChecker {
             .unwrap_or_else(|| SymbolVisibilityResult {
                 accessibility: SymbolAccessibility::NotAccessible,
                 aliases_to_make_visible: None,
-                error_symbol_name: Some(get_text_of_node(&first_identifier, None).into_owned()),
+                error_symbol_name: Some(get_text_of_node(first_identifier, None, self).into_owned()),
                 error_node: Some(first_identifier),
             }))
     }

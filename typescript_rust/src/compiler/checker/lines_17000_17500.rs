@@ -838,8 +838,9 @@ impl TypeChecker {
                 || -> io::Result<Cow<'static, DiagnosticMessage>> {
                     if invalid_text_diagnostic.is_none() {
                         let tag_name_text = get_text_of_node(
-                            &node.parent().as_jsx_opening_like_element().tag_name(),
+                            node.parent().as_jsx_opening_like_element().tag_name(),
                             None,
+                            self,
                         );
                         let child_prop_name = self.get_jsx_element_children_property_name(
                             self.get_jsx_namespace_at(Some(node))?,

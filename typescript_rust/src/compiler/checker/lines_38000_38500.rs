@@ -165,8 +165,9 @@ impl TypeChecker {
                         &node_as_labeled_statement.label,
                         &Diagnostics::Duplicate_label_0,
                         Some(vec![get_text_of_node(
-                            &node_as_labeled_statement.label,
+                            node_as_labeled_statement.label,
                             None,
+                            self,
                         )
                         .into_owned()]),
                     );
@@ -593,6 +594,7 @@ impl TypeChecker {
                                 &Diagnostics::Duplicate_identifier_0,
                                 Some(vec![declaration_name_to_string(
                                     node_as_type_parameter_declaration.maybe_name(),
+                                    self,
                                 )
                                 .into_owned()]),
                             );

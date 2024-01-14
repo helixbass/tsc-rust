@@ -652,7 +652,7 @@ impl TypeChecker {
                                 Some(name.clone()),
                                 &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
                                 Some(vec![
-                                    declaration_name_to_string(Some(name)).into_owned()
+                                    declaration_name_to_string(Some(name), self).into_owned()
                                 ])
                             );
                         } else {

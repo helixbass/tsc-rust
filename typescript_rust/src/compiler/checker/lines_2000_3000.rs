@@ -150,7 +150,7 @@ impl TypeChecker {
     ) -> Cow<'name_arg, str> {
         match name_arg {
             ResolveNameNameArg::Str(name_arg) => unescape_leading_underscores(name_arg).into(),
-            ResolveNameNameArg::Node(name_arg) => declaration_name_to_string(Some(name_arg)),
+            ResolveNameNameArg::Node(name_arg) => declaration_name_to_string(Some(name_arg), self),
         }
     }
 
@@ -271,7 +271,7 @@ impl TypeChecker {
                 self.error(
                     Some(error_location),
                     &Diagnostics::Cannot_extend_an_interface_0_Did_you_mean_implements,
-                    Some(vec![get_text_of_node(&expression, None).into_owned()]),
+                    Some(vec![get_text_of_node(expression, None, self).into_owned()]),
                 );
                 return Ok(true);
             }
@@ -617,7 +617,7 @@ impl TypeChecker {
         {
             let mut diagnostic_message: Option<Gc<Diagnostic>> = None;
             let declaration_name =
-                declaration_name_to_string(get_name_of_declaration(Some(declaration), self))
+                declaration_name_to_string(get_name_of_declaration(Some(declaration), self), self)
                     .into_owned();
             if result
                 .ref_(self)
@@ -1475,7 +1475,7 @@ impl TypeChecker {
                 };
             if symbol.is_none() {
                 let module_name = self.get_fully_qualified_name(module_symbol, Some(node))?;
-                let declaration_name = declaration_name_to_string(Some(&*name));
+                let declaration_name = declaration_name_to_string(Some(name) self);
                 let suggestion =
                     self.get_suggested_symbol_for_nonexistent_module(&name, target_symbol)?;
                 if let Some(suggestion) = suggestion {

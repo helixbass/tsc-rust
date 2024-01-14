@@ -863,7 +863,7 @@ impl BinderType {
                             .into(),
                     );
                 }
-                if is_signed_numeric_literal(name_expression) {
+                if is_signed_numeric_literal(name_expression, self) {
                     let name_expression_as_prefix_unary_expression =
                         name_expression.as_prefix_unary_expression();
                     return Some(
@@ -947,7 +947,7 @@ impl BinderType {
         node: Id<Node>, /*Declaration*/
     ) -> Cow<'node, str> {
         if is_named_declaration(node) {
-            declaration_name_to_string(node.as_named_declaration().maybe_name())
+            declaration_name_to_string(node.as_named_declaration().maybe_name(), self)
         } else {
             let declaration_name = /*Debug.check_defined(*/self.get_declaration_name(node).unwrap()/*)*/;
             match declaration_name {

@@ -478,7 +478,7 @@ impl TypeChecker {
                 if try_add_to_set(&mut seen_parents_with_every_unused, &*parent) {
                     let source_file = get_source_file_of_node(&parent);
                     let range = if is_jsdoc_template_tag(&parent) {
-                        range_of_node(&parent)
+                        range_of_node(parent, self)
                     } else {
                         range_of_type_parameters(
                             &source_file,

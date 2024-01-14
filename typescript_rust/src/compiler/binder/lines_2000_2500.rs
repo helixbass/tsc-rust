@@ -410,7 +410,7 @@ impl BinderType {
                         self.create_diagnostic_for_node(
                             node,
                             self.get_strict_mode_identifier_message(node),
-                            Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
+                            Some(vec![declaration_name_to_string(Some(node), self).into_owned()]),
                         )
                         .into(),
                     ));
@@ -423,7 +423,7 @@ impl BinderType {
                             self.create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Identifier_expected_0_is_a_reserved_word_at_the_top_level_of_a_module,
-                                Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
+                                Some(vec![declaration_name_to_string(Some(node), self).into_owned()]),
                             )
                             .into(),
                         ));
@@ -435,7 +435,7 @@ impl BinderType {
                             self.create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
-                                Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
+                                Some(vec![declaration_name_to_string(Some(node), self).into_owned()]),
                             )
                             .into(),
                         ));
@@ -450,7 +450,7 @@ impl BinderType {
                         self.create_diagnostic_for_node(
                             node,
                             &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
-                            Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
+                            Some(vec![declaration_name_to_string(Some(node), self).into_owned()]),
                         )
                         .into(),
                     ));
@@ -490,7 +490,7 @@ impl BinderType {
                     self.create_diagnostic_for_node(
                         node,
                         &Diagnostics::constructor_is_a_reserved_word,
-                        Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
+                        Some(vec![declaration_name_to_string(Some(node), self).into_owned()]),
                     )
                     .into(),
                 ));
@@ -787,7 +787,7 @@ impl BinderType {
         self.add_error_or_suggestion_diagnostic(
             is_error,
             BaseTextRange::new(
-                get_token_pos_of_node(start_node, Some(&*self.file()), None),
+                get_token_pos_of_node(start_node, Some(self.file()), None, self),
                 end_node.end(),
             ),
             message,
@@ -900,9 +900,10 @@ impl BinderType {
         node: Id<Node>, /*ExpressionStatement*/
     ) -> bool {
         let node_text = get_source_text_of_node_from_source_file(
-            &self.file(),
-            &node.as_expression_statement().expression,
+            self.file(),
+            node.as_expression_statement().expression,
             None,
+            self,
         );
 
         matches!(&*node_text, "\"use strict\"" | "'use strict'")

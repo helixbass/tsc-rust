@@ -232,7 +232,7 @@ impl TypeChecker {
 
         if self.is_potentially_uncalled_decorator(node, &call_signatures) {
             let node_str =
-                get_text_of_node(&node_as_decorator.expression, Some(false)).into_owned();
+                get_text_of_node(node_as_decorator.expression, Some(false), self).into_owned();
             self.error(
                 Some(node),
                 &Diagnostics::_0_accepts_too_few_arguments_to_be_used_as_a_decorator_here_Did_you_mean_to_call_it_first_and_write_0,
@@ -440,8 +440,9 @@ impl TypeChecker {
                 Some(node_as_jsx_opening_like_element.tag_name()),
                 &Diagnostics::JSX_element_type_0_does_not_have_any_construct_or_call_signatures,
                 Some(vec![get_text_of_node(
-                    &node_as_jsx_opening_like_element.tag_name(),
+                    node_as_jsx_opening_like_element.tag_name(),
                     None,
+                    self,
                 )
                 .into_owned()]),
             );
@@ -861,7 +862,7 @@ impl TypeChecker {
             && self.get_type_predicate_of_signature(&signature)?.is_some()
         {
             let node_as_call_expression = node.as_call_expression();
-            if !is_dotted_name(&node_as_call_expression.expression) {
+            if !is_dotted_name(node_as_call_expression.expression, self) {
                 self.error(
                     Some(&*node_as_call_expression.expression),
                     &Diagnostics::Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name,

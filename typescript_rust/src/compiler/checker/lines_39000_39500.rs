@@ -60,7 +60,7 @@ impl TypeChecker {
                                 member_as_property_declaration.maybe_name(),
                                 &Diagnostics::Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor,
                                 Some(vec![
-                                    declaration_name_to_string(Some(&*prop_name)).into_owned()
+                                    declaration_name_to_string(Some(prop_name), self).into_owned()
                                 ])
                             );
                         }

@@ -871,7 +871,7 @@ pub fn get_local_name_for_external_import<
             name
         } else {
             factory.create_identifier(
-                (&*get_source_text_of_node_from_source_file(source_file, &name, None))
+                (&*get_source_text_of_node_from_source_file(source_file, name, None, arena))
                     .non_empty()
                     .unwrap_or_else(|| id_text(&name)),
             )

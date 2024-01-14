@@ -500,7 +500,7 @@ impl TransformDeclarations {
             if let Some(error_info) = error_info {
                 if let Some(error_info_type_name) = error_info.type_name.as_ref() {
                     let mut args: Vec<String> =
-                        vec![get_text_of_node(error_info_type_name, None).into_owned()];
+                        vec![get_text_of_node(error_info_type_name, None, self).into_owned()];
                     if let Some(symbol_accessibility_result_error_symbol_name) =
                         symbol_accessibility_result.error_symbol_name.clone()
                     {
@@ -1269,13 +1269,13 @@ impl TransformDeclarationsSymbolTracker {
 
     pub(super) fn error_declaration_name_with_fallback(&self) -> Cow<'static, str> {
         if let Some(error_name_node) = self.transform_declarations.maybe_error_name_node() {
-            declaration_name_to_string(Some(error_name_node))
+            declaration_name_to_string(Some(error_name_node), self)
         } else if let Some(error_fallback_node_name) = self
             .transform_declarations
             .maybe_error_fallback_node()
             .and_then(|error_fallback_node| get_name_of_declaration(Some(error_fallback_node), self))
         {
-            declaration_name_to_string(Some(error_fallback_node_name))
+            declaration_name_to_string(Some(error_fallback_node_name), self)
         } else if let Some(ref error_fallback_node) = self
             .transform_declarations
             .maybe_error_fallback_node()

@@ -1289,9 +1289,9 @@ pub fn get_all_accessor_declarations(
         declarations.into_iter().for_each(|member| {
             if is_accessor(member) && is_static(member, arena) == is_static(accessor, arena) {
                 let member_name = member.as_named_declaration().name();
-                let member_name = get_property_name_for_property_name_node(&member_name);
+                let member_name = get_property_name_for_property_name_node(member_name, arena);
                 let accessor_name = accessor.as_named_declaration().name();
-                let accessor_name = get_property_name_for_property_name_node(&accessor_name);
+                let accessor_name = get_property_name_for_property_name_node(accessor_name, arena);
                 if member_name == accessor_name {
                     if first_accessor.is_none() {
                         first_accessor = Some(member.clone());

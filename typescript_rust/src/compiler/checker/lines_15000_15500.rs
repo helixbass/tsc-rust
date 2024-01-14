@@ -205,7 +205,7 @@ impl TypeChecker {
         access_node
             .filter(|access_node| is_property_name(access_node))
             .and_then(|access_node| {
-                get_property_name_for_property_name_node(&access_node).map(Cow::into_owned)
+                get_property_name_for_property_name_node(access_node, self).map(Cow::into_owned)
             })
     }
 
@@ -658,7 +658,15 @@ impl TypeChecker {
                                 Some(vec![
                                     (**prop_name).to_owned(),
                                     type_name.clone(),
-                                    format!("{}[{}]", type_name, get_text_of_node(&access_expression.as_element_access_expression().argument_expression, None))
+                                    format!(
+                                        "{}[{}]",
+                                        type_name,
+                                        get_text_of_node(
+                                            &access_expression.as_element_access_expression().argument_expression,
+                                            None,
+                                            self,
+                                        ),
+                                    )
                                 ])
                             );
                         } else if self

@@ -288,7 +288,7 @@ impl TypeChecker {
         let mut is_type_only = false;
         if is_qualified_name(type_name) {
             let root_value_symbol = self.resolve_entity_name(
-                &get_first_identifier(type_name),
+                get_first_identifier(type_name, self),
                 SymbolFlags::Value,
                 Some(true),
                 Some(true),

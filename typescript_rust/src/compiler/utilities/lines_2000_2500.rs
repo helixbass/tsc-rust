@@ -226,8 +226,9 @@ pub fn is_single_or_double_quote(char_code: char) -> bool {
 pub fn is_string_double_quoted(
     str: Id<Node>,         /*StringLiteralLike*/
     source_file: Id<Node>, /*SourceFile*/
+    arena: &impl HasArena,
 ) -> bool {
-    get_source_text_of_node_from_source_file(source_file, str, None).starts_with("\"")
+    get_source_text_of_node_from_source_file(source_file, str, None, arena).starts_with("\"")
 }
 
 pub fn is_assignment_declaration(decl: &Node /*Declaration*/) -> bool {

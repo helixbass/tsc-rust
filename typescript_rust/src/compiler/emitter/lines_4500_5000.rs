@@ -521,7 +521,7 @@ impl Printer {
             return node.as_literal_like_node().text().clone().into();
         }
 
-        get_source_text_of_node_from_source_file(&self.current_source_file(), node, include_trivia)
+        get_source_text_of_node_from_source_file(self.current_source_file(), node, include_trivia, self)
     }
 
     pub(super) fn get_literal_text_of_node(

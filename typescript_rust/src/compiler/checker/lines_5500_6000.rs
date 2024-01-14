@@ -56,7 +56,7 @@ impl NodeBuilder {
                         StringOrNodeArray::NodeArray(d_comment) => d_comment.clone().into(),
                     }
                 },
-            ));
+            ), self);
             if let Some(comment_text) = comment_text
                 .as_deref()
                 .filter(|comment_text| !comment_text.is_empty())
@@ -194,7 +194,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_node: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Id<Node /*IndexSignatureDeclaration*/>> {
-        let name = get_name_from_index_info(index_info).unwrap_or_else(|| Cow::Borrowed("x"));
+        let name = get_name_from_index_info(index_info, self).unwrap_or_else(|| Cow::Borrowed("x"));
         let indexer_type_node =
             self.type_to_type_node_helper(Some(index_info.key_type), context)?;
 
@@ -766,7 +766,7 @@ impl NodeBuilder {
         if !context.tracker().is_track_symbol_supported() {
             return Ok(());
         }
-        let first_identifier = get_first_identifier(access_expression);
+        let first_identifier = get_first_identifier(access_expression, self);
         let name = self.type_checker.resolve_name_(
             Some(&*first_identifier),
             &first_identifier.as_identifier().escaped_text,

@@ -462,7 +462,8 @@ impl NodeBuilder {
                 !node_is_synthesized(&**name) && starts_with(
                     &get_text_of_node(
                         name,
-                        Some(false)
+                        Some(false),
+                        self,
                     ),
                     "'"
                 )
@@ -815,7 +816,7 @@ impl NodeBuilder {
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
     ) -> io::Result<TrackExistingEntityNameReturn> {
         let mut introduces_error = false;
-        let ref leftmost = get_first_identifier(node);
+        let ref leftmost = get_first_identifier(node, self);
         let ref leftmost_parent = leftmost.parent();
         if is_in_js_file(Some(node))
             && (is_exports_identifier(leftmost)

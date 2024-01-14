@@ -89,6 +89,7 @@ impl TypeChecker {
                         &Diagnostics::Function_implementation_name_must_be_0,
                         Some(vec![declaration_name_to_string(
                             node.as_named_declaration().maybe_name(),
+                            self,
                         )
                         .into_owned()]),
                     );
@@ -189,7 +190,7 @@ impl TypeChecker {
                         name.as_deref(),
                         &Diagnostics::Merged_declaration_0_cannot_include_a_default_export_declaration_Consider_adding_a_separate_export_default_0_declaration_instead,
                         Some(vec![
-                            declaration_name_to_string(name.as_deref()).into_owned()
+                            declaration_name_to_string(name, self).into_owned()
                         ])
                     );
                 } else if declaration_spaces
@@ -199,7 +200,7 @@ impl TypeChecker {
                         name.as_deref(),
                         &Diagnostics::Individual_declarations_in_merged_declaration_0_must_be_all_exported_or_all_local,
                         Some(vec![
-                            declaration_name_to_string(name.as_deref()).into_owned()
+                            declaration_name_to_string(name, self).into_owned()
                         ])
                     );
                 }

@@ -909,11 +909,12 @@ impl GenerateInitialErrorChain {
 impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
     fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
         let component_name = get_text_of_node(
-            &self
+            self
                 .opening_like_element
                 .as_jsx_opening_like_element()
                 .tag_name(),
             None,
+            self,
         );
         Ok(Some(Rc::new(RefCell::new(chain_diagnostic_messages(
             None,

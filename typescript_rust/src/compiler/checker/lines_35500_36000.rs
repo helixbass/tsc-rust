@@ -103,7 +103,7 @@ impl TypeChecker {
                         Some(return_type_node),
                         &Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
                         Some(vec![
-                            entity_name_to_string(&promise_constructor_name).into_owned()
+                            entity_name_to_string(promise_constructor_name, self).into_owned()
                         ])
                     );
                 }
@@ -117,7 +117,7 @@ impl TypeChecker {
                     Some(return_type_node),
                     &Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
                     Some(vec![
-                        entity_name_to_string(&promise_constructor_name).into_owned()
+                        entity_name_to_string(promise_constructor_name, self).into_owned()
                     ])
                 );
                 return Ok(());
@@ -133,7 +133,7 @@ impl TypeChecker {
                 return Ok(());
             }
 
-            let root_name = /*promiseConstructorName &&*/ get_first_identifier(&promise_constructor_name);
+            let root_name = /*promiseConstructorName &&*/ get_first_identifier(promise_constructor_name, self);
             let colliding_symbol = self.get_symbol(
                 &(*node.locals()).borrow(),
                 &root_name.as_identifier().escaped_text,
@@ -145,7 +145,7 @@ impl TypeChecker {
                     &Diagnostics::Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions,
                     Some(vec![
                         id_text(&root_name).to_owned(),
-                        entity_name_to_string(&promise_constructor_name).into_owned(),
+                        entity_name_to_string(promise_constructor_name, self).into_owned(),
                     ])
                 );
                 return Ok(());
@@ -258,7 +258,7 @@ impl TypeChecker {
         let type_name = type_name.unwrap();
         let type_name = type_name.borrow();
 
-        let root_name = get_first_identifier(type_name);
+        let root_name = get_first_identifier(type_name, self);
         let meaning = if type_name.kind() == SyntaxKind::Identifier {
             SymbolFlags::Type
         } else {
@@ -582,8 +582,8 @@ impl TypeChecker {
                             Some(&*node_as_jsdoc_property_like_tag.name),
                             &Diagnostics::Qualified_name_0_is_not_allowed_without_a_leading_param_object_1,
                             Some(vec![
-                                entity_name_to_string(&node_as_jsdoc_property_like_tag.name).into_owned(),
-                                entity_name_to_string(&node_as_jsdoc_property_like_tag.name.as_qualified_name().left).into_owned(),
+                                entity_name_to_string(node_as_jsdoc_property_like_tag.name, self).into_owned(),
+                                entity_name_to_string(node_as_jsdoc_property_like_tag.name.as_qualified_name().left, self).into_owned(),
                             ])
                         );
                     } else {

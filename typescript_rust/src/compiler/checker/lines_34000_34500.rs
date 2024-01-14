@@ -531,7 +531,7 @@ impl TypeChecker {
                     &mut instance_names
                 };
 
-                let member_name = /*name &&*/ get_property_name_for_property_name_node(&name);
+                let member_name = /*name &&*/ get_property_name_for_property_name_node(name, self);
                 if let Some(member_name) = member_name.as_ref() {
                     match member.kind() {
                         SyntaxKind::GetAccessor => {
@@ -592,7 +592,7 @@ impl TypeChecker {
                     Some(location),
                     &Diagnostics::Duplicate_identifier_0_Static_and_instance_elements_cannot_share_the_same_private_name,
                     Some(vec![
-                        get_text_of_node(location, None).into_owned()
+                        get_text_of_node(location, None, self).into_owned()
                     ])
                 );
             } else {
@@ -603,14 +603,14 @@ impl TypeChecker {
                         self.error(
                             Some(location),
                             &Diagnostics::Duplicate_identifier_0,
-                            Some(vec![get_text_of_node(location, None).into_owned()]),
+                            Some(vec![get_text_of_node(location, None, self).into_owned()]),
                         );
                     }
                 } else if (*prev & meaning).intersects(!DeclarationMeaning::PrivateStatic) {
                     self.error(
                         Some(location),
                         &Diagnostics::Duplicate_identifier_0,
-                        Some(vec![get_text_of_node(location, None).into_owned()]),
+                        Some(vec![get_text_of_node(location, None, self).into_owned()]),
                     );
                 } else {
                     names.insert(name.to_owned(), *prev | meaning);
@@ -629,8 +629,8 @@ impl TypeChecker {
             let member_name_node = member.as_named_declaration().maybe_name();
             let is_static_member = is_static(member, self);
             if is_static_member {
-                if let Some(member_name_node) = member_name_node.as_ref() {
-                    let member_name = get_property_name_for_property_name_node(member_name_node);
+                if let Some(member_name_node) = member_name_node {
+                    let member_name = get_property_name_for_property_name_node(member_name_node, self);
                     if let Some(member_name) = member_name {
                         if matches!(
                             &*member_name,
@@ -813,6 +813,7 @@ impl TypeChecker {
                 &Diagnostics::Property_0_cannot_have_an_initializer_because_it_is_marked_abstract,
                 Some(vec![declaration_name_to_string(
                     node_as_named_declaration.maybe_name(),
+                    self,
                 )
                 .into_owned()]),
             );
@@ -857,6 +858,7 @@ impl TypeChecker {
                 &Diagnostics::Method_0_cannot_have_an_implementation_because_it_is_marked_abstract,
                 Some(vec![declaration_name_to_string(
                     node_as_named_declaration.maybe_name(),
+                    self,
                 )
                 .into_owned()]),
             );

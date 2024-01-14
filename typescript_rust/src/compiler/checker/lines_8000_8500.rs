@@ -322,7 +322,7 @@ impl TypeChecker {
                                 }
                             }
                         }
-                        return declaration_name_to_string(Some(name));
+                        return declaration_name_to_string(Some(name), self);
                     }
                 }
                 if declaration.is_none() {
@@ -333,7 +333,7 @@ impl TypeChecker {
                     if declaration_parent.kind() == SyntaxKind::VariableDeclaration {
                         return declaration_name_to_string(Some(
                             declaration_parent.as_variable_declaration().name(),
-                        ));
+                        ), self);
                     }
                 }
                 match declaration.kind() {
@@ -539,7 +539,7 @@ impl TypeChecker {
             if is_internal_module_import_equals_declaration(declaration) {
                 let internal_module_reference =
                     &declaration.as_import_equals_declaration().module_reference;
-                let first_identifier = get_first_identifier(internal_module_reference);
+                let first_identifier = get_first_identifier(internal_module_reference, self);
                 let import_symbol = self.resolve_name_(
                     Some(&**declaration),
                     &first_identifier.as_identifier().escaped_text,

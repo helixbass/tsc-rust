@@ -171,7 +171,7 @@ impl SymbolTableToDeclarationStatements {
                 .cloned()
                 .or_else(|| jsdoc_alias_decl.parent().as_jsdoc().comment.clone())
         });
-        let comment_text = get_text_of_jsdoc_comment(comment.as_ref());
+        let comment_text = get_text_of_jsdoc_comment(comment, self);
         let old_flags = self.context().flags();
         self.context()
             .set_flags(self.context().flags() | NodeBuilderFlags::InTypeAlias);

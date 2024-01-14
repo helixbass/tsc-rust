@@ -2609,7 +2609,7 @@ impl TypeChecker {
         let jsx_fragment_factory = self.get_jsx_fragment_factory_entity(n)?;
         Some(
             unescape_leading_underscores(
-                &get_first_identifier(jsx_fragment_factory)
+                &get_first_identifier(jsx_fragment_factory, self)
                     .ref_(self)
                     .as_identifier()
                     .escaped_text,

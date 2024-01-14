@@ -611,7 +611,7 @@ impl BinderType {
             let call = node;
             let call_as_call_expression = call.as_call_expression();
             if call_as_call_expression.expression.kind() != SyntaxKind::SuperKeyword
-                && is_dotted_name(&call_as_call_expression.expression)
+                && is_dotted_name(call_as_call_expression.expression, self)
             {
                 self.set_current_flow(Some(self.create_flow_call(self.current_flow(), call)));
             }

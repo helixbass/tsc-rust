@@ -602,7 +602,7 @@ pub fn try_using_single_line_string_writer<TError>(
     Ok(ret)
 }
 
-pub fn get_full_width(node: Id<Node>) -> isize {
+pub fn get_full_width(node: &Node) -> isize {
     node.end() - node.pos()
 }
 
@@ -1051,62 +1051,61 @@ pub fn get_token_pos_of_node(
     node: Id<Node>,
     source_file: Option<Id<Node>>,
     include_js_doc: Option<bool>,
+    arena: &impl HasArena,
 ) -> isize {
-    if node_is_missing(Some(node)) {
-        return node.pos();
+    if node_is_missing(Some(&node.ref_(arena))) {
+        return node.ref_(arena).pos();
     }
 
-    if is_jsdoc_node(node) || node.kind() == SyntaxKind::JsxText {
+    if is_jsdoc_node(&node.ref_(arena)) || node.ref_(arena).kind() == SyntaxKind::JsxText {
         return skip_trivia(
             &source_file
-                .as_ref()
-                .map_or_else(
-                    || get_source_file_of_node(node),
-                    |source_file| source_file.borrow().node_wrapper(),
+                .unwrap_or_else(
+                    || get_source_file_of_node(node, arena),
                 )
-                .as_source_file()
+                .ref_(arena).as_source_file()
                 .text_as_chars(),
-            node.pos(),
+            node.ref_(arena).pos(),
             Some(false),
             Some(true),
             None,
         );
     }
 
-    if include_js_doc.unwrap_or(false) && has_jsdoc_nodes(node) {
-        return get_token_pos_of_node(&node.maybe_js_doc().unwrap()[0], source_file, None);
+    if include_js_doc.unwrap_or(false) && has_jsdoc_nodes(&node.ref_(arena)) {
+        return get_token_pos_of_node(node.maybe_js_doc().unwrap()[0], source_file, None, arena);
     }
 
-    if node.kind() == SyntaxKind::SyntaxList {
-        let node_as_syntax_list = node.as_syntax_list();
+    if node.ref_(arena).kind() == SyntaxKind::SyntaxList {
+        let node_ref = node.ref_(arena);
+        let node_as_syntax_list = node_ref.as_syntax_list();
         if !node_as_syntax_list._children.is_empty() {
             return get_token_pos_of_node(
-                &node_as_syntax_list._children[0],
+                node_as_syntax_list._children[0],
                 source_file,
                 include_js_doc,
+                arena,
             );
         }
     }
 
     skip_trivia(
         &source_file
-            .as_ref()
-            .map_or_else(
-                || get_source_file_of_node(node),
-                |source_file| source_file.borrow().node_wrapper(),
+            .unwrap_or_else(
+                || get_source_file_of_node(node, arena),
             )
-            .as_source_file()
+            .ref_(arena).as_source_file()
             .text_as_chars(),
-        node.pos(),
+        node.ref_(arena).pos(),
         Some(false),
         Some(false),
-        Some(is_in_jsdoc(Some(node))),
+        Some(is_in_jsdoc(Some(&node.ref_(arena)))),
     )
 }
 
-pub fn get_non_decorator_token_pos_of_node(node: Id<Node>, source_file: Option<Id<Node>>) -> isize {
+pub fn get_non_decorator_token_pos_of_node(node: Id<Node>, source_file: Option<Id<Node>>, arena: &impl HasArena) -> isize {
     if node_is_missing(Some(node)) || node.maybe_decorators().is_none() {
-        return get_token_pos_of_node(node, source_file, None);
+        return get_token_pos_of_node(node, source_file, None, arena);
     }
 
     skip_trivia(
@@ -1129,17 +1128,19 @@ pub fn get_source_text_of_node_from_source_file(
     source_file: Id<Node>, /*SourceFile*/
     node: Id<Node>,
     include_trivia: Option<bool>,
+    arena: &impl HasArena,
 ) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
     get_text_of_node_from_source_text(
         &source_file.as_source_file().text_as_chars(),
         node,
         Some(include_trivia),
+        arena,
     )
 }
 
-fn is_jsdoc_type_expression_or_child(node: Id<Node>) -> bool {
-    find_ancestor(Some(node), |node| is_jsdoc_type_expression(node)).is_some()
+fn is_jsdoc_type_expression_or_child(node: Id<Node>, arena: &impl HasArena) -> bool {
+    find_ancestor(Some(node), |node| is_jsdoc_type_expression(&node.ref_(arena)), arena).is_some()
 }
 
 pub fn is_export_namespace_as_default_declaration(node: Id<Node>) -> bool {
@@ -1166,18 +1167,19 @@ pub fn get_text_of_node_from_source_text(
     source_text: &SourceTextAsChars,
     node: Id<Node>,
     include_trivia: Option<bool>,
+    arena: &impl HasArena,
 ) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
-    if node_is_missing(Some(node)) {
+    if node_is_missing(Some(&node.ref_(arena))) {
         return "".into();
     }
 
     let start = if include_trivia {
-        node.pos()
+        node.ref_(arena).pos()
     } else {
-        skip_trivia(source_text, node.pos(), None, None, None)
+        skip_trivia(source_text, node.ref_(arena).pos(), None, None, None)
     };
-    let end = node.end();
+    let end = node.ref_(arena).end();
     if !(start >= 0 && end >= 0 && end - start >= 0) {
         return "".into();
     }
@@ -1187,7 +1189,7 @@ pub fn get_text_of_node_from_source_text(
         end.try_into().unwrap(),
     );
 
-    if is_jsdoc_type_expression_or_child(node) {
+    if is_jsdoc_type_expression_or_child(node, arena) {
         lazy_static! {
             static ref line_ending_regex: Regex = Regex::new(r#"\r\n|\n|\r"#).unwrap();
         }
@@ -1206,12 +1208,13 @@ pub fn get_text_of_node_from_source_text(
     text.into()
 }
 
-pub fn get_text_of_node(node: Id<Node>, include_trivia: Option<bool>) -> Cow<'static, str> {
+pub fn get_text_of_node(node: Id<Node>, include_trivia: Option<bool>, arena: &impl HasArena) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
-        &get_source_file_of_node(node),
+        get_source_file_of_node(node, arena),
         node,
         Some(include_trivia),
+        arena,
     )
 }
 
@@ -1805,7 +1808,7 @@ pub fn for_each_enclosing_block_scope_container<TCallback: FnMut(Id<Node>)>(
     }
 }
 
-pub fn declaration_name_to_string(name: Option<Id<Node>>) -> Cow<'static, str> {
+pub fn declaration_name_to_string(name: Option<Id<Node>>, arena: &impl HasArena) -> Cow<'static, str> {
     match name {
         None => "(Missing)".into(),
         Some(name) => {
@@ -1813,13 +1816,13 @@ pub fn declaration_name_to_string(name: Option<Id<Node>>) -> Cow<'static, str> {
             if get_full_width(name) == 0 {
                 "(Missing)".into()
             } else {
-                get_text_of_node(name, None)
+                get_text_of_node(name, None, arena)
             }
         }
     }
 }
 
-pub fn get_name_from_index_info(info: &IndexInfo) -> Option<Cow<'static, str>> {
+pub fn get_name_from_index_info(info: &IndexInfo, arena: &impl HasArena) -> Option<Cow<'static, str>> {
     info.declaration.as_ref().map(|info_declaration| {
         declaration_name_to_string(
             info_declaration
@@ -1827,6 +1830,7 @@ pub fn get_name_from_index_info(info: &IndexInfo) -> Option<Cow<'static, str>> {
                 .parameters()[0]
                 .as_parameter_declaration()
                 .maybe_name(),
+            arena,
         )
     })
 }
@@ -1884,48 +1888,52 @@ pub fn get_text_of_property_name<'name>(
     }
 }
 
-pub fn entity_name_to_string<'node>(
-    name: &Node, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
-) -> Cow<'node, str> {
-    match name.kind() {
+pub fn entity_name_to_string(
+    name: Id<Node>, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
+    arena: &impl HasArena,
+) -> Cow<'_, str> {
+    match name.ref_(arena).kind() {
         SyntaxKind::ThisKeyword => "this".into(),
         SyntaxKind::PrivateIdentifier | SyntaxKind::Identifier => {
-            if get_full_width(name) == 0 {
-                id_text(name).into()
+            if get_full_width(&name.ref_(arena)) == 0 {
+                id_text(&name.ref_(arena)).into()
             } else {
-                get_text_of_node(name, None)
+                get_text_of_node(name, None, arena)
             }
         }
         SyntaxKind::QualifiedName => {
-            let name_as_qualified_name = name.as_qualified_name();
+            let name_ref = name.ref_(arena);
+            let name_as_qualified_name = name_ref.as_qualified_name();
             format!(
                 "{}.{}",
-                entity_name_to_string(&name_as_qualified_name.left),
-                entity_name_to_string(&name_as_qualified_name.right)
+                entity_name_to_string(name_as_qualified_name.left, arena),
+                entity_name_to_string(name_as_qualified_name.right, arena)
             )
             .into()
         }
         SyntaxKind::PropertyAccessExpression => {
-            let name_as_property_access_expression = name.as_property_access_expression();
-            if is_identifier(&name_as_property_access_expression.name)
-                || is_private_identifier(&name_as_property_access_expression.name)
+            let name_ref = name.ref_(arena);
+            let name_as_property_access_expression = name_ref.as_property_access_expression();
+            if is_identifier(&name_as_property_access_expression.name.ref_(arena))
+                || is_private_identifier(&name_as_property_access_expression.name.ref_(arena))
             {
                 format!(
                     "{}.{}",
-                    entity_name_to_string(&name_as_property_access_expression.expression),
-                    entity_name_to_string(&name_as_property_access_expression.name)
+                    entity_name_to_string(name_as_property_access_expression.expression, arena),
+                    entity_name_to_string(name_as_property_access_expression.name, arena)
                 )
                 .into()
             } else {
-                Debug_.assert_never(&name_as_property_access_expression.name, None)
+                Debug_.assert_never(name_as_property_access_expression.name, None)
             }
         }
         SyntaxKind::JSDocMemberName => {
-            let name_as_jsdoc_member_name = name.as_jsdoc_member_name();
+            let name_ref = name.ref_(arena);
+            let name_as_jsdoc_member_name = name_ref.as_jsdoc_member_name();
             format!(
                 "{}{}",
-                entity_name_to_string(&name_as_jsdoc_member_name.left),
-                entity_name_to_string(&name_as_jsdoc_member_name.right)
+                entity_name_to_string(name_as_jsdoc_member_name.left, arena),
+                entity_name_to_string(name_as_jsdoc_member_name.right, arena)
             )
             .into()
         }

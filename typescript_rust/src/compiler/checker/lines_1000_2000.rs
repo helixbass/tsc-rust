@@ -82,7 +82,7 @@ impl TypeChecker {
                         if let Some(file_local_jsx_fragment_factory) =
                             file_local_jsx_fragment_factory.as_ref()
                         {
-                            let ret = get_first_identifier(file_local_jsx_fragment_factory)
+                            let ret = get_first_identifier(file_local_jsx_fragment_factory, self)
                                 .as_identifier()
                                 .escaped_text
                                 .clone();
@@ -95,7 +95,7 @@ impl TypeChecker {
                     if let Some(entity) = entity {
                         *file_as_source_file.maybe_local_jsx_fragment_factory() =
                             Some(entity.clone());
-                        let ret = get_first_identifier(&entity)
+                        let ret = get_first_identifier(entity, self)
                             .as_identifier()
                             .escaped_text
                             .clone();
@@ -128,9 +128,9 @@ impl TypeChecker {
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
-                if let Some(_jsx_factory_entity) = _jsx_factory_entity.as_ref() {
+                if let Some(_jsx_factory_entity) = _jsx_factory_entity {
                     *_jsx_namespace = Some(
-                        get_first_identifier(_jsx_factory_entity)
+                        get_first_identifier(_jsx_factory_entity, self)
                             .as_identifier()
                             .escaped_text
                             .clone(),
@@ -186,8 +186,8 @@ impl TypeChecker {
                 Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
-            if let Some(file_local_jsx_factory) = file_local_jsx_factory.as_ref() {
-                let ret = get_first_identifier(file_local_jsx_factory)
+            if let Some(file_local_jsx_factory) = file_local_jsx_factory {
+                let ret = get_first_identifier(file_local_jsx_factory, self)
                     .as_identifier()
                     .escaped_text
                     .clone();
@@ -2152,7 +2152,7 @@ impl TypeChecker {
                     self.error(
                         error_location.as_deref(),
                         &Diagnostics::Initializer_of_instance_member_variable_0_cannot_reference_identifier_1_declared_in_the_constructor,
-                        Some(vec![declaration_name_to_string(Some(&*property_name)).into_owned(), self.diagnostic_name(name_arg.unwrap().into()).into_owned()])
+                        Some(vec![declaration_name_to_string(Some(property_name), self).into_owned(), self.diagnostic_name(name_arg.unwrap().into()).into_owned()])
                     );
                     return Ok(None);
                 }
@@ -2242,6 +2242,7 @@ impl TypeChecker {
                                 associated_declaration_for_containing_initializer_or_binding_name
                                     .as_named_declaration()
                                     .name(),
+                                self,
                             ))
                             .into_owned()]),
                         );
@@ -2260,7 +2261,8 @@ impl TypeChecker {
                                 Some(associated_declaration_for_containing_initializer_or_binding_name
                                     .as_named_declaration()
                                     .name()),
-                            ).into_owned(), declaration_name_to_string(error_location.as_deref()).into_owned()]),
+                                self,
+                            ).into_owned(), declaration_name_to_string(error_location, self).into_owned()]),
                         );
                     }
                 }
