@@ -531,7 +531,7 @@ impl TypeChecker {
                 location = location.parent();
             }
             if is_expression_node(location, self)
-                && (!is_assignment_target(&location) || is_write_access(&location))
+                && (!is_assignment_target(location, self) || is_write_access(location, self))
             {
                 let type_ = self.get_type_of_expression(&location)?;
                 if matches!(
@@ -611,7 +611,7 @@ impl TypeChecker {
 
     pub(super) fn mark_node_assignments(&self, node: Id<Node>) -> io::Result<()> {
         if node.kind() == SyntaxKind::Identifier {
-            if is_assignment_target(node) {
+            if is_assignment_target(node, self) {
                 let symbol = self.get_resolved_symbol(node)?;
                 if is_parameter_or_catch_clause_variable(&symbol.ref_(self)) {
                     symbol.ref_(self).set_is_assigned(Some(true));
@@ -956,7 +956,7 @@ impl TypeChecker {
         self.check_nested_block_scoped_binding(node, symbol);
 
         let mut type_ = self.get_type_of_symbol(local_or_export_symbol)?;
-        let assignment_kind = get_assignment_target_kind(node);
+        let assignment_kind = get_assignment_target_kind(node, self);
 
         if assignment_kind != AssignmentKind::None {
             if !local_or_export_symbol

@@ -473,7 +473,7 @@ impl TypeChecker {
             .borrow()
             .resolved_symbol
             .clone();
-        let assignment_kind = get_assignment_target_kind(node);
+        let assignment_kind = get_assignment_target_kind(node, self);
         let apparent_type = self.get_apparent_type(
             if assignment_kind != AssignmentKind::None || self.is_method_access_for_call(node) {
                 self.get_widened_type(left_type)?
@@ -690,7 +690,7 @@ impl TypeChecker {
                     return Ok(self.error_type());
                 }
                 let index_info = index_info.unwrap();
-                if index_info.is_readonly && (is_assignment_target(node) || is_delete_target(node))
+                if index_info.is_readonly && (is_assignment_target(node, self) || is_delete_target(node, self))
                 {
                     self.error(
                         Some(node),
@@ -705,7 +705,7 @@ impl TypeChecker {
                 }
 
                 prop_type = if self.compiler_options.no_unchecked_indexed_access == Some(true)
-                    && !is_assignment_target(node)
+                    && !is_assignment_target(node, self)
                 {
                     self.get_union_type(
                         &[index_info.type_.clone(), self.undefined_type()],
@@ -753,7 +753,7 @@ impl TypeChecker {
                     self.is_self_type_access(left, parent_symbol)?,
                 );
                 self.get_node_links(node).borrow_mut().resolved_symbol = Some(prop.clone());
-                let writing = is_write_access(node);
+                let writing = is_write_access(node, self);
                 self.check_property_accessibility(
                     node,
                     left.kind() == SyntaxKind::SuperKeyword,
@@ -837,7 +837,7 @@ impl TypeChecker {
         error_node: Id<Node>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let assignment_kind = get_assignment_target_kind(node);
+        let assignment_kind = get_assignment_target_kind(node, self);
         if assignment_kind == AssignmentKind::Definite {
             return Ok(self.remove_missing_type(
                 prop_type,

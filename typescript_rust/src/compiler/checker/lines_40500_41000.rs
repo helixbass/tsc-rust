@@ -737,7 +737,7 @@ impl TypeChecker {
                     parent_symbol
                 },
             );
-        } else if is_literal_computed_property_declaration_name(node) {
+        } else if is_literal_computed_property_declaration_name(node, self) {
             return self.get_symbol_of_node(&parent.parent());
         }
 

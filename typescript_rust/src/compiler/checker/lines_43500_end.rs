@@ -481,7 +481,7 @@ impl TypeChecker {
         file: Id<Node>, /*SourceFile*/
     ) -> bool {
         for decl in &file.as_source_file().statements() {
-            if is_declaration(decl) || decl.kind() == SyntaxKind::VariableStatement {
+            if is_declaration(decl, self) || decl.kind() == SyntaxKind::VariableStatement {
                 if self.check_grammar_top_level_element_for_required_declare_modifier(decl) {
                     return true;
                 }

@@ -379,6 +379,7 @@ impl TypeChecker {
                     || is_node_descendant_of(
                         node,
                         container.as_constructor_declaration().maybe_body(),
+                        self,
                     ))
             {
                 return Ok(self
@@ -436,7 +437,7 @@ impl TypeChecker {
                 .unwrap());
         }
         if self.is_js_constructor(Some(&*container))?
-            && is_node_descendant_of(node, container.as_function_like_declaration().maybe_body())
+            && is_node_descendant_of(node, container.as_function_like_declaration().maybe_body(), self)
         {
             return Ok(self
                 .get_declared_type_of_class_or_interface(

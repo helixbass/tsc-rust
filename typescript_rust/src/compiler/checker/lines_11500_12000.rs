@@ -839,8 +839,8 @@ impl TypeChecker {
                             )?]),
                         );
                         if let Some(current_node) = self.maybe_current_node() {
-                            if !is_node_descendant_of(&error_node, Some(&*current_node))
-                                && !is_node_descendant_of(&current_node, Some(&*error_node))
+                            if !is_node_descendant_of(error_node, Some(current_node), self)
+                                && !is_node_descendant_of(current_node, Some(error_node), self)
                             {
                                 add_related_info(
                                     &diagnostic,

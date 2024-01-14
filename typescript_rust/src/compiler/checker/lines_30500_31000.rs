@@ -851,7 +851,7 @@ impl TypeChecker {
             && self.is_symbol_or_symbol_for_call(node)?
         {
             return self.get_es_symbol_like_type_for_node(
-                &walk_up_parenthesized_expressions(&node.parent()).unwrap(),
+                &walk_up_parenthesized_expressions(node.parent(), self).unwrap(),
             );
         }
         if node.kind() == SyntaxKind::CallExpression

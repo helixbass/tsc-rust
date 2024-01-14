@@ -309,7 +309,7 @@ impl TypeChecker {
         expr: Id<Node>, /*ElementAccessExpression*/
         keyed_type: Id<Type>,
     ) -> io::Result<Option<String>> {
-        let suggested_method = if is_assignment_target(expr) {
+        let suggested_method = if is_assignment_target(expr, self) {
             "set"
         } else {
             "get"
@@ -438,7 +438,7 @@ impl TypeChecker {
             .map(|node_for_check_write_only| node_for_check_write_only.borrow().node_wrapper());
         if matches!(
             node_for_check_write_only.as_ref(),
-            Some(node_for_check_write_only) if is_write_only_access(node_for_check_write_only)
+            Some(node_for_check_write_only) if is_write_only_access(node_for_check_write_only, self)
         ) && !prop.ref_(self).flags().intersects(SymbolFlags::SetAccessor)
         {
             return;
@@ -721,7 +721,7 @@ impl TypeChecker {
         expr_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let object_type = if get_assignment_target_kind(node) != AssignmentKind::None
+        let object_type = if get_assignment_target_kind(node, self) != AssignmentKind::None
             || self.is_method_access_for_call(node)
         {
             self.get_widened_type(expr_type)?
@@ -752,7 +752,7 @@ impl TypeChecker {
             } else {
                 index_type.clone()
             };
-        let access_flags = if is_assignment_target(node) {
+        let access_flags = if is_assignment_target(node, self) {
             AccessFlags::Writing
                 | if self.is_generic_object_type(object_type)?
                     && !self.is_this_type_parameter(object_type)

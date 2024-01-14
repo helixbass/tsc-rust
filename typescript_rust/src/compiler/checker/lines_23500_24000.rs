@@ -417,7 +417,7 @@ impl GetFlowTypeOfReference {
             if !self.type_checker.is_reachable_flow_node(flow.clone())? {
                 return Ok(Some(self.type_checker.unreachable_never_type().into()));
             }
-            if get_assignment_target_kind(node) == AssignmentKind::Compound {
+            if get_assignment_target_kind(node, self) == AssignmentKind::Compound {
                 let flow_type =
                     self.get_type_at_flow_node(flow_as_flow_assignment.antecedent.clone())?;
                 return Ok(Some(self.type_checker.create_flow_type(

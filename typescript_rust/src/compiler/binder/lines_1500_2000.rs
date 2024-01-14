@@ -814,7 +814,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         if !(*state).borrow().skip {
             let node_as_binary_expression = node.as_binary_expression();
             let operator = node_as_binary_expression.operator_token.kind();
-            if is_assignment_operator(operator) && !is_assignment_target(node) {
+            if is_assignment_operator(operator) && !is_assignment_target(node, self) {
                 self.binder
                     .bind_assignment_target_flow(&node_as_binary_expression.left);
                 if operator == SyntaxKind::EqualsToken

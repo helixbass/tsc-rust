@@ -221,7 +221,7 @@ impl TypeChecker {
         }
 
         let mut is_assigned = false;
-        if is_assignment_target(&current) {
+        if is_assignment_target(current, self) {
             is_assigned = true;
         } else if matches!(
             current.parent().kind(),
@@ -865,7 +865,7 @@ impl TypeChecker {
         if container.kind() == SyntaxKind::MethodDeclaration
             && has_syntactic_modifier(container, ModifierFlags::Async, self)
         {
-            if is_super_property(&node.parent()) && is_assignment_target(&node.parent()) {
+            if is_super_property(&node.parent()) && is_assignment_target(node.parent(), self) {
                 self.get_node_links(&container).borrow_mut().flags |=
                     NodeCheckFlags::AsyncMethodWithSuperBinding;
             } else {

@@ -681,7 +681,7 @@ impl TransformDeclarations {
         if self.should_strip_internal(input) {
             return Ok(None);
         }
-        if is_declaration(input) {
+        if is_declaration(input, self) {
             if self.is_declaration_and_not_visible(input) {
                 return Ok(None);
             }

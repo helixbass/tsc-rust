@@ -52,7 +52,7 @@ impl Printer {
 
     pub(super) fn is_unique_local_name(&self, name: &str, container: Id<Node>) -> bool {
         let mut node = Some(container.node_wrapper());
-        while maybe_is_node_descendant_of(node.as_deref(), Some(container)) {
+        while maybe_is_node_descendant_of(node, Some(container), self) {
             let node_present = node.as_ref().unwrap();
             if let Some(node_locals) = node_present.maybe_locals().as_ref() {
                 let local = (**node_locals)

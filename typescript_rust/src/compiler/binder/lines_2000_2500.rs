@@ -86,7 +86,7 @@ impl BinderType {
         &self,
         node: Id<Node>, /*ObjectLiteralExpression*/
     ) {
-        if matches!(self.maybe_in_strict_mode(), Some(true)) && !is_assignment_target(node) {
+        if matches!(self.maybe_in_strict_mode(), Some(true)) && !is_assignment_target(node, self) {
             let mut seen = HashMap::<__String, ElementKind>::new();
 
             let node_as_object_literal_expression = node.as_object_literal_expression();

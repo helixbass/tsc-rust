@@ -577,7 +577,7 @@ fn name_for_nameless_jsdoc_typedef(
         return None;
     }
     let host_node = host_node.unwrap();
-    if is_declaration(&host_node) {
+    if is_declaration(host_node, arena) {
         return get_declaration_identifier(host_node, arena);
     }
     match &*host_node {
@@ -627,7 +627,7 @@ fn name_for_nameless_jsdoc_typedef(
             return get_declaration_identifier(host_node.expression, arena);
         }
         Node::LabeledStatement(host_node) => {
-            if is_declaration(&host_node.statement) || is_expression(host_node.statement, arena) {
+            if is_declaration(host_node.statement, arena) || is_expression(host_node.statement, arena) {
                 return get_declaration_identifier(host_node.statement, arena);
             }
         }
@@ -1742,7 +1742,7 @@ pub fn is_function_or_constructor_type_node(node: &Node) -> bool {
 
 pub fn is_binding_pattern(node: Option<&Node>) -> bool {
     if let Some(node) = node {
-        let kind = node.borrow().kind();
+        let kind = node.kind();
         return matches!(
             kind,
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
@@ -2134,14 +2134,14 @@ fn is_statement_kind_but_not_declaration_kind(kind: SyntaxKind) -> bool {
     )
 }
 
-pub(crate) fn is_declaration(node: &Node) -> bool {
-    if node.kind() == SyntaxKind::TypeParameter {
-        return node.maybe_parent().map_or(false, |parent| {
-            parent.kind() != SyntaxKind::JSDocTemplateTag
-        }) || is_in_js_file(Some(node));
+pub(crate) fn is_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
+    if node.ref_(arena).kind() == SyntaxKind::TypeParameter {
+        return node.ref_(arena).maybe_parent().map_or(false, |parent| {
+            parent.ref_(arena).kind() != SyntaxKind::JSDocTemplateTag
+        }) || is_in_js_file(Some(&node.ref_(arena)));
     }
 
-    is_declaration_kind(node.kind())
+    is_declaration_kind(node.ref_(arena).kind())
 }
 
 pub(crate) fn is_declaration_statement(node: &Node) -> bool {

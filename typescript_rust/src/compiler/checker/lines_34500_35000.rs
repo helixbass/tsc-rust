@@ -638,7 +638,7 @@ impl TypeChecker {
             self.get_index_type(object_type, Some(false), None)?,
         )? {
             if access_node.kind() == SyntaxKind::ElementAccessExpression
-                && is_assignment_target(access_node)
+                && is_assignment_target(access_node, self)
                 && get_object_flags(&object_type.ref_(self)).intersects(ObjectFlags::Mapped)
                 && self
                     .get_mapped_type_modifiers(object_type)

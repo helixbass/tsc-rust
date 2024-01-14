@@ -208,7 +208,7 @@ impl TransformDeclarations {
             }
             _ => (),
         }
-        if is_declaration(input) && self.is_declaration_and_not_visible(input) {
+        if is_declaration(input, self) && self.is_declaration_and_not_visible(input) {
             return Ok(None);
         }
 

@@ -189,7 +189,7 @@ impl TypeChecker {
                     type_symbol.ref_(self).maybe_declarations().as_deref()
                 {
                     let node =
-                        walk_up_parenthesized_types(&type_symbol_declarations[0].parent()).unwrap();
+                        walk_up_parenthesized_types(type_symbol_declarations[0].parent(), self).unwrap();
                     if node.kind() == SyntaxKind::TypeAliasDeclaration {
                         return self.get_symbol_of_node(&node);
                     }

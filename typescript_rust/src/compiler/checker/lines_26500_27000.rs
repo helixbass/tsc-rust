@@ -592,7 +592,7 @@ impl TypeChecker {
         let mut element_types: Vec<Id<Type>> = vec![];
         let mut element_flags: Vec<ElementFlags> = vec![];
         let contextual_type = self.get_apparent_type_of_contextual_type(node, None)?;
-        let in_destructuring_pattern = is_assignment_target(node);
+        let in_destructuring_pattern = is_assignment_target(node, self);
         let in_const_context = self.is_const_context(node);
         let mut has_omitted_expression = false;
         for i in 0..element_count {
@@ -944,7 +944,7 @@ impl TypeChecker {
         node: Id<Node>, /*ObjectLiteralExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let in_destructuring_pattern = is_assignment_target(node);
+        let in_destructuring_pattern = is_assignment_target(node, self);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern);
 
         let node_as_object_literal_expression = node.as_object_literal_expression();

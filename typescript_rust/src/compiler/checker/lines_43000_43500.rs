@@ -481,7 +481,7 @@ impl TypeChecker {
                 );
             }
 
-            let mut parent = walk_up_parenthesized_types(&node.parent()).unwrap();
+            let mut parent = walk_up_parenthesized_types(node.parent(), self).unwrap();
             if is_in_js_file(Some(&*parent)) && is_jsdoc_type_expression(&parent) {
                 parent = parent.parent();
                 if is_jsdoc_type_tag(&parent) {

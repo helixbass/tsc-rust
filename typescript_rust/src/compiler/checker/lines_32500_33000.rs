@@ -1157,7 +1157,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
             ) {
                 let node_as_binary_expression = node.as_binary_expression();
                 if operator == SyntaxKind::AmpersandAmpersandToken {
-                    let parent = walk_up_parenthesized_expressions(&node.parent()).unwrap();
+                    let parent = walk_up_parenthesized_expressions(node.parent(), self).unwrap();
                     self.type_checker
                         .check_testing_known_truthy_callable_or_awaitable_type(
                             &node_as_binary_expression.left,

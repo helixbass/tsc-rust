@@ -503,12 +503,12 @@ pub fn get_combined_local_and_export_symbol_flags(_symbol: Id<Symbol>) -> Symbol
     unimplemented!()
 }
 
-pub fn is_write_only_access(node: Id<Node>) -> bool {
-    access_kind(node) == AccessKind::Write
+pub fn is_write_only_access(node: Id<Node>, arena: &impl HasArena) -> bool {
+    access_kind(node, arena) == AccessKind::Write
 }
 
-pub fn is_write_access(node: Id<Node>) -> bool {
-    access_kind(node) != AccessKind::Read
+pub fn is_write_access(node: Id<Node>, arena: &impl HasArena) -> bool {
+    access_kind(node, arena) != AccessKind::Read
 }
 
 #[derive(PartialEq, Eq)]
@@ -518,7 +518,7 @@ enum AccessKind {
     ReadWrite,
 }
 
-fn access_kind(node: Id<Node>) -> AccessKind {
+fn access_kind(node: Id<Node>, arena: &impl HasArena) -> AccessKind {
     let parent = node.maybe_parent();
     if parent.is_none() {
         return AccessKind::Read;
@@ -526,7 +526,7 @@ fn access_kind(node: Id<Node>) -> AccessKind {
     let ref parent = parent.unwrap();
 
     match parent.kind() {
-        SyntaxKind::ParenthesizedExpression => access_kind(parent),
+        SyntaxKind::ParenthesizedExpression => access_kind(parent, arena),
         SyntaxKind::PostfixUnaryExpression | SyntaxKind::PrefixUnaryExpression => {
             let parent_as_unary_expression = parent.as_unary_expression();
             let operator = parent_as_unary_expression.operator();
@@ -534,7 +534,7 @@ fn access_kind(node: Id<Node>) -> AccessKind {
                 operator,
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
             ) {
-                write_or_read_write(parent)
+                write_or_read_write(parent, arena)
             } else {
                 AccessKind::Read
             }
@@ -547,7 +547,7 @@ fn access_kind(node: Id<Node>) -> AccessKind {
                 if operator_token.kind() == SyntaxKind::EqualsToken {
                     AccessKind::Write
                 } else {
-                    write_or_read_write(parent)
+                    write_or_read_write(parent, arena)
                 }
             } else {
                 AccessKind::Read
@@ -557,11 +557,11 @@ fn access_kind(node: Id<Node>) -> AccessKind {
             if !ptr::eq(&*parent.as_property_access_expression().name, node) {
                 AccessKind::Read
             } else {
-                access_kind(parent)
+                access_kind(parent, arena)
             }
         }
         SyntaxKind::PropertyAssignment => {
-            let parent_access = access_kind(&parent.parent());
+            let parent_access = access_kind(parent.parent(), arena);
             if ptr::eq(node, &*parent.as_property_assignment().name()) {
                 reverse_access_kind(parent_access)
             } else {
@@ -578,17 +578,17 @@ fn access_kind(node: Id<Node>) -> AccessKind {
             ) {
                 AccessKind::Read
             } else {
-                access_kind(&parent.parent())
+                access_kind(parent.parent(), arena)
             }
         }
-        SyntaxKind::ArrayLiteralExpression => access_kind(parent),
+        SyntaxKind::ArrayLiteralExpression => access_kind(parent, arena),
         _ => AccessKind::Read,
     }
 }
 
-fn write_or_read_write(parent: Id<Node>) -> AccessKind {
+fn write_or_read_write(parent: Id<Node>, arena: &impl HasArena) -> AccessKind {
     if let Some(grandparent) = parent.maybe_parent().as_ref() {
-        if walk_up_parenthesized_expressions(grandparent)
+        if walk_up_parenthesized_expressions(grandparent, arena)
             .unwrap()
             .kind()
             == SyntaxKind::ExpressionStatement

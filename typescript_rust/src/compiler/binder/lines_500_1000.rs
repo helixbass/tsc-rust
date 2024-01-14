@@ -145,7 +145,7 @@ impl BinderType {
         {
             return true;
         }
-        if is_declaration(&decl_name_parent)
+        if is_declaration(decl_name_parent, self)
             && get_combined_modifier_flags(&decl_name_parent).intersects(ModifierFlags::Export)
         {
             return true;

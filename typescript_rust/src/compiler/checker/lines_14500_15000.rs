@@ -945,7 +945,7 @@ impl TypeChecker {
                     links.borrow_mut().resolved_type = Some(
                         if node_as_type_operator_node.type_.kind() == SyntaxKind::SymbolKeyword {
                             self.get_es_symbol_like_type_for_node(
-                                &walk_up_parenthesized_types(&node.parent()).unwrap(),
+                                &walk_up_parenthesized_types(node.parent(), self).unwrap(),
                             )?
                         } else {
                             self.error_type()

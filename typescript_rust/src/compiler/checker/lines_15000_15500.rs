@@ -318,7 +318,7 @@ impl TypeChecker {
                     if self.is_assignment_to_readonly_entity(
                         access_expression,
                         prop,
-                        get_assignment_target_kind(access_expression),
+                        get_assignment_target_kind(access_expression, self),
                     )? {
                         self.error(
                             Some(
@@ -348,7 +348,7 @@ impl TypeChecker {
                 let prop_type = self.get_type_of_symbol(prop)?;
                 return Ok(Some(
                     if let Some(access_expression) = access_expression.filter(|access_expression| {
-                        get_assignment_target_kind(access_expression) != AssignmentKind::Definite
+                        get_assignment_target_kind(access_expression, self) != AssignmentKind::Definite
                     }) {
                         self.get_flow_type_of_reference(
                             access_expression,
@@ -908,8 +908,8 @@ impl TypeChecker {
             let index_info = index_info.borrow();
             if index_info.is_readonly {
                 if let Some(access_expression) = access_expression {
-                    if is_assignment_target(access_expression)
-                        || is_delete_target(access_expression)
+                    if is_assignment_target(access_expression, self)
+                        || is_delete_target(access_expression, self)
                     {
                         self.error(
                             Some(access_expression),

@@ -655,16 +655,16 @@ pub enum AssignmentKind {
     Compound,
 }
 
-pub fn get_assignment_target_kind(node: Id<Node>) -> AssignmentKind {
-    let mut node = node.node_wrapper();
-    let mut parent = node.parent();
+pub fn get_assignment_target_kind(mut node: Id<Node>, arena: &impl HasArena) -> AssignmentKind {
+    let mut parent = node.ref_(arena).parent();
     loop {
-        match parent.kind() {
+        match parent.ref_(arena).kind() {
             SyntaxKind::BinaryExpression => {
-                let parent_as_binary_expression = parent.as_binary_expression();
-                let binary_operator = parent_as_binary_expression.operator_token.kind();
+                let parent_ref = parent.ref_(arena);
+                let parent_as_binary_expression = parent_ref.as_binary_expression();
+                let binary_operator = parent_as_binary_expression.operator_token.ref_(arena).kind();
                 return if is_assignment_operator(binary_operator)
-                    && Gc::ptr_eq(&parent_as_binary_expression.left, &node)
+                    && parent_as_binary_expression.left == node
                 {
                     if binary_operator == SyntaxKind::EqualsToken
                         || is_logical_or_coalescing_assignment_operator(binary_operator)
@@ -678,7 +678,7 @@ pub fn get_assignment_target_kind(node: Id<Node>) -> AssignmentKind {
                 };
             }
             SyntaxKind::PrefixUnaryExpression => {
-                let unary_operator = &parent.as_prefix_unary_expression().operator;
+                let unary_operator = parent.ref_(arena).as_prefix_unary_expression().operator;
                 return if matches!(
                     unary_operator,
                     SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -689,7 +689,7 @@ pub fn get_assignment_target_kind(node: Id<Node>) -> AssignmentKind {
                 };
             }
             SyntaxKind::PostfixUnaryExpression => {
-                let unary_operator = &parent.as_postfix_unary_expression().operator;
+                let unary_operator = parent.ref_(arena).as_postfix_unary_expression().operator;
                 return if matches!(
                     unary_operator,
                     SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -700,14 +700,14 @@ pub fn get_assignment_target_kind(node: Id<Node>) -> AssignmentKind {
                 };
             }
             SyntaxKind::ForInStatement => {
-                return if Gc::ptr_eq(&parent.as_for_in_statement().initializer, &node) {
+                return if parent.ref_(arena).as_for_in_statement().initializer == node {
                     AssignmentKind::Definite
                 } else {
                     AssignmentKind::None
                 };
             }
             SyntaxKind::ForOfStatement => {
-                return if Gc::ptr_eq(&parent.as_for_of_statement().initializer, &node) {
+                return if parent.ref_(arena).as_for_of_statement().initializer == node {
                     AssignmentKind::Definite
                 } else {
                     AssignmentKind::None
@@ -720,30 +720,30 @@ pub fn get_assignment_target_kind(node: Id<Node>) -> AssignmentKind {
                 node = parent;
             }
             SyntaxKind::SpreadAssignment => {
-                node = parent.parent();
+                node = parent.ref_(arena).parent();
             }
             SyntaxKind::ShorthandPropertyAssignment => {
-                if !Gc::ptr_eq(&parent.as_shorthand_property_assignment().name(), &node) {
+                if parent.ref_(arena).as_shorthand_property_assignment().name() != node {
                     return AssignmentKind::None;
                 }
-                node = parent.parent();
+                node = parent.ref_(arena).parent();
             }
             SyntaxKind::PropertyAssignment => {
-                if Gc::ptr_eq(&parent.as_property_assignment().name(), &node) {
+                if parent.ref_(arena).as_property_assignment().name() == node {
                     return AssignmentKind::None;
                 }
-                node = parent.parent();
+                node = parent.ref_(arena).parent();
             }
             _ => {
                 return AssignmentKind::None;
             }
         }
-        parent = node.parent();
+        parent = node.ref_(arena).parent();
     }
 }
 
-pub fn is_assignment_target(node: Id<Node>) -> bool {
-    get_assignment_target_kind(node) != AssignmentKind::None
+pub fn is_assignment_target(node: Id<Node>, arena: &impl HasArena) -> bool {
+    get_assignment_target_kind(node, arena) != AssignmentKind::None
 }
 
 pub fn is_node_with_possible_hoisted_declaration(node: &Node) -> bool {
@@ -776,12 +776,12 @@ pub fn is_value_signature_declaration(node: &Node) -> bool {
         || is_constructor_declaration(node)
 }
 
-fn walk_up(node: Id<Node>, kind: SyntaxKind) -> Option<Id<Node>> {
-    let mut node = Some(node.node_wrapper());
+fn walk_up(node: Id<Node>, kind: SyntaxKind, arena: &impl HasArena) -> Option<Id<Node>> {
+    let mut node = Some(node);
     loop {
-        if let Some(node_present) = node.as_ref() {
-            if node_present.kind() == kind {
-                node = node_present.maybe_parent();
+        if let Some(node_present) = node {
+            if node_present.ref_(arena).kind() == kind {
+                node = node_present.ref_(arena).maybe_parent();
             } else {
                 break;
             }
@@ -792,21 +792,25 @@ fn walk_up(node: Id<Node>, kind: SyntaxKind) -> Option<Id<Node>> {
     node
 }
 
-pub fn walk_up_parenthesized_types(node: Id<Node>) -> Option<Id<Node>> {
-    walk_up(node, SyntaxKind::ParenthesizedType)
+pub fn walk_up_parenthesized_types(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
+    walk_up(node, SyntaxKind::ParenthesizedType, arena)
 }
 
-pub fn walk_up_parenthesized_expressions(node: Id<Node>) -> Option<Id<Node>> {
-    walk_up(node, SyntaxKind::ParenthesizedExpression)
+pub fn walk_up_parenthesized_expressions(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
+    walk_up(node, SyntaxKind::ParenthesizedExpression, arena)
 }
 
 pub fn walk_up_parenthesized_types_and_get_parent_and_child(
     node: Id<Node>,
+    arena: &impl HasArena,
 ) -> (Option<Id<Node /*ParenthesizedTypeNode*/>>, Option<Id<Node>>) {
     let mut child: Option<Id<Node>> = None;
-    let mut node: Option<Id<Node>> = Some(node.node_wrapper());
-    while matches!(node.as_ref(), Some(node) if node.kind() == SyntaxKind::ParenthesizedType) {
-        let node_parent = node.as_ref().unwrap().maybe_parent();
+    let mut node: Option<Id<Node>> = Some(node);
+    while matches!(
+        node,
+        Some(node) if node.ref_(arena).kind() == SyntaxKind::ParenthesizedType
+    ) {
+        let node_parent = node.unwrap().ref_(arena).maybe_parent();
         child = node;
         node = node_parent;
     }
@@ -823,81 +827,87 @@ pub fn skip_parentheses(node: Id<Node>, exclude_jsdoc_type_assertions: Option<bo
     skip_outer_expressions(node, Some(flags), arena)
 }
 
-pub fn is_delete_target(node: Id<Node>) -> bool {
+pub fn is_delete_target(node: Id<Node>, arena: &impl HasArena) -> bool {
     if !matches!(
-        node.kind(),
+        node.ref_(arena).kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
     ) {
         return false;
     }
-    let node = walk_up_parenthesized_expressions(&node.parent());
-    matches!(node, Some(node) if node.kind() == SyntaxKind::DeleteExpression)
+    let node = walk_up_parenthesized_expressions(node.ref_(arena).parent(), arena);
+    matches!(
+        node,
+        Some(node) if node.ref_(arena).kind() == SyntaxKind::DeleteExpression
+    )
 }
 
-pub fn is_node_descendant_of(node: Id<Node>, ancestor: Option<Id<Node>>) -> bool {
-    maybe_is_node_descendant_of(Some(node), ancestor)
+pub fn is_node_descendant_of(node: Id<Node>, ancestor: Option<Id<Node>>, arena: &impl HasArena) -> bool {
+    maybe_is_node_descendant_of(Some(node), ancestor, arena)
 }
 
 pub fn maybe_is_node_descendant_of(
-    node: Option<Id<Node>>,
+    mut node: Option<Id<Node>>,
     ancestor: Option<Id<Node>>,
+    arena: &impl HasArena,
 ) -> bool {
-    if ancestor.is_none() {
+    let Some(ancestor) = ancestor else {
         return false;
-    }
-    let ancestor = ancestor.unwrap();
-    let ancestor = ancestor.borrow();
-    let mut node = node.node_wrappered();
-    while let Some(node_present) = node.as_ref() {
-        if ptr::eq(&**node_present, ancestor) {
+    };
+    while let Some(node_present) = node {
+        if node_present == ancestor {
             return true;
         }
-        node = node_present.maybe_parent();
+        node = node_present.ref_(arena).maybe_parent();
     }
     false
 }
 
-pub fn is_declaration_name(name: Id<Node>) -> bool {
-    !is_source_file(name)
-        && !is_binding_pattern(Some(name))
-        && is_declaration(&name.parent())
-        && matches!(name.parent().as_named_declaration().maybe_name(), Some(parent_name) if ptr::eq(&*parent_name, name))
+pub fn is_declaration_name(name: Id<Node>, arena: &impl HasArena) -> bool {
+    !is_source_file(&name.ref_(arena))
+        && !is_binding_pattern(Some(&name.ref_(arena)))
+        && is_declaration(name.parent(), arena)
+        && matches!(
+            name.ref_(arena).parent().ref_(arena).as_named_declaration().maybe_name(),
+            Some(parent_name) if parent_name == name
+        )
 }
 
 pub fn get_declaration_from_name(name: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*Declaration*/>> {
-    let parent = name.parent();
-    match name.kind() {
+    let parent = name.ref_(arena).parent();
+    match name.ref_(arena).kind() {
         SyntaxKind::StringLiteral
         | SyntaxKind::NoSubstitutionTemplateLiteral
         | SyntaxKind::NumericLiteral => {
-            if is_computed_property_name(&parent) {
-                return parent.maybe_parent();
+            if is_computed_property_name(&parent.ref_(arena)) {
+                return parent.ref_(arena).maybe_parent();
             }
-            if is_declaration(&parent) {
-                if matches!(parent.as_named_declaration().maybe_name(), Some(parent_name) if ptr::eq(&*parent_name, name))
-                {
+            if is_declaration(parent, arena) {
+                if matches!(
+                    parent.ref_(arena).as_named_declaration().maybe_name(),
+                    Some(parent_name) if parent_name == name
+                ) {
                     Some(parent)
                 } else {
                     None
                 }
-            } else if is_qualified_name(&parent) {
-                let tag = parent.parent();
-                if is_jsdoc_parameter_tag(&tag)
-                    && Gc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
+            } else if is_qualified_name(&parent.ref_(arena)) {
+                let tag = parent.ref_(arena).parent();
+                if is_jsdoc_parameter_tag(&tag.ref_(arena))
+                    && tag.ref_(arena).as_jsdoc_property_like_tag().name == parent
                 {
                     Some(tag)
                 } else {
                     None
                 }
             } else {
-                let bin_exp = parent.parent();
-                if is_binary_expression(&bin_exp)
+                let bin_exp = parent.ref_(arena).parent();
+                if is_binary_expression(&bin_exp.ref_(arena))
                     && get_assignment_declaration_kind(bin_exp, arena) != AssignmentDeclarationKind::None
-                    && (bin_exp.as_binary_expression().left.maybe_symbol().is_some()
-                        || bin_exp.maybe_symbol().is_some())
+                    && (bin_exp.ref_(arena).as_binary_expression().left.ref_(arena).maybe_symbol().is_some()
+                        || bin_exp.ref_(arena).maybe_symbol().is_some())
                     && matches!(
-                        get_name_of_declaration(Some(bin_exp), self),
-                        Some(name_of_declaration) if ptr::eq(&*name_of_declaration, name)
+                        get_name_of_declaration(Some(bin_exp), arena),
+                        Some(name_of_declaration) if name_of_declaration == name
                     )
                 {
                     Some(bin_exp)
@@ -907,31 +917,33 @@ pub fn get_declaration_from_name(name: Id<Node>, arena: &impl HasArena) -> Optio
             }
         }
         SyntaxKind::Identifier => {
-            if is_declaration(&parent) {
-                if matches!(parent.as_named_declaration().maybe_name(), Some(parent_name) if ptr::eq(&*parent_name, name))
-                {
+            if is_declaration(parent, arena) {
+                if matches!(
+                    parent.ref_(arena).as_named_declaration().maybe_name(),
+                    Some(parent_name) if parent_name == name
+                ) {
                     Some(parent)
                 } else {
                     None
                 }
-            } else if is_qualified_name(&parent) {
-                let tag = parent.parent();
-                if is_jsdoc_parameter_tag(&tag)
-                    && Gc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
+            } else if is_qualified_name(&parent.ref_(arena)) {
+                let tag = parent.ref_(arena).parent();
+                if is_jsdoc_parameter_tag(&tag.ref_(arena))
+                    && tag.ref_(arena).as_jsdoc_property_like_tag().name == parent
                 {
                     Some(tag)
                 } else {
                     None
                 }
             } else {
-                let bin_exp = parent.parent();
-                if is_binary_expression(&bin_exp)
+                let bin_exp = parent.ref_(arena).parent();
+                if is_binary_expression(&bin_exp.ref_(arena))
                     && get_assignment_declaration_kind(bin_exp, arena) != AssignmentDeclarationKind::None
-                    && (bin_exp.as_binary_expression().left.maybe_symbol().is_some()
-                        || bin_exp.maybe_symbol().is_some())
+                    && (bin_exp.ref_(arena).as_binary_expression().left.ref_(arena).maybe_symbol().is_some()
+                        || bin_exp.ref_(arena).maybe_symbol().is_some())
                     && matches!(
                         get_name_of_declaration(Some(bin_exp), self),
-                        Some(name_of_declaration) if ptr::eq(&*name_of_declaration, name)
+                        Some(name_of_declaration) if name_of_declaration == name
                     )
                 {
                     Some(bin_exp)
@@ -941,8 +953,11 @@ pub fn get_declaration_from_name(name: Id<Node>, arena: &impl HasArena) -> Optio
             }
         }
         SyntaxKind::PrivateIdentifier => {
-            if is_declaration(&parent)
-                && matches!(parent.as_named_declaration().maybe_name(), Some(parent_name) if ptr::eq(&*parent_name, name))
+            if is_declaration(parent, arena)
+                && matches!(
+                    parent.ref_(arena).as_named_declaration().maybe_name(),
+                    Some(parent_name) if parent_name == name
+                )
             {
                 Some(parent)
             } else {

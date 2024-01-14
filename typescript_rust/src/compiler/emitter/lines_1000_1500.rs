@@ -29,7 +29,7 @@ impl Printer {
             && matches!(
                 self.maybe_current_source_file().as_ref(),
                 Some(current_source_file) if (
-                    is_declaration(node) ||
+                    is_declaration(node, self) ||
                     is_variable_statement(node)
                 ) && is_internal_declaration(
                     node,

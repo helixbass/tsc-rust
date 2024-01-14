@@ -827,7 +827,7 @@ impl TypeChecker {
                     parent_parent_as_binary_expression.operator_token.kind()
                         == SyntaxKind::EqualsToken
                         && Gc::ptr_eq(&parent_parent_as_binary_expression.left, &parent)
-                        && !is_assignment_target(&parent_parent)
+                        && !is_assignment_target(parent_parent, self)
                         && self.is_type_assignable_to_kind(
                             self.get_type_of_expression(
                                 &parent_as_element_access_expression.argument_expression,

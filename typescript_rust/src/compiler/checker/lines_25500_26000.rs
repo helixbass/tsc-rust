@@ -168,7 +168,7 @@ impl TypeChecker {
                     },
                 )?));
             }
-            let parent = walk_up_parenthesized_expressions(&func.parent()).unwrap();
+            let parent = walk_up_parenthesized_expressions(func.parent(), self).unwrap();
             if parent.kind() == SyntaxKind::BinaryExpression {
                 let parent_as_binary_expression = parent.as_binary_expression();
                 if parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken {

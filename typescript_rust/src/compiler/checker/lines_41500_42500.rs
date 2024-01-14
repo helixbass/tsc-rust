@@ -520,8 +520,8 @@ impl TypeChecker {
 
         let mut location = reference.node_wrapper();
         if start_in_declaration_container == Some(true) {
-            let ref parent = reference.parent();
-            if is_declaration(parent)
+            let parent = reference.parent();
+            if is_declaration(parent, self)
                 && matches!(
                     parent.as_named_declaration().maybe_name().as_ref(),
                     Some(parent_name) if ptr::eq(

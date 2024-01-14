@@ -173,7 +173,7 @@ pub(crate) fn get_mode_for_usage_location(
     let implied_node_format = implied_node_format?;
     if implied_node_format != ModuleKind::ESNext {
         return Some(
-            if is_import_call(walk_up_parenthesized_expressions(&usage.parent()).unwrap(), arena) {
+            if is_import_call(walk_up_parenthesized_expressions(usage.parent(), self).unwrap(), arena) {
                 ModuleKind::ESNext
             } else {
                 ModuleKind::CommonJS
@@ -181,7 +181,7 @@ pub(crate) fn get_mode_for_usage_location(
         );
     }
     let expr_parent_parent =
-        walk_up_parenthesized_expressions(&usage.parent()).and_then(|node| node.maybe_parent());
+        walk_up_parenthesized_expressions(usage.parent(), self).and_then(|node| node.maybe_parent());
     Some(
         if matches!(
             expr_parent_parent.as_ref(),

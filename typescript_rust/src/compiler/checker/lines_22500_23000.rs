@@ -31,7 +31,7 @@ impl TypeChecker {
                     SymbolFlags::Value | SymbolFlags::ExportValue,
                     Some(self.get_cannot_find_name_diagnostic_for_name(node)),
                     Some(node.node_wrapper()),
-                    !is_write_only_access(node),
+                    !is_write_only_access(node, self),
                     Some(false),
                 )?
                 .unwrap_or_else(|| self.unknown_symbol())

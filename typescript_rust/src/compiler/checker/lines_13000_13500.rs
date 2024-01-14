@@ -38,7 +38,8 @@ impl TypeChecker {
                     if declaration.parent().kind() == SyntaxKind::InferType {
                         let (child_type_parameter, grand_parent) =
                             walk_up_parenthesized_types_and_get_parent_and_child(
-                                &declaration.parent().parent(),
+                                declaration.parent().parent(),
+                                self,
                             );
                         let grand_parent = grand_parent.unwrap();
                         let child_type_parameter =

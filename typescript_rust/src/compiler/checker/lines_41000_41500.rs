@@ -183,7 +183,7 @@ impl TypeChecker {
             });
         }
 
-        if is_declaration(node) {
+        if is_declaration(node, self) {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
             return self.get_type_of_symbol(symbol);
         }
@@ -757,7 +757,7 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Some(is_declaration));
+        let node = get_parse_tree_node(Some(node_in), Some(|node| is_declaration(node, self)));
         if let Some(node) = node.as_ref() {
             let symbol = self.get_symbol_of_node(node)?;
             if let Some(symbol) = symbol {

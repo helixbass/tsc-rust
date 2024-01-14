@@ -33,10 +33,10 @@ use crate::{
     DiagnosticRelatedInformationInterface, HasArena,
 };
 
-pub fn is_literal_computed_property_declaration_name(node: Id<Node>) -> bool {
+pub fn is_literal_computed_property_declaration_name(node: Id<Node>, arena: &impl HasArena) -> bool {
     is_string_or_numeric_literal_like(node)
         && node.parent().kind() == SyntaxKind::ComputedPropertyName
-        && is_declaration(&node.parent().parent())
+        && is_declaration(node.parent().parent(), arena)
 }
 
 pub fn is_identifier_name(node: Id<Node> /*Identifier*/) -> bool {
