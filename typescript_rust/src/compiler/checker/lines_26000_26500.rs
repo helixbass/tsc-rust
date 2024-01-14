@@ -115,7 +115,7 @@ impl TypeChecker {
                                     )
                                 });
                             if let Some(annotated) = annotated {
-                                let name_str = get_element_or_property_access_name(lhs);
+                                let name_str = get_element_or_property_access_name(lhs, self);
                                 if let Some(name_str) = name_str.as_ref() {
                                     return self.get_type_of_property_of_contextual_type(
                                         self.get_type_from_type_node_(annotated)?,
@@ -270,7 +270,7 @@ impl TypeChecker {
         }
         let this_type =
             self.check_this_expression(&this_access.as_has_expression().expression())?;
-        let name_str = get_element_or_property_access_name(&this_access);
+        let name_str = get_element_or_property_access_name(this_access, self);
         name_str.as_ref().try_and_then(|name_str| {
             self.get_type_of_property_of_contextual_type(this_type, name_str)
         })

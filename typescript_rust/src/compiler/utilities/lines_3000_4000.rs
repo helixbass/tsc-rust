@@ -449,7 +449,7 @@ pub fn get_property_name_for_property_name_node<'name>(
     }
 }
 
-pub fn is_property_name_literal(node: Id<Node>) -> bool {
+pub fn is_property_name_literal(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier
@@ -459,7 +459,7 @@ pub fn is_property_name_literal(node: Id<Node>) -> bool {
     )
 }
 
-pub fn get_text_of_identifier_or_literal<'node>(node: Id<Node>) -> Cow<'node, str> {
+pub fn get_text_of_identifier_or_literal(node: &Node) -> Cow<'_, str> {
     if is_member_name(node) {
         id_text(node).into()
     } else {

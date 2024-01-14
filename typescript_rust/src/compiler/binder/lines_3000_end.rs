@@ -439,7 +439,7 @@ impl BinderType {
                 None
             }
         });
-        let init = init.map(|init| get_right_most_assigned_expression(&init));
+        let init = init.map(|init| get_right_most_assigned_expression(init, self));
         if let Some(init) = init {
             let node = node.unwrap();
             let is_prototype_assignment =
@@ -457,11 +457,12 @@ impl BinderType {
                         SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
                     )
                 {
-                    &init.as_binary_expression().right
+                    init.as_binary_expression().right
                 } else {
-                    &init
+                    init
                 },
                 is_prototype_assignment,
+                self,
             )
             .is_some();
         }
@@ -494,7 +495,7 @@ impl BinderType {
             symbol
                 .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
                 .and_then(|exports| {
-                    get_element_or_property_access_name(node)
+                    get_element_or_property_access_name(node, self)
                         .and_then(|name| (*exports).borrow().get(&*name).cloned())
                 })
         }
@@ -534,7 +535,7 @@ impl BinderType {
                 &name,
                 s.and_then(|s| s.ref_(self).maybe_exports().clone())
                     .and_then(|exports| {
-                        get_element_or_property_access_name(e)
+                        get_element_or_property_access_name(e, self)
                             .and_then(|name| (*exports).borrow().get(&*name).cloned())
                     }),
                 s,

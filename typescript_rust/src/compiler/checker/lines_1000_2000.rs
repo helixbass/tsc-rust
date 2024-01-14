@@ -780,8 +780,8 @@ impl TypeChecker {
         symbol_name: &str,
         related_nodes: Option<&[Id<Node /*Declaration*/>]>,
     ) {
-        let error_node = (if get_expando_initializer(node, false).is_some() {
-            get_name_of_expando(node)
+        let error_node = (if get_expando_initializer(node, false, self).is_some() {
+            get_name_of_expando(node, self)
         } else {
             get_name_of_declaration(Some(node), self)
         })
@@ -793,8 +793,8 @@ impl TypeChecker {
         );
         if let Some(related_nodes) = related_nodes {
             for related_node in related_nodes {
-                let adjusted_node = (if get_expando_initializer(related_node, false).is_some() {
-                    get_name_of_expando(related_node)
+                let adjusted_node = (if get_expando_initializer(related_node, false, self).is_some() {
+                    get_name_of_expando(related_node, self)
                 } else {
                     get_name_of_declaration(Some(related_node), self)
                 })

@@ -123,7 +123,7 @@ pub fn try_get_property_access_or_identifier_to_string<'expr>(
 
 pub fn is_prototype_access(node: Id<Node>, arena: &impl HasArena) -> bool {
     is_bindable_static_access_expression(node, None, arena)
-        && match get_element_or_property_access_name(node) {
+        && match get_element_or_property_access_name(node, arena) {
             Some(name) => name == "prototype",
             None => false,
         }

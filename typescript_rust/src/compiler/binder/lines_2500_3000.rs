@@ -84,7 +84,7 @@ impl BinderType {
                         expr.ref_(self).set_flow_node(Some(current_flow));
                     }
                 }
-                if is_special_property_declaration(expr) {
+                if is_special_property_declaration(expr, self) {
                     self.bind_special_property_declaration(expr);
                 }
                 if is_in_js_file(Some(expr))
@@ -780,7 +780,7 @@ impl BinderType {
         }
         let node_as_binary_expression = node.ref_(self).as_binary_expression();
         let assigned_expression =
-            get_right_most_assigned_expression(&node_as_binary_expression.right);
+            get_right_most_assigned_expression(node_as_binary_expression.right, self);
         if is_empty_object_literal(&assigned_expression.ref_(self))
             || self.container() == self.file()
                 && is_exports_or_module_exports_or_alias(self, self.file(), &assigned_expression)

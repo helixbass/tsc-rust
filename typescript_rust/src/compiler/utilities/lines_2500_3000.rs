@@ -247,7 +247,8 @@ fn get_source_of_assignment(node: Id<Node>, arena: &impl HasArena) -> Option<Id<
         .as_binary_expression();
     if node_expression_as_binary_expression.operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken {
         Some(get_right_most_assigned_expression(
-            &node_as_expression_statement.expression,
+            node_as_expression_statement.expression,
+            arena,
         ))
     } else {
         None
@@ -942,7 +943,7 @@ pub fn get_declaration_from_name(name: Id<Node>, arena: &impl HasArena) -> Optio
                     && (bin_exp.ref_(arena).as_binary_expression().left.ref_(arena).maybe_symbol().is_some()
                         || bin_exp.ref_(arena).maybe_symbol().is_some())
                     && matches!(
-                        get_name_of_declaration(Some(bin_exp), self),
+                        get_name_of_declaration(Some(bin_exp), arena),
                         Some(name_of_declaration) if name_of_declaration == name
                     )
                 {

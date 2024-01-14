@@ -706,7 +706,8 @@ pub(crate) fn get_non_assigned_name_of_declaration(
                 | AssignmentDeclarationKind::Property
                 | AssignmentDeclarationKind::PrototypeProperty => {
                     return get_element_or_property_access_argument_expression_or_name(
-                        &expr.as_binary_expression().left,
+                        expr.as_binary_expression().left,
+                        arena,
                     );
                 }
                 AssignmentDeclarationKind::ObjectDefinePropertyValue
@@ -764,14 +765,14 @@ pub fn get_name_of_declaration(
             || is_arrow_function(declaration)
             || is_class_expression(declaration)
         {
-            get_assigned_name(declaration)
+            get_assigned_name(declaration, arena)
         } else {
             None
         }
     })
 }
 
-pub(crate) fn get_assigned_name(node: Id<Node>) -> Option<Id<Node /*DeclarationName*/>> {
+pub(crate) fn get_assigned_name(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*DeclarationName*/>> {
     let node_parent = node.maybe_parent();
     if node_parent.is_none() {
         return None;
@@ -787,7 +788,8 @@ pub(crate) fn get_assigned_name(node: Id<Node>) -> Option<Id<Node /*DeclarationN
                     return Some(node_parent.left.clone());
                 } else if is_access_expression(&*node_parent.left) {
                     return get_element_or_property_access_argument_expression_or_name(
-                        &node_parent.left,
+                        node_parent.left,
+                        arena,
                     );
                 }
             }

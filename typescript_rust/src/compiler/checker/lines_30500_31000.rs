@@ -754,7 +754,7 @@ impl TypeChecker {
 
         let decl = return_ok_default_if_none!(decl);
         let name = return_ok_default_if_none!(name);
-        if !allow_declaration && get_expando_initializer(node, is_prototype_access(name, self)).is_none()
+        if !allow_declaration && get_expando_initializer(node, is_prototype_access(name, self), self).is_none()
         {
             return Ok(None);
         }
@@ -779,7 +779,7 @@ impl TypeChecker {
                     && parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
             }
         }) {
-            let right = get_initializer_of_binary_expression(parent);
+            let right = get_initializer_of_binary_expression(parent, self);
             return if is_object_literal_expression(&right) {
                 Some(right)
             } else {

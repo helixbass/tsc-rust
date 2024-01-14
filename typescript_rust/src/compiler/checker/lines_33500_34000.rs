@@ -33,7 +33,7 @@ impl TypeChecker {
         declaration: Id<Node>, /*HasExpressionInitializer*/
         contextual_type: Option<Id<Type>>,
     ) -> io::Result<Id<Type>> {
-        let initializer = get_effective_initializer(declaration).unwrap();
+        let initializer = get_effective_initializer(declaration, self).unwrap();
         let type_ = self
             .get_quick_type_of_expression(&initializer)?
             .try_unwrap_or_else(|| -> io::Result<_> {

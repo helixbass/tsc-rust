@@ -559,7 +559,7 @@ impl TypeChecker {
                 &**symbol_value_declaration
             )
         ) {
-            let initializer = get_effective_initializer(node);
+            let initializer = get_effective_initializer(node, self);
             if let Some(initializer) = initializer.as_ref() {
                 let is_js_object_literal_initializer = is_in_js_file(Some(node))
                     && is_object_literal_expression(initializer)

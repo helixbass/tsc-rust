@@ -803,7 +803,7 @@ impl TypeChecker {
         let decl = return_ok_default_if_none!(symbol.ref_(self).maybe_value_declaration());
         if !is_in_js_file(Some(&*decl))
             || symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias)
-            || get_expando_initializer(&decl, false).is_some()
+            || get_expando_initializer(decl, false, self).is_some()
         {
             return Ok(None);
         }
