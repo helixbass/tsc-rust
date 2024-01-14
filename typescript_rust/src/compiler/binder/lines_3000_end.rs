@@ -128,9 +128,8 @@ impl BinderType {
             });
         if !is_in_js_file(Some(node))
             && !is_function_symbol(
-                parent_symbol
-                    .map(|parent_symbol| parent_symbol.ref_(self))
-                    .as_deref(),
+                parent_symbol,
+                self,
             )
         {
             return;
