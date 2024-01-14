@@ -531,6 +531,7 @@ impl TransformES2015 {
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
+            self,
         );
 
         Ok(self
@@ -733,7 +734,7 @@ impl TransformES2015 {
         {
             let first_statement = &constructor_body_as_block.statements[statement_offset];
             if is_expression_statement(first_statement)
-                && is_super_call(&first_statement.as_expression_statement().expression)
+                && is_super_call(first_statement.as_expression_statement().expression, self)
             {
                 super_call_expression = Some(self.visit_immediate_super_call_in_body(
                     &first_statement.as_expression_statement().expression,

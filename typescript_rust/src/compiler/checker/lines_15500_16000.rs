@@ -712,7 +712,7 @@ impl TypeChecker {
                 links.resolved_type = Some(ret.clone());
                 return Ok(ret);
             }
-            if !is_literal_import_type_node(node) {
+            if !is_literal_import_type_node(node, self) {
                 self.error(
                     Some(&*node_as_import_type_node.argument),
                     &Diagnostics::String_literal_expected,

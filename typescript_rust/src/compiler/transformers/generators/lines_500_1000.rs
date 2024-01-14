@@ -81,6 +81,7 @@ impl TransformGenerators {
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
+            self,
         );
         statements.push(self.factory.create_return_statement(Some(build_result)));
 

@@ -492,6 +492,7 @@ impl TransformClassFields {
                 constructor,
                 &mut statements,
                 |node: Id<Node>| self.visitor(node),
+                self,
             );
         }
         if let Some(constructor) = constructor.as_ref() {

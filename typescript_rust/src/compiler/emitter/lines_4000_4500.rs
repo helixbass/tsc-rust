@@ -105,7 +105,7 @@ impl Printer {
             let mut end = 0;
             let source_file_as_source_file = source_file.as_source_file();
             for statement in &source_file_as_source_file.statements() {
-                if !is_prologue_directive(statement) {
+                if !is_prologue_directive(statement, self) {
                     break;
                 }
                 let statement_as_expression_statement = statement.as_expression_statement();

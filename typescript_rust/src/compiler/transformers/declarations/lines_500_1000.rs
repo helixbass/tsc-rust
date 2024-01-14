@@ -386,6 +386,7 @@ impl TransformDeclarations {
                     &**self.context.get_emit_host(),
                     &**self.resolver,
                     parent,
+                    self,
                 )?;
                 if let Some(new_name) = new_name.non_empty() {
                     return Ok(Some(
@@ -1382,7 +1383,7 @@ impl TransformDeclarations {
                 }
                 SyntaxKind::ImportType => {
                     let input_as_import_type_node = input.as_import_type_node();
-                    if !is_literal_import_type_node(input) {
+                    if !is_literal_import_type_node(input, self) {
                         return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,

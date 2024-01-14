@@ -104,12 +104,12 @@ impl TypeChecker {
 
                     for statement in statements {
                         if statement.kind() == SyntaxKind::ExpressionStatement
-                            && is_super_call(&statement.as_expression_statement().expression)
+                            && is_super_call(statement.as_expression_statement(, self).expression)
                         {
                             super_call_statement = Some(statement.node_wrapper());
                             break;
                         }
-                        if !is_prologue_directive(statement) {
+                        if !is_prologue_directive(statement, self) {
                             break;
                         }
                     }

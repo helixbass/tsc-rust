@@ -315,6 +315,7 @@ impl TransformTypeScript {
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
+            self,
         );
         self.set_current_namespace_container_name(saved_current_namespace_container_name);
         self.set_current_namespace(saved_current_namespace);

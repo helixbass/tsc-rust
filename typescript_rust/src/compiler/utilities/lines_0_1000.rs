@@ -934,30 +934,32 @@ fn insert_statement_after_prologue(
     to.insert(statement_index, statement);
 }
 
-fn is_any_prologue_directive(node: Id<Node>) -> bool {
-    is_prologue_directive(node) || get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
+fn is_any_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_prologue_directive(node, arena) || get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
 }
 
 pub fn insert_statements_after_standard_prologue(
     to: &mut Vec<Id<Node>>,
     from: Option<&[Id<Node>]>,
+    arena: &impl HasArena,
 ) {
-    insert_statements_after_prologue(to, from, is_prologue_directive)
+    insert_statements_after_prologue(to, from, |node| is_prologue_directive(node, arena))
 }
 
-pub fn insert_statements_after_custom_prologue(to: &mut Vec<Id<Node>>, from: Option<&[Id<Node>]>) {
-    insert_statements_after_prologue(to, from, is_any_prologue_directive)
+pub fn insert_statements_after_custom_prologue(to: &mut Vec<Id<Node>>, from: Option<&[Id<Node>]>, arena: &impl HasArena) {
+    insert_statements_after_prologue(to, from, |node| is_any_prologue_directive(node, arena))
 }
 
 pub fn insert_statement_after_standard_prologue(
     to: &mut Vec<Id<Node>>,
     statement: Option<Id<Node>>,
+    arena: &impl HasArena,
 ) {
-    insert_statement_after_prologue(to, statement, is_prologue_directive)
+    insert_statement_after_prologue(to, statement, |node| is_prologue_directive(node, arena))
 }
 
-pub fn insert_statement_after_custom_prologue(to: &mut Vec<Id<Node>>, statement: Option<Id<Node>>) {
-    insert_statement_after_prologue(to, statement, is_any_prologue_directive)
+pub fn insert_statement_after_custom_prologue(to: &mut Vec<Id<Node>>, statement: Option<Id<Node>>, arena: &impl HasArena) {
+    insert_statement_after_prologue(to, statement, |node| is_any_prologue_directive(node, arena))
 }
 
 pub fn is_recognized_triple_slash_comment(
@@ -1655,6 +1657,7 @@ pub fn is_effective_external_module(
 pub fn is_effective_strict_mode_source_file(
     node: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> bool {
     let node_as_source_file = node.as_source_file();
     match node_as_source_file.script_kind() {
@@ -1669,7 +1672,7 @@ pub fn is_effective_strict_mode_source_file(
     if get_strict_option_value(compiler_options, "alwaysStrict") {
         return true;
     }
-    if starts_with_use_strict(&node_as_source_file.statements()) {
+    if starts_with_use_strict(&node_as_source_file.statements(), arena) {
         return true;
     }
     if is_external_module(node) || compiler_options.isolated_modules.unwrap_or(false) {
@@ -1766,11 +1769,11 @@ pub fn is_late_visibility_painted_statement(node: Id<Node>) -> bool {
     )
 }
 
-pub fn has_possible_external_module_reference(node: Id<Node>) -> bool {
+pub fn has_possible_external_module_reference(node: Id<Node>, arena: &impl HasArena) -> bool {
     is_any_import_or_re_export(node)
         || is_module_declaration(node)
         || is_import_type_node(node)
-        || is_import_call(node)
+        || is_import_call(node, arena)
 }
 
 pub fn is_any_import_or_re_export(node: Id<Node>) -> bool {

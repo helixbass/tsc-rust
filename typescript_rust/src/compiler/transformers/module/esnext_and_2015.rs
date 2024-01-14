@@ -172,6 +172,7 @@ impl TransformEcmascriptModule {
                                         import_require_statements.0.clone(),
                                         import_require_statements.1.clone(),
                                     ]),
+                                    self,
                                 );
                                 Some(statements)
                             },

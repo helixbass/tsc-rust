@@ -69,7 +69,7 @@ impl TransformES2015 {
             )
             .set_emit_flags(EmitFlags::NoComments | EmitFlags::CustomPrologue)
             .set_source_map_range(Some(node.into()));
-        insert_statement_after_custom_prologue(statements, Some(capture_this_statement));
+        insert_statement_after_custom_prologue(statements, Some(capture_this_statement), self);
     }
 
     pub(super) fn insert_capture_new_target_if_needed(
@@ -158,6 +158,7 @@ impl TransformES2015 {
             insert_statement_after_custom_prologue(
                 &mut statements,
                 Some(capture_new_target_statement),
+                self,
             );
         }
 

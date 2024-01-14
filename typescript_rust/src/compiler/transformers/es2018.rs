@@ -794,7 +794,7 @@ impl TransformES2018 {
     fn visit_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node /*SourceFile*/> {
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::SourceFileExcludes,
-            if is_effective_strict_mode_source_file(node, &self.compiler_options) {
+            if is_effective_strict_mode_source_file(node, &self.compiler_options, self) {
                 HierarchyFacts::StrictModeSourceFileIncludes
             } else {
                 HierarchyFacts::SourceFileIncludes
@@ -1938,7 +1938,7 @@ impl TransformES2018 {
             );
             self.substituted_super_accessors_mut()
                 .insert(get_node_id(&variable_statement), true);
-            insert_statements_after_standard_prologue(&mut statements, Some(&[variable_statement]));
+            insert_statements_after_standard_prologue(&mut statements, Some(&[variable_statement]), self);
         }
 
         statements.push(return_statement);
@@ -1946,6 +1946,7 @@ impl TransformES2018 {
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
+            self,
         );
         let block = self.factory.update_block(
             &node_as_function_like_declaration.maybe_body().unwrap(),
@@ -2018,6 +2019,7 @@ impl TransformES2018 {
             insert_statements_after_standard_prologue(
                 &mut statements,
                 leading_statements.as_deref(),
+                self,
             );
             let block_as_block = block.as_block();
             statements.add_range(

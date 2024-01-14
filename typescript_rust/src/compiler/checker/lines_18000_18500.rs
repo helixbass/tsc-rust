@@ -285,7 +285,7 @@ impl CheckTypeRelatedTo {
                         if let Some(links_originating_import) =
                             (*links).borrow().originating_import.clone().filter(
                                 |links_originating_import| {
-                                    !is_import_call(links_originating_import)
+                                    !is_import_call(links_originating_import, self)
                                 },
                             )
                         {

@@ -750,6 +750,7 @@ impl TransformTypeScript {
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
+            self,
         );
         add_range(&mut statements, Some(&members), None, None);
 

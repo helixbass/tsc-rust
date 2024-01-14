@@ -486,6 +486,7 @@ impl TransformSystemModule {
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
+            self,
         );
 
         let export_star_function = self.add_export_star_if_needed(&mut statements).unwrap();
@@ -1160,7 +1161,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
     }
 
     fn substitute_meta_property(&self, node: Id<Node> /*MetaProperty*/) -> Id<Node> {
-        if is_import_meta(node) {
+        if is_import_meta(node, self) {
             return self
                 .transform_system_module
                 .factory

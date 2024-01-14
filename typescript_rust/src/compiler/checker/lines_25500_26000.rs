@@ -619,7 +619,7 @@ impl TypeChecker {
         call_target: Id<Node>, /*CallLikeExpression*/
         arg_index: usize,
     ) -> io::Result<Id<Type>> {
-        if is_import_call(call_target) {
+        if is_import_call(call_target, self) {
             return Ok(if arg_index == 0 {
                 self.string_type()
             } else if arg_index == 1 {

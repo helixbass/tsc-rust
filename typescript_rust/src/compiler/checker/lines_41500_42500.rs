@@ -701,7 +701,7 @@ impl TypeChecker {
                 |node: &Id<Node>| is_string_literal(node),
             )
         } else {
-            get_external_module_name(declaration)
+            get_external_module_name(declaration, self)
         };
         let module_symbol = return_ok_default_if_none!(self.resolve_external_module_name_worker(
             specifier.as_ref().unwrap(),

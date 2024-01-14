@@ -854,9 +854,9 @@ impl TypeChecker {
                         )
                     )
                     || (is_in_js_file(Some(node)) && is_require_call(&node.parent(), false)
-                        || is_import_call(&node.parent()))
+                        || is_import_call(node.parent(), self))
                     || is_literal_type_node(&node.parent())
-                        && is_literal_import_type_node(&node.parent().parent())
+                        && is_literal_import_type_node(node.parent().parent(), self)
                         && Gc::ptr_eq(
                             &node.parent().parent().as_import_type_node().argument,
                             &node.parent(),
@@ -935,7 +935,7 @@ impl TypeChecker {
             | SyntaxKind::EqualsGreaterThanToken
             | SyntaxKind::ClassKeyword => self.get_symbol_of_node(&node.parent())?,
             SyntaxKind::ImportType => {
-                if is_literal_import_type_node(node) {
+                if is_literal_import_type_node(node, self) {
                     self.get_symbol_at_location_(
                         &node
                             .as_import_type_node()

@@ -230,6 +230,7 @@ impl TransformJsx {
                         Some(NodeFlags::Const),
                     ),
                 )),
+                self,
             );
             statements = statements_as_vec.into();
         }
@@ -263,6 +264,7 @@ impl TransformJsx {
                     insert_statement_after_custom_prologue(
                         &mut statements_as_vec,
                         Some(import_statement),
+                        self,
                     );
                     statements = statements_as_vec.into();
                 } else if is_external_or_common_js_module(node) {
@@ -309,6 +311,7 @@ impl TransformJsx {
                     insert_statement_after_custom_prologue(
                         &mut statements_as_vec,
                         Some(require_statement),
+                        self,
                     );
                     statements = statements_as_vec.into();
                 } else {

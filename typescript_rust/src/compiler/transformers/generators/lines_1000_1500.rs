@@ -183,7 +183,7 @@ impl TransformGenerators {
         node: Id<Node>, /*CallExpression*/
     ) -> VisitResult {
         let node_as_call_expression = node.as_call_expression();
-        if !is_import_call(node)
+        if !is_import_call(node, self)
             && for_each_bool(
                 &node_as_call_expression.arguments,
                 |argument: &Id<Node>, _| self.contains_yield(Some(&**argument)),

@@ -847,6 +847,7 @@ pub fn get_external_module_name_from_declaration(
     host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     resolver: &(impl EmitResolver + ?Sized),
     declaration: Id<Node>, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
+    arena: &impl HasArena,
 ) -> io::Result<Option<String>> {
     let file = resolver.get_external_module_file_from_declaration(declaration)?;
     if match file.as_ref() {
@@ -856,7 +857,7 @@ pub fn get_external_module_name_from_declaration(
         return Ok(None);
     }
     let file = file.unwrap();
-    let specifier = get_external_module_name(declaration);
+    let specifier = get_external_module_name(declaration, arena);
     if let Some(specifier) = specifier {
         if is_string_literal_like(&specifier)
             && !path_is_relative(&specifier.as_literal_like_node().text())

@@ -226,9 +226,9 @@ impl TypeChecker {
             let reference_parent = referencing_location.parent();
             if is_import_declaration(&reference_parent)
                 && get_namespace_declaration_node(&reference_parent).is_some()
-                || is_import_call(&reference_parent)
+                || is_import_call(reference_parent, self)
             {
-                let reference = if is_import_call(&reference_parent) {
+                let reference = if is_import_call(reference_parent, self) {
                     &reference_parent.as_call_expression().arguments[0]
                 } else {
                     &reference_parent.as_import_declaration().module_specifier

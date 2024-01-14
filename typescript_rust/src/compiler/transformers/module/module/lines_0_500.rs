@@ -288,6 +288,7 @@ impl TransformModule {
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
+            self,
         );
 
         Ok(self
@@ -829,6 +830,7 @@ impl TransformModule {
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
+            self,
         );
 
         let body = self.factory.create_block(statements, Some(true));

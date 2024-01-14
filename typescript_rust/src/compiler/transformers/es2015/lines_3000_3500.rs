@@ -237,7 +237,7 @@ impl TransformES2015 {
             CopyDirection::ToOutParameter,
             &mut statements,
         );
-        insert_statements_after_standard_prologue(&mut statements, lexical_environment.as_deref());
+        insert_statements_after_standard_prologue(&mut statements, lexical_environment.as_deref(), self);
 
         let loop_body = self.factory.create_block(statements, Some(true));
         if is_block(&statement) {

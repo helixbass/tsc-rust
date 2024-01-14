@@ -616,7 +616,7 @@ impl TransformSystemModule {
                 }
             }
             SyntaxKind::CallExpression => {
-                if is_import_call(node) {
+                if is_import_call(node, self) {
                     return Ok(Some(self.visit_import_call_expression(node)?.into()));
                 }
             }

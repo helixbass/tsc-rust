@@ -175,8 +175,8 @@ impl TransformES2015 {
     pub(super) fn insert_default_value_assignment_for_binding_pattern(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        parameter: Id<Node>,                    /*ParameterDeclaration*/
-        name: Id<Node>,                         /*BindingPattern*/
+        parameter: Id<Node>,           /*ParameterDeclaration*/
+        name: Id<Node>,                /*BindingPattern*/
         initializer: Option<Id<Node>>, /*Expression*/
     ) -> io::Result<bool> {
         let name_as_has_elements = name.as_has_elements();
@@ -205,6 +205,7 @@ impl TransformES2015 {
                         )
                         .set_emit_flags(EmitFlags::CustomPrologue),
                 ),
+                self,
             );
             return Ok(true);
         } else if let Some(initializer) = initializer {
@@ -227,6 +228,7 @@ impl TransformES2015 {
                         )
                         .set_emit_flags(EmitFlags::CustomPrologue),
                 ),
+                self,
             );
             return Ok(true);
         }
@@ -289,7 +291,7 @@ impl TransformES2015 {
                     | EmitFlags::CustomPrologue
                     | EmitFlags::NoComments,
             );
-        insert_statement_after_custom_prologue(statements, Some(statement));
+        insert_statement_after_custom_prologue(statements, Some(statement), self);
 
         Ok(())
     }
@@ -454,7 +456,7 @@ impl TransformES2015 {
             );
         }
 
-        insert_statements_after_custom_prologue(statements, Some(&prologue_statements));
+        insert_statements_after_custom_prologue(statements, Some(&prologue_statements), self);
         Ok(true)
     }
 }

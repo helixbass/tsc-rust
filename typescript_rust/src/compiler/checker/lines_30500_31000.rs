@@ -88,7 +88,7 @@ impl TypeChecker {
             .clone();
         if let Some(import_node) = import_node
             .as_ref()
-            .filter(|import_node| !is_import_call(import_node))
+            .filter(|import_node| !is_import_call(import_node, self))
         {
             let sigs = self.get_signatures_of_type(
                 self.get_type_of_symbol(

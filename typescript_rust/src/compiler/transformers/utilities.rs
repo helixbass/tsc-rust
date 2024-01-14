@@ -455,11 +455,11 @@ pub fn add_prologue_directives_and_initial_super_call(
     factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
     ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
-    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult, arena: &impl HasArena,
 ) -> usize {
     try_add_prologue_directives_and_initial_super_call(factory, ctor, result, |node: Id<Node>| {
         Ok(visitor(node))
-    })
+    }, arena)
     .unwrap()
 }
 
@@ -467,7 +467,7 @@ pub fn try_add_prologue_directives_and_initial_super_call(
     factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
     ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
-    mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
+    mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>, arena: &impl HasArena,
 ) -> io::Result<usize> {
     let ctor_as_constructor_declaration = ctor.as_constructor_declaration();
     if let Some(ctor_body) = ctor_as_constructor_declaration.maybe_body() {
@@ -486,7 +486,7 @@ pub fn try_add_prologue_directives_and_initial_super_call(
             .iter()
             .skip(index)
             .position(|s| {
-                is_expression_statement(s) && is_super_call(&s.as_expression_statement().expression)
+                is_expression_statement(s) && is_super_call(s.as_expression_statement().expression, arena)
             })
             .map(|found| found + index);
         if let Some(super_index) = super_index {

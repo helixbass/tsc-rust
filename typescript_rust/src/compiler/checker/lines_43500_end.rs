@@ -1351,7 +1351,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| has_possible_external_module_reference(node)),
+            Some(|node: Id<Node>| has_possible_external_module_reference(node, self)),
         );
         node.as_ref().try_and_then(|node| {
             self.type_checker

@@ -60,7 +60,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
     ) -> bool {
-        let module_name = get_external_module_name(node);
+        let module_name = get_external_module_name(node, self);
         if match module_name.as_ref() {
             None => true,
             Some(module_name) => node_is_missing(Some(&**module_name)),

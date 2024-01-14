@@ -59,7 +59,7 @@ impl TransformModule {
                 return self.visit_partially_emitted_expression(node, value_is_discarded)
             }
             SyntaxKind::CallExpression => {
-                if is_import_call(node)
+                if is_import_call(node, self)
                     && self
                         .current_source_file()
                         .as_source_file()

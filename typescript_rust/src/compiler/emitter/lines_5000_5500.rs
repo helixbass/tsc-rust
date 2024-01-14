@@ -180,7 +180,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*ImportDeclaration | ExportDeclaration*/
     ) -> String {
-        let ref expr = get_external_module_name(node).unwrap();
+        let ref expr = get_external_module_name(node, self).unwrap();
         let base_name = if is_string_literal(expr) {
             make_identifier_from_module_name(&expr.as_string_literal().text())
         } else {

@@ -16,7 +16,7 @@ use crate::{
     is_property_access_expression, is_prototype_access, is_string_literal_like,
     is_string_or_numeric_literal_like, is_type_reference_node, is_variable_declaration,
     is_variable_statement, is_void_expression, length, AssignmentDeclarationKind, CharacterCodes,
-    Debug_, HasInitializerInterface, LiteralLikeNodeInterface, Node, InArena, HasArena,
+    Debug_, HasArena, HasInitializerInterface, InArena, LiteralLikeNodeInterface, Node,
 };
 
 pub fn is_part_of_type_query(mut node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -42,30 +42,47 @@ pub fn is_namespace_reexport_declaration(node: Id<Node>, arena: &impl HasArena) 
 
 pub fn is_external_module_import_equals_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
     node.ref_(arena).kind() == SyntaxKind::ImportEqualsDeclaration
-        && node.ref_(arena).as_import_equals_declaration().module_reference.ref_(arena).kind()
+        && node
+            .ref_(arena)
+            .as_import_equals_declaration()
+            .module_reference
+            .ref_(arena)
+            .kind()
             == SyntaxKind::ExternalModuleReference
 }
 
 pub fn get_external_module_import_equals_declaration_expression(
-    node: Id<Node>, arena: &impl HasArena
+    node: Id<Node>,
+    arena: &impl HasArena,
 ) -> Id<Node /*Expression*/> {
-    Debug_.assert(is_external_module_import_equals_declaration(node, arena), None);
-    node.ref_(arena).as_import_equals_declaration()
+    Debug_.assert(
+        is_external_module_import_equals_declaration(node, arena),
+        None,
+    );
+    node.ref_(arena)
+        .as_import_equals_declaration()
         .module_reference
         .ref_(arena)
         .as_external_module_reference()
         .expression
 }
 
-pub fn get_external_module_require_argument(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*StringLiteral*/>> {
+pub fn get_external_module_require_argument(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*StringLiteral*/>> {
     if is_require_variable_declaration(node, arena) {
         Some(
             get_leftmost_access_expression(
-                node.ref_(arena).as_variable_declaration().maybe_initializer().unwrap(),
+                node.ref_(arena)
+                    .as_variable_declaration()
+                    .maybe_initializer()
+                    .unwrap(),
                 arena,
             )
-            .ref_(arena).as_call_expression()
-            .arguments[0]
+            .ref_(arena)
+            .as_call_expression()
+            .arguments[0],
         )
     } else {
         None
@@ -74,7 +91,12 @@ pub fn get_external_module_require_argument(node: Id<Node>, arena: &impl HasAren
 
 pub fn is_internal_module_import_equals_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
     node.ref_(arena).kind() == SyntaxKind::ImportEqualsDeclaration
-        && node.ref_(arena).as_import_equals_declaration().module_reference.ref_(arena).kind()
+        && node
+            .ref_(arena)
+            .as_import_equals_declaration()
+            .module_reference
+            .ref_(arena)
+            .kind()
             != SyntaxKind::ExternalModuleReference
 }
 
@@ -270,7 +292,10 @@ pub fn has_expando_value_property(
     })
 }
 
-pub fn get_assigned_expando_initializer(node: Option<Id<Node>>, arena: &impl HasArena) -> Option<Id<Node /*Expression*/>> {
+pub fn get_assigned_expando_initializer(
+    node: Option<Id<Node>>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*Expression*/>> {
     let node = node?;
     let node_parent = node.ref_(arena).maybe_parent();
     if let Some(node_parent) = node_parent {
@@ -577,10 +602,7 @@ pub fn is_bindable_static_element_access_expression(
         )
 }
 
-pub fn is_bindable_static_name_expression(
-    node: &Node,
-    exclude_this_keyword: Option<bool>,
-) -> bool {
+pub fn is_bindable_static_name_expression(node: &Node, exclude_this_keyword: Option<bool>) -> bool {
     is_entity_name_expression(node)
         || is_bindable_static_access_expression(node, exclude_this_keyword)
 }
@@ -825,7 +847,8 @@ pub fn try_get_module_specifier_from_declaration(
 
 pub fn import_from_module_specifier(
     node: Id<Node>, /*StringLiteralLike*/
+    arena: &impl HasArena,
 ) -> Id<Node /*AnyValidImportOrReExport*/> {
-    try_get_import_from_module_specifier(node)
+    try_get_import_from_module_specifier(node, arena)
         .unwrap_or_else(|| Debug_.fail_bad_syntax_kind(&node.parent(), None))
 }

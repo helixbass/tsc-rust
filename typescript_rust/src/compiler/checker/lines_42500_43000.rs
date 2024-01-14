@@ -255,7 +255,7 @@ impl TypeChecker {
                 .maybe_body()
                 .as_ref()
                 .filter(|node_body| is_block(node_body))
-                .and_then(|node_body| find_use_strict_prologue(&node_body.as_block().statements));
+                .and_then(|node_body| find_use_strict_prologue(&node_body.as_block().statements, self));
             if let Some(use_strict_directive) = use_strict_directive.as_ref() {
                 let non_simple_parameters =
                     self.get_non_simple_parameters(&node_as_function_like_declaration.parameters());

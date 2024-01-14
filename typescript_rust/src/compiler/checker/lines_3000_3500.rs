@@ -896,7 +896,7 @@ impl TypeChecker {
         let context_specifier = if is_string_literal_like(location) {
             Some(location.node_wrapper())
         } else {
-            find_ancestor(Some(location), is_import_call).and_then(|ancestor| ancestor.as_call_expression().arguments.get(0).map(Clone::clone)).or_else(|| {
+            find_ancestor(Some(location), |node| is_import_call(node, self)).and_then(|ancestor| ancestor.as_call_expression().arguments.get(0).map(Clone::clone)).or_else(|| {
                 find_ancestor(Some(location), is_import_declaration).map(|ancestor| ancestor.as_import_declaration().module_specifier.clone())
             }).or_else(|| {
                 find_ancestor(Some(location), is_external_module_import_equals_declaration).map(|ancestor| ancestor.as_import_equals_declaration().module_reference.as_external_module_reference().expression.clone())
@@ -911,7 +911,7 @@ impl TypeChecker {
                     None
                 }.map(|node| node.as_module_declaration().name.clone())
             }).or_else(|| {
-                if is_literal_import_type_node(location) {
+                if is_literal_import_type_node(location, self) {
                     Some(location.node_wrapper())
                 } else {
                     None
@@ -966,7 +966,7 @@ impl TypeChecker {
                             .as_source_file()
                             .maybe_implied_node_format(),
                         Some(ModuleKind::CommonJS)
-                    ) && find_ancestor(Some(location), is_import_call)
+                    ) && find_ancestor(Some(location), |node| is_import_call(node, self))
                         .is_none()
                         || find_ancestor(Some(location), is_import_equals_declaration).is_some();
                     if is_sync_import

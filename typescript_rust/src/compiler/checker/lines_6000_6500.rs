@@ -1332,7 +1332,7 @@ impl NodeBuilder {
                 ).into()
             ));
         }
-        if is_literal_import_type_node(node) {
+        if is_literal_import_type_node(node, self) {
             let node_symbol = (*self.type_checker.get_node_links(node))
                 .borrow()
                 .resolved_symbol

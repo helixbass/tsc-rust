@@ -462,6 +462,7 @@ impl TransformTypeScript {
             constructor,
             &mut statements,
             |node: Id<Node>| self.visitor(node),
+            self,
         )?;
 
         add_range(

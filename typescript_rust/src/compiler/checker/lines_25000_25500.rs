@@ -263,7 +263,7 @@ impl TypeChecker {
     }
 
     pub(super) fn find_first_super_call(&self, node: Id<Node>) -> Option<Id<Node /*SuperCall*/>> {
-        if is_super_call(node) {
+        if is_super_call(node, self) {
             Some(node.node_wrapper())
         } else if is_function_like(Some(node)) {
             None

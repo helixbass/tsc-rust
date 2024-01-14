@@ -880,7 +880,7 @@ impl BinderType {
     ) {
         if !matches!(self.maybe_in_strict_mode(), Some(true)) {
             for statement in statements {
-                if !is_prologue_directive(statement) {
+                if !is_prologue_directive(statement, self) {
                     return;
                 }
 

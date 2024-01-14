@@ -843,7 +843,7 @@ impl Printer {
         let statements = node.as_source_file().statements();
         // if (emitBodyWithDetachedComments) {
         let should_emit_detached_comment = statements.is_empty()
-            || !is_prologue_directive(&statements[0])
+            || !is_prologue_directive(statements[0], self)
             || node_is_synthesized(&*statements[0]);
         if should_emit_detached_comment {
             self.try_emit_body_with_detached_comments(node, &*statements, |node: Id<Node>| {
@@ -1039,7 +1039,7 @@ impl Printer {
         self.emit_helpers(node);
         let index = find_index(
             &statements,
-            |statement: &Id<Node>, _| !is_prologue_directive(statement),
+            |&statement: &Id<Node>, _| !is_prologue_directive(statement, self),
             None,
         );
         self.emit_triple_slash_directives_if_needed(node);
@@ -1093,8 +1093,8 @@ impl Printer {
     ) -> io::Result<usize> {
         let mut needs_to_set_source_file = source_file.is_some();
         for i in 0..statements.len() {
-            let statement = &statements[i];
-            if is_prologue_directive(statement) {
+            let statement = statements[i];
+            if is_prologue_directive(statement, self) {
                 let should_emit_prologue_directive =
                     seen_prologue_directives
                         .as_ref()

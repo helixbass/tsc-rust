@@ -172,7 +172,7 @@ pub(crate) fn get_mode_for_usage_location(
     let implied_node_format = implied_node_format?;
     if implied_node_format != ModuleKind::ESNext {
         return Some(
-            if is_import_call(&walk_up_parenthesized_expressions(&usage.parent()).unwrap()) {
+            if is_import_call(walk_up_parenthesized_expressions(&usage.parent()).unwrap(), self) {
                 ModuleKind::ESNext
             } else {
                 ModuleKind::CommonJS

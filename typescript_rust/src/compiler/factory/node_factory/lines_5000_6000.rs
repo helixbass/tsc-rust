@@ -1351,8 +1351,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let mut statement_offset = 0;
         let num_statements = source.len();
         while statement_offset < num_statements {
-            let statement = &source[statement_offset];
-            if is_prologue_directive(statement) {
+            let statement = source[statement_offset];
+            if is_prologue_directive(statement, self) {
                 if self.is_use_strict_prologue(statement) {
                     found_use_strict = true;
                 }
@@ -1429,7 +1429,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         statements: &NodeArray, /*<Statement>*/
     ) -> Gc<NodeArray /*<Statement>*/> {
-        let found_use_strict = find_use_strict_prologue(statements);
+        let found_use_strict = find_use_strict_prologue(statements, self);
 
         if found_use_strict.is_none() {
             return self
@@ -1482,7 +1482,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
         let left_standard_prologue_end = self.find_span_end(
             &*statements,
-            |node: &Id<Node>| is_prologue_directive(node),
+            |&node: &Id<Node>| is_prologue_directive(node, self),
             0,
         );
         let left_hoisted_functions_end = self.find_span_end(
@@ -1498,7 +1498,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
         let right_standard_prologue_end = self.find_span_end(
             declarations,
-            |node: &Id<Node>| is_prologue_directive(node),
+            |&node: &Id<Node>| is_prologue_directive(node, self),
             0,
         );
         let right_hoisted_functions_end = self.find_span_end(

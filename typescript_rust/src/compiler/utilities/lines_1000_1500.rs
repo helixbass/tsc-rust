@@ -399,44 +399,47 @@ pub fn is_let(node: Id<Node>, arena: &impl HasArena) -> bool {
     get_combined_node_flags(node, arena).intersects(NodeFlags::Let)
 }
 
-pub fn is_super_call(n: Id<Node>) -> bool {
-    n.kind() == SyntaxKind::CallExpression
-        && n.as_call_expression().expression.kind() == SyntaxKind::SuperKeyword
+pub fn is_super_call(n: Id<Node>, arena: &impl HasArena) -> bool {
+    n.ref_(arena).kind() == SyntaxKind::CallExpression
+        && n.ref_(arena).as_call_expression().expression.ref_(arena).kind() == SyntaxKind::SuperKeyword
 }
 
-pub fn is_import_call(n: Id<Node>) -> bool {
-    match n {
+pub fn is_import_call(n: Id<Node>, arena: &impl HasArena) -> bool {
+    match &*n.ref_(arena) {
         Node::CallExpression(call_expression) => {
-            call_expression.expression.kind() == SyntaxKind::ImportKeyword
+            call_expression.expression.ref_(arena).kind() == SyntaxKind::ImportKeyword
         }
         _ => false,
     }
 }
 
-pub fn is_import_meta(n: Id<Node>) -> bool {
-    if !is_meta_property(n) {
+pub fn is_import_meta(n: Id<Node>, arena: &impl HasArena) -> bool {
+    if !is_meta_property(&n.ref_(arena)) {
         return false;
     }
-    let n_as_meta_property = n.as_meta_property();
+    let n_ref = n.ref_(arena);
+    let n_as_meta_property = n_ref.as_meta_property();
     n_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
-        && n.as_meta_property().name.as_identifier().escaped_text == "meta"
+        && n_ref.as_meta_property().name.ref_(arena).as_identifier().escaped_text == "meta"
 }
 
-pub fn is_literal_import_type_node(n: Id<Node>) -> bool {
-    if !is_import_type_node(n) {
+pub fn is_literal_import_type_node(n: Id<Node>, arena: &impl HasArena) -> bool {
+    if !is_import_type_node(&n.ref_(arena)) {
         return false;
     }
-    let n_as_import_type_node = n.as_import_type_node();
-    if !is_literal_type_node(&n_as_import_type_node.argument) {
+    let n_ref = n.ref_(arena);
+    let n_as_import_type_node = n_ref.as_import_type_node();
+    if !is_literal_type_node(&n_as_import_type_node.argument.ref_(arena)) {
         return false;
     }
-    let n_argument_as_literal_type_node = n_as_import_type_node.argument.as_literal_type_node();
-    is_string_literal(&n_argument_as_literal_type_node.literal)
+    let n_argument_ref = n_as_import_type_node.argument.ref_(arena);
+    let n_argument_as_literal_type_node = n_argument_ref.as_literal_type_node();
+    is_string_literal(&n_argument_as_literal_type_node.literal.ref_(arena))
 }
 
-pub fn is_prologue_directive(node: Id<Node>) -> bool {
-    node.kind() == SyntaxKind::ExpressionStatement
-        && node.as_expression_statement().expression.kind() == SyntaxKind::StringLiteral
+pub fn is_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
+    node.ref_(arena).kind() == SyntaxKind::ExpressionStatement
+        && node.ref_(arena).as_expression_statement().expression.ref_(arena).kind() == SyntaxKind::StringLiteral
 }
 
 pub fn is_custom_prologue(node: Id<Node> /*Statement*/) -> bool {

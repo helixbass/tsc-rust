@@ -23,14 +23,14 @@ use crate::{
 };
 
 pub fn try_get_import_from_module_specifier(
-    node: Id<Node>, /*StringLiteralLike*/
+    node: Id<Node>, /*StringLiteralLike*/ arena: &impl HasArena
 ) -> Option<Id<Node /*AnyValidImportOrReExport*/>> {
     let node_parent = node.parent();
     match node_parent.kind() {
         SyntaxKind::ImportDeclaration | SyntaxKind::ExportDeclaration => Some(node_parent),
         SyntaxKind::ExternalModuleReference => Some(node_parent.parent()),
         SyntaxKind::CallExpression => {
-            if is_import_call(&node_parent) || is_require_call(&node_parent, false) {
+            if is_import_call(node_parent, arena) || is_require_call(&node_parent, false) {
                 Some(node_parent)
             } else {
                 None
@@ -46,6 +46,7 @@ pub fn try_get_import_from_module_specifier(
 
 pub fn get_external_module_name(
     node: Id<Node>, /*AnyImportOrReExport | ImportTypeNode | ImportCall | ModuleDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Expression*/>> {
     match node.kind() {
         SyntaxKind::ImportDeclaration => {
@@ -69,7 +70,7 @@ pub fn get_external_module_name(
             }
         }
         SyntaxKind::ImportType => {
-            if is_literal_import_type_node(node) {
+            if is_literal_import_type_node(node, arena) {
                 Some(
                     node.as_import_type_node()
                         .argument

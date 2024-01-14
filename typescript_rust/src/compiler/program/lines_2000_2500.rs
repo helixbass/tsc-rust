@@ -984,7 +984,7 @@ impl Program {
         in_ambient_module: bool,
     ) {
         if is_any_import_or_re_export(node) {
-            let module_name_expr = get_external_module_name(node);
+            let module_name_expr = get_external_module_name(node, self);
             if let Some(module_name_expr) = module_name_expr.as_ref().filter(|module_name_expr| {
                 is_string_literal(module_name_expr) && {
                     let module_name_text = module_name_expr.as_string_literal().text();
@@ -1070,7 +1070,7 @@ impl Program {
                 {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }
-            } else if is_import_call(node) && {
+            } else if is_import_call(node, self) && {
                 let node_arguments = &node.as_call_expression().arguments;
                 node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0])
             } {
@@ -1079,7 +1079,7 @@ impl Program {
                 {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }
-            } else if is_literal_import_type_node(node) {
+            } else if is_literal_import_type_node(node, self) {
                 set_parent_recursive(Some(&**node), false);
                 append(
                     imports.get_or_insert_default_(),

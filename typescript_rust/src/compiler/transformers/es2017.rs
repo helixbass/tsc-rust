@@ -195,7 +195,7 @@ impl TransformES2017 {
         self.set_context_flag(ContextFlags::NonTopLevel, false);
         self.set_context_flag(
             ContextFlags::HasLexicalThis,
-            !is_effective_strict_mode_source_file(node, &self.compiler_options),
+            !is_effective_strict_mode_source_file(node, &self.compiler_options, self),
         );
         let visited =
             try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
@@ -975,6 +975,7 @@ impl TransformES2017 {
             insert_statements_after_standard_prologue(
                 &mut statements,
                 self.context.end_lexical_environment().as_deref(),
+                self,
             );
 
             let emit_super_helpers = self.language_version >= ScriptTarget::ES2015
@@ -997,6 +998,7 @@ impl TransformES2017 {
                     insert_statements_after_standard_prologue(
                         &mut statements,
                         Some(&[variable_statement]),
+                        self,
                     );
                 }
             }

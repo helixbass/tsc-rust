@@ -594,9 +594,10 @@ fn is_use_strict_prologue(node: Id<Node> /*ExpressionStatement*/) -> bool {
 
 pub fn find_use_strict_prologue(
     statements: &[Id<Node /*Statement*/>],
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Statement*/>> {
     for statement in statements {
-        if is_prologue_directive(statement) {
+        if is_prologue_directive(statement, arena) {
             if is_use_strict_prologue(statement) {
                 return Some(statement.clone());
             }
@@ -607,13 +608,13 @@ pub fn find_use_strict_prologue(
     None
 }
 
-pub fn starts_with_use_strict(statements: &[Id<Node>]) -> bool {
+pub fn starts_with_use_strict(statements: &[Id<Node>], arena: &impl HasArena) -> bool {
     let first_statement = first_or_undefined(statements);
     if first_statement.is_none() {
         return false;
     }
     let first_statement = first_statement.unwrap();
-    is_prologue_directive(first_statement) && is_use_strict_prologue(first_statement)
+    is_prologue_directive(first_statement, arena) && is_use_strict_prologue(first_statement)
 }
 
 pub fn is_comma_sequence(node: Id<Node> /*Expression*/) -> bool {
@@ -898,8 +899,9 @@ pub fn get_external_module_name_literal<
     host: &dyn EmitHost,
     resolver: &dyn EmitResolver,
     compiler_options: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Id<Node>>> {
-    let module_name = get_external_module_name(import_node);
+    let module_name = get_external_module_name(import_node, arena);
     if let Some(module_name) = module_name.filter(|module_name| is_string_literal(module_name)) {
         return Ok(Some(
             try_get_module_name_from_declaration(
