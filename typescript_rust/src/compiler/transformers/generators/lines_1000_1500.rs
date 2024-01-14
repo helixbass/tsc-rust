@@ -130,7 +130,7 @@ impl TransformGenerators {
         }
 
         let expression =
-            create_expression_for_object_literal_element_like(&self.factory, node, property, temp);
+            create_expression_for_object_literal_element_like(&self.factory, node, property, temp, self);
         let visited = maybe_visit_node(
             expression.as_deref(),
             Some(|node: Id<Node>| self.visitor(node)),

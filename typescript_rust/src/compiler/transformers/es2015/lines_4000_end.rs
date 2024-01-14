@@ -308,7 +308,7 @@ impl TransformES2015 {
         node: Id<Node>,   /*ClassExpression | ClassDeclaration*/
         member: Id<Node>, /*ClassElement*/
     ) -> Id<Node> {
-        if is_static(member) {
+        if is_static(member, self) {
             self.factory.get_internal_name(node, None, None)
         } else {
             self.factory.create_property_access_expression(

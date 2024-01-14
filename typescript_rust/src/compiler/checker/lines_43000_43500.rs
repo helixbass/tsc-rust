@@ -193,11 +193,10 @@ impl TypeChecker {
                             );
                             let func = get_containing_function(for_in_or_of_statement);
                             if let Some(func) = func
-                                .as_ref()
                                 .filter(|func| func.kind() != SyntaxKind::Constructor)
                             {
                                 Debug_.assert(
-                                    !get_function_flags(Some(&**func))
+                                    !get_function_flags(Some(func), self)
                                         .intersects(FunctionFlags::Async),
                                     Some("Enclosing function should never be an async function."),
                                 );
@@ -516,7 +515,7 @@ impl TypeChecker {
                 }
 
                 SyntaxKind::PropertyDeclaration => {
-                    if !is_static(&parent) || !has_effective_readonly_modifier(parent, self) {
+                    if !is_static(parent, self) || !has_effective_readonly_modifier(parent, self) {
                         return self.grammar_error_on_node(
                             &parent.as_property_declaration().name(),
                             &Diagnostics::A_property_of_a_class_whose_type_is_a_unique_symbol_type_must_be_both_static_and_readonly,

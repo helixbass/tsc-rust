@@ -870,7 +870,7 @@ impl TypeChecker {
                 .as_ref()
                 .filter(|declaration| self.is_property_without_initializer(declaration))
             {
-                if !is_static(declaration) {
+                if !is_static(declaration, self) {
                     let flow_container = self.get_control_flow_container(node);
                     if flow_container.kind() == SyntaxKind::Constructor
                         && Gc::ptr_eq(&flow_container.parent(), &declaration.parent())

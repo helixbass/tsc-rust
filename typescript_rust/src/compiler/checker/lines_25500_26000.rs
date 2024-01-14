@@ -36,7 +36,7 @@ impl TypeChecker {
             if maybe_is_class_like(container.maybe_parent())
                 || container.parent().kind() == SyntaxKind::ObjectLiteralExpression
             {
-                if is_static(container) {
+                if is_static(container, self) {
                     return matches!(
                         container.kind(),
                         SyntaxKind::MethodDeclaration
@@ -300,7 +300,7 @@ impl TypeChecker {
                 return self.get_contextual_type_for_binding_element(declaration);
             }
             SyntaxKind::PropertyDeclaration => {
-                if is_static(declaration) {
+                if is_static(declaration, self) {
                     return self.get_contextual_type_for_static_property_declaration(declaration);
                 }
             }
@@ -415,10 +415,10 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         let func = get_containing_function(node);
-        if let Some(func) = func.as_ref() {
+        if let Some(func) = func {
             let contextual_return_type = self.get_contextual_return_type(func)?;
             if let Some(mut contextual_return_type) = contextual_return_type {
-                let function_flags = get_function_flags(Some(&**func));
+                let function_flags = get_function_flags(Some(func), self);
                 if function_flags.intersects(FunctionFlags::Generator) {
                     let use_ = if function_flags.intersects(FunctionFlags::Async) {
                         IterationUse::AsyncGeneratorReturnType
@@ -501,8 +501,8 @@ impl TypeChecker {
         node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let func = get_containing_function(node);
-        if let Some(func) = func.as_ref() {
-            let function_flags = get_function_flags(Some(&**func));
+        if let Some(func) = func {
+            let function_flags = get_function_flags(Some(func), self);
             let contextual_return_type = self.get_contextual_return_type(func)?;
             if let Some(contextual_return_type) = contextual_return_type {
                 return Ok(if node.as_yield_expression().asterisk_token.is_some() {
@@ -566,7 +566,7 @@ impl TypeChecker {
         kind: IterationTypeKind,
         function_decl: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        let is_async = get_function_flags(Some(function_decl)).intersects(FunctionFlags::Async);
+        let is_async = get_function_flags(Some(function_decl), self).intersects(FunctionFlags::Async);
         let contextual_return_type = self.get_contextual_return_type(function_decl)?;
         if let Some(contextual_return_type) = contextual_return_type {
             return self.get_iteration_type_of_generator_function_return_type(

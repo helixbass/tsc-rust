@@ -141,7 +141,7 @@ impl TypeChecker {
             return true;
         }
         n.kind() == SyntaxKind::PropertyDeclaration
-            && !is_static(n)
+            && !is_static(n, self)
             && n.as_property_declaration().maybe_initializer().is_some()
     }
 

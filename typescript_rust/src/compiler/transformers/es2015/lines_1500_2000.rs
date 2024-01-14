@@ -186,6 +186,7 @@ impl TransformES2015 {
                     let accessors = get_all_accessor_declarations(
                         &node_as_class_like_declaration.members(),
                         member,
+                        self,
                     );
                     if Gc::ptr_eq(member, &accessors.first_accessor) {
                         statements.push(self.transform_accessors_to_statement(
@@ -600,7 +601,7 @@ impl TransformES2015 {
         self.set_converted_loop_state(None);
         let container = container.node_wrappered();
         let ancestor_facts =
-            if container.matches(|ref container| is_class_like(container)) && !is_static(node) {
+            if container.matches(|ref container| is_class_like(container)) && !is_static(node, self) {
                 self.enter_subtree(
                     HierarchyFacts::FunctionExcludes,
                     HierarchyFacts::FunctionIncludes | HierarchyFacts::NonStaticClassElement,

@@ -374,7 +374,7 @@ impl TypeChecker {
         if let Some(parent) = parent.as_ref().filter(|parent| {
             is_class_like(parent) || parent.kind() == SyntaxKind::InterfaceDeclaration
         }) {
-            if !is_static(&container)
+            if !is_static(container, self)
                 && (!is_constructor_declaration(&container)
                     || is_node_descendant_of(
                         node,

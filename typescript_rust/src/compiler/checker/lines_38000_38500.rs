@@ -324,7 +324,7 @@ impl TypeChecker {
             .filter(|type_declaration| is_class_like(type_declaration))
         {
             for member in &type_declaration.as_class_like_declaration().members() {
-                if !is_static(member) && !self.has_bindable_name(member)? {
+                if !is_static(member, self) && !self.has_bindable_name(member)? {
                     let symbol = self.get_symbol_of_node(member)?.unwrap();
                     self.check_index_constraint_for_property(
                         type_,
@@ -798,8 +798,8 @@ impl TypeChecker {
             Option::<fn(&Id<Node>) -> bool>::None,
         ) && some(
             Some(&node_as_class_declaration.members()),
-            Some(|p: &Id<Node>| {
-                has_static_modifier(p) && is_private_identifier_class_element_declaration(p)
+            Some(|&p: &Id<Node>| {
+                has_static_modifier(p, self) && is_private_identifier_class_element_declaration(p)
             }),
         ) {
             self.grammar_error_on_node(

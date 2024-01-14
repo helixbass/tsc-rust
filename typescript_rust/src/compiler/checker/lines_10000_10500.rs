@@ -771,8 +771,9 @@ impl TypeChecker {
 
     pub(super) fn is_static_private_identifier_property(&self, s: Id<Symbol>) -> bool {
         matches!(
-            s.ref_(self).maybe_value_declaration().as_ref(),
-            Some(value_declaration) if is_private_identifier_class_element_declaration(value_declaration) && is_static(value_declaration)
+            s.ref_(self).maybe_value_declaration(),
+            Some(value_declaration) if is_private_identifier_class_element_declaration(value_declaration)
+                && is_static(value_declaration, self)
         )
     }
 

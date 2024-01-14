@@ -155,7 +155,7 @@ impl TypeChecker {
                 self.copy_symbol(symbols, self.arguments_symbol(), meaning);
             }
 
-            *is_static_symbol = is_static(location_present);
+            *is_static_symbol = is_static(location_present, self);
             *location = location_present.maybe_parent();
         }
 

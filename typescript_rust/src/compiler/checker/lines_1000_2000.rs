@@ -1309,7 +1309,7 @@ impl TypeChecker {
                     Some(initializer) if ptr::eq(&*initializer, current)
                 );
                 if initializer_of_property {
-                    if is_static(&current.parent()) {
+                    if is_static(current.parent(), self) {
                         if declaration.kind() == SyntaxKind::MethodDeclaration {
                             return Ok(true.into());
                         }
@@ -1344,7 +1344,7 @@ impl TypeChecker {
                     } else {
                         let is_declaration_instance_property = declaration.kind()
                             == SyntaxKind::PropertyDeclaration
-                            && !is_static(declaration);
+                            && !is_static(declaration, self);
                         if !is_declaration_instance_property
                             || !are_option_gcs_equal(
                                 get_containing_class(usage).as_ref(),
@@ -1470,7 +1470,7 @@ impl TypeChecker {
                 self.requires_scope_change_worker(target, &node.as_named_declaration().name())
             }
             SyntaxKind::PropertyDeclaration => {
-                if has_static_modifier(node) {
+                if has_static_modifier(node, self) {
                     return target < ScriptTarget::ESNext || !self.use_define_for_class_fields;
                 }
                 self.requires_scope_change_worker(target, &node.as_property_declaration().name())
@@ -1736,7 +1736,7 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::PropertyDeclaration => {
-                    if !is_static(&location_unwrapped) {
+                    if !is_static(location_unwrapped, self) {
                         let ctor = self.find_constructor_declaration(&location_unwrapped.parent());
                         if let Some(ctor) = ctor {
                             if let Some(ctor_locals) = ctor.maybe_locals().as_ref() {
@@ -1778,7 +1778,7 @@ impl TypeChecker {
                             result = None;
                             should_skip_rest_of_match_arm = true;
                         }
-                        if matches!(last_location.as_ref(), Some(last_location) if is_static(last_location))
+                        if matches!(last_location, Some(last_location) if is_static(last_location, self))
                         {
                             self.error(
                                 error_location.as_deref(),

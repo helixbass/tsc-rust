@@ -510,29 +510,29 @@ pub fn try_add_prologue_directives_and_initial_super_call(
 pub fn get_properties(
     node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     require_initializer: bool,
-    is_static: bool,
+    is_static: bool, arena: &impl HasArena,
 ) -> Vec<Id<Node /*PropertyDeclaration*/>> {
     node.as_class_like_declaration()
         .members()
         .iter()
-        .filter(|m| is_initialized_or_static_property(m, require_initializer, is_static))
+        .filter(|m| is_initialized_or_static_property(m, require_initializer, is_static, arena))
         .cloned()
         .collect()
 }
 
 pub fn is_static_property_declaration_or_class_static_block_declaration(
-    element: Id<Node>, /*ClassElement*/
+    element: Id<Node>, /*ClassElement*/ arena: &impl HasArena
 ) -> bool {
-    is_static_property_declaration(element) || is_class_static_block_declaration(element)
+    is_static_property_declaration(element, arena) || is_class_static_block_declaration(element)
 }
 
 pub fn get_static_properties_and_class_static_block(
-    node: Id<Node>, /*ClassExpression | ClassDeclaration*/
+    node: Id<Node>, /*ClassExpression | ClassDeclaration*/ arena: &impl HasArena
 ) -> Vec<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
     node.as_class_like_declaration()
         .members()
         .iter()
-        .filter(|member| is_static_property_declaration_or_class_static_block_declaration(member))
+        .filter(|member| is_static_property_declaration_or_class_static_block_declaration(member, arena))
         .cloned()
         .collect()
 }
@@ -540,7 +540,7 @@ pub fn get_static_properties_and_class_static_block(
 fn is_initialized_or_static_property(
     member: Id<Node>, /*ClassElement*/
     require_initializer: bool,
-    is_static: bool,
+    is_static: bool, arena: &impl HasArena,
 ) -> bool {
     is_property_declaration(member)
         && (member
@@ -548,11 +548,11 @@ fn is_initialized_or_static_property(
             .maybe_initializer()
             .is_some()
             || !require_initializer)
-        && has_static_modifier(member) == is_static
+        && has_static_modifier(member, arena) == is_static
 }
 
-pub fn is_static_property_declaration(member: Id<Node> /*ClassElement*/) -> bool {
-    is_property_declaration(member) && has_static_modifier(member)
+pub fn is_static_property_declaration(member: Id<Node> /*ClassElement*/, arena: &impl HasArena) -> bool {
+    is_property_declaration(member) && has_static_modifier(member, arena)
 }
 
 pub fn is_initialized_property(member: Id<Node> /*ClassElement*/) -> bool {
@@ -564,9 +564,9 @@ pub fn is_initialized_property(member: Id<Node> /*ClassElement*/) -> bool {
 }
 
 pub fn is_non_static_method_or_accessor_with_private_name(
-    member: Id<Node>, /*ClassElement*/
+    member: Id<Node>, /*ClassElement*/ arena: &impl HasArena
 ) -> bool {
-    !is_static(member)
+    !is_static(member, arena)
         && is_method_or_accessor(member)
         && is_private_identifier(&member.as_named_declaration().name())
 }

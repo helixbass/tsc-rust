@@ -173,7 +173,7 @@ impl TransformTypeScript {
         node: Id<Node>,   /*ClassExpression | ClassDeclaration*/
         member: Id<Node>, /*ClassElement*/
     ) -> Id<Node> {
-        if is_static(member) {
+        if is_static(member, self) {
             self.factory.get_declaration_name(Some(node), None, None)
         } else {
             self.get_class_prototype(node)

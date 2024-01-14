@@ -360,7 +360,7 @@ impl TypeChecker {
                         );
                     }
                 }
-                if !get_function_flags(Some(node)).intersects(FunctionFlags::Async)
+                if !get_function_flags(Some(node), self).intersects(FunctionFlags::Async)
                     && self
                         .get_type_of_property_of_type_(source_return, "then")?
                         .is_none()

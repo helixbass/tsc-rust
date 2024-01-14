@@ -282,7 +282,7 @@ impl TypeChecker {
                     let members = get_members_of_declaration(decl);
                     if let Some(members) = members {
                         for member in &members {
-                            if is_static == has_static_modifier(member)
+                            if is_static == has_static_modifier(member, self)
                                 && self.has_late_bindable_name(member)?
                             {
                                 self.late_bind_member(
@@ -417,7 +417,7 @@ impl TypeChecker {
                     .unwrap();
                 if some(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    Some(|declaration: &Id<Node>| has_static_modifier(declaration)),
+                    Some(|&declaration: &Id<Node>| has_static_modifier(declaration, self)),
                 ) {
                     self.get_exports_of_symbol(parent)?;
                 } else {

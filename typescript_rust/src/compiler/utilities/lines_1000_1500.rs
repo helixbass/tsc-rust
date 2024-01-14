@@ -892,7 +892,7 @@ pub fn is_valid_es_symbol_declaration(node: Id<Node>, arena: &impl HasArena) -> 
             )
             && is_variable_declaration_in_variable_statement(node, arena)
     } else if is_property_declaration(&node.ref_(arena)) {
-        has_effective_readonly_modifier(node, arena) && has_static_modifier(&node.ref_(arena))
+        has_effective_readonly_modifier(node, arena) && has_static_modifier(node, arena)
     } else if is_property_signature(&node.ref_(arena)) {
         has_effective_readonly_modifier(node, arena)
     } else {

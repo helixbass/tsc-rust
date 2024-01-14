@@ -334,7 +334,7 @@ impl TypeChecker {
         node: Id<Node>, /*ClassElement*/
     ) -> io::Result<Id<Type>> {
         let class_symbol = self.get_symbol_of_node(&node.parent())?.unwrap();
-        Ok(if is_static(node) {
+        Ok(if is_static(node, self) {
             self.get_type_of_symbol(class_symbol)?
         } else {
             self.get_declared_type_of_symbol(class_symbol)?

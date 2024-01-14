@@ -35,9 +35,9 @@ impl TypeChecker {
             } else {
                 (is_function_like(Some(n))
                     || (matches!(
-                        n.maybe_parent().as_ref(),
+                        n.maybe_parent(),
                         Some(n_parent) if is_property_declaration(n_parent) &&
-                            !has_static_modifier(n_parent) && matches!(
+                            !has_static_modifier(n_parent, self) && matches!(
                                 n_parent.as_has_initializer().maybe_initializer().as_deref(),
                                 Some(n_parent_initializer) if ptr::eq(
                                     n_parent_initializer,
@@ -316,7 +316,7 @@ impl TypeChecker {
         container: Id<Node>,
     ) {
         if is_property_declaration(container)
-            && has_static_modifier(container)
+            && has_static_modifier(container, self)
             && matches!(
                 container.as_has_initializer().maybe_initializer().as_deref(),
                 Some(container_initializer) if text_range_contains_position_inclusive(container_initializer, this_expression.pos())
@@ -503,7 +503,7 @@ impl TypeChecker {
 
         if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent())?.unwrap();
-            let type_ = if is_static(&container) {
+            let type_ = if is_static(container, self) {
                 self.get_type_of_symbol(symbol)?
             } else {
                 self.get_declared_type_of_symbol(symbol)?
@@ -554,7 +554,7 @@ impl TypeChecker {
         }
         if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent())?.unwrap();
-            return Ok(if is_static(&container) {
+            return Ok(if is_static(container, self) {
                 Some(self.get_type_of_symbol(symbol)?)
             } else {
                 self.get_declared_type_of_symbol(symbol)?
@@ -840,7 +840,7 @@ impl TypeChecker {
             )?;
         }
 
-        if is_static(container.as_ref().unwrap()) || is_call_expression {
+        if is_static(container.unwrap(), self) || is_call_expression {
             node_check_flag = NodeCheckFlags::SuperStatic;
             if !is_call_expression
                 && self.language_version >= ScriptTarget::ES2015

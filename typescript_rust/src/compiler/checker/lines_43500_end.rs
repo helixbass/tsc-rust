@@ -426,7 +426,7 @@ impl TypeChecker {
                     || node_as_property_declaration.maybe_type().is_none()
                     || node_as_property_declaration.maybe_initializer().is_some()
                     || node.flags().intersects(NodeFlags::Ambient)
-                    || is_static(node)
+                    || is_static(node, self)
                     || has_abstract_modifier(node))
         } {
             let message = if node.as_has_initializer().maybe_initializer().is_some() {

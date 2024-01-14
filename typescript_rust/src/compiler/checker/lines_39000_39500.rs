@@ -39,7 +39,7 @@ impl TypeChecker {
             if get_effective_modifier_flags(member, self).intersects(ModifierFlags::Ambient) {
                 continue;
             }
-            if !is_static(member) && self.is_property_without_initializer(member) {
+            if !is_static(member, self) && self.is_property_without_initializer(member) {
                 let member_as_property_declaration = member.as_property_declaration();
                 let prop_name = member_as_property_declaration.name();
                 if is_identifier(&prop_name) || is_private_identifier(&prop_name) {

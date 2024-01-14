@@ -398,12 +398,12 @@ pub fn has_syntactic_modifier(node: Id<Node>, flags: ModifierFlags, arena: &impl
     get_selected_syntactic_modifier_flags(node, flags, arena) != ModifierFlags::None
 }
 
-pub fn is_static(node: &Node) -> bool {
-    is_class_element(node) && has_static_modifier(node) || is_class_static_block_declaration(node)
+pub fn is_static(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_class_element(node) && has_static_modifier(node, arena) || is_class_static_block_declaration(node)
 }
 
-pub fn has_static_modifier(node: &Node) -> bool {
-    has_syntactic_modifier(node, ModifierFlags::Static)
+pub fn has_static_modifier(node: Id<Node>, arena: &impl HasArena) -> bool {
+    has_syntactic_modifier(node, ModifierFlags::Static, arena)
 }
 
 pub fn has_override_modifier(node: Id<Node>, arena: &impl HasArena) -> bool {

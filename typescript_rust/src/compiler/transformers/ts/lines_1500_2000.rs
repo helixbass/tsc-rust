@@ -283,9 +283,9 @@ impl TransformTypeScript {
         &self,
         member: Id<Node>, /*ClassElement*/
     ) -> io::Result<Id<Node /*PropertyName*/>> {
-        let ref name = member.as_named_declaration().name();
+        let name = member.as_named_declaration().name();
         if is_computed_property_name(name)
-            && (!has_static_modifier(member)
+            && (!has_static_modifier(member, self)
                 && self.maybe_current_class_has_parameter_properties() == Some(true)
                 || member.maybe_decorators().is_non_empty())
         {

@@ -145,7 +145,7 @@ impl TransformClassFields {
             .cloned();
         let is_valid = !is_reserved_private_name(node_name) && previous_info.is_none();
 
-        if has_static_modifier(node) {
+        if has_static_modifier(node, self) {
             Debug_.assert(
                 class_constructor.is_some(),
                 // TODO: this message looks copy/pasted inaccurate, upstream?

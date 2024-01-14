@@ -102,7 +102,7 @@ impl TypeChecker {
             return is_type_query_node(&location.ref_(self))
                 || ((is_function_like_declaration(location)
                     || location.ref_(self).kind() == SyntaxKind::PropertyDeclaration
-                        && !is_static(location))
+                        && !is_static(location, self))
                     && !matches!(
                         last_location,
                         Some(last_location) if matches!(
@@ -229,7 +229,7 @@ impl TypeChecker {
                     return Ok(true);
                 }
 
-                if location_present == container && !is_static(&location_present) {
+                if location_present == container && !is_static(location_present, self) {
                     let declared_type = self.get_declared_type_of_symbol(class_symbol)?;
                     let instance_type = declared_type
                         .ref_(self)

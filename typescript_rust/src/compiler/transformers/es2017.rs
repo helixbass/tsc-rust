@@ -653,7 +653,7 @@ impl TransformES2017 {
             )?
             .unwrap(),
             None,
-            if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+            if get_function_flags(Some(node), self).intersects(FunctionFlags::Async) {
                 Some(self.transform_async_function_body(node)?)
             } else {
                 try_visit_function_body(
@@ -692,7 +692,7 @@ impl TransformES2017 {
                     )?
                     .unwrap(),
                     None,
-                    if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+                    if get_function_flags(Some(node), self).intersects(FunctionFlags::Async) {
                         Some(self.transform_async_function_body(node)?)
                     } else {
                         try_visit_function_body(
@@ -730,7 +730,7 @@ impl TransformES2017 {
             )?
             .unwrap(),
             None,
-            if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+            if get_function_flags(Some(node), self).intersects(FunctionFlags::Async) {
                 self.transform_async_function_body(node)?
             } else {
                 try_visit_function_body(
@@ -763,7 +763,7 @@ impl TransformES2017 {
             .unwrap(),
             None,
             node_as_arrow_function.equals_greater_than_token.clone(),
-            if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+            if get_function_flags(Some(node), self).intersects(FunctionFlags::Async) {
                 self.transform_async_function_body(node)?
             } else {
                 try_visit_function_body(

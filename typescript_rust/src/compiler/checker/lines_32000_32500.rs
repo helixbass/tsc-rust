@@ -189,7 +189,7 @@ impl TypeChecker {
             None,
         );
 
-        let function_flags = get_function_flags(Some(node));
+        let function_flags = get_function_flags(Some(node), self);
         let return_type = self.get_return_type_from_annotation(node)?;
         self.check_all_code_paths_in_non_void_function_return_or_throw(node, return_type)?;
 
@@ -616,9 +616,9 @@ impl TypeChecker {
                                 None,
                             ).into()
                         );
-                        if let Some(container) = container.as_ref().filter(|container| {
+                        if let Some(container) = container.filter(|&container| {
                             container.kind() != SyntaxKind::Constructor
-                                && !get_function_flags(Some(&***container))
+                                && !get_function_flags(Some(container), self)
                                     .intersects(FunctionFlags::Async)
                         }) {
                             let related_info: Gc<DiagnosticRelatedInformation> = Gc::new(

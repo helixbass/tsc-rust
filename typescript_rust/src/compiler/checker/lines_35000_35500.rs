@@ -71,9 +71,9 @@ impl TypeChecker {
                         let report_error = matches!(
                             node.kind(),
                             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature
-                        ) && is_static(node) != is_static(subsequent_node);
+                        ) && is_static(node, self) != is_static(subsequent_node, self);
                         if report_error {
-                            let diagnostic = if is_static(node) {
+                            let diagnostic = if is_static(node, self) {
                                 &*Diagnostics::Function_overload_must_be_static
                             } else {
                                 &*Diagnostics::Function_overload_must_not_be_static

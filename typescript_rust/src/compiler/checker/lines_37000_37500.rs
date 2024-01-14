@@ -168,7 +168,7 @@ impl TypeChecker {
                     None,
                 );
             } else {
-                let function_flags = get_function_flags(container.as_deref());
+                let function_flags = get_function_flags(container, self);
                 if function_flags & (FunctionFlags::Invalid | FunctionFlags::Async)
                     == FunctionFlags::Async
                     && self.language_version < ScriptTarget::ESNext

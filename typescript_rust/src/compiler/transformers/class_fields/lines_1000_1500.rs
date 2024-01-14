@@ -42,7 +42,7 @@ impl TransformClassFields {
             self.enable_substitution_for_class_static_this_or_super_reference();
         }
 
-        let static_properties = get_static_properties_and_class_static_block(node);
+        let static_properties = get_static_properties_and_class_static_block(node, self);
 
         let mut pending_class_reference_assignment: Option<Id<Node /*BinaryExpression*/>> = _d();
         if facts.intersects(ClassFacts::NeedsClassConstructorReference) {
@@ -133,7 +133,7 @@ impl TransformClassFields {
         let is_decorated_class_declaration = facts.intersects(ClassFacts::ClassWasDecorated);
 
         let static_properties_or_class_static_blocks =
-            get_static_properties_and_class_static_block(node);
+            get_static_properties_and_class_static_block(node, self);
 
         let extends_clause_element = get_effective_base_type_node(node);
         let is_derived_class = extends_clause_element.matches(|extends_clause_element| {
@@ -385,7 +385,7 @@ impl TransformClassFields {
         &self,
         member: Id<Node>, /*ClassElement*/
     ) -> bool {
-        if is_static(member)
+        if is_static(member, self)
             || has_syntactic_modifier(get_original_node(member), ModifierFlags::Abstract, self)
         {
             return false;
@@ -449,7 +449,7 @@ impl TransformClassFields {
         is_derived_class: bool,
     ) -> Option<Id<Node>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
-        let mut properties = get_properties(node, false, false);
+        let mut properties = get_properties(node, false, false, self);
         if !self.use_define_for_class_fields {
             properties = filter(&properties, |property: &Id<Node>| {
                 let property_as_property_declaration = property.as_property_declaration();
@@ -642,7 +642,7 @@ impl TransformClassFields {
             self.maybe_current_static_property_declaration_or_static_block();
         let transformed = self.transform_property_worker(property, receiver);
         if let Some(transformed) = transformed.as_ref() {
-            if has_static_modifier(property) {
+            if has_static_modifier(property, self) {
                 if let Some(current_class_lexical_environment) = self
                     .maybe_current_class_lexical_environment()
                     .filter(|current_class_lexical_environment| {
@@ -691,7 +691,7 @@ impl TransformClassFields {
                 property_as_property_declaration.name()
             };
 
-        if has_static_modifier(property) {
+        if has_static_modifier(property, self) {
             self.set_current_static_property_declaration_or_static_block(Some(
                 property.node_wrapper(),
             ));
@@ -733,7 +733,7 @@ impl TransformClassFields {
                 Debug_.fail(Some("Undeclared private name for property declaration."));
             }
         }
-        if (is_private_identifier(property_name) || has_static_modifier(property))
+        if (is_private_identifier(property_name) || has_static_modifier(property, self))
             && property_as_property_declaration
                 .maybe_initializer()
                 .is_none()

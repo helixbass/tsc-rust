@@ -123,7 +123,7 @@ impl TypeChecker {
             type_with_this,
             has_override_modifier(member, self),
             has_abstract_modifier(member),
-            is_static(member),
+            is_static(member, self),
             member_is_parameter_property,
             &symbol_name(&declared_prop.ref_(self)),
             if report_errors { Some(member) } else { None },
@@ -252,7 +252,7 @@ impl TypeChecker {
         let mut issued_member_error = false;
         let node_as_class_like_declaration = node.as_class_like_declaration();
         for member in &node_as_class_like_declaration.members() {
-            if is_static(member) {
+            if is_static(member, self) {
                 continue;
             }
             let member_as_named_declaration = member.as_named_declaration();
@@ -400,7 +400,7 @@ impl TypeChecker {
             type_with_this,
             member_has_override_modifier,
             has_abstract_modifier(member),
-            is_static(member),
+            is_static(member, self),
             false,
             &member_name,
             Option::<Id<Node>>::None,

@@ -359,7 +359,7 @@ impl TypeChecker {
             self.check_grammar_function_like_declaration(node)?;
         }
 
-        let function_flags = get_function_flags(Some(node));
+        let function_flags = get_function_flags(Some(node), self);
         if !function_flags.intersects(FunctionFlags::Invalid) {
             if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::AsyncGenerator
                 && self.language_version < ScriptTarget::ESNext
@@ -421,8 +421,8 @@ impl TypeChecker {
                 }
             }
 
-            if let Some(return_type_node) = return_type_node.as_ref() {
-                let function_flags = get_function_flags(Some(node));
+            if let Some(return_type_node) = return_type_node {
+                let function_flags = get_function_flags(Some(node), self);
                 if function_flags & (FunctionFlags::Invalid | FunctionFlags::Generator)
                     == FunctionFlags::Generator
                 {
@@ -511,7 +511,7 @@ impl TypeChecker {
                     }
                 }
             } else {
-                let is_static_member = is_static(member);
+                let is_static_member = is_static(member, self);
                 let name = member.as_named_declaration().maybe_name();
                 if name.is_none() {
                     continue;
@@ -627,7 +627,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         for member in &node.as_class_like_declaration().members() {
             let member_name_node = member.as_named_declaration().maybe_name();
-            let is_static_member = is_static(member);
+            let is_static_member = is_static(member, self);
             if is_static_member {
                 if let Some(member_name_node) = member_name_node.as_ref() {
                     let member_name = get_property_name_for_property_name_node(member_name_node);
@@ -790,7 +790,7 @@ impl TypeChecker {
         self.check_variable_like_declaration(node)?;
 
         self.set_node_links_for_private_identifier_scope(node);
-        if is_private_identifier(&node_as_named_declaration.name()) && has_static_modifier(node) {
+        if is_private_identifier(&node_as_named_declaration.name()) && has_static_modifier(node, self) {
             if let Some(node_initializer) = node.as_has_initializer().maybe_initializer().as_ref() {
                 if self.language_version == ScriptTarget::ESNext
                     && self.compiler_options.use_define_for_class_fields != Some(true)

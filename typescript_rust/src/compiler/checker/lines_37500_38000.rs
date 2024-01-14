@@ -850,7 +850,7 @@ impl TypeChecker {
         return_type: Id<Type>,
     ) -> io::Result<bool> {
         let unwrapped_return_type =
-            self.unwrap_return_type(return_type, get_function_flags(Some(func)))?;
+            self.unwrap_return_type(return_type, get_function_flags(Some(func), self))?;
         /* !!unwrappedReturnType &&*/
         Ok(self.maybe_type_of_kind(
             unwrapped_return_type,
@@ -891,7 +891,7 @@ impl TypeChecker {
 
         let signature = self.get_signature_from_declaration_(&container)?;
         let return_type = self.get_return_type_of_signature(signature)?;
-        let function_flags = get_function_flags(Some(&*container));
+        let function_flags = get_function_flags(Some(container), self);
         let node_as_return_statement = node.as_return_statement();
         if self.strict_null_checks
             || node_as_return_statement.expression.is_some()

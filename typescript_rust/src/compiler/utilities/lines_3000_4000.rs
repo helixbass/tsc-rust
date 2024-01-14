@@ -290,7 +290,7 @@ bitflags! {
     }
 }
 
-pub fn get_function_flags(node: Option<Id<Node> /*SignatureDeclaration*/>) -> FunctionFlags {
+pub fn get_function_flags(node: Option<Id<Node> /*SignatureDeclaration*/>, arena: &impl HasArena) -> FunctionFlags {
     if node.is_none() {
         return FunctionFlags::Invalid;
     }
@@ -309,13 +309,13 @@ pub fn get_function_flags(node: Option<Id<Node> /*SignatureDeclaration*/>) -> Fu
             {
                 flags |= FunctionFlags::Generator;
             }
-            if has_syntactic_modifier(node, ModifierFlags::Async, self) {
+            if has_syntactic_modifier(node, ModifierFlags::Async, arena) {
                 flags |= FunctionFlags::Async;
             }
         }
 
         SyntaxKind::ArrowFunction => {
-            if has_syntactic_modifier(node, ModifierFlags::Async, self) {
+            if has_syntactic_modifier(node, ModifierFlags::Async, arena) {
                 flags |= FunctionFlags::Async;
             }
         }
@@ -333,7 +333,7 @@ pub fn get_function_flags(node: Option<Id<Node> /*SignatureDeclaration*/>) -> Fu
     flags
 }
 
-pub fn is_async_function(node: Id<Node>) -> bool {
+pub fn is_async_function(node: Id<Node>, arena: &impl HasArena) -> bool {
     match node.kind() {
         SyntaxKind::FunctionDeclaration
         | SyntaxKind::FunctionExpression
@@ -344,7 +344,7 @@ pub fn is_async_function(node: Id<Node>) -> bool {
                 && node_as_function_like_declaration
                     .maybe_asterisk_token()
                     .is_none()
-                && has_syntactic_modifier(node, ModifierFlags::Async, self)
+                && has_syntactic_modifier(node, ModifierFlags::Async, arena)
         }
         _ => false,
     }

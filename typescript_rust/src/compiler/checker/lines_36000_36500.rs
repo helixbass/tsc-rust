@@ -146,7 +146,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_decorators(node)?;
         self.check_signature_declaration(node)?;
-        let function_flags = get_function_flags(Some(node));
+        let function_flags = get_function_flags(Some(node), self);
 
         let node_as_signature_declaration = node.as_signature_declaration();
         if let Some(node_name) = node_as_signature_declaration

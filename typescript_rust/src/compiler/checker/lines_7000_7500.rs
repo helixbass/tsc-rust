@@ -742,8 +742,8 @@ impl SymbolTableToDeclarationStatements {
             || !(p.ref_(self).flags().intersects(SymbolFlags::Prototype)
                 || p.ref_(self).escaped_name() == "prototype"
                 || matches!(
-                    p.ref_(self).maybe_value_declaration().as_ref(),
-                    Some(p_value_declaration) if is_static(p_value_declaration) && is_class_like(&p_value_declaration.parent())
+                    p.ref_(self).maybe_value_declaration(),
+                    Some(p_value_declaration) if is_static(p_value_declaration, self) && is_class_like(&p_value_declaration.parent())
                 ))
     }
 

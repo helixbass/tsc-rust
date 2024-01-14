@@ -358,7 +358,7 @@ impl TypeChecker {
             return Ok(self.any_type());
         }
         let func = func.unwrap();
-        let function_flags = get_function_flags(Some(&*func));
+        let function_flags = get_function_flags(Some(func), self);
 
         if !function_flags.intersects(FunctionFlags::Generator) {
             return Ok(self.any_type());

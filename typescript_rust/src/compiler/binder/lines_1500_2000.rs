@@ -511,7 +511,7 @@ impl BinderType {
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Id<Symbol> {
-        if is_static(node) {
+        if is_static(node, self) {
             self.declare_symbol(
                 &mut *self.container().symbol().ref_(self).exports().borrow_mut(),
                 Some(self.container().symbol()),

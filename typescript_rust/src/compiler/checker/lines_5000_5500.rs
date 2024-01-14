@@ -243,7 +243,7 @@ impl NodeBuilder {
         let is_static_method_symbol = symbol.ref_(self).flags().intersects(SymbolFlags::Method)
             && some(
                 symbol.ref_(self).maybe_declarations().as_deref(),
-                Some(|declaration: &Id<Node>| is_static(declaration)),
+                Some(|&declaration: &Id<Node>| is_static(declaration, self)),
             );
         let is_non_local_function_symbol =
             symbol.ref_(self).flags().intersects(SymbolFlags::Function)

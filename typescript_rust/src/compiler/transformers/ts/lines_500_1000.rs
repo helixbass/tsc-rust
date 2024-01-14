@@ -146,7 +146,7 @@ impl TransformTypeScript {
             .map(Into::into));
         }
 
-        let static_properties = get_properties(node, true, true);
+        let static_properties = get_properties(node, true, true, self);
         let facts = self.get_class_facts(node, &static_properties);
 
         if facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression) {
@@ -502,7 +502,7 @@ impl TransformTypeScript {
         parent: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
         node_or_child_is_decorated(member, Some(parent), Option::<Id<Node>>::None)
-            && is_static_element == is_static(member)
+            && is_static_element == is_static(member, self)
     }
 
     pub(super) fn get_decorators_of_parameters(

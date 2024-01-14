@@ -327,7 +327,7 @@ impl TypeChecker {
         }
         let func_body = func_as_function_like_declaration.maybe_body().unwrap();
 
-        let function_flags = get_function_flags(Some(func));
+        let function_flags = get_function_flags(Some(func), self);
         let is_async = function_flags.intersects(FunctionFlags::Async);
         let is_generator = function_flags.intersects(FunctionFlags::Generator);
 
@@ -598,7 +598,7 @@ impl TypeChecker {
     ) -> io::Result<CheckAndAggregateYieldOperandTypesReturn> {
         let mut yield_types: Vec<Id<Type>> = vec![];
         let mut next_types: Vec<Id<Type>> = vec![];
-        let is_async = get_function_flags(Some(func)).intersects(FunctionFlags::Async);
+        let is_async = get_function_flags(Some(func), self).intersects(FunctionFlags::Async);
         try_for_each_yield_expression(
             &func.as_function_like_declaration().maybe_body().unwrap(),
             |yield_expression: Id<Node>| -> io::Result<_> {
@@ -838,7 +838,7 @@ impl TypeChecker {
         func: Id<Node>, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
-        let function_flags = get_function_flags(Some(func));
+        let function_flags = get_function_flags(Some(func), self);
         let mut aggregated_types: Vec<Id<Type>> = vec![];
         let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
@@ -911,7 +911,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let function_flags = get_function_flags(Some(func));
+        let function_flags = get_function_flags(Some(func), self);
         let type_ = return_type
             .try_map(|return_type| self.unwrap_return_type(return_type, function_flags))?;
 

@@ -607,10 +607,10 @@ impl GetFlowTypeOfReference {
         }
         let symbol = symbol.unwrap();
         let class_symbol = symbol.ref_(self).maybe_parent().unwrap();
-        let target_type = if has_static_modifier(Debug_.check_defined::<&Id<Node>>(
-            symbol.ref_(self).maybe_value_declaration().as_ref(),
+        let target_type = if has_static_modifier(Debug_.check_defined::<Id<Node>>(
+            symbol.ref_(self).maybe_value_declaration(),
             Some("should always have a declaration"),
-        )) {
+        ), self) {
             self.type_checker.get_type_of_symbol(class_symbol)?
         } else {
             self.type_checker

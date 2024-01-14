@@ -24,7 +24,7 @@ use crate::{
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
     NodeInterface, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
     SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
-    WriteFileCallback,
+    WriteFileCallback, HasArena,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -1269,7 +1269,7 @@ pub fn identifier_is_this_keyword(id: Id<Node> /*Identifier*/) -> bool {
 
 pub fn get_all_accessor_declarations(
     declarations: &[Id<Node /*Declaration*/>],
-    accessor: Id<Node>, /*AccessorDeclaration*/
+    accessor: Id<Node>, /*AccessorDeclaration*/ arena: &impl HasArena
 ) -> AllAccessorDeclarations {
     let mut first_accessor: Option<Id<Node>> = None;
     let mut second_accessor: Option<Id<Node>> = None;
@@ -1286,7 +1286,7 @@ pub fn get_all_accessor_declarations(
         }
     } else {
         declarations.into_iter().for_each(|member| {
-            if is_accessor(member) && is_static(member) == is_static(accessor) {
+            if is_accessor(member) && is_static(member, arena) == is_static(accessor, arena) {
                 let member_name = member.as_named_declaration().name();
                 let member_name = get_property_name_for_property_name_node(&member_name);
                 let accessor_name = accessor.as_named_declaration().name();

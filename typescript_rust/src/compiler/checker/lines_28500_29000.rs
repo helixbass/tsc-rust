@@ -70,8 +70,8 @@ impl TypeChecker {
                     )
                 })?;
         Ok(matches!(
-            prop.and_then(|prop| prop.ref_(self).maybe_value_declaration()).as_ref(),
-            Some(prop_value_declaration) if is_static(prop_value_declaration)
+            prop.and_then(|prop| prop.ref_(self).maybe_value_declaration()),
+            Some(prop_value_declaration) if is_static(prop_value_declaration, self)
         ))
     }
 

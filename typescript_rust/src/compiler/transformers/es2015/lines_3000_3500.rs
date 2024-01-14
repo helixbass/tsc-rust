@@ -651,6 +651,7 @@ impl TransformES2015 {
                     let accessors = get_all_accessor_declarations(
                         &node_as_object_literal_expression.properties,
                         property,
+                        self,
                     );
                     if Gc::ptr_eq(property, &accessors.first_accessor) {
                         expressions.push(self.transform_accessors_to_expression(

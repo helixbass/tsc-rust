@@ -419,7 +419,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = node.wrap();
         let node_as_property_declaration = node.as_property_declaration();
         if is_computed_property_name(&node_as_property_declaration.name())
-            || has_static_modifier(&node)
+            || has_static_modifier(node, self)
                 && node_as_property_declaration.maybe_initializer().is_some()
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);

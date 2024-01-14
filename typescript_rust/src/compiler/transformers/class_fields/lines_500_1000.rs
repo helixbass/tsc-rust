@@ -1019,7 +1019,7 @@ impl TransformClassFields {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         filter(
             &node_as_class_like_declaration.members(),
-            |member: &Id<Node>| is_non_static_method_or_accessor_with_private_name(member),
+            |&member: &Id<Node>| is_non_static_method_or_accessor_with_private_name(member, self),
         )
     }
 
@@ -1034,7 +1034,7 @@ impl TransformClassFields {
             facts |= ClassFacts::ClassWasDecorated;
         }
         for member in &node_as_class_like_declaration.members() {
-            if !is_static(member) {
+            if !is_static(member, self) {
                 continue;
             }
             if member

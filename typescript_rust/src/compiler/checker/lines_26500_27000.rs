@@ -813,7 +813,7 @@ impl TypeChecker {
                 self.check_expression(&node_as_computed_property_name.expression, None, None)?;
             links.borrow_mut().resolved_type = Some(links_resolved_type.clone());
             if is_property_declaration(&node.parent())
-                && !has_static_modifier(&node.parent())
+                && !has_static_modifier(node.parent(), self)
                 && is_class_expression(&node.parent().parent())
             {
                 let container =

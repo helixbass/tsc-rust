@@ -509,7 +509,7 @@ impl TypeChecker {
         if is_property_declaration(declaration)
             && (self.no_implicit_any || is_in_js_file(Some(declaration)))
         {
-            if !has_static_modifier(declaration) {
+            if !has_static_modifier(declaration, self) {
                 let constructor = self.find_constructor_declaration(&declaration.parent());
                 let type_ = if let Some(constructor) = constructor {
                     self.get_flow_type_in_constructor(declaration.symbol(), &constructor)?

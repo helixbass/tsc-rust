@@ -26,7 +26,7 @@ use crate::{
     is_assignment_operator, is_default_import, is_export_namespace_as_default_declaration,
     is_file_level_unique_name, is_generated_identifier, is_property_assignment, is_property_name,
     is_shorthand_property_assignment, is_spread_assignment, map, out_file, push_if_unique_eq,
-    ModuleKind,
+    HasArena, ModuleKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -332,13 +332,14 @@ fn create_expression_for_accessor_declaration<
     property: Id<Node>, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
     receiver: Id<Node>, /*Expression*/
     multi_line: bool,
+    arena: &impl HasArena,
 ) -> Option<Id<Node>> {
     let AllAccessorDeclarations {
         first_accessor,
         get_accessor,
         set_accessor,
         ..
-    } = get_all_accessor_declarations(properties, property);
+    } = get_all_accessor_declarations(properties, property, arena);
     if ptr::eq(property, &*first_accessor) {
         return Some(
             factory
@@ -483,7 +484,8 @@ pub fn create_expression_for_object_literal_element_like<
     factory: &NodeFactory<TBaseNodeFactory>,
     node: Id<Node>,     /*ObjectLiteralExpression*/
     property: Id<Node>, /*ObjectLiteralElementLike*/
-    receiver: Id<Node>, /*Expression*/
+    receiver: Id<Node>,
+    /*Expression*/ arena: &impl HasArena,
 ) -> Option<Id<Node /*Expression*/>> {
     let node_as_object_literal_expression = node.as_object_literal_expression();
     if property
@@ -504,6 +506,7 @@ pub fn create_expression_for_object_literal_element_like<
                 property,
                 receiver,
                 node_as_object_literal_expression.multi_line == Some(true),
+                arena,
             )
         }
         SyntaxKind::PropertyAssignment => Some(create_expression_for_property_assignment(

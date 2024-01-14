@@ -102,7 +102,7 @@ pub fn create_get_symbol_accessibility_diagnostic_for_node(
 
 fn get_variable_declaration_type_visibility_diagnostic_message(
     node: Id<Node>,
-    symbol_accessibility_result: &SymbolAccessibilityResult,
+    symbol_accessibility_result: &SymbolAccessibilityResult, arena: &impl HasArena,
 ) -> Option<&'static DiagnosticMessage> {
     if matches!(
         node.kind(),
@@ -132,7 +132,7 @@ fn get_variable_declaration_type_visibility_diagnostic_message(
     ) || node.kind() == SyntaxKind::Parameter
         && has_syntactic_modifier(node.parent(), ModifierFlags::Private, self)
     {
-        if is_static(node) {
+        if is_static(node, arena) {
             return Some(
                 if symbol_accessibility_result
                     .error_module_name
@@ -211,6 +211,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetVariableDeclarationTypeVis
         let diagnostic_message = get_variable_declaration_type_visibility_diagnostic_message(
             &self.node,
             symbol_accessibility_result,
+            self,
         );
         diagnostic_message.map(|diagnostic_message| {
             Gc::new(SymbolAccessibilityDiagnostic {
@@ -242,7 +243,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVis
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
         if self.node.kind() == SyntaxKind::SetAccessor {
-            if is_static(&self.node) {
+            if is_static(self.node, self) {
                 diagnostic_message = if symbol_accessibility_result
                     .error_module_name
                     .as_ref()
@@ -266,7 +267,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVis
                 }
             }
         } else {
-            if is_static(&self.node) {
+            if is_static(self.node, self) {
                 diagnostic_message = if symbol_accessibility_result
                     .error_module_name
                     .as_ref()
@@ -367,7 +368,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
                 }
             }
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-                if is_static(&self.node) {
+                if is_static(self.node, self) {
                     diagnostic_message = if symbol_accessibility_result
                         .error_module_name
                         .as_ref()
@@ -469,8 +470,9 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetParameterDeclarationTypeVi
         symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message = get_parameter_declaration_type_visibility_diagnostic_message(
-            &self.node,
+            self.node,
             symbol_accessibility_result,
+            self,
         );
         /* diagnostisMessage !== undefined ?*/
         Some(Gc::new(SymbolAccessibilityDiagnostic {
@@ -483,8 +485,8 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetParameterDeclarationTypeVi
 }
 
 fn get_parameter_declaration_type_visibility_diagnostic_message(
-    node: Id<Node>,
-    symbol_accessibility_result: &SymbolAccessibilityResult,
+    node: Id<Node>
+    symbol_accessibility_result: &SymbolAccessibilityResult, arena: &impl HasArena,
 ) -> &'static DiagnosticMessage {
     match node.parent().kind() {
         SyntaxKind::Constructor => {
@@ -540,7 +542,7 @@ fn get_parameter_declaration_type_visibility_diagnostic_message(
             }
         }
         SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-            if is_static(&node.parent()) {
+            if is_static(node.parent(), arena) {
                 if symbol_accessibility_result
                     .error_module_name
                     .as_ref()
@@ -663,7 +665,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVis
                 diagnostic_message = &Diagnostics::Type_parameter_0_of_call_signature_from_exported_interface_has_or_is_using_private_name_1;
             }
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-                if is_static(&self.node.parent()) {
+                if is_static(self.node.parent(), self) {
                     diagnostic_message = &Diagnostics::Type_parameter_0_of_public_static_method_from_exported_class_has_or_is_using_private_name_1;
                 } else if self.node.parent().parent().kind() == SyntaxKind::ClassDeclaration {
                     diagnostic_message = &Diagnostics::Type_parameter_0_of_public_method_from_exported_class_has_or_is_using_private_name_1;

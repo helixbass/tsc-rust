@@ -44,7 +44,7 @@ impl TransformTypeScript {
             second_accessor,
             set_accessor,
             ..
-        } = get_all_accessor_declarations(&node.as_class_like_declaration().members(), accessor);
+        } = get_all_accessor_declarations(&node.as_class_like_declaration().members(), accessor, self);
         let first_accessor_with_decorators = if first_accessor.maybe_decorators().is_some() {
             Some(first_accessor)
         } else if second_accessor
@@ -566,6 +566,7 @@ impl TransformTypeScript {
             let AllAccessorDeclarations { set_accessor, .. } = get_all_accessor_declarations(
                 &container.as_class_like_declaration().members(),
                 node,
+                self,
             );
             if let Some(set_accessor) = set_accessor {
                 return set_accessor.as_set_accessor_declaration().parameters();
@@ -580,7 +581,7 @@ impl TransformTypeScript {
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         if is_function_like(Some(node)) && node.as_has_type().maybe_type().is_some() {
             return self.serialize_type_node(node.as_has_type().maybe_type());
-        } else if is_async_function(node) {
+        } else if is_async_function(node, self) {
             return Ok(self.factory.create_identifier("Promise"));
         }
 

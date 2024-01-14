@@ -936,7 +936,7 @@ impl TypeChecker {
                     let mut container = get_this_container(node, false);
                     while container.kind() != SyntaxKind::SourceFile {
                         if Gc::ptr_eq(&container.parent(), declaration) {
-                            if is_property_declaration(&container) && is_static(&container)
+                            if is_property_declaration(&container) && is_static(container, self)
                                 || is_class_static_block_declaration(&container)
                             {
                                 self.get_node_links(declaration).borrow_mut().flags |=

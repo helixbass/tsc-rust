@@ -728,7 +728,7 @@ impl BinderType {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
         {
-            if is_async_function(node) {
+            if is_async_function(node, self) {
                 self.set_emit_flags(Some(self.emit_flags() | NodeFlags::HasAsyncFunctions));
             }
         }
@@ -757,7 +757,7 @@ impl BinderType {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
         {
-            if is_async_function(node) {
+            if is_async_function(node, self) {
                 self.set_emit_flags(Some(self.emit_flags() | NodeFlags::HasAsyncFunctions));
             }
         }
@@ -780,7 +780,7 @@ impl BinderType {
     ) -> Option<Id<Symbol>> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
-            && is_async_function(node)
+            && is_async_function(node, self)
         {
             self.set_emit_flags(Some(self.emit_flags() | NodeFlags::HasAsyncFunctions));
         }

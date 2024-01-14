@@ -952,7 +952,7 @@ impl BinderType {
             | SyntaxKind::SetAccessor
             | SyntaxKind::ClassStaticBlockDeclaration => {
                 let containing_class = this_container.ref_(self).parent();
-                let symbol_table = if is_static(&this_container.ref_(self)) {
+                let symbol_table = if is_static(this_container, self) {
                     containing_class.symbol().ref_(self).exports()
                 } else {
                     containing_class.symbol().ref_(self).members()
