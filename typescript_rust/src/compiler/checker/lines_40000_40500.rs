@@ -373,7 +373,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let param = get_parameter_symbol_from_jsdoc(param_tag);
+        let param = get_parameter_symbol_from_jsdoc(param_tag, self);
         if param.is_none() {
             return Ok(());
         }
@@ -430,7 +430,7 @@ impl TypeChecker {
                     )
                     .cloned()
                 };
-                let symbol = get_parameter_symbol_from_jsdoc(param_tag);
+                let symbol = get_parameter_symbol_from_jsdoc(param_tag, self);
                 if match last_param_declaration.as_ref() {
                     None => true,
                     Some(last_param_declaration) => {

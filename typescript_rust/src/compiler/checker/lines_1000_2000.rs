@@ -1962,7 +1962,7 @@ impl TypeChecker {
             }
             last_location = Some(location_unwrapped.clone());
             location = if is_jsdoc_template_tag(&location_unwrapped) {
-                get_effective_container_for_jsdoc_template_tag(&location_unwrapped)
+                get_effective_container_for_jsdoc_template_tag(location_unwrapped, self)
                     .or_else(|| location_unwrapped.maybe_parent())
             } else {
                 location_unwrapped.maybe_parent()

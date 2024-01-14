@@ -561,7 +561,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
         self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref())?;
-        if get_parameter_symbol_from_jsdoc(node).is_none() {
+        if get_parameter_symbol_from_jsdoc(node, self).is_none() {
             let decl = get_host_signature_from_jsdoc(node);
             if let Some(decl) = decl.as_ref() {
                 let i = get_jsdoc_tags(decl)

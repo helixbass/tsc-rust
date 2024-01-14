@@ -585,7 +585,7 @@ impl TypeChecker {
                     });
                 }
                 SyntaxKind::JSDocParameterTag => {
-                    let param_symbol = get_parameter_symbol_from_jsdoc(node_present);
+                    let param_symbol = get_parameter_symbol_from_jsdoc(node_present, self);
                     if let Some(param_symbol) = param_symbol {
                         node = param_symbol.ref_(self).maybe_value_declaration();
                     }

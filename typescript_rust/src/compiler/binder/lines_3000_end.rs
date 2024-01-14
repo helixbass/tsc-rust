@@ -815,7 +815,7 @@ impl BinderType {
 
     pub(super) fn bind_type_parameter(&self, node: Id<Node> /*TypeParameterDeclaration*/) {
         if is_jsdoc_template_tag(&node.parent()) {
-            let container = get_effective_container_for_jsdoc_template_tag(&node.parent());
+            let container = get_effective_container_for_jsdoc_template_tag(node.parent(), self);
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {

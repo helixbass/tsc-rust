@@ -279,7 +279,7 @@ impl TypeChecker {
         )
         .unwrap();
         let host = if is_jsdoc_template_tag(&tp.parent()) {
-            get_effective_container_for_jsdoc_template_tag(&tp.parent())
+            get_effective_container_for_jsdoc_template_tag(tp.parent(), self)
         } else {
             Some(tp.parent())
         };

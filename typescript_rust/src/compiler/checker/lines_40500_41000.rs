@@ -524,7 +524,7 @@ impl TypeChecker {
         }
 
         if name.parent().kind() == SyntaxKind::JSDocParameterTag {
-            return Ok(get_parameter_symbol_from_jsdoc(&name.parent()));
+            return Ok(get_parameter_symbol_from_jsdoc(name.parent(), self));
         }
 
         if name.parent().kind() == SyntaxKind::TypeParameter

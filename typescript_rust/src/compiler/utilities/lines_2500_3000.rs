@@ -255,11 +255,12 @@ fn get_source_of_assignment(node: Id<Node>, arena: &impl HasArena) -> Option<Id<
 }
 
 fn get_source_of_defaulted_assignment(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
-    if !is_expression_statement(node) {
+    if !is_expression_statement(&node.ref_(arena)) {
         return None;
     }
-    let node_as_expression_statement = node.as_expression_statement();
-    if !is_binary_expression(&node_as_expression_statement.expression) {
+    let node_ref = node.ref_(arena);
+    let node_as_expression_statement = node_ref.as_expression_statement();
+    if !is_binary_expression(&node_as_expression_statement.expression.ref_(arena)) {
         return None;
     }
     if !(get_assignment_declaration_kind(node_as_expression_statement.expression, arena)
@@ -267,22 +268,24 @@ fn get_source_of_defaulted_assignment(node: Id<Node>, arena: &impl HasArena) -> 
     {
         return None;
     }
-    let node_expression_as_binary_expression = node_as_expression_statement
-        .expression
-        .as_binary_expression();
-    if !is_binary_expression(&node_expression_as_binary_expression.right) {
+    let node_expression_ref = node_as_expression_statement
+        .expression.ref_(arena);
+    let node_expression_as_binary_expression = node_expression_ref.as_binary_expression();
+    if !is_binary_expression(&node_expression_as_binary_expression.right.ref_(arena)) {
         return None;
     }
-    let node_expression_right_as_binary_expression = node_expression_as_binary_expression
+    let node_expression_right_ref = node_expression_as_binary_expression
         .right
+        .ref_(arena);
+    let node_expression_right_as_binary_expression = node_expression_right_ref
         .as_binary_expression();
     if matches!(
         node_expression_right_as_binary_expression
             .operator_token
-            .kind(),
+            .ref_(arena).kind(),
         SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
     ) {
-        Some(node_expression_right_as_binary_expression.right.clone())
+        Some(node_expression_right_as_binary_expression.right)
     } else {
         None
     }
@@ -290,14 +293,15 @@ fn get_source_of_defaulted_assignment(node: Id<Node>, arena: &impl HasArena) -> 
 
 pub fn get_single_initializer_of_variable_statement_or_property_declaration(
     node: Id<Node>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Expression*/>> {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::VariableStatement => {
-            let v = get_single_variable_of_variable_statement(node);
-            v.and_then(|v| v.as_has_initializer().maybe_initializer())
+            let v = get_single_variable_of_variable_statement(node, arena);
+            v.and_then(|v| v.ref_(arena).as_has_initializer().maybe_initializer())
         }
         SyntaxKind::PropertyDeclaration | SyntaxKind::PropertyAssignment => {
-            node.as_has_initializer().maybe_initializer()
+            node.ref_(arena).as_has_initializer().maybe_initializer()
         }
         _ => None,
     }
@@ -305,26 +309,30 @@ pub fn get_single_initializer_of_variable_statement_or_property_declaration(
 
 pub fn get_single_variable_of_variable_statement(
     node: Id<Node>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*VariableDeclaration*/>> {
-    if is_variable_statement(node) {
+    if is_variable_statement(&node.ref_(arena)) {
         first_or_undefined(
             &node
-                .as_variable_statement()
+                .ref_(arena).as_variable_statement()
                 .declaration_list
-                .as_variable_declaration_list()
+                .ref_(arena).as_variable_declaration_list()
                 .declarations,
         )
-        .map(Clone::clone)
+        .copied()
     } else {
         None
     }
 }
 
-fn get_nested_module_declaration(node: Id<Node>) -> Option<Id<Node>> {
-    if is_module_declaration(node)
-        && matches!(node.as_module_declaration().body.as_ref(), Some(body) if body.kind() == SyntaxKind::ModuleDeclaration)
+fn get_nested_module_declaration(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
+    if is_module_declaration(&node.ref_(arena))
+        && matches!(
+            node.ref_(arena).as_module_declaration().body,
+            Some(body) if body.ref_(arena).kind() == SyntaxKind::ModuleDeclaration
+        )
     {
-        node.as_module_declaration().body.clone()
+        node.ref_(arena).as_module_declaration().body
     } else {
         None
     }
@@ -400,7 +408,7 @@ pub fn get_jsdoc_comments_and_tags(
                 None,
             );
         }
-        if node_present.kind() == SyntaxKind::TypeParameter {
+        if node_present.ref_(arena).kind() == SyntaxKind::TypeParameter {
             if result.is_none() {
                 result = Some(vec![]);
             }
@@ -462,45 +470,41 @@ fn owns_jsdoc_tag(host_node: Id<Node>, tag: Id<Node> /*JSDocTag*/, arena: &impl 
 }
 
 pub fn get_next_jsdoc_comment_location(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
-    let parent = node.maybe_parent();
+    let parent = node.ref_(arena).maybe_parent();
     if matches!(
-        parent.as_ref(),
-        Some(parent) if matches!(parent.kind(), SyntaxKind::PropertyAssignment | SyntaxKind::ExportAssignment | SyntaxKind::PropertyDeclaration)
-            || parent.kind() == SyntaxKind::ExpressionStatement
-                && node.kind() == SyntaxKind::PropertyAccessExpression
-            || parent.kind() == SyntaxKind::ReturnStatement
-            || get_nested_module_declaration(node).is_some()
-            || is_binary_expression(node)
-                && node.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
+        parent,
+        Some(parent) if matches!(
+            parent.ref_(arena).kind(),
+            SyntaxKind::PropertyAssignment | SyntaxKind::ExportAssignment | SyntaxKind::PropertyDeclaration
+        ) || parent.ref_(arena).kind() == SyntaxKind::ExpressionStatement
+                && node.ref_(arena).kind() == SyntaxKind::PropertyAccessExpression
+            || parent.ref_(arena).kind() == SyntaxKind::ReturnStatement
+            || get_nested_module_declaration(node, arena).is_some()
+            || is_binary_expression(&node.ref_(arena))
+                && node.ref_(arena).as_binary_expression().operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken
     ) {
         return parent;
     }
     let parent = parent?;
-    let grandparent = parent.maybe_parent();
+    let grandparent = parent.ref_(arena).maybe_parent();
     if matches!(
-        grandparent.as_ref(),
+        grandparent,
         Some(grandparent) if matches!(
-            get_single_variable_of_variable_statement(grandparent),
-            Some(single_variable) if ptr::eq(
-                &*single_variable,
-                node,
-            )
-        ) || is_binary_expression(&parent)
-            && parent.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
+            get_single_variable_of_variable_statement(grandparent, arena),
+            Some(single_variable) if single_variable == node
+        ) || is_binary_expression(&parent.ref_(arena))
+            && parent.ref_(arena).as_binary_expression().operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken
     ) {
         return grandparent;
     }
     let grandparent = grandparent?;
-    let great_grandparent = grandparent.maybe_parent();
+    let great_grandparent = grandparent.ref_(arena).maybe_parent();
     if matches!(
-        great_grandparent.as_ref(),
-        Some(great_grandparent) if get_single_variable_of_variable_statement(great_grandparent).is_some()
+        great_grandparent,
+        Some(great_grandparent) if get_single_variable_of_variable_statement(great_grandparent, arena).is_some()
             || matches!(
-                get_single_initializer_of_variable_statement_or_property_declaration(great_grandparent),
-                Some(single_initializer) if ptr::eq(
-                    &*single_initializer,
-                    node,
-                )
+                get_single_initializer_of_variable_statement_or_property_declaration(great_grandparent, arena),
+                Some(single_initializer) if single_initializer == node
             )
             || get_source_of_defaulted_assignment(great_grandparent, arena).is_some()
     ) {
@@ -509,59 +513,62 @@ pub fn get_next_jsdoc_comment_location(node: Id<Node>, arena: &impl HasArena) ->
     None
 }
 
-pub fn get_parameter_symbol_from_jsdoc(node: Id<Node>, /*JSDocParameterTag*/) -> Option<Id<Symbol>> {
-    if node.maybe_symbol().is_some() {
-        return node.maybe_symbol();
+pub fn get_parameter_symbol_from_jsdoc(node: Id<Node> /*JSDocParameterTag*/, arena: &impl HasArena) -> Option<Id<Symbol>> {
+    if node.ref_(arena).maybe_symbol().is_some() {
+        return node.ref_(arena).maybe_symbol();
     }
-    let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
-    if !is_identifier(&node_as_jsdoc_property_like_tag.name) {
+    let node_ref = node.ref_(arena);
+    let node_as_jsdoc_property_like_tag = node_ref.as_jsdoc_property_like_tag();
+    if !is_identifier(&node_as_jsdoc_property_like_tag.name.ref_(arena)) {
         return None;
     }
-    let name = &node_as_jsdoc_property_like_tag
+    let node_name_ref = node_as_jsdoc_property_like_tag
         .name
+        .ref_(arena);
+    let name = &node_name_ref
         .as_identifier()
         .escaped_text;
-    let decl = get_host_signature_from_jsdoc(node);
+    let decl = get_host_signature_from_jsdoc(node, arena);
     let decl = decl?;
     let parameter = find(
-        &decl.as_signature_declaration().parameters(),
+        &decl.ref_(arena).as_signature_declaration().parameters(),
         |p: &Id<Node>, _| {
-            let p_name = p.as_parameter_declaration().name();
-            p_name.kind() == SyntaxKind::Identifier && &p_name.as_identifier().escaped_text == name
+            let p_name = p.ref_(arena).as_parameter_declaration().name();
+            p_name.ref_(arena).kind() == SyntaxKind::Identifier && &p_name.ref_(arena).as_identifier().escaped_text == name
         },
-    )
-    .cloned();
-    parameter.and_then(|parameter| parameter.maybe_symbol())
+    ).copied();
+    parameter.and_then(|parameter| parameter.ref_(arena).maybe_symbol())
 }
 
 pub fn get_effective_container_for_jsdoc_template_tag(
     node: Id<Node>, /*JSDocTemplateTag*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node>> {
-    let node_parent = node.parent();
-    if is_jsdoc(&node_parent) {
-        if let Some(node_parent_tags) = node_parent.as_jsdoc().tags.as_ref() {
-            let type_alias = find(node_parent_tags, |tag, _| is_jsdoc_type_alias(tag));
+    let node_parent = node.ref_(arena).parent();
+    if is_jsdoc(&node_parent.ref_(arena)) {
+        if let Some(node_parent_tags) = node_parent.ref_(arena).as_jsdoc().tags.as_ref() {
+            let type_alias = find(node_parent_tags, |tag, _| is_jsdoc_type_alias(&tag.ref_(arena)));
             if type_alias.is_some() {
-                return type_alias.map(Clone::clone);
+                return type_alias.copied();
             }
         }
     }
-    get_host_signature_from_jsdoc(node)
+    get_host_signature_from_jsdoc(node, arena)
 }
 
 pub fn get_host_signature_from_jsdoc(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*SignatureDeclaration*/>> {
     let host = get_effective_jsdoc_host(node, arena);
-    host.filter(|host| is_function_like(Some(&**host)))
+    host.filter(|host| is_function_like(Some(host.ref_(arena))))
 }
 
 pub fn get_effective_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
     let host = get_jsdoc_host(node, arena)?;
     get_source_of_defaulted_assignment(host, arena).or_else(|| {
-        get_source_of_assignment(&host).or_else(|| {
-            get_single_initializer_of_variable_statement_or_property_declaration(&host).or_else(
+        get_source_of_assignment(host, arena).or_else(|| {
+            get_single_initializer_of_variable_statement_or_property_declaration(host, arena).or_else(
                 || {
-                    get_single_variable_of_variable_statement(&host)
-                        .or_else(|| get_nested_module_declaration(&host).or_else(|| Some(host)))
+                    get_single_variable_of_variable_statement(host, arena)
+                        .or_else(|| get_nested_module_declaration(host, arena).or_else(|| Some(host)))
                 },
             )
         })
