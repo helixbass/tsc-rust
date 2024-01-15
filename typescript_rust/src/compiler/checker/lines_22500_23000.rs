@@ -67,7 +67,7 @@ impl TypeChecker {
             flow_container.map(|flow_container| flow_container.borrow().node_wrapper());
         match node.kind() {
             SyntaxKind::Identifier => {
-                if !is_this_in_type_query(node) {
+                if !is_this_in_type_query(node, self) {
                     let symbol = self.get_resolved_symbol(node)?;
                     return Ok(if symbol != self.unknown_symbol() {
                         Some(format!(
@@ -182,7 +182,7 @@ impl TypeChecker {
                 });
             }
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
-                return Ok(if is_this_in_type_query(source) {
+                return Ok(if is_this_in_type_query(source, self) {
                     target.kind() == SyntaxKind::ThisKeyword
                 } else {
                     target.kind() == SyntaxKind::Identifier

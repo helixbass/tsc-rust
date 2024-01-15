@@ -810,8 +810,8 @@ pub trait ResolveModuleNameResolutionHost {
 
 pub fn get_resolved_external_module_name(
     host: &(impl ResolveModuleNameResolutionHost + ?Sized),
-    file: Id<Node>, /*SourceFile*/
-    reference_file: Option<impl Borrow<Node /*SourceFile*/>>,
+    file: &Node, /*SourceFile*/
+    reference_file: Option<&Node /*SourceFile*/>,
 ) -> String {
     let file_as_source_file = file.as_source_file();
     file_as_source_file
@@ -824,7 +824,7 @@ pub fn get_resolved_external_module_name(
                     &file_as_source_file.file_name(),
                     reference_file
                         .map(|reference_file| {
-                            reference_file.borrow().as_source_file().file_name().clone()
+                            reference_file.as_source_file().file_name().clone()
                         })
                         .as_deref(),
                 )
@@ -850,18 +850,18 @@ pub fn get_external_module_name_from_declaration(
     arena: &impl HasArena,
 ) -> io::Result<Option<String>> {
     let file = resolver.get_external_module_file_from_declaration(declaration)?;
-    if match file.as_ref() {
+    if match file {
         None => true,
-        Some(file) => file.as_source_file().is_declaration_file(),
+        Some(file) => file.ref_(arena).as_source_file().is_declaration_file(),
     } {
         return Ok(None);
     }
     let file = file.unwrap();
     let specifier = get_external_module_name(declaration, arena);
     if let Some(specifier) = specifier {
-        if is_string_literal_like(&specifier)
-            && !path_is_relative(&specifier.as_literal_like_node().text())
-            && !get_canonical_absolute_path(host, &file.as_source_file().path()).contains(
+        if is_string_literal_like(&specifier.ref_(arena))
+            && !path_is_relative(&specifier.ref_(arena).as_literal_like_node().text())
+            && !get_canonical_absolute_path(host, &file.ref_(arena).as_source_file().path()).contains(
                 &*get_canonical_absolute_path(
                     host,
                     &ensure_trailing_directory_separator(&host.get_common_source_directory()),
@@ -873,8 +873,8 @@ pub fn get_external_module_name_from_declaration(
     }
     Ok(Some(get_resolved_external_module_name(
         host,
-        &file,
-        Option::<Id<Node>>::None,
+        &file.ref_(arena),
+        None,
     )))
 }
 
@@ -1182,7 +1182,7 @@ pub fn write_file_ensuring_directories(
     }
 }
 
-pub fn get_line_of_local_position(source_file: Id<Node> /*SourceFile*/, pos: usize) -> usize {
+pub fn get_line_of_local_position(source_file: &Node /*SourceFile*/, pos: usize) -> usize {
     let line_starts = get_line_starts(source_file.as_source_file());
     compute_line_of_position(&line_starts, pos.try_into().unwrap(), None)
 }
@@ -1254,19 +1254,18 @@ pub fn is_this_identifier(node: Option<&Node>) -> bool {
     node.kind() == SyntaxKind::Identifier && identifier_is_this_keyword(node)
 }
 
-pub fn is_this_in_type_query(node: Id<Node>) -> bool {
-    if !is_this_identifier(Some(node)) {
+pub fn is_this_in_type_query(mut node: Id<Node>, arena: &impl HasArena) -> bool {
+    if !is_this_identifier(Some(&node.ref_(arena))) {
         return false;
     }
 
-    let mut node = node.node_wrapper();
-    while is_qualified_name(&node.parent())
-        && Gc::ptr_eq(&node.parent().as_qualified_name().left, &node)
+    while is_qualified_name(&node.ref_(arena).parent().ref_(arena))
+        && node.ref_(arena).parent().as_qualified_name().left == node
     {
-        node = node.parent();
+        node = node.ref_(arena).parent();
     }
 
-    node.parent().kind() == SyntaxKind::TypeQuery
+    node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::TypeQuery
 }
 
 pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
@@ -1285,34 +1284,34 @@ pub fn get_all_accessor_declarations(
     let mut get_accessor: Option<Id<Node>> = None;
     let mut set_accessor: Option<Id<Node>> = None;
     if has_dynamic_name(accessor, arena) {
-        first_accessor = Some(accessor.node_wrapper());
-        if accessor.kind() == SyntaxKind::GetAccessor {
-            get_accessor = Some(accessor.node_wrapper());
-        } else if accessor.kind() == SyntaxKind::SetAccessor {
-            set_accessor = Some(accessor.node_wrapper());
+        first_accessor = Some(accessor);
+        if accessor.ref_(arena).kind() == SyntaxKind::GetAccessor {
+            get_accessor = Some(accessor);
+        } else if accessor.ref_(arena).kind() == SyntaxKind::SetAccessor {
+            set_accessor = Some(accessor);
         } else {
             Debug_.fail(Some("Accessor has wrong kind"));
         }
     } else {
         declarations.into_iter().for_each(|member| {
-            if is_accessor(member) && is_static(member, arena) == is_static(accessor, arena) {
-                let member_name = member.as_named_declaration().name();
+            if is_accessor(&member.ref_(arena)) && is_static(member, arena) == is_static(accessor, arena) {
+                let member_name = member.ref_(arena).as_named_declaration().name();
                 let member_name = get_property_name_for_property_name_node(member_name, arena);
-                let accessor_name = accessor.as_named_declaration().name();
+                let accessor_name = accessor.ref_(arena).as_named_declaration().name();
                 let accessor_name = get_property_name_for_property_name_node(accessor_name, arena);
                 if member_name == accessor_name {
                     if first_accessor.is_none() {
-                        first_accessor = Some(member.clone());
+                        first_accessor = Some(member);
                     } else if second_accessor.is_none() {
-                        second_accessor = Some(member.clone());
+                        second_accessor = Some(member);
                     }
 
-                    if member.kind() == SyntaxKind::GetAccessor && get_accessor.is_none() {
-                        get_accessor = Some(member.clone());
+                    if member.ref_(arena).kind() == SyntaxKind::GetAccessor && get_accessor.is_none() {
+                        get_accessor = Some(member);
                     }
 
-                    if member.kind() == SyntaxKind::SetAccessor && set_accessor.is_none() {
-                        set_accessor = Some(member.clone());
+                    if member.ref_(arena).kind() == SyntaxKind::SetAccessor && set_accessor.is_none() {
+                        set_accessor = Some(member);
                     }
                 }
             }
