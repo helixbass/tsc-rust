@@ -694,7 +694,7 @@ impl TypeChecker {
                         != InternalSymbolName::ExportEquals
                     && symbol_from_symbol_table.ref_(self).escaped_name()
                         != InternalSymbolName::Default
-                    && !(is_umd_export_symbol(Some(&symbol_from_symbol_table.ref_(self)))
+                    && !(is_umd_export_symbol(Some(symbol_from_symbol_table, self))
                         && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(enclosing_declaration))))
                     && (!use_only_external_aliasing
                         || some(

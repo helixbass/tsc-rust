@@ -1000,7 +1000,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for prop in self.get_properties_of_type(type_)? {
-            if get_declaration_modifier_flags_from_symbol(self.arena(), &prop.ref_(self), None)
+            if get_declaration_modifier_flags_from_symbol(prop, None, self)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
             } else if self.is_spreadable_property(prop) {
@@ -1181,9 +1181,9 @@ impl TypeChecker {
 
         for right_prop in self.get_properties_of_type(right)? {
             if get_declaration_modifier_flags_from_symbol(
-                self.arena(),
-                &right_prop.ref_(self),
+                right_prop,
                 None,
+                self,
             )
             .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {

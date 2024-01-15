@@ -652,9 +652,9 @@ impl TypeChecker {
         error_node: Option<Id<Node>>,
     ) -> io::Result<bool> {
         let flags = get_declaration_modifier_flags_from_symbol(
-            self.arena(),
-            &prop.ref_(self),
+            prop,
             Some(writing),
+            self,
         );
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
@@ -702,7 +702,8 @@ impl TypeChecker {
                     && is_this_initialized_declaration(location.parent().maybe_parent()))
         {
             let declaring_class_declaration = get_class_like_declaration_of_symbol(
-                &self.get_parent_of_symbol(prop)?.unwrap().ref_(self),
+                self.get_parent_of_symbol(prop)?.unwrap(),
+                self,
             );
             if let Some(declaring_class_declaration) = declaring_class_declaration.as_ref() {
                 if self.is_node_used_during_class_initialization(location) {
@@ -730,7 +731,8 @@ impl TypeChecker {
 
         if flags.intersects(ModifierFlags::Private) {
             let declaring_class_declaration = get_class_like_declaration_of_symbol(
-                &self.get_parent_of_symbol(prop)?.unwrap().ref_(self),
+                self.get_parent_of_symbol(prop)?.unwrap(),
+                self,
             )
             .unwrap();
             if !self.is_node_within_class(location, &declaring_class_declaration) {

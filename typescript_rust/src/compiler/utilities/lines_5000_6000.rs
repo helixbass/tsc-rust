@@ -28,7 +28,7 @@ use crate::{
     Extension, HasArena, HasInitializerInterface, InArena, MapLike, ModifierFlags,
     NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
     ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind,
+    SymbolFlags, SymbolInterface, SyntaxKind, BoolExt,
 };
 
 pub fn get_first_identifier(mut node: Id<Node>, arena: &impl HasArena) -> Id<Node /*Identifier*/> {
@@ -429,14 +429,14 @@ pub fn is_declaration_name_of_enum_or_namespace(node: Id<Node> /*Identifier*/, a
     false
 }
 
-pub fn get_initialized_variables(node: Id<Node> /*VariableDeclarationList*/) -> Vec<Id<Node>> {
+pub fn get_initialized_variables(node: Id<Node> /*VariableDeclarationList*/, arena: &impl HasArena) -> Vec<Id<Node>> {
     filter(
-        &node.as_variable_declaration_list().declarations,
-        |declaration: &Id<Node>| is_initialized_variable(declaration),
+        &node.ref_(arena).as_variable_declaration_list().declarations,
+        |declaration: &Id<Node>| is_initialized_variable(&declaration.ref_(arena)),
     )
 }
 
-fn is_initialized_variable(node: Id<Node> /*VariableDeclaration*/) -> bool {
+fn is_initialized_variable(node: &Node /*VariableDeclaration*/) -> bool {
     node.as_variable_declaration().maybe_initializer().is_some()
 }
 
@@ -452,35 +452,32 @@ pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
 }
 
 pub fn get_declaration_modifier_flags_from_symbol(
-    arena: &AllArenas,
-    s: &Symbol,
+    s: Id<Symbol>,
     is_write: Option<bool>,
+    arena: &impl HasArena,
 ) -> ModifierFlags {
     let is_write = is_write.unwrap_or(false);
-    if let Some(s_value_declaration) = s.maybe_value_declaration().as_ref() {
-        let declaration: Id<Node> = if is_write {
-            s.maybe_declarations().as_ref().and_then(|s_declarations| {
+    if let Some(s_value_declaration) = s.ref_(arena).maybe_value_declaration() {
+        let declaration = is_write.then_and(|| {
+            s.ref_(arena).maybe_declarations().as_ref().and_then(|s_declarations| {
                 find(s_declarations, |d: &Id<Node>, _| {
-                    d.kind() == SyntaxKind::SetAccessor
+                    d.ref_(arena).kind() == SyntaxKind::SetAccessor
                 })
-                .cloned()
+                .copied()
             })
-        } else {
-            None
-        }
-        .unwrap_or_else(|| s_value_declaration.clone());
-        let flags = get_combined_modifier_flags(&declaration);
+        }).unwrap_or(s_value_declaration);
+        let flags = get_combined_modifier_flags(declaration, arena);
         return if matches!(
-            s.maybe_parent(),
-            Some(s_parent) if arena.symbol(s_parent).flags().intersects(SymbolFlags::Class)
+            s.ref_(arena).maybe_parent(),
+            Some(s_parent) if s_parent.ref_(arena).flags().intersects(SymbolFlags::Class)
         ) {
             flags
         } else {
             flags & !ModifierFlags::AccessibilityModifier
         };
     }
-    if get_check_flags(s).intersects(CheckFlags::Synthetic) {
-        let check_flags = s.as_transient_symbol().check_flags();
+    if get_check_flags(&s.ref_(arena)).intersects(CheckFlags::Synthetic) {
+        let check_flags = s.ref_(arena).as_transient_symbol().check_flags();
         let access_modifier = if check_flags.intersects(CheckFlags::ContainsPrivate) {
             ModifierFlags::Private
         } else if check_flags.intersects(CheckFlags::ContainsPublic) {
@@ -495,7 +492,7 @@ pub fn get_declaration_modifier_flags_from_symbol(
         };
         return access_modifier | static_modifier;
     }
-    if s.flags().intersects(SymbolFlags::Prototype) {
+    if s.ref_(arena).flags().intersects(SymbolFlags::Prototype) {
         return ModifierFlags::Public | ModifierFlags::Static;
     }
     ModifierFlags::None
@@ -521,16 +518,15 @@ enum AccessKind {
 }
 
 fn access_kind(node: Id<Node>, arena: &impl HasArena) -> AccessKind {
-    let parent = node.maybe_parent();
-    if parent.is_none() {
+    let Some(parent) = node.ref_(arena).maybe_parent() else {
         return AccessKind::Read;
-    }
-    let ref parent = parent.unwrap();
+    };
 
-    match parent.kind() {
+    match parent.ref_(arena).kind() {
         SyntaxKind::ParenthesizedExpression => access_kind(parent, arena),
         SyntaxKind::PostfixUnaryExpression | SyntaxKind::PrefixUnaryExpression => {
-            let parent_as_unary_expression = parent.as_unary_expression();
+            let parent_ref = parent.ref_(arena);
+            let parent_as_unary_expression = parent_ref.as_unary_expression();
             let operator = parent_as_unary_expression.operator();
             if matches!(
                 operator,
@@ -542,11 +538,12 @@ fn access_kind(node: Id<Node>, arena: &impl HasArena) -> AccessKind {
             }
         }
         SyntaxKind::BinaryExpression => {
-            let parent_as_binary_expression = parent.as_binary_expression();
-            let left = &parent_as_binary_expression.left;
-            let operator_token = &parent_as_binary_expression.operator_token;
-            if ptr::eq(&**left, node) && is_assignment_operator(operator_token.kind()) {
-                if operator_token.kind() == SyntaxKind::EqualsToken {
+            let parent_ref = parent.ref_(arena);
+            let parent_as_binary_expression = parent_ref.as_binary_expression();
+            let left = parent_as_binary_expression.left;
+            let operator_token = parent_as_binary_expression.operator_token;
+            if left == node && is_assignment_operator(operator_token.ref_(arena).kind()) {
+                if operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken {
                     AccessKind::Write
                 } else {
                     write_or_read_write(parent, arena)
@@ -556,15 +553,15 @@ fn access_kind(node: Id<Node>, arena: &impl HasArena) -> AccessKind {
             }
         }
         SyntaxKind::PropertyAccessExpression => {
-            if !ptr::eq(&*parent.as_property_access_expression().name, node) {
+            if parent.ref_(arena).as_property_access_expression().name != node {
                 AccessKind::Read
             } else {
                 access_kind(parent, arena)
             }
         }
         SyntaxKind::PropertyAssignment => {
-            let parent_access = access_kind(parent.parent(), arena);
-            if ptr::eq(node, &*parent.as_property_assignment().name()) {
+            let parent_access = access_kind(parent.ref_(arena).parent(), arena);
+            if node == parent.ref_(arena).as_property_assignment().name() {
                 reverse_access_kind(parent_access)
             } else {
                 parent_access
@@ -572,15 +569,12 @@ fn access_kind(node: Id<Node>, arena: &impl HasArena) -> AccessKind {
         }
         SyntaxKind::ShorthandPropertyAssignment => {
             if matches!(
-                parent.as_shorthand_property_assignment().object_assignment_initializer.as_ref(),
-                Some(parent_object_assignment_initializer) if ptr::eq(
-                    node,
-                    &**parent_object_assignment_initializer
-                )
+                parent.ref_(arena).as_shorthand_property_assignment().object_assignment_initializer,
+                Some(parent_object_assignment_initializer) if node == parent_object_assignment_initializer
             ) {
                 AccessKind::Read
             } else {
-                access_kind(parent.parent(), arena)
+                access_kind(parent.ref_(arena).parent(), arena)
             }
         }
         SyntaxKind::ArrayLiteralExpression => access_kind(parent, arena),
@@ -589,10 +583,10 @@ fn access_kind(node: Id<Node>, arena: &impl HasArena) -> AccessKind {
 }
 
 fn write_or_read_write(parent: Id<Node>, arena: &impl HasArena) -> AccessKind {
-    if let Some(grandparent) = parent.maybe_parent().as_ref() {
+    if let Some(grandparent) = parent.ref_(arena).maybe_parent() {
         if walk_up_parenthesized_expressions(grandparent, arena)
             .unwrap()
-            .kind()
+            .ref_(arena).kind()
             == SyntaxKind::ExpressionStatement
         {
             return AccessKind::Write;
@@ -610,16 +604,17 @@ fn reverse_access_kind(a: AccessKind) -> AccessKind {
 }
 
 pub fn get_class_like_declaration_of_symbol(
-    symbol: &Symbol,
+    symbol: Id<Symbol>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
     symbol
-        .maybe_declarations()
+        .ref_(arena).maybe_declarations()
         .as_ref()
         .and_then(|symbol_declarations| {
             symbol_declarations
                 .into_iter()
-                .find(|declaration| is_class_like(declaration))
-                .cloned()
+                .find(|declaration| is_class_like(&declaration.ref_(arena)))
+                .copied()
         })
 }
 
@@ -643,14 +638,14 @@ pub fn type_has_call_or_construct_signatures(
             .is_empty())
 }
 
-pub fn is_umd_export_symbol(symbol: Option<&Symbol>) -> bool {
+pub fn is_umd_export_symbol(symbol: Option<Id<Symbol>>, arena: &impl HasArena) -> bool {
     matches!(
         symbol,
         Some(symbol) if matches!(
-            symbol.maybe_declarations().as_ref(),
+            symbol.ref_(arena).maybe_declarations().as_ref(),
             Some(symbol_declarations) if matches!(
                 symbol_declarations.get(0),
-                Some(symbol_declarations_0) if is_namespace_export_declaration(symbol_declarations_0)
+                Some(symbol_declarations_0) if is_namespace_export_declaration(&symbol_declarations_0.ref_(arena))
             )
         )
     )
@@ -694,8 +689,8 @@ pub fn is_bundle_file_text_like(_section: &BundleFileSection) -> bool {
 }
 
 pub fn get_leftmost_access_expression(
-    mut expr: Id<Node>,
-    /*Expression*/ arena: &impl HasArena,
+    mut expr: Id<Node> /*Expression*/,
+    arena: &impl HasArena,
 ) -> Id<Node /*Expression*/> {
     while is_access_expression(&expr.ref_(arena)) {
         expr = expr.ref_(arena).as_has_expression().expression();
@@ -704,29 +699,29 @@ pub fn get_leftmost_access_expression(
 }
 
 pub fn get_leftmost_expression(
-    node: Id<Node>, /*Expression*/
+    mut node: Id<Node>, /*Expression*/
     stop_at_call_expressions: bool,
+    arena: &impl HasArena,
 ) -> Id<Node /*Expression*/> {
-    let mut node = node.node_wrapper();
     loop {
-        match node.kind() {
+        match node.ref_(arena).kind() {
             SyntaxKind::PostfixUnaryExpression => {
-                node = node.as_postfix_unary_expression().operand.clone();
+                node = node.ref_(arena).as_postfix_unary_expression().operand;
                 continue;
             }
 
             SyntaxKind::BinaryExpression => {
-                node = node.as_binary_expression().left.clone();
+                node = node.ref_(arena).as_binary_expression().left;
                 continue;
             }
 
             SyntaxKind::ConditionalExpression => {
-                node = node.as_conditional_expression().condition.clone();
+                node = node.ref_(arena).as_conditional_expression().condition;
                 continue;
             }
 
             SyntaxKind::TaggedTemplateExpression => {
-                node = node.as_tagged_template_expression().tag.clone();
+                node = node.ref_(arena).as_tagged_template_expression().tag;
                 continue;
             }
 
@@ -734,7 +729,7 @@ pub fn get_leftmost_expression(
                 if stop_at_call_expressions {
                     return node;
                 }
-                node = node.as_has_expression().expression();
+                node = node.ref_(arena).as_has_expression().expression();
                 continue;
             }
             SyntaxKind::AsExpression
@@ -742,7 +737,7 @@ pub fn get_leftmost_expression(
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::NonNullExpression
             | SyntaxKind::PartiallyEmittedExpression => {
-                node = node.as_has_expression().expression();
+                node = node.ref_(arena).as_has_expression().expression();
                 continue;
             }
             _ => (),
@@ -887,7 +882,7 @@ fn is_diagnostic_with_detached_location(
 
 pub fn attach_file_to_diagnostic(
     diagnostic: &DiagnosticWithDetachedLocation,
-    file: Id<Node>, /*SourceFile*/
+    file: &Node, /*SourceFile*/
 ) -> DiagnosticWithLocation {
     let file_as_source_file = file.as_source_file();
     let file_name = file_as_source_file.file_name();
@@ -899,7 +894,7 @@ pub fn attach_file_to_diagnostic(
         BaseDiagnosticRelatedInformation::new(
             diagnostic.category(),
             diagnostic.code(),
-            Some(file.node_wrapper()),
+            Some(file),
             Some(diagnostic.start()),
             Some(diagnostic.length()),
             diagnostic.message_text().clone(),

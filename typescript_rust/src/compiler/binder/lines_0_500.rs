@@ -97,7 +97,7 @@ pub fn get_module_instance_state(
     if let Some(node_body) = node_as_module_declaration.body.as_ref() {
         if node_body.maybe_parent().is_none() {
             set_parent(node_body, Some(node.node_wrapper()));
-            set_parent_recursive(Some(&**node_body), false);
+            set_parent_recursive(Some(node_body), false, self);
         }
     }
     if let Some(node_body) = node_as_module_declaration.body.as_ref() {
@@ -228,7 +228,7 @@ pub(super) fn get_module_instance_state_for_alias_target(
                 if node_has_name(statement, &name) {
                     if statement.maybe_parent().is_none() {
                         set_parent(statement, Some(p_present.clone()));
-                        set_parent_recursive(Some(&**statement), false);
+                        set_parent_recursive(Some(statement), false, self);
                     }
                     let state = get_module_instance_state_cached(statement, Some(visited.clone()));
                     if match found {

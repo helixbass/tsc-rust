@@ -458,7 +458,7 @@ impl TypeChecker {
             type_ = Some(self.any_type());
             if self.produce_diagnostics
                 && self.no_implicit_any
-                && !expression_result_is_unused(node)
+                && !expression_result_is_unused(node, self)
             {
                 let contextual_type = self.get_contextual_type_(node, None)?;
                 if match contextual_type {

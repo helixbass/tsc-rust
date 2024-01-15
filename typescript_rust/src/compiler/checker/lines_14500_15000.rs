@@ -741,7 +741,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let include_non_public = include_non_public.unwrap_or(false);
         if include_non_public
-            || !get_declaration_modifier_flags_from_symbol(self.arena(), &prop.ref_(self), None)
+            || !get_declaration_modifier_flags_from_symbol(prop, None, self)
                 .intersects(ModifierFlags::NonPublicAccessibilityModifier)
         {
             let mut type_ = (*self.get_symbol_links(self.get_late_bound_symbol(prop)?))

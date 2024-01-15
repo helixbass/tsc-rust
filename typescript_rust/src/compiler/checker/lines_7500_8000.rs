@@ -705,9 +705,9 @@ impl MakeSerializePropertySymbol {
         base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Id<Node>>> {
         let modifier_flags = get_declaration_modifier_flags_from_symbol(
-            self.type_checker.arena(),
-            &p.ref_(self),
+            p,
             None,
+            self,
         );
         let is_private = modifier_flags.intersects(ModifierFlags::Private);
         if is_static

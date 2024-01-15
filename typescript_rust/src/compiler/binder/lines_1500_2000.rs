@@ -119,7 +119,7 @@ impl BinderType {
             let node_as_jsdoc_typedef_or_callback_tag = node.as_jsdoc_typedef_or_callback_tag();
             if let Some(node_full_name) = node_as_jsdoc_typedef_or_callback_tag.maybe_full_name() {
                 set_parent(&node_full_name, Some(node.node_wrapper()));
-                set_parent_recursive(Some(node_full_name), false);
+                set_parent_recursive(Some(node_full_name), false, self);
             }
         }
         if let Some(StringOrNodeArray::NodeArray(node_comment)) = node_as_jsdoc_tag.maybe_comment()

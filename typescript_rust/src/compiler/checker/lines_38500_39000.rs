@@ -328,7 +328,7 @@ impl TypeChecker {
                 Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private, self)
             ) {
                 let type_class_declaration =
-                    get_class_like_declaration_of_symbol(&type_.ref_(self).symbol().ref_(self))
+                    get_class_like_declaration_of_symbol(type_.ref_(self).symbol(), self)
                         .unwrap();
                 if !self.is_node_within_class(node, &type_class_declaration) {
                     self.error(
@@ -451,13 +451,13 @@ impl TypeChecker {
             );
             let derived = self.get_target_symbol(base_symbol);
             let base_declaration_flags =
-                get_declaration_modifier_flags_from_symbol(self.arena(), &base.ref_(self), None);
+                get_declaration_modifier_flags_from_symbol(base, None, self);
 
             // Debug.assert(!!derived, "derived should point at something, even if it is the base class' declaration.");
 
             if derived == base {
                 let derived_class_decl =
-                    get_class_like_declaration_of_symbol(&type_.ref_(self).symbol().ref_(self))
+                    get_class_like_declaration_of_symbol(type_.ref_(self).symbol(), self)
                         .unwrap();
 
                 if base_declaration_flags.intersects(ModifierFlags::Abstract) &&
@@ -524,9 +524,9 @@ impl TypeChecker {
                 }
             } else {
                 let derived_declaration_flags = get_declaration_modifier_flags_from_symbol(
-                    self.arena(),
-                    &derived.ref_(self),
+                    derived,
                     None,
+                    self,
                 );
                 if base_declaration_flags.intersects(ModifierFlags::Private)
                     || derived_declaration_flags.intersects(ModifierFlags::Private)
@@ -619,7 +619,8 @@ impl TypeChecker {
                             {
                                 let constructor = self.find_constructor_declaration(
                                     &get_class_like_declaration_of_symbol(
-                                        &type_.ref_(self).symbol().ref_(self),
+                                        type_.ref_(self).symbol(),
+                                        self,
                                     )
                                     .unwrap(),
                                 );

@@ -374,14 +374,14 @@ impl CheckTypeRelatedTo {
         skip_optional: bool,
     ) -> io::Result<Ternary> {
         let source_prop_flags = get_declaration_modifier_flags_from_symbol(
-            self.type_checker.arena(),
-            &source_prop.ref_(self),
+            source_prop,
             None,
+            self,
         );
         let target_prop_flags = get_declaration_modifier_flags_from_symbol(
-            self.type_checker.arena(),
-            &target_prop.ref_(self),
+            target_prop,
             None,
+            self,
         );
         if source_prop_flags.intersects(ModifierFlags::Private)
             || target_prop_flags.intersects(ModifierFlags::Private)

@@ -1048,9 +1048,9 @@ impl NodeBuilder {
                     continue;
                 }
                 if get_declaration_modifier_flags_from_symbol(
-                    self.type_checker.arena(),
-                    &property_symbol.ref_(self),
+                    property_symbol,
                     None,
+                    self,
                 )
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 /*&& context.tracker.reportPrivateInBaseOfClassExpression*/

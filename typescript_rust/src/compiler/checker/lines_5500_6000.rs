@@ -140,7 +140,7 @@ impl NodeBuilder {
                     if let Some(type_node) = type_node.as_ref() {
                         result.push(type_node.clone());
                         if let Some(seen_names) = seen_names.as_mut() {
-                            if is_identifier_type_reference(type_node) {
+                            if is_identifier_type_reference(type_node, self) {
                                 seen_names.add(
                                     type_node
                                         .as_type_reference_node()

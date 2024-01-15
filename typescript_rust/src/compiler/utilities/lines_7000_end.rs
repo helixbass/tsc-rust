@@ -129,63 +129,59 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
 }
 
 pub fn is_valid_type_only_alias_use_site(use_site: Id<Node>, arena: &impl HasArena) -> bool {
-    use_site.flags().intersects(NodeFlags::Ambient)
+    use_site.ref_(arena).flags().intersects(NodeFlags::Ambient)
         || is_part_of_type_query(use_site, arena)
-        || is_identifier_in_non_emitting_heritage_clause(use_site)
+        || is_identifier_in_non_emitting_heritage_clause(use_site, arena)
         || is_part_of_possibly_valid_type_or_abstract_computed_property_name(use_site, arena)
-        || !(is_expression_node(use_site, arena) || is_shorthand_property_name_use_site(use_site))
+        || !(is_expression_node(use_site, arena) || is_shorthand_property_name_use_site(use_site, arena))
 }
 
-fn is_shorthand_property_name_use_site(use_site: &Node) -> bool {
-    is_identifier(use_site)
-        && is_shorthand_property_assignment(&use_site.parent())
-        && ptr::eq(
-            &*use_site.parent().as_shorthand_property_assignment().name(),
-            use_site,
-        )
+fn is_shorthand_property_name_use_site(use_site: Id<Node>, arena: &impl HasArena) -> bool {
+    is_identifier(&use_site.ref_(arena))
+        && is_shorthand_property_assignment(&use_site.ref_(arena).parent().ref_(arena))
+        && use_site.ref_(arena).parent().ref_(arena).as_shorthand_property_assignment().name() == use_site
 }
 
-fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(node: Id<Node>, arena: &impl HasArena) -> bool {
-    let mut node = node.node_wrapper();
+fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(mut node: Id<Node>, arena: &impl HasArena) -> bool {
     while matches!(
-        node.kind(),
+        node.ref_(arena).kind(),
         SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression
     ) {
-        node = node.parent();
+        node = node.ref_(arena).parent();
     }
-    if node.kind() != SyntaxKind::ComputedPropertyName {
+    if node.ref_(arena).kind() != SyntaxKind::ComputedPropertyName {
         return false;
     }
-    if has_syntactic_modifier(node.parent(), ModifierFlags::Abstract, arena) {
+    if has_syntactic_modifier(node.ref_(arena).parent(), ModifierFlags::Abstract, arena) {
         return true;
     }
-    let container_kind = node.parent().parent().kind();
+    let container_kind = node.ref_(arena).parent().ref_(arena).parent().ref_(arena).kind();
     matches!(
         container_kind,
         SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeLiteral
     )
 }
 
-fn is_identifier_in_non_emitting_heritage_clause(node: &Node) -> bool {
-    if node.kind() != SyntaxKind::Identifier {
+fn is_identifier_in_non_emitting_heritage_clause(node: Id<Node>, arena: &impl HasArena) -> bool {
+    if node.ref_(arena).kind() != SyntaxKind::Identifier {
         return false;
     }
-    let heritage_clause = find_ancestor(node.maybe_parent(), |parent| match parent.kind() {
+    let heritage_clause = find_ancestor(node.ref_(arena).maybe_parent(), |parent| match parent.ref_(arena).kind() {
         SyntaxKind::HeritageClause => true.into(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ExpressionWithTypeArguments => {
             false.into()
         }
         _ => FindAncestorCallbackReturn::Quit,
-    });
+    }, arena);
     matches!(
-        heritage_clause.as_ref(),
-        Some(heritage_clause) if heritage_clause.as_heritage_clause().token == SyntaxKind::ImplementsKeyword ||
-            heritage_clause.parent().kind() == SyntaxKind::InterfaceDeclaration
+        heritage_clause,
+        Some(heritage_clause) if heritage_clause.ref_(arena).as_heritage_clause().token == SyntaxKind::ImplementsKeyword ||
+            heritage_clause.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::InterfaceDeclaration
     )
 }
 
-pub fn is_identifier_type_reference(node: &Node) -> bool {
-    is_type_reference_node(node) && is_identifier(&node.as_type_reference_node().type_name)
+pub fn is_identifier_type_reference(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_type_reference_node(&node.ref_(arena)) && is_identifier(&node.ref_(arena).as_type_reference_node().type_name.ref_(arena))
 }
 
 pub fn array_is_homogeneous<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
@@ -255,34 +251,34 @@ pub fn maybe_set_parent(
     child
 }
 
-pub fn set_parent_recursive(root_node: Option<&Node>, incremental: bool) {
-    if root_node.is_none() {
+pub fn set_parent_recursive(root_node: Option<Id<Node>>, incremental: bool, arena: &impl HasArena) {
+    let Some(root_node) = root_node else {
         return /*rootNode*/;
-    }
-    let root_node = root_node.unwrap();
-    let is_jsdoc_node_root_node = is_jsdoc_node(root_node);
+    };
+    let is_jsdoc_node_root_node = is_jsdoc_node(&root_node.ref_(arena));
     for_each_child_recursively(
         root_node,
         |child, parent| -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
             if is_jsdoc_node_root_node {
-                bind_parent_to_child_ignoring_jsdoc(incremental, child, parent)
+                bind_parent_to_child_ignoring_jsdoc(incremental, &child.ref_(arena), parent)
             } else {
-                bind_parent_to_child(incremental, child, parent)
+                bind_parent_to_child(incremental, child, parent, arena)
             }
         },
         Option::<fn(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>>::None,
+        arena,
     );
 }
 
 fn bind_parent_to_child_ignoring_jsdoc(
     incremental: bool,
-    child: Id<Node>,
+    child: &Node,
     parent: Id<Node>,
 ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
     if incremental
         && matches!(
-            child.maybe_parent().as_ref(),
-            Some(child_parent) if ptr::eq(&**child_parent, parent)
+            child.maybe_parent(),
+            Some(child_parent) if child_parent == parent
         )
     {
         return Some(ForEachChildRecursivelyCallbackReturn::Skip);
@@ -294,18 +290,20 @@ fn bind_parent_to_child_ignoring_jsdoc(
 fn bind_jsdoc(
     incremental: bool,
     child: Id<Node>,
+    arena: &impl HasArena,
 ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
-    if has_jsdoc_nodes(child) {
-        for doc in &child.maybe_js_doc().unwrap() {
-            bind_parent_to_child_ignoring_jsdoc(incremental, doc, child);
+    if has_jsdoc_nodes(&child.ref_(arena)) {
+        for &doc in &child.ref_(arena).maybe_js_doc().unwrap() {
+            bind_parent_to_child_ignoring_jsdoc(incremental, &doc.ref_(arena), child);
             for_each_child_recursively(
                 doc,
                 |child, parent| -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
-                    bind_parent_to_child_ignoring_jsdoc(incremental, child, parent)
+                    bind_parent_to_child_ignoring_jsdoc(incremental, &child.ref_(arena), parent)
                 },
                 Option::<
                     fn(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
                 >::None,
+                arena,
             );
         }
     }
@@ -316,56 +314,51 @@ fn bind_parent_to_child(
     incremental: bool,
     child: Id<Node>,
     parent: Id<Node>,
+    arena: &impl HasArena,
 ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
-    bind_parent_to_child_ignoring_jsdoc(incremental, child, parent)
-        .or_else(|| bind_jsdoc(incremental, child))
+    bind_parent_to_child_ignoring_jsdoc(incremental, &child.ref_(arena), parent)
+        .or_else(|| bind_jsdoc(incremental, child, arena))
 }
 
 pub fn is_packed_array_literal(_node: Id<Node> /*Expression*/) -> bool {
     unimplemented!()
 }
 
-pub fn expression_result_is_unused(node: Id<Node> /*Expression*/) -> bool {
-    Debug_.assert_is_defined(&node.maybe_parent(), None);
-    let mut node = node.node_wrapper();
+pub fn expression_result_is_unused(mut node: Id<Node> /*Expression*/, arena: &impl HasArena) -> bool {
+    Debug_.assert_is_defined(&node.ref_(arena).maybe_parent(), None);
     loop {
-        let parent = node.parent();
-        if is_parenthesized_expression(&parent) {
+        let parent = node.ref_(arena).parent();
+        if is_parenthesized_expression(&parent.ref_(arena)) {
             node = parent;
             continue;
         }
-        if is_expression_statement(&parent)
-            || is_void_expression(&parent)
-            || is_for_statement(&parent) && {
-                let parent_as_for_statement = parent.as_for_statement();
+        if is_expression_statement(&parent.ref_(arena))
+            || is_void_expression(&parent.ref_(arena))
+            || is_for_statement(&parent.ref_(arena)) && {
+                let parent_ref = parent.ref_(arena);
+                let parent_as_for_statement = parent_ref.as_for_statement();
                 matches!(
-                    parent_as_for_statement.initializer.as_ref(),
-                    Some(parent_initializer) if Gc::ptr_eq(
-                        parent_initializer,
-                        &node
-                    )
+                    parent_as_for_statement.initializer,
+                    Some(parent_initializer) if parent_initializer == node
                 ) || matches!(
-                    parent_as_for_statement.incrementor.as_ref(),
-                    Some(parent_incrementor) if Gc::ptr_eq(
-                        parent_incrementor,
-                        &node
-                    )
+                    parent_as_for_statement.incrementor,
+                    Some(parent_incrementor) if parent_incrementor == node
                 )
             }
         {
             return true;
         }
-        if is_comma_list_expression(&parent) {
-            if !Gc::ptr_eq(&node, last(&parent.as_comma_list_expression().elements)) {
+        if is_comma_list_expression(&parent.ref_(arena)) {
+            if node != *last(&parent.ref_(arena).as_comma_list_expression().elements) {
                 return true;
             }
             node = parent;
             continue;
         }
-        if is_binary_expression(&parent)
-            && parent.as_binary_expression().operator_token.kind() == SyntaxKind::CommaToken
+        if is_binary_expression(&parent.ref_(arena))
+            && parent.ref_(arena).as_binary_expression().operator_token.ref_(arena).kind() == SyntaxKind::CommaToken
         {
-            if Gc::ptr_eq(&node, &parent.as_binary_expression().left) {
+            if node == parent.ref_(arena).as_binary_expression().left {
                 return true;
             }
             node = parent;

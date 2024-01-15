@@ -319,9 +319,9 @@ impl TypeChecker {
             get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Readonly)
                 || symbol.ref_(self).flags().intersects(SymbolFlags::Property)
                     && get_declaration_modifier_flags_from_symbol(
-                        self.arena(),
-                        &symbol.ref_(self),
+                        symbol,
                         None,
+                        self,
                     )
                     .intersects(ModifierFlags::Readonly)
                 || symbol.ref_(self).flags().intersects(SymbolFlags::Variable)

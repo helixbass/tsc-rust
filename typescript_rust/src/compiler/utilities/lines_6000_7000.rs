@@ -34,7 +34,7 @@ use crate::{
     LanguageVariant, MapLike, Matches, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray,
     NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange,
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike,
-    TypeAcquisition, WatchOptions,
+    TypeAcquisition, WatchOptions, AllArenas,
 };
 
 pub fn create_compiler_diagnostic_from_message_chain(
@@ -115,12 +115,9 @@ fn get_diagnostic_file_path(
     })
 }
 
-pub fn compare_diagnostics<
-    TDiagnosticRelatedInformation1: DiagnosticRelatedInformationInterface,
-    TDiagnosticRelatedInformation2: DiagnosticRelatedInformationInterface,
->(
-    d1: &TDiagnosticRelatedInformation1,
-    d2: &TDiagnosticRelatedInformation2,
+pub fn compare_diagnostics(
+    d1: &impl DiagnosticRelatedInformationInterface,
+    d2: &impl DiagnosticRelatedInformationInterface,
 ) -> Comparison {
     let mut compared = compare_diagnostics_skip_related_information(d1, d2);
     if compared != Comparison::EqualTo {
@@ -137,16 +134,14 @@ pub fn compare_diagnostics<
     Comparison::EqualTo
 }
 
-pub fn compare_diagnostics_skip_related_information<
-    TDiagnosticRelatedInformation1: DiagnosticRelatedInformationInterface,
-    TDiagnosticRelatedInformation2: DiagnosticRelatedInformationInterface,
->(
-    d1: &TDiagnosticRelatedInformation1,
-    d2: &TDiagnosticRelatedInformation2,
+pub fn compare_diagnostics_skip_related_information(
+    d1: &impl DiagnosticRelatedInformationInterface,
+    d2: &impl DiagnosticRelatedInformationInterface,
+    arena: &impl HasArena,
 ) -> Comparison {
     let mut compared = compare_strings_case_sensitive_maybe(
-        get_diagnostic_file_path(d1).as_deref(),
-        get_diagnostic_file_path(d2).as_deref(),
+        get_diagnostic_file_path(d1, arena).as_deref(),
+        get_diagnostic_file_path(d2, arena).as_deref(),
     );
     if compared != Comparison::EqualTo {
         return compared;
@@ -1038,6 +1033,12 @@ impl SymlinkCache {
                 );
             }
         }
+    }
+}
+
+impl HasArena for SymlinkCache {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

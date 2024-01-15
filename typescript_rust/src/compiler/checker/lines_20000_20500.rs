@@ -874,9 +874,9 @@ impl TypeChecker {
             !self.for_each_property_bool(target_prop, &mut |tp: Id<Symbol>| {
                 Ok(
                     if get_declaration_modifier_flags_from_symbol(
-                        self.arena(),
-                        &tp.ref_(self),
+                        tp,
                         None,
+                        self,
                     )
                     .intersects(ModifierFlags::Protected)
                     {
@@ -902,9 +902,9 @@ impl TypeChecker {
             if self.for_each_property_bool(prop, &mut |p: Id<Symbol>| {
                 Ok(
                     if get_declaration_modifier_flags_from_symbol(
-                        self.arena(),
-                        &p.ref_(self),
+                        p,
                         Some(writing),
+                        self,
                     )
                     .intersects(ModifierFlags::Protected)
                     {
@@ -1031,10 +1031,10 @@ impl TypeChecker {
             return Ok(Ternary::True);
         }
         let source_prop_accessibility =
-            get_declaration_modifier_flags_from_symbol(self.arena(), &source_prop.ref_(self), None)
+            get_declaration_modifier_flags_from_symbol(source_prop, None, self)
                 & ModifierFlags::NonPublicAccessibilityModifier;
         let target_prop_accessibility =
-            get_declaration_modifier_flags_from_symbol(self.arena(), &target_prop.ref_(self), None)
+            get_declaration_modifier_flags_from_symbol(target_prop, None, self)
                 & ModifierFlags::NonPublicAccessibilityModifier;
         if source_prop_accessibility != target_prop_accessibility {
             return Ok(Ternary::False);

@@ -257,6 +257,7 @@ impl Program {
                         )
                     })
                 },
+                self,
             );
 
             let ret = (*diagnostics).borrow().clone();
@@ -993,7 +994,7 @@ impl Program {
                             || !is_external_module_name_relative(&module_name_text))
                 }
             }) {
-                set_parent_recursive(Some(node), false);
+                set_parent_recursive(Some(node), false, self);
                 append(
                     imports.get_or_insert_default_(),
                     Some(module_name_expr.clone()),
@@ -1065,7 +1066,7 @@ impl Program {
                 match_.end().try_into().unwrap(),
             );
             if is_java_script_file && is_require_call(node, true, self) {
-                set_parent_recursive(Some(&**node), false);
+                set_parent_recursive(Some(node), false, self);
                 if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
                 {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
@@ -1074,13 +1075,13 @@ impl Program {
                 let node_arguments = &node.as_call_expression().arguments;
                 node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0])
             } {
-                set_parent_recursive(Some(&**node), false);
+                set_parent_recursive(Some(node), false, self);
                 if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
                 {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }
             } else if is_literal_import_type_node(node, self) {
-                set_parent_recursive(Some(&**node), false);
+                set_parent_recursive(Some(node), false, self);
                 append(
                     imports.get_or_insert_default_(),
                     Some(

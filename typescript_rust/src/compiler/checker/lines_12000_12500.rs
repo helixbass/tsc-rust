@@ -101,7 +101,7 @@ impl TypeChecker {
                 let prop =
                     self.get_property_of_type_(type_, name, skip_object_function_property_augment)?;
                 let modifiers = if let Some(prop) = prop {
-                    get_declaration_modifier_flags_from_symbol(self.arena(), &prop.ref_(self), None)
+                    get_declaration_modifier_flags_from_symbol(prop, None, self)
                 } else {
                     ModifierFlags::None
                 };

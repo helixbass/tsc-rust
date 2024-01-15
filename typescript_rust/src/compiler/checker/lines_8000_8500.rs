@@ -818,9 +818,9 @@ impl TypeChecker {
                 )?,
                 omit_key_type,
             )? && !get_declaration_modifier_flags_from_symbol(
-                self.arena(),
-                &prop.ref_(self),
+                prop,
                 None,
+                self,
             )
             .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(prop)

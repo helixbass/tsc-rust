@@ -871,7 +871,7 @@ impl BinderType {
             } else {
                 for j in node.maybe_js_doc().unwrap() {
                     set_parent(&j, Some(node.node_wrapper()));
-                    set_parent_recursive(Some(j), false);
+                    set_parent_recursive(Some(j), false, self);
                 }
             }
         }

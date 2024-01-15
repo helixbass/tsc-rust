@@ -908,7 +908,7 @@ impl TypeChecker {
         let base_signatures =
             self.get_signatures_of_type(base_constructor_type, SignatureKind::Construct)?;
         let declaration =
-            get_class_like_declaration_of_symbol(&class_type.ref_(self).symbol().ref_(self));
+            get_class_like_declaration_of_symbol(class_type.ref_(self).symbol(), self);
         let is_abstract = matches!(
             declaration,
             Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract, self)

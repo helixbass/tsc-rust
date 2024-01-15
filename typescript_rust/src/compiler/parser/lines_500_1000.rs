@@ -10,7 +10,7 @@ use id_arena::Id;
 
 use super::{Parser, ParsingContext};
 use crate::{
-    attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
+HasArena, InArena,    attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
     ensure_script_kind, for_each_child, gc_cell_ref_unwrapped, get_language_variant, is_logging,
     normalize_path, object_allocator, ref_unwrapped, BaseNode, Debug_, Diagnostic, Diagnostics,
     HasStatementsInterface, IncrementalParser, IncrementalParserSyntaxCursor,
@@ -31,19 +31,16 @@ impl<TValue> From<TValue> for ForEachChildRecursivelyCallbackReturn<TValue> {
     }
 }
 
-pub fn for_each_child_recursively<
-    TValue,
-    TCBNode: FnMut(Id<Node>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
-    TCBNodes: FnMut(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
->(
+pub fn for_each_child_recursively<TValue>(
     root_node: Id<Node>,
-    mut cb_node: TCBNode,
-    mut cb_nodes: Option<TCBNodes>,
+    mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
+    mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>>,
+    arena: &impl HasArena,
 ) -> Option<TValue> {
-    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
+    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(&root_node.ref_(arena));
     let mut parents: Vec<Id<Node>> = vec![];
     while parents.len() < queue.len() {
-        parents.push(root_node.node_wrapper());
+        parents.push(root_node);
     }
     while !queue.is_empty() {
         let current = queue.pop().unwrap();
@@ -51,7 +48,7 @@ pub fn for_each_child_recursively<
         match current {
             RcNodeOrNodeArray::NodeArray(current) => {
                 if let Some(cb_nodes) = cb_nodes.as_mut() {
-                    let res = cb_nodes(&current, &parent);
+                    let res = cb_nodes(&current, parent);
                     if let Some(res) = res {
                         match res {
                             ForEachChildRecursivelyCallbackReturn::Skip => {
@@ -63,13 +60,13 @@ pub fn for_each_child_recursively<
                         }
                     }
                 }
-                for current_child in current.to_vec().iter().rev() {
-                    queue.push(current_child.clone().into());
-                    parents.push(parent.clone());
+                for &current_child in current.to_vec().iter().rev() {
+                    queue.push(current_child.into());
+                    parents.push(parent);
                 }
             }
             RcNodeOrNodeArray::RcNode(current) => {
-                let res = cb_node(&current, &parent);
+                let res = cb_node(current, parent);
                 if let Some(res) = res {
                     match res {
                         ForEachChildRecursivelyCallbackReturn::Skip => {
@@ -80,10 +77,10 @@ pub fn for_each_child_recursively<
                         }
                     }
                 }
-                if current.kind() >= SyntaxKind::FirstNode {
-                    for child in gather_possible_children(&current) {
+                if current.ref_(arena).kind() >= SyntaxKind::FirstNode {
+                    for child in gather_possible_children(&current.ref_(arena)) {
                         queue.push(child);
-                        parents.push(current.clone());
+                        parents.push(current);
                     }
                 }
             }
@@ -96,6 +93,7 @@ pub fn for_each_child_recursively_bool(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> bool,
     cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> bool>,
+    arena: &impl HasArena,
 ) -> bool {
     try_for_each_child_recursively_bool(
         root_node,
@@ -103,6 +101,7 @@ pub fn for_each_child_recursively_bool(
         cb_nodes.map(|mut cb_nodes| {
             move |a: &NodeArray, b: Id<Node>| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
         }),
+        arena,
     )
     .unwrap()
 }
@@ -111,11 +110,12 @@ pub fn try_for_each_child_recursively_bool<TError>(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> Result<bool, TError>,
     mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Result<bool, TError>>,
+    arena: &impl HasArena,
 ) -> Result<bool, TError> {
-    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
+    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(&root_node.ref_(arena));
     let mut parents: Vec<Id<Node>> = vec![];
     while parents.len() < queue.len() {
-        parents.push(root_node.node_wrapper());
+        parents.push(root_node);
     }
     while !queue.is_empty() {
         let current = queue.pop().unwrap();
@@ -123,25 +123,25 @@ pub fn try_for_each_child_recursively_bool<TError>(
         match current {
             RcNodeOrNodeArray::NodeArray(current) => {
                 if let Some(cb_nodes) = cb_nodes.as_mut() {
-                    let res = cb_nodes(&current, &parent)?;
+                    let res = cb_nodes(&current, parent)?;
                     if res {
                         return Ok(true);
                     }
                 }
-                for current_child in current.to_vec().iter().rev() {
-                    queue.push(current_child.clone().into());
-                    parents.push(parent.clone());
+                for &current_child in current.to_vec().iter().rev() {
+                    queue.push(current_child.into());
+                    parents.push(parent);
                 }
             }
             RcNodeOrNodeArray::RcNode(current) => {
-                let res = cb_node(&current, &parent)?;
+                let res = cb_node(current, parent)?;
                 if res {
                     return Ok(true);
                 }
-                if current.kind() >= SyntaxKind::FirstNode {
-                    for child in gather_possible_children(&current) {
+                if current.ref_(arena).kind() >= SyntaxKind::FirstNode {
+                    for child in gather_possible_children(&current.ref_(arena)) {
                         queue.push(child);
-                        parents.push(current.clone());
+                        parents.push(current);
                     }
                 }
             }
@@ -167,12 +167,12 @@ impl From<Gc<NodeArray>> for RcNodeOrNodeArray {
     }
 }
 
-fn gather_possible_children(node: Id<Node>) -> Vec<RcNodeOrNodeArray> {
+fn gather_possible_children(node: &Node) -> Vec<RcNodeOrNodeArray> {
     let children: RefCell<Vec<RcNodeOrNodeArray>> = RefCell::new(vec![]);
     for_each_child(
         node,
         |child| {
-            children.borrow_mut().insert(0, child.node_wrapper().into());
+            children.borrow_mut().insert(0, child.into());
         },
         Some(|node_array: &NodeArray| {
             children

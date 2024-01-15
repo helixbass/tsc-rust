@@ -299,7 +299,7 @@ impl ParserType {
     }
 
     pub fn fixup_parent_references(&self, root_node: Id<Node>) {
-        set_parent_recursive(Some(root_node), true);
+        set_parent_recursive(Some(root_node), true, self);
     }
 
     pub(super) fn create_source_file<TNodes: Into<NodeArrayOrVec>>(

@@ -588,7 +588,7 @@ impl TypeChecker {
                     .ref_(self)
                     .maybe_symbol()
                     .and_then(|expression_type_symbol| {
-                        get_class_like_declaration_of_symbol(&expression_type_symbol.ref_(self))
+                        get_class_like_declaration_of_symbol(expression_type_symbol, self)
                     });
             if value_decl
                 .matches(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract, self))
@@ -731,7 +731,7 @@ impl TypeChecker {
         }
 
         let declaring_class_declaration =
-            get_class_like_declaration_of_symbol(&declaration.parent().symbol().ref_(self))
+            get_class_like_declaration_of_symbol(declaration.parent().symbol(), self)
                 .unwrap();
         let declaring_class = self.get_declared_type_of_symbol(declaration.parent().symbol())?;
 
