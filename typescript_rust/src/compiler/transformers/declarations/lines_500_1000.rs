@@ -270,7 +270,7 @@ impl TransformDeclarations {
     ) -> io::Result<Gc<NodeArray>> {
         let mut new_params: Vec<Id<Node /*ParameterDeclaration*/>> = Default::default();
         if !is_private {
-            let this_parameter = get_this_parameter(input);
+            let this_parameter = get_this_parameter(input, self);
             if let Some(this_parameter) = this_parameter {
                 new_params.push(self.ensure_parameter(&this_parameter, None, None)?);
             }
@@ -278,7 +278,7 @@ impl TransformDeclarations {
         if is_set_accessor_declaration(input) {
             let mut new_value_parameter: Option<Id<Node /*ParameterDeclaration*/>> = None;
             if !is_private {
-                let value_parameter = get_set_accessor_value_parameter(input);
+                let value_parameter = get_set_accessor_value_parameter(input, self);
                 if let Some(value_parameter) = value_parameter {
                     let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
                         input,

@@ -261,7 +261,7 @@ impl TypeChecker {
                 .into_iter()
                 .position(|param| ptr::eq(&**param, parameter))
                 .unwrap()
-                - if get_this_parameter(&func).is_some() {
+                - if get_this_parameter(func, self).is_some() {
                     1
                 } else {
                     0

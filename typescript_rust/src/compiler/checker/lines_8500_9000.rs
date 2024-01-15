@@ -117,7 +117,7 @@ impl TypeChecker {
         }
         if self.strict_null_checks
             && declaration.flags().intersects(NodeFlags::Ambient)
-            && is_parameter_declaration(declaration)
+            && is_parameter_declaration(declaration, self)
         {
             parent_type = self.get_non_nullable_type(parent_type)?;
         } else if self.strict_null_checks

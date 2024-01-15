@@ -372,7 +372,7 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*VariableLikeDeclaration*/
     ) -> bool {
-        let root = get_root_declaration(declaration);
+        let root = get_root_declaration(declaration, self);
         let member_declaration = if root.kind() == SyntaxKind::Parameter {
             root.parent()
         } else {
@@ -474,7 +474,7 @@ impl TypeChecker {
         Debug_.assert_is_defined(&symbol.ref_(self).maybe_value_declaration(), None);
         let declaration = symbol.ref_(self).maybe_value_declaration();
         let declaration = declaration.as_deref().unwrap();
-        if is_catch_clause_variable_declaration_or_binding_element(declaration) {
+        if is_catch_clause_variable_declaration_or_binding_element(declaration, self) {
             let type_node = get_effective_type_annotation_node(declaration);
             if type_node.is_none() {
                 return Ok(if self.use_unknown_in_catch_variables {

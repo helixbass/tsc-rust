@@ -161,7 +161,7 @@ impl TransformSystemModule {
                         try_visit_nodes(
                             &node_as_function_declaration.parameters(),
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_parameter_declaration),
+                            Some(|node| is_parameter_declaration(node, self)),
                             None,
                             None,
                         )?,

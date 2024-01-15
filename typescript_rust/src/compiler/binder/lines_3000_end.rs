@@ -646,13 +646,13 @@ impl BinderType {
                     SymbolFlags::Alias,
                     SymbolFlags::AliasExcludes,
                 );
-            } else if is_block_or_catch_scoped(node) {
+            } else if is_block_or_catch_scoped(node, self) {
                 self.bind_block_scoped_declaration(
                     node,
                     SymbolFlags::BlockScopedVariable,
                     SymbolFlags::BlockScopedVariableExcludes,
                 );
-            } else if is_parameter_declaration(node) {
+            } else if is_parameter_declaration(node, self) {
                 self.declare_symbol_and_add_to_symbol_table(
                     node,
                     SymbolFlags::FunctionScopedVariable,

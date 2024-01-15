@@ -27,7 +27,7 @@ impl TypeChecker {
         let this_container = get_this_container(node, false);
         /*thisContainer &&*/
         if is_function_like(Some(&*this_container)) {
-            get_this_parameter(&this_container)
+            get_this_parameter(this_container, self)
         } else {
             None
         }

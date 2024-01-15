@@ -226,7 +226,7 @@ impl TypeChecker {
             {
                 let declaration = catch_clause_variable_declaration;
                 let type_node =
-                    get_effective_type_annotation_node(&get_root_declaration(declaration));
+                    get_effective_type_annotation_node(&get_root_declaration(declaration, self));
                 if let Some(type_node) = type_node.as_ref() {
                     let type_ = self.get_type_for_variable_like_declaration(declaration, false)?;
                     if matches!(

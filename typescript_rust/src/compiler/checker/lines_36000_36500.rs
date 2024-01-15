@@ -568,7 +568,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>,
     ) -> Option<Id<Node /*ParameterDeclaration*/>> {
-        try_cast(get_root_declaration(node), |root_declaration: &Id<Node>| {
+        try_cast(get_root_declaration(node, self), |root_declaration: &Id<Node>| {
             is_parameter(root_declaration)
         })
     }
@@ -701,7 +701,7 @@ impl TypeChecker {
                             });
                         if let (Some(parameter), Some(name)) = (parameter.as_ref(), name.as_ref()) {
                             if !is_parameter_property_declaration(parameter, parameter.parent(), self)
-                                && !parameter_is_this_keyword(parameter)
+                                && !parameter_is_this_keyword(parameter, self)
                                 && !self.is_identifier_that_starts_with_underscore(name)
                             {
                                 if is_binding_element(declaration)
@@ -1062,7 +1062,7 @@ impl TypeChecker {
             }
         }
 
-        let root = get_root_declaration(node);
+        let root = get_root_declaration(node, self);
         if is_parameter(&root)
             && node_is_missing(root.parent().as_function_like_declaration().maybe_body())
         {

@@ -290,7 +290,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<VisitResult> {
         let node_as_parameter_declaration = node.as_parameter_declaration();
-        if parameter_is_this_keyword(node) {
+        if parameter_is_this_keyword(node, self) {
             return Ok(None);
         }
 

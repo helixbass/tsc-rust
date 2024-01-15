@@ -672,7 +672,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_declaration_container(&self, node: Id<Node>) -> Id<Node> {
-        find_ancestor(Some(get_root_declaration(node)), |node| {
+        find_ancestor(Some(get_root_declaration(node, self)), |node| {
             !matches!(
                 node.kind(),
                 SyntaxKind::VariableDeclaration

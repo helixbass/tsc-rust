@@ -24,7 +24,7 @@ use crate::{
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
     NodeInterface, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
     SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
-    WriteFileCallback, HasArena,
+    WriteFileCallback, HasArena, InArena,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -1199,50 +1199,53 @@ pub fn get_first_constructor_with_body(
 
 pub fn get_set_accessor_value_parameter(
     accessor: Id<Node>, /*SetAccessorDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*ParameterDeclaration*/>> {
-    let accessor_as_set_accessor_declaration = accessor.as_set_accessor_declaration();
+    let accessor_ref = accessor.ref_(arena);
+    let accessor_as_set_accessor_declaration = accessor_ref.as_set_accessor_declaration();
     let accessor_parameters = accessor_as_set_accessor_declaration.parameters();
     if
     /*accessor &&*/
     !accessor_parameters.is_empty() {
         let has_this =
-            accessor_parameters.len() == 2 && parameter_is_this_keyword(&accessor_parameters[0]);
-        return Some(accessor_parameters[if has_this { 1 } else { 0 }].clone());
+            accessor_parameters.len() == 2 && parameter_is_this_keyword(accessor_parameters[0], arena);
+        return Some(accessor_parameters[if has_this { 1 } else { 0 }]);
     }
     None
 }
 
 pub fn get_set_accessor_type_annotation_node(
     accessor: Id<Node>, /*SetAccessorDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
-    let parameter = get_set_accessor_value_parameter(accessor);
-    parameter.and_then(|parameter| parameter.as_parameter_declaration().maybe_type())
+    let parameter = get_set_accessor_value_parameter(accessor, arena);
+    parameter.and_then(|parameter| parameter.ref_(arena).as_parameter_declaration().maybe_type())
 }
 
 pub fn get_this_parameter(
     signature: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*ParameterDeclaration*/>> {
-    let signature_as_signature_declaration = signature.as_signature_declaration();
-    if !signature_as_signature_declaration.parameters().is_empty() && !is_jsdoc_signature(signature)
+    let signature_ref = signature.ref_(arena);
+    let signature_as_signature_declaration = signature_ref.as_signature_declaration();
+    if !signature_as_signature_declaration.parameters().is_empty() && !is_jsdoc_signature(&signature.ref_(arena))
     {
-        let this_parameter = &signature_as_signature_declaration.parameters()[0];
-        if parameter_is_this_keyword(this_parameter) {
-            return Some(this_parameter.clone());
+        let this_parameter = signature_as_signature_declaration.parameters()[0];
+        if parameter_is_this_keyword(this_parameter, arena) {
+            return Some(this_parameter);
         }
     }
     None
 }
 
-pub fn parameter_is_this_keyword(parameter: Id<Node> /*ParameterDeclaration*/) -> bool {
-    is_this_identifier(Some(parameter.as_parameter_declaration().name()))
+pub fn parameter_is_this_keyword(parameter: Id<Node> /*ParameterDeclaration*/, arena: &impl HasArena) -> bool {
+    is_this_identifier(Some(&parameter.ref_(arena).as_parameter_declaration().name().ref_(arena)))
 }
 
-pub fn is_this_identifier(node: Option<Id<Node>>) -> bool {
-    if node.is_none() {
+pub fn is_this_identifier(node: Option<&Node>) -> bool {
+    let Some(node) = node else {
         return false;
-    }
-    let node = node.unwrap();
-    let node = node.borrow();
+    };
     node.kind() == SyntaxKind::Identifier && identifier_is_this_keyword(node)
 }
 
@@ -1261,7 +1264,7 @@ pub fn is_this_in_type_query(node: Id<Node>) -> bool {
     node.parent().kind() == SyntaxKind::TypeQuery
 }
 
-pub fn identifier_is_this_keyword(id: Id<Node> /*Identifier*/) -> bool {
+pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
     matches!(
         id.as_identifier().original_keyword_kind,
         Some(SyntaxKind::ThisKeyword)

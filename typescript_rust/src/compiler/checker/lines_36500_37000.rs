@@ -292,7 +292,7 @@ impl TypeChecker {
         node: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) -> io::Result<()> {
         if get_combined_node_flags(node).intersects(NodeFlags::BlockScoped)
-            || is_parameter_declaration(node)
+            || is_parameter_declaration(node, self)
         {
             return Ok(());
         }
@@ -488,7 +488,7 @@ impl TypeChecker {
             )?;
         }
         if node_as_has_initializer.maybe_initializer().is_some()
-            && is_parameter_declaration(node)
+            && is_parameter_declaration(node, self)
             && node_is_missing(
                 get_containing_function(node)
                     .unwrap()

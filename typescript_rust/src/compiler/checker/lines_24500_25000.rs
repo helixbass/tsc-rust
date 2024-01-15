@@ -580,7 +580,7 @@ impl TypeChecker {
             return Ok(false);
         }
         let symbol_value_declaration = symbol_value_declaration.unwrap();
-        let parent = get_root_declaration(&symbol_value_declaration).parent();
+        let parent = get_root_declaration(symbol_value_declaration, self).parent();
         let links = self.get_node_links(&parent);
         if !(*links)
             .borrow()
@@ -1076,7 +1076,7 @@ impl TypeChecker {
 
         type_ = self.get_narrowable_type_for_reference(type_, node, check_mode)?;
 
-        let is_parameter = get_root_declaration(&declaration).kind() == SyntaxKind::Parameter;
+        let is_parameter = get_root_declaration(declaration, self).kind() == SyntaxKind::Parameter;
         let declaration_container = self.maybe_get_control_flow_container(&declaration);
         let mut flow_container = self.get_control_flow_container(node);
         let is_outer_variable = !matches!(

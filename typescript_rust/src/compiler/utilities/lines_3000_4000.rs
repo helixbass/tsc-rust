@@ -516,15 +516,14 @@ pub fn is_push_or_unshift_identifier(node: Id<Node> /*Identifier*/) -> bool {
     )
 }
 
-pub fn is_parameter_declaration(node: Id<Node> /*VariableLikeDeclaration*/) -> bool {
-    let root = get_root_declaration(node);
-    root.kind() == SyntaxKind::Parameter
+pub fn is_parameter_declaration(node: Id<Node> /*VariableLikeDeclaration*/, arena: &impl HasArena) -> bool {
+    let root = get_root_declaration(node, arena);
+    root.ref_(arena).kind() == SyntaxKind::Parameter
 }
 
-pub fn get_root_declaration(node: Id<Node>) -> Id<Node> {
-    let mut node = node.node_wrapper();
-    while node.kind() == SyntaxKind::BindingElement {
-        node = node.parent().parent();
+pub fn get_root_declaration(mut node: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+    while node.ref_(arena).kind() == SyntaxKind::BindingElement {
+        node = node.ref_(arena).parent().ref_(arena).parent();
     }
     node
 }

@@ -599,7 +599,7 @@ impl TypeChecker {
         let result_declarations = result_ref.maybe_declarations();
         let declaration = result_declarations.as_ref().and_then(|declarations| {
             declarations.iter().find(|d| {
-                is_block_or_catch_scoped(d)
+                is_block_or_catch_scoped(d, self)
                     || is_class_like(d)
                     || d.ref_(self).kind() == SyntaxKind::EnumDeclaration
             })
@@ -1703,7 +1703,7 @@ impl TypeChecker {
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let root = if is_binding_element(node) {
-            get_root_declaration(node)
+            get_root_declaration(node, self)
         } else {
             node.parent().parent().parent()
         };

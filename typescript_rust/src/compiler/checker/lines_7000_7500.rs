@@ -37,7 +37,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn include_private_symbol(&self, symbol: Id<Symbol>) {
         if some(
             symbol.ref_(self).maybe_declarations().as_deref(),
-            Some(|declaration: &Id<Node>| is_parameter_declaration(declaration)),
+            Some(|declaration: &Id<Node>| is_parameter_declaration(declaration, self)),
         ) {
             return;
         }

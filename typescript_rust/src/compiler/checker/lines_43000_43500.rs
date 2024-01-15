@@ -395,7 +395,7 @@ impl TypeChecker {
                 );
             }
             let parameter = Debug_.check_defined(
-                get_set_accessor_value_parameter(accessor),
+                get_set_accessor_value_parameter(accessor, self),
                 Some("Return value does not match parameter count assertion."),
             );
             let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
@@ -460,7 +460,7 @@ impl TypeChecker {
                 2
             }
         {
-            return get_this_parameter(accessor);
+            return get_this_parameter(accessor, self);
         }
         None
     }

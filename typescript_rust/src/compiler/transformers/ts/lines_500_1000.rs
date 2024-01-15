@@ -517,7 +517,7 @@ impl TransformTypeScript {
             let node_as_function_like_declaration = node.as_function_like_declaration();
             let parameters = node_as_function_like_declaration.parameters();
             let first_parameter_is_this =
-                !parameters.is_empty() && parameter_is_this_keyword(&parameters[0]);
+                !parameters.is_empty() && parameter_is_this_keyword(parameters[0], self);
             let first_parameter_offset = if first_parameter_is_this { 1 } else { 0 };
             let num_parameters = if first_parameter_is_this {
                 parameters.len() - 1

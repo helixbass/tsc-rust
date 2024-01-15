@@ -446,7 +446,7 @@ impl TypeChecker {
         let is_in_js = is_in_js_file(Some(node));
         if is_function_like(Some(&*container))
             && (!self.is_in_parameter_initializer_before_containing_function(node)
-                || get_this_parameter(&container).is_some())
+                || get_this_parameter(container, self).is_some())
         {
             let mut this_type = self.get_this_type_of_declaration(&container)?.try_or_else(
                 || -> io::Result<_> {

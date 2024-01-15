@@ -1556,17 +1556,18 @@ pub fn make_identifier_from_module_name(module_name: &str) -> String {
         .into_owned()
 }
 
-pub fn is_block_or_catch_scoped(declaration: Id<Node> /*Declaration*/) -> bool {
-    get_combined_node_flags(declaration).intersects(NodeFlags::BlockScoped)
-        || is_catch_clause_variable_declaration_or_binding_element(declaration)
+pub fn is_block_or_catch_scoped(declaration: Id<Node> /*Declaration*/, arena: &impl HasArena) -> bool {
+    get_combined_node_flags(declaration, arena).intersects(NodeFlags::BlockScoped)
+        || is_catch_clause_variable_declaration_or_binding_element(declaration, arena)
 }
 
 pub fn is_catch_clause_variable_declaration_or_binding_element(
     declaration: Id<Node>, /*Declaration*/
+    arena: &impl HasArena,
 ) -> bool {
-    let node = get_root_declaration(declaration);
-    node.kind() == SyntaxKind::VariableDeclaration
-        && node.parent().kind() == SyntaxKind::CatchClause
+    let node = get_root_declaration(declaration, arena);
+    node.ref_(arena).kind() == SyntaxKind::VariableDeclaration
+        && node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::CatchClause
 }
 
 pub fn is_ambient_module(node: Id<Node>) -> bool {

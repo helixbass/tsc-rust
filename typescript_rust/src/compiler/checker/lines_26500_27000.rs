@@ -446,7 +446,7 @@ impl TypeChecker {
             target_parameter_count += 1;
         }
         if !target_as_signature_declaration.parameters().is_empty()
-            && parameter_is_this_keyword(&target_as_signature_declaration.parameters()[0])
+            && parameter_is_this_keyword(target_as_signature_declaration.parameters()[0], self)
         {
             target_parameter_count -= 1;
         }

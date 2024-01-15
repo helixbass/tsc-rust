@@ -474,9 +474,8 @@ impl TransformTypeScript {
         let accessors = self.resolver.get_all_accessor_declarations(node)?;
         Ok(accessors
             .set_accessor
-            .as_ref()
             .and_then(|accessors_set_accessor| {
-                get_set_accessor_type_annotation_node(accessors_set_accessor)
+                get_set_accessor_type_annotation_node(accessors_set_accessor, self)
             })
             .or_else(|| {
                 accessors

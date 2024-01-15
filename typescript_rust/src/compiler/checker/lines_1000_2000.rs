@@ -1932,7 +1932,7 @@ impl TypeChecker {
                         are_option_gcs_equal(Some(last_location), location_as_binding_element.maybe_initializer().as_ref()) ||
                         are_option_gcs_equal(Some(last_location), location_as_binding_element.maybe_name().as_ref()) && is_binding_pattern(Some(&**last_location))
                     }) {
-                        if is_parameter_declaration(&location_unwrapped)
+                        if is_parameter_declaration(location_unwrapped, self)
                             && associated_declaration_for_containing_initializer_or_binding_name
                                 .is_none()
                         {
@@ -2229,6 +2229,7 @@ impl TypeChecker {
                         .unwrap();
                     let root = get_root_declaration(
                         associated_declaration_for_containing_initializer_or_binding_name,
+                        self,
                     );
                     if Some(candidate)
                         == self.get_symbol_of_node(

@@ -93,7 +93,7 @@ pub fn get_effective_set_accessor_type_annotation_node(
     node: Id<Node>,
     /*SetAccessorDeclaration*/ arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
-    let parameter = get_set_accessor_value_parameter(node);
+    let parameter = get_set_accessor_value_parameter(node, arena);
     parameter.and_then(|parameter| get_effective_type_annotation_node(parameter, arena))
 }
 

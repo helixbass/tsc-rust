@@ -379,24 +379,25 @@ pub fn get_containing_node_array(_node: Id<Node>) -> Option<Gc<NodeArray>> {
     unimplemented!()
 }
 
-pub fn has_context_sensitive_parameters(node: Id<Node> /*FunctionLikeDeclaration*/) -> bool {
-    let node_as_function_like_declaration = node.as_function_like_declaration();
+pub fn has_context_sensitive_parameters(node: Id<Node> /*FunctionLikeDeclaration*/, arena: &impl HasArena) -> bool {
+    let node_ref = node.ref_(arena);
+    let node_as_function_like_declaration = node_ref.as_function_like_declaration();
     if node_as_function_like_declaration
         .maybe_type_parameters()
         .is_none()
     {
         if some(
             Some(&**node_as_function_like_declaration.parameters()),
-            Some(|p: &Id<Node>| get_effective_type_annotation_node(p).is_none()),
+            Some(|&p: &Id<Node>| get_effective_type_annotation_node(p, arena).is_none()),
         ) {
             return true;
         }
-        if node.kind() != SyntaxKind::ArrowFunction {
+        if node_ref.kind() != SyntaxKind::ArrowFunction {
             let node_parameters = node_as_function_like_declaration.parameters();
             let parameter = first_or_undefined(&node_parameters);
             if !matches!(
                 parameter,
-                Some(parameter) if parameter_is_this_keyword(parameter)
+                Some(&parameter) if parameter_is_this_keyword(parameter, arena)
             ) {
                 return true;
             }
@@ -409,24 +410,23 @@ pub fn is_infinity_or_nan_string(name: &str) -> bool {
     matches!(name, "Infinity" | "-Infinity" | "NaN")
 }
 
-pub fn is_catch_clause_variable_declaration(node: Id<Node>) -> bool {
-    node.kind() == SyntaxKind::VariableDeclaration
-        && node.parent().kind() == SyntaxKind::CatchClause
+pub fn is_catch_clause_variable_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
+    node.ref_(arena).kind() == SyntaxKind::VariableDeclaration
+        && node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::CatchClause
 }
 
-pub fn is_parameter_or_catch_clause_variable(symbol: &Symbol) -> bool {
+pub fn is_parameter_or_catch_clause_variable(symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
     let declaration = symbol
-        .maybe_value_declaration()
-        .as_ref()
-        .map(|symbol_value_declaration| get_root_declaration(symbol_value_declaration));
+        .ref_(arena).maybe_value_declaration()
+        .map(|symbol_value_declaration| get_root_declaration(symbol_value_declaration, arena));
     matches!(
-        declaration.as_ref(),
-        Some(declaration) if is_parameter(declaration) ||
-            is_catch_clause_variable_declaration(declaration)
+        declaration,
+        Some(declaration) if is_parameter(&declaration.ref_(arena)) ||
+            is_catch_clause_variable_declaration(declaration, arena)
     )
 }
 
-pub fn is_function_expression_or_arrow_function(node: Id<Node>) -> bool {
+pub fn is_function_expression_or_arrow_function(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
