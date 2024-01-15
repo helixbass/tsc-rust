@@ -129,7 +129,7 @@ impl TypeChecker {
         {
             return true;
         }
-        get_immediately_invoked_function_expression(location).is_none()
+        get_immediately_invoked_function_expression(location, self).is_none()
     }
 
     pub(super) fn is_self_reference_location(&self, node: Id<Node>) -> bool {
@@ -203,7 +203,7 @@ impl TypeChecker {
             return Ok(false);
         }
 
-        let container = get_this_container(error_location, false);
+        let container = get_this_container(error_location, false, self);
         let mut location: Option<Id<Node>> = Some(container.clone());
         while let Some(location_present) = location {
             if maybe_is_class_like(location_present.ref_(self).maybe_parent()) {

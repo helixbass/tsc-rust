@@ -458,7 +458,7 @@ impl TransformTypeScript {
     ) -> bool {
         match node.kind() {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
-                get_first_constructor_with_body(node).is_some()
+                get_first_constructor_with_body(node, self).is_some()
             }
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                 true
@@ -511,7 +511,7 @@ impl TransformTypeScript {
         container: Id<Node>, /*ClassLikeDeclaration*/
     ) -> io::Result<Id<Node /*ArrayLiteralExpression*/>> {
         let value_declaration = if is_class_like(node) {
-            get_first_constructor_with_body(node)
+            get_first_constructor_with_body(node, self)
         } else if is_function_like(Some(node))
             && node_is_present(node.as_function_like_declaration().maybe_body())
         {

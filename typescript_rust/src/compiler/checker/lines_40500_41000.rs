@@ -552,7 +552,7 @@ impl TypeChecker {
                 SymbolFlags::Value
             };
             if name.kind() == SyntaxKind::Identifier {
-                if is_jsx_tag_name(name) && self.is_jsx_intrinsic_identifier(name) {
+                if is_jsx_tag_name(name, self) && self.is_jsx_intrinsic_identifier(name) {
                     let symbol = self.get_intrinsic_tag_symbol(&name.parent())?;
                     return Ok(if symbol == self.unknown_symbol() {
                         None
@@ -791,7 +791,7 @@ impl TypeChecker {
                 self.get_symbol_of_name_or_property_access_expression(node)?
             }
             SyntaxKind::ThisKeyword => {
-                let ref container = get_this_container(node, false);
+                let ref container = get_this_container(node, false, self);
                 if is_function_like(Some(&**container)) {
                     let sig = self.get_signature_from_declaration_(container)?;
                     let sig_this_parameter = sig.maybe_this_parameter().clone();

@@ -954,7 +954,7 @@ impl TypeChecker {
         node: Id<Node>, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
     ) -> io::Result<bool> {
         Debug_.assert(
-            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
+            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
             None,
         );
         Ok(match node.kind() {
@@ -1053,7 +1053,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok((is_in_js_file(Some(func)) && is_function_declaration(func)
             || is_function_expression_or_arrow_function(func)
-            || is_object_literal_method(func))
+            || is_object_literal_method(func, self))
             && self.is_context_sensitive_function_like_declaration(func)?)
     }
 

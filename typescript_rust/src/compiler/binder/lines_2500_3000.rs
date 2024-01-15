@@ -147,6 +147,7 @@ impl BinderType {
                             if is_this_initialized_declaration(
                                 symbol
                                     .and_then(|symbol| symbol.ref_(self).maybe_value_declaration()),
+                                self,
                             ) {
                                 self.bind_this_property_assignment(node);
                             } else {
@@ -242,7 +243,7 @@ impl BinderType {
                         } else {
                             SymbolFlags::None
                         },
-                    if is_object_literal_method(node) {
+                    if is_object_literal_method(node, self) {
                         SymbolFlags::PropertyExcludes
                     } else {
                         SymbolFlags::MethodExcludes
@@ -870,7 +871,7 @@ impl BinderType {
         if has_private_identifier {
             return;
         }
-        let this_container = get_this_container(node, false);
+        let this_container = get_this_container(node, false, self);
         match this_container.ref_(self).kind() {
             SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => {
                 let mut constructor_symbol = this_container.ref_(self).maybe_symbol();

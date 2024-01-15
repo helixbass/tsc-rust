@@ -30,7 +30,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         Debug_.assert(
-            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
+            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
             None,
         );
         self.check_node_deferred(node);
@@ -185,7 +185,7 @@ impl TypeChecker {
         node: Id<Node>, /*ArrowFunction | FunctionExpression | MethodDeclaration*/
     ) -> io::Result<()> {
         Debug_.assert(
-            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
+            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
             None,
         );
 
@@ -553,7 +553,7 @@ impl TypeChecker {
                     None,
                 );
             } else if !node.flags().intersects(NodeFlags::AwaitContext) {
-                if is_in_top_level_context(node) {
+                if is_in_top_level_context(node, self) {
                     let source_file = get_source_file_of_node(node);
                     if !self.has_parse_diagnostics(&source_file) {
                         let mut span: Option<TextSpan> = None;

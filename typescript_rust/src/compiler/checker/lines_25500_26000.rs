@@ -209,7 +209,7 @@ impl TypeChecker {
         if !self.is_context_sensitive_function_or_object_literal_method(&func)? {
             return Ok(None);
         }
-        let iife = get_immediately_invoked_function_expression(&func);
+        let iife = get_immediately_invoked_function_expression(func, self);
         let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
         let func_as_function_like_declaration = func.as_function_like_declaration();
         if let Some(iife) = iife.as_ref()
@@ -596,7 +596,7 @@ impl TypeChecker {
         {
             return Ok(Some(self.get_return_type_of_signature(signature.clone())?));
         }
-        let iife = get_immediately_invoked_function_expression(function_decl);
+        let iife = get_immediately_invoked_function_expression(function_decl, self);
         if let Some(iife) = iife.as_ref() {
             return self.get_contextual_type_(iife, None);
         }

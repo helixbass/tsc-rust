@@ -641,8 +641,8 @@ impl TransformES2018 {
                 enclosing_function_flags.intersects(FunctionFlags::Async)
             })
         {
-            let ref statement =
-                unwrap_innermost_statement_of_label(node, Option::<fn(Id<Node>)>::None);
+            let statement =
+                unwrap_innermost_statement_of_label(node, Option::<fn(Id<Node>)>::None, self);
             if statement.kind() == SyntaxKind::ForOfStatement
                 && statement.as_for_of_statement().await_modifier.is_some()
             {
@@ -2267,7 +2267,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
     fn substitute_call_expression(&self, node: Id<Node> /*CallExpression*/) -> Id<Node> {
         let node_as_call_expression = node.as_call_expression();
         let expression = &node_as_call_expression.expression;
-        if is_super_property(expression) {
+        if is_super_property(expression, self) {
             let argument_expression = if is_property_access_expression(expression) {
                 self.substitute_property_access_expression(expression)
             } else {

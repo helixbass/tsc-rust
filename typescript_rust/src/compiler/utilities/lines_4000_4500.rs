@@ -24,7 +24,7 @@ use crate::{
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
     NodeInterface, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
     SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
-    WriteFileCallback, HasArena, InArena,
+    WriteFileCallback, HasArena, InArena, OptionInArena,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -1189,12 +1189,13 @@ pub fn get_line_of_local_position_from_line_map(line_map: &[usize], pos: usize) 
 
 pub fn get_first_constructor_with_body(
     node: Id<Node>, /*ClassLikeDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
-    find(&node.as_class_like_declaration().members(), |member, _| {
-        is_constructor_declaration(member)
-            && node_is_present(member.as_constructor_declaration().maybe_body())
+    find(&node.ref_(arena).as_class_like_declaration().members(), |member, _| {
+        is_constructor_declaration(&member.ref_(arena))
+            && node_is_present(member.ref_(arena).as_constructor_declaration().maybe_body().refed(arena))
     })
-    .cloned()
+    .copied()
 }
 
 pub fn get_set_accessor_value_parameter(

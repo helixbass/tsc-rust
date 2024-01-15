@@ -786,7 +786,7 @@ impl BinderType {
         }
 
         if let Some(current_flow) = self.maybe_current_flow() {
-            if is_object_literal_or_class_expression_method_or_accessor(node) {
+            if is_object_literal_or_class_expression_method_or_accessor(node, self) {
                 node.set_flow_node(Some(current_flow));
             }
         }

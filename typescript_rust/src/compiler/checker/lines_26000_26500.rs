@@ -229,7 +229,7 @@ impl TypeChecker {
         )?;
         Ok(is_this_initialized_declaration(symbol.and_then(|symbol| {
             symbol.ref_(self).maybe_value_declaration()
-        })))
+        }), self))
     }
 
     pub(super) fn get_contextual_type_for_this_property_assignment(
@@ -262,10 +262,11 @@ impl TypeChecker {
             Some(&*binary_expression_as_binary_expression.left),
             |node: &Id<Node>| is_access_expression(node),
         );
-        if !is_object_literal_method(&get_this_container(
-            &this_access.as_has_expression().expression(),
+        if !is_object_literal_method(get_this_container(
+            this_access.as_has_expression().expression(),
             false,
-        )) {
+            self,
+        ), self) {
             return Ok(None);
         }
         let this_type =
@@ -342,7 +343,7 @@ impl TypeChecker {
         node: Id<Node>, /*MethodDeclaration*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
-        Debug_.assert(is_object_literal_method(node), None);
+        Debug_.assert(is_object_literal_method(node, self), None);
         if node.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
             return Ok(None);
         }
@@ -721,7 +722,7 @@ impl TypeChecker {
         node: Id<Node>, /*Expression | MethodDeclaration*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
-        let contextual_type = if is_object_literal_method(node) {
+        let contextual_type = if is_object_literal_method(node, self) {
             self.get_contextual_type_for_object_literal_method(node, context_flags)?
         } else {
             self.get_contextual_type_(node, context_flags)?

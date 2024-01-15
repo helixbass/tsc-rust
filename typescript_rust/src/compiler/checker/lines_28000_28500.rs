@@ -24,7 +24,7 @@ use crate::{
 
 impl TypeChecker {
     pub(super) fn get_this_parameter_from_node_context(&self, node: Id<Node>) -> Option<Id<Node>> {
-        let this_container = get_this_container(node, false);
+        let this_container = get_this_container(node, false, self);
         /*thisContainer &&*/
         if is_function_like(Some(&*this_container)) {
             get_this_parameter(this_container, self)
@@ -451,11 +451,11 @@ impl TypeChecker {
         prop: Id<Symbol>,
     ) -> io::Result<bool> {
         Ok((self.is_constructor_declared_property(prop)?
-            || is_this_property(node) && self.is_auto_typed_property(prop))
+            || is_this_property(node, self) && self.is_auto_typed_property(prop))
             && matches!(
                 self.get_declaring_constructor(prop)?.as_ref(),
                 Some(declaring_constructor) if Gc::ptr_eq(
-                    &get_this_container(node, true),
+                    &get_this_container(node, true, self),
                     declaring_constructor
                 )
             ))

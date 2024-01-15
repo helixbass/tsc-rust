@@ -560,7 +560,7 @@ impl TypeChecker {
     pub(super) fn maybe_get_control_flow_container(&self, node: Id<Node>) -> Option<Id<Node>> {
         find_ancestor(node.maybe_parent(), |node: Id<Node>| {
             is_function_like(Some(node))
-                && get_immediately_invoked_function_expression(node).is_none()
+                && get_immediately_invoked_function_expression(node, self).is_none()
                 || matches!(
                     node.kind(),
                     SyntaxKind::ModuleBlock
@@ -908,8 +908,9 @@ impl TypeChecker {
                 if declaration.kind() == SyntaxKind::ClassDeclaration
                     && node_is_decorated(
                         declaration,
-                        Option::<Id<Node>>::None,
-                        Option::<Id<Node>>::None,
+                        None,
+                        None,
+                        self,
                     )
                 {
                     let mut container = get_containing_class(node);
@@ -933,7 +934,7 @@ impl TypeChecker {
                         container = get_containing_class(container_present);
                     }
                 } else if declaration.kind() == SyntaxKind::ClassExpression {
-                    let mut container = get_this_container(node, false);
+                    let mut container = get_this_container(node, false, self);
                     while container.kind() != SyntaxKind::SourceFile {
                         if Gc::ptr_eq(&container.parent(), declaration) {
                             if is_property_declaration(&container) && is_static(container, self)
@@ -947,7 +948,7 @@ impl TypeChecker {
                             break;
                         }
 
-                        container = get_this_container(&container, false);
+                        container = get_this_container(container, false, self);
                     }
                 }
             }
@@ -1100,7 +1101,7 @@ impl TypeChecker {
         ) && (matches!(
             flow_container.kind(),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
-        ) || is_object_literal_or_class_expression_method_or_accessor(&flow_container))
+        ) || is_object_literal_or_class_expression_method_or_accessor(flow_container, self))
             && (self.is_const_variable(local_or_export_symbol) && type_ != self.auto_array_type()
                 || is_parameter && !self.is_symbol_assigned(local_or_export_symbol)?)
         {

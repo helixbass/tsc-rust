@@ -1176,7 +1176,7 @@ impl TypeChecker {
         if node.maybe_decorators().is_none() {
             return false;
         }
-        if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent()) {
+        if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent(), self) {
             if node.kind() == SyntaxKind::MethodDeclaration
                 && !node_is_present(node.as_method_declaration().maybe_body())
             {

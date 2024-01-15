@@ -407,7 +407,7 @@ impl TransformClassFields {
     ) -> Option<Id<Node>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         let constructor = maybe_visit_node(
-            get_first_constructor_with_body(node),
+            get_first_constructor_with_body(node, self),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(is_constructor_declaration),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

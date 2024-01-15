@@ -930,7 +930,7 @@ impl TypeChecker {
                     ),
                 )?);
         }
-        let iife = get_immediately_invoked_function_expression(&node.parent());
+        let iife = get_immediately_invoked_function_expression(node.parent(), self);
         if let Some(iife) = iife {
             return Ok(node_as_parameter_declaration.maybe_type().is_none()
                 && node_as_parameter_declaration.dot_dot_dot_token.is_none()

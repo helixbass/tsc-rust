@@ -696,10 +696,10 @@ impl TypeChecker {
 
         if flags.intersects(ModifierFlags::Abstract)
             && self.symbol_has_non_method_declaration(prop)?
-            && (is_this_property(location)
-                || is_this_initialized_object_binding_expression(Some(location))
+            && (is_this_property(location, self)
+                || is_this_initialized_object_binding_expression(Some(location), self)
                 || is_object_binding_pattern(&location.parent())
-                    && is_this_initialized_declaration(location.parent().maybe_parent()))
+                    && is_this_initialized_declaration(location.parent().maybe_parent(), self))
         {
             let declaring_class_declaration = get_class_like_declaration_of_symbol(
                 self.get_parent_of_symbol(prop)?.unwrap(),

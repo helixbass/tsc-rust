@@ -578,7 +578,7 @@ impl TransformES2015 {
             HierarchyFacts::ConstructorExcludes,
             HierarchyFacts::ConstructorIncludes,
         );
-        let constructor = get_first_constructor_with_body(node);
+        let constructor = get_first_constructor_with_body(node, self);
         let has_synthesized_super = self.has_synthesized_default_super_call(
             constructor.as_deref(),
             extends_clause_element.is_some(),

@@ -29,7 +29,7 @@ impl TransformClassFields {
     ) -> VisitResult {
         let node_as_element_access_expression = node.as_element_access_expression();
         if self.should_transform_super_in_static_initializers
-            && is_super_property(node)
+            && is_super_property(node, self)
             && self
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
@@ -148,7 +148,7 @@ impl TransformClassFields {
                     return Some(expression.into());
                 }
             } else if self.should_transform_super_in_static_initializers
-                && is_super_property(&node_operand)
+                && is_super_property(node_operand, self)
                 && self
                     .maybe_current_static_property_declaration_or_static_block()
                     .is_some()
@@ -452,7 +452,7 @@ impl TransformClassFields {
         }
 
         if self.should_transform_super_in_static_initializers
-            && is_super_property(&node_as_call_expression.expression)
+            && is_super_property(node_as_call_expression.expression, self)
             && self
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
@@ -547,7 +547,7 @@ impl TransformClassFields {
             );
         }
         if self.should_transform_super_in_static_initializers
-            && is_super_property(&node_as_tagged_template_expression.tag)
+            && is_super_property(node_as_tagged_template_expression.tag, self)
             && self
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
@@ -711,7 +711,7 @@ impl TransformClassFields {
                     );
                 }
             } else if self.should_transform_super_in_static_initializers
-                && is_super_property(&node_as_binary_expression.left)
+                && is_super_property(node_as_binary_expression.left, self)
                 && self
                     .maybe_current_static_property_declaration_or_static_block()
                     .is_some()
@@ -1031,7 +1031,7 @@ impl TransformClassFields {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         let mut facts = ClassFacts::None;
         let ref original = get_original_node(node, self);
-        if is_class_declaration(original) && class_or_constructor_parameter_is_decorated(original) {
+        if is_class_declaration(original) && class_or_constructor_parameter_is_decorated(original, self) {
             facts |= ClassFacts::ClassWasDecorated;
         }
         for member in &node_as_class_like_declaration.members() {

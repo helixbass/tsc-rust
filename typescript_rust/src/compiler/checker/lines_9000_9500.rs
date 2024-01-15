@@ -50,7 +50,7 @@ impl TypeChecker {
         &self,
         expression: Id<Node>, /*Expression*/
     ) -> bool {
-        let this_container = get_this_container(expression, false);
+        let this_container = get_this_container(expression, false, self);
         matches!(
             this_container.kind(),
             SyntaxKind::Constructor | SyntaxKind::FunctionDeclaration
@@ -556,7 +556,7 @@ impl TypeChecker {
             || is_numeric_literal(declaration)
             || is_class_declaration(declaration)
             || is_function_declaration(declaration)
-            || (is_method_declaration(declaration) && !is_object_literal_method(declaration))
+            || (is_method_declaration(declaration) && !is_object_literal_method(declaration, self))
             || is_method_signature(declaration)
             || is_source_file(declaration)
         {
@@ -597,7 +597,7 @@ impl TypeChecker {
                         None,
                     )
                 })?;
-        } else if is_object_literal_method(declaration) {
+        } else if is_object_literal_method(declaration, self) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
                 .try_unwrap_or_else(|| {

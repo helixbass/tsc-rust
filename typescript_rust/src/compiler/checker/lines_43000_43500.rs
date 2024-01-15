@@ -148,7 +148,7 @@ impl TypeChecker {
                     .intersects(NodeFlags::AwaitContext)
                 {
                     let source_file = get_source_file_of_node(for_in_or_of_statement);
-                    if is_in_top_level_context(for_in_or_of_statement) {
+                    if is_in_top_level_context(for_in_or_of_statement, self) {
                         if !self.has_parse_diagnostics(&source_file) {
                             if !is_effective_external_module(&source_file, &self.compiler_options) {
                                 self.diagnostics().add(

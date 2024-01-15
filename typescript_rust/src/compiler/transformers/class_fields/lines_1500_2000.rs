@@ -439,8 +439,8 @@ impl TransformClassFields {
         }
         let info = info.unwrap();
         let mut receiver = node_as_property_access_expression.expression.clone();
-        if is_this_property(node)
-            || is_super_property(node)
+        if is_this_property(node, self)
+            || is_super_property(node, self)
             || !is_simple_copiable_expression(&node_as_property_access_expression.expression)
         {
             receiver = self.factory.create_temp_variable(
@@ -483,7 +483,7 @@ impl TransformClassFields {
             if is_private_identifier_property_access_expression(target, self) {
                 wrapped = Some(self.wrap_private_identifier_for_destructuring_target(target));
             } else if self.should_transform_super_in_static_initializers
-                && is_super_property(target)
+                && is_super_property(target, self)
                 && self
                     .maybe_current_static_property_declaration_or_static_block()
                     .is_some()
@@ -582,7 +582,7 @@ impl TransformClassFields {
                 if is_private_identifier_property_access_expression(target, self) {
                     wrapped = Some(self.wrap_private_identifier_for_destructuring_target(target));
                 } else if self.should_transform_super_in_static_initializers
-                    && is_super_property(target)
+                    && is_super_property(target, self)
                     && self
                         .maybe_current_static_property_declaration_or_static_block()
                         .is_some()

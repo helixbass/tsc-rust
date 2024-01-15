@@ -1152,7 +1152,7 @@ impl TypeChecker {
         }
 
         if declaration.pos() <= usage.pos()
-            && !(is_property_declaration(declaration) && is_this_property(&usage.parent()) && {
+            && !(is_property_declaration(declaration) && is_this_property(usage.parent(), self) && {
                 let declaration_as_property_declaration = declaration.as_property_declaration();
                 !declaration_as_property_declaration
                     .maybe_initializer()

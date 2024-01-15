@@ -626,7 +626,7 @@ impl TransformDeclarations {
                         .maybe_type_parameters()
                         .as_deref(),
                 )?;
-                let ctor = get_first_constructor_with_body(input);
+                let ctor = get_first_constructor_with_body(input, self);
                 let mut parameter_properties: Option<Vec<Id<Node /*PropertyDeclaration*/>>> =
                     Default::default();
                 if let Some(ref ctor) = ctor {

@@ -93,7 +93,7 @@ impl TypeChecker {
             let mut min_argument_count = 0;
             let mut this_parameter: Option<Id<Symbol>> = None;
             let mut has_this_parameter = false;
-            let iife = get_immediately_invoked_function_expression(declaration);
+            let iife = get_immediately_invoked_function_expression(declaration, self);
             let is_js_construct_signature = is_jsdoc_construct_signature(declaration, self);
             let is_untyped_signature_in_js_file = iife.is_none()
                 && is_in_js_file(Some(declaration))

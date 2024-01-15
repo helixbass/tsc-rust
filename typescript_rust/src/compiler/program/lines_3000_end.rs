@@ -1841,8 +1841,8 @@ impl Program {
         {
             self.set_compiler_options_object_literal_syntax(Some(None));
             let json_object_literal =
-                get_ts_config_object_literal_expression(self.options.config_file.as_deref());
-            if let Some(json_object_literal) = json_object_literal.as_ref() {
+                get_ts_config_object_literal_expression(self.options.config_file, self);
+            if let Some(json_object_literal) = json_object_literal {
                 for prop in get_property_assignment(json_object_literal, "compilerOptions", None) {
                     let prop_as_property_assignment = prop.as_property_assignment();
                     if is_object_literal_expression(&prop_as_property_assignment.initializer) {

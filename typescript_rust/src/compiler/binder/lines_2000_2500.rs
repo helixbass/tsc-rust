@@ -415,7 +415,7 @@ impl BinderType {
                         .into(),
                     ));
             } else if matches!(node_original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
-                if is_external_module(&self.file()) && is_in_top_level_context(node) {
+                if is_external_module(&self.file()) && is_in_top_level_context(node, self) {
                     self.file()
                         .as_source_file()
                         .bind_diagnostics_mut()

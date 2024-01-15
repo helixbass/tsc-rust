@@ -369,7 +369,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_this_type(&self, node: Id<Node>) -> io::Result<Id<Type>> {
-        let container = get_this_container(node, false);
+        let container = get_this_container(node, false, self);
         let parent = /*container &&*/ container.maybe_parent();
         if let Some(parent) = parent.as_ref().filter(|parent| {
             is_class_like(parent) || parent.kind() == SyntaxKind::InterfaceDeclaration

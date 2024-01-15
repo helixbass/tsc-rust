@@ -536,7 +536,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<Id<Type>> {
-        let container = get_new_target_container(node);
+        let container = get_new_target_container(node, self);
         Ok(match container.as_ref() {
             None => {
                 self.error(

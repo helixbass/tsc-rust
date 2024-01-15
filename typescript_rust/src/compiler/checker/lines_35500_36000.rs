@@ -392,7 +392,7 @@ impl TypeChecker {
         }
         let node_decorators = node_decorators.as_ref().unwrap();
 
-        if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent()) {
+        if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent(), self) {
             return Ok(());
         }
 
@@ -415,7 +415,7 @@ impl TypeChecker {
 
             match node.kind() {
                 SyntaxKind::ClassDeclaration => {
-                    let constructor = get_first_constructor_with_body(node);
+                    let constructor = get_first_constructor_with_body(node, self);
                     if let Some(constructor) = constructor.as_ref() {
                         for parameter in &constructor.as_signature_declaration().parameters() {
                             self.mark_decorator_medata_data_type_node_as_referenced(

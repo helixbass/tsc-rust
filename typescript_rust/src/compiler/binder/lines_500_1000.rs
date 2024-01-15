@@ -190,7 +190,7 @@ impl BinderType {
                     .as_function_like_declaration()
                     .maybe_asterisk_token()
                     .is_none()
-                && get_immediately_invoked_function_expression(node).is_some();
+                && get_immediately_invoked_function_expression(node, self).is_some();
             if !is_iife {
                 self.set_current_flow(Some(Gc::new(init_flow_node(
                     FlowStart::new(FlowFlags::Start, None).into(),

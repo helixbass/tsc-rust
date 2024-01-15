@@ -459,7 +459,7 @@ impl TypeChecker {
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<Option<Gc<Signature>>> {
         Ok(
-            if is_function_expression_or_arrow_function(node) || is_object_literal_method(node) {
+            if is_function_expression_or_arrow_function(node) || is_object_literal_method(node, self) {
                 self.get_contextual_signature(node)?
             } else {
                 None
@@ -472,7 +472,7 @@ impl TypeChecker {
         node: Id<Node>, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
     ) -> io::Result<Option<Gc<Signature>>> {
         Debug_.assert(
-            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
+            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
             None,
         );
         let type_tag_signature = self.get_signature_of_type_tag(node)?;
@@ -1012,7 +1012,7 @@ impl TypeChecker {
             if matches!(
                 member_decl.kind(),
                 SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
-            ) || is_object_literal_method(member_decl)
+            ) || is_object_literal_method(member_decl, self)
             {
                 let member_present = member.unwrap();
                 let mut type_: Id<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {

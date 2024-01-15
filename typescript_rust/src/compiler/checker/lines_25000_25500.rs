@@ -333,7 +333,7 @@ impl TypeChecker {
 
     pub(super) fn check_this_expression(&self, node: Id<Node>) -> io::Result<Id<Type>> {
         let is_node_in_type_query = self.is_in_type_query(node);
-        let mut container = get_this_container(node, true);
+        let mut container = get_this_container(node, true, self);
         let mut captured_by_arrow_function = false;
 
         if container.kind() == SyntaxKind::Constructor {
@@ -341,7 +341,7 @@ impl TypeChecker {
         }
 
         if container.kind() == SyntaxKind::ArrowFunction {
-            container = get_this_container(&container, false);
+            container = get_this_container(container, false, self);
             captured_by_arrow_function = true;
         }
 
@@ -440,7 +440,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let include_global_this = include_global_this.unwrap_or(true);
         let container = container.map_or_else(
-            || get_this_container(node, false),
+            || get_this_container(node, false, self),
             |container| container.borrow().node_wrapper(),
         );
         let is_in_js = is_in_js_file(Some(node));
@@ -544,7 +544,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
-        let container = get_this_container(node, false);
+        let container = get_this_container(node, false, self);
         if is_function_like(Some(&*container)) {
             let signature = self.get_signature_from_declaration_(&container)?;
             let signature_this_parameter = signature.maybe_this_parameter().clone();
@@ -764,7 +764,7 @@ impl TypeChecker {
         let is_call_expression = node.parent().kind() == SyntaxKind::CallExpression
             && ptr::eq(&*node.parent().as_call_expression().expression, node);
 
-        let immediate_container = get_super_container(node, true).unwrap();
+        let immediate_container = get_super_container(node, true, self).unwrap();
         let mut container = Some(immediate_container.clone());
         let mut need_to_capture_lexical_this = false;
 
@@ -773,7 +773,7 @@ impl TypeChecker {
                 .as_ref()
                 .filter(|container| container.kind() == SyntaxKind::ArrowFunction)
             {
-                container = get_super_container(container_present, true);
+                container = get_super_container(container_present, true, self);
                 need_to_capture_lexical_this = self.language_version < ScriptTarget::ES2015;
             }
         }
@@ -865,7 +865,7 @@ impl TypeChecker {
         if container.kind() == SyntaxKind::MethodDeclaration
             && has_syntactic_modifier(container, ModifierFlags::Async, self)
         {
-            if is_super_property(&node.parent()) && is_assignment_target(node.parent(), self) {
+            if is_super_property(node.parent(), self) && is_assignment_target(node.parent(), self) {
                 self.get_node_links(&container).borrow_mut().flags |=
                     NodeCheckFlags::AsyncMethodWithSuperBinding;
             } else {

@@ -271,7 +271,7 @@ impl TransformES2015 {
 
         let ref expression = skip_outer_expressions(node_as_call_expression.expression, None, self);
         if expression.kind() == SyntaxKind::SuperKeyword
-            || is_super_property(expression)
+            || is_super_property(expression, self)
             || some(
                 Some(&node_as_call_expression.arguments),
                 Some(|argument: &Id<Node>| is_spread_element(argument)),
@@ -525,11 +525,11 @@ impl TransformES2015 {
             .transform_flags()
             .intersects(TransformFlags::ContainsRestOrSpread)
             || node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword
-            || is_super_property(&skip_outer_expressions(
+            || is_super_property(skip_outer_expressions(
                 node_as_call_expression.expression,
                 None,
                 self,
-            ))
+            ), self)
         {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
                 &node_as_call_expression.expression,

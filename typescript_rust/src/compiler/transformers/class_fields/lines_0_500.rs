@@ -1120,7 +1120,7 @@ impl TransformClassFields {
             }
         }
         if self.should_transform_super_in_static_initializers
-            && is_super_property(node)
+            && is_super_property(node, self)
             && is_identifier(&node_as_property_access_expression.name())
             && self
                 .maybe_current_static_property_declaration_or_static_block()

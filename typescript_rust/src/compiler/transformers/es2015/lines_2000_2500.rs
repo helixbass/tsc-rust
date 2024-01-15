@@ -486,13 +486,14 @@ impl TransformES2015 {
                 .labels
                 .get_or_insert_default_();
         }
-        let ref statement = unwrap_innermost_statement_of_label(
+        let statement = unwrap_innermost_statement_of_label(
             node,
             self.maybe_converted_loop_state().map(|_| {
                 |node: Id<Node>| {
                     self.record_label(node);
                 }
             }),
+            self,
         );
         Ok(if is_iteration_statement(statement, false, self) {
             self.visit_iteration_statement(statement, node)?

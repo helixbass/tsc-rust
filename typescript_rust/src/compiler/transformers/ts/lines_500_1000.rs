@@ -79,10 +79,10 @@ impl TransformTypeScript {
         }) {
             facts |= ClassFacts::IsDerivedClass;
         }
-        if class_or_constructor_parameter_is_decorated(node) {
+        if class_or_constructor_parameter_is_decorated(node, self) {
             facts |= ClassFacts::HasConstructorDecorators;
         }
-        if child_is_decorated(node, Option::<Id<Node>>::None) {
+        if child_is_decorated(node, None, self) {
             facts |= ClassFacts::HasMemberDecorators;
         }
         if self.is_export_of_namespace(node) {
@@ -417,7 +417,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
     ) -> io::Result<Gc<NodeArray>> {
         let mut members: Vec<Id<Node /*ClassElement*/>> = Default::default();
-        let constructor = get_first_constructor_with_body(node);
+        let constructor = get_first_constructor_with_body(node, self);
         let parameters_with_property_assignments = constructor.as_ref().map(|constructor| {
             constructor
                 .as_constructor_declaration()
@@ -503,7 +503,7 @@ impl TransformTypeScript {
         is_static_element: bool,
         parent: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
-        node_or_child_is_decorated(member, Some(parent), Option::<Id<Node>>::None)
+        node_or_child_is_decorated(member, Some(parent), None, self)
             && is_static_element == is_static(member, self)
     }
 
@@ -541,7 +541,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> Option<AllDecorators> {
         let decorators = node.maybe_decorators();
-        let parameters = self.get_decorators_of_parameters(get_first_constructor_with_body(node));
+        let parameters = self.get_decorators_of_parameters(get_first_constructor_with_body(node, self));
         if decorators.is_none() && parameters.is_none() {
             return None;
         }

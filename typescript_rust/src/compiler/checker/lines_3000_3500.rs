@@ -747,7 +747,7 @@ impl TypeChecker {
             }
         }
         if let Some(host) = host {
-            if (is_object_literal_method(&host.ref_(self))
+            if (is_object_literal_method(host, self)
                 || is_property_assignment(&host.ref_(self)))
                 && is_binary_expression(&host.ref_(self).parent().ref_(self).parent().ref_(self))
                 && get_assignment_declaration_kind(

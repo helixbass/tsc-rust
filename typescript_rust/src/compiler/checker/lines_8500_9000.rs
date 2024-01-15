@@ -618,7 +618,7 @@ impl TypeChecker {
         let symbol_declarations = symbol_ref.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_deref());
         for declaration in symbol_declarations {
-            let container = get_this_container(&declaration, false);
+            let container = get_this_container(declaration, false, self);
             if
             /*container &&*/
             container.kind() == SyntaxKind::Constructor

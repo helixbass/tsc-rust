@@ -356,7 +356,7 @@ impl BinderType {
             }
 
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
-                if is_object_literal_or_class_expression_method_or_accessor(node) {
+                if is_object_literal_or_class_expression_method_or_accessor(node, self) {
                     return ContainerFlags::IsContainer
                         | ContainerFlags::IsControlFlowContainer
                         | ContainerFlags::HasLocals

@@ -1213,7 +1213,7 @@ impl TransformES2017 {
     fn substitute_call_expression(&self, node: Id<Node> /*CallExpression*/) -> Id<Node> {
         let node_as_call_expression = node.as_call_expression();
         let expression = &node_as_call_expression.expression;
-        if is_super_property(expression) {
+        if is_super_property(expression, self) {
             let argument_expression = if is_property_access_expression(expression) {
                 self.substitute_property_access_expression(expression)
             } else {
