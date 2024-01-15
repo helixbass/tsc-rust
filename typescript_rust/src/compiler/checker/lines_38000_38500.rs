@@ -801,7 +801,7 @@ impl TypeChecker {
         ) && some(
             Some(&node_as_class_declaration.members()),
             Some(|&p: &Id<Node>| {
-                has_static_modifier(p, self) && is_private_identifier_class_element_declaration(p)
+                has_static_modifier(p, self) && is_private_identifier_class_element_declaration(p, self)
             }),
         ) {
             self.grammar_error_on_node(

@@ -125,7 +125,7 @@ impl TypeChecker {
             has_abstract_modifier(member, self),
             is_static(member, self),
             member_is_parameter_property,
-            &symbol_name(&declared_prop.ref_(self)),
+            &symbol_name(declared_prop, self),
             if report_errors { Some(member) } else { None },
         )
     }

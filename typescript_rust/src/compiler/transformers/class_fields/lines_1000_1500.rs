@@ -327,7 +327,7 @@ impl TransformClassFields {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         if self.should_transform_private_elements_or_class_static_blocks {
             for member in &node_as_class_like_declaration.members() {
-                if is_private_identifier_class_element_declaration(member) {
+                if is_private_identifier_class_element_declaration(member, self) {
                     self.add_private_identifier_to_environment(member);
                 }
             }
@@ -388,7 +388,7 @@ impl TransformClassFields {
         member: Id<Node>, /*ClassElement*/
     ) -> bool {
         if is_static(member, self)
-            || has_syntactic_modifier(get_original_node(member), ModifierFlags::Abstract, self)
+            || has_syntactic_modifier(get_original_node(member, self), ModifierFlags::Abstract, self)
         {
             return false;
         }
@@ -397,7 +397,7 @@ impl TransformClassFields {
         }
         is_initialized_property(member)
             || self.should_transform_private_elements_or_class_static_blocks
-                && is_private_identifier_class_element_declaration(member)
+                && is_private_identifier_class_element_declaration(member, self)
     }
 
     pub(super) fn transform_constructor(
@@ -503,7 +503,7 @@ impl TransformClassFields {
                 let after_parameter_properties = find_index(
                     &constructor_body.as_block().statements,
                     |s: &Id<Node>, _| {
-                        !is_parameter_property_declaration(get_original_node(s), constructor, self)
+                        !is_parameter_property_declaration(get_original_node(s, self), constructor, self)
                     },
                     Some(index_of_first_statement),
                 );
@@ -744,7 +744,7 @@ impl TransformClassFields {
             return None;
         }
 
-        let ref property_original_node = get_original_node(property);
+        let ref property_original_node = get_original_node(property, self);
         if has_syntactic_modifier(property_original_node, ModifierFlags::Abstract, self) {
             return None;
         }

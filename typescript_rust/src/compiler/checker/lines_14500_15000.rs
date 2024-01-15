@@ -756,7 +756,7 @@ impl TypeChecker {
                     Some(self.get_literal_type_from_property_name(&name)?)
                 } else {
                     if !is_known_symbol(&prop.ref_(self)) {
-                        Some(self.get_string_literal_type(&symbol_name(&prop.ref_(self))))
+                        Some(self.get_string_literal_type(&symbol_name(prop, self)))
                     } else {
                         None
                     }

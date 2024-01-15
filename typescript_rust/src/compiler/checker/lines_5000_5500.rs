@@ -1216,7 +1216,7 @@ impl NodeBuilder {
         );
         let property_name = self.get_property_name_node_for_symbol(property_symbol, context)?;
         context.set_enclosing_declaration(save_enclosing_declaration.clone());
-        context.increment_approximate_length_by(symbol_name(&property_symbol.ref_(self)).len() + 1);
+        context.increment_approximate_length_by(symbol_name(property_symbol, self).len() + 1);
         let optional_token: Option<Id<Node>> = if property_symbol
             .ref_(self)
             .flags()

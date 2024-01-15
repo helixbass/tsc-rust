@@ -1029,7 +1029,7 @@ impl TransformClassFields {
     ) -> ClassFacts {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         let mut facts = ClassFacts::None;
-        let ref original = get_original_node(node);
+        let ref original = get_original_node(node, self);
         if is_class_declaration(original) && class_or_constructor_parameter_is_decorated(original) {
             facts |= ClassFacts::ClassWasDecorated;
         }

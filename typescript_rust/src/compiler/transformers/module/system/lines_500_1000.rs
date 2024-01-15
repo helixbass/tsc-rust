@@ -353,7 +353,7 @@ impl TransformSystemModule {
     ) -> bool {
         !get_emit_flags(node).intersects(EmitFlags::NoHoisting)
             && (self.enclosing_block_scoped_container().kind() == SyntaxKind::SourceFile
-                || !get_original_node(node)
+                || !get_original_node(node, self)
                     .flags()
                     .intersects(NodeFlags::BlockScoped))
     }
@@ -480,7 +480,7 @@ impl TransformSystemModule {
             statements.push(node.node_wrapper());
             return Some(statements.into());
         } else {
-            let original = &get_original_node(node);
+            let original = &get_original_node(node, self);
             if is_module_or_enum_declaration(original) {
                 self.append_exports_of_declaration(&mut statements, original, None);
                 statements

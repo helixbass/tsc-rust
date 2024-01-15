@@ -107,8 +107,7 @@ impl TypeChecker {
         let lib_targets = all_features.keys();
         for lib_target in lib_targets {
             let features_of_lib = all_features.get(lib_target).unwrap();
-            let container_ref = container.ref_(self);
-            let container_name = symbol_name(&container_ref);
+            let container_name = symbol_name(container, self);
             let features_of_containing_type = features_of_lib.get(&&*container_name);
             if matches!(
                 features_of_containing_type,
@@ -182,9 +181,9 @@ impl TypeChecker {
         };
         let mut properties = self.get_properties_of_type(containing_type)?;
         let jsx_specific = if str_name == "for" {
-            properties.find(|&x| symbol_name(&x.ref_(self)) == "htmlFor")
+            properties.find(|&x| symbol_name(x, self) == "htmlFor")
         } else if str_name == "class" {
-            properties.find(|&x| symbol_name(&x.ref_(self)) == "className")
+            properties.find(|&x| symbol_name(x, self) == "className")
         } else {
             None
         };
@@ -200,7 +199,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name, containing_type)?;
-        Ok(suggestion.map(|suggestion| symbol_name(&suggestion.ref_(self)).into_owned()))
+        Ok(suggestion.map(|suggestion| symbol_name(suggestion, self).into_owned()))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_symbol_(
@@ -275,7 +274,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let symbol_result =
             self.get_suggested_symbol_for_nonexistent_symbol_(location, outer_name, meaning)?;
-        Ok(symbol_result.map(|symbol_result| symbol_name(&symbol_result.ref_(self)).into_owned()))
+        Ok(symbol_result.map(|symbol_result| symbol_name(symbol_result, self).into_owned()))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
@@ -300,7 +299,7 @@ impl TypeChecker {
         target_module: Id<Symbol>,
     ) -> io::Result<Option<String>> {
         let suggestion = self.get_suggested_symbol_for_nonexistent_module(name, target_module)?;
-        Ok(suggestion.map(|suggestion| symbol_name(&suggestion.ref_(self)).into_owned()))
+        Ok(suggestion.map(|suggestion| symbol_name(suggestion, self).into_owned()))
     }
 
     pub(super) fn get_suggestion_for_nonexistent_index_signature(
@@ -384,8 +383,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
         let get_candidate_name = |&candidate: &Id<Symbol>| -> io::Result<_> {
-            let candidate_ref = candidate.ref_(self);
-            let candidate_name = symbol_name(&candidate_ref);
+            let candidate_name = symbol_name(candidate, self);
             if starts_with(&candidate_name, "\"") {
                 return Ok(None);
             }
@@ -585,7 +583,7 @@ impl TypeChecker {
             .maybe_value_declaration()
             .as_ref()
             .filter(|property_value_declaration| {
-                is_private_identifier_class_element_declaration(property_value_declaration)
+                is_private_identifier_class_element_declaration(property_value_declaration, self)
             })
         {
             let decl_class = get_containing_class(property_value_declaration);

@@ -1196,7 +1196,7 @@ impl TypeChecker {
                         containing_type,
                     )?;
                     if let Some(suggestion) = suggestion {
-                        let suggested_name = symbol_name(&suggestion.ref_(self)).into_owned();
+                        let suggested_name = symbol_name(suggestion, self).into_owned();
                         let message = if is_unchecked_js {
                             &*Diagnostics::Property_0_may_not_exist_on_type_1_Did_you_mean_2
                         } else {

@@ -1198,7 +1198,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
         node: Id<Node>,
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        let ref original = get_original_node(node);
+        let ref original = get_original_node(node, self);
         if let Some(original_id) = original.maybe_id() {
             let class_lexical_environment = self
                 .transform_class_fields

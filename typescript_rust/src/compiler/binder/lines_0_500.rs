@@ -225,7 +225,7 @@ pub(super) fn get_module_instance_state_for_alias_target(
             let statements = p_present.as_has_statements().statements();
             let mut found: Option<ModuleInstanceState> = None;
             for statement in &statements {
-                if node_has_name(statement, &name) {
+                if node_has_name(statement, name, self) {
                     if statement.maybe_parent().is_none() {
                         set_parent(statement, Some(p_present.clone()));
                         set_parent_recursive(Some(statement), false, self);

@@ -136,7 +136,7 @@ impl SymbolTableToDeclarationStatements {
                         self.serialize_export_specifier(
                             name,
                             &self
-                                .get_internal_symbol_name(target, &symbol_name(&target.ref_(self))),
+                                .get_internal_symbol_name(target, &symbol_name(target, self)),
                             Option::<Id<Node>>::None,
                         );
                     } else {
@@ -308,7 +308,7 @@ impl SymbolTableToDeclarationStatements {
                 .get_properties_of_type(type_to_serialize)?
                 .all(|p| {
                     is_identifier_text(
-                        &symbol_name(&p.ref_(self)),
+                        &symbol_name(p, self),
                         Some(self.type_checker.language_version),
                         None,
                     )

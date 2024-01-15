@@ -1357,7 +1357,7 @@ impl TypeChecker {
                                 Some(vec![text.to_owned(), "abstract".to_owned()]),
                             );
                         }
-                    } else if is_private_identifier_class_element_declaration(node) {
+                    } else if is_private_identifier_class_element_declaration(node, self) {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::An_accessibility_modifier_cannot_be_used_with_a_private_identifier,
@@ -1549,7 +1549,7 @@ impl TypeChecker {
                             &Diagnostics::A_declare_modifier_cannot_be_used_in_an_already_ambient_context,
                             None,
                         );
-                    } else if is_private_identifier_class_element_declaration(node) {
+                    } else if is_private_identifier_class_element_declaration(node, self) {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_be_used_with_a_private_identifier,

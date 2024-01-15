@@ -26,7 +26,7 @@ impl TypeChecker {
         !some(
             prop.ref_(self).maybe_declarations().as_deref(),
             Some(|declaration: &Id<Node>| {
-                is_private_identifier_class_element_declaration(declaration)
+                is_private_identifier_class_element_declaration(declaration, self)
             }),
         ) && (!prop
             .ref_(self)

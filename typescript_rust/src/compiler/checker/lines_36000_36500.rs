@@ -117,7 +117,7 @@ impl TypeChecker {
         let host = get_jsdoc_host(node);
         if matches!(
             host.as_ref(),
-            Some(host) if is_private_identifier_class_element_declaration(host)
+            Some(host) if is_private_identifier_class_element_declaration(host, self)
         ) {
             self.error(
                 Some(node),
@@ -395,7 +395,7 @@ impl TypeChecker {
                                         &parameter.as_parameter_declaration().name(),
                                         &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
                                         Some(vec![
-                                            symbol_name(&parameter.symbol().ref_(self)).into_owned()
+                                            symbol_name(parameter.symbol(), self).into_owned()
                                         ])
                                     ).into()
                                 )
@@ -722,7 +722,7 @@ impl TypeChecker {
                                                 name,
                                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                                 Some(vec![
-                                                    symbol_name(&local.ref_(self)).into_owned()
+                                                    symbol_name(local, self).into_owned()
                                                 ])
                                             ).into()
                                         )
@@ -732,7 +732,7 @@ impl TypeChecker {
                         } else {
                             self.error_unused_local(
                                 declaration,
-                                &symbol_name(&local.ref_(self)),
+                                &symbol_name(local, self),
                                 add_diagnostic,
                             );
                         }

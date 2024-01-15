@@ -1123,7 +1123,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                     renamed_catch_variables.contains_key(id_text(node))
                 })
         {
-            let ref original = get_original_node(node);
+            let ref original = get_original_node(node, self);
             if is_identifier(original) && original.maybe_parent().is_some() {
                 let declaration = self
                     .transform_generators

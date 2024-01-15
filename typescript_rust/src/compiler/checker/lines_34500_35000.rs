@@ -137,7 +137,7 @@ impl TypeChecker {
         &self,
         n: Id<Node>,
     ) -> bool {
-        if is_private_identifier_class_element_declaration(n) {
+        if is_private_identifier_class_element_declaration(n, self) {
             return true;
         }
         n.kind() == SyntaxKind::PropertyDeclaration
@@ -894,7 +894,7 @@ impl TypeChecker {
 
     pub(super) fn is_private_within_ambient(&self, node: Id<Node>) -> bool {
         (has_effective_modifier(node, ModifierFlags::Private, self)
-            || is_private_identifier_class_element_declaration(node))
+            || is_private_identifier_class_element_declaration(node, self))
             && node.flags().intersects(NodeFlags::Ambient)
     }
 
@@ -1107,7 +1107,7 @@ impl TypeChecker {
                                         .unwrap_or_else(|| declaration.clone()),
                                 ),
                                 diagnostic,
-                                Some(vec![symbol_name(&symbol.ref_(self)).into_owned()]),
+                                Some(vec![symbol_name(symbol, self).into_owned()]),
                             ),
                             related_diagnostics.clone(),
                         );

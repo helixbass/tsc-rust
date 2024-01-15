@@ -963,8 +963,7 @@ impl NodeBuilder {
                 return Ok(Some(parent_name));
             }
             let type_symbol = type_.ref_(self).symbol();
-            let type_symbol_ref = type_symbol.ref_(self);
-            let member_name = symbol_name(&type_symbol_ref);
+            let member_name = symbol_name(type_symbol, self);
             if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
                 return Ok(Some(
                     self.append_reference_to_type(
@@ -1261,7 +1260,7 @@ impl NodeBuilder {
                 && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
             {
                 context.increment_approximate_length_by(
-                    symbol_name(&type_.ref_(self).symbol().ref_(self)).len() + 6,
+                    symbol_name(type_.ref_(self).symbol(), self).len() + 6,
                 );
                 return Ok(Some(get_factory().create_infer_type_node(
                     self.type_parameter_to_declaration_with_constraint(type_, context, None)?,

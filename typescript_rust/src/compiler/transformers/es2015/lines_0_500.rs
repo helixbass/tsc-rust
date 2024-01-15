@@ -446,7 +446,7 @@ impl TransformES2015 {
         node: Id<Node>,
     ) -> io::Result<VisitResult> /*<Node>*/ {
         if self.should_visit_node(node) {
-            let original = get_original_node(node);
+            let original = get_original_node(node, self);
             if is_property_declaration(original) && has_static_modifier(original, self) {
                 let ancestor_facts = self.enter_subtree(
                     HierarchyFacts::StaticInitializerExcludes,

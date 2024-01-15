@@ -19,8 +19,8 @@ use crate::{
     ModifierFlags, MultiMap, HasArena,
 };
 
-pub fn get_original_node_id(node: Id<Node>) -> NodeId {
-    let node = get_original_node(node);
+pub fn get_original_node_id(node: Id<Node>, arena: &impl HasArena) -> NodeId {
+    let node = get_original_node(node, arena);
     get_node_id(&node)
 }
 

@@ -185,8 +185,8 @@ impl Printer {
                     && match first_child.maybe_parent().as_ref() {
                         None => true,
                         Some(first_child_parent) => Gc::ptr_eq(
-                            &get_original_node(first_child_parent),
-                            &get_original_node(parent_node),
+                            &get_original_node(first_child_parent, self),
+                            &get_original_node(parent_node, self),
                         ),
                     }
             }) {
@@ -503,6 +503,7 @@ impl Printer {
                             &get_source_file_of_node(node),
                             &get_original_node(
                                 current_source_file,
+                                self,
                             )
                         )
                     ))

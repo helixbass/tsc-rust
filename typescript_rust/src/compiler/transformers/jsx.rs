@@ -585,7 +585,7 @@ impl TransformJsx {
             )
         ];
         if self.compiler_options.jsx == Some(JsxEmit::ReactJSXDev) {
-            let original_file = maybe_get_original_node(self.maybe_current_source_file());
+            let original_file = maybe_get_original_node(self.maybe_current_source_file(), self);
             if let Some(original_file) =
                 original_file.filter(|original_file| is_source_file(original_file))
             {

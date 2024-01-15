@@ -365,7 +365,7 @@ impl SymbolTableToDeclarationStatements {
 
                     if !statements
                         .iter()
-                        .any(|s| !Gc::ptr_eq(s, &ns) && node_has_name(s, name))
+                        .any(|s| !Gc::ptr_eq(s, &ns) && node_has_name(s, name, self))
                     {
                         self.set_results(vec![]);
                         let body_as_module_block = body.as_module_block();
@@ -558,7 +558,7 @@ impl SymbolTableToDeclarationStatements {
                     if e_as_export_specifier.property_name.is_none() {
                         let indices = indices_of(&statements);
                         let associated_indices = filter(&indices, |&i: &usize| {
-                            node_has_name(&statements[i], &e_as_export_specifier.name)
+                            node_has_name(statements[i], e_as_export_specifier.name, self)
                         });
                         if length(Some(&associated_indices)) > 0
                             && every(&associated_indices, |&i: &usize, _| {

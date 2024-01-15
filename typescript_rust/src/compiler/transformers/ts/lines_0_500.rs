@@ -656,11 +656,11 @@ impl TransformTypeScriptOnEmitNodeOverrider {
     }
 
     pub(super) fn is_transformed_module_declaration(&self, node: Id<Node>) -> bool {
-        get_original_node(node).kind() == SyntaxKind::ModuleDeclaration
+        get_original_node(node, self).kind() == SyntaxKind::ModuleDeclaration
     }
 
     pub(super) fn is_transformed_enum_declaration(&self, node: Id<Node>) -> bool {
-        get_original_node(node).kind() == SyntaxKind::EnumDeclaration
+        get_original_node(node, self).kind() == SyntaxKind::EnumDeclaration
     }
 }
 
@@ -915,9 +915,10 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                     .create_numeric_literal(constant_value, None),
             };
             if self.transform_type_script.compiler_options.remove_comments != Some(true) {
-                let ref original_node = maybe_get_original_node_full(
+                let original_node = maybe_get_original_node_full(
                     Some(node),
                     Some(|node: Option<Id<Node>>| is_access_expression(&node.unwrap())),
+                    self,
                 )
                 // TODO: this looks unsafe, the Typescript version seems to have a wrong typing
                 // where the present node argument + present nodeTest should be typed as

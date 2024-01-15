@@ -652,7 +652,6 @@ impl NodeBuilder {
             None
         };
         let parameter_symbol_name: Option<Cow<'_, str>>;
-        let parameter_symbol_ref = parameter_symbol.ref_(self);
         let name: StrOrRcNode<'_> =
             if let Some(parameter_declaration) = parameter_declaration.as_ref() {
                 if let Some(parameter_declaration_name) = parameter_declaration
@@ -674,11 +673,11 @@ impl NodeBuilder {
                     }
                     .into()
                 } else {
-                    parameter_symbol_name = Some(symbol_name(&parameter_symbol_ref));
+                    parameter_symbol_name = Some(symbol_name(parameter_symbol, self));
                     parameter_symbol_name.as_deref().unwrap().into()
                 }
             } else {
-                parameter_symbol_name = Some(symbol_name(&parameter_symbol_ref));
+                parameter_symbol_name = Some(symbol_name(parameter_symbol, self));
                 parameter_symbol_name.as_deref().unwrap().into()
             };
         let is_optional = matches!(
@@ -701,7 +700,7 @@ impl NodeBuilder {
             None,
         );
         context
-            .increment_approximate_length_by(symbol_name(&parameter_symbol.ref_(self)).len() + 3);
+            .increment_approximate_length_by(symbol_name(parameter_symbol, self).len() + 3);
         Ok(parameter_node)
     }
 
@@ -1188,7 +1187,7 @@ impl NodeBuilder {
             .clone());
         }
         let context_file =
-            get_source_file_of_node(&get_original_node(&context.enclosing_declaration()));
+            get_source_file_of_node(&get_original_node(context.enclosing_declaration(), self));
         let links = self.type_checker.get_symbol_links(symbol);
         let mut specifier =
             (*links)

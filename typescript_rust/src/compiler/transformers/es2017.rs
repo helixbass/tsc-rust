@@ -913,7 +913,7 @@ impl TransformES2017 {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         self.context.resume_lexical_environment();
 
-        let ref original = get_original_node(node);
+        let ref original = get_original_node(node, self);
         let node_type = original.as_has_type().maybe_type();
         let promise_constructor = if self.language_version < ScriptTarget::ES2015 {
             self.get_promise_constructor(node_type.as_deref())?

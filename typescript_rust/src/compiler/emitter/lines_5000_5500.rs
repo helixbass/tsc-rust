@@ -582,12 +582,13 @@ impl Printer {
         node_a: Id<Node>,
         node_b: Id<Node>,
     ) -> bool {
-        let ref node_a = get_original_node(node_a);
+        let ref node_a = get_original_node(node_a, self);
         matches!(
             node_a.maybe_parent().as_ref(),
             Some(node_a_parent) if matches!(
                 get_original_node(
-                    node_b
+                    node_b,
+                    self,
                 ).maybe_parent().as_ref(),
                 Some(node_b_parent) if Gc::ptr_eq(
                     node_a_parent,
@@ -606,8 +607,8 @@ impl Printer {
             return false;
         }
 
-        let ref previous_node = get_original_node(previous_node);
-        let ref next_node = get_original_node(next_node);
+        let ref previous_node = get_original_node(previous_node, self);
+        let ref next_node = get_original_node(next_node, self);
         let parent = previous_node.maybe_parent();
         if match parent.as_ref() {
             None => true,

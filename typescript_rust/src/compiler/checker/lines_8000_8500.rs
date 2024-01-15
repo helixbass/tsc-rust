@@ -306,7 +306,7 @@ impl TypeChecker {
                         if is_call_expression(declaration)
                             && is_bindable_object_define_property_call(declaration, self)
                         {
-                            return symbol_name(&symbol.ref_(self)).into_owned().into();
+                            return symbol_name(symbol, self).into_owned().into();
                         }
                         if is_computed_property_name(&name)
                             && !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late)
@@ -364,7 +364,7 @@ impl TypeChecker {
         if let Some(name) = name {
             name.into()
         } else {
-            symbol_name(&symbol.ref_(self)).into_owned().into()
+            symbol_name(symbol, self).into_owned().into()
         }
     }
 
