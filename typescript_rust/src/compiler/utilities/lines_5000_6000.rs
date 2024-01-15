@@ -314,7 +314,7 @@ pub fn create_token_range(pos: isize, token: SyntaxKind) -> BaseTextRange {
 
 pub fn range_is_on_single_line(
     range: &impl ReadonlyTextRange,
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
 ) -> bool {
     range_start_is_on_same_line_as_range_end(range, range, source_file)
 }

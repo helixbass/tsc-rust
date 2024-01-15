@@ -18,6 +18,7 @@ use crate::{
     remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
     Diagnostics, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena, InternalSymbolName,
     Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    OptionInArena,
 };
 
 impl BinderType {
@@ -87,14 +88,14 @@ impl BinderType {
                 if is_special_property_declaration(expr, self) {
                     self.bind_special_property_declaration(expr);
                 }
-                if is_in_js_file(Some(expr))
+                if is_in_js_file(Some(&expr.ref_(self)))
                     && self
                         .file()
                         .ref_(self)
                         .as_source_file()
                         .maybe_common_js_module_indicator()
                         .is_some()
-                    && is_module_exports_access_expression(expr)
+                    && is_module_exports_access_expression(expr, self)
                     && lookup_symbol_for_name(self, self.block_scope_container(), "module")
                         .is_none()
                 {
@@ -120,7 +121,7 @@ impl BinderType {
                     }
                     AssignmentDeclarationKind::PrototypeProperty => {
                         self.bind_prototype_property_assignment(
-                            &node.ref_(self).as_binary_expression().left,
+                            node.ref_(self).as_binary_expression().left,
                             node,
                         );
                     }
@@ -138,11 +139,11 @@ impl BinderType {
                             .ref_(self)
                             .as_has_expression()
                             .expression();
-                        if is_in_js_file(Some(node)) && is_identifier(&expression) {
+                        if is_in_js_file(Some(&node.ref_(self))) && is_identifier(&expression.ref_(self)) {
                             let symbol = lookup_symbol_for_name(
                                 self,
                                 self.block_scope_container(),
-                                &expression.as_identifier().escaped_text,
+                                &expression.ref_(self).as_identifier().escaped_text,
                             );
                             if is_this_initialized_declaration(
                                 symbol
@@ -308,7 +309,7 @@ impl BinderType {
                     AssignmentDeclarationKind::None => (),
                     _ => Debug_.fail(Some("Unknown call expression assignment declaration kind")),
                 }
-                if is_in_js_file(Some(node)) {
+                if is_in_js_file(Some(&node.ref_(self))) {
                     self.bind_call_expression(node);
                 }
             }
@@ -374,7 +375,7 @@ impl BinderType {
             }
             SyntaxKind::Block => {
                 if !is_function_like_or_class_static_block_declaration(
-                    node.ref_(self).maybe_parent(),
+                    node.ref_(self).maybe_parent().refed(self),
                 ) {
                     return;
                 }
@@ -387,17 +388,20 @@ impl BinderType {
             }
 
             SyntaxKind::JSDocParameterTag => {
-                if node.ref_(self).parent().kind() == SyntaxKind::JSDocSignature {
+                if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::JSDocSignature {
                     return self.bind_parameter(node);
                 }
-                if node.ref_(self).parent().kind() != SyntaxKind::JSDocTypeLiteral {
+                if node.ref_(self).parent().ref_(self).kind() != SyntaxKind::JSDocTypeLiteral {
                     return;
                 }
                 let prop_tag = node;
                 let prop_tag_as_jsdoc_property_like_tag =
                     prop_tag.ref_(self).as_jsdoc_property_like_tag();
                 let flags = if prop_tag_as_jsdoc_property_like_tag.is_bracketed
-                    || matches!(prop_tag_as_jsdoc_property_like_tag.type_expression.as_ref(), Some(type_expression) if type_expression.as_jsdoc_type_expression().type_.kind() == SyntaxKind::JSDocOptionalType)
+                    || matches!(
+                        prop_tag_as_jsdoc_property_like_tag.type_expression,
+                        Some(type_expression) if type_expression.ref_(arena).as_jsdoc_type_expression().type_.ref_(arena).kind() == SyntaxKind::JSDocOptionalType
+                    )
                 {
                     SymbolFlags::Property | SymbolFlags::Optional
                 } else {
@@ -414,7 +418,10 @@ impl BinderType {
                 let prop_tag_as_jsdoc_property_like_tag =
                     prop_tag.ref_(self).as_jsdoc_property_like_tag();
                 let flags = if prop_tag_as_jsdoc_property_like_tag.is_bracketed
-                    || matches!(prop_tag_as_jsdoc_property_like_tag.type_expression.as_ref(), Some(type_expression) if type_expression.as_jsdoc_type_expression().type_.kind() == SyntaxKind::JSDocOptionalType)
+                    || matches!(
+                        prop_tag_as_jsdoc_property_like_tag.type_expression,
+                        Some(type_expression) if type_expression.ref_(arena).as_jsdoc_type_expression().type_.ref_(arena).kind() == SyntaxKind::JSDocOptionalType
+                    )
                 {
                     SymbolFlags::Property | SymbolFlags::Optional
                 } else {
@@ -563,14 +570,14 @@ impl BinderType {
                     .into(),
                 ));
         }
-        let diag = if !is_source_file(&node.ref_(self).parent()) {
+        let diag = if !is_source_file(&node.ref_(self).parent().ref_(self)) {
             Some(&*Diagnostics::Global_module_exports_may_only_appear_at_top_level)
-        } else if !is_external_module(&node.ref_(self).parent()) {
+        } else if !is_external_module(&node.ref_(self).parent().ref_(self)) {
             Some(&*Diagnostics::Global_module_exports_may_only_appear_in_module_files)
         } else if !node
             .ref_(self)
             .parent()
-            .as_source_file()
+            .ref_(self).as_source_file()
             .is_declaration_file()
         {
             Some(&*Diagnostics::Global_module_exports_may_only_appear_in_declaration_files)
@@ -634,7 +641,7 @@ impl BinderType {
                 None,
                 None,
             );
-        } else if is_namespace_export(node_as_export_declaration.export_clause.as_ref().unwrap()) {
+        } else if is_namespace_export(&node_as_export_declaration.export_clause.unwrap().ref_(self)) {
             self.declare_symbol(
                 &mut self
                     .container()
@@ -644,7 +651,7 @@ impl BinderType {
                     .exports()
                     .borrow_mut(),
                 Some(self.container().ref_(self).symbol()),
-                node_as_export_declaration.export_clause.as_ref().unwrap(),
+                node_as_export_declaration.export_clause.unwrap(),
                 SymbolFlags::Alias,
                 SymbolFlags::AliasExcludes,
                 None,
@@ -689,8 +696,8 @@ impl BinderType {
             return;
         }
         let symbol = self.for_each_identifier_in_entity_name(
-            &node.ref_(self).as_call_expression().arguments[0],
-            Option::<Id<Symbol>>::None,
+            node.ref_(self).as_call_expression().arguments[0],
+            None,
             &mut |id, symbol, _| {
                 if let Some(symbol) = symbol {
                     self.add_declaration_to_symbol(
@@ -725,11 +732,11 @@ impl BinderType {
         }
         let node_as_binary_expression = node.ref_(self).as_binary_expression();
         let symbol = self.for_each_identifier_in_entity_name(
-            &node_as_binary_expression
+            node_as_binary_expression
                 .left
-                .as_has_expression()
+                .ref_(self).as_has_expression()
                 .expression(),
-            Option::<Id<Symbol>>::None,
+            None,
             &mut |id, symbol, _| {
                 if let Some(symbol) = symbol {
                     self.add_declaration_to_symbol(
@@ -746,24 +753,26 @@ impl BinderType {
                 && (is_exports_identifier(
                     &node_as_binary_expression
                         .left
-                        .as_has_expression()
-                        .expression(),
+                        .ref_(self).as_has_expression()
+                        .expression()
+                        .ref_(self),
                 ) || is_module_exports_access_expression(
-                    &node_as_binary_expression
+                    node_as_binary_expression
                         .left
-                        .as_has_expression()
+                        .ref_(self).as_has_expression()
                         .expression(),
+                    self,
                 ));
             let flags = if is_alias {
                 SymbolFlags::Alias
             } else {
                 SymbolFlags::Property | SymbolFlags::ExportValue
             };
-            set_parent(&node_as_binary_expression.left, Some(node));
+            set_parent(&node_as_binary_expression.left.ref_(self), Some(node));
             self.declare_symbol(
                 &mut symbol.ref_(self).exports().borrow_mut(),
                 Some(symbol),
-                &node_as_binary_expression.left,
+                node_as_binary_expression.left,
                 flags,
                 SymbolFlags::None,
                 None,
@@ -784,7 +793,7 @@ impl BinderType {
             get_right_most_assigned_expression(node_as_binary_expression.right, self);
         if is_empty_object_literal(&assigned_expression.ref_(self))
             || self.container() == self.file()
-                && is_exports_or_module_exports_or_alias(self, self.file(), &assigned_expression)
+                && is_exports_or_module_exports_or_alias(self, self.file(), assigned_expression)
         {
             return;
         }
@@ -799,7 +808,7 @@ impl BinderType {
             ) {
                 for_each(
                     &assigned_expression_as_object_literal_expression.properties,
-                    |property, _| {
+                    |&property, _| {
                         self.bind_export_assigned_object_member_alias(property);
                         Option::<()>::None
                     },
