@@ -97,7 +97,7 @@ pub fn get_module_instance_state(
     if let Some(node_body) = node_as_module_declaration.body.as_ref() {
         if node_body.maybe_parent().is_none() {
             set_parent(node_body, Some(node.node_wrapper()));
-            set_parent_recursive(Some(node_body), false, self);
+            set_parent_recursive(Some(node_body), false);
         }
     }
     if let Some(node_body) = node_as_module_declaration.body.as_ref() {
@@ -225,10 +225,10 @@ pub(super) fn get_module_instance_state_for_alias_target(
             let statements = p_present.as_has_statements().statements();
             let mut found: Option<ModuleInstanceState> = None;
             for statement in &statements {
-                if node_has_name(statement, name, self) {
+                if node_has_name(statement, name) {
                     if statement.maybe_parent().is_none() {
                         set_parent(statement, Some(p_present.clone()));
-                        set_parent_recursive(Some(statement), false, self);
+                        set_parent_recursive(Some(statement), false);
                     }
                     let state = get_module_instance_state_cached(statement, Some(visited.clone()));
                     if match found {

@@ -10,7 +10,7 @@ use id_arena::Id;
 use itertools::Itertools;
 
 use crate::{
-    GetOrInsertDefault, Node, NodeExt, NodeInterface, NonEmpty, ReadonlyTextRange,
+    HasArena, GetOrInsertDefault, Node, NodeExt, NodeInterface, NonEmpty, ReadonlyTextRange,
     TransformationContext, VisitResult, _d, get_elements_of_binding_or_assignment_pattern,
     get_factory, get_initializer_of_binding_or_assignment_element,
     get_property_name_of_binding_or_assignment_element,
@@ -320,7 +320,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                 >,
             >
     });
-    if is_destructuring_assignment(node, self) {
+    if is_destructuring_assignment(node, arena) {
         value = Some(node.as_binary_expression().right.clone());
         while is_empty_array_literal(&node.as_binary_expression().left)
             || is_empty_object_literal(&node.as_binary_expression().left)
@@ -335,7 +335,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                     visitor
                         .as_ref()
                         .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
-                    Some(|node| is_expression(node, self)),
+                    Some(|node| is_expression(node, arena)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
             }
@@ -358,7 +358,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
             visitor
                 .as_ref()
                 .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
-            Some(|node| is_expression(node, self)),
+            Some(|node| is_expression(node, arena)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?);
 
@@ -774,6 +774,7 @@ fn flatten_binding_or_assignment_element(
     value: Option<impl Borrow<Node /*Expression*/>>,
     location: &impl ReadonlyTextRange,
     skip_initializer: Option<bool>,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     let binding_target = get_target_of_binding_or_assignment_element(element).unwrap();
     let mut value = value.node_wrappered();
@@ -783,7 +784,7 @@ fn flatten_binding_or_assignment_element(
             flatten_context
                 .is_visitor_supported()
                 .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
-            Some(|node| is_expression(node, self)),
+            Some(|node| is_expression(node, arena)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         if let Some(initializer) = initializer {

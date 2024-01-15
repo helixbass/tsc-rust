@@ -735,7 +735,7 @@ impl TypeChecker {
                 node,
                 node_as_import_type_node
                     .argument
-                    .ref_(arena).as_literal_type_node()
+                    .ref_(self).as_literal_type_node()
                     .literal,
                 None,
             )?;
@@ -834,9 +834,9 @@ impl TypeChecker {
                         error_message,
                         Some(vec![node_as_import_type_node
                             .argument
-                            .ref_(arena).as_literal_type_node()
+                            .ref_(self).as_literal_type_node()
                             .literal
-                            .ref_(arena).as_literal_like_node()
+                            .ref_(self).as_literal_like_node()
                             .text()
                             .clone()]),
                     );

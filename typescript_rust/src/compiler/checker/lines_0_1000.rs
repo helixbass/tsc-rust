@@ -1822,7 +1822,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(location),
-            Option::<fn(Id<Node>) -> bool>::None
+            Option::<fn(Id<Node>) -> bool>::None,
             self,
         ));
         let prop_name = escape_leading_underscores(name);
@@ -2033,7 +2033,7 @@ impl TypeChecker {
     pub fn get_symbol_at_location(&self, node_in: Id<Node>) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
-            Option::<fn(Id<Node>) -> bool>::None
+            Option::<fn(Id<Node>) -> bool>::None,
             self,
         ));
         self.get_symbol_at_location_(node, Some(true))
@@ -2045,7 +2045,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Gc<IndexInfo>>>> {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
-            Option::<fn(Id<Node>) -> bool>::None
+            Option::<fn(Id<Node>) -> bool>::None,
             self,
         ));
         self.get_index_infos_at_location_(node)
@@ -2057,7 +2057,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             node_in,
-            Option::<fn(Id<Node>) -> bool>::None
+            Option::<fn(Id<Node>) -> bool>::None,
             self,
         ));
         self.get_shorthand_assignment_value_symbol_(Some(node))
@@ -2069,7 +2069,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_export_specifier(&node.ref_(self)))
+            Some(|node: Id<Node>| is_export_specifier(&node.ref_(self))),
             self,
         ));
         self.get_export_specifier_local_target_symbol_(node)
@@ -2114,7 +2114,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let location = return_ok_none_if_none!(get_parse_tree_node(
             Some(location_in),
-            Some(|node: Id<Node>| is_identifier(&node.ref_(self)))
+            Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
             self,
         ));
         self.get_property_symbol_of_destructuring_assignment_(location)
@@ -2251,7 +2251,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_expression(node, self))
+            Some(|node: Id<Node>| is_expression(node, self)),
             self,
         ));
         let containing_call =
@@ -2654,7 +2654,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
-            Option::<fn(Id<Node>) -> bool>::None
+            Option::<fn(Id<Node>) -> bool>::None,
             self,
         ));
         self.try_get_this_type_at_(node, include_global_this, Option::<Id<Node>>::None)
@@ -2666,7 +2666,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_type_node(node))
+            Some(|node: Id<Node>| is_type_node(node)),
             self,
         ));
         self.get_type_argument_constraint_(node)
