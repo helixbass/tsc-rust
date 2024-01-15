@@ -865,18 +865,19 @@ impl BinderType {
         &self,
         node: Id<Node>, /*BindablePropertyAssignmentExpression | PropertyAccessExpression | LiteralLikeElementAccessExpression*/
     ) {
-        Debug_.assert(is_in_js_file(Some(node)), None);
-        let has_private_identifier = is_binary_expression(node) && {
-            let node_as_binary_expression = node.ref_(self).as_binary_expression();
-            is_property_access_expression(&node_as_binary_expression.left)
+        Debug_.assert(is_in_js_file(Some(&node.ref_(self))), None);
+        let has_private_identifier = is_binary_expression(&node.ref_(self)) && {
+            let node_ref = node.ref_(self);
+            let node_as_binary_expression = node_ref.as_binary_expression();
+            is_property_access_expression(&node_as_binary_expression.left.ref_(self))
                 && is_private_identifier(
                     &node_as_binary_expression
                         .left
-                        .as_property_access_expression()
-                        .name,
+                        .ref_(self).as_property_access_expression()
+                        .name.ref_(self),
                 )
-        } || is_property_access_expression(node)
-            && is_private_identifier(&node.ref_(self).as_property_access_expression().name);
+        } || is_property_access_expression(&node.ref_(self))
+            && is_private_identifier(&node.ref_(self).as_property_access_expression().name.ref_(self));
         if has_private_identifier {
             return;
         }
@@ -884,10 +885,11 @@ impl BinderType {
         match this_container.ref_(self).kind() {
             SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => {
                 let mut constructor_symbol = this_container.ref_(self).maybe_symbol();
-                if is_binary_expression(&this_container.ref_(self).parent()) {
+                if is_binary_expression(&this_container.ref_(self).parent().ref_(self)) {
                     let this_container_parent = this_container.ref_(self).parent();
+                    let this_container_parent_ref = this_container_parent.ref_(self);
                     let this_container_parent_as_binary_expression =
-                        this_container_parent.as_binary_expression();
+                        this_container_parent_ref.as_binary_expression();
                     if this_container_parent_as_binary_expression
                         .operator_token
                         .kind()
@@ -963,21 +965,21 @@ impl BinderType {
             | SyntaxKind::ClassStaticBlockDeclaration => {
                 let containing_class = this_container.ref_(self).parent();
                 let symbol_table = if is_static(this_container, self) {
-                    containing_class.symbol().ref_(self).exports()
+                    containing_class.ref_(self).symbol().ref_(self).exports()
                 } else {
-                    containing_class.symbol().ref_(self).members()
+                    containing_class.ref_(self).symbol().ref_(self).members()
                 };
                 let mut symbol_table = symbol_table.borrow_mut();
                 if has_dynamic_name(node, self) {
                     self.bind_dynamically_named_this_property_assignment(
                         node,
-                        containing_class.symbol(),
+                        containing_class.ref_(self).symbol(),
                         &mut symbol_table,
                     );
                 } else {
                     self.declare_symbol(
                         &mut symbol_table,
-                        Some(containing_class.symbol()),
+                        Some(containing_class.ref_(self).symbol()),
                         node,
                         SymbolFlags::Property | SymbolFlags::Assignment,
                         SymbolFlags::None,
@@ -1063,11 +1065,12 @@ impl BinderType {
         &self,
         node: Id<Node>, /*PropertyAccessExpression | LiteralLikeElementAccessExpression*/
     ) {
-        let node_as_has_expression = node.ref_(self).as_has_expression();
-        if node_as_has_expression.expression().kind() == SyntaxKind::ThisKeyword {
+        let node_ref = node.ref_(self);
+        let node_as_has_expression = node_ref.as_has_expression();
+        if node_as_has_expression.expression().ref_(self).kind() == SyntaxKind::ThisKeyword {
             self.bind_this_property_assignment(node);
         } else if is_bindable_static_access_expression(node, None, self)
-            && node.ref_(self).parent().ref_(self).parent().kind() == SyntaxKind::SourceFile
+            && node.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile
         {
             if is_prototype_access(node_as_has_expression.expression(), self) {
                 self.bind_prototype_property_assignment(node, node.ref_(self).parent());
