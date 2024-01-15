@@ -480,7 +480,7 @@ impl TransformClassFields {
         let target = get_target_of_binding_or_assignment_element(node);
         if let Some(ref target) = target {
             let mut wrapped: Option<Id<Node /*LeftHandSideExpression*/>> = _d();
-            if is_private_identifier_property_access_expression(target) {
+            if is_private_identifier_property_access_expression(target, self) {
                 wrapped = Some(self.wrap_private_identifier_for_destructuring_target(target));
             } else if self.should_transform_super_in_static_initializers
                 && is_super_property(target)
@@ -579,7 +579,7 @@ impl TransformClassFields {
             let target = get_target_of_binding_or_assignment_element(node);
             let mut wrapped: Option<Id<Node /*LeftHandSideExpression*/>> = _d();
             if let Some(ref target) = target {
-                if is_private_identifier_property_access_expression(target) {
+                if is_private_identifier_property_access_expression(target, self) {
                     wrapped = Some(self.wrap_private_identifier_for_destructuring_target(target));
                 } else if self.should_transform_super_in_static_initializers
                     && is_super_property(target)

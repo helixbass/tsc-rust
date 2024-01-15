@@ -1010,7 +1010,7 @@ impl Program {
                 }
             }
         } else if is_module_declaration(node) {
-            if is_ambient_module(node)
+            if is_ambient_module(node, self)
                 && (in_ambient_module
                     || has_syntactic_modifier(node, ModifierFlags::Ambient, self)
                     || file.as_source_file().is_declaration_file())

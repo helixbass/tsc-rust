@@ -309,7 +309,7 @@ fn try_get_module_specifiers_from_cache_worker(
     Option<Vec<ModulePath>>,
     Option<Rc<dyn ModuleSpecifierCache>>,
 ) {
-    let module_source_file = get_source_file_of_module(&checker.symbol(module_symbol));
+    let module_source_file = get_source_file_of_module(module_symbol, checker);
     if module_source_file.is_none() {
         return (None, None, None, None);
     }

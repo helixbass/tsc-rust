@@ -1074,7 +1074,7 @@ impl TypeChecker {
         was_optional: bool,
     ) -> io::Result<Id<Type>> {
         Ok(if was_optional {
-            if is_outermost_optional_chain(node) {
+            if is_outermost_optional_chain(node, self) {
                 self.get_optional_type_(type_, None)?
             } else {
                 self.add_optional_type_marker(type_)?
@@ -1089,7 +1089,7 @@ impl TypeChecker {
         expr_type: Id<Type>,
         expression: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
-        Ok(if is_expression_of_optional_chain_root(expression) {
+        Ok(if is_expression_of_optional_chain_root(expression, self) {
             self.get_non_nullable_type(expr_type)?
         } else if is_optional_chain(expression) {
             self.remove_optional_type_marker(expr_type)

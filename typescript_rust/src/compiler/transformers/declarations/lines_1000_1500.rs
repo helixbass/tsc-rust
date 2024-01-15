@@ -570,7 +570,7 @@ impl TransformDeclarations {
                             input,
                             Option::<Gc<NodeArray>>::None,
                             mods,
-                            if is_external_module_augmentation(input) {
+                            if is_external_module_augmentation(input, self) {
                                 self.rewrite_module_specifier(
                                     input,
                                     input_as_module_declaration.maybe_name().as_deref(),

@@ -867,7 +867,7 @@ impl TypeChecker {
         let candidates = try_map_defined(
             symbol.ref_(self).maybe_declarations().as_deref(),
             |d: &Id<Node>, _| -> io::Result<_> {
-                if !is_ambient_module(d) {
+                if !is_ambient_module(d, self) {
                     if let Some(d_parent) = d.maybe_parent() {
                         if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
                             return self.get_symbol_of_node(&d_parent);

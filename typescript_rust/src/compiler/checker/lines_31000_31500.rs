@@ -437,7 +437,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let mut expr_type = self.check_expression(expression, check_mode, None)?;
-        if is_const_type_reference(type_) {
+        if is_const_type_reference(type_, self) {
             if !self.is_valid_const_assertion_argument(expression)? {
                 self.error(
                     Some(expression),

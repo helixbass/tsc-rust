@@ -222,7 +222,7 @@ impl TypeChecker {
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => DeclarationSpaces::ExportType,
             SyntaxKind::ModuleDeclaration => {
-                if is_ambient_module(d)
+                if is_ambient_module(d, self)
                     || get_module_instance_state(d, None) != ModuleInstanceState::NonInstantiated
                 {
                     DeclarationSpaces::ExportNamespace | DeclarationSpaces::ExportValue

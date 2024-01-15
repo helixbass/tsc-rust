@@ -207,9 +207,9 @@ impl TypeChecker {
     pub(super) fn is_const_context(&self, node: Id<Node> /*Expression*/) -> bool {
         let parent = node.parent();
         is_assertion_expression(&parent)
-            && is_const_type_reference(&parent.as_has_type().maybe_type().unwrap())
+            && is_const_type_reference(parent.as_has_type().maybe_type().unwrap(), self)
             || is_jsdoc_type_assertion(parent, self)
-                && is_const_type_reference(&get_jsdoc_type_assertion_type(&parent))
+                && is_const_type_reference(get_jsdoc_type_assertion_type(&parent), self)
             || (is_parenthesized_expression(&parent)
                 || is_array_literal_expression(&parent)
                 || is_spread_element(&parent))
@@ -622,7 +622,7 @@ impl TypeChecker {
         let mut expr = skip_parentheses(node, Some(true), self);
         if is_jsdoc_type_assertion(expr, self) {
             let type_ = get_jsdoc_type_assertion_type(&expr);
-            if !is_const_type_reference(&type_) {
+            if !is_const_type_reference(type_, self) {
                 return Ok(Some(self.get_type_from_type_node_(&type_)?));
             }
         }
@@ -643,7 +643,7 @@ impl TypeChecker {
                 return Ok(type_);
             }
         } else if is_assertion_expression(&expr)
-            && !is_const_type_reference(&expr.as_has_type().maybe_type().unwrap())
+            && !is_const_type_reference(expr.as_has_type().maybe_type().unwrap(), self)
         {
             return Ok(Some(self.get_type_from_type_node_(
                 &expr.as_has_type().maybe_type().unwrap(),

@@ -588,7 +588,7 @@ impl TypeChecker {
             return self
                 .is_identifier_that_starts_with_underscore(&declaration_as_binding_element.name());
         }
-        is_ambient_module(declaration)
+        is_ambient_module(declaration, self)
             || (is_variable_declaration(declaration)
                 && is_for_in_or_of_statement(&declaration.parent().parent())
                 || self.is_imported_declaration(declaration))
@@ -1057,7 +1057,7 @@ impl TypeChecker {
 
         if is_import_clause(node) || is_import_equals_declaration(node) || is_import_specifier(node)
         {
-            if is_type_only_import_or_export_declaration(node) {
+            if is_type_only_import_or_export_declaration(node, self) {
                 return false;
             }
         }

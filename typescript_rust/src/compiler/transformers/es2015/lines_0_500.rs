@@ -405,7 +405,7 @@ impl TransformES2015 {
                 || is_try_statement(node)
                 || is_catch_clause(node)
                 || is_labeled_statement(node)
-                || is_iteration_statement(node, false)
+                || is_iteration_statement(node, false, self)
                 || is_block(node))
     }
 
@@ -418,7 +418,7 @@ impl TransformES2015 {
                 .unwrap_or_default()
                 .intersects(HierarchyFacts::ConstructorWithCapturedSuper)
                 && self.is_or_may_contain_return_completion(node)
-            || is_iteration_statement(node, false) && self.should_convert_iteration_statement(node)
+            || is_iteration_statement(node, false, self) && self.should_convert_iteration_statement(node)
             || get_emit_flags(node).intersects(EmitFlags::TypeScriptClassWrapper)
     }
 

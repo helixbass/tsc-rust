@@ -807,13 +807,11 @@ pub fn maybe_get_source_file_of_node(node: Option<Id<Node>>) -> Option<Id<Node /
     node
 }
 
-pub fn get_source_file_of_module(module: &Symbol) -> Option<Id<Node /*SourceFile*/>> {
+pub fn get_source_file_of_module(module: Id<Symbol>, arena: &impl HasArena) -> Option<Id<Node /*SourceFile*/>> {
     maybe_get_source_file_of_node(
         module
             .maybe_value_declaration()
-            .as_ref()
-            .map(Clone::clone)
-            .or_else(|| get_non_augmentation_declaration(module)),
+            .or_else(|| get_non_augmentation_declaration(module, arena)),
     )
 }
 
@@ -1570,10 +1568,10 @@ pub fn is_catch_clause_variable_declaration_or_binding_element(
         && node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::CatchClause
 }
 
-pub fn is_ambient_module(node: Id<Node>) -> bool {
-    is_module_declaration(node)
-        && (node.as_module_declaration().name.kind() == SyntaxKind::StringLiteral
-            || is_global_scope_augmentation(node))
+pub fn is_ambient_module(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_module_declaration(&node.ref_(arena))
+        && (node.ref_(arena).as_module_declaration().name.ref_(arena).kind() == SyntaxKind::StringLiteral
+            || is_global_scope_augmentation(&node.ref_(arena)))
 }
 
 pub fn is_module_with_string_literal_name(node: Id<Node>) -> bool {
@@ -1611,38 +1609,38 @@ pub fn is_block_scoped_container_top_level(node: Id<Node>) -> bool {
     ) || is_function_like_or_class_static_block_declaration(Some(node))
 }
 
-pub fn is_global_scope_augmentation(module: Id<Node> /*ModuleDeclaration*/) -> bool {
+pub fn is_global_scope_augmentation(module: &Node /*ModuleDeclaration*/) -> bool {
     module.flags().intersects(NodeFlags::GlobalAugmentation)
 }
 
-pub fn is_external_module_augmentation(node: Id<Node>) -> bool {
-    is_ambient_module(node) && is_module_augmentation_external(node)
+pub fn is_external_module_augmentation(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_ambient_module(node, arena) && is_module_augmentation_external(node, arena)
 }
 
-pub fn is_module_augmentation_external(node: Id<Node> /*AmbientModuleDeclaration*/) -> bool {
-    match node.parent().kind() {
-        SyntaxKind::SourceFile => is_external_module(&node.parent()),
+pub fn is_module_augmentation_external(node: Id<Node> /*AmbientModuleDeclaration*/, arena: &impl HasArena) -> bool {
+    match node.ref_(arena).parent().ref_(arena).kind() {
+        SyntaxKind::SourceFile => is_external_module(&node.ref_(arena).parent().ref_(arena)),
         SyntaxKind::ModuleBlock => {
-            is_ambient_module(&node.parent().parent())
-                && is_source_file(&node.parent().parent().parent())
-                && !is_external_module(&node.parent().parent().parent())
+            is_ambient_module(node.ref_(arena).parent().ref_(arena).parent(), arena)
+                && is_source_file(&node.ref_(arena).parent().ref_(arena).parent().ref_(arena).parent().ref_(arena))
+                && !is_external_module(&node.ref_(arena).parent().ref_(arena).parent().ref_(arena).parent().ref_(arena))
         }
         _ => false,
     }
 }
 
-pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Id<Node /*Declaration*/>> {
+pub fn get_non_augmentation_declaration(symbol: Id<Symbol>, arena: &impl HasArena) -> Option<Id<Node /*Declaration*/>> {
     symbol
-        .maybe_declarations()
+        .ref_(arena).maybe_declarations()
         .as_ref()
         .and_then(|declarations| {
             declarations
-                .iter()
-                .find(|d| {
-                    !is_external_module_augmentation(d)
-                        && !(is_module_declaration(d) && is_global_scope_augmentation(d))
+                .into_iter()
+                .find(|&&d| {
+                    !is_external_module_augmentation(d, arena)
+                        && !(is_module_declaration(&d.ref_(arena)) && is_global_scope_augmentation(&d.ref_(arena)))
                 })
-                .map(Clone::clone)
+                .copied()
         })
 }
 
@@ -1759,7 +1757,7 @@ pub fn is_declaration_with_type_parameter_children(node: Id<Node>) -> bool {
     }
 }
 
-pub fn is_any_import_syntax(node: Id<Node>) -> bool {
+pub fn is_any_import_syntax(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
@@ -1788,7 +1786,7 @@ pub fn has_possible_external_module_reference(node: Id<Node>, arena: &impl HasAr
         || is_import_call(node, arena)
 }
 
-pub fn is_any_import_or_re_export(node: Id<Node>) -> bool {
+pub fn is_any_import_or_re_export(node: &Node) -> bool {
     is_any_import_syntax(node) || is_export_declaration(node)
 }
 

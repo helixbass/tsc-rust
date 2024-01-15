@@ -385,7 +385,7 @@ impl GetFlowTypeOfReference {
         expr: Id<Node>, /*Expression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
-        if is_expression_of_optional_chain_root(expr) || {
+        if is_expression_of_optional_chain_root(expr, self) || {
             let expr_parent = expr.parent();
             is_binary_expression(&expr_parent) && {
                 let expr_parent_as_binary_expression = expr_parent.as_binary_expression();

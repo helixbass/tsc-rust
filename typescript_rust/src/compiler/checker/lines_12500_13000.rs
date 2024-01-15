@@ -1114,7 +1114,7 @@ impl TypeChecker {
                     .as_deref(),
                 |node: &Id<Node>| is_type_parameter_declaration(&node.ref_(self)),
             ),
-            |node, _| get_effective_constraint_of_type_parameter(&node),
+            |node, _| get_effective_constraint_of_type_parameter(node, self),
         )
         .get(0)
         .map(Clone::clone)

@@ -17,7 +17,7 @@ use crate::{
     maybe_is_class_like, some, try_cast, ClassLikeDeclarationInterface, Debug_,
     FindAncestorCallbackReturn, HasInitializerInterface, HasStatementsInterface,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface, SyntaxKind,
-    TypePredicate, TypePredicateKind, HasArena, InArena,
+    TypePredicate, TypePredicateKind, HasArena, InArena, OptionInArena,
 };
 
 pub fn introduces_arguments_exotic_object(node: Id<Node>) -> bool {
@@ -50,9 +50,9 @@ pub fn unwrap_innermost_statement_of_label(
     }
 }
 
-pub fn is_function_block(node: Id<Node>) -> bool {
+pub fn is_function_block(node: Id<Node>, arena: &impl HasArena) -> bool {
     /*node &&*/
-    node.kind() == SyntaxKind::Block && is_function_like(node.maybe_parent())
+    node.ref_(arena).kind() == SyntaxKind::Block && is_function_like(node.ref_(arena).maybe_parent().refed(arena))
 }
 
 pub fn is_object_literal_method(node: Id<Node>) -> bool {

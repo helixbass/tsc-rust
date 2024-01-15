@@ -714,9 +714,9 @@ impl TypeChecker {
                                 .borrow()
                                 .flags
                                 .intersects(NodeCheckFlags::BlockScopedBindingInLoop);
-                            let in_loop_initializer = is_iteration_statement(container, false);
+                            let in_loop_initializer = is_iteration_statement(container, false, self);
                             let in_loop_body_block = container.kind() == SyntaxKind::Block
-                                && is_iteration_statement(&container.parent(), false);
+                                && is_iteration_statement(container.parent(), false, self);
 
                             links.borrow_mut().is_declaration_with_colliding_name = Some(
                                 !is_block_scoped_container_top_level(container)

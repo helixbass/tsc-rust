@@ -846,7 +846,7 @@ impl BinderType {
 
         let name = get_name_of_declaration(Some(node), self);
         if let Some(name) = name {
-            if is_ambient_module(node) {
+            if is_ambient_module(node, self) {
                 let module_name = get_text_of_identifier_or_literal(&name);
                 return Some(if is_global_scope_augmentation(node) {
                     "__global".into()

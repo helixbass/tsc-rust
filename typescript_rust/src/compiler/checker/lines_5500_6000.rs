@@ -1155,7 +1155,7 @@ impl NodeBuilder {
             {
                 let ambient_decls = maybe_filter(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    |declaration: &Id<Node>| is_ambient_module(declaration),
+                    |declaration: &Id<Node>| is_ambient_module(declaration, self),
                 );
                 if length(ambient_decls.as_deref()) > 0 {
                     for decl in ambient_decls.as_ref().unwrap() {
@@ -1180,7 +1180,7 @@ impl NodeBuilder {
                     .to_owned());
             }
             return Ok(get_source_file_of_node(
-                &get_non_augmentation_declaration(&symbol.ref_(self)).unwrap(),
+                &get_non_augmentation_declaration(symbol, self).unwrap(),
             )
             .as_source_file()
             .file_name()

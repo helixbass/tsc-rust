@@ -58,7 +58,7 @@ impl BinderType {
             if is_jsdoc_type_alias(node) {
                 Debug_.assert(is_in_js_file(Some(node)), None);
             }
-            if !is_ambient_module(node)
+            if !is_ambient_module(node, self)
                 && (has_export_modifier
                     || self
                         .container()
@@ -658,8 +658,8 @@ impl BinderType {
             && flags.intersects(FlowFlags::FalseCondition)
             || expression.kind() == SyntaxKind::FalseKeyword
                 && flags.intersects(FlowFlags::TrueCondition))
-            && !is_expression_of_optional_chain_root(expression)
-            && !is_nullish_coalesce(&expression.parent())
+            && !is_expression_of_optional_chain_root(expression, self)
+            && !is_nullish_coalesce(expression.parent(), self)
         {
             return self.unreachable_flow();
         }

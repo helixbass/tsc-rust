@@ -91,7 +91,7 @@ impl TransformClassFields {
         ) {
             let node_operand = node_as_unary_expression.operand();
             if self.should_transform_private_elements_or_class_static_blocks
-                && is_private_identifier_property_access_expression(&node_operand)
+                && is_private_identifier_property_access_expression(node_operand, self)
             {
                 if let Some(info) = self
                     .access_private_identifier(&node_operand.as_property_access_expression().name())
@@ -369,7 +369,7 @@ impl TransformClassFields {
     ) -> VisitResult {
         let node_as_call_expression = node.as_call_expression();
         if self.should_transform_private_elements_or_class_static_blocks
-            && is_private_identifier_property_access_expression(&node_as_call_expression.expression)
+            && is_private_identifier_property_access_expression(node_as_call_expression.expression, self)
         {
             let CallBinding { this_arg, target } = self.factory.create_call_binding(
                 &node_as_call_expression.expression,
@@ -501,7 +501,8 @@ impl TransformClassFields {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         if self.should_transform_private_elements_or_class_static_blocks
             && is_private_identifier_property_access_expression(
-                &node_as_tagged_template_expression.tag,
+                node_as_tagged_template_expression.tag,
+                self,
             )
         {
             let CallBinding { this_arg, target } = self.factory.create_call_binding(
@@ -688,7 +689,7 @@ impl TransformClassFields {
         let node_as_binary_expression = node.as_binary_expression();
         if is_assignment_expression(node, None) {
             if self.should_transform_private_elements_or_class_static_blocks
-                && is_private_identifier_property_access_expression(&node_as_binary_expression.left)
+                && is_private_identifier_property_access_expression(node_as_binary_expression.left, self)
             {
                 let node_left_as_property_access_expression = node_as_binary_expression
                     .left

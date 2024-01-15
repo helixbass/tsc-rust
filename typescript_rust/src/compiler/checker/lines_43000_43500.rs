@@ -681,8 +681,9 @@ impl TypeChecker {
                         let is_misplaced_continue_label = node.kind()
                             == SyntaxKind::ContinueStatement
                             && !is_iteration_statement(
-                                &current_as_labeled_statement.statement,
+                                current_as_labeled_statement.statement,
                                 true,
+                                self,
                             );
 
                         if is_misplaced_continue_label {
@@ -704,7 +705,7 @@ impl TypeChecker {
                     }
                 }
                 _ => {
-                    if is_iteration_statement(current_present, false)
+                    if is_iteration_statement(current_present, false, self)
                         && node_as_has_label.maybe_label().is_none()
                     {
                         return false;

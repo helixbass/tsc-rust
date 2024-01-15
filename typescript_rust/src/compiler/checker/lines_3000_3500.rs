@@ -210,7 +210,7 @@ impl TypeChecker {
         }
 
         let source_symbol = self.get_symbol_of_node(alias_declaration)?.unwrap();
-        if is_type_only_import_or_export_declaration(&alias_declaration.ref_(self)) {
+        if is_type_only_import_or_export_declaration(alias_declaration, self) {
             let links = self.get_symbol_links(source_symbol);
             links.borrow_mut().type_only_declaration = Some(Some(alias_declaration));
             return Ok(true);
@@ -262,7 +262,7 @@ impl TypeChecker {
                     .as_deref()
                     .and_then(|declarations| {
                         find(declarations, |declaration: &Id<Node>, _| {
-                            is_type_only_import_or_export_declaration(&declaration.ref_(self))
+                            is_type_only_import_or_export_declaration(declaration, self)
                         })
                         .map(Clone::clone)
                     });

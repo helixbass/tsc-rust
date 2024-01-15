@@ -203,12 +203,12 @@ impl TypeChecker {
         /*node &&*/
         matches!(
             node.maybe_parent(),
-            Some(node_parent) if node_parent.kind() == SyntaxKind::ModuleBlock && is_external_module_augmentation(&node_parent.parent())
+            Some(node_parent) if node_parent.kind() == SyntaxKind::ModuleBlock && is_external_module_augmentation(node_parent.parent(), self)
         )
     }
 
     pub(super) fn is_default_binding_context(&self, location: Id<Node>) -> bool {
-        location.kind() == SyntaxKind::SourceFile || is_ambient_module(location)
+        location.kind() == SyntaxKind::SourceFile || is_ambient_module(location, self)
     }
 
     pub(super) fn get_name_of_symbol_from_name_type(
@@ -413,7 +413,7 @@ impl TypeChecker {
                 {
                     return false;
                 }
-                if is_external_module_augmentation(node) {
+                if is_external_module_augmentation(node, self) {
                     return true;
                 }
                 let parent = self.get_declaration_container(node);

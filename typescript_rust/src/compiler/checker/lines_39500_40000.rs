@@ -77,7 +77,7 @@ impl TypeChecker {
             return false;
         }
         let is_ambient_external_module = node.parent().kind() == SyntaxKind::ModuleBlock
-            && is_ambient_module(&node.parent().parent());
+            && is_ambient_module(node.parent().parent(), self);
         if node.parent().kind() != SyntaxKind::SourceFile && !is_ambient_external_module {
             self.error(
                 Some(&**module_name),
@@ -156,7 +156,7 @@ impl TypeChecker {
             }
 
             if self.compiler_options.isolated_modules == Some(true)
-                && !is_type_only_import_or_export_declaration(node)
+                && !is_type_only_import_or_export_declaration(node, self)
                 && !node.flags().intersects(NodeFlags::Ambient)
             {
                 let type_only_alias = self.get_type_only_alias_declaration(symbol);
@@ -523,7 +523,7 @@ impl TypeChecker {
                     },
                 )?;
                 let in_ambient_external_module = node.parent().kind() == SyntaxKind::ModuleBlock
-                    && is_ambient_module(&node.parent().parent());
+                    && is_ambient_module(node.parent().parent(), self);
                 let in_ambient_namespace_declaration = !in_ambient_external_module
                     && node.parent().kind() == SyntaxKind::ModuleBlock
                     && node_as_export_declaration.module_specifier.is_none()
@@ -841,7 +841,7 @@ impl TypeChecker {
         } else {
             node.parent().parent()
         };
-        if container.kind() == SyntaxKind::ModuleDeclaration && !is_ambient_module(container) {
+        if container.kind() == SyntaxKind::ModuleDeclaration && !is_ambient_module(container, self) {
             if node_as_export_assignment.is_export_equals == Some(true) {
                 self.error(
                     Some(node),

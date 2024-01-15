@@ -170,7 +170,7 @@ impl BinderType {
                 let node = node.borrow();
                 !self.is_logical_assignment_expression(node)
                     && !self.is_logical_expression(node)
-                    && !(is_optional_chain(node) && is_outermost_optional_chain(node))
+                    && !(is_optional_chain(node) && is_outermost_optional_chain(node, self))
             }
         } {
             self.add_antecedent(

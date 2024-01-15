@@ -748,7 +748,8 @@ impl TypeChecker {
                 constraint_type,
                 self.keyof_constraint_type(),
                 get_effective_constraint_of_type_parameter(
-                    &node_as_mapped_type_node.type_parameter,
+                    node_as_mapped_type_node.type_parameter,
+                    self,
                 ),
                 None,
                 None,

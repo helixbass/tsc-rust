@@ -300,7 +300,7 @@ impl TypeChecker {
                 Some(root_value_symbol) if matches!(
                     root_value_symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(root_value_symbol_declarations) if root_value_symbol_declarations.into_iter().all(
-                        |declaration| is_type_only_import_or_export_declaration(declaration)
+                        |declaration| is_type_only_import_or_export_declaration(declaration, self)
                     )
                 )
             );
@@ -328,7 +328,7 @@ impl TypeChecker {
                 Some(value_symbol) if matches!(
                     value_symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(value_symbol_declarations) if value_symbol_declarations.into_iter().all(
-                        |declaration| is_type_only_import_or_export_declaration(declaration)
+                        |declaration| is_type_only_import_or_export_declaration(declaration, self)
                     )
                 )
             );
@@ -1491,7 +1491,7 @@ impl TypeChecker {
                         node.parent().parent()
                     };
                     if container.kind() == SyntaxKind::ModuleDeclaration
-                        && !is_ambient_module(&container)
+                        && !is_ambient_module(container, self)
                     {
                         return self.grammar_error_on_node(
                             modifier,

@@ -786,7 +786,7 @@ impl TypeChecker {
                 );
             }
 
-            let is_ambient_external_module = is_ambient_module(node);
+            let is_ambient_external_module = is_ambient_module(node, self);
             let context_error_message = if is_ambient_external_module {
                 &*Diagnostics::An_ambient_module_declaration_is_only_allowed_at_the_top_level_in_a_file
             } else {
@@ -868,7 +868,7 @@ impl TypeChecker {
             }
 
             if is_ambient_external_module {
-                if is_external_module_augmentation(node) {
+                if is_external_module_augmentation(node, self) {
                     let check_body = is_global_augmentation
                         || self
                             .get_symbol_of_node(node)?
@@ -987,7 +987,7 @@ impl TypeChecker {
                             symbol.ref_(self).maybe_parent().and_then(|symbol_parent| {
                                 symbol_parent.ref_(self).maybe_declarations().clone()
                             }).as_ref(),
-                            Some(symbol_parent_declarations) if is_external_module_augmentation(&symbol_parent_declarations[0])
+                            Some(symbol_parent_declarations) if is_external_module_augmentation(symbol_parent_declarations[0], self)
                         );
                     }
                 }

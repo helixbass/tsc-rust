@@ -83,7 +83,7 @@ impl TypeChecker {
             node_starts_new_lexical_environment(n) {
                 FindAncestorCallbackReturn::Quit
             } else {
-                is_iteration_statement(n, false).into()
+                is_iteration_statement(n, false, self).into()
             }
         })
     }

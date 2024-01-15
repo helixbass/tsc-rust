@@ -731,7 +731,7 @@ impl TypeChecker {
                     return Ok(false);
                 }
 
-                let constraint = get_effective_constraint_of_type_parameter(source);
+                let constraint = get_effective_constraint_of_type_parameter(source, self);
                 let source_constraint = constraint
                     .as_ref()
                     .try_map(|constraint| self.get_type_from_type_node_(constraint))?;

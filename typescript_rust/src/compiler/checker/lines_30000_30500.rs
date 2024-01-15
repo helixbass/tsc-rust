@@ -355,7 +355,7 @@ impl TypeChecker {
                 self.get_optional_expression_type(func_type, &node_as_call_expression.expression)?;
             call_chain_flags = if non_optional_type == func_type {
                 SignatureFlags::None
-            } else if is_outermost_optional_chain(node) {
+            } else if is_outermost_optional_chain(node, self) {
                 SignatureFlags::IsOuterCallChain
             } else {
                 SignatureFlags::IsInnerCallChain

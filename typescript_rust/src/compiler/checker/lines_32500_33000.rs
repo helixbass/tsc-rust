@@ -368,7 +368,7 @@ impl TypeChecker {
                 None,
             )?;
         }
-        if is_private_identifier_property_access_expression(target) {
+        if is_private_identifier_property_access_expression(target, self) {
             self.check_external_emit_helpers(
                 &target.parent(),
                 ExternalEmitHelpers::ClassPrivateFieldSet,

@@ -1477,7 +1477,7 @@ impl TypeChecker {
                 self.requires_scope_change_worker(target, &node.as_property_declaration().name())
             }
             _ => {
-                if is_nullish_coalesce(node) || is_optional_chain(node) {
+                if is_nullish_coalesce(node, self) || is_optional_chain(node) {
                     return target < ScriptTarget::ES2020;
                 }
                 if is_binding_element(node)
@@ -2060,7 +2060,7 @@ impl TypeChecker {
                         )?;
                         let is_global_scope_augmentation_declaration = matches!(
                             suggestion.and_then(|suggestion| suggestion.ref_(self).maybe_value_declaration()),
-                            Some(value_declaration) if is_ambient_module(&value_declaration) && is_global_scope_augmentation(&value_declaration)
+                            Some(value_declaration) if is_ambient_module(value_declaration, self) && is_global_scope_augmentation(&value_declaration)
                         );
                         if is_global_scope_augmentation_declaration {
                             suggestion = None;

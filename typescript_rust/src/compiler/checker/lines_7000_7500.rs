@@ -74,7 +74,7 @@ impl SymbolTableToDeclarationStatements {
         is_source_file(enclosing_declaration)
             && (is_external_or_common_js_module(enclosing_declaration)
                 || is_json_source_file(enclosing_declaration))
-            || is_ambient_module(enclosing_declaration)
+            || is_ambient_module(enclosing_declaration, self)
                 && !is_global_scope_augmentation(enclosing_declaration)
     }
 

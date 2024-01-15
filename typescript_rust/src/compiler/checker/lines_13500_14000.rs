@@ -35,7 +35,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            if is_const_type_reference(node) && is_assertion_expression(&node.parent()) {
+            if is_const_type_reference(node, self) && is_assertion_expression(&node.parent()) {
                 links.borrow_mut().resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.check_expression_cached(
                     &node.parent().as_has_expression().expression(),

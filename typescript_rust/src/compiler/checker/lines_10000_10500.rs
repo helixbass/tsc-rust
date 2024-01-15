@@ -674,7 +674,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> bool {
-        let constraint = get_effective_constraint_of_type_parameter(node);
+        let constraint = get_effective_constraint_of_type_parameter(node, self);
         match constraint {
             None => true,
             Some(constraint) => self.is_thisless_type(&constraint),

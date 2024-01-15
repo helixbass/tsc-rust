@@ -1238,32 +1238,33 @@ pub fn get_effective_type_parameter_declarations(
     node: Id<Node>,
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*TypeParameterDeclaration*/>> {
-    if is_jsdoc_signature(node) {
+    if is_jsdoc_signature(&node.ref_(arena)) {
         return vec![];
     }
-    if is_jsdoc_type_alias(node) {
-        Debug_.assert(node.parent().kind() == SyntaxKind::JSDocComment, None);
-        return flat_map(node.parent().as_jsdoc().tags.as_deref(), |tag, _| {
-            if is_jsdoc_template_tag(&**tag) {
-                tag.as_jsdoc_template_tag().type_parameters.to_vec()
+    if is_jsdoc_type_alias(&node.ref_(arena)) {
+        Debug_.assert(node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::JSDocComment, None);
+        return flat_map(node.ref_(arena).parent().ref_(arena).as_jsdoc().tags.as_deref(), |tag, _| {
+            if is_jsdoc_template_tag(&tag.ref_(arena)) {
+                tag.ref_(arena).as_jsdoc_template_tag().type_parameters.to_vec()
             } else {
                 /*None*/
                 vec![]
             }
         });
     }
-    if let Some(type_parameters) = node.as_has_type_parameters().maybe_type_parameters() {
+    if let Some(type_parameters) = node.ref_(arena).as_has_type_parameters().maybe_type_parameters() {
         return type_parameters.to_vec();
     }
-    if is_in_js_file(Some(node)) {
+    if is_in_js_file(Some(&node.ref_(arena))) {
         let decls = get_jsdoc_type_parameter_declarations(node, arena);
         if !decls.is_empty() {
             return decls;
         }
         let type_tag = get_jsdoc_type(node, arena);
         if let Some(type_tag) = type_tag {
-            if is_function_type_node(&*type_tag) {
-                let type_tag_as_function_type_node = type_tag.as_function_type_node();
+            if is_function_type_node(&type_tag.ref_(arena)) {
+                let type_tag_ref = type_tag.ref_(arena);
+                let type_tag_as_function_type_node = type_tag_ref.as_function_type_node();
                 if let Some(type_tag_type_parameters) = type_tag_as_function_type_node
                     .maybe_type_parameters()
                     .as_ref()
@@ -1278,17 +1279,19 @@ pub fn get_effective_type_parameter_declarations(
 
 pub fn get_effective_constraint_of_type_parameter(
     node: Id<Node>, /*TypeParameterDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
-    if let Some(node_constraint) = node.as_type_parameter_declaration().constraint.as_ref() {
-        return Some(node_constraint.clone());
+    if let Some(node_constraint) = node.ref_(arena).as_type_parameter_declaration().constraint {
+        return Some(node_constraint);
     }
-    if is_jsdoc_template_tag(&*node.parent()) {
-        let node_parent = node.parent();
-        let node_parent_as_jsdoc_template_tag = node_parent.as_jsdoc_template_tag();
+    if is_jsdoc_template_tag(&node.ref_(arena).parent().ref_(arena)) {
+        let node_parent = node.ref_(arena).parent();
+        let node_parent_ref = node_parent.ref_(arena);
+        let node_parent_as_jsdoc_template_tag = node_parent_ref.as_jsdoc_template_tag();
         if !node_parent_as_jsdoc_template_tag.type_parameters.is_empty()
-            && ptr::eq(node, &*node_parent_as_jsdoc_template_tag.type_parameters[0])
+            && node == node_parent_as_jsdoc_template_tag.type_parameters[0]
         {
-            return node_parent_as_jsdoc_template_tag.constraint.clone();
+            return node_parent_as_jsdoc_template_tag.constraint;
         }
     }
     None
@@ -1340,27 +1343,27 @@ pub(crate) fn is_optional_chain_root(node: &Node /*OptionalChain*/) -> bool {
             .is_some()
 }
 
-pub(crate) fn is_expression_of_optional_chain_root(node: &Node /*OptionalChain*/) -> bool {
-    is_optional_chain_root(&node.parent())
-        && ptr::eq(&*node.parent().as_has_expression().expression(), node)
+pub(crate) fn is_expression_of_optional_chain_root(node: Id<Node> /*OptionalChain*/, arena: &impl HasArena) -> bool {
+    is_optional_chain_root(&node.ref_(arena).parent().ref_(arena))
+        && node.ref_(arena).parent().ref_(arena).as_has_expression().expression() == node
 }
 
-pub(crate) fn is_outermost_optional_chain(node: &Node /*OptionalChain*/) -> bool {
-    !is_optional_chain(&node.parent())
-        || is_optional_chain_root(&node.parent())
-        || !ptr::eq(node, &*node.parent().as_has_expression().expression())
+pub(crate) fn is_outermost_optional_chain(node: Id<Node> /*OptionalChain*/, arena: &impl HasArena) -> bool {
+    !is_optional_chain(&node.ref_(arena).parent().ref_(arena))
+        || is_optional_chain_root(&node.ref_(arena).parent().ref_(arena))
+        || node != node.ref_(arena).parent().ref_(arena).as_has_expression().expression()
 }
 
-pub fn is_nullish_coalesce(node: &Node) -> bool {
-    match node {
+pub fn is_nullish_coalesce(node: Id<Node>, arena: &impl HasArena) -> bool {
+    match &*node.ref_(arena) {
         Node::BinaryExpression(node) => {
-            node.operator_token.kind() == SyntaxKind::QuestionQuestionToken
+            node.operator_token.ref_(arena).kind() == SyntaxKind::QuestionQuestionToken
         }
         _ => false,
     }
 }
 
-pub fn is_const_type_reference(node: &Node) -> bool {
+pub fn is_const_type_reference(node: Id<Node>, arena: &impl HasArena) -> bool {
     // match node {
     //     Node::TypeNode(TypeNode::TypeReferenceNode(node)) => {
     //         match &*node.type_name {
@@ -1371,14 +1374,15 @@ pub fn is_const_type_reference(node: &Node) -> bool {
     //     }
     //     _ => false,
     // }
-    if !is_type_reference_node(node) {
+    if !is_type_reference_node(&node.ref_(arena)) {
         return false;
     }
-    let node_as_type_reference_node = node.as_type_reference_node();
-    is_identifier(&*node_as_type_reference_node.type_name)
+    let node_ref = node.ref_(arena);
+    let node_as_type_reference_node = node_ref.as_type_reference_node();
+    is_identifier(&node_as_type_reference_node.type_name.ref_(arena))
         && node_as_type_reference_node
             .type_name
-            .as_identifier()
+            .ref_(arena).as_identifier()
             .escaped_text
             == "const"
         && node_as_type_reference_node.maybe_type_arguments().is_none()
@@ -1478,15 +1482,15 @@ pub fn is_import_or_export_specifier(node: &Node) -> bool {
     is_import_specifier(node) || is_export_specifier(node)
 }
 
-pub fn is_type_only_import_or_export_declaration(node: &Node) -> bool {
-    match node.kind() {
+pub fn is_type_only_import_or_export_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
+    match node.ref_(arena).kind() {
         SyntaxKind::ImportSpecifier | SyntaxKind::ExportSpecifier => {
-            node.as_has_is_type_only().is_type_only()
-                || node.parent().parent().as_has_is_type_only().is_type_only()
+            node.ref_(arena).as_has_is_type_only().is_type_only()
+                || node.ref_(arena).parent().ref_(arena).parent().ref_(arena).as_has_is_type_only().is_type_only()
         }
-        SyntaxKind::NamespaceImport => node.parent().as_has_is_type_only().is_type_only(),
+        SyntaxKind::NamespaceImport => node.ref_(arena).parent().ref_(arena).as_has_is_type_only().is_type_only(),
         SyntaxKind::ImportClause | SyntaxKind::ImportEqualsDeclaration => {
-            node.as_has_is_type_only().is_type_only()
+            node.ref_(arena).as_has_is_type_only().is_type_only()
         }
         _ => false,
     }
@@ -1513,9 +1517,9 @@ pub(crate) fn is_private_identifier_class_element_declaration(node: Id<Node>, ar
         && is_private_identifier(&node.ref_(arena).as_named_declaration().name().ref_(arena))
 }
 
-pub(crate) fn is_private_identifier_property_access_expression(node: &Node) -> bool {
-    is_property_access_expression(node)
-        && is_private_identifier(&*node.as_property_access_expression().name())
+pub(crate) fn is_private_identifier_property_access_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_property_access_expression(&node.ref_(arena))
+        && is_private_identifier(&node.ref_(arena).as_property_access_expression().name().ref_(arena))
 }
 
 pub(crate) fn is_modifier_kind(kind: SyntaxKind) -> bool {
@@ -1634,10 +1638,10 @@ pub(crate) fn is_function_like_kind(kind: SyntaxKind) -> bool {
     }
 }
 
-pub(crate) fn is_function_or_module_block(node: &Node) -> bool {
-    is_source_file(node)
-        || is_module_block(node)
-        || is_block(node) && is_function_like(node.maybe_parent())
+pub(crate) fn is_function_or_module_block(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_source_file(&node.ref_(arena))
+        || is_module_block(&node.ref_(arena))
+        || is_block(&node.ref_(arena)) && is_function_like(node.ref_(arena).maybe_parent().refed(arena))
 }
 
 pub fn is_class_element(node: &Node) -> bool {
@@ -1834,7 +1838,7 @@ pub fn is_template_literal(node: &Node) -> bool {
 }
 
 pub(crate) fn is_left_hand_side_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_left_hand_side_expression_kind(skip_partially_emitted_expressions(node, arena).kind())
+    is_left_hand_side_expression_kind(skip_partially_emitted_expressions(node, arena).ref_(arena).kind())
 }
 
 fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
@@ -1873,7 +1877,7 @@ fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
 }
 
 pub(crate) fn is_unary_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_unary_expression_kind(skip_partially_emitted_expressions(node, arena).kind())
+    is_unary_expression_kind(skip_partially_emitted_expressions(node, arena).ref_(arena).kind())
 }
 
 fn is_unary_expression_kind(kind: SyntaxKind) -> bool {
@@ -1902,7 +1906,7 @@ pub(crate) fn is_unary_expression_with_write(expr: &Node) -> bool {
 }
 
 pub fn is_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_expression_kind(skip_partially_emitted_expressions(node, arena).kind())
+    is_expression_kind(skip_partially_emitted_expressions(node, arena).ref_(arena).kind())
 }
 
 fn is_expression_kind(kind: SyntaxKind) -> bool {
@@ -1931,8 +1935,8 @@ pub(crate) fn is_not_emitted_or_partially_emitted_node(node: &Node) -> bool {
     is_not_emitted_statement(node) || is_partially_emitted_expression(node)
 }
 
-pub fn is_iteration_statement(node: &Node, look_in_labeled_statements: bool) -> bool {
-    match node.kind() {
+pub fn is_iteration_statement(node: Id<Node>, look_in_labeled_statements: bool, arena: &impl HasArena) -> bool {
+    match node.ref_(arena).kind() {
         SyntaxKind::ForStatement
         | SyntaxKind::ForInStatement
         | SyntaxKind::ForOfStatement
@@ -1941,8 +1945,9 @@ pub fn is_iteration_statement(node: &Node, look_in_labeled_statements: bool) -> 
         SyntaxKind::LabeledStatement => {
             look_in_labeled_statements
                 && is_iteration_statement(
-                    &node.as_labeled_statement().statement,
+                    node.ref_(arena).as_labeled_statement().statement,
                     look_in_labeled_statements,
+                    arena,
                 )
         }
         _ => false,
@@ -1953,23 +1958,23 @@ pub(crate) fn is_scope_marker(node: &Node) -> bool {
     is_export_assignment(node) || is_export_declaration(node)
 }
 
-pub(crate) fn has_scope_marker(statements: &[Id<Node /*Statement*/>]) -> bool {
+pub(crate) fn has_scope_marker(statements: &[Id<Node /*Statement*/>], arena: &impl HasArena) -> bool {
     some(
         Some(statements),
-        Some(|statement: &Id<Node>| is_scope_marker(statement)),
+        Some(|statement: &Id<Node>| is_scope_marker(&statement.ref_(arena))),
     )
 }
 
 pub(crate) fn needs_scope_marker(result: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
-    !is_any_import_or_re_export(result)
-        && !is_export_assignment(result)
+    !is_any_import_or_re_export(&result.ref_(arena))
+        && !is_export_assignment(&result.ref_(arena))
         && !has_syntactic_modifier(result, ModifierFlags::Export, arena)
-        && !is_ambient_module(result)
+        && !is_ambient_module(result, arena)
 }
 
 pub(crate) fn is_external_module_indicator(result: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
-    is_any_import_or_re_export(result)
-        || is_export_assignment(result)
+    is_any_import_or_re_export(&result.ref_(arena))
+        || is_export_assignment(&result.ref_(arena))
         || has_syntactic_modifier(result, ModifierFlags::Export, arena)
 }
 
@@ -1981,7 +1986,7 @@ pub(crate) fn is_for_in_or_of_statement(node: &Node) -> bool {
 }
 
 pub(crate) fn is_concise_body(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_block(node) || is_expression(node, arena)
+    is_block(&node.ref_(arena)) || is_expression(node, arena)
 }
 
 #[allow(dead_code)]
@@ -1990,7 +1995,7 @@ pub(crate) fn is_function_body(node: &Node) -> bool {
 }
 
 pub(crate) fn is_for_initializer(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_variable_declaration_list(node) || is_expression(node, arena)
+    is_variable_declaration_list(&node.ref_(arena)) || is_expression(node, arena)
 }
 
 pub(crate) fn is_module_body(node: &Node) -> bool {
@@ -2141,19 +2146,19 @@ pub(crate) fn is_statement(node: &Node) -> bool {
         || is_block_statement(node)
 }
 
-fn is_block_statement(node: &Node) -> bool {
-    if node.kind() != SyntaxKind::Block {
+fn is_block_statement(node: Id<Node>, arena: &impl HasArena) -> bool {
+    if node.ref_(arena).kind() != SyntaxKind::Block {
         return false;
     }
-    if let Some(node_parent) = node.maybe_parent() {
+    if let Some(node_parent) = node.ref_(arena).maybe_parent() {
         if matches!(
-            node_parent.kind(),
+            node_parent.ref_(arena).kind(),
             SyntaxKind::TryStatement | SyntaxKind::CatchClause
         ) {
             return false;
         }
     }
-    !is_function_block(node)
+    !is_function_block(node, arena)
 }
 
 pub(crate) fn is_statement_or_block(node: &Node) -> bool {

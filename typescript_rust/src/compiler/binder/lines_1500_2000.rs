@@ -148,7 +148,7 @@ impl BinderType {
             true_target.clone(),
             false_target.clone(),
         );
-        if !is_optional_chain(node) || is_outermost_optional_chain(node) {
+        if !is_optional_chain(node) || is_outermost_optional_chain(node, self) {
             self.add_antecedent(
                 &true_target,
                 self.create_flow_condition(
@@ -227,7 +227,7 @@ impl BinderType {
             true_target.clone(),
             false_target.clone(),
         );
-        if is_outermost_optional_chain(node) {
+        if is_outermost_optional_chain(node, self) {
             self.add_antecedent(
                 &true_target,
                 self.create_flow_condition(
@@ -591,11 +591,11 @@ impl BinderType {
 
     pub(super) fn bind_module_declaration(&self, node: Id<Node> /*ModuleDeclaration*/) {
         self.set_export_context_flag(node);
-        if is_ambient_module(node) {
+        if is_ambient_module(node, self) {
             if has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 self.error_on_first_token(node, &Diagnostics::export_modifier_cannot_be_applied_to_ambient_modules_and_module_augmentations_since_they_are_always_visible, None);
             }
-            if is_module_augmentation_external(node) {
+            if is_module_augmentation_external(node, self) {
                 self.declare_module_symbol(node);
             } else {
                 let mut pattern: Option<StringOrPattern> = None;

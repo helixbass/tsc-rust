@@ -494,7 +494,7 @@ impl TransformES2015 {
                 }
             }),
         );
-        Ok(if is_iteration_statement(statement, false) {
+        Ok(if is_iteration_statement(statement, false, self) {
             self.visit_iteration_statement(statement, node)?
         } else {
             Some(

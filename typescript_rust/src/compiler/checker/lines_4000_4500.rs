@@ -1192,7 +1192,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_external_module_symbol(&self, declaration: Id<Node>) -> bool {
-        is_ambient_module(declaration)
+        is_ambient_module(declaration, self)
             || declaration.kind() == SyntaxKind::SourceFile
                 && is_external_or_common_js_module(declaration)
     }

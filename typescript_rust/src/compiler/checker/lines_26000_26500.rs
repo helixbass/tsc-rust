@@ -882,7 +882,7 @@ impl TypeChecker {
             }
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 let parent_type = parent.as_has_type().maybe_type().unwrap();
-                if is_const_type_reference(&parent_type) {
+                if is_const_type_reference(parent_type, self) {
                     self.try_find_when_const_type_reference(&parent)?
                 } else {
                     Some(self.get_type_from_type_node_(&parent_type)?)
@@ -929,12 +929,13 @@ impl TypeChecker {
                     Some(tag) => {
                         if is_jsdoc_type_tag(tag)
                             && is_const_type_reference(
-                                &tag.as_base_jsdoc_type_like_tag()
+                                tag.as_base_jsdoc_type_like_tag()
                                     .type_expression
                                     .as_ref()
                                     .unwrap()
                                     .as_jsdoc_type_expression()
                                     .type_,
+                                self,
                             )
                         {
                             self.try_find_when_const_type_reference(&parent)?

@@ -102,12 +102,13 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> Option<Id<Node>> {
         get_effective_constraint_of_type_parameter(
-            &type_
+            type_
                 .ref_(self)
                 .as_mapped_type()
                 .declaration
                 .as_mapped_type_node()
                 .type_parameter,
+            self,
         )
     }
 

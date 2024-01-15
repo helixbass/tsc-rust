@@ -614,7 +614,7 @@ impl SymbolTableToDeclarationStatements {
             && (!statements
                 .iter()
                 .any(|statement| is_external_module_indicator(statement, self))
-                || !has_scope_marker(&statements)
+                || !has_scope_marker(&statements, self)
                     && statements
                         .iter()
                         .any(|statement| needs_scope_marker(statement, self)))
@@ -630,7 +630,7 @@ impl SymbolTableToDeclarationStatements {
             || is_function_declaration(node)
             || is_class_declaration(node)
             || is_module_declaration(node)
-                && !is_external_module_augmentation(node)
+                && !is_external_module_augmentation(node, self)
                 && !is_global_scope_augmentation(node)
             || is_interface_declaration(node)
             || self.type_checker.is_type_declaration(node)
