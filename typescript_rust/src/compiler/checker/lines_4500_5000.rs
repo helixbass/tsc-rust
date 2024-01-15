@@ -37,7 +37,7 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>,
     ) -> bool {
-        is_module_with_string_literal_name(declaration)
+        is_module_with_string_literal_name(declaration, self)
             || declaration.kind() == SyntaxKind::SourceFile
                 && is_external_or_common_js_module(declaration)
     }
@@ -304,7 +304,7 @@ impl TypeChecker {
             let source_file = enclosing_declaration
                 .as_deref()
                 .and_then(|enclosing_declaration| {
-                    maybe_get_source_file_of_node(Some(enclosing_declaration))
+                    maybe_get_source_file_of_node(Some(enclosing_declaration), self)
                 });
             printer.write_node(
                 EmitHint::Unspecified,
@@ -399,9 +399,8 @@ impl TypeChecker {
             None,
         );
         let source_file = enclosing_declaration
-            .as_deref()
             .and_then(|enclosing_declaration| {
-                maybe_get_source_file_of_node(Some(enclosing_declaration))
+                maybe_get_source_file_of_node(Some(enclosing_declaration), self)
             });
         printer.write_node(
             EmitHint::Unspecified,
@@ -454,7 +453,7 @@ impl TypeChecker {
             .unwrap();
         let printer = create_printer(options, None);
         let source_file = enclosing_declaration.and_then(|enclosing_declaration| {
-            maybe_get_source_file_of_node(Some(enclosing_declaration))
+            maybe_get_source_file_of_node(Some(enclosing_declaration), self)
         });
         printer.write_node(
             EmitHint::Unspecified,

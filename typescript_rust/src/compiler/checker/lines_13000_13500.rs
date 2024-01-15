@@ -275,8 +275,9 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let tp = get_declaration_of_kind(
-            &type_parameter.ref_(self).symbol().ref_(self),
+            type_parameter.ref_(self).symbol(),
             SyntaxKind::TypeParameter,
+            self,
         )
         .unwrap();
         let host = if is_jsdoc_template_tag(&tp.parent()) {

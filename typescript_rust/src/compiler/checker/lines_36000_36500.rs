@@ -89,7 +89,7 @@ impl TypeChecker {
                     .expression,
             )
             .unwrap();
-        let extend = get_class_extends_heritage_element(&class_like);
+        let extend = get_class_extends_heritage_element(class_like, self);
         if let Some(extend) = extend.as_ref() {
             let class_name = self.get_identifier_from_entity_name_expression(
                 &extend.as_expression_with_type_arguments().expression,
@@ -241,7 +241,7 @@ impl TypeChecker {
         node: Id<Node>, /*PotentiallyUnusedIdentifier*/
     ) {
         if self.produce_diagnostics {
-            let source_file = get_source_file_of_node(node);
+            let source_file = get_source_file_of_node(node, self);
             let mut all_potentially_unused_identifiers = self.all_potentially_unused_identifiers();
             let potentially_unused_identifiers = all_potentially_unused_identifiers
                 .entry(source_file.as_source_file().path().clone())
@@ -476,7 +476,7 @@ impl TypeChecker {
                     .all(|type_parameter| self.is_type_parameter_unused(type_parameter))
             {
                 if try_add_to_set(&mut seen_parents_with_every_unused, &*parent) {
-                    let source_file = get_source_file_of_node(&parent);
+                    let source_file = get_source_file_of_node(parent, self);
                     let range = if is_jsdoc_template_tag(&parent) {
                         range_of_node(parent, self)
                     } else {

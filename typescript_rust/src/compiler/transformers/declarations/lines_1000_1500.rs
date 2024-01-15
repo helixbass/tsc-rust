@@ -715,7 +715,7 @@ impl TransformDeclarations {
                 );
                 let members = self.factory.create_node_array(member_nodes, None);
 
-                let extends_clause = get_effective_base_type_node(input);
+                let extends_clause = get_effective_base_type_node(input, self);
                 if let Some(extends_clause) = extends_clause.filter(|extends_clause| {
                     let extends_clause_as_expression_with_type_arguments =
                         extends_clause.as_expression_with_type_arguments();

@@ -110,7 +110,7 @@ impl TypeChecker {
         }
         let symbol_value_declaration = symbol.ref_(self).maybe_value_declaration().unwrap();
 
-        let container = get_enclosing_block_scope_container(&symbol_value_declaration).unwrap();
+        let container = get_enclosing_block_scope_container(symbol_value_declaration, self).unwrap();
         let is_captured =
             self.is_inside_function_or_instance_property_initializer(node, &container);
 
@@ -120,8 +120,9 @@ impl TypeChecker {
                 let mut captures_block_scope_binding_in_loop_body = true;
                 if is_for_statement(&container) {
                     let var_decl_list = get_ancestor(
-                        Some(&*symbol_value_declaration),
+                        Some(symbol_value_declaration),
                         SyntaxKind::VariableDeclarationList,
+                        self,
                     );
                     if matches!(
                         var_decl_list.as_ref(),
@@ -168,8 +169,9 @@ impl TypeChecker {
 
             if is_for_statement(&container) {
                 let var_decl_list = get_ancestor(
-                    Some(&*symbol_value_declaration),
+                    Some(symbol_value_declaration),
                     SyntaxKind::VariableDeclarationList,
+                    self,
                 );
                 if matches!(
                     var_decl_list.as_ref(),
@@ -294,7 +296,7 @@ impl TypeChecker {
         diagnostic_message: &DiagnosticMessage,
     ) -> io::Result<()> {
         let containing_class_decl = container.parent();
-        let base_type_node = get_class_extends_heritage_element(&containing_class_decl);
+        let base_type_node = get_class_extends_heritage_element(containing_class_decl, self);
 
         if base_type_node.is_some() {
             if !self.class_declaration_extends_null(&containing_class_decl)? {
@@ -848,12 +850,12 @@ impl TypeChecker {
                 && (is_property_declaration(container.as_ref().unwrap())
                     || is_class_static_block_declaration(container.as_ref().unwrap()))
             {
-                for_each_enclosing_block_scope_container(&node.parent(), |current: Id<Node>| {
+                for_each_enclosing_block_scope_container(node.parent(), |current: Id<Node>| {
                     if !is_source_file(current) || is_external_or_common_js_module(current) {
                         self.get_node_links(current).borrow_mut().flags |=
                             NodeCheckFlags::ContainsSuperPropertyInStaticInitializer;
                     }
-                });
+                }, self);
             }
         } else {
             node_check_flag = NodeCheckFlags::SuperInstance;
@@ -892,7 +894,7 @@ impl TypeChecker {
         }
 
         let class_like_declaration = container.parent();
-        if get_class_extends_heritage_element(&class_like_declaration).is_none() {
+        if get_class_extends_heritage_element(class_like_declaration, self).is_none() {
             self.error(
                 Some(node),
                 &Diagnostics::super_can_only_be_referenced_in_a_derived_class,

@@ -1537,12 +1537,12 @@ impl CheckTypeRelatedTo {
                                     is_jsx_attribute(prop_value_declaration)
                                         && are_option_gcs_equal(
                                             maybe_get_source_file_of_node(Some(
-                                                &**error_node_present,
-                                            ))
+                                                error_node_present,
+                                            ), self)
                                             .as_ref(),
                                             maybe_get_source_file_of_node(Some(
-                                                &*prop_value_declaration.as_jsx_attribute().name,
-                                            ))
+                                                prop_value_declaration.as_jsx_attribute().name,
+                                            ), self)
                                             .as_ref(),
                                         )
                                 })
@@ -1625,8 +1625,8 @@ impl CheckTypeRelatedTo {
                                     )
                                 ).is_some() &&
                                 are_option_gcs_equal(
-                                    maybe_get_source_file_of_node(object_literal_declaration.as_deref()).as_ref(),
-                                    maybe_get_source_file_of_node(Some(&**error_node_present)).as_ref(),
+                                    maybe_get_source_file_of_node(object_literal_declaration, self).as_ref(),
+                                    maybe_get_source_file_of_node(Some(error_node_present), self).as_ref(),
                                 )
                             ) {
                                 let prop_declaration = prop_value_declaration;

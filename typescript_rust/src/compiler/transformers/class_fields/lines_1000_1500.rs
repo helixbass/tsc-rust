@@ -61,7 +61,7 @@ impl TransformClassFields {
             );
         }
 
-        let extends_clause_element = get_effective_base_type_node(node);
+        let extends_clause_element = get_effective_base_type_node(node, self);
         let is_derived_class = extends_clause_element.matches(|extends_clause_element| {
             skip_outer_expressions(
                 &extends_clause_element
@@ -136,7 +136,7 @@ impl TransformClassFields {
         let static_properties_or_class_static_blocks =
             get_static_properties_and_class_static_block(node, self);
 
-        let extends_clause_element = get_effective_base_type_node(node);
+        let extends_clause_element = get_effective_base_type_node(node, self);
         let is_derived_class = extends_clause_element.matches(|extends_clause_element| {
             skip_outer_expressions(
                 &extends_clause_element

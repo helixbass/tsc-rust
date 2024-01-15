@@ -584,11 +584,12 @@ impl NodeBuilder {
     ) -> io::Result<Id<Node /*ParameterDeclaration*/>> {
         let mut parameter_declaration: Option<
             Id<Node /*ParameterDeclaration | JSDocParameterTag*/>,
-        > = get_declaration_of_kind(&parameter_symbol.ref_(self), SyntaxKind::Parameter);
+        > = get_declaration_of_kind(parameter_symbol, SyntaxKind::Parameter, self);
         if parameter_declaration.is_none() && !is_transient_symbol(&parameter_symbol.ref_(self)) {
             parameter_declaration = get_declaration_of_kind(
-                &parameter_symbol.ref_(self),
+                parameter_symbol,
                 SyntaxKind::JSDocParameterTag,
+                self,
             );
         }
 
@@ -1126,7 +1127,7 @@ impl NodeBuilder {
         symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> io::Result<String> {
-        let mut file = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SourceFile);
+        let mut file = get_declaration_of_kind(symbol, SyntaxKind::SourceFile, self);
         if file.is_none() {
             let equivalent_file_symbol = try_maybe_first_defined(
                 symbol.ref_(self).maybe_declarations().as_ref(),
@@ -1137,8 +1138,9 @@ impl NodeBuilder {
             )?;
             if let Some(equivalent_file_symbol) = equivalent_file_symbol {
                 file = get_declaration_of_kind(
-                    &equivalent_file_symbol.ref_(self),
+                    equivalent_file_symbol,
                     SyntaxKind::SourceFile,
+                    self,
                 );
             }
         }
@@ -1180,14 +1182,15 @@ impl NodeBuilder {
                     .to_owned());
             }
             return Ok(get_source_file_of_node(
-                &get_non_augmentation_declaration(symbol, self).unwrap(),
+                get_non_augmentation_declaration(symbol, self).unwrap(),
+                self,
             )
             .as_source_file()
             .file_name()
             .clone());
         }
         let context_file =
-            get_source_file_of_node(&get_original_node(context.enclosing_declaration(), self));
+            get_source_file_of_node(get_original_node(context.enclosing_declaration(), self), self);
         let links = self.type_checker.get_symbol_links(symbol);
         let mut specifier =
             (*links)

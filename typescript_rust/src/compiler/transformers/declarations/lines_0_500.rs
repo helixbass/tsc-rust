@@ -1494,7 +1494,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                 .transform_declarations
                 .record_type_reference_directives_if_necessary(Some(&directives)));
         }
-        let container = get_source_file_of_node(node);
+        let container = get_source_file_of_node(node, self);
         self.transform_declarations
             .refs_mut()
             .insert(get_original_node_id(&container), container);
@@ -1530,7 +1530,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .and_then(|parent_symbol_declarations| {
                 parent_symbol_declarations
                     .into_iter()
-                    .find(|d: &&Id<Node>| ptr::eq(&*get_source_file_of_node(d), containing_file))
+                    .find(|d: &&Id<Node>| ptr::eq(&*get_source_file_of_node(d, self), containing_file))
                     .cloned()
             });
         let augmenting_declarations = maybe_filter(
@@ -1539,7 +1539,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                 .symbol(symbol)
                 .maybe_declarations()
                 .as_deref(),
-            |d: &Id<Node>| !ptr::eq(&*get_source_file_of_node(d), containing_file),
+            |d: &Id<Node>| !ptr::eq(&*get_source_file_of_node(d, self), containing_file),
         );
         if let Some(augmenting_declarations) = augmenting_declarations {
             for augmentations in augmenting_declarations {

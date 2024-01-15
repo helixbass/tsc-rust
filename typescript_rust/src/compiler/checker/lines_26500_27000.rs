@@ -817,7 +817,7 @@ impl TypeChecker {
                 && is_class_expression(&node.parent().parent())
             {
                 let container =
-                    get_enclosing_block_scope_container(&node.parent().parent()).unwrap();
+                    get_enclosing_block_scope_container(node.parent().parent(), self).unwrap();
                 let enclosing_iteration_statement =
                     self.get_enclosing_iteration_statement(&container);
                 if let Some(enclosing_iteration_statement) = enclosing_iteration_statement.as_ref()

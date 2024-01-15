@@ -88,7 +88,7 @@ impl SymbolTableToDeclarationStatements {
             let enclosing_declaration = self.context().maybe_enclosing_declaration().and_then(
                 |context_enclosing_declaration| {
                     if is_jsdoc_type_alias(&context_enclosing_declaration) {
-                        maybe_get_source_file_of_node(Some(&*context_enclosing_declaration))
+                        maybe_get_source_file_of_node(Some(context_enclosing_declaration), self)
                     } else {
                         Some(context_enclosing_declaration)
                     }
@@ -386,7 +386,7 @@ impl SymbolTableToDeclarationStatements {
         }
         if !merged_members.is_empty() {
             let containing_file =
-                maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
+                maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration(), self);
             let local_name = self.get_internal_symbol_name(symbol, symbol_name);
             let ns_body =
                 get_factory().create_module_block(Some(vec![get_factory()
@@ -411,14 +411,14 @@ impl SymbolTableToDeclarationStatements {
                                         if let Some(alias_decl) = alias_decl.as_ref() {
                                             !Gc::ptr_eq(
                                                 *containing_file,
-                                                &get_source_file_of_node(alias_decl),
+                                                &get_source_file_of_node(alias_decl, self),
                                             )
                                         } else {
                                             !some(
                                                 s.ref_(self).maybe_declarations().as_deref(),
                                                 Some(|d: &Id<Node>| {
                                                     Gc::ptr_eq(
-                                                        &get_source_file_of_node(d),
+                                                        &get_source_file_of_node(d, self),
                                                         *containing_file,
                                                     )
                                                 }),
@@ -631,9 +631,10 @@ impl SymbolTableToDeclarationStatements {
                             p.ref_(self).maybe_declarations().as_deref(),
                             Some(|d: &Id<Node>| {
                                 are_option_gcs_equal(
-                                    maybe_get_source_file_of_node(Some(&**d)).as_ref(),
+                                    maybe_get_source_file_of_node(Some(d), self).as_ref(),
                                     maybe_get_source_file_of_node(
                                         self.context().maybe_enclosing_declaration(),
+                                        self,
                                     )
                                     .as_ref(),
                                 )
@@ -862,7 +863,7 @@ impl SymbolTableToDeclarationStatements {
         let base_types = self.type_checker.get_base_types(class_type)?;
         let original_implements = original_decl
             .as_ref()
-            .and_then(|original_decl| get_effective_implements_type_nodes(original_decl));
+            .and_then(|original_decl| get_effective_implements_type_nodes(original_decl, self));
         let implements_expressions = original_implements
             .as_ref()
             .try_and_then(|original_implements| {

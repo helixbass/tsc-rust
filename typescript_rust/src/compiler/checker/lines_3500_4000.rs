@@ -206,7 +206,7 @@ impl TypeChecker {
                     .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Module | SymbolFlags::Variable)
-                && get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SourceFile).is_none()
+                && get_declaration_of_kind(symbol, SyntaxKind::SourceFile, self).is_none()
             {
                 let compiler_option_name = if self.module_kind >= ModuleKind::ES2015 {
                     "allowSyntheticDefaultImports"
@@ -684,7 +684,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         enclosing_declaration: Id<Node>,
     ) -> io::Result<Vec<Id<Symbol>>> {
-        let containing_file = get_source_file_of_node(enclosing_declaration);
+        let containing_file = get_source_file_of_node(enclosing_declaration, self);
         let id = get_node_id(&containing_file);
         let links = self.get_symbol_links(symbol);
         let mut results: Option<Vec<Id<Symbol>>> = None;
@@ -891,7 +891,7 @@ impl TypeChecker {
                                     &d_parent_as_binary_expression.left,
                                 ) || is_exports_identifier(&d_parent_left_expression)
                                 {
-                                    return self.get_symbol_of_node(&get_source_file_of_node(d));
+                                    return self.get_symbol_of_node(get_source_file_of_node(d), self);
                                 }
                                 self.check_expression_cached(&d_parent_left_expression, None)?;
                                 return Ok((*self.get_node_links(&d_parent_left_expression))

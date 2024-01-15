@@ -175,7 +175,7 @@ impl TypeChecker {
             self.check_type_parameter_lists_identical(symbol)?;
 
             let first_interface_decl =
-                get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::InterfaceDeclaration);
+                get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration, self);
             if matches!(
                 first_interface_decl.as_ref(),
                 Some(first_interface_decl) if ptr::eq(node, &**first_interface_decl)
@@ -210,7 +210,7 @@ impl TypeChecker {
             self.check_object_type_for_duplicate_declarations(node);
         }
         try_maybe_for_each(
-            get_interface_base_type_nodes(node).as_ref(),
+            get_interface_base_type_nodes(node, self).as_ref(),
             |heritage_element: &Id<Node>, _| -> io::Result<Option<()>> {
                 let heritage_element_as_expression_with_type_arguments =
                     heritage_element.as_expression_with_type_arguments();
@@ -321,7 +321,7 @@ impl TypeChecker {
         auto_value: Option<Number>,
     ) -> io::Result<Option<StringOrNumber>> {
         let member_as_enum_member = member.as_enum_member();
-        if is_computed_non_literal_name(&member_as_enum_member.name) {
+        if is_computed_non_literal_name(member_as_enum_member.name, self) {
             self.error(
                 Some(&*member_as_enum_member.name),
                 &Diagnostics::Computed_property_names_are_not_allowed_in_enums,
@@ -664,7 +664,7 @@ impl TypeChecker {
         self.compute_enum_member_values(node)?;
 
         let enum_symbol = self.get_symbol_of_node(node)?.unwrap();
-        let first_declaration = get_declaration_of_kind(&enum_symbol.ref_(self), node.kind());
+        let first_declaration = get_declaration_of_kind(enum_symbol, node.kind(), self);
         if matches!(
             first_declaration.as_ref(),
             Some(first_declaration) if ptr::eq(
@@ -759,8 +759,8 @@ impl TypeChecker {
     }
 
     pub(super) fn in_same_lexical_scope(&self, node1: Id<Node>, node2: Id<Node>) -> bool {
-        let container1 = get_enclosing_block_scope_container(node1).unwrap();
-        let container2 = get_enclosing_block_scope_container(node2).unwrap();
+        let container1 = get_enclosing_block_scope_container(node1, self).unwrap();
+        let container2 = get_enclosing_block_scope_container(node2, self).unwrap();
         if self.is_global_source_file(&container1) {
             self.is_global_source_file(&container2)
         } else if self.is_global_source_file(&container2) {
@@ -835,8 +835,8 @@ impl TypeChecker {
                     first_non_ambient_class_or_func.as_ref()
                 {
                     if !are_option_gcs_equal(
-                        maybe_get_source_file_of_node(Some(node)).as_ref(),
-                        maybe_get_source_file_of_node(Some(&**first_non_ambient_class_or_func))
+                        maybe_get_source_file_of_node(Some(node), self).as_ref(),
+                        maybe_get_source_file_of_node(Some(first_non_ambient_class_or_func), self)
                             .as_ref(),
                     ) {
                         self.error(
@@ -854,7 +854,7 @@ impl TypeChecker {
                 }
 
                 let merged_class =
-                    get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::ClassDeclaration);
+                    get_declaration_of_kind(symbol, SyntaxKind::ClassDeclaration, self);
                 if matches!(
                     merged_class.as_ref(),
                     Some(merged_class) if self.in_same_lexical_scope(

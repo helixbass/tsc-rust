@@ -791,7 +791,7 @@ impl TypeChecker {
         exclude_classes: bool,
     ) -> bool {
         let node = node.map(|node| node.borrow().node_wrapper());
-        let file = maybe_get_source_file_of_node(node.as_deref());
+        let file = maybe_get_source_file_of_node(node, self);
         if let Some(file) = file.as_ref() {
             let file_as_source_file = file.as_source_file();
             if self.compiler_options.check_js.is_none()
@@ -805,7 +805,7 @@ impl TypeChecker {
                     suggestion
                         .and_then(|suggestion| suggestion.ref_(self).maybe_declarations().clone())
                         .as_ref(),
-                    |declaration: &Id<Node>, _| maybe_get_source_file_of_node(Some(&**declaration)),
+                    |declaration: &Id<Node>, _| maybe_get_source_file_of_node(Some(declaration), self),
                 );
                 return !matches!(
                     declaration_file.as_ref(),
@@ -939,7 +939,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let value_declaration = prop.ref_(self).maybe_value_declaration();
         if value_declaration.is_none()
-            || get_source_file_of_node(node)
+            || get_source_file_of_node(node, self)
                 .as_source_file()
                 .is_declaration_file()
         {

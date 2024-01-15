@@ -102,9 +102,9 @@ impl TypeChecker {
         {
             for declaration in type_symbol_declarations {
                 if declaration.kind() == SyntaxKind::InterfaceDeclaration
-                    && get_interface_base_type_nodes(declaration).is_some()
+                    && get_interface_base_type_nodes(declaration, self).is_some()
                 {
-                    for node in get_interface_base_type_nodes(declaration)
+                    for node in get_interface_base_type_nodes(declaration, self)
                         .as_deref()
                         .unwrap()
                     {
@@ -160,7 +160,7 @@ impl TypeChecker {
                 if declaration.flags().intersects(NodeFlags::ContainsThis) {
                     return Ok(false);
                 }
-                let base_type_nodes = get_interface_base_type_nodes(declaration);
+                let base_type_nodes = get_interface_base_type_nodes(declaration, self);
                 if let Some(base_type_nodes) = base_type_nodes {
                     for node in &*base_type_nodes {
                         let node_as_expression_with_type_arguments =

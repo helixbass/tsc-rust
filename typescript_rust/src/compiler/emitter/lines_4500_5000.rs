@@ -500,7 +500,7 @@ impl Printer {
                     && matches!(
                         self.maybe_current_source_file().as_ref(),
                         Some(current_source_file) if !Gc::ptr_eq(
-                            &get_source_file_of_node(node),
+                            &get_source_file_of_node(node, self),
                             &get_original_node(
                                 current_source_file,
                                 self,

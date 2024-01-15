@@ -30,7 +30,7 @@ impl TypeChecker {
         type_with_this: Id<Type>,
         static_type: Id<Type>, /*ObjectType*/
     ) -> io::Result<()> {
-        let base_type_node = get_effective_base_type_node(node);
+        let base_type_node = get_effective_base_type_node(node, self);
         let base_types = if base_type_node.is_some() {
             Some(self.get_base_types(type_)?)
         } else {
@@ -364,7 +364,7 @@ impl TypeChecker {
         let type_with_this = self.get_type_with_this_argument(type_, None, None)?;
         let static_type = self.get_type_of_symbol(symbol)?;
 
-        let base_type_node = get_effective_base_type_node(node);
+        let base_type_node = get_effective_base_type_node(node, self);
         let base_types = if base_type_node.is_some() {
             Some(self.get_base_types(type_)?)
         } else {

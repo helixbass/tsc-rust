@@ -40,7 +40,7 @@ impl TypeChecker {
         let node_as_with_statement = node.as_with_statement();
         self.check_expression(&node_as_with_statement.expression, None, None)?;
 
-        let source_file = get_source_file_of_node(node);
+        let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(&source_file) {
             let start =
                 get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap()).start;
@@ -370,8 +370,9 @@ impl TypeChecker {
         let interface_declaration =
             if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
-                    &type_.ref_(self).symbol().ref_(self),
+                    type_.ref_(self).symbol(),
                     SyntaxKind::InterfaceDeclaration,
+                    self,
                 )
             } else {
                 None
@@ -448,8 +449,9 @@ impl TypeChecker {
         let interface_declaration =
             if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
-                    &type_.ref_(self).symbol().ref_(self),
+                    type_.ref_(self).symbol(),
                     SyntaxKind::InterfaceDeclaration,
+                    self,
                 )
             } else {
                 None
@@ -547,7 +549,7 @@ impl TypeChecker {
         if self.language_version >= ScriptTarget::ES5
             && name.as_identifier().escaped_text == "Object"
             && (self.module_kind <= ModuleKind::ES2015
-                || get_source_file_of_node(name)
+                || get_source_file_of_node(name, self)
                     .as_source_file()
                     .maybe_implied_node_format()
                     == Some(ModuleKind::CommonJS))
@@ -859,7 +861,7 @@ impl TypeChecker {
             self.check_class_for_static_property_name_conflicts(node)?;
         }
 
-        let base_type_node = get_effective_base_type_node(node);
+        let base_type_node = get_effective_base_type_node(node, self);
         if let Some(base_type_node) = base_type_node.as_ref() {
             let base_type_node_as_expression_with_type_arguments =
                 base_type_node.as_expression_with_type_arguments();
@@ -878,7 +880,7 @@ impl TypeChecker {
                     ExternalEmitHelpers::Extends,
                 )?;
             }
-            let extends_node = get_class_extends_heritage_element(node);
+            let extends_node = get_class_extends_heritage_element(node, self);
             if let Some(extends_node) = extends_node
                 .as_ref()
                 .filter(|extends_node| !Gc::ptr_eq(*extends_node, base_type_node))
@@ -1028,7 +1030,7 @@ impl TypeChecker {
 
         self.check_members_for_override_modifier(node, type_, type_with_this, static_type)?;
 
-        let implemented_type_nodes = get_effective_implements_type_nodes(node);
+        let implemented_type_nodes = get_effective_implements_type_nodes(node, self);
         if let Some(implemented_type_nodes) = implemented_type_nodes.as_ref() {
             for type_ref_node in implemented_type_nodes {
                 let type_ref_node_as_expression_with_type_arguments =

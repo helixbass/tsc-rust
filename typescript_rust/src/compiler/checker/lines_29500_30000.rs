@@ -327,7 +327,7 @@ impl TypeChecker {
     ) -> GetDiagnosticSpanForCallNodeReturn {
         let start: isize;
         let length: isize;
-        let source_file = get_source_file_of_node(node);
+        let source_file = get_source_file_of_node(node, self);
 
         let node_as_call_expression = node.as_call_expression();
         if is_property_access_expression(&node_as_call_expression.expression) {
@@ -589,7 +589,7 @@ impl TypeChecker {
                 set_text_range_pos_end(&*error_span, pos, end);
                 Gc::new(
                     create_diagnostic_for_node_array(
-                        &get_source_file_of_node(node),
+                        &get_source_file_of_node(node, self),
                         &error_span,
                         error,
                         Some(vec![parameter_range, args.len().to_string()]),
@@ -613,7 +613,7 @@ impl TypeChecker {
             let max = length(sig.maybe_type_parameters().as_deref());
             return Gc::new(
                 create_diagnostic_for_node_array(
-                    &get_source_file_of_node(node),
+                    &get_source_file_of_node(node, self),
                     type_arguments,
                     &Diagnostics::Expected_0_type_arguments_but_got_1,
                     Some(vec![
@@ -648,7 +648,7 @@ impl TypeChecker {
             if above_arg_count != usize::MAX {
                 return Gc::new(
                     create_diagnostic_for_node_array(
-                        &get_source_file_of_node(node),
+                        &get_source_file_of_node(node, self),
                         type_arguments,
                         &Diagnostics::No_overload_expects_0_type_arguments_but_overloads_do_exist_that_expect_either_1_or_2_type_arguments,
                         Some(vec![
@@ -662,7 +662,7 @@ impl TypeChecker {
         }
         Gc::new(
             create_diagnostic_for_node_array(
-                &get_source_file_of_node(node),
+                &get_source_file_of_node(node, self),
                 type_arguments,
                 &Diagnostics::Expected_0_type_arguments_but_got_1,
                 Some(vec![

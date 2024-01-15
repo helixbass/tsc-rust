@@ -183,7 +183,7 @@ impl TypeChecker {
             &node_as_jsx_fragment.opening_fragment,
         )?;
 
-        let node_source_file = get_source_file_of_node(node);
+        let node_source_file = get_source_file_of_node(node, self);
         let node_source_file_as_source_file = node_source_file.as_source_file();
         if get_jsx_transform_enabled(&self.compiler_options)
             && (self.compiler_options.jsx_factory.is_some()
@@ -727,7 +727,7 @@ impl TypeChecker {
         let location = location.map(|location| location.borrow().node_wrapper());
         let file = location
             .as_ref()
-            .and_then(|location| maybe_get_source_file_of_node(Some(&**location)));
+            .and_then(|location| maybe_get_source_file_of_node(Some(location), self));
         let links = file.as_ref().map(|file| self.get_node_links(file));
         if matches!(
             links.as_ref(),

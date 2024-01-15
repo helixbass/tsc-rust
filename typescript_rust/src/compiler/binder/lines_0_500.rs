@@ -693,7 +693,7 @@ impl BinderType {
         args: Option<Vec<String>>,
     ) -> DiagnosticWithLocation {
         create_diagnostic_for_node_in_source_file(
-            &maybe_get_source_file_of_node(Some(node)).unwrap_or_else(|| self.file()),
+            &maybe_get_source_file_of_node(Some(node), self).unwrap_or_else(|| self.file()),
             node,
             message,
             args,

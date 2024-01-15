@@ -65,7 +65,7 @@ impl TransformTypeScript {
         if !static_properties.is_empty() {
             facts |= ClassFacts::HasStaticInitializedProperties;
         }
-        let extends_clause_element = get_effective_base_type_node(node);
+        let extends_clause_element = get_effective_base_type_node(node, self);
         if extends_clause_element.matches(|extends_clause_element| {
             skip_outer_expressions(
                 extends_clause_element

@@ -638,7 +638,7 @@ impl TypeChecker {
     ) -> Option<Id<Node /*EntityName*/>> {
         /*location ?*/
         self.get_jsx_namespace_(Some(location));
-        get_source_file_of_node(location)
+        get_source_file_of_node(location, self)
             .as_source_file()
             .maybe_local_jsx_factory()
             .clone()
@@ -651,7 +651,7 @@ impl TypeChecker {
         location: Id<Node>,
     ) -> Option<Id<Node /*EntityName*/>> {
         // if (location) {
-        let file = maybe_get_source_file_of_node(Some(location));
+        let file = maybe_get_source_file_of_node(Some(location), self);
         if let Some(file) = file.as_ref() {
             let file_as_source_file = file.as_source_file();
             if let Some(file_local_jsx_fragment_factory) = file_as_source_file
@@ -714,8 +714,9 @@ impl TypeChecker {
             None,
         )?);
         Ok(get_declaration_of_kind(
-            &module_symbol.ref_(self),
+            module_symbol,
             SyntaxKind::SourceFile,
+            self,
         ))
     }
 
@@ -1015,7 +1016,7 @@ impl TypeChecker {
         if self.requested_external_emit_helpers() & helpers != helpers
             && self.compiler_options.import_helpers == Some(true)
         {
-            let source_file = get_source_file_of_node(location);
+            let source_file = get_source_file_of_node(location, self);
             if is_effective_external_module(&source_file, &self.compiler_options)
                 && !location.flags().intersects(NodeFlags::Ambient)
             {

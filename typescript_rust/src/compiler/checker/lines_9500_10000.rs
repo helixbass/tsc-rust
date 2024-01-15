@@ -622,7 +622,7 @@ impl TypeChecker {
         let declaration = if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
             symbol.ref_(self).maybe_value_declaration()
         } else {
-            get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::InterfaceDeclaration)
+            get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration, self)
         };
         Debug_.assert(
             declaration.is_some(),
@@ -716,12 +716,13 @@ impl TypeChecker {
         type_: Id<Type>, /*InterfaceType*/
     ) -> Option<Id<Node /*ExpressionWithTypeArguments*/>> {
         get_effective_base_type_node(
-            &type_
+            type_
                 .ref_(self)
                 .symbol()
                 .ref_(self)
                 .maybe_value_declaration()
                 .unwrap(),
+            self,
         )
     }
 
@@ -792,7 +793,7 @@ impl TypeChecker {
                 .ref_(self)
                 .maybe_value_declaration()
                 .unwrap();
-            let extended = get_effective_base_type_node(&decl);
+            let extended = get_effective_base_type_node(decl, self);
             let base_type_node = self.get_base_type_node_of_class(type_);
             if base_type_node.is_none() {
                 let ret = self.undefined_type();
@@ -941,7 +942,7 @@ impl TypeChecker {
             .as_deref()
         {
             for declaration in type_symbol_declarations {
-                let implements_type_nodes = get_effective_implements_type_nodes(declaration);
+                let implements_type_nodes = get_effective_implements_type_nodes(declaration, self);
                 if implements_type_nodes.is_none() {
                     continue;
                 }

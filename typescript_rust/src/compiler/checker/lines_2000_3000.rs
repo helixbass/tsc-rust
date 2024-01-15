@@ -736,11 +736,11 @@ impl TypeChecker {
                     | SyntaxKind::ImportSpecifier
                     | SyntaxKind::ExportSpecifier
             )
-            || node.ref_(self).kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node)
+            || node.ref_(self).kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node, self)
             || is_binary_expression(&node.ref_(self))
                 && get_assignment_declaration_kind(node, self)
                     == AssignmentDeclarationKind::ModuleExports
-                && export_assignment_is_alias(node)
+                && export_assignment_is_alias(node, self)
             || is_access_expression(node) && is_binary_expression(&node.ref_(self).parent().ref_(self)) && {
                 let node_parent = node.ref_(self).parent();
                 let node_parent_ref = node_parent.ref_(self);
@@ -762,7 +762,7 @@ impl TypeChecker {
         &self,
         e: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
-        Ok(is_aliasable_expression(e)
+        Ok(is_aliasable_expression(e, self)
             || is_function_expression(&e.ref_(self)) && self.is_js_constructor(Some(e))?)
     }
 
@@ -914,7 +914,7 @@ impl TypeChecker {
     ) -> Option<ModuleKind> {
         if is_string_literal_like(usage) {
             get_mode_for_usage_location(
-                get_source_file_of_node(usage)
+                get_source_file_of_node(usage, self)
                     .as_source_file()
                     .maybe_implied_node_format(),
                 usage,

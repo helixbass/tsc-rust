@@ -413,11 +413,11 @@ impl TypeChecker {
             let func = declaration.parent();
             if func.kind() == SyntaxKind::SetAccessor && self.has_bindable_name(&func)? {
                 let getter = get_declaration_of_kind(
-                    &self
+                    self
                         .get_symbol_of_node(&declaration.parent())?
-                        .unwrap()
-                        .ref_(self),
+                        .unwrap(),
                     SyntaxKind::GetAccessor,
+                    self,
                 );
                 if let Some(getter) = getter {
                     let getter_signature = self.get_signature_from_declaration_(&getter)?;
@@ -641,7 +641,9 @@ impl TypeChecker {
                 .as_ref()
                 .unwrap()
                 .get(0)
+                .copied()
                 .unwrap(),
+            self,
         );
         let symbol_ref = symbol.ref_(self);
         let access_name = unescape_leading_underscores(symbol_ref.escaped_name());
@@ -1186,8 +1188,8 @@ impl TypeChecker {
                                 exported_member.ref_(self).maybe_value_declaration()
                             {
                                 if !Gc::ptr_eq(
-                                    &get_source_file_of_node(&s_value_declaration),
-                                    &get_source_file_of_node(&exported_member_value_declaration),
+                                    &get_source_file_of_node(s_value_declaration, self),
+                                    &get_source_file_of_node(exported_member_value_declaration, self),
                                 ) {
                                     let s_ref = s.ref_(self);
                                     let unescaped_name =

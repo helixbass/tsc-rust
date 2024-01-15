@@ -36,9 +36,9 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>) -> Gc<GcCell<EmitNode>> {
                 }
 
                 let source_file = maybe_get_source_file_of_node(get_parse_tree_node(
-                    maybe_get_source_file_of_node(Some(node)),
+                    maybe_get_source_file_of_node(Some(node), self),
                     Option::<fn(Id<Node>) -> bool>::None,
-                ))
+                ), self)
                 .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
                 get_or_create_emit_node(source_file)
                     .borrow_mut()
@@ -67,7 +67,7 @@ pub fn dispose_emit_nodes(source_file: Option<Id<Node> /*SourceFile*/>) {
     let annotated_nodes = maybe_get_source_file_of_node(get_parse_tree_node(
         source_file,
         Option::<fn(Id<Node>) -> _>::None,
-    ))
+    ), self)
     .and_then(|source_file| source_file.maybe_emit_node())
     .and_then(|emit_node| (*emit_node).borrow().annotated_nodes.clone());
     if let Some(annotated_nodes) = annotated_nodes.as_ref() {

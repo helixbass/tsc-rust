@@ -402,7 +402,7 @@ impl TypeChecker {
                 )?;
                 self.diagnostics().add(Gc::new(
                     create_diagnostic_for_node_array(
-                        &get_source_file_of_node(node),
+                        &get_source_file_of_node(node, self),
                         node_as_jsx_opening_like_element
                             .maybe_type_arguments()
                             .as_ref()

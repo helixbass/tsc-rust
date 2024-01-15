@@ -182,8 +182,9 @@ impl TypeChecker {
                     SyntaxKind::GetAccessor
                 };
                 let other = get_declaration_of_kind(
-                    &self.get_symbol_of_node(declaration)?.unwrap().ref_(self),
+                    self.get_symbol_of_node(declaration)?.unwrap(),
                     other_kind,
+                    self,
                 );
                 if let Some(other) = other {
                     this_parameter = self.get_annotated_accessor_this_parameter(other);
@@ -707,8 +708,9 @@ impl TypeChecker {
                 return Ok(js_doc_type);
             }
             let setter = get_declaration_of_kind(
-                &self.get_symbol_of_node(declaration)?.unwrap().ref_(self),
+                self.get_symbol_of_node(declaration)?.unwrap(),
                 SyntaxKind::SetAccessor,
+                self,
             );
             let setter_type = self.get_annotated_accessor_type(setter)?;
             if setter_type.is_some() {

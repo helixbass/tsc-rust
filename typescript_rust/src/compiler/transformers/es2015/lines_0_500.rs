@@ -747,7 +747,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
         }) {
             return false;
         }
-        let ref block_scope = get_enclosing_block_scope_container(declaration).unwrap();
+        let ref block_scope = get_enclosing_block_scope_container(declaration, self).unwrap();
         while let Some(current_node_present) = current_node.as_ref() {
             if Gc::ptr_eq(current_node_present, block_scope)
                 || ptr::eq(&**current_node_present, declaration)

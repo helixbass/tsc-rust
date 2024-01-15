@@ -904,7 +904,7 @@ impl TypeChecker {
                     self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
                 self.get_contextual_type_for_element_expression(
                     type_,
-                    index_of_node(&array_literal.as_array_literal_expression().elements, node)
+                    index_of_node(&array_literal.as_array_literal_expression().elements, node, self)
                         .try_into()
                         .unwrap(),
                 )?

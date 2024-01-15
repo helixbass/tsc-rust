@@ -409,7 +409,7 @@ impl TransformES2015 {
             self.enable_substitutions_for_block_scoped_bindings();
         }
 
-        let extends_clause_element = get_class_extends_heritage_element(node);
+        let extends_clause_element = get_class_extends_heritage_element(node, self);
         let class_function = self
             .factory
             .create_function_expression(

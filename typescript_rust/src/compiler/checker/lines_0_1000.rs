@@ -2711,7 +2711,7 @@ impl TypeChecker {
         self.check_unused_identifiers(
             &self.get_potentially_unused_identifiers(file),
             |containing_node, kind, diag| {
-                if !contains_parse_error(containing_node)
+                if !contains_parse_error(containing_node, self)
                     && !self.unused_is_error(
                         kind,
                         containing_node.ref_(self).flags().intersects(NodeFlags::Ambient),

@@ -324,7 +324,7 @@ impl TypeChecker {
             }
             if !self.is_error_type(super_type) {
                 let base_type_node =
-                    get_effective_base_type_node(&get_containing_class(node).unwrap());
+                    get_effective_base_type_node(get_containing_class(node).unwrap(), self);
                 if let Some(base_type_node) = base_type_node.as_ref() {
                     let base_constructors = self.get_instantiated_constructors_for_type_arguments(
                         super_type,
@@ -419,7 +419,7 @@ impl TypeChecker {
             } else {
                 let mut related_information: Option<Gc<DiagnosticRelatedInformation>> = None;
                 if node_as_call_expression.arguments.len() == 1 {
-                    let source_file = get_source_file_of_node(node);
+                    let source_file = get_source_file_of_node(node, self);
                     let text = source_file.as_source_file().text_as_chars();
                     if is_line_break(text_char_at_index(
                         &text,

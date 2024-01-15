@@ -143,7 +143,7 @@ impl TypeChecker {
         let symbol = symbol.unwrap();
 
         if !matches!(
-            get_declaration_of_kind(&self.symbol(symbol), node.kind()).as_ref(),
+            get_declaration_of_kind(symbol, node.kind(), self).as_ref(),
             Some(declaration) if ptr::eq(&**declaration, node)
         ) {
             return Ok(());

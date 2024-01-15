@@ -319,7 +319,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration | MethodSignature*/
     ) -> io::Result<bool> {
-        let file = get_source_file_of_node(node);
+        let file = get_source_file_of_node(node, self);
         let node_as_signature_declaration = node.as_signature_declaration();
         Ok(self.check_grammar_decorators_and_modifiers(node)
             || self.check_grammar_type_parameter_list(
@@ -338,7 +338,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
-        let file = get_source_file_of_node(node);
+        let file = get_source_file_of_node(node, self);
         self.check_grammar_class_declaration_heritage_clauses(node)
             || self.check_grammar_type_parameter_list(
                 node.as_has_type_parameters()
@@ -521,7 +521,7 @@ impl TypeChecker {
         if let Some(type_arguments) =
             type_arguments.filter(|type_arguments| type_arguments.is_empty())
         {
-            let source_file = get_source_file_of_node(node);
+            let source_file = get_source_file_of_node(node, self);
             let start = type_arguments.pos() - TryInto::<isize>::try_into("<".len()).unwrap();
             let end = skip_trivia(
                 &source_file.as_source_file().text_as_chars(),

@@ -200,9 +200,9 @@ impl TypeChecker {
     ) {
         if meaning != SymbolFlags::None {
             for &symbol in source.values() {
-                if get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::ExportSpecifier)
+                if get_declaration_of_kind(symbol, SyntaxKind::ExportSpecifier, self)
                     .is_none()
-                    && get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::NamespaceExport)
+                    && get_declaration_of_kind(symbol, SyntaxKind::NamespaceExport, self)
                         .is_none()
                 {
                     self.copy_symbol(symbols, symbol, meaning);
@@ -477,7 +477,7 @@ impl TypeChecker {
         } else if is_entity_name(name) && self.is_in_right_side_of_import_or_export_assignment(name)
         {
             let import_equals_declaration =
-                get_ancestor(Some(name), SyntaxKind::ImportEqualsDeclaration);
+                get_ancestor(Some(name), SyntaxKind::ImportEqualsDeclaration, self);
             Debug_.assert(import_equals_declaration.is_some(), None);
             return self.get_symbol_of_part_of_right_hand_side_of_import_equals(name, Some(true));
         }

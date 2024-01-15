@@ -672,7 +672,7 @@ impl TypeChecker {
                 || name.ref_(self).parent().kind() == SyntaxKind::ExportAssignment)
         {
             self.mark_symbol_of_alias_declaration_if_type_only(
-                get_alias_declaration_from_name(name),
+                get_alias_declaration_from_name(name, self),
                 Some(symbol),
                 Option::<Id<Symbol>>::None,
                 true,
@@ -893,7 +893,7 @@ impl TypeChecker {
         if ambient_module.is_some() {
             return Ok(ambient_module);
         }
-        let current_source_file = get_source_file_of_node(location);
+        let current_source_file = get_source_file_of_node(location, self);
         let context_specifier = if is_string_literal_like(location) {
             Some(location.node_wrapper())
         } else {

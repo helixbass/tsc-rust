@@ -432,8 +432,9 @@ impl TypeChecker {
                         SyntaxKind::GetAccessor
                     };
                     let other_accessor = get_declaration_of_kind(
-                        &self.get_symbol_of_node(node)?.unwrap().ref_(self),
+                        self.get_symbol_of_node(node)?.unwrap(),
                         other_kind,
+                        self,
                     );
                     self.mark_decorator_medata_data_type_node_as_referenced(
                         self.get_annotated_accessor_type_node(Some(node))

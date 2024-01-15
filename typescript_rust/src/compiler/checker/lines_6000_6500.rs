@@ -733,8 +733,8 @@ impl NodeBuilder {
                     symbol.ref_(self).maybe_declarations().as_deref(),
                     Some(|d: &Id<Node>| {
                         Gc::ptr_eq(
-                            maybe_get_source_file_of_node(Some(&**d)).as_ref().unwrap(),
-                            maybe_get_source_file_of_node(Some(&**context_enclosing_declaration))
+                            maybe_get_source_file_of_node(Some(d), self).as_ref().unwrap(),
+                            maybe_get_source_file_of_node(Some(context_enclosing_declaration), self)
                                 .as_ref()
                                 .unwrap(),
                         )
@@ -904,7 +904,7 @@ impl NodeBuilder {
             cancellation_token.throw_if_cancellation_requested();
         }
         let mut had_error = false;
-        let file = maybe_get_source_file_of_node(Some(existing));
+        let file = maybe_get_source_file_of_node(Some(existing), self);
         let transformed = try_visit_node(
             existing,
             Some(|node: Id<Node>| {

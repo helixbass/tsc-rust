@@ -16,7 +16,7 @@ use regex::{Captures, Regex};
 
 use super::is_quote_or_backtick;
 use crate::{
-InArena,    binary_search, compare_diagnostics, compare_diagnostics_skip_related_information,
+    InArena,    binary_search, compare_diagnostics, compare_diagnostics_skip_related_information,
     compare_strings_case_sensitive, concatenate, filter, flat_map_to_mutable,
     get_assignment_declaration_kind, get_jsdoc_augments_tag, get_jsdoc_implements_tags,
     get_parse_tree_node, get_symbol_id, has_syntactic_modifier, id_text, is_binary_expression,
@@ -34,14 +34,14 @@ InArena,    binary_search, compare_diagnostics, compare_diagnostics_skip_related
 };
 
 pub fn is_literal_computed_property_declaration_name(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_string_or_numeric_literal_like(node)
-        && node.parent().kind() == SyntaxKind::ComputedPropertyName
-        && is_declaration(node.parent().parent(), arena)
+    is_string_or_numeric_literal_like(&node.ref_(arena))
+        && node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::ComputedPropertyName
+        && is_declaration(node.ref_(arena).parent().ref_(arena).parent(), arena)
 }
 
-pub fn is_identifier_name(node: Id<Node> /*Identifier*/) -> bool {
-    let parent = node.parent();
-    match parent.kind() {
+pub fn is_identifier_name(node: Id<Node> /*Identifier*/, arena: &impl HasArena) -> bool {
+    let parent = node.ref_(arena).parent();
+    match parent.ref_(arena).kind() {
         SyntaxKind::PropertyDeclaration
         | SyntaxKind::PropertySignature
         | SyntaxKind::MethodDeclaration
@@ -50,16 +50,10 @@ pub fn is_identifier_name(node: Id<Node> /*Identifier*/) -> bool {
         | SyntaxKind::SetAccessor
         | SyntaxKind::EnumMember
         | SyntaxKind::PropertyAssignment
-        | SyntaxKind::PropertyAccessExpression => {
-            matches!(parent.as_named_declaration().maybe_name(), Some(name) if ptr::eq(&*name, node))
-        }
-        SyntaxKind::QualifiedName => ptr::eq(&*parent.as_qualified_name().right, node),
-        SyntaxKind::BindingElement => {
-            matches!(parent.as_binding_element().property_name.as_ref(), Some(property_name) if ptr::eq(&**property_name, node))
-        }
-        SyntaxKind::ImportSpecifier => {
-            matches!(parent.as_import_specifier().property_name.as_ref(), Some(property_name) if ptr::eq(&**property_name, node))
-        }
+        | SyntaxKind::PropertyAccessExpression => parent.ref_(arena).as_named_declaration().maybe_name() == Some(node),
+        SyntaxKind::QualifiedName => parent.ref_(arena).as_qualified_name().right == node,
+        SyntaxKind::BindingElement => parent.ref_(arena).as_binding_element().property_name == Some(node),
+        SyntaxKind::ImportSpecifier => parent.ref_(arena).as_import_specifier().property_name == Some(node),
         SyntaxKind::ExportSpecifier | SyntaxKind::JsxAttribute => true,
         _ => false,
     }
@@ -67,93 +61,96 @@ pub fn is_identifier_name(node: Id<Node> /*Identifier*/) -> bool {
 
 pub fn is_alias_symbol_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
     matches!(
-        node.kind(),
+        node.ref_(arena).kind(),
         SyntaxKind::ImportEqualsDeclaration | SyntaxKind::NamespaceExportDeclaration
-    ) || node.kind() == SyntaxKind::ImportClause && node.as_import_clause().name.is_some()
+    ) || node.ref_(arena).kind() == SyntaxKind::ImportClause && node.ref_(arena).as_import_clause().name.is_some()
         || matches!(
-            node.kind(),
+            node.ref_(arena).kind(),
             SyntaxKind::NamespaceImport
                 | SyntaxKind::NamespaceExport
                 | SyntaxKind::ImportSpecifier
                 | SyntaxKind::ExportSpecifier
         )
-        || node.kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node)
-        || is_binary_expression(node)
+        || node.ref_(arena).kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node, arena)
+        || is_binary_expression(&node.ref_(arena))
             && get_assignment_declaration_kind(node, arena) == AssignmentDeclarationKind::ModuleExports
-            && export_assignment_is_alias(node)
-        || is_property_access_expression(node) && is_binary_expression(&node.parent()) && {
-            let node_parent = node.parent();
-            let node_parent_as_binary_expression = node_parent.as_binary_expression();
-            ptr::eq(&*node_parent_as_binary_expression.left, node)
-                && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
-                && is_aliasable_expression(&node_parent_as_binary_expression.right)
+            && export_assignment_is_alias(node, arena)
+        || is_property_access_expression(&node.ref_(arena)) && is_binary_expression(&node.ref_(arena).parent().ref_(arena)) && {
+            let node_parent = node.ref_(arena).parent();
+            let node_parent_ref = node_parent.ref_(arena);
+            let node_parent_as_binary_expression = node_parent_ref.as_binary_expression();
+            node_parent_as_binary_expression.left == node
+                && node_parent_as_binary_expression.operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken
+                && is_aliasable_expression(node_parent_as_binary_expression.right, arena)
         }
-        || node.kind() == SyntaxKind::ShorthandPropertyAssignment
-        || node.kind() == SyntaxKind::PropertyAssignment
-            && is_aliasable_expression(&node.as_property_assignment().initializer)
+        || node.ref_(arena).kind() == SyntaxKind::ShorthandPropertyAssignment
+        || node.ref_(arena).kind() == SyntaxKind::PropertyAssignment
+            && is_aliasable_expression(node.ref_(arena).as_property_assignment().initializer, arena)
 }
 
 pub fn get_alias_declaration_from_name(
-    node: Id<Node>, /*EntityName*/
+    mut node: Id<Node>, /*EntityName*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Declaration*/>> {
-    match node.parent().kind() {
+    match node.ref_(arena).parent().ref_(arena).kind() {
         SyntaxKind::ImportClause
         | SyntaxKind::ImportSpecifier
         | SyntaxKind::NamespaceImport
         | SyntaxKind::ExportSpecifier
         | SyntaxKind::ExportAssignment
-        | SyntaxKind::ImportEqualsDeclaration => Some(node.parent()),
+        | SyntaxKind::ImportEqualsDeclaration => Some(node.ref_(arena).parent()),
         SyntaxKind::QualifiedName => {
-            let mut node = node.node_wrapper();
             while {
-                node = node.parent();
-                node.parent().kind() == SyntaxKind::QualifiedName
+                node = node.ref_(arena).parent();
+                node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::QualifiedName
             } {}
-            get_alias_declaration_from_name(&node)
+            get_alias_declaration_from_name(node, arena)
         }
         _ => None,
     }
 }
 
-pub fn is_aliasable_expression(e: Id<Node> /*Expression*/) -> bool {
-    is_entity_name_expression(e) || is_class_expression(e)
+pub fn is_aliasable_expression(e: Id<Node> /*Expression*/, arena: &impl HasArena) -> bool {
+    is_entity_name_expression(e, arena) || is_class_expression(&e.ref_(arena))
 }
 
-pub fn export_assignment_is_alias(node: Id<Node>, /*ExportAssignment | BinaryExpression*/) -> bool {
-    let e = get_export_assignment_expression(node);
-    is_aliasable_expression(&e)
+pub fn export_assignment_is_alias(node: Id<Node> /*ExportAssignment | BinaryExpression*/, arena: &impl HasArena) -> bool {
+    let e = get_export_assignment_expression(&node.ref_(arena));
+    is_aliasable_expression(e, arena)
 }
 
 pub fn get_export_assignment_expression(
-    node: Id<Node>, /*ExportAssignment | BinaryExpression*/
+    node: &Node, /*ExportAssignment | BinaryExpression*/
 ) -> Id<Node /*Expression*/> {
     if is_export_assignment(node) {
-        node.as_export_assignment().expression.clone()
+        node.as_export_assignment().expression
     } else {
-        node.as_binary_expression().right.clone()
+        node.as_binary_expression().right
     }
 }
 
 pub fn get_property_assignment_alias_like_expression(
     node: Id<Node>, /*PropertyAssignment | ShorthandPropertyAssignment | PropertyAccessExpression*/
+    arena: &impl HasArena,
 ) -> Id<Node /*Expression*/> {
-    if node.kind() == SyntaxKind::ShorthandPropertyAssignment {
-        node.as_shorthand_property_assignment().name()
-    } else if node.kind() == SyntaxKind::PropertyAssignment {
-        node.as_property_assignment().initializer.clone()
+    if node.ref_(arena).kind() == SyntaxKind::ShorthandPropertyAssignment {
+        node.ref_(arena).as_shorthand_property_assignment().name()
+    } else if node.ref_(arena).kind() == SyntaxKind::PropertyAssignment {
+        node.ref_(arena).as_property_assignment().initializer
     } else {
-        node.parent().as_binary_expression().right.clone()
+        node.ref_(arena).parent().ref_(arena).as_binary_expression().right
     }
 }
 
 pub fn get_effective_base_type_node(
     node: Id<Node>, /*ClassLikeDeclaration | InterfaceDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node>> {
-    let base_type = get_class_extends_heritage_element(node);
-    if base_type.is_some() && is_in_js_file(Some(node)) {
-        let tag = get_jsdoc_augments_tag(node);
+    let base_type = get_class_extends_heritage_element(node, arena);
+    if base_type.is_some() && is_in_js_file(Some(&node.ref_(arena))) {
+        let tag = get_jsdoc_augments_tag(node, arena);
         if let Some(tag) = tag {
-            return Some(tag.as_jsdoc_augments_tag().class.clone());
+            return Some(tag.ref_(arena).as_jsdoc_augments_tag().class);
         }
     }
     base_type
@@ -161,16 +158,19 @@ pub fn get_effective_base_type_node(
 
 pub fn get_class_extends_heritage_element(
     node: Id<Node>, /*ClassLikeDeclaration | InterfaceDeclaration (or maybe also eg FunctionDeclaration)*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node>> {
     let heritage_clause = get_heritage_clause(
-        node.maybe_as_interface_or_class_like_declaration()
+        node.ref_(arena).maybe_as_interface_or_class_like_declaration()
             .and_then(|node| node.maybe_heritage_clauses())
             .as_deref(),
         SyntaxKind::ExtendsKeyword,
+        arena,
     )?;
-    let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
+    let heritage_clause_ref = heritage_clause.ref_(arena);
+    let heritage_clause_as_heritage_clause = heritage_clause_ref.as_heritage_clause();
     if !heritage_clause_as_heritage_clause.types.is_empty() {
-        Some(heritage_clause_as_heritage_clause.types[0].clone())
+        Some(heritage_clause_as_heritage_clause.types[0])
     } else {
         None
     }
@@ -178,32 +178,34 @@ pub fn get_class_extends_heritage_element(
 
 pub fn get_effective_implements_type_nodes(
     node: Id<Node>, /*ClassLikeDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Vec<Id<Node>>> {
-    if is_in_js_file(Some(node)) {
+    if is_in_js_file(Some(&node.ref_(arena))) {
         Some(
-            get_jsdoc_implements_tags(node)
+            get_jsdoc_implements_tags(node, arena)
                 .iter()
-                .map(|n| n.as_jsdoc_implements_tag().class.clone())
+                .map(|n| n.ref_(arena).as_jsdoc_implements_tag().class)
                 .collect(),
         )
     } else {
         let heritage_clause = get_heritage_clause(
-            node.as_interface_or_class_like_declaration()
+            node.ref_(arena).as_interface_or_class_like_declaration()
                 .maybe_heritage_clauses()
                 .as_deref(),
             SyntaxKind::ImplementsKeyword,
+            arena,
         )?;
-        Some(heritage_clause.as_heritage_clause().types.to_vec())
+        Some(heritage_clause.ref_(arena).as_heritage_clause().types.to_vec())
     }
 }
 
-pub fn get_all_super_type_nodes(node: Id<Node>) -> Vec<Id<Node>> {
-    if is_interface_declaration(node) {
-        get_interface_base_type_nodes(node).map_or_else(|| vec![], |node_array| node_array.to_vec())
-    } else if is_class_like(node) {
+pub fn get_all_super_type_nodes(node: Id<Node>, arena: &impl HasArena) -> Vec<Id<Node>> {
+    if is_interface_declaration(&node.ref_(arena)) {
+        get_interface_base_type_nodes(node, arena).map_or_else(|| vec![], |node_array| node_array.to_vec())
+    } else if is_class_like(&node.ref_(arena)) {
         concatenate(
-            single_element_array(get_effective_base_type_node(node)).unwrap_or_else(|| vec![]),
-            get_effective_implements_type_nodes(node).unwrap_or_else(|| vec![]),
+            single_element_array(get_effective_base_type_node(node, arena)).unwrap_or_else(|| vec![]),
+            get_effective_implements_type_nodes(node, arena).unwrap_or_else(|| vec![]),
         )
     } else {
         vec![]
@@ -212,35 +214,35 @@ pub fn get_all_super_type_nodes(node: Id<Node>) -> Vec<Id<Node>> {
 
 pub fn get_interface_base_type_nodes(
     node: Id<Node>, /*InterfaceDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Gc<NodeArray>> {
     let heritage_clause = get_heritage_clause(
-        node.as_interface_declaration()
+        node.ref_(arena).as_interface_declaration()
             .maybe_heritage_clauses()
             .as_deref(),
         SyntaxKind::ExtendsKeyword,
+        arena,
     )?;
-    Some(heritage_clause.as_heritage_clause().types.clone())
+    Some(heritage_clause.ref_(arena).as_heritage_clause().types.clone())
 }
 
-pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind) -> Option<Id<Node>> {
+pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind, arena: &impl HasArena) -> Option<Id<Node>> {
     let clauses = clauses?;
     for clause in clauses {
-        if clause.as_heritage_clause().token == kind {
-            return Some(clause.clone());
+        if clause.ref_(arena).as_heritage_clause().token == kind {
+            return Some(clause);
         }
     }
     None
 }
 
-pub fn get_ancestor(node: Option<Id<Node>>, kind: SyntaxKind) -> Option<Id<Node>> {
-    let node = node?;
-    let node = node.borrow();
-    let mut node = Some(node.node_wrapper());
+pub fn get_ancestor(node: Option<Id<Node>>, kind: SyntaxKind, arena: &impl HasArena) -> Option<Id<Node>> {
+    let mut node = node?;
     while let Some(node_present) = node {
-        if node_present.kind() == kind {
+        if node_present.ref_(arena).kind() == kind {
             return Some(node_present);
         }
-        node = node_present.maybe_parent();
+        node = node_present.ref_(arena).maybe_parent();
     }
     None
 }
@@ -271,7 +273,7 @@ pub fn is_string_a_keyword(name: &str) -> bool {
     token.is_some() && is_keyword(token.unwrap())
 }
 
-pub fn is_identifier_a_non_contextual_keyword(node: Id<Node> /*Identifier*/) -> bool {
+pub fn is_identifier_a_non_contextual_keyword(node: &Node /*Identifier*/) -> bool {
     let original_keyword_kind = node.as_identifier().original_keyword_kind;
     original_keyword_kind.is_some() && !is_contextual_keyword(original_keyword_kind.unwrap())
 }
@@ -294,19 +296,17 @@ pub fn get_function_flags(
     node: Option<Id<Node> /*SignatureDeclaration*/>,
     arena: &impl HasArena,
 ) -> FunctionFlags {
-    if node.is_none() {
+    let Some(node) = node else {
         return FunctionFlags::Invalid;
-    }
-    let node = node.unwrap();
-    let node = node.borrow();
+    };
 
     let mut flags = FunctionFlags::Normal;
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::FunctionDeclaration
         | SyntaxKind::FunctionExpression
         | SyntaxKind::MethodDeclaration => {
             if node
-                .as_function_like_declaration()
+                .ref_(arena).as_function_like_declaration()
                 .maybe_asterisk_token()
                 .is_some()
             {
@@ -326,7 +326,7 @@ pub fn get_function_flags(
     }
 
     if node
-        .maybe_as_function_like_declaration()
+        .ref_(arena).maybe_as_function_like_declaration()
         .and_then(|node| node.maybe_body())
         .is_none()
     {
@@ -337,12 +337,13 @@ pub fn get_function_flags(
 }
 
 pub fn is_async_function(node: Id<Node>, arena: &impl HasArena) -> bool {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::FunctionDeclaration
         | SyntaxKind::FunctionExpression
         | SyntaxKind::ArrowFunction
         | SyntaxKind::MethodDeclaration => {
-            let node_as_function_like_declaration = node.as_function_like_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_function_like_declaration = node_ref.as_function_like_declaration();
             node_as_function_like_declaration.maybe_body().is_some()
                 && node_as_function_like_declaration
                     .maybe_asterisk_token()
@@ -380,21 +381,21 @@ pub fn has_dynamic_name(declaration: Id<Node> /*Declaration*/, arena: &impl HasA
 
 pub fn is_dynamic_name(name: Id<Node> /*DeclarationName*/, arena: &impl HasArena) -> bool {
     if !matches!(
-        name.kind(),
+        name.ref_(arena).kind(),
         SyntaxKind::ComputedPropertyName | SyntaxKind::ElementAccessExpression
     ) {
         return false;
     }
-    let expr = if is_element_access_expression(name) {
+    let expr = if is_element_access_expression(&name.ref_(arena)) {
         skip_parentheses(
-            &name.as_element_access_expression().argument_expression,
+            name.ref_(arena).as_element_access_expression().argument_expression,
             None,
             arena,
         )
     } else {
-        name.as_computed_property_name().expression.clone()
+        name.ref_(arena).as_computed_property_name().expression
     };
-    !is_string_or_numeric_literal_like(&expr) && !is_signed_numeric_literal(expr, arena)
+    !is_string_or_numeric_literal_like(&expr.ref_(arena)) && !is_signed_numeric_literal(expr, arena)
 }
 
 pub fn get_property_name_for_property_name_node(
@@ -410,7 +411,7 @@ pub fn get_property_name_for_property_name_node(
                 .into(),
         ),
         SyntaxKind::ComputedPropertyName => {
-            let name_expression = name.as_computed_property_name().expression;
+            let name_expression = name.ref_(arena).as_computed_property_name().expression;
             if is_string_or_numeric_literal_like(&name_expression.ref_(arena)) {
                 Some(
                     escape_leading_underscores(&name_expression.ref_(arena).as_literal_like_node().text())
@@ -471,7 +472,7 @@ pub fn get_text_of_identifier_or_literal(node: &Node) -> Cow<'_, str> {
     }
 }
 
-pub fn get_escaped_text_of_identifier_or_literal<'node>(node: Id<Node>) -> Cow<'node, str> /*__String*/
+pub fn get_escaped_text_of_identifier_or_literal(node: &Node) -> Cow<'_, str> /*__String*/
 {
     if is_member_name(node) {
         node.as_member_name().escaped_text().into()
@@ -505,11 +506,11 @@ pub fn is_private_identifier_symbol(symbol: &Symbol) -> bool {
     starts_with(symbol.escaped_name(), "__#")
 }
 
-pub fn is_es_symbol_identifier(node: Id<Node>) -> bool {
+pub fn is_es_symbol_identifier(node: &Node) -> bool {
     node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text == "Symbol"
 }
 
-pub fn is_push_or_unshift_identifier(node: Id<Node> /*Identifier*/) -> bool {
+pub fn is_push_or_unshift_identifier(node: &Node /*Identifier*/) -> bool {
     matches!(
         node.as_identifier().escaped_text.deref(),
         "push" | "unshift"
@@ -528,7 +529,7 @@ pub fn get_root_declaration(mut node: Id<Node>, arena: &impl HasArena) -> Id<Nod
     node
 }
 
-pub fn node_starts_new_lexical_environment(node: Id<Node>) -> bool {
+pub fn node_starts_new_lexical_environment(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Constructor
@@ -562,11 +563,11 @@ pub enum Associativity {
     Right,
 }
 
-pub fn get_expression_associativity(expression: Id<Node> /*Expression*/) -> Associativity {
-    let operator = get_operator(expression);
-    let has_arguments = expression.kind() == SyntaxKind::NewExpression
-        && expression.as_new_expression().arguments.is_some();
-    get_operator_associativity(expression.kind(), operator, Some(has_arguments))
+pub fn get_expression_associativity(expression: Id<Node> /*Expression*/, arena: &impl HasArena) -> Associativity {
+    let operator = get_operator(expression, arena);
+    let has_arguments = expression.ref_(arena).kind() == SyntaxKind::NewExpression
+        && expression.ref_(arena).as_new_expression().arguments.is_some();
+    get_operator_associativity(expression.ref_(arena).kind(), operator, Some(has_arguments))
 }
 
 pub fn get_operator_associativity(
@@ -621,19 +622,19 @@ pub fn get_operator_associativity(
     Associativity::Left
 }
 
-pub fn get_expression_precedence(expression: Id<Node> /*Expression*/) -> OperatorPrecedence {
-    let operator = get_operator(expression);
-    let has_arguments = expression.kind() == SyntaxKind::NewExpression
-        && expression.as_new_expression().arguments.is_some();
-    get_operator_precedence(expression.kind(), operator, Some(has_arguments))
+pub fn get_expression_precedence(expression: Id<Node> /*Expression*/, arena: &impl HasArena) -> OperatorPrecedence {
+    let operator = get_operator(expression, arena);
+    let has_arguments = expression.ref_(arena).kind() == SyntaxKind::NewExpression
+        && expression.ref_(arena).as_new_expression().arguments.is_some();
+    get_operator_precedence(expression.ref_(arena).kind(), operator, Some(has_arguments))
 }
 
-pub fn get_operator(expression: Id<Node>) -> SyntaxKind {
-    match expression {
-        Node::BinaryExpression(expression) => expression.operator_token.kind(),
+pub fn get_operator(expression: Id<Node>, arena: &impl HasArena) -> SyntaxKind {
+    match &*expression.ref_(arena) {
+        Node::BinaryExpression(expression) => expression.operator_token.ref_(arena).kind(),
         Node::PrefixUnaryExpression(expression) => expression.operator,
         Node::PostfixUnaryExpression(expression) => expression.operator,
-        _ => expression.kind(),
+        _ => expression.ref_(arena).kind(),
     }
 }
 
@@ -804,10 +805,10 @@ pub fn get_binary_operator_precedence(kind: SyntaxKind) -> OperatorPrecedence {
     }
 }
 
-pub fn get_semantic_jsx_children(children: &[Id<Node /*JsxChild*/>]) -> Vec<Id<Node>> {
-    filter(children, |i: &Id<Node>| match i.kind() {
-        SyntaxKind::JsxExpression => i.as_jsx_expression().expression.is_some(),
-        SyntaxKind::JsxText => !i.as_jsx_text().contains_only_trivia_white_spaces,
+pub fn get_semantic_jsx_children(children: &[Id<Node /*JsxChild*/>], arena: &impl HasArena) -> Vec<Id<Node>> {
+    filter(children, |i: &Id<Node>| match i.ref_(arena).kind() {
+        SyntaxKind::JsxExpression => i.ref_(arena).as_jsx_expression().expression.is_some(),
+        SyntaxKind::JsxText => !i.ref_(arena).as_jsx_text().contains_only_trivia_white_spaces,
         _ => true,
     })
 }
@@ -938,19 +939,28 @@ pub(super) fn escape_template_substitution(str: &str) -> String {
         .to_string()
 }
 
-pub(crate) fn has_invalid_escape(template: Id<Node> /*TemplateLiteral*/) -> bool {
+pub(crate) fn has_invalid_escape(template: Id<Node> /*TemplateLiteral*/, arena: &impl HasArena) -> bool {
     /*template &&*/
-    if is_no_substitution_template_literal(template) {
-        matches!(template.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None)
+    if is_no_substitution_template_literal(&template.ref_(arena)) {
+        matches!(
+            template.ref_(arena).as_template_literal_like_node().maybe_template_flags(),
+            Some(template_flags) if template_flags != TokenFlags::None
+        )
     } else {
-        let template_as_template_expression = template.as_template_expression();
-        matches!(template_as_template_expression.head.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None)
-            || some(
-                Some(&template_as_template_expression.template_spans),
-                Some(
-                    |span: &Id<Node>| matches!(span.as_template_span().literal.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None),
+        let template_ref = template.ref_(arena);
+        let template_as_template_expression = template_ref.as_template_expression();
+        matches!(
+            template_as_template_expression.head.ref_(arena).as_template_literal_like_node().maybe_template_flags(),
+            Some(template_flags) if template_flags != TokenFlags::None
+        ) || some(
+            Some(&template_as_template_expression.template_spans),
+            Some(
+                |span: &Id<Node>| matches!(
+                    span.ref_(arena).as_template_span().literal.ref_(arena).as_template_literal_like_node().maybe_template_flags(),
+                    Some(template_flags) if template_flags != TokenFlags::None
                 ),
-            )
+            ),
+        )
     }
 }
 

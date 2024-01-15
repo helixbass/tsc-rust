@@ -262,7 +262,8 @@ impl TypeChecker {
                 .unwrap_or_else(|| self.error_type());
             let property_index = index_of_node(
                 &node.as_object_literal_expression().properties,
-                &expr.parent(),
+                expr.parent(),
+                self,
             );
             return self.check_object_literal_destructuring_property_assignment(
                 node,
@@ -606,7 +607,7 @@ impl TypeChecker {
                             })
                         {
                             let symbol_file = parent_symbol_value_declaration;
-                            let ref reference_file = get_source_file_of_node(node);
+                            let ref reference_file = get_source_file_of_node(node, self);
                             let symbol_is_umd_export = !Gc::ptr_eq(symbol_file, reference_file);
                             return Ok(if symbol_is_umd_export {
                                 None
@@ -687,7 +688,7 @@ impl TypeChecker {
                     .is_none()
                 {
                     let ref container =
-                        get_enclosing_block_scope_container(symbol_value_declaration).unwrap();
+                        get_enclosing_block_scope_container(symbol_value_declaration, self).unwrap();
                     if is_statement_with_locals(container)
                         || self.is_symbol_of_destructured_element_of_catch_binding(symbol)
                     {

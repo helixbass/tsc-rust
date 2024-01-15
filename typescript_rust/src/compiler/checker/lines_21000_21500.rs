@@ -422,7 +422,7 @@ impl TypeChecker {
         )?;
         if is_in_js_file(Some(declaration))
             && !is_check_js_enabled_for_file(
-                &get_source_file_of_node(declaration),
+                &get_source_file_of_node(declaration, self),
                 &self.compiler_options,
             )
         {
@@ -918,8 +918,9 @@ impl TypeChecker {
         if let Some(type_alias_symbol) = type_.ref_(self).maybe_alias_symbol() {
             if type_.ref_(self).maybe_alias_type_arguments().is_none() {
                 let declaration = get_declaration_of_kind(
-                    &type_alias_symbol.ref_(self),
+                    type_alias_symbol,
                     SyntaxKind::TypeAliasDeclaration,
+                    self,
                 );
                 return matches!(
                     declaration,

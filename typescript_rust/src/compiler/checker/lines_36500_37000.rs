@@ -82,7 +82,7 @@ impl TypeChecker {
     ) {
         if self.module_kind >= ModuleKind::ES2015
             && !(self.module_kind >= ModuleKind::Node12
-                && get_source_file_of_node(node)
+                && get_source_file_of_node(node, self)
                     .as_source_file()
                     .maybe_implied_node_format()
                     == Some(ModuleKind::CommonJS))
@@ -175,7 +175,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_weak_map_set_collision(&self, node: Id<Node>) {
-        let enclosing_block_scope = get_enclosing_block_scope_container(node).unwrap();
+        let enclosing_block_scope = get_enclosing_block_scope_container(node, self).unwrap();
         if self
             .get_node_check_flags(&enclosing_block_scope)
             .intersects(NodeCheckFlags::ContainsClassWithPrivateIdentifiers)
@@ -238,7 +238,7 @@ impl TypeChecker {
                 has_collision = true;
             }
         } else {
-            let container = get_enclosing_block_scope_container(node);
+            let container = get_enclosing_block_scope_container(node, self);
             if matches!(
                 container.as_ref(),
                 Some(container) if self.get_node_check_flags(container).intersects(NodeCheckFlags::ContainsSuperPropertyInStaticInitializer)
@@ -340,6 +340,7 @@ impl TypeChecker {
                             .ref_(self)
                             .maybe_value_declaration(),
                         SyntaxKind::VariableDeclarationList,
+                        self,
                     )
                     .unwrap();
                     let container =

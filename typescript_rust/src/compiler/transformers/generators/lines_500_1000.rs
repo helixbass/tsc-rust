@@ -153,7 +153,7 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
-        let assoc = get_expression_associativity(node);
+        let assoc = get_expression_associativity(node, self);
         match assoc {
             Associativity::Left => self.visit_left_associative_binary_expression(node),
             Associativity::Right => self.visit_right_associative_binary_expression(node),

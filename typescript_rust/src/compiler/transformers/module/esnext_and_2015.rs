@@ -492,7 +492,7 @@ impl TransformEcmascriptModule {
             )
             .set_original_node(Some(node_export_clause.clone()));
 
-        let export_decl = if is_export_namespace_as_default_declaration(node) {
+        let export_decl = if is_export_namespace_as_default_declaration(node, self) {
             self.factory.create_export_default(synth_name)
         } else {
             self.factory.create_export_declaration(

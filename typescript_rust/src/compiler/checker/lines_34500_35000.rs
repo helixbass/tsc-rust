@@ -51,7 +51,7 @@ impl TypeChecker {
         self.check_source_element(node_as_constructor_declaration.maybe_body())?;
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        let first_declaration = get_declaration_of_kind(&symbol.ref_(self), node.kind());
+        let first_declaration = get_declaration_of_kind(symbol, node.kind(), self);
 
         if matches!(
             first_declaration.as_ref(),
@@ -70,7 +70,7 @@ impl TypeChecker {
         }
 
         let containing_class_decl = node.parent();
-        if get_class_extends_heritage_element(&containing_class_decl).is_some() {
+        if get_class_extends_heritage_element(containing_class_decl, self).is_some() {
             self.capture_lexical_this(&node.parent(), &containing_class_decl);
             let class_extends_null = self.class_declaration_extends_null(&containing_class_decl)?;
             let super_call = self.find_first_super_call(&node_body);
@@ -181,8 +181,8 @@ impl TypeChecker {
 
             if self.has_bindable_name(node)? {
                 let symbol = self.get_symbol_of_node(node)?.unwrap();
-                let getter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::GetAccessor);
-                let setter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SetAccessor);
+                let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor, self);
+                let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor, self);
                 if let Some(getter) = getter.as_ref() {
                     if let Some(setter) = setter.as_ref() {
                         if !self

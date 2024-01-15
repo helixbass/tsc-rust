@@ -887,12 +887,12 @@ impl TypeChecker {
         if is_private_identifier(&node_as_named_declaration.name())
             && self.language_version < ScriptTarget::ESNext
         {
-            let mut lexical_scope = get_enclosing_block_scope_container(node);
+            let mut lexical_scope = get_enclosing_block_scope_container(node, self);
             while let Some(ref lexical_scope_present) = lexical_scope {
                 self.get_node_links(lexical_scope_present)
                     .borrow_mut()
                     .flags |= NodeCheckFlags::ContainsClassWithPrivateIdentifiers;
-                lexical_scope = get_enclosing_block_scope_container(lexical_scope_present);
+                lexical_scope = get_enclosing_block_scope_container(lexical_scope_present, self);
             }
 
             if is_class_expression(&node.parent()) {

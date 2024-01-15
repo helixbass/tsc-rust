@@ -205,7 +205,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(node);
+        let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(&source_file) {
             let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
             self.diagnostics().add(Gc::new(
@@ -224,7 +224,7 @@ impl TypeChecker {
         message: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(node_for_source_file);
+        let source_file = get_source_file_of_node(node_for_source_file, self);
         if !self.has_parse_diagnostics(&source_file) {
             self.diagnostics().add(Gc::new(
                 create_file_diagnostic(&source_file, start, length, message, args).into(),
@@ -241,7 +241,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(node);
+        let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(&source_file) {
             self.error_skipped_on(key, Some(node), message, args);
             return true;
@@ -255,7 +255,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(node);
+        let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(&source_file) {
             self.diagnostics()
                 .add(create_diagnostic_for_node(node, message, args).into());
@@ -305,7 +305,7 @@ impl TypeChecker {
                 range.pos()
             } else {
                 skip_trivia(
-                    &get_source_file_of_node(node)
+                    &get_source_file_of_node(node, self)
                         .as_source_file()
                         .text_as_chars(),
                     range.pos(),
@@ -621,7 +621,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(node);
+        let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(&source_file) {
             let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
             self.diagnostics().add(Gc::new(
@@ -1045,7 +1045,7 @@ impl EmitResolverCreateResolver {
         }
 
         for decl in symbol_declarations {
-            let file = get_source_file_of_node(decl);
+            let file = get_source_file_of_node(decl, self);
             if self
                 .file_to_directive
                 .as_ref()
@@ -1411,7 +1411,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                 })
                 .is_some()
             {
-                let file = get_source_file_of_node(decl);
+                let file = get_source_file_of_node(decl, self);
                 let type_reference_directive =
                     file_to_directive.get(&**file.as_source_file().path());
                 if let Some(type_reference_directive) = type_reference_directive.non_empty() {
@@ -1457,12 +1457,12 @@ impl EmitResolver for EmitResolverCreateResolver {
             SyntaxKind::SetAccessor
         };
         let other_accessor = get_declaration_of_kind(
-            &self
+            self
                 .type_checker
                 .get_symbol_of_node(accessor)?
-                .unwrap()
-                .ref_(self),
+                .unwrap(),
             other_kind,
+            self,
         );
         let first_accessor = other_accessor
             .clone()
@@ -1570,7 +1570,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<bool> {
-        let ref file = get_source_file_of_node(node);
+        let ref file = get_source_file_of_node(node, self);
         let file_symbol = file.maybe_symbol();
         if file_symbol.is_none() {
             return Ok(false);
@@ -1588,7 +1588,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                 let merged = self.type_checker.get_merged_symbol(Some(s)).unwrap();
                 if let Some(merged_declarations) = merged.ref_(self).maybe_declarations().as_ref() {
                     for d in merged_declarations {
-                        let ref decl_file = get_source_file_of_node(d);
+                        let ref decl_file = get_source_file_of_node(d, self);
                         if Gc::ptr_eq(decl_file, import_target) {
                             return Ok(true);
                         }

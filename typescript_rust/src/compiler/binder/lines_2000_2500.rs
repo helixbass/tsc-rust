@@ -256,7 +256,7 @@ impl BinderType {
                 .unwrap_or_else(|| self.file()),
             ));
             self.set_block_scope_container(Some(
-                get_enclosing_block_scope_container(&host).unwrap_or_else(|| self.file()),
+                get_enclosing_block_scope_container(host, self).unwrap_or_else(|| self.file()),
             ));
             self.set_current_flow(Some(Gc::new(init_flow_node(
                 FlowStart::new(FlowFlags::Start, None).into(),
@@ -395,7 +395,7 @@ impl BinderType {
             .is_empty()
             && !node.flags().intersects(NodeFlags::Ambient)
             && !node.flags().intersects(NodeFlags::JSDoc)
-            && !is_identifier_name(node)
+            && !is_identifier_name(node, self)
         {
             let node_original_keyword_kind = node
                 .maybe_as_identifier()

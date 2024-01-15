@@ -454,7 +454,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_node_deferred(&self, node: Id<Node>) {
-        let ref enclosing_file = get_source_file_of_node(node);
+        let ref enclosing_file = get_source_file_of_node(node, self);
         let links = self.get_node_links(enclosing_file);
         if !(*links)
             .borrow()
@@ -631,7 +631,7 @@ impl TypeChecker {
                 self.check_unused_identifiers(
                     &self.get_potentially_unused_identifiers(node),
                     |containing_node, kind, diag| {
-                        if !contains_parse_error(containing_node)
+                        if !contains_parse_error(containing_node, self)
                             && self.unused_is_error(
                                 kind,
                                 containing_node.flags().intersects(NodeFlags::Ambient),

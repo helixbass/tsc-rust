@@ -1121,7 +1121,7 @@ impl TypeChecker {
             is_function_or_module_block(ancestor)
         })
         .unwrap();
-        let source_file = get_source_file_of_node(node);
+        let source_file = get_source_file_of_node(node, self);
         let span = get_span_of_token_at_position(
             &source_file,
             block

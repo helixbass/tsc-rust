@@ -176,7 +176,7 @@ impl TypeChecker {
                     if is_access_expression(target) {
                         let expression = target.as_has_expression().expression();
                         if in_js && is_identifier(&expression) {
-                            let source_file = get_source_file_of_node(&parent);
+                            let source_file = get_source_file_of_node(parent, self);
                             if source_file
                                 .as_source_file()
                                 .maybe_common_js_module_indicator()
@@ -334,7 +334,7 @@ impl TypeChecker {
             })?;
         if parent_type.is_none()
             || is_binding_pattern(Some(&*name))
-            || is_computed_non_literal_name(&name)
+            || is_computed_non_literal_name(name, self)
         {
             return Ok(None);
         }
@@ -343,6 +343,7 @@ impl TypeChecker {
             let index = index_of_node(
                 &declaration.parent().as_has_elements().elements(),
                 declaration,
+                self,
             );
             if index < 0 {
                 return Ok(None);

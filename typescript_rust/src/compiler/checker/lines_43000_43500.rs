@@ -147,7 +147,7 @@ impl TypeChecker {
                     .flags()
                     .intersects(NodeFlags::AwaitContext)
                 {
-                    let source_file = get_source_file_of_node(for_in_or_of_statement);
+                    let source_file = get_source_file_of_node(for_in_or_of_statement, self);
                     if is_in_top_level_context(for_in_or_of_statement, self) {
                         if !self.has_parse_diagnostics(&source_file) {
                             if !is_effective_external_module(&source_file, &self.compiler_options) {
@@ -165,7 +165,7 @@ impl TypeChecker {
                                 self.module_kind,
                                 ModuleKind::ES2022 | ModuleKind::ESNext | ModuleKind::System
                             ) && !(self.module_kind == ModuleKind::NodeNext
-                                && get_source_file_of_node(for_in_or_of_statement)
+                                && get_source_file_of_node(for_in_or_of_statement, self)
                                     .as_source_file()
                                     .maybe_implied_node_format()
                                     == Some(ModuleKind::ESNext))
@@ -917,7 +917,7 @@ impl TypeChecker {
         }
 
         if (self.module_kind < ModuleKind::ES2015
-            || get_source_file_of_node(node)
+            || get_source_file_of_node(node, self)
                 .as_source_file()
                 .maybe_implied_node_format()
                 == Some(ModuleKind::CommonJS))

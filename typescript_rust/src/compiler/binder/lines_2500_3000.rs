@@ -512,7 +512,7 @@ impl BinderType {
                 self.get_declaration_name(node).unwrap().into_owned(),
             );
         } else {
-            let flags = if export_assignment_is_alias(node) {
+            let flags = if export_assignment_is_alias(node, self) {
                 SymbolFlags::Alias
             } else {
                 SymbolFlags::Property
@@ -742,7 +742,7 @@ impl BinderType {
             },
         );
         if let Some(symbol) = symbol {
-            let is_alias = is_aliasable_expression(&node_as_binary_expression.right)
+            let is_alias = is_aliasable_expression(node_as_binary_expression.right, self)
                 && (is_exports_identifier(
                     &node_as_binary_expression
                         .left
@@ -808,7 +808,7 @@ impl BinderType {
             }
         }
 
-        let flags = if export_assignment_is_alias(node) {
+        let flags = if export_assignment_is_alias(node, self) {
             SymbolFlags::Alias
         } else {
             SymbolFlags::Property | SymbolFlags::ExportValue | SymbolFlags::ValueModule

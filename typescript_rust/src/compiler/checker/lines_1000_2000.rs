@@ -48,7 +48,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_namespace_(&self, location: Option<Id<Node>>) -> __String {
         if let Some(location) = location {
             let location = location.borrow();
-            let file = maybe_get_source_file_of_node(Some(location));
+            let file = maybe_get_source_file_of_node(Some(location), self);
             if let Some(file) = file {
                 let file_as_source_file = file.as_source_file();
                 if is_jsx_opening_fragment(location) {
@@ -295,7 +295,7 @@ impl TypeChecker {
             if !is_error {
                 return;
             }
-            let file = get_source_file_of_node(location);
+            let file = get_source_file_of_node(location, self);
             self.add_error_or_suggestion(
                 is_error,
                 Gc::new(match message {
@@ -650,7 +650,7 @@ impl TypeChecker {
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|source_declarations| {
-                        maybe_get_source_file_of_node(source_declarations.get(0).cloned())
+                        maybe_get_source_file_of_node(source_declarations.get(0).copied(), self)
                     });
             let target_symbol_file =
                 target
@@ -658,7 +658,7 @@ impl TypeChecker {
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|target_declarations| {
-                        maybe_get_source_file_of_node(target_declarations.get(0).cloned())
+                        maybe_get_source_file_of_node(target_declarations.get(0).copied(), self)
                     });
             let symbol_name =
                 self.symbol_to_string_(source, Option::<Id<Node>>::None, None, None, None)?;
@@ -1124,9 +1124,9 @@ impl TypeChecker {
         declaration: Id<Node>, /*Declaration*/
         usage: Id<Node>,
     ) -> io::Result<bool> {
-        let declaration_file = get_source_file_of_node(declaration);
-        let use_file = get_source_file_of_node(usage);
-        let decl_container = get_enclosing_block_scope_container(declaration).unwrap();
+        let declaration_file = get_source_file_of_node(declaration, self);
+        let use_file = get_source_file_of_node(usage, self);
+        let decl_container = get_enclosing_block_scope_container(declaration, self).unwrap();
         if !Gc::ptr_eq(&declaration_file, &use_file) {
             if self.module_kind != ModuleKind::None
                 && (declaration_file
@@ -1163,7 +1163,7 @@ impl TypeChecker {
             })
         {
             if declaration.kind() == SyntaxKind::BindingElement {
-                let error_binding_element = get_ancestor(Some(usage), SyntaxKind::BindingElement);
+                let error_binding_element = get_ancestor(Some(usage), SyntaxKind::BindingElement, self);
                 if let Some(error_binding_element) = error_binding_element {
                     return Ok(!are_option_gcs_equal(
                         find_ancestor(Some(&*error_binding_element), is_binding_element).as_ref(),
@@ -1171,7 +1171,7 @@ impl TypeChecker {
                     ) || declaration.pos() < error_binding_element.pos());
                 }
                 return self.is_block_scoped_name_declared_before_use(
-                    &get_ancestor(Some(declaration), SyntaxKind::VariableDeclaration).unwrap(),
+                    &get_ancestor(Some(declaration), SyntaxKind::VariableDeclaration, self).unwrap(),
                     usage,
                 );
             } else if declaration.kind() == SyntaxKind::VariableDeclaration {
@@ -1687,7 +1687,8 @@ impl TypeChecker {
                             if matches!(
                                 module_export,
                                 Some(&module_export) if module_export.ref_(self).flags() == SymbolFlags::Alias &&
-                                    (get_declaration_of_kind(&module_export.ref_(self), SyntaxKind::ExportSpecifier).is_some() || get_declaration_of_kind(&module_export.ref_(self), SyntaxKind::NamespaceExport).is_some())
+                                    (get_declaration_of_kind(module_export, SyntaxKind::ExportSpecifier, self).is_some()
+                                     || get_declaration_of_kind(module_export, SyntaxKind::NamespaceExport, self).is_some())
                             ) {
                                 should_skip_rest_of_match_arm = true;
                             }

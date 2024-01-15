@@ -1587,7 +1587,6 @@ pub fn is_function_like(node: Option<&Node>) -> bool {
 
 pub(crate) fn is_function_like_or_class_static_block_declaration(node: Option<&Node>) -> bool {
     node.map_or(false, |node| {
-        let node = node.borrow();
         is_function_like_kind(node.kind()) || is_class_static_block_declaration(node)
     })
 }

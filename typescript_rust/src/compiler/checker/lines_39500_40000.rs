@@ -200,8 +200,8 @@ impl TypeChecker {
                         }
                         SyntaxKind::ExportSpecifier => {
                             if !are_option_gcs_equal(
-                                maybe_get_source_file_of_node(type_only_alias.as_deref()).as_ref(),
-                                maybe_get_source_file_of_node(Some(node)).as_ref(),
+                                maybe_get_source_file_of_node(type_only_alias, self).as_ref(),
+                                maybe_get_source_file_of_node(Some(node), self).as_ref(),
                             ) {
                                 let message = if is_type {
                                     &*Diagnostics::Re_exporting_a_type_when_the_isolatedModules_flag_is_provided_requires_using_export_type
@@ -272,7 +272,7 @@ impl TypeChecker {
                 && get_es_module_interop(&self.compiler_options) == Some(true)
                 && self.module_kind != ModuleKind::System
                 && (self.module_kind < ModuleKind::ES2015
-                    || get_source_file_of_node(node)
+                    || get_source_file_of_node(node, self)
                         .as_source_file()
                         .maybe_implied_node_format()
                         == Some(ModuleKind::CommonJS))
@@ -353,7 +353,7 @@ impl TypeChecker {
                         self.check_import_binding(import_clause_named_bindings)?;
                         if self.module_kind != ModuleKind::System
                             && (self.module_kind < ModuleKind::ES2015
-                                || get_source_file_of_node(node)
+                                || get_source_file_of_node(node, self)
                                     .as_source_file()
                                     .maybe_implied_node_format()
                                     == Some(ModuleKind::CommonJS))
@@ -456,7 +456,7 @@ impl TypeChecker {
                 }
             } else {
                 if self.module_kind >= ModuleKind::ES2015
-                    && get_source_file_of_node(node)
+                    && get_source_file_of_node(node, self)
                         .as_source_file()
                         .maybe_implied_node_format()
                         .is_none()
@@ -568,7 +568,7 @@ impl TypeChecker {
                 }
                 if self.module_kind != ModuleKind::System
                     && (self.module_kind < ModuleKind::ES2015
-                        || get_source_file_of_node(node)
+                        || get_source_file_of_node(node, self)
                             .as_source_file()
                             .maybe_implied_node_format()
                             == Some(ModuleKind::CommonJS))
@@ -804,7 +804,7 @@ impl TypeChecker {
             if get_es_module_interop(&self.compiler_options) == Some(true)
                 && self.module_kind != ModuleKind::System
                 && (self.module_kind < ModuleKind::ES2015
-                    || get_source_file_of_node(node)
+                    || get_source_file_of_node(node, self)
                         .as_source_file()
                         .maybe_implied_node_format()
                         == Some(ModuleKind::CommonJS))
@@ -921,7 +921,7 @@ impl TypeChecker {
             && !node.flags().intersects(NodeFlags::Ambient)
         {
             if self.module_kind >= ModuleKind::ES2015
-                && get_source_file_of_node(node)
+                && get_source_file_of_node(node, self)
                     .as_source_file()
                     .maybe_implied_node_format()
                     != Some(ModuleKind::CommonJS)

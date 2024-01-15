@@ -1024,9 +1024,13 @@ pub fn get_source_files_to_emit(
     host: &dyn EmitHost,
     target_source_file: Option<Id<Node> /*SourceFile*/>,
     force_dts_emit: Option<bool>,
+    arena: &impl HasArena,
 ) -> Vec<Id<Node /*SourceFile*/>> {
     let options = ScriptReferenceHost::get_compiler_options(host);
-    if matches!(out_file(&options), Some(out_file) if !out_file.is_empty()) {
+    if matches!(
+        out_file(&options),
+        Some(out_file) if !out_file.is_empty()
+    ) {
         let module_kind = get_emit_module_kind(&options);
         let module_emit_enabled = matches!(options.emit_declaration_only, Some(true))
             || matches!(module_kind, ModuleKind::AMD | ModuleKind::System);
@@ -1034,9 +1038,9 @@ pub fn get_source_files_to_emit(
             .clone()
             .into_iter()
             .filter(|source_file| {
-                (module_emit_enabled || !is_external_module(source_file))
+                (module_emit_enabled || !is_external_module(&source_file.ref_(arena)))
                     && source_file_may_be_emitted(
-                        source_file,
+                        &source_file.ref_(arena),
                         host.as_source_file_may_be_emitted_host(),
                         force_dts_emit,
                     )
@@ -1045,13 +1049,13 @@ pub fn get_source_files_to_emit(
     } else {
         let source_files = match target_source_file {
             None => host.get_source_files().to_owned(),
-            Some(target_source_file) => vec![target_source_file.borrow().node_wrapper()],
+            Some(target_source_file) => vec![target_source_file],
         };
         source_files
             .into_iter()
             .filter(|source_file| {
                 source_file_may_be_emitted(
-                    source_file,
+                    &source_file.ref_(arena),
                     host.as_source_file_may_be_emitted_host(),
                     force_dts_emit,
                 )
@@ -1061,7 +1065,7 @@ pub fn get_source_files_to_emit(
 }
 
 pub fn source_file_may_be_emitted(
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     host: &dyn SourceFileMayBeEmittedHost,
     force_dts_emit: Option<bool>,
 ) -> bool {
@@ -1069,7 +1073,7 @@ pub fn source_file_may_be_emitted(
     let source_file_as_source_file = source_file.as_source_file();
     !(matches!(options.no_emit_for_js_files, Some(true)) && is_source_file_js(source_file))
         && !source_file_as_source_file.is_declaration_file()
-        && !host.is_source_file_from_external_library(source_file)
+        && !host.is_source_file_from_external_library(source_file.arena_id())
         && (matches!(force_dts_emit, Some(true))
             || (!(is_json_source_file(source_file)
                 && host

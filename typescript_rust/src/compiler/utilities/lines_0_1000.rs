@@ -59,15 +59,16 @@ pub const default_maximum_truncation_length: usize = 160;
 pub const no_truncation_maximum_truncation_length: usize = 1_000_000;
 
 pub fn get_declaration_of_kind(
-    symbol: &Symbol,
+    symbol: Id<Symbol>,
     kind: SyntaxKind,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*T extends Declaration*/>> {
-    let maybe_declarations = symbol.maybe_declarations();
+    let maybe_declarations = symbol.ref_(arena).maybe_declarations();
     let declarations = maybe_declarations.as_ref();
     if let Some(declarations) = declarations {
         for declaration in declarations {
-            if declaration.kind() == kind {
-                return Some(declaration.clone());
+            if declaration.ref_(arena).kind() == kind {
+                return Some(declaration);
             }
         }
     }
@@ -475,12 +476,12 @@ impl<TReturn> From<Option<TReturn>> for ForEachAncestorReturn<TReturn> {
 }
 
 pub fn for_each_ancestor<TReturn, TCallbackReturn: Into<ForEachAncestorReturn<TReturn>>>(
-    node: Id<Node>,
+    mut node: Id<Node>,
     mut callback: impl FnMut(Id<Node>) -> TCallbackReturn,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
-    let mut node = node.node_wrapper();
     loop {
-        let res = callback(&node).into();
+        let res = callback(node).into();
         match res {
             ForEachAncestorReturn::Quit => {
                 return None;
@@ -491,10 +492,10 @@ pub fn for_each_ancestor<TReturn, TCallbackReturn: Into<ForEachAncestorReturn<TR
                 }
             }
         }
-        if is_source_file(&node) {
+        if is_source_file(&node.ref_(arena)) {
             return None;
         }
-        node = node.parent();
+        node = node.ref_(arena).parent();
     }
 }
 
@@ -607,12 +608,11 @@ pub fn get_full_width(node: &Node) -> isize {
 }
 
 pub fn get_resolved_module(
-    source_file: Option<Id<Node>>, /*SourceFile*/
+    source_file: Option<&Node>, /*SourceFile*/
     module_name_text: &str,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) -> Option<Gc<ResolvedModuleFull>> {
     if let Some(source_file) = source_file {
-        let source_file = source_file.borrow();
         if let Some(source_file_resolved_modules) = source_file
             .as_source_file()
             .maybe_resolved_modules()
@@ -627,7 +627,7 @@ pub fn get_resolved_module(
 }
 
 pub fn set_resolved_module(
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     module_name_text: &str,
     resolved_module: Option<Gc<ResolvedModuleFull>>,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
@@ -644,7 +644,7 @@ pub fn set_resolved_module(
 }
 
 pub fn set_resolved_type_reference_directive(
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     type_reference_directive_name: &str,
     resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
 ) {
@@ -722,10 +722,7 @@ pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
     names: &[impl AsRef<str>],
     new_resolutions: &[TValue],
     old_resolutions: Option<&ModeAwareCache<TValue>>,
-    old_source_file: Option<
-        Id<Node>,
-        /*SourceFile*/
-    >,
+    old_source_file: Option<&Node /*SourceFile*/>,
     mut comparer: impl FnMut(&TValue, &TValue) -> bool,
 ) -> bool {
     Debug_.assert(names.len() == new_resolutions.len(), None);
@@ -736,8 +733,7 @@ pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
         let old_resolution = old_resolutions.and_then(|old_resolutions| {
             old_resolutions.get(
                 name,
-                old_source_file.as_ref().and_then(|old_source_file| {
-                    let old_source_file = old_source_file.borrow();
+                old_source_file.and_then(|old_source_file| {
                     get_mode_for_resolution_at_index(old_source_file.as_source_file(), i)
                 }),
             )
@@ -761,27 +757,27 @@ pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
     false
 }
 
-pub fn contains_parse_error(node: Id<Node>) -> bool {
-    aggregate_child_data(node);
-    node.flags()
+pub fn contains_parse_error(node: Id<Node>, arena: &impl HasArena) -> bool {
+    aggregate_child_data(node, arena);
+    node.ref_(arena).flags()
         .intersects(NodeFlags::ThisNodeOrAnySubNodesHasError)
 }
 
-fn aggregate_child_data(node: Id<Node>) {
-    if !node.flags().intersects(NodeFlags::HasAggregatedChildData) {
+fn aggregate_child_data(node: Id<Node>, arena: &impl HasArena) {
+    if !node.ref_(arena).flags().intersects(NodeFlags::HasAggregatedChildData) {
         let this_node_or_any_sub_nodes_has_error =
-            node.flags().intersects(NodeFlags::ThisNodeHasError)
+            node.ref_(arena).flags().intersects(NodeFlags::ThisNodeHasError)
                 || for_each_child_bool(
-                    node,
-                    |child| contains_parse_error(child),
+                    &node.ref_(arena),
+                    |child| contains_parse_error(child, arena),
                     Option::<fn(&NodeArray) -> bool>::None,
                 );
 
         if this_node_or_any_sub_nodes_has_error {
-            node.set_flags(node.flags() | NodeFlags::ThisNodeOrAnySubNodesHasError);
+            node.ref_(arena).set_flags(node.ref_(arena).flags() | NodeFlags::ThisNodeOrAnySubNodesHasError);
         }
 
-        node.set_flags(node.flags() | NodeFlags::HasAggregatedChildData);
+        node.ref_(arena).set_flags(node.ref_(arena).flags() | NodeFlags::HasAggregatedChildData);
     }
 }
 
@@ -795,14 +791,13 @@ pub fn get_source_file_of_node(
     node
 }
 
-pub fn maybe_get_source_file_of_node(node: Option<Id<Node>>) -> Option<Id<Node /*SourceFile*/>> {
+pub fn maybe_get_source_file_of_node(mut node: Option<Id<Node>>, arena: &impl HasArena) -> Option<Id<Node /*SourceFile*/>> {
     // node.map(|node| get_source_file_of_node(node.borrow()))
-    let mut node = node.map(|node| {
-        let node = node.borrow();
-        node.node_wrapper()
-    });
-    while matches!(node.as_ref(), Some(node) if node.kind() != SyntaxKind::SourceFile) {
-        node = node.unwrap().maybe_parent();
+    while matches!(
+        node,
+        Some(node) if node.ref_(arena).kind() != SyntaxKind::SourceFile
+    ) {
+        node = node.unwrap().ref_(arena).maybe_parent();
     }
     node
 }
@@ -810,12 +805,13 @@ pub fn maybe_get_source_file_of_node(node: Option<Id<Node>>) -> Option<Id<Node /
 pub fn get_source_file_of_module(module: Id<Symbol>, arena: &impl HasArena) -> Option<Id<Node /*SourceFile*/>> {
     maybe_get_source_file_of_node(
         module
-            .maybe_value_declaration()
+            .ref_(arena).maybe_value_declaration()
             .or_else(|| get_non_augmentation_declaration(module, arena)),
+        arena,
     )
 }
 
-pub fn is_statement_with_locals(node: Id<Node>) -> bool {
+pub fn is_statement_with_locals(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Block
@@ -831,11 +827,12 @@ pub fn get_start_position_of_line(line: usize, source_file: &impl SourceFileLike
     get_line_starts(source_file)[line]
 }
 
-pub fn node_pos_to_string(node: Id<Node>) -> String {
-    let file = get_source_file_of_node(node);
-    let file_as_source_file = file.as_source_file();
+pub fn node_pos_to_string(node: Id<Node>, arena: &impl HasArena) -> String {
+    let file = get_source_file_of_node(node, arena);
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     let loc =
-        get_line_and_character_of_position(file_as_source_file, node.pos().try_into().unwrap());
+        get_line_and_character_of_position(file_as_source_file, node.ref_(arena).pos().try_into().unwrap());
     format!(
         "{}({},{})",
         file_as_source_file.file_name(),
@@ -864,7 +861,7 @@ pub fn get_end_line_position(line: usize, source_file: &impl SourceFileLike) -> 
 }
 
 pub fn is_file_level_unique_name(
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     name: &str,
     has_global_name: Option<impl FnOnce(&str) -> bool>,
 ) -> bool {
@@ -893,23 +890,22 @@ fn insert_statements_after_prologue(
     from: Option<&[Id<Node>]>,
     mut is_prologue_directive: impl FnMut(Id<Node>) -> bool,
 ) {
-    if from.is_none() {
+    let Some(from) = from else {
         return /*to*/;
-    }
-    let from = from.unwrap();
+    };
     if from.is_empty() {
         return /*to*/;
     }
     let mut statement_index = 0;
     while statement_index < to.len() {
-        if !is_prologue_directive(&to[statement_index]) {
+        if !is_prologue_directive(to[statement_index]) {
             break;
         }
         statement_index += 1;
     }
     to.splice(
         statement_index..statement_index,
-        from.into_iter().map(Clone::clone),
+        from.into_iter().copied(),
     );
 }
 
@@ -924,7 +920,7 @@ fn insert_statement_after_prologue(
     let statement = statement.unwrap();
     let mut statement_index = 0;
     while statement_index < to.len() {
-        if !is_prologue_directive(&to[statement_index]) {
+        if !is_prologue_directive(to[statement_index]) {
             break;
         }
         statement_index += 1;
@@ -933,7 +929,7 @@ fn insert_statement_after_prologue(
 }
 
 fn is_any_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_prologue_directive(node, arena) || get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
+    is_prologue_directive(node, arena) || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::CustomPrologue)
 }
 
 pub fn insert_statements_after_standard_prologue(
@@ -992,7 +988,7 @@ pub fn is_pinned_comment(text: &SourceTextAsChars, start: usize) -> bool {
 }
 
 pub fn create_comment_directives_map(
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
     comment_directives: &[Rc<CommentDirective>],
 ) -> CommentDirectivesMap {
     let directives_by_line: HashMap<String, Rc<CommentDirective>> =
@@ -1071,7 +1067,7 @@ pub fn get_token_pos_of_node(
     }
 
     if include_js_doc.unwrap_or(false) && has_jsdoc_nodes(&node.ref_(arena)) {
-        return get_token_pos_of_node(node.maybe_js_doc().unwrap()[0], source_file, None, arena);
+        return get_token_pos_of_node(node.ref_(arena).maybe_js_doc().unwrap()[0], source_file, None, arena);
     }
 
     if node.ref_(arena).kind() == SyntaxKind::SyntaxList {
@@ -1102,20 +1098,16 @@ pub fn get_token_pos_of_node(
 }
 
 pub fn get_non_decorator_token_pos_of_node(node: Id<Node>, source_file: Option<Id<Node>>, arena: &impl HasArena) -> isize {
-    if node_is_missing(Some(node)) || node.maybe_decorators().is_none() {
+    if node_is_missing(Some(&node.ref_(arena))) || node.ref_(arena).maybe_decorators().is_none() {
         return get_token_pos_of_node(node, source_file, None, arena);
     }
 
     skip_trivia(
         &source_file
-            .as_ref()
-            .map_or_else(
-                || get_source_file_of_node(node),
-                |source_file| source_file.borrow().node_wrapper(),
-            )
-            .as_source_file()
+            .unwrap_or_else(|| get_source_file_of_node(node, arena))
+            .ref_(arena).as_source_file()
             .text_as_chars(),
-        node.maybe_decorators().as_ref().unwrap().end(),
+        node.ref_(arena).maybe_decorators().as_ref().unwrap().end(),
         None,
         None,
         None,
@@ -1130,7 +1122,7 @@ pub fn get_source_text_of_node_from_source_file(
 ) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
     get_text_of_node_from_source_text(
-        &source_file.as_source_file().text_as_chars(),
+        &source_file.ref_(arena).as_source_file().text_as_chars(),
         node,
         Some(include_trivia),
         arena,
@@ -1141,22 +1133,23 @@ fn is_jsdoc_type_expression_or_child(node: Id<Node>, arena: &impl HasArena) -> b
     find_ancestor(Some(node), |node| is_jsdoc_type_expression(&node.ref_(arena)), arena).is_some()
 }
 
-pub fn is_export_namespace_as_default_declaration(node: Id<Node>) -> bool {
-    if !is_export_declaration(node) {
+pub fn is_export_namespace_as_default_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
+    if !is_export_declaration(&node.ref_(arena)) {
         return false;
     }
-    let node_as_export_declaration = node.as_export_declaration();
-    if node_as_export_declaration.export_clause.is_none() {
+    let node_ref = node.ref_(arena);
+    let node_as_export_declaration = node_ref.as_export_declaration();
+    let Some(node_export_clause) = node_as_export_declaration.export_clause else {
+        return false;
+    };
+    if !is_namespace_export(&node_export_clause.ref_(arena)) {
         return false;
     }
-    let node_export_clause = node_as_export_declaration.export_clause.as_ref().unwrap();
-    if !is_namespace_export(node_export_clause) {
-        return false;
-    }
-    let node_export_clause_as_namespace_export = node_export_clause.as_namespace_export();
+    let node_export_clause_ref = node_export_clause.ref_(arena);
+    let node_export_clause_as_namespace_export = node_export_clause_ref.as_namespace_export();
     node_export_clause_as_namespace_export
         .name
-        .as_identifier()
+        .ref_(arena).as_identifier()
         .escaped_text
         == "default"
 }
@@ -1216,15 +1209,15 @@ pub fn get_text_of_node(node: Id<Node>, include_trivia: Option<bool>, arena: &im
     )
 }
 
-fn get_pos(range: Id<Node>) -> isize {
+fn get_pos(range: &Node) -> isize {
     range.pos()
 }
 
-pub fn index_of_node(node_array: &[Id<Node>], node: Id<Node>) -> isize {
+pub fn index_of_node(node_array: &[Id<Node>], node: Id<Node>, arena: &impl HasArena) -> isize {
     binary_search_copy_key(
         node_array,
-        &node.node_wrapper(),
-        |node, _| get_pos(node),
+        &node,
+        |node, _| get_pos(&node.ref_(arena)),
         |a, b| compare_values(Some(a), Some(b)),
         None,
     )
@@ -1435,23 +1428,24 @@ pub fn get_literal_text(
     node: Id<Node>, /*LiteralLikeNode*/
     source_file: Option<Id<Node> /*SourceFile*/>,
     flags: GetLiteralTextFlags,
+    arena: &impl HasArena,
 ) -> Cow<'static, str> {
-    if can_use_original_text(node, flags) {
-        return get_source_text_of_node_from_source_file(source_file.unwrap().borrow(), node, None);
+    if can_use_original_text(&node.ref_(arena), flags) {
+        return get_source_text_of_node_from_source_file(source_file.unwrap(), node, None, arena);
     }
 
-    match node {
+    match &*node.ref_(arena) {
         Node::StringLiteral(node_as_string_literal) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::JsxAttributeEscape) {
                 escape_jsx_attribute_string
             } else if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
-                || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
+                || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::NoAsciiEscaping)
             {
                 escape_string
             } else {
                 escape_non_ascii_string
             };
-            if matches!(node_as_string_literal.single_quote, Some(true)) {
+            if node_as_string_literal.single_quote == Some(true) {
                 format!(
                     "'{}'",
                     escape_text(
@@ -1473,7 +1467,7 @@ pub fn get_literal_text(
         }
         Node::TemplateLiteralLikeNode(node_as_template_literal_like_node) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
-                || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
+                || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::NoAsciiEscaping)
             {
                 escape_string
             } else {
@@ -1490,7 +1484,7 @@ pub fn get_literal_text(
                     ))
                 });
 
-            match node.kind() {
+            match node.ref_(arena).kind() {
                 SyntaxKind::NoSubstitutionTemplateLiteral => format!("`{}`", raw_text).into(),
                 SyntaxKind::TemplateHead => format!("`{}${{", raw_text).into(),
                 SyntaxKind::TemplateMiddle => format!("}}{}${{", raw_text).into(),
@@ -1499,23 +1493,23 @@ pub fn get_literal_text(
             }
         }
         Node::NumericLiteral(_) | Node::BigIntLiteral(_) => {
-            node.as_literal_like_node().text().to_owned().into()
+            node.ref_(arena).as_literal_like_node().text().to_owned().into()
         }
         _ => Debug_.fail(Some(&format!(
             "Literal kind '{:?}' not accounted for.",
-            node.kind()
+            node.ref_(arena).kind()
         ))),
     }
 }
 
 fn can_use_original_text(
-    node: Id<Node>, /*LiteralLikeNode*/
+    node: &Node, /*LiteralLikeNode*/
     flags: GetLiteralTextFlags,
 ) -> bool {
     if node_is_synthesized(node)
         || node.maybe_parent().is_none()
         || flags.intersects(GetLiteralTextFlags::TerminateUnterminatedLiterals)
-            && matches!(node.as_literal_like_node().is_unterminated(), Some(true))
+            && node.as_literal_like_node().is_unterminated() == Some(true)
     {
         return false;
     }
@@ -1574,13 +1568,13 @@ pub fn is_ambient_module(node: Id<Node>, arena: &impl HasArena) -> bool {
             || is_global_scope_augmentation(&node.ref_(arena)))
 }
 
-pub fn is_module_with_string_literal_name(node: Id<Node>) -> bool {
-    is_module_declaration(node)
-        && node.as_module_declaration().name.kind() == SyntaxKind::StringLiteral
+pub fn is_module_with_string_literal_name(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_module_declaration(&node.ref_(arena))
+        && node.ref_(arena).as_module_declaration().name.ref_(arena).kind() == SyntaxKind::StringLiteral
 }
 
-pub fn is_non_global_ambient_module(node: Id<Node>) -> bool {
-    is_module_declaration(node) && is_string_literal(&node.as_module_declaration().name)
+pub fn is_non_global_ambient_module(node: Id<Node>, arena: &impl HasArena) -> bool {
+    is_module_declaration(&node.ref_(arena)) && is_string_literal(&node.ref_(arena).as_module_declaration().name.ref_(arena))
 }
 
 pub fn is_effective_module_declaration(node: &Node) -> bool {
@@ -1591,18 +1585,17 @@ pub fn is_shorthand_ambient_module_symbol(module_symbol: &Symbol) -> bool {
     is_shorthand_ambient_module(module_symbol.maybe_value_declaration())
 }
 
-fn is_shorthand_ambient_module(node: Option<Id<Node>>) -> bool {
+fn is_shorthand_ambient_module(node: Option<&Node>) -> bool {
     match node {
         None => false,
         Some(node) => {
-            let node = node.borrow();
             node.kind() == SyntaxKind::ModuleDeclaration
                 && node.as_module_declaration().body.is_none()
         }
     }
 }
 
-pub fn is_block_scoped_container_top_level(node: Id<Node>) -> bool {
+pub fn is_block_scoped_container_top_level(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration
@@ -1652,7 +1645,7 @@ fn is_common_js_containing_module_kind(kind: ModuleKind) -> bool {
 }
 
 pub fn is_effective_external_module(
-    node: Id<Node>, /*SourceFile*/
+    node: &Node, /*SourceFile*/
     compiler_options: &CompilerOptions,
 ) -> bool {
     is_external_module(node)
@@ -1669,7 +1662,8 @@ pub fn is_effective_strict_mode_source_file(
     compiler_options: &CompilerOptions,
     arena: &impl HasArena,
 ) -> bool {
-    let node_as_source_file = node.as_source_file();
+    let node_ref = node.ref_(arena);
+    let node_as_source_file = node_ref.as_source_file();
     match node_as_source_file.script_kind() {
         ScriptKind::JS | ScriptKind::TS | ScriptKind::JSX | ScriptKind::TSX => (),
         _ => {
@@ -1685,7 +1679,7 @@ pub fn is_effective_strict_mode_source_file(
     if starts_with_use_strict(&node_as_source_file.statements(), arena) {
         return true;
     }
-    if is_external_module(node) || compiler_options.isolated_modules.unwrap_or(false) {
+    if is_external_module(&node.ref_(arena)) || compiler_options.isolated_modules.unwrap_or(false) {
         if get_emit_module_kind(compiler_options) >= ModuleKind::ES2015 {
             return true;
         }
@@ -1694,7 +1688,7 @@ pub fn is_effective_strict_mode_source_file(
     false
 }
 
-pub fn is_block_scope(node: Id<Node>, parent_node: Option<Id<Node>>) -> bool {
+pub fn is_block_scope(node: &Node, parent_node: Option<&Node>) -> bool {
     match node.kind() {
         SyntaxKind::SourceFile
         | SyntaxKind::CaseBlock
@@ -1717,7 +1711,7 @@ pub fn is_block_scope(node: Id<Node>, parent_node: Option<Id<Node>>) -> bool {
     }
 }
 
-pub fn is_declaration_with_type_parameters(node: Id<Node>) -> bool {
+pub fn is_declaration_with_type_parameters(node: &Node) -> bool {
     match node.kind() {
         SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocSignature => {
             true
@@ -1729,7 +1723,7 @@ pub fn is_declaration_with_type_parameters(node: Id<Node>) -> bool {
     }
 }
 
-pub fn is_declaration_with_type_parameter_children(node: Id<Node>) -> bool {
+pub fn is_declaration_with_type_parameter_children(node: &Node) -> bool {
     match node.kind() {
         SyntaxKind::CallSignature
         | SyntaxKind::ConstructSignature
@@ -1764,7 +1758,7 @@ pub fn is_any_import_syntax(node: &Node) -> bool {
     )
 }
 
-pub fn is_late_visibility_painted_statement(node: Id<Node>) -> bool {
+pub fn is_late_visibility_painted_statement(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ImportDeclaration
@@ -1780,9 +1774,9 @@ pub fn is_late_visibility_painted_statement(node: Id<Node>) -> bool {
 }
 
 pub fn has_possible_external_module_reference(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_any_import_or_re_export(node)
-        || is_module_declaration(node)
-        || is_import_type_node(node)
+    is_any_import_or_re_export(&node.ref_(arena))
+        || is_module_declaration(&node.ref_(arena))
+        || is_import_type_node(&node.ref_(arena))
         || is_import_call(node, arena)
 }
 
@@ -1790,20 +1784,21 @@ pub fn is_any_import_or_re_export(node: &Node) -> bool {
     is_any_import_syntax(node) || is_export_declaration(node)
 }
 
-pub fn get_enclosing_block_scope_container(node: Id<Node>) -> Option<Id<Node>> {
-    find_ancestor(node.maybe_parent(), |current| {
-        is_block_scope(current, current.maybe_parent())
-    })
+pub fn get_enclosing_block_scope_container(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
+    find_ancestor(node.ref_(arena).maybe_parent(), |current| {
+        is_block_scope(&current.ref_(arena), current.ref_(arena).maybe_parent().refed(arena))
+    }, arena)
 }
 
-pub fn for_each_enclosing_block_scope_container<TCallback: FnMut(Id<Node>)>(
+pub fn for_each_enclosing_block_scope_container(
     node: Id<Node>,
-    mut cb: TCallback,
+    mut cb: impl FnMut(Id<Node>),
+    arena: &impl HasArena,
 ) {
-    let mut container = get_enclosing_block_scope_container(node);
+    let mut container = get_enclosing_block_scope_container(node, arena);
     while let Some(container_present) = container {
-        cb(&container_present);
-        container = get_enclosing_block_scope_container(&container_present);
+        cb(container_present);
+        container = get_enclosing_block_scope_container(container_present, arena);
     }
 }
 
@@ -1811,8 +1806,7 @@ pub fn declaration_name_to_string(name: Option<Id<Node>>, arena: &impl HasArena)
     match name {
         None => "(Missing)".into(),
         Some(name) => {
-            let name = name.borrow();
-            if get_full_width(name) == 0 {
+            if get_full_width(&name.ref_(arena)) == 0 {
                 "(Missing)".into()
             } else {
                 get_text_of_node(name, None, arena)
@@ -1825,18 +1819,18 @@ pub fn get_name_from_index_info(info: &IndexInfo, arena: &impl HasArena) -> Opti
     info.declaration.as_ref().map(|info_declaration| {
         declaration_name_to_string(
             info_declaration
-                .as_index_signature_declaration()
+                .ref_(arena).as_index_signature_declaration()
                 .parameters()[0]
-                .as_parameter_declaration()
+                .ref_(arena).as_parameter_declaration()
                 .maybe_name(),
             arena,
         )
     })
 }
 
-pub fn is_computed_non_literal_name(name: Id<Node> /*PropertyName*/) -> bool {
-    name.kind() == SyntaxKind::ComputedPropertyName
-        && !is_string_or_numeric_literal_like(&name.as_computed_property_name().expression)
+pub fn is_computed_non_literal_name(name: Id<Node> /*PropertyName*/, arena: &impl HasArena) -> bool {
+    name.ref_(arena).kind() == SyntaxKind::ComputedPropertyName
+        && !is_string_or_numeric_literal_like(&name.ref_(arena).as_computed_property_name().expression.ref_(arena))
 }
 
 pub fn get_text_of_property_name<'name>(

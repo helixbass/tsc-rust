@@ -76,8 +76,8 @@ impl SymbolTableToDeclarationStatements {
                         target.ref_(self).maybe_declarations().as_deref(),
                         Some(|d: &Id<Node>| {
                             Gc::ptr_eq(
-                                &get_source_file_of_node(d),
-                                &get_source_file_of_node(&self.enclosing_declaration),
+                                &get_source_file_of_node(d, self),
+                                &get_source_file_of_node(self.enclosing_declaration, self),
                             )
                         }),
                     )
@@ -86,7 +86,7 @@ impl SymbolTableToDeclarationStatements {
                     if is_export_assignment(alias_decl) || is_binary_expression(alias_decl) {
                         get_export_assignment_expression(alias_decl)
                     } else {
-                        get_property_assignment_alias_like_expression(alias_decl)
+                        get_property_assignment_alias_like_expression(alias_decl, self)
                     }
                 });
                 let first = expr
@@ -241,7 +241,7 @@ impl SymbolTableToDeclarationStatements {
         type_to_serialize: Id<Type>,
         host_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
+        let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration(), self);
         Ok(get_object_flags(&type_to_serialize.ref_(self))
             .intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
             && self
@@ -277,7 +277,7 @@ impl SymbolTableToDeclarationStatements {
                 Some(type_to_serialize_symbol) if some(
                     type_to_serialize_symbol.ref_(self).maybe_declarations().as_deref(),
                     Some(|d: &Id<Node>| !are_option_gcs_equal(
-                        maybe_get_source_file_of_node(Some(&**d)).as_ref(),
+                        maybe_get_source_file_of_node(Some(d), self).as_ref(),
                         ctx_src.as_ref()
                     ))
                 )
@@ -297,7 +297,7 @@ impl SymbolTableToDeclarationStatements {
                         p.ref_(self).maybe_declarations().as_deref(),
                         Some(|d: &Id<Node>| {
                             !are_option_gcs_equal(
-                                maybe_get_source_file_of_node(Some(&**d)).as_ref(),
+                                maybe_get_source_file_of_node(Some(d), self).as_ref(),
                                 ctx_src.as_ref(),
                             )
                         }),

@@ -603,7 +603,7 @@ impl TypeChecker {
                             if let Some(index_info) = index_info.as_ref() {
                                 if let Some(index_info_declaration) =
                                     index_info.declaration.as_ref().filter(|declaration| {
-                                        !get_source_file_of_node(declaration)
+                                        !get_source_file_of_node(declaration, self)
                                             .as_source_file()
                                             .has_no_default_lib()
                                     })
@@ -649,7 +649,7 @@ impl TypeChecker {
                                     .unwrap()[0]
                                     .clone()
                             };
-                            if !get_source_file_of_node(&target_node)
+                            if !get_source_file_of_node(target_node, self)
                                 .as_source_file()
                                 .has_no_default_lib()
                             {
@@ -1108,7 +1108,8 @@ impl TypeChecker {
                             inner_expression: prop_as_property_assignment.maybe_initializer(),
                             name_type: type_,
                             error_message: if is_computed_non_literal_name(
-                                &prop_as_property_assignment.name(),
+                                prop_as_property_assignment.name(),
+                                self,
                             ) {
                                 Some(Cow::Borrowed(&Diagnostics::Type_of_computed_property_s_value_is_0_which_is_not_assignable_to_type_1))
                             } else {

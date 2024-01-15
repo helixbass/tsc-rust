@@ -329,7 +329,7 @@ impl TypeChecker {
         };
         if target_declaration_kind != SyntaxKind::Unknown {
             let decl =
-                get_declaration_of_kind(&resolved_require.ref_(self), target_declaration_kind);
+                get_declaration_of_kind(resolved_require, target_declaration_kind, self);
             return Ok(matches!(
                 decl.as_ref(),
                 Some(decl) if decl.flags().intersects(NodeFlags::Ambient)
@@ -364,7 +364,7 @@ impl TypeChecker {
         node: Id<Node>, /*AssertionExpression*/
     ) -> io::Result<Id<Type>> {
         if node.kind() == SyntaxKind::TypeAssertionExpression {
-            let file = maybe_get_source_file_of_node(Some(node));
+            let file = maybe_get_source_file_of_node(Some(node), self);
             if matches!(
                 file.as_ref(),
                 Some(file) if file_extension_is_one_of(
@@ -565,7 +565,7 @@ impl TypeChecker {
         node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<Id<Type>> {
         if matches!(self.module_kind, ModuleKind::Node12 | ModuleKind::NodeNext) {
-            if get_source_file_of_node(node)
+            if get_source_file_of_node(node, self)
                 .as_source_file()
                 .maybe_implied_node_format()
                 != Some(ModuleKind::ESNext)
@@ -583,7 +583,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let file = get_source_file_of_node(node);
+        let file = get_source_file_of_node(node, self);
         Debug_.assert(
             file.flags()
                 .intersects(NodeFlags::PossiblyContainsImportMeta),

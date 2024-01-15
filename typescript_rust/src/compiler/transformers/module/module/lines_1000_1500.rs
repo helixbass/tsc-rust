@@ -216,7 +216,7 @@ impl TransformModule {
                                     node,
                                     if self.module_kind != ModuleKind::AMD {
                                         self.create_require_call(node)?
-                                    } else if is_export_namespace_as_default_declaration(node) {
+                                    } else if is_export_namespace_as_default_declaration(node, self) {
                                         generated_name
                                     } else {
                                         self.factory.create_identifier(id_text(

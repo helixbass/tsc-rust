@@ -467,7 +467,7 @@ impl TypeChecker {
             }
 
             if is_jsx_opening_fragment(node) {
-                let file = get_source_file_of_node(node);
+                let file = get_source_file_of_node(node, self);
                 let local_jsx_namespace = self.get_local_jsx_namespace(&file);
                 if let Some(local_jsx_namespace) = local_jsx_namespace.as_ref() {
                     self.resolve_name_(

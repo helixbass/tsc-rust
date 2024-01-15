@@ -554,7 +554,7 @@ impl TypeChecker {
                 );
             } else if !node.flags().intersects(NodeFlags::AwaitContext) {
                 if is_in_top_level_context(node, self) {
-                    let source_file = get_source_file_of_node(node);
+                    let source_file = get_source_file_of_node(node, self);
                     if !self.has_parse_diagnostics(&source_file) {
                         let mut span: Option<TextSpan> = None;
                         if !is_effective_external_module(&source_file, &self.compiler_options) {
@@ -579,7 +579,7 @@ impl TypeChecker {
                             self.module_kind,
                             ModuleKind::ES2022 | ModuleKind::ESNext | ModuleKind::System
                         ) && !(self.module_kind == ModuleKind::NodeNext
-                            && get_source_file_of_node(node)
+                            && get_source_file_of_node(node, self)
                                 .as_source_file()
                                 .maybe_implied_node_format()
                                 == Some(ModuleKind::ESNext))
@@ -602,7 +602,7 @@ impl TypeChecker {
                         }
                     }
                 } else {
-                    let source_file = get_source_file_of_node(node);
+                    let source_file = get_source_file_of_node(node, self);
                     if !self.has_parse_diagnostics(&source_file) {
                         let span = get_span_of_token_at_position(
                             &source_file,

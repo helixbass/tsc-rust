@@ -423,7 +423,7 @@ impl TypeChecker {
         {
             if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
                 let file_symbol = self
-                    .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))?
+                    .get_symbol_of_node(&get_source_file_of_node(symbol_value_declaration, self))?
                     .unwrap();
                 let result = self.alloc_symbol(
                     self.create_symbol(file_symbol.ref_(self).flags(), "exports".to_owned(), None)
@@ -727,7 +727,7 @@ impl TypeChecker {
         if !self.pop_type_resolution() {
             type_ = Some(self.any_type());
             if self.no_implicit_any {
-                let getter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::GetAccessor);
+                let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor, self);
                 self.error(
                     getter,
                     &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
@@ -746,8 +746,8 @@ impl TypeChecker {
         writing: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let writing = writing.unwrap_or(false);
-        let getter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::GetAccessor);
-        let setter = get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SetAccessor);
+        let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor, self);
+        let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor, self);
 
         let setter_type = self.get_annotated_accessor_type(setter.as_deref())?;
 
