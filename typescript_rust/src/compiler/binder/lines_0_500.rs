@@ -92,16 +92,18 @@ impl ActiveLabel {
 pub fn get_module_instance_state(
     node: Id<Node>, /*ModuleDeclaration*/
     visited: Option<Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>>,
+    arena: &impl HasArena,
 ) -> ModuleInstanceState {
-    let node_as_module_declaration = node.as_module_declaration();
-    if let Some(node_body) = node_as_module_declaration.body.as_ref() {
-        if node_body.maybe_parent().is_none() {
-            set_parent(node_body, Some(node.node_wrapper()));
-            set_parent_recursive(Some(node_body), false);
+    let node_ref = node.ref_(arena);
+    let node_as_module_declaration = node_ref.as_module_declaration();
+    if let Some(node_body) = node_as_module_declaration.body {
+        if node_body.ref_(arena).maybe_parent().is_none() {
+            set_parent(&node_body.ref_(arena), Some(node));
+            set_parent_recursive(Some(node_body), false, arena);
         }
     }
-    if let Some(node_body) = node_as_module_declaration.body.as_ref() {
-        get_module_instance_state_cached(node_body, visited)
+    if let Some(node_body) = node_as_module_declaration.body {
+        get_module_instance_state_cached(node_body, visited, arena)
     } else {
         ModuleInstanceState::Instantiated
     }
@@ -110,9 +112,10 @@ pub fn get_module_instance_state(
 pub fn get_module_instance_state_cached(
     node: Id<Node>, /*ModuleDeclaration*/
     visited: Option<Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>>,
+    arena: &impl HasArena,
 ) -> ModuleInstanceState {
     let visited = visited.unwrap_or_else(|| Rc::new(RefCell::new(HashMap::new())));
-    let node_id = get_node_id(node);
+    let node_id = get_node_id(&node.ref_(arena));
     {
         let visited = (*visited).borrow();
         if visited.contains_key(&node_id) {
@@ -123,7 +126,7 @@ pub fn get_module_instance_state_cached(
         }
     }
     visited.borrow_mut().insert(node_id, None);
-    let result = get_module_instance_state_worker(node, visited.clone());
+    let result = get_module_instance_state_worker(node, visited.clone(), arena);
     visited.borrow_mut().insert(node_id, Some(result));
     result
 }
@@ -133,12 +136,12 @@ pub(super) fn get_module_instance_state_worker(
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
     arena: &impl HasArena,
 ) -> ModuleInstanceState {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeAliasDeclaration => {
             return ModuleInstanceState::NonInstantiated;
         }
         SyntaxKind::EnumDeclaration => {
-            if is_enum_const(node) {
+            if is_enum_const(node, arena) {
                 return ModuleInstanceState::ConstEnumOnly;
             }
         }
@@ -148,9 +151,13 @@ pub(super) fn get_module_instance_state_worker(
             }
         }
         SyntaxKind::ExportDeclaration => {
-            let export_declaration = node.as_export_declaration();
+            let node_ref = node.ref_(arena);
+            let export_declaration = node_ref.as_export_declaration();
             if export_declaration.module_specifier.is_none()
-                && matches!(export_declaration.export_clause.as_ref(), Some(export_clause) if export_clause.kind() == SyntaxKind::NamedExports)
+                && matches!(
+                    export_declaration.export_clause,
+                    Some(export_clause) if export_clause.ref_(arena).kind() == SyntaxKind::NamedExports
+                )
             {
                 let mut state = ModuleInstanceState::NonInstantiated;
                 for specifier in &export_declaration
@@ -175,7 +182,7 @@ pub(super) fn get_module_instance_state_worker(
         SyntaxKind::ModuleBlock => {
             let mut state = ModuleInstanceState::NonInstantiated;
             for_each_child_returns(
-                node,
+                &node.ref_(arena),
                 |n| {
                     let child_state = get_module_instance_state_cached(n, Some(visited.clone()));
                     match child_state {
@@ -199,7 +206,7 @@ pub(super) fn get_module_instance_state_worker(
         }
         SyntaxKind::Identifier => {
             if matches!(
-                node.as_identifier().maybe_is_in_jsdoc_namespace(),
+                node.ref_(arena).as_identifier().maybe_is_in_jsdoc_namespace(),
                 Some(true)
             ) {
                 return ModuleInstanceState::NonInstantiated;
@@ -213,24 +220,25 @@ pub(super) fn get_module_instance_state_worker(
 pub(super) fn get_module_instance_state_for_alias_target(
     specifier: Id<Node>, /*ExportSpecifier*/
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
+    arena: &impl HasArena,
 ) -> ModuleInstanceState {
-    let specifier_as_export_specifier = specifier.as_export_specifier();
-    let name: Id<Node> = specifier_as_export_specifier
+    let specifier_ref = specifier.ref_(arena);
+    let specifier_as_export_specifier = specifier_ref.as_export_specifier();
+    let name = specifier_as_export_specifier
         .property_name
-        .clone()
-        .unwrap_or_else(|| specifier_as_export_specifier.name.clone());
-    let mut p: Option<Id<Node>> = specifier.maybe_parent();
+        .unwrap_or_else(|| specifier_as_export_specifier.name);
+    let mut p: Option<Id<Node>> = specifier.ref_(arena).maybe_parent();
     while let Some(p_present) = p {
-        if is_block(&p_present) || is_module_block(&p_present) || is_source_file(&p_present) {
-            let statements = p_present.as_has_statements().statements();
+        if is_block(&p_present.ref_(arena)) || is_module_block(&p_present.ref_(arena)) || is_source_file(&p_present.ref_(arena)) {
+            let statements = p_present.ref_(arena).as_has_statements().statements();
             let mut found: Option<ModuleInstanceState> = None;
-            for statement in &statements {
-                if node_has_name(statement, name) {
-                    if statement.maybe_parent().is_none() {
-                        set_parent(statement, Some(p_present.clone()));
-                        set_parent_recursive(Some(statement), false);
+            for &statement in &statements {
+                if node_has_name(statement, name, arena) {
+                    if statement.ref_(arena).maybe_parent().is_none() {
+                        set_parent(&statement.ref_(arena), Some(p_present));
+                        set_parent_recursive(Some(statement), false, arena);
                     }
-                    let state = get_module_instance_state_cached(statement, Some(visited.clone()));
+                    let state = get_module_instance_state_cached(statement, Some(visited.clone()), arena);
                     if match found {
                         None => true,
                         Some(found) if state > found => true,
@@ -238,7 +246,7 @@ pub(super) fn get_module_instance_state_for_alias_target(
                     } {
                         found = Some(state);
                     }
-                    if matches!(found, Some(ModuleInstanceState::Instantiated)) {
+                    if found == Some(ModuleInstanceState::Instantiated) {
                         return found.unwrap();
                     }
                 }
@@ -247,7 +255,7 @@ pub(super) fn get_module_instance_state_for_alias_target(
                 return found;
             }
         }
-        p = p_present.maybe_parent();
+        p = p_present.ref_(arena).maybe_parent();
     }
     ModuleInstanceState::Instantiated
 }

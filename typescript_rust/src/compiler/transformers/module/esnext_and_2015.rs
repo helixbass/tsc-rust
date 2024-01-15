@@ -246,7 +246,7 @@ impl TransformEcmascriptModule {
                     try_visit_nodes(
                         &node_as_source_file.statements(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_statement),
+                        Some(|node| is_statement(node, self)),
                         Some(statement_offset),
                         None,
                     )?

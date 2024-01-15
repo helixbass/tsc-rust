@@ -1085,7 +1085,7 @@ impl SymbolTableToDeclarationStatements {
             self.type_checker
                 .get_target_of_alias_declaration(node, Some(true))?,
         ));
-        let mut verbatim_target_name = is_shorthand_ambient_module_symbol(&target.ref_(self))
+        let mut verbatim_target_name = is_shorthand_ambient_module_symbol(target, self)
             .try_then_and(|| {
                 self.get_some_target_name_from_declarations(
                     symbol.ref_(self).maybe_declarations().as_deref(),

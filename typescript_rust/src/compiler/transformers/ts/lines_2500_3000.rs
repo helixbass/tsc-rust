@@ -275,7 +275,7 @@ impl TransformTypeScript {
                         Some(&try_visit_nodes(
                             &body.as_module_block().statements,
                             Some(|node: Id<Node>| self.namespace_element_visitor(node)),
-                            Some(is_statement),
+                            Some(|node| is_statement(node, self)),
                             None,
                             None,
                         )?),

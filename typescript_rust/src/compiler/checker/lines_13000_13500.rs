@@ -1110,7 +1110,7 @@ impl TypeChecker {
         let mut node = node.node_wrapper();
         while
         /*node &&*/
-        !is_statement(&node) && node.kind() != SyntaxKind::JSDocComment {
+        !is_statement(node, self) && node.kind() != SyntaxKind::JSDocComment {
             let parent = node.parent();
             if parent.kind() == SyntaxKind::Parameter {
                 covariant = !covariant;

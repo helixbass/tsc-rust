@@ -516,7 +516,7 @@ impl TransformClassFields {
                             Some(&visit_nodes(
                                 &constructor_body.as_block().statements,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_statement),
+                                Some(|node| is_statement(node, self)),
                                 Some(index_of_first_statement),
                                 Some(after_parameter_properties - index_of_first_statement),
                             )),
@@ -543,7 +543,7 @@ impl TransformClassFields {
                         .as_block()
                         .statements,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_statement),
+                    Some(|node| is_statement(node, self)),
                     Some(index_of_first_statement),
                     None,
                 )),

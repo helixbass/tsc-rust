@@ -464,14 +464,14 @@ impl TransformSystemModule {
                 .external_helpers_import_declaration
                 .as_deref(),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
-            Some(is_statement),
+            Some(|node| is_statement(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
 
         let execute_statements = try_visit_nodes(
             &node_as_source_file.statements(),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
-            Some(is_statement),
+            Some(|node| is_statement(node, self)),
             Some(statement_offset),
             None,
         )?;

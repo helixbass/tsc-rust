@@ -512,7 +512,7 @@ impl TypeChecker {
         )?;
         if match module_symbol {
             None => true,
-            Some(module_symbol) => is_shorthand_ambient_module_symbol(&module_symbol.ref_(self)),
+            Some(module_symbol) => is_shorthand_ambient_module_symbol(module_symbol, self),
         } {
             return Ok(true);
         }

@@ -820,8 +820,8 @@ impl TypeChecker {
                     || some(
                         err.maybe_related_information().as_deref(),
                         Some(|r: &Gc<DiagnosticRelatedInformation>| {
-                            compare_diagnostics(&**r, &*follow_on_message) == Comparison::EqualTo
-                                || compare_diagnostics(&**r, &*leading_message)
+                            compare_diagnostics(&**r, &*follow_on_message, self) == Comparison::EqualTo
+                                || compare_diagnostics(&**r, &*leading_message, self)
                                     == Comparison::EqualTo
                         }),
                     )

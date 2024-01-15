@@ -1086,7 +1086,7 @@ impl TransformES2017 {
                 try_visit_nodes(
                     &body.as_block().statements,
                     Some(|node: Id<Node>| self.async_body_visitor(node)),
-                    Some(is_statement),
+                    Some(|node| is_statement(node, self)),
                     start,
                     None,
                 )?,

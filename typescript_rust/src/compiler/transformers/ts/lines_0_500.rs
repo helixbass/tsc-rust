@@ -525,7 +525,7 @@ impl TransformTypeScript {
     }
 
     pub(super) fn visit_type_script(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
-        if is_statement(node) && has_syntactic_modifier(node, ModifierFlags::Ambient, self) {
+        if is_statement(node, self) && has_syntactic_modifier(node, ModifierFlags::Ambient, self) {
             return Ok(Some(
                 self.factory
                     .create_not_emitted_statement(node.node_wrapper())

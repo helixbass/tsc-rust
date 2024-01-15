@@ -172,7 +172,7 @@ pub fn get_local_symbol_for_export_default(
         return None;
     }
     for decl in symbol.ref_(arena).maybe_declarations().as_ref().unwrap() {
-        if let Some(decl_local_symbol) = decl.maybe_local_symbol() {
+        if let Some(decl_local_symbol) = decl.ref_(arena).maybe_local_symbol() {
             return Some(decl_local_symbol);
         }
     }
@@ -188,7 +188,7 @@ fn is_export_default_symbol(symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
     {
         None => false,
         Some(symbol_declarations) => {
-            has_syntactic_modifier(&symbol_declarations[0], ModifierFlags::Default, arena)
+            has_syntactic_modifier(symbol_declarations[0], ModifierFlags::Default, arena)
         }
     }
 }
@@ -322,7 +322,7 @@ pub fn range_is_on_single_line(
 pub fn range_start_positions_are_on_same_line(
     range1: &impl ReadonlyTextRange,
     range2: &impl ReadonlyTextRange,
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
 ) -> bool {
     positions_are_on_same_line(
         get_start_position_of_range(range1, source_file, false),
@@ -334,7 +334,7 @@ pub fn range_start_positions_are_on_same_line(
 pub fn range_end_positions_are_on_same_line(
     range1: &impl ReadonlyTextRange,
     range2: &impl ReadonlyTextRange,
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
 ) -> bool {
     positions_are_on_same_line(range1.end(), range2.end(), source_file)
 }
@@ -342,7 +342,7 @@ pub fn range_end_positions_are_on_same_line(
 pub fn range_start_is_on_same_line_as_range_end(
     range1: &impl ReadonlyTextRange,
     range2: &impl ReadonlyTextRange,
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
 ) -> bool {
     positions_are_on_same_line(
         get_start_position_of_range(range1, source_file, false),
@@ -354,7 +354,7 @@ pub fn range_start_is_on_same_line_as_range_end(
 pub fn range_end_is_on_same_line_as_range_start(
     range1: &impl ReadonlyTextRange,
     range2: &impl ReadonlyTextRange,
-    source_file: Id<Node>, /*SourceFile*/
+    source_file: &Node, /*SourceFile*/
 ) -> bool {
     positions_are_on_same_line(
         range1.end(),
@@ -894,7 +894,7 @@ pub fn attach_file_to_diagnostic(
         BaseDiagnosticRelatedInformation::new(
             diagnostic.category(),
             diagnostic.code(),
-            Some(file),
+            Some(file.arena_id()),
             Some(diagnostic.start()),
             Some(diagnostic.length()),
             diagnostic.message_text().clone(),
@@ -931,7 +931,7 @@ pub fn attach_file_to_diagnostic(
 
 pub fn attach_file_to_diagnostics(
     diagnostics: &[Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>],
-    file: Id<Node>, /*SourceFile*/
+    file: &Node, /*SourceFile*/
 ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
     diagnostics
         .iter()

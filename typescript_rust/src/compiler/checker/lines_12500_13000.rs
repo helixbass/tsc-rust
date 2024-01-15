@@ -96,10 +96,10 @@ impl TypeChecker {
             let iife = get_immediately_invoked_function_expression(declaration, self);
             let is_js_construct_signature = is_jsdoc_construct_signature(declaration, self);
             let is_untyped_signature_in_js_file = iife.is_none()
-                && is_in_js_file(Some(declaration))
+                && is_in_js_file(Some(&declaration.ref_(self)))
                 && is_value_signature_declaration(declaration)
-                && !has_jsdoc_parameter_tags(declaration)
-                && get_jsdoc_type(declaration).is_none();
+                && !has_jsdoc_parameter_tags(declaration, self)
+                && get_jsdoc_type(declaration, self).is_none();
             if is_untyped_signature_in_js_file {
                 flags |= SignatureFlags::IsUntypedSignatureInJSFile;
             }
@@ -112,22 +112,21 @@ impl TypeChecker {
                 .enumerate()
                 .skip(if is_js_construct_signature { 1 } else { 0 })
             {
-                let mut param_symbol = param.maybe_symbol();
-                let type_ = if is_jsdoc_parameter_tag(param) {
+                let mut param_symbol = param.ref_(self).maybe_symbol();
+                let type_ = if is_jsdoc_parameter_tag(&param.ref_(self)) {
                     param
-                        .as_jsdoc_property_like_tag()
+                        .ref_(self).as_jsdoc_property_like_tag()
                         .type_expression
-                        .as_ref()
                         .map(|type_expression| {
-                            type_expression.as_jsdoc_type_expression().type_.clone()
+                            type_expression.ref_(self).as_jsdoc_type_expression().type_
                         })
                 } else {
-                    param.as_has_type().maybe_type()
+                    param.ref_(self).as_has_type().maybe_type()
                 };
                 if matches!(
                     param_symbol,
                     Some(param_symbol) if param_symbol.ref_(self).flags().intersects(SymbolFlags::Property)
-                ) && !is_binding_pattern(param.as_named_declaration().maybe_name())
+                ) && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name())
                 {
                     let resolved_symbol = self.resolve_name_(
                         Some(&**param),

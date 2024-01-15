@@ -275,7 +275,7 @@ impl TransformSystemModule {
                 try_visit_node(
                     node,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_statement),
+                    Some(|node| is_statement(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
                 .into(),

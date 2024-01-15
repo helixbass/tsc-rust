@@ -654,7 +654,7 @@ impl TransformES2018 {
                         &visit_node(
                             statement,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_statement),
+                            Some(|node| is_statement(node, self)),
                             Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                         ),
                         Some(node),
@@ -1262,7 +1262,7 @@ impl TransformES2018 {
         let mut statements: Vec<Id<Node /*Statement*/>> = vec![visit_node(
             &binding,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_statement),
+            Some(|node| is_statement(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )];
         let statement = visit_iteration_body(

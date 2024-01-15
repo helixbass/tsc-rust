@@ -43,7 +43,7 @@ use crate::{
     ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
     SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
-    TokenFlags, Type, UnderscoreEscapedMap,
+    TokenFlags, Type, UnderscoreEscapedMap, OptionInArena,
 };
 
 thread_local! {
@@ -66,7 +66,7 @@ pub fn get_declaration_of_kind(
     let maybe_declarations = symbol.ref_(arena).maybe_declarations();
     let declarations = maybe_declarations.as_ref();
     if let Some(declarations) = declarations {
-        for declaration in declarations {
+        for &declaration in declarations {
             if declaration.ref_(arena).kind() == kind {
                 return Some(declaration);
             }
@@ -1581,8 +1581,8 @@ pub fn is_effective_module_declaration(node: &Node) -> bool {
     is_module_declaration(node) || is_identifier(node)
 }
 
-pub fn is_shorthand_ambient_module_symbol(module_symbol: &Symbol) -> bool {
-    is_shorthand_ambient_module(module_symbol.maybe_value_declaration())
+pub fn is_shorthand_ambient_module_symbol(module_symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
+    is_shorthand_ambient_module(module_symbol.ref_(arena).maybe_value_declaration().refed(arena))
 }
 
 fn is_shorthand_ambient_module(node: Option<&Node>) -> bool {

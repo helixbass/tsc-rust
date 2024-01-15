@@ -322,7 +322,7 @@ impl TransformGenerators {
             _ => self.emit_statement(visit_node(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )),
         }
@@ -336,7 +336,7 @@ impl TransformGenerators {
             self.emit_statement(visit_node(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
@@ -349,7 +349,7 @@ impl TransformGenerators {
         self.emit_statement(visit_node(
             node,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_statement),
+            Some(|node| is_statement(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         ));
     }
@@ -455,7 +455,7 @@ impl TransformGenerators {
                 self.emit_statement(visit_node(
                     node,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_statement),
+                    Some(|node| is_statement(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ));
             }
@@ -463,7 +463,7 @@ impl TransformGenerators {
             self.emit_statement(visit_node(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
@@ -493,7 +493,7 @@ impl TransformGenerators {
             self.emit_statement(visit_node(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
@@ -540,7 +540,7 @@ impl TransformGenerators {
             self.emit_statement(visit_node(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
@@ -623,7 +623,7 @@ impl TransformGenerators {
             self.emit_statement(visit_node(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }

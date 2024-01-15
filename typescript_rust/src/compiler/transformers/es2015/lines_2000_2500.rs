@@ -504,7 +504,7 @@ impl TransformES2015 {
                         &*try_visit_node(
                             statement,
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_statement),
+                            Some(|node| is_statement(node, self)),
                             Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                         )?,
                         Some(node),
@@ -669,7 +669,7 @@ impl TransformES2015 {
             try_visit_node(
                 &node_as_for_statement.statement,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
             )?,
         ))
@@ -862,7 +862,7 @@ impl TransformES2015 {
                 let statement = try_visit_node(
                     &node_as_for_of_statement.statement,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_statement),
+                    Some(|node| is_statement(node, self)),
                     Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                 )?;
                 if is_block(&statement) {

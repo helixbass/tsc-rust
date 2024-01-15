@@ -124,7 +124,7 @@ impl TransformES2015 {
         let transformed_statements = try_visit_nodes(
             &block_as_block.statements,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_statement),
+            Some(|node| is_statement(node, self)),
             None,
             None,
         )?;
@@ -328,7 +328,7 @@ impl TransformES2015 {
         let body_statements = try_visit_nodes(
             &body_as_block.statements,
             Some(|node: Id<Node>| self.class_wrapper_statement_visitor(node)),
-            Some(is_statement),
+            Some(|node| is_statement(node, self)),
             None,
             None,
         )?;

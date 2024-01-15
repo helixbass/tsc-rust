@@ -583,7 +583,7 @@ impl TransformES2015 {
                 &*try_visit_node(
                     &node.as_has_statement().statement(),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_statement),
+                    Some(|node| is_statement(node, self)),
                     Some(&|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                 )?,
             )?;

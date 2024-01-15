@@ -778,7 +778,7 @@ impl TransformClassFields {
         if !self.should_transform_private_elements_or_class_static_blocks {
             return Some(node.node_wrapper().into());
         }
-        if is_statement(&node.parent()) {
+        if is_statement(node.parent(), self) {
             return Some(node.node_wrapper().into());
         }
         Some(

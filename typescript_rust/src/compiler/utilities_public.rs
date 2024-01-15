@@ -50,10 +50,11 @@ pub fn is_external_module_name_relative(module_name: &str) -> bool {
 
 pub fn sort_and_deduplicate_diagnostics(
     diagnostics: &[Gc<Diagnostic>],
+    arena: &impl HasArena,
 ) -> SortedArray<Gc<Diagnostic>> {
     sort_and_deduplicate(
         diagnostics,
-        &|a, b| compare_diagnostics(&**a, &**b),
+        &|a, b| compare_diagnostics(&**a, &**b, arena),
         Option::<&fn(&Gc<Diagnostic>, &Gc<Diagnostic>) -> bool>::None,
     )
 }
@@ -755,7 +756,7 @@ pub fn get_name_of_declaration(
 }
 
 pub(crate) fn get_assigned_name(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*DeclarationName*/>> {
-    let node_parent = node.maybe_parent()?;
+    let node_parent = node.ref_(arena).maybe_parent()?;
     match &*node_parent.ref_(arena) {
         Node::PropertyAssignment(_) | Node::BindingElement(_) => {
             return node_parent.ref_(arena).as_named_declaration().maybe_name();
@@ -2138,11 +2139,11 @@ pub(crate) fn is_statement_but_not_declaration(node: &Node) -> bool {
     is_statement_kind_but_not_declaration_kind(node.kind())
 }
 
-pub(crate) fn is_statement(node: &Node) -> bool {
-    let kind = node.kind();
+pub(crate) fn is_statement(node: Id<Node>, arena: &impl HasArena) -> bool {
+    let kind = node.ref_(arena).kind();
     is_statement_kind_but_not_declaration_kind(kind)
         || is_declaration_statement_kind(kind)
-        || is_block_statement(node)
+        || is_block_statement(node, arena)
 }
 
 fn is_block_statement(node: Id<Node>, arena: &impl HasArena) -> bool {

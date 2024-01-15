@@ -42,7 +42,7 @@ impl TransformES2015 {
             Some(&try_visit_nodes(
                 &node_as_source_file.statements(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Some(statement_offset),
                 None,
             )?),
@@ -756,7 +756,7 @@ impl TransformES2015 {
             Some(&try_visit_nodes(
                 &constructor_body_as_block.statements,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 None,
                 None,
             )?),

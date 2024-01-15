@@ -228,7 +228,7 @@ pub fn get_interface_base_type_nodes(
 
 pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind, arena: &impl HasArena) -> Option<Id<Node>> {
     let clauses = clauses?;
-    for clause in clauses {
+    for &clause in clauses {
         if clause.ref_(arena).as_heritage_clause().token == kind {
             return Some(clause);
         }
@@ -237,7 +237,7 @@ pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind, arena:
 }
 
 pub fn get_ancestor(node: Option<Id<Node>>, kind: SyntaxKind, arena: &impl HasArena) -> Option<Id<Node>> {
-    let mut node = node?;
+    let mut node = Some(node?);
     while let Some(node_present) = node {
         if node_present.ref_(arena).kind() == kind {
             return Some(node_present);

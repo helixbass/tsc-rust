@@ -485,7 +485,7 @@ impl TransformTypeScript {
             Some(&try_visit_nodes(
                 &body_as_block.statements,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_statement),
+                Some(|node| is_statement(node, self)),
                 Some(index_of_first_statement),
                 None,
             )?),

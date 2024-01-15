@@ -91,7 +91,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let declaration = symbol.ref_(self).maybe_value_declaration();
         if symbol.ref_(self).flags().intersects(SymbolFlags::Module)
-            && is_shorthand_ambient_module_symbol(&symbol.ref_(self))
+            && is_shorthand_ambient_module_symbol(symbol, self)
         {
             return Ok(self.any_type());
         } else if matches!(

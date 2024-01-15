@@ -1260,7 +1260,7 @@ pub fn is_this_in_type_query(mut node: Id<Node>, arena: &impl HasArena) -> bool 
     }
 
     while is_qualified_name(&node.ref_(arena).parent().ref_(arena))
-        && node.ref_(arena).parent().as_qualified_name().left == node
+        && node.ref_(arena).parent().ref_(arena).as_qualified_name().left == node
     {
         node = node.ref_(arena).parent();
     }
@@ -1293,7 +1293,7 @@ pub fn get_all_accessor_declarations(
             Debug_.fail(Some("Accessor has wrong kind"));
         }
     } else {
-        declarations.into_iter().for_each(|member| {
+        declarations.into_iter().for_each(|&member| {
             if is_accessor(&member.ref_(arena)) && is_static(member, arena) == is_static(accessor, arena) {
                 let member_name = member.ref_(arena).as_named_declaration().name();
                 let member_name = get_property_name_for_property_name_node(member_name, arena);

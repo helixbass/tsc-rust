@@ -411,7 +411,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_labeled_statement.statement,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
-                        Some(is_statement),
+                        Some(|node| is_statement(node, self)),
                         Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                     )?,
                 )
@@ -437,7 +437,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_with_statement.statement,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
-                        Some(is_statement),
+                        Some(|node| is_statement(node, self)),
                         Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                     )?,
                 )
@@ -512,7 +512,7 @@ impl TransformSystemModule {
                     try_visit_nodes(
                         &node_as_case_clause.statements,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
-                        Some(is_statement),
+                        Some(|node| is_statement(node, self)),
                         None,
                         None,
                     )?,

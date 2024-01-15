@@ -714,7 +714,7 @@ impl TransformES2015 {
                 try_maybe_visit_nodes(
                     Some(&body_as_block.statements),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_statement),
+                    Some(|node| is_statement(node, self)),
                     statement_offset,
                     None,
                 )?

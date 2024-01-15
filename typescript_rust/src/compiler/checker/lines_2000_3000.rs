@@ -1030,7 +1030,7 @@ impl TypeChecker {
             None,
         )?);
         let export_default_symbol: Option<Id<Symbol>>;
-        if is_shorthand_ambient_module_symbol(&module_symbol.ref_(self)) {
+        if is_shorthand_ambient_module_symbol(module_symbol, self) {
             export_default_symbol = Some(module_symbol.clone());
         } else {
             export_default_symbol = self.resolve_export_by_name(
@@ -1397,7 +1397,7 @@ impl TypeChecker {
         let target_symbol = target_symbol.unwrap();
         let module_symbol = module_symbol.unwrap();
         if !(&*name_as_identifier.escaped_text).is_empty() {
-            if is_shorthand_ambient_module_symbol(&module_symbol.ref_(self)) {
+            if is_shorthand_ambient_module_symbol(module_symbol, self) {
                 return Ok(Some(module_symbol));
             }
 

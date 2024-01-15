@@ -251,7 +251,7 @@ pub fn get_this_container(mut node: Id<Node>, include_arrow_functions: bool, are
             }
             SyntaxKind::Decorator => {
                 if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::Parameter
-                    && is_class_element(&node.ref_(arena).parent().ref_(arena).parent())
+                    && is_class_element(&node.ref_(arena).parent().ref_(arena).parent().ref_(arena))
                 {
                     node = node.ref_(arena).parent().ref_(arena).parent();
                 } else if is_class_element(&node.ref_(arena).parent().ref_(arena)) {
@@ -710,7 +710,7 @@ pub fn is_in_expression_context(node: Id<Node>, arena: &impl HasArena) -> bool {
         | SyntaxKind::JsxSpreadAttribute
         | SyntaxKind::SpreadAssignment => true,
         SyntaxKind::ExpressionWithTypeArguments => {
-            parent.as_expression_with_type_arguments().expression == node
+            parent.ref_(arena).as_expression_with_type_arguments().expression == node
                 && is_expression_with_type_arguments_in_class_extends_clause(parent, arena)
         }
         SyntaxKind::ShorthandPropertyAssignment => {

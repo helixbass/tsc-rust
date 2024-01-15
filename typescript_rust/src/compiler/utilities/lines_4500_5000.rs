@@ -529,11 +529,11 @@ pub fn get_effective_modifier_flags_no_cache(
 }
 
 fn get_syntactic_modifier_flags_no_cache(node: Id<Node>, arena: &impl HasArena) -> ModifierFlags {
-    let mut flags = modifiers_to_flags(node.maybe_modifiers().as_double_deref(), arena);
-    if node.flags().intersects(NodeFlags::NestedNamespace)
-        || node.kind() == SyntaxKind::Identifier
+    let mut flags = modifiers_to_flags(node.ref_(arena).maybe_modifiers().as_double_deref(), arena);
+    if node.ref_(arena).flags().intersects(NodeFlags::NestedNamespace)
+        || node.ref_(arena).kind() == SyntaxKind::Identifier
             && matches!(
-                node.as_identifier().maybe_is_in_jsdoc_namespace(),
+                node.ref_(arena).as_identifier().maybe_is_in_jsdoc_namespace(),
                 Some(true)
             )
     {

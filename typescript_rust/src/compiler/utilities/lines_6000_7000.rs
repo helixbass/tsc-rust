@@ -118,14 +118,15 @@ fn get_diagnostic_file_path(
 pub fn compare_diagnostics(
     d1: &impl DiagnosticRelatedInformationInterface,
     d2: &impl DiagnosticRelatedInformationInterface,
+    arena: &impl HasArena,
 ) -> Comparison {
-    let mut compared = compare_diagnostics_skip_related_information(d1, d2);
+    let mut compared = compare_diagnostics_skip_related_information(d1, d2, arena);
     if compared != Comparison::EqualTo {
         return compared;
     }
     if let Some(d1) = d1.maybe_as_diagnostic() {
         if let Some(d2) = d2.maybe_as_diagnostic() {
-            compared = compare_related_information(d1, d2);
+            compared = compare_related_information(d1, d2, arena);
             if compared != Comparison::EqualTo {
                 return compared;
             }
@@ -165,7 +166,7 @@ pub fn compare_diagnostics_skip_related_information(
     Comparison::EqualTo
 }
 
-fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
+fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic, arena: &impl HasArena) -> Comparison {
     if d1.maybe_related_information().is_none() && d2.maybe_related_information().is_none() {
         return Comparison::EqualTo;
     }
@@ -180,7 +181,7 @@ fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
             }
             let compared_maybe = for_each(d1_related_information, |d1i, index| {
                 let d2i = &d2_related_information[index];
-                let compared = compare_diagnostics(&**d1i, &**d2i);
+                let compared = compare_diagnostics(&**d1i, &**d2i, arena);
                 match compared {
                     Comparison::EqualTo => None,
                     compared => Some(compared),
