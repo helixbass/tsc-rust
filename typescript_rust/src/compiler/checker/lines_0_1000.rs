@@ -1875,7 +1875,7 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_type_node(node)), self);
+        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_type_node(&node.ref_(self))), self);
         Ok(if let Some(node) = node {
             self.get_type_from_type_node_(node)?
         } else {
@@ -2100,7 +2100,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_assignment_pattern(node)),
+            Some(|node: Id<Node>| is_assignment_pattern(&node.ref_(self))),
             self,
         );
         Ok(node
@@ -2255,7 +2255,7 @@ impl TypeChecker {
             self,
         ));
         let containing_call =
-            find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(node));
+            find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(&node.ref_(self)), self);
         let containing_call_resolved_signature: Option<Gc<Signature>> =
             containing_call.and_then(|containing_call| {
                 (*self.get_node_links(containing_call))
@@ -2307,7 +2307,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_object_literal_element_like(node)),
+            Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))),
             self,
         ));
         self.get_contextual_type_for_object_literal_element_(node, None)
@@ -2320,7 +2320,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_call_like_expression(node)),
+            Some(|node: Id<Node>| is_call_like_expression(&node.ref_(self))),
             self,
         ));
         Ok(Some(self.get_contextual_type_for_argument_at_index_(
@@ -2334,7 +2334,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_jsx_attribute_like(node)),
+            Some(|node: Id<Node>| is_jsx_attribute_like(&node.ref_(self))),
             self,
         ));
         self.get_contextual_type_for_jsx_attribute_(node)
@@ -2387,7 +2387,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_property_access_or_qualified_name_or_import_type_node(node)),
+            Some(|node: Id<Node>| is_property_access_or_qualified_name_or_import_type_node(&node.ref_(self))),
             self,
         );
         Ok(match node {
@@ -2421,7 +2421,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Signature>>> {
         let declaration = return_ok_none_if_none!(get_parse_tree_node(
             Some(declaration_in),
-            Some(|node: Id<Node>| is_function_like(Some(node))),
+            Some(|node: Id<Node>| is_function_like(Some(&node.ref_(self)))),
             self,
         ));
         Ok(Some(self.get_signature_from_declaration_(declaration)?))
@@ -2433,7 +2433,7 @@ impl TypeChecker {
     ) -> io::Result<Option<bool>> {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_function_like(Some(node))),
+            Some(|node: Id<Node>| is_function_like(Some(&node.ref_(self)))),
             self,
         ));
         Ok(Some(self.is_implementation_of_overload_(node)?))
@@ -2666,7 +2666,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_type_node(node)),
+            Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
             self,
         ));
         self.get_type_argument_constraint_(node)
@@ -2748,7 +2748,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Signature>>> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_call_like_expression(node)),
+            Some(|node: Id<Node>| is_call_like_expression(&node.ref_(self))),
             self,
         );
         self.set_apparent_argument_count(argument_count);

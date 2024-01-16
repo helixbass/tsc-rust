@@ -28,6 +28,7 @@ use crate::{
     is_property_name_literal, object_allocator, set_parent, set_value_declaration, static_arena,
     AllArenas, BaseSymbol, HasArena, InArena, InternalSymbolName, NamedDeclarationInterface, Node,
     NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    append_if_unique_eq, index_of_eq, OptionInArena,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -162,13 +163,12 @@ pub(super) fn get_module_instance_state_worker(
                 let mut state = ModuleInstanceState::NonInstantiated;
                 for specifier in &export_declaration
                     .export_clause
-                    .as_ref()
                     .unwrap()
-                    .as_named_exports()
+                    .ref_(arena).as_named_exports()
                     .elements
                 {
                     let specifier_state =
-                        get_module_instance_state_for_alias_target(specifier, visited.clone());
+                        get_module_instance_state_for_alias_target(specifier, visited.clone(), arena);
                     if specifier_state > state {
                         state = specifier_state;
                     }
@@ -184,7 +184,7 @@ pub(super) fn get_module_instance_state_worker(
             for_each_child_returns(
                 &node.ref_(arena),
                 |n| {
-                    let child_state = get_module_instance_state_cached(n, Some(visited.clone()));
+                    let child_state = get_module_instance_state_cached(n, Some(visited.clone()), arena);
                     match child_state {
                         ModuleInstanceState::NonInstantiated => None,
                         ModuleInstanceState::ConstEnumOnly => {
@@ -202,7 +202,7 @@ pub(super) fn get_module_instance_state_worker(
             return state;
         }
         SyntaxKind::ModuleDeclaration => {
-            return get_module_instance_state(node, Some(visited));
+            return get_module_instance_state(node, Some(visited), arena);
         }
         SyntaxKind::Identifier => {
             if matches!(
@@ -287,7 +287,7 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: Id<Node> /*SourceFile*/, options: Gc<CompilerOptions>) {
+pub fn bind_source_file(file: &Node /*SourceFile*/, options: Gc<CompilerOptions>) {
     let file_as_source_file = file.as_source_file();
     if is_logging {
         println!("binding: {}", file_as_source_file.file_name());
@@ -296,7 +296,7 @@ pub fn bind_source_file(file: Id<Node> /*SourceFile*/, options: Gc<CompilerOptio
     // performance.mark("beforeBind");
     // perfLogger.logStartBindFile("" + file.fileName);
     // binder.call(file, options);
-    create_binder(&*static_arena()).call(file, options);
+    create_binder(&*static_arena()).call(file.arena_id(), options);
     // perfLogger.logStopBindFile();
     // performance.mark("afterBind");
     // performance.measure("Bind", "beforeBind", "afterBind");
@@ -699,12 +699,14 @@ impl BinderType {
         node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
+        arena: &impl HasArena,
     ) -> DiagnosticWithLocation {
         create_diagnostic_for_node_in_source_file(
-            &maybe_get_source_file_of_node(Some(node), self).unwrap_or_else(|| self.file()),
+            maybe_get_source_file_of_node(Some(node), self).unwrap_or_else(|| self.file()),
             node,
             message,
             args,
+            arena,
         )
     }
 
@@ -713,7 +715,7 @@ impl BinderType {
         f: Id<Node>, /*SourceFile*/
         opts: Gc<CompilerOptions>,
     ) {
-        self.set_file(Some(f.node_wrapper()));
+        self.set_file(Some(f));
         self.set_options(Some(opts.clone()));
         self.set_language_version(Some(get_emit_script_target(&opts)));
         self.set_in_strict_mode(Some(self.bind_in_strict_mode(f, &opts)));
@@ -726,9 +728,10 @@ impl BinderType {
         // Debug.attachFlowNodeDebugInfo(reportedUnreachableFlow);
 
         let file = self.file();
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         if file_as_source_file.maybe_locals().is_none() {
-            self.bind(Some(&*self.file()));
+            self.bind(Some(self.file()));
             file_as_source_file.set_symbol_count(self.symbol_count());
             file_as_source_file.set_classifiable_names(Some(self.classifiable_names()));
             self.delayed_bind_jsdoc_typedef_tag();
@@ -762,7 +765,8 @@ impl BinderType {
         file: Id<Node>, /*SourceFile*/
         opts: &CompilerOptions,
     ) -> bool {
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         if get_strict_option_value(opts, "alwaysStrict")
             && !file_as_source_file.is_declaration_file()
         {
@@ -789,13 +793,13 @@ impl BinderType {
             .ref_(self)
             .set_flags(symbol.ref_(self).flags() | symbol_flags);
 
-        node.set_symbol(symbol);
+        node.ref_(self).set_symbol(symbol);
         let symbol_ref = symbol.ref_(self);
         let mut symbol_declarations = symbol_ref.maybe_declarations_mut();
         if symbol_declarations.is_none() {
             *symbol_declarations = Some(vec![]);
         }
-        append_if_unique_gc(symbol_declarations.as_mut().unwrap(), &node.node_wrapper());
+        append_if_unique_eq(symbol_declarations.as_mut().unwrap(), &node);
 
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,
@@ -838,13 +842,16 @@ impl BinderType {
         }
     }
 
-    pub(super) fn get_declaration_name<'node>(
+    pub(super) fn get_declaration_name(
         &self,
         node: Id<Node>,
-    ) -> Option<Cow<'node, str> /*__String*/> {
-        if node.kind() == SyntaxKind::ExportAssignment {
+    ) -> Option<Cow<'_, str> /*__String*/> {
+        if node.ref_(self).kind() == SyntaxKind::ExportAssignment {
             return Some(
-                if matches!(node.as_export_assignment().is_export_equals, Some(true)) {
+                if matches!(
+                    node.ref_(self).as_export_assignment().is_export_equals,
+                    Some(true)
+                ) {
                     InternalSymbolName::ExportEquals.into()
                 } else {
                     InternalSymbolName::Default.into()
@@ -855,16 +862,16 @@ impl BinderType {
         let name = get_name_of_declaration(Some(node), self);
         if let Some(name) = name {
             if is_ambient_module(node, self) {
-                let module_name = get_text_of_identifier_or_literal(&name);
-                return Some(if is_global_scope_augmentation(node) {
+                let module_name = get_text_of_identifier_or_literal(&name.ref_(self));
+                return Some(if is_global_scope_augmentation(&node.ref_(self)) {
                     "__global".into()
                 } else {
                     format!("\"{}\"", module_name).into()
                 });
             }
-            if name.kind() == SyntaxKind::ComputedPropertyName {
-                let name_expression = &name.as_computed_property_name().expression;
-                if is_string_or_numeric_literal_like(name_expression) {
+            if name.ref_(self).kind() == SyntaxKind::ComputedPropertyName {
+                let name_expression = name.ref_(self).as_computed_property_name().expression;
+                if is_string_or_numeric_literal_like(&name_expression.ref_(self)) {
                     return Some(
                         escape_leading_underscores(&name_expression.as_literal_like_node().text())
                             .into_owned()
@@ -892,20 +899,20 @@ impl BinderType {
                     ));
                 }
             }
-            if is_private_identifier(&name) {
-                let containing_class = get_containing_class(node)?;
-                let containing_class_symbol = containing_class.symbol();
+            if is_private_identifier(&name.ref_(self)) {
+                let containing_class = get_containing_class(node, self)?;
+                let containing_class_symbol = containing_class.ref_(self).symbol();
                 return Some(
                     get_symbol_name_for_private_identifier(
                         &containing_class_symbol.ref_(self),
-                        &name.as_private_identifier().escaped_text,
+                        &name.ref_(self).as_private_identifier().escaped_text,
                     )
                     .into(),
                 );
             }
-            return if is_property_name_literal(&name) {
+            return if is_property_name_literal(&name.ref_(self)) {
                 Some(
-                    get_escaped_text_of_identifier_or_literal(&name)
+                    get_escaped_text_of_identifier_or_literal(&name.ref_(self))
                         .into_owned()
                         .into(),
                 )
@@ -913,7 +920,7 @@ impl BinderType {
                 None
             };
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::Constructor => Some(InternalSymbolName::Constructor.into()),
             SyntaxKind::FunctionType | SyntaxKind::CallSignature | SyntaxKind::JSDocSignature => {
                 Some(InternalSymbolName::Call.into())
@@ -937,12 +944,15 @@ impl BinderType {
                 InternalSymbolName::Call.into()
             }),
             SyntaxKind::Parameter => {
-                Debug_.assert(node.parent().kind() == SyntaxKind::JSDocFunctionType, Some("Impossible parameter parent kind")/*, () => `parent is: ${(ts as any).SyntaxKind ? (ts as any).SyntaxKind[node.parent.kind] : node.parent.kind}, expected JSDocFunction Type`);*/);
-                let function_type = node.parent();
-                let index = index_of(
+                Debug_.assert(
+                    node.ref_(self).parent().ref_(self).kind() == SyntaxKind::JSDocFunctionType,
+                    Some("Impossible parameter parent kind")
+                    /*, () => `parent is: ${(ts as any).SyntaxKind ? (ts as any).SyntaxKind[node.parent.kind] : node.parent.kind}, expected JSDocFunction Type`);*/
+                );
+                let function_type = node.ref_(self).parent();
+                let index = index_of_eq(
                     &function_type.as_jsdoc_function_type().parameters(),
-                    &node.node_wrapper(),
-                    |a, b| Gc::ptr_eq(a, b),
+                    &node,
                 );
                 Some(format!("arg{}", index).into())
             }
@@ -950,12 +960,12 @@ impl BinderType {
         }
     }
 
-    pub(super) fn get_display_name<'node>(
+    pub(super) fn get_display_name(
         &self,
         node: Id<Node>, /*Declaration*/
-    ) -> Cow<'node, str> {
-        if is_named_declaration(node) {
-            declaration_name_to_string(node.as_named_declaration().maybe_name(), self)
+    ) -> Cow<'_, str> {
+        if is_named_declaration(&node.ref_(self)) {
+            declaration_name_to_string(node.ref_(self).as_named_declaration().maybe_name(), self)
         } else {
             let declaration_name = /*Debug.check_defined(*/self.get_declaration_name(node).unwrap()/*)*/;
             match declaration_name {
@@ -984,8 +994,8 @@ impl BinderType {
         Debug_.assert(is_computed_name || !has_dynamic_name(node, self), None);
 
         let is_default_export = has_syntactic_modifier(node, ModifierFlags::Default, self)
-            || is_export_specifier(node)
-                && node.as_export_specifier().name.as_identifier().escaped_text == "default";
+            || is_export_specifier(&node.ref_(self))
+                && node.ref_(self).as_export_specifier().name.ref_(self).as_identifier().escaped_text == "default";
 
         let name: Option<Cow<'_, str> /*__String*/> = if is_computed_name {
             Some(InternalSymbolName::Computed.into())
@@ -1051,10 +1061,10 @@ impl BinderType {
                                 .flags()
                                 .intersects(SymbolFlags::Assignment))
                         {
-                            if is_named_declaration(node) {
+                            if is_named_declaration(&node.ref_(self)) {
                                 maybe_set_parent(
-                                    node.as_named_declaration().maybe_name(),
-                                    Some(node.node_wrapper()),
+                                    node.ref_(self).as_named_declaration().maybe_name().refed(self),
+                                    Some(node),
                                 );
                             }
                             let mut message = if symbol_present
@@ -1087,12 +1097,12 @@ impl BinderType {
                                     message_needs_name = false;
                                     multiple_default_exports = true;
                                 } else {
-                                    if matches!(symbol_present.ref_(self).maybe_declarations().as_ref(), Some(declarations) if !declarations.is_empty())
-                                        && (node.kind() == SyntaxKind::ExportAssignment
-                                            && !matches!(
-                                                node.as_export_assignment().is_export_equals,
-                                                Some(true)
-                                            ))
+                                    if matches!(
+                                        symbol_present.ref_(self).maybe_declarations().as_ref(),
+                                        Some(declarations) if !declarations.is_empty()
+                                    ) && (node.ref_(self).kind() == SyntaxKind::ExportAssignment
+                                        && node.ref_(self).as_export_assignment().is_export_equals != Some(true)
+                                    )
                                     {
                                         message = &*Diagnostics::A_module_cannot_have_multiple_default_exports;
                                         message_needs_name = false;
@@ -1103,7 +1113,7 @@ impl BinderType {
 
                             let mut related_information: Vec<Gc<DiagnosticRelatedInformation>> =
                                 vec![];
-                            if is_type_alias_declaration(node)
+                            if is_type_alias_declaration(&node.ref_(self))
                                 && node_is_missing(Some(&*node.as_type_alias_declaration().type_))
                                 && has_syntactic_modifier(node, ModifierFlags::Export, self)
                                 && symbol_present.ref_(self).flags().intersects(

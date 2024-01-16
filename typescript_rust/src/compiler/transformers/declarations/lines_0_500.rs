@@ -38,6 +38,7 @@ use crate::{
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
     SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
+    InArena, contains,
 };
 
 pub fn get_declaration_diagnostics(
@@ -940,25 +941,23 @@ impl TransformDeclarations {
         Some(FileReference::new(-1, -1, type_name.to_owned()))
     }
 
-    pub(super) fn map_references_into_array<'arg>(
-        &'arg self,
+    pub(super) fn map_references_into_array<'a>(
+        &'a self,
         node: Id<Node>,
-        references: &'arg mut Vec<FileReference>,
-        output_file_path: &'arg str,
-    ) -> impl FnMut(Id<Node> /*SourceFile*/) -> io::Result<()> + 'arg {
+        references: &'a mut Vec<FileReference>,
+        output_file_path: &'a str,
+    ) -> impl FnMut(Id<Node> /*SourceFile*/) -> io::Result<()> + 'a {
         |file: Id<Node>| {
-            let file_as_source_file = file.as_source_file();
+            let file_ref = file.ref_(self);
+            let file_as_source_file = file_ref.as_source_file();
             let decl_file_name: String;
             if file_as_source_file.is_declaration_file() {
                 decl_file_name = file_as_source_file.file_name().clone();
             } else {
                 if self.is_bundled_emit()
-                    && contains_comparer(
-                        Some(&node.as_bundle().source_files),
-                        &Some(file.node_wrapper()),
-                        |a: &Option<Id<Node>>, b: &Option<Id<Node>>| {
-                            are_option_gcs_equal(a.as_ref(), b.as_ref())
-                        },
+                    && contains(
+                        Some(&node.ref_(self).as_bundle().source_files),
+                        &Some(file),
                     )
                 {
                     return Ok(());
@@ -975,7 +974,7 @@ impl TransformDeclarations {
             if !decl_file_name.is_empty() {
                 let specifier = module_specifiers::get_module_specifier(
                     self.options.clone(),
-                    &self.current_source_file(),
+                    self.current_source_file(),
                     &to_path(
                         output_file_path,
                         Some(&ScriptReferenceHost::get_current_directory(&**self.host)),

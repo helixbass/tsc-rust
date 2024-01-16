@@ -594,7 +594,7 @@ impl From<&Node> for SourceMapRange {
 }
 
 impl From<&Node> for Gc<SourceMapRange> {
-    fn from(value: Id<Node>) -> Self {
+    fn from(value: &Node) -> Self {
         Gc::new(value.into())
     }
 }

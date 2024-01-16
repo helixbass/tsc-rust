@@ -18,7 +18,7 @@ use crate::{
     ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
     NodeFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
     SignatureDeclarationInterface, SourceFileLike, SyntaxKind, TextRange, TransformFlags,
-    VisitResult,
+    VisitResult, InArena,
 };
 
 impl TransformTypeScript {
@@ -464,12 +464,12 @@ impl TransformTypeScript {
             .set_text_range(Some(&*node_as_class_like_declaration.members())))
     }
 
-    pub(super) fn get_decorated_class_elements<'self_and_node>(
-        &'self_and_node self,
+    pub(super) fn get_decorated_class_elements<'a>(
+        &'a self,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         is_static: bool,
-    ) -> impl Iterator<Item = Id<Node /*ClassElement*/>> + 'self_and_node {
-        node.as_class_like_declaration()
+    ) -> impl Iterator<Item = Id<Node /*ClassElement*/>> + 'a {
+        node.ref_(self).as_class_like_declaration()
             .members()
             .owned_iter()
             .filter(move |m| {
