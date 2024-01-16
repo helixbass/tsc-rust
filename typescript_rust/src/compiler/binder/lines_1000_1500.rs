@@ -10,7 +10,7 @@ use crate::{
     is_parenthesized_expression, is_prefix_unary_expression, skip_parentheses,
     unused_label_is_error, Diagnostics, FlowArrayMutation, FlowAssignment, FlowCall, FlowFlags,
     FlowNode, FlowNodeBase, FlowSwitchClause, HasInitializerInterface, NamedDeclarationInterface,
-    Node, NodeInterface, SyntaxKind,
+    Node, NodeInterface, SyntaxKind, InArena,
 };
 
 impl BinderType {
@@ -26,7 +26,7 @@ impl BinderType {
             FlowSwitchClause::new(
                 FlowFlags::SwitchClause,
                 antecedent,
-                switch_statement.node_wrapper(),
+                switch_statement,
                 clause_start,
                 clause_end,
             )
@@ -43,9 +43,9 @@ impl BinderType {
         self.set_flow_node_referenced(&antecedent);
         let result: Gc<FlowNode> = Gc::new(init_flow_node(
             if flags.intersects(FlowFlags::ArrayMutation) {
-                FlowArrayMutation::new(flags, antecedent, node.node_wrapper()).into()
+                FlowArrayMutation::new(flags, antecedent, node).into()
             } else {
-                FlowAssignment::new(flags, antecedent, node.node_wrapper()).into()
+                FlowAssignment::new(flags, antecedent, node).into()
             },
         ));
         if let Some(current_exception_target) = self.maybe_current_exception_target() {
@@ -61,7 +61,7 @@ impl BinderType {
     ) -> Gc<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
         Gc::new(init_flow_node(
-            FlowCall::new(FlowFlags::Call, antecedent, node.node_wrapper()).into(),
+            FlowCall::new(FlowFlags::Call, antecedent, node).into(),
         ))
     }
 
@@ -79,31 +79,30 @@ impl BinderType {
     }
 
     pub(super) fn is_statement_condition(&self, node: Id<Node>) -> bool {
-        let parent = node.parent();
-        match parent.kind() {
+        let parent = node.ref_(self).parent();
+        match parent.ref_(self).kind() {
             SyntaxKind::IfStatement | SyntaxKind::WhileStatement | SyntaxKind::DoStatement => {
-                ptr::eq(&*parent.as_has_expression().expression(), node)
+                parent.ref_(self).as_has_expression().expression() == node
             }
             SyntaxKind::ForStatement | SyntaxKind::ConditionalExpression => {
-                matches!(parent.as_has_condition().maybe_condition(), Some(condition) if ptr::eq(&*condition, node))
+                parent.ref_(self).as_has_condition().maybe_condition() == Some(node)
             }
             _ => false,
         }
     }
 
-    pub(super) fn is_logical_expression(&self, node: Id<Node>) -> bool {
-        let mut node = node.node_wrapper();
+    pub(super) fn is_logical_expression(&self, mut node: Id<Node>) -> bool {
         loop {
-            if node.kind() == SyntaxKind::ParenthesizedExpression {
-                node = node.as_parenthesized_expression().expression.clone();
-            } else if node.kind() == SyntaxKind::PrefixUnaryExpression
-                && node.as_prefix_unary_expression().operator == SyntaxKind::ExclamationToken
+            if node.ref_(self).kind() == SyntaxKind::ParenthesizedExpression {
+                node = node.ref_(self).as_parenthesized_expression().expression;
+            } else if node.ref_(self).kind() == SyntaxKind::PrefixUnaryExpression
+                && node.ref_(self).as_prefix_unary_expression().operator == SyntaxKind::ExclamationToken
             {
-                node = node.as_prefix_unary_expression().operand.clone();
+                node = node.ref_(self).as_prefix_unary_expression().operand;
             } else {
-                return node.kind() == SyntaxKind::BinaryExpression
+                return node.ref_(self).kind() == SyntaxKind::BinaryExpression
                     && matches!(
-                        node.as_binary_expression().operator_token.kind(),
+                        node.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
                         SyntaxKind::AmpersandAmpersandToken
                             | SyntaxKind::BarBarToken
                             | SyntaxKind::QuestionQuestionToken
@@ -114,26 +113,25 @@ impl BinderType {
 
     pub(super) fn is_logical_assignment_expression(&self, node: Id<Node>) -> bool {
         let node = skip_parentheses(node, None, self);
-        is_binary_expression(&node)
+        is_binary_expression(&node.ref_(self))
             && is_logical_or_coalescing_assignment_operator(
-                node.as_binary_expression().operator_token.kind(),
+                node.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
             )
     }
 
-    pub(super) fn is_top_level_logical_expression(&self, node: Id<Node>) -> bool {
-        let mut node = node.node_wrapper();
-        while is_parenthesized_expression(&node.parent())
-            || is_prefix_unary_expression(&node.parent())
-                && node.parent().as_prefix_unary_expression().operator
+    pub(super) fn is_top_level_logical_expression(&self, mut node: Id<Node>) -> bool {
+        while is_parenthesized_expression(&node.ref_(self).parent().ref_(self))
+            || is_prefix_unary_expression(&node.ref_(self).parent().ref_(self))
+                && node.ref_(self).parent().ref_(self).as_prefix_unary_expression().operator
                     == SyntaxKind::ExclamationToken
         {
-            node = node.parent();
+            node = node.ref_(self).parent();
         }
-        !self.is_statement_condition(&node)
-            && !self.is_logical_assignment_expression(&node.parent())
-            && !self.is_logical_expression(&node.parent())
-            && !(is_optional_chain(&node.parent())
-                && Gc::ptr_eq(&node.parent().as_has_expression().expression(), &node))
+        !self.is_statement_condition(node)
+            && !self.is_logical_assignment_expression(node.ref_(self).parent())
+            && !self.is_logical_expression(node.ref_(self).parent())
+            && !(is_optional_chain(&node.ref_(self).parent().ref_(self))
+                && node.ref_(self).parent().ref_(self).as_has_expression().expression() == node)
     }
 
     pub(super) fn do_with_conditional_branches<TArgument, TAction: FnMut(TArgument)>(
@@ -164,13 +162,12 @@ impl BinderType {
             true_target.clone(),
             false_target.clone(),
         );
-        if match node.as_ref() {
+        if match node {
             None => true,
             Some(node) => {
-                let node = node.borrow();
                 !self.is_logical_assignment_expression(node)
                     && !self.is_logical_expression(node)
-                    && !(is_optional_chain(node) && is_outermost_optional_chain(node, self))
+                    && !(is_optional_chain(&node.ref_(self)) && is_outermost_optional_chain(node, self))
             }
         } {
             self.add_antecedent(
@@ -178,7 +175,7 @@ impl BinderType {
                 self.create_flow_condition(
                     FlowFlags::TrueCondition,
                     self.current_flow(),
-                    node.as_ref().map(|node| node.borrow().node_wrapper()),
+                    node,
                 ),
             );
             self.add_antecedent(
@@ -186,7 +183,7 @@ impl BinderType {
                 self.create_flow_condition(
                     FlowFlags::FalseCondition,
                     self.current_flow(),
-                    node.as_ref().map(|node| node.borrow().node_wrapper()),
+                    node,
                 ),
             );
         }
@@ -209,35 +206,35 @@ impl BinderType {
 
     pub(super) fn set_continue_target(
         &self,
-        node: Id<Node>,
+        mut node: Id<Node>,
         target: Gc<FlowNode /*FlowLabel*/>,
     ) -> Gc<FlowNode> {
-        let mut node = node.node_wrapper();
         let mut label = self.maybe_active_label_list();
-        while label.is_some() && node.parent().kind() == SyntaxKind::LabeledStatement {
+        while label.is_some() && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::LabeledStatement {
             let label_present = label.unwrap();
             label_present.set_continue_target(Some(target.clone()));
             label = label_present.next.clone();
-            node = node.parent();
+            node = node.ref_(self).parent();
         }
         target
     }
 
     pub(super) fn bind_while_statement(&self, node: Id<Node> /*WhileStatement*/) {
-        let node_as_while_statement = node.as_while_statement();
+        let node_ref = node.ref_(self);
+        let node_as_while_statement = node_ref.as_while_statement();
         let pre_while_label = self.set_continue_target(node, self.create_loop_label());
         let pre_body_label = self.create_branch_label();
         let post_while_label = self.create_branch_label();
         self.add_antecedent(&pre_while_label, self.current_flow());
         self.set_current_flow(Some(pre_while_label.clone()));
         self.bind_condition(
-            Some(&*node_as_while_statement.expression),
+            Some(node_as_while_statement.expression),
             pre_body_label.clone(),
             post_while_label.clone(),
         );
         self.set_current_flow(Some(self.finish_flow_label(pre_body_label)));
         self.bind_iterative_statement(
-            &node_as_while_statement.statement,
+            node_as_while_statement.statement,
             post_while_label.clone(),
             pre_while_label.clone(),
         );
@@ -246,21 +243,22 @@ impl BinderType {
     }
 
     pub(super) fn bind_do_statement(&self, node: Id<Node> /*DoStatement*/) {
-        let node_as_do_statement = node.as_do_statement();
+        let node_ref = node.ref_(self);
+        let node_as_do_statement = node_ref.as_do_statement();
         let pre_do_label = self.create_loop_label();
         let pre_condition_label = self.set_continue_target(node, self.create_branch_label());
         let post_do_label = self.create_branch_label();
         self.add_antecedent(&pre_do_label, self.current_flow());
         self.set_current_flow(Some(pre_do_label.clone()));
         self.bind_iterative_statement(
-            &node_as_do_statement.statement,
+            node_as_do_statement.statement,
             post_do_label.clone(),
             pre_condition_label.clone(),
         );
         self.add_antecedent(&pre_condition_label, self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(pre_condition_label)));
         self.bind_condition(
-            Some(&*node_as_do_statement.expression),
+            Some(node_as_do_statement.expression),
             pre_do_label,
             post_do_label.clone(),
         );
@@ -268,25 +266,26 @@ impl BinderType {
     }
 
     pub(super) fn bind_for_statement(&self, node: Id<Node> /*ForStatement*/) {
-        let node_as_for_statement = node.as_for_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_statement = node_ref.as_for_statement();
         let pre_loop_label = self.set_continue_target(node, self.create_loop_label());
         let pre_body_label = self.create_branch_label();
         let post_loop_label = self.create_branch_label();
-        self.bind(node_as_for_statement.initializer.clone());
+        self.bind(node_as_for_statement.initializer);
         self.add_antecedent(&pre_loop_label, self.current_flow());
         self.set_current_flow(Some(pre_loop_label.clone()));
         self.bind_condition(
-            node_as_for_statement.condition.clone(),
+            node_as_for_statement.condition,
             pre_body_label.clone(),
             post_loop_label.clone(),
         );
         self.set_current_flow(Some(self.finish_flow_label(pre_body_label)));
         self.bind_iterative_statement(
-            &node_as_for_statement.statement,
+            node_as_for_statement.statement,
             post_loop_label.clone(),
             pre_loop_label.clone(),
         );
-        self.bind(node_as_for_statement.incrementor.clone());
+        self.bind(node_as_for_statement.incrementor);
         self.add_antecedent(&pre_loop_label, self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_loop_label)));
     }
@@ -297,20 +296,20 @@ impl BinderType {
     ) {
         let pre_loop_label = self.set_continue_target(node, self.create_loop_label());
         let post_loop_label = self.create_branch_label();
-        self.bind(Some(&*node.as_has_expression().expression()));
+        self.bind(Some(node.ref_(self).as_has_expression().expression()));
         self.add_antecedent(&pre_loop_label, self.current_flow());
         self.set_current_flow(Some(pre_loop_label.clone()));
-        if node.kind() == SyntaxKind::ForOfStatement {
-            self.bind(node.as_for_of_statement().await_modifier.clone());
+        if node.ref_(self).kind() == SyntaxKind::ForOfStatement {
+            self.bind(node.ref_(self).as_for_of_statement().await_modifier);
         }
         self.add_antecedent(&post_loop_label, self.current_flow());
-        let node_initializer = node.as_has_initializer().maybe_initializer().unwrap();
-        self.bind(Some(&*node_initializer));
-        if node_initializer.kind() != SyntaxKind::VariableDeclarationList {
-            self.bind_assignment_target_flow(&node_initializer);
+        let node_initializer = node.ref_(self).as_has_initializer().maybe_initializer().unwrap();
+        self.bind(Some(node_initializer));
+        if node_initializer.ref_(self).kind() != SyntaxKind::VariableDeclarationList {
+            self.bind_assignment_target_flow(node_initializer);
         }
         self.bind_iterative_statement(
-            &node.as_has_statement().statement(),
+            node.ref_(self).as_has_statement().statement(),
             post_loop_label.clone(),
             pre_loop_label.clone(),
         );
@@ -319,27 +318,28 @@ impl BinderType {
     }
 
     pub(super) fn bind_if_statement(&self, node: Id<Node> /*IfStatement*/) {
-        let node_as_if_statement = node.as_if_statement();
+        let node_ref = node.ref_(self);
+        let node_as_if_statement = node_ref.as_if_statement();
         let then_label = self.create_branch_label();
         let else_label = self.create_branch_label();
         let post_if_label = self.create_branch_label();
         self.bind_condition(
-            Some(&*node_as_if_statement.expression),
+            Some(node_as_if_statement.expression),
             then_label.clone(),
             else_label.clone(),
         );
         self.set_current_flow(Some(self.finish_flow_label(then_label)));
-        self.bind(Some(&*node_as_if_statement.then_statement));
+        self.bind(Some(node_as_if_statement.then_statement));
         self.add_antecedent(&post_if_label, self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(else_label)));
-        self.bind(node_as_if_statement.else_statement.clone());
+        self.bind(node_as_if_statement.else_statement);
         self.add_antecedent(&post_if_label, self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_if_label)));
     }
 
     pub(super) fn bind_return_or_throw(&self, node: Id<Node>) {
-        self.bind(node.as_has_expression().maybe_expression());
-        if node.kind() == SyntaxKind::ReturnStatement {
+        self.bind(node.ref_(self).as_has_expression().maybe_expression());
+        if node.ref_(self).kind() == SyntaxKind::ReturnStatement {
             self.set_has_explicit_return(Some(true));
             if let Some(current_return_target) = self.maybe_current_return_target() {
                 self.add_antecedent(&current_return_target, self.current_flow());
@@ -368,7 +368,7 @@ impl BinderType {
         break_target: Option<Gc<FlowNode /*FlowLabel*/>>,
         continue_target: Option<Gc<FlowNode /*FlowLabel*/>>,
     ) {
-        let flow_label = if node.kind() == SyntaxKind::BreakStatement {
+        let flow_label = if node.ref_(self).kind() == SyntaxKind::BreakStatement {
             break_target
         } else {
             continue_target
@@ -383,9 +383,10 @@ impl BinderType {
         &self,
         node: Id<Node>, /*BreakOrContinueStatement*/
     ) {
-        let node_as_has_label = node.as_has_label();
+        let node_ref = node.ref_(self);
+        let node_as_has_label = node_ref.as_has_label();
         if let Some(node_label) = node_as_has_label.maybe_label() {
-            let active_label = self.find_active_label(&node_label.as_identifier().escaped_text);
+            let active_label = self.find_active_label(&node_label.ref_(self).as_identifier().escaped_text);
             if let Some(active_label) = active_label {
                 active_label.set_referenced(true);
                 self.bind_break_or_continue_flow(
@@ -409,20 +410,21 @@ impl BinderType {
         let normal_exit_label = self.create_branch_label();
         let return_label = self.create_branch_label();
         let mut exception_label = self.create_branch_label();
-        let node_as_try_statement = node.as_try_statement();
+        let node_ref = node.ref_(self);
+        let node_as_try_statement = node_ref.as_try_statement();
         if node_as_try_statement.finally_block.is_some() {
             self.set_current_return_target(Some(return_label.clone()));
         }
         self.add_antecedent(&exception_label, self.current_flow());
         self.set_current_exception_target(Some(exception_label.clone()));
-        self.bind(Some(&*node_as_try_statement.try_block));
+        self.bind(Some(node_as_try_statement.try_block));
         self.add_antecedent(&normal_exit_label, self.current_flow());
         if node_as_try_statement.catch_clause.is_some() {
             self.set_current_flow(Some(self.finish_flow_label(exception_label.clone())));
             exception_label = self.create_branch_label();
             self.add_antecedent(&exception_label, self.current_flow());
             self.set_current_exception_target(Some(exception_label.clone()));
-            self.bind(node_as_try_statement.catch_clause.clone());
+            self.bind(node_as_try_statement.catch_clause);
             self.add_antecedent(&normal_exit_label, self.current_flow());
         }
         self.set_current_return_target(save_return_target);
@@ -451,7 +453,7 @@ impl BinderType {
                         .unwrap_or_else(|| vec![]),
                 )));
             self.set_current_flow(Some(finally_label.clone()));
-            self.bind(node_as_try_statement.finally_block.clone());
+            self.bind(node_as_try_statement.finally_block);
             if self
                 .current_flow()
                 .flags()
@@ -508,17 +510,18 @@ impl BinderType {
     }
 
     pub(super) fn bind_switch_statement(&self, node: Id<Node> /*SwitchStatement*/) {
-        let node_as_switch_statement = node.as_switch_statement();
+        let node_ref = node.ref_(self);
+        let node_as_switch_statement = node_ref.as_switch_statement();
         let post_switch_label = self.create_branch_label();
-        self.bind(Some(&*node_as_switch_statement.expression));
+        self.bind(Some(node_as_switch_statement.expression));
         let save_break_target = self.maybe_current_break_target();
         let save_pre_switch_case_flow = self.maybe_pre_switch_case_flow();
         self.set_current_break_target(Some(post_switch_label.clone()));
         self.set_pre_switch_case_flow(Some(self.current_flow()));
-        self.bind(Some(&*node_as_switch_statement.case_block));
+        self.bind(Some(node_as_switch_statement.case_block));
         self.add_antecedent(&post_switch_label, self.current_flow());
         let has_default = for_each_bool(
-            &node_as_switch_statement.case_block.as_case_block().clauses,
+            &node_as_switch_statement.case_block.ref_(self).as_case_block().clauses,
             |c, _| c.kind() == SyntaxKind::DefaultClause,
         );
         node_as_switch_statement.set_possibly_exhaustive(Some(
@@ -540,10 +543,11 @@ impl BinderType {
     }
 
     pub(super) fn bind_case_block(&self, node: Id<Node> /*CaseBlock*/) {
-        let node_as_case_block = node.as_case_block();
+        let node_ref = node.ref_(self);
+        let node_as_case_block = node_ref.as_case_block();
         let clauses = &*node_as_case_block.clauses;
         let is_narrowing_switch =
-            self.is_narrowing_expression(&node.parent().as_switch_statement().expression);
+            self.is_narrowing_expression(node.ref_(self).parent().ref_(self).as_switch_statement().expression);
         let mut fallthrough_flow = self.unreachable_flow();
         let mut i = 0;
         while i < clauses.len() {
@@ -563,7 +567,7 @@ impl BinderType {
                 if is_narrowing_switch {
                     self.create_flow_switch_clause(
                         self.pre_switch_case_flow(),
-                        &node.parent(),
+                        node.ref_(self).parent(),
                         clause_start,
                         i + 1,
                     )
@@ -594,23 +598,26 @@ impl BinderType {
     pub(super) fn bind_case_clause(&self, node: Id<Node> /*CaseClause*/) {
         let save_current_flow = self.maybe_current_flow();
         self.set_current_flow(Some(self.pre_switch_case_flow()));
-        let node_as_case_clause = node.as_case_clause();
-        self.bind(Some(&*node_as_case_clause.expression));
+        let node_ref = node.ref_(self);
+        let node_as_case_clause = node_ref.as_case_clause();
+        self.bind(Some(node_as_case_clause.expression));
         self.set_current_flow(save_current_flow);
         self.bind_each(Some(&node_as_case_clause.statements));
     }
 
     pub(super) fn bind_expression_statement(&self, node: Id<Node> /*ExpressionStatement*/) {
-        let node_as_expression_statement = node.as_expression_statement();
-        self.bind(Some(&*node_as_expression_statement.expression));
-        self.maybe_bind_expression_flow_if_call(&node_as_expression_statement.expression);
+        let node_ref = node.ref_(self);
+        let node_as_expression_statement = node_ref.as_expression_statement();
+        self.bind(Some(node_as_expression_statement.expression));
+        self.maybe_bind_expression_flow_if_call(node_as_expression_statement.expression);
     }
 
     pub(super) fn maybe_bind_expression_flow_if_call(&self, node: Id<Node> /*Expression*/) {
-        if node.kind() == SyntaxKind::CallExpression {
+        if node.ref_(self).kind() == SyntaxKind::CallExpression {
             let call = node;
-            let call_as_call_expression = call.as_call_expression();
-            if call_as_call_expression.expression.kind() != SyntaxKind::SuperKeyword
+            let call_ref = call.ref_(self);
+            let call_as_call_expression = call_ref.as_call_expression();
+            if call_as_call_expression.expression.ref_(self).kind() != SyntaxKind::SuperKeyword
                 && is_dotted_name(call_as_call_expression.expression, self)
             {
                 self.set_current_flow(Some(self.create_flow_call(self.current_flow(), call)));
@@ -620,26 +627,27 @@ impl BinderType {
 
     pub(super) fn bind_labeled_statement(&self, node: Id<Node> /*LabeledStatement*/) {
         let post_statement_label = self.create_branch_label();
-        let node_as_labeled_statement = node.as_labeled_statement();
+        let node_ref = node.ref_(self);
+        let node_as_labeled_statement = node_ref.as_labeled_statement();
         self.set_active_label_list(Some(Gc::new(ActiveLabel::new(
             self.maybe_active_label_list(),
             node_as_labeled_statement
                 .label
-                .as_identifier()
+                .ref_(self).as_identifier()
                 .escaped_text
                 .clone(),
             post_statement_label.clone(),
             None,
             false,
         ))));
-        self.bind(Some(&*node_as_labeled_statement.label));
-        self.bind(Some(&*node_as_labeled_statement.statement));
+        self.bind(Some(node_as_labeled_statement.label));
+        self.bind(Some(node_as_labeled_statement.statement));
         if !self.active_label_list().referenced()
             && !matches!(self.options().allow_unused_labels, Some(true))
         {
             self.error_or_suggestion_on_node(
                 unused_label_is_error(&self.options()),
-                &node_as_labeled_statement.label,
+                node_as_labeled_statement.label,
                 &Diagnostics::Unused_label,
             );
         }
@@ -649,10 +657,10 @@ impl BinderType {
     }
 
     pub(super) fn bind_destructuring_target_flow(&self, node: Id<Node> /*Expression*/) {
-        if node.kind() == SyntaxKind::BinaryExpression
-            && node.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
+        if node.ref_(self).kind() == SyntaxKind::BinaryExpression
+            && node.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::EqualsToken
         {
-            self.bind_assignment_target_flow(&node.as_binary_expression().left);
+            self.bind_assignment_target_flow(node.ref_(self).as_binary_expression().left);
         } else {
             self.bind_assignment_target_flow(node);
         }
@@ -665,16 +673,16 @@ impl BinderType {
                 self.current_flow(),
                 node,
             )));
-        } else if node.kind() == SyntaxKind::ArrayLiteralExpression {
-            for e in &*node.as_array_literal_expression().elements {
+        } else if node.ref_(self).kind() == SyntaxKind::ArrayLiteralExpression {
+            for e in &*node.ref_(self).as_array_literal_expression().elements {
                 if e.kind() == SyntaxKind::SpreadElement {
                     self.bind_assignment_target_flow(&e.as_spread_element().expression);
                 } else {
                     self.bind_destructuring_target_flow(e);
                 }
             }
-        } else if node.kind() == SyntaxKind::ObjectLiteralExpression {
-            for p in &*node.as_object_literal_expression().properties {
+        } else if node.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression {
+            for p in &*node.ref_(self).as_object_literal_expression().properties {
                 if p.kind() == SyntaxKind::PropertyAssignment {
                     self.bind_destructuring_target_flow(
                         &p.as_property_assignment().maybe_initializer().unwrap(),
@@ -695,36 +703,37 @@ impl BinderType {
         false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         let pre_right_label = self.create_branch_label();
-        let node_as_binary_expression = node.as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         if matches!(
-            node_as_binary_expression.operator_token.kind(),
+            node_as_binary_expression.operator_token.ref_(self).kind(),
             SyntaxKind::AmpersandAmpersandToken | SyntaxKind::AmpersandAmpersandEqualsToken
         ) {
             self.bind_condition(
-                Some(&*node_as_binary_expression.left),
+                Some(node_as_binary_expression.left),
                 pre_right_label.clone(),
                 false_target.clone(),
             );
         } else {
             self.bind_condition(
-                Some(&*node_as_binary_expression.left),
+                Some(node_as_binary_expression.left),
                 true_target.clone(),
                 pre_right_label.clone(),
             );
         }
         self.set_current_flow(Some(self.finish_flow_label(pre_right_label)));
-        self.bind(Some(&*node_as_binary_expression.operator_token));
+        self.bind(Some(node_as_binary_expression.operator_token));
 
         if is_logical_or_coalescing_assignment_operator(
-            node_as_binary_expression.operator_token.kind(),
+            node_as_binary_expression.operator_token.ref_(self).kind(),
         ) {
             self.do_with_conditional_branches(
-                |node| self.bind(Some(&**node)),
-                &node_as_binary_expression.right,
+                |node| self.bind(Some(node)),
+                node_as_binary_expression.right,
                 true_target.clone(),
                 false_target.clone(),
             );
-            self.bind_assignment_target_flow(&node_as_binary_expression.left);
+            self.bind_assignment_target_flow(node_as_binary_expression.left);
 
             self.add_antecedent(
                 &true_target,
@@ -744,7 +753,7 @@ impl BinderType {
             );
         } else {
             self.bind_condition(
-                Some(&*node_as_binary_expression.right),
+                Some(node_as_binary_expression.right),
                 true_target,
                 false_target,
             );
@@ -755,7 +764,8 @@ impl BinderType {
         &self,
         node: Id<Node>, /*PrefixUnaryExpression*/
     ) {
-        let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
         if node_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken {
             let save_true_target = self.maybe_current_true_target();
             self.set_current_true_target(self.maybe_current_false_target());
@@ -769,7 +779,7 @@ impl BinderType {
                 node_as_prefix_unary_expression.operator,
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
             ) {
-                self.bind_assignment_target_flow(&node_as_prefix_unary_expression.operand);
+                self.bind_assignment_target_flow(node_as_prefix_unary_expression.operand);
             }
         }
     }
@@ -778,13 +788,14 @@ impl BinderType {
         &self,
         node: Id<Node>, /*PostfixUnaryExpression*/
     ) {
-        let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_postfix_unary_expression = node_ref.as_postfix_unary_expression();
         self.bind_each_child(node);
         if matches!(
             node_as_postfix_unary_expression.operator,
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) {
-            self.bind_assignment_target_flow(&node_as_postfix_unary_expression.operand);
+            self.bind_assignment_target_flow(node_as_postfix_unary_expression.operand);
         }
     }
 
@@ -792,20 +803,21 @@ impl BinderType {
         &self,
         node: Id<Node>, /*DestructuringAssignment*/
     ) {
-        let node_as_binary_expression = node.as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         if self.in_assignment_pattern() {
             self.set_in_assignment_pattern(false);
-            self.bind(Some(&*node_as_binary_expression.operator_token));
-            self.bind(Some(&*node_as_binary_expression.right));
+            self.bind(Some(node_as_binary_expression.operator_token));
+            self.bind(Some(node_as_binary_expression.right));
             self.set_in_assignment_pattern(true);
-            self.bind(Some(&*node_as_binary_expression.left));
+            self.bind(Some(node_as_binary_expression.left));
         } else {
             self.set_in_assignment_pattern(true);
-            self.bind(Some(&*node_as_binary_expression.left));
+            self.bind(Some(node_as_binary_expression.left));
             self.set_in_assignment_pattern(false);
-            self.bind(Some(&*node_as_binary_expression.operator_token));
-            self.bind(Some(&*node_as_binary_expression.right));
+            self.bind(Some(node_as_binary_expression.operator_token));
+            self.bind(Some(node_as_binary_expression.right));
         }
-        self.bind_assignment_target_flow(&node_as_binary_expression.left);
+        self.bind_assignment_target_flow(node_as_binary_expression.left);
     }
 }

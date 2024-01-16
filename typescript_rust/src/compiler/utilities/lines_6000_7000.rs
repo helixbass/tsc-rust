@@ -2012,15 +2012,22 @@ pub fn match_pattern_or_exact(
         .map(|value| StringOrPattern::Pattern(value.clone()))
 }
 
-pub fn slice_after<'arr, TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
-    arr: &'arr [TItem],
+pub fn slice_after<'a, TItem>(
+    arr: &'a [TItem],
     value: &TItem,
-    comparer: TComparer,
-) -> &'arr [TItem] {
+    comparer: impl FnMut(&TItem, &TItem) -> bool,
+) -> &'a [TItem] {
     let index = index_of(arr, value, comparer);
     Debug_.assert(index != -1, None);
     let index: usize = index.try_into().unwrap();
     &arr[index..]
+}
+
+pub fn slice_after_eq<'a, TItem: PartialEq>(
+    arr: &'a [TItem],
+    value: &TItem,
+) -> &'a [TItem] {
+    slice_after(arr, value, |a, b| a == b)
 }
 
 pub fn add_related_info(

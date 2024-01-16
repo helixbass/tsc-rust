@@ -36,7 +36,7 @@ impl BinderType {
         &self,
         node: Id<Node>, /*ModuleDeclaration*/
     ) -> ModuleInstanceState {
-        let state = get_module_instance_state(node, None);
+        let state = get_module_instance_state(node, None, self);
         let instantiated = state != ModuleInstanceState::NonInstantiated;
         self.declare_symbol_and_add_to_symbol_table(
             node,
@@ -89,18 +89,19 @@ impl BinderType {
         if matches!(self.maybe_in_strict_mode(), Some(true)) && !is_assignment_target(node, self) {
             let mut seen = HashMap::<__String, ElementKind>::new();
 
-            let node_as_object_literal_expression = node.as_object_literal_expression();
+            let node_ref = node.ref_(self);
+            let node_as_object_literal_expression = node_ref.as_object_literal_expression();
             for prop in &*node_as_object_literal_expression.properties {
-                if prop.kind() == SyntaxKind::SpreadAssignment
-                    || prop.as_named_declaration().name().kind() != SyntaxKind::Identifier
+                if prop.ref_(self).kind() == SyntaxKind::SpreadAssignment
+                    || prop.ref_(self).as_named_declaration().name().ref_(self).kind() != SyntaxKind::Identifier
                 {
                     continue;
                 }
 
-                let identifier = prop.as_named_declaration().name();
+                let identifier = prop.ref_(self).as_named_declaration().name();
 
                 let current_kind = if matches!(
-                    prop.kind(),
+                    prop.ref_(self).kind(),
                     SyntaxKind::PropertyAssignment
                         | SyntaxKind::ShorthandPropertyAssignment
                         | SyntaxKind::MethodDeclaration
@@ -120,11 +121,11 @@ impl BinderType {
 
                 if current_kind == ElementKind::Property && existing_kind == ElementKind::Property {
                     let file = self.file();
-                    let span = get_error_span_for_node(&file, &identifier);
-                    file.as_source_file().bind_diagnostics_mut().push(
+                    let span = get_error_span_for_node(file, identifier, self);
+                    file.ref_(self).as_source_file().bind_diagnostics_mut().push(
                         Gc::new(
                             create_file_diagnostic(
-                                &file,
+                                file,
                                 span.start,
                                 span.length,
                                 &Diagnostics::An_object_literal_cannot_have_multiple_properties_with_the_same_name_in_strict_mode,
@@ -170,7 +171,7 @@ impl BinderType {
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
             symbol
                 .ref_(self)
-                .set_parent(self.container().maybe_symbol());
+                .set_parent(self.container().ref_(self).maybe_symbol());
         }
         self.add_declaration_to_symbol(symbol, node, symbol_flags);
         symbol
@@ -183,27 +184,28 @@ impl BinderType {
         symbol_excludes: SymbolFlags,
     ) {
         let block_scope_container = self.block_scope_container();
-        match block_scope_container.kind() {
+        match block_scope_container.ref_(self).kind() {
             SyntaxKind::ModuleDeclaration => {
                 self.declare_module_member(node, symbol_flags, symbol_excludes);
             }
             SyntaxKind::SourceFile => {
-                if is_external_or_common_js_module(&self.container()) {
+                if is_external_or_common_js_module(&self.container().ref_(self)) {
                     self.declare_module_member(node, symbol_flags, symbol_excludes);
                 } else {
                     {
+                        let block_scope_container_ref = block_scope_container.ref_(self);
                         let mut block_scope_container_locals =
-                            block_scope_container.maybe_locals_mut();
+                            block_scope_container_ref.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
                             *block_scope_container_locals = Some(Gc::new(GcCell::new(
                                 create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
                             )));
-                            self.add_to_container_chain(&block_scope_container);
+                            self.add_to_container_chain(block_scope_container);
                         }
                     }
                     self.declare_symbol(
-                        &mut *block_scope_container.locals().borrow_mut(),
-                        Option::<Id<Symbol>>::None,
+                        &mut *block_scope_container.ref_(self).locals().borrow_mut(),
+                        None,
                         node,
                         symbol_flags,
                         symbol_excludes,
@@ -214,17 +216,18 @@ impl BinderType {
             }
             _ => {
                 {
-                    let mut block_scope_container_locals = block_scope_container.maybe_locals_mut();
+                    let block_scope_container_ref = block_scope_container.ref_(self);
+                    let mut block_scope_container_locals = block_scope_container_ref.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
                         *block_scope_container_locals = Some(Gc::new(GcCell::new(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
                         )));
-                        self.add_to_container_chain(&block_scope_container);
+                        self.add_to_container_chain(block_scope_container);
                     }
                 }
                 self.declare_symbol(
-                    &mut block_scope_container.locals().borrow_mut(),
-                    Option::<Id<Symbol>>::None,
+                    &mut block_scope_container.ref_(self).locals().borrow_mut(),
+                    None,
                     node,
                     symbol_flags,
                     symbol_excludes,
@@ -246,13 +249,13 @@ impl BinderType {
         let save_block_scope_container = self.maybe_block_scope_container();
         let save_parent = self.maybe_parent();
         let save_current_flow = self.maybe_current_flow();
-        for type_alias in delayed_type_aliases {
-            let host = type_alias.parent().parent();
+        for &type_alias in delayed_type_aliases {
+            let host = type_alias.ref_(self).parent().ref_(self).parent();
             self.set_container(Some(
-                find_ancestor(host.maybe_parent(), |n| {
+                find_ancestor(host.ref_(self).maybe_parent(), |n| {
                     self.get_container_flags(n)
                         .intersects(ContainerFlags::IsContainer)
-                })
+                }, self)
                 .unwrap_or_else(|| self.file()),
             ));
             self.set_block_scope_container(Some(
@@ -262,42 +265,43 @@ impl BinderType {
                 FlowStart::new(FlowFlags::Start, None).into(),
             ))));
             self.set_parent(Some(type_alias.clone()));
-            let type_alias_as_jsdoc_type_like_tag = type_alias.as_jsdoc_type_like_tag();
+            let type_alias_ref = type_alias.ref_(self);
+            let type_alias_as_jsdoc_type_like_tag = type_alias_ref.as_jsdoc_type_like_tag();
             self.bind(type_alias_as_jsdoc_type_like_tag.maybe_type_expression());
             let decl_name = get_name_of_declaration(Some(type_alias), self);
-            if (is_jsdoc_enum_tag(type_alias)
+            if (is_jsdoc_enum_tag(&type_alias.ref_(self))
                 || type_alias
-                    .as_jsdoc_typedef_or_callback_tag()
+                    .ref_(self).as_jsdoc_typedef_or_callback_tag()
                     .maybe_full_name()
                     .is_none())
                 && matches!(
                     decl_name,
-                    Some(decl_name) if is_property_access_entity_name_expression(decl_name.parent(), self)
+                    Some(decl_name) if is_property_access_entity_name_expression(decl_name.ref_(self).parent(), self)
                 )
             {
                 let decl_name = decl_name.unwrap();
-                let is_top_level = self.is_top_level_namespace_assignment(&decl_name.parent());
+                let is_top_level = self.is_top_level_namespace_assignment(decl_name.ref_(self).parent());
                 if is_top_level {
                     self.bind_potentially_missing_namespaces(
-                        self.file().maybe_symbol(),
-                        &decl_name.parent(),
+                        self.file().ref_(self).maybe_symbol(),
+                        decl_name.ref_(self).parent(),
                         is_top_level,
-                        find_ancestor(Some(&*decl_name), |d| {
-                            is_property_access_expression(d)
-                                && d.as_property_access_expression()
+                        find_ancestor(Some(decl_name), |d| {
+                            is_property_access_expression(&d.ref_(self))
+                                && d.ref_(self).as_property_access_expression()
                                     .name
-                                    .as_member_name()
+                                    .ref_(self).as_member_name()
                                     .escaped_text()
                                     == "prototype"
-                        })
+                        }, self)
                         .is_some(),
                         false,
                     );
                     let old_container = self.maybe_container();
-                    match get_assignment_declaration_property_access_kind(decl_name.parent(), self) {
+                    match get_assignment_declaration_property_access_kind(decl_name.ref_(self).parent(), self) {
                         AssignmentDeclarationKind::ExportsProperty
                         | AssignmentDeclarationKind::ModuleExports => {
-                            if !is_external_or_common_js_module(&self.file()) {
+                            if !is_external_or_common_js_module(&self.file().ref_(self)) {
                                 self.set_container(None);
                             } else {
                                 self.set_container(Some(self.file()));
@@ -305,40 +309,38 @@ impl BinderType {
                         }
                         AssignmentDeclarationKind::ThisProperty => {
                             self.set_container(Some(
-                                decl_name.parent().as_has_expression().expression(),
+                                decl_name.ref_(self).parent().ref_(self).as_has_expression().expression(),
                             ));
                         }
                         AssignmentDeclarationKind::PrototypeProperty => {
                             self.set_container(Some(
                                 decl_name
-                                    .parent()
-                                    .as_has_expression()
+                                    .ref_(self).parent()
+                                    .ref_(self).as_has_expression()
                                     .expression()
-                                    .as_property_access_expression()
+                                    .ref_(self).as_property_access_expression()
                                     .name
-                                    .clone(),
                             ));
                         }
                         AssignmentDeclarationKind::Property => {
                             self.set_container(Some(
                                 if is_exports_or_module_exports_or_alias(
                                     self,
-                                    &self.file(),
-                                    &decl_name.parent().as_has_expression().expression(),
+                                    self.file(),
+                                    decl_name.ref_(self).parent().ref_(self).as_has_expression().expression(),
                                 ) {
                                     self.file()
                                 } else if is_property_access_expression(
-                                    &decl_name.parent().as_has_expression().expression(),
+                                    &decl_name.ref_(self).parent().ref_(self).as_has_expression().expression().ref_(self),
                                 ) {
                                     decl_name
-                                        .parent()
-                                        .as_has_expression()
+                                        .ref_(self).parent()
+                                        .ref_(self).as_has_expression()
                                         .expression()
-                                        .as_property_access_expression()
+                                        .ref_(self).as_property_access_expression()
                                         .name
-                                        .clone()
                                 } else {
-                                    decl_name.parent().as_has_expression().expression()
+                                    decl_name.ref_(self).parent().ref_(self).as_has_expression().expression()
                                 },
                             ));
                         }
@@ -356,16 +358,16 @@ impl BinderType {
                     }
                     self.set_container(old_container);
                 }
-            } else if is_jsdoc_enum_tag(type_alias)
+            } else if is_jsdoc_enum_tag(&type_alias.ref_(self))
                 || match type_alias
-                    .as_jsdoc_typedef_or_callback_tag()
+                    .ref_(self).as_jsdoc_typedef_or_callback_tag()
                     .maybe_full_name()
                 {
                     None => true,
-                    Some(full_name) => full_name.kind() == SyntaxKind::Identifier,
+                    Some(full_name) => full_name.ref_(self).kind() == SyntaxKind::Identifier,
                 }
             {
-                self.set_parent(Some(type_alias.parent()));
+                self.set_parent(Some(type_alias.ref_(self).parent()));
                 self.bind_block_scoped_declaration(
                     type_alias,
                     SymbolFlags::TypeAlias,
@@ -374,7 +376,7 @@ impl BinderType {
             } else {
                 self.bind(
                     type_alias
-                        .as_jsdoc_typedef_or_callback_tag()
+                        .ref_(self).as_jsdoc_typedef_or_callback_tag()
                         .maybe_full_name(),
                 );
             }
@@ -390,21 +392,21 @@ impl BinderType {
         &self,
         node: Id<Node>, /*Identifier (and whatever ThisKeyword is) */
     ) {
-        if (*self.file().as_source_file().parse_diagnostics())
+        if (*self.file().ref_(self).as_source_file().parse_diagnostics())
             .borrow()
             .is_empty()
-            && !node.flags().intersects(NodeFlags::Ambient)
-            && !node.flags().intersects(NodeFlags::JSDoc)
+            && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
+            && !node.ref_(self).flags().intersects(NodeFlags::JSDoc)
             && !is_identifier_name(node, self)
         {
             let node_original_keyword_kind = node
-                .maybe_as_identifier()
+                .ref_(self).maybe_as_identifier()
                 .and_then(|node| node.original_keyword_kind);
             if matches!(self.maybe_in_strict_mode(), Some(true))
                 && matches!(node_original_keyword_kind, Some(original_keyword_kind) if original_keyword_kind >= SyntaxKind::FirstFutureReservedWord && original_keyword_kind <= SyntaxKind::LastFutureReservedWord)
             {
                 self.file()
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
                     .push(Gc::new(
                         self.create_diagnostic_for_node(
@@ -415,9 +417,9 @@ impl BinderType {
                         .into(),
                     ));
             } else if matches!(node_original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
-                if is_external_module(&self.file()) && is_in_top_level_context(node, self) {
+                if is_external_module(&self.file().ref_(self)) && is_in_top_level_context(node, self) {
                     self.file()
-                        .as_source_file()
+                        .ref_(self).as_source_file()
                         .bind_diagnostics_mut()
                         .push(Gc::new(
                             self.create_diagnostic_for_node(
@@ -427,9 +429,9 @@ impl BinderType {
                             )
                             .into(),
                         ));
-                } else if node.flags().intersects(NodeFlags::AwaitContext) {
+                } else if node.ref_(self).flags().intersects(NodeFlags::AwaitContext) {
                     self.file()
-                        .as_source_file()
+                        .ref_(self).as_source_file()
                         .bind_diagnostics_mut()
                         .push(Gc::new(
                             self.create_diagnostic_for_node(
@@ -441,10 +443,10 @@ impl BinderType {
                         ));
                 }
             } else if matches!(node_original_keyword_kind, Some(SyntaxKind::YieldKeyword))
-                && node.flags().intersects(NodeFlags::YieldContext)
+                && node.ref_(self).flags().intersects(NodeFlags::YieldContext)
             {
                 self.file()
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
                     .push(Gc::new(
                         self.create_diagnostic_for_node(
@@ -462,13 +464,13 @@ impl BinderType {
         &self,
         node: Id<Node>,
     ) -> &'static DiagnosticMessage {
-        if get_containing_class(node).is_some() {
+        if get_containing_class(node, self).is_some() {
             return &Diagnostics::Identifier_expected_0_is_a_reserved_word_in_strict_mode_Class_definitions_are_automatically_in_strict_mode;
         }
 
         if self
             .file()
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_external_module_indicator()
             .is_some()
         {
@@ -479,9 +481,10 @@ impl BinderType {
     }
 
     pub(super) fn check_private_identifier(&self, node: Id<Node> /*PrivateIdentifier*/) {
-        if node.as_private_identifier().escaped_text == "#constructor" {
+        if node.ref_(self).as_private_identifier().escaped_text == "#constructor" {
             let file = self.file();
-            let file_as_source_file = file.as_source_file();
+            let file_ref = file.ref_(self);
+            let file_as_source_file = file_ref.as_source_file();
             if (*file_as_source_file.parse_diagnostics())
                 .borrow()
                 .is_empty()
@@ -502,25 +505,27 @@ impl BinderType {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) {
-        let node_as_binary_expression = node.as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         if matches!(self.maybe_in_strict_mode(), Some(true))
             && is_left_hand_side_expression(node_as_binary_expression.left, self)
-            && is_assignment_operator(node_as_binary_expression.operator_token.kind())
+            && is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind())
         {
-            self.check_strict_mode_eval_or_arguments(node, Some(&*node_as_binary_expression.left));
+            self.check_strict_mode_eval_or_arguments(node, Some(node_as_binary_expression.left));
         }
     }
 
     pub(super) fn check_strict_mode_catch_clause(&self, node: Id<Node> /*CatchClause*/) {
-        let node_as_catch_clause = node.as_catch_clause();
-        if matches!(self.maybe_in_strict_mode(), Some(true)) {
+        let node_ref = node.ref_(self);
+        let node_as_catch_clause = node_ref.as_catch_clause();
+        if self.maybe_in_strict_mode() == Some(true) {
             if let Some(node_variable_declaration) =
-                node_as_catch_clause.variable_declaration.as_ref()
+                node_as_catch_clause.variable_declaration
             {
                 self.check_strict_mode_eval_or_arguments(
                     node,
                     node_variable_declaration
-                        .as_variable_declaration()
+                        .ref_(self).as_variable_declaration()
                         .maybe_name(),
                 );
             }
@@ -531,17 +536,18 @@ impl BinderType {
         &self,
         node: Id<Node>, /*DeleteExpression*/
     ) {
-        let node_as_delete_expression = node.as_delete_expression();
-        if matches!(self.maybe_in_strict_mode(), Some(true)) {
-            if node_as_delete_expression.expression.kind() == SyntaxKind::Identifier {
+        let node_ref = node.ref_(self);
+        let node_as_delete_expression = node_ref.as_delete_expression();
+        if self.maybe_in_strict_mode() == Some(true) {
+            if node_as_delete_expression.expression.ref_(self).kind() == SyntaxKind::Identifier {
                 let span =
-                    get_error_span_for_node(&self.file(), &node_as_delete_expression.expression);
+                    get_error_span_for_node(self.file(), node_as_delete_expression.expression, self);
                 self.file()
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
                     .push(Gc::new(
                         create_file_diagnostic(
-                            &self.file(),
+                            self.file(),
                             span.start,
                             span.length,
                             &Diagnostics::delete_cannot_be_called_on_an_identifier_in_strict_mode,
@@ -554,7 +560,10 @@ impl BinderType {
     }
 
     pub(super) fn is_eval_or_arguments_identifier(&self, node: Id<Node>) -> bool {
-        is_identifier(node) && matches!(&*node.as_identifier().escaped_text, "eval" | "arguments")
+        is_identifier(&node.ref_(self)) && matches!(
+            &*node.as_identifier().escaped_text,
+            "eval" | "arguments"
+        )
     }
 
     pub(super) fn check_strict_mode_eval_or_arguments(
@@ -562,25 +571,23 @@ impl BinderType {
         context_node: Id<Node>,
         name: Option<Id<Node>>,
     ) {
-        if name.is_none() {
+        let Some(name) = name else {
             return;
-        }
-        let name = name.unwrap();
-        let name = name.borrow();
-        if name.kind() == SyntaxKind::Identifier {
+        };
+        if name.ref_(self).kind() == SyntaxKind::Identifier {
             let identifier = name;
             if self.is_eval_or_arguments_identifier(identifier) {
-                let span = get_error_span_for_node(&self.file(), name);
+                let span = get_error_span_for_node(self.file(), name, self);
                 self.file()
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
                     .push(Gc::new(
                         create_file_diagnostic(
-                            &self.file(),
+                            self.file(),
                             span.start,
                             span.length,
                             self.get_strict_mode_eval_or_arguments_message(context_node),
-                            Some(vec![id_text(identifier).to_owned()]),
+                            Some(vec![id_text(&identifier.ref_(self)).to_owned()]),
                         )
                         .into(),
                     ));
@@ -592,13 +599,13 @@ impl BinderType {
         &self,
         node: Id<Node>,
     ) -> &'static DiagnosticMessage {
-        if get_containing_class(node).is_some() {
+        if get_containing_class(node, self).is_some() {
             return &Diagnostics::Code_contained_in_a_class_is_evaluated_in_JavaScript_s_strict_mode_which_does_not_allow_this_use_of_0_For_more_information_see_https_Colon_Slash_Slashdeveloper_mozilla_org_Slashen_US_Slashdocs_SlashWeb_SlashJavaScript_SlashReference_SlashStrict_mode;
         }
 
         if self
             .file()
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_external_module_indicator()
             .is_some()
         {
@@ -612,10 +619,10 @@ impl BinderType {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) {
-        if matches!(self.maybe_in_strict_mode(), Some(true)) {
+        if self.maybe_in_strict_mode() == Some(true) {
             self.check_strict_mode_eval_or_arguments(
                 node,
-                node.as_named_declaration().maybe_name(),
+                node.ref_(self).as_named_declaration().maybe_name(),
             );
         }
     }
@@ -624,13 +631,13 @@ impl BinderType {
         &self,
         node: Id<Node>,
     ) -> &'static DiagnosticMessage {
-        if get_containing_class(node).is_some() {
+        if get_containing_class(node, self).is_some() {
             return &Diagnostics::Function_declarations_are_not_allowed_inside_blocks_in_strict_mode_when_targeting_ES3_or_ES5_Class_definitions_are_automatically_in_strict_mode;
         }
 
         if self
             .file()
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_external_module_indicator()
             .is_some()
         {
@@ -648,18 +655,18 @@ impl BinderType {
         {
             let block_scope_container = self.block_scope_container();
             if !matches!(
-                block_scope_container.kind(),
+                block_scope_container.ref_(self).kind(),
                 SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration
             ) && !is_function_like_or_class_static_block_declaration(Some(
-                &*block_scope_container,
+                &block_scope_container.ref_(self),
             )) {
-                let error_span = get_error_span_for_node(&self.file(), node);
+                let error_span = get_error_span_for_node(self.file(), node, self);
                 self.file()
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
                     .push(Gc::new(
                         create_file_diagnostic(
-                            &self.file(),
+                            self.file(),
                             error_span.start,
                             error_span.length,
                             self.get_strict_mode_block_scope_function_declaration_message(node),
@@ -672,14 +679,15 @@ impl BinderType {
     }
 
     pub(super) fn check_strict_mode_numeric_literal(&self, node: Id<Node> /*NumericLiteral*/) {
-        if matches!(self.maybe_in_strict_mode(), Some(true)) {
-            let node_as_numeric_literal = node.as_numeric_literal();
+        if self.maybe_in_strict_mode() == Some(true) {
+            let node_ref = node.ref_(self);
+            let node_as_numeric_literal = node_ref.as_numeric_literal();
             if node_as_numeric_literal
                 .numeric_literal_flags
                 .intersects(TokenFlags::Octal)
             {
                 self.file()
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
                     .push(Gc::new(
                         self.create_diagnostic_for_node(
@@ -700,7 +708,7 @@ impl BinderType {
         if matches!(self.maybe_in_strict_mode(), Some(true)) {
             self.check_strict_mode_eval_or_arguments(
                 node,
-                Some(&*node.as_postfix_unary_expression().operand),
+                Some(node.ref_(self).as_postfix_unary_expression().operand),
             );
         }
     }
@@ -709,15 +717,16 @@ impl BinderType {
         &self,
         node: Id<Node>, /*PrefixUnaryExpression*/
     ) {
-        if matches!(self.maybe_in_strict_mode(), Some(true)) {
-            let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+        if self.maybe_in_strict_mode() == Some(true) {
+            let node_ref = node.ref_(self);
+            let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
             if matches!(
                 node_as_prefix_unary_expression.operator,
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
             ) {
                 self.check_strict_mode_eval_or_arguments(
                     node,
-                    Some(&*node_as_prefix_unary_expression.operand),
+                    Some(node_as_prefix_unary_expression.operand),
                 );
             }
         }
@@ -737,12 +746,13 @@ impl BinderType {
         &self,
         node: Id<Node>, /*LabeledStatement*/
     ) {
-        if matches!(self.maybe_in_strict_mode(), Some(true))
+        if self.maybe_in_strict_mode() == Some(true)
             && get_emit_script_target(&self.options()) >= ScriptTarget::ES2015
         {
-            let node_as_labeled_statement = node.as_labeled_statement();
-            if is_declaration_statement(&node_as_labeled_statement.statement)
-                || is_variable_statement(&node_as_labeled_statement.statement)
+            let node_ref = node.ref_(self);
+            let node_as_labeled_statement = node_ref.as_labeled_statement();
+            if is_declaration_statement(&node_as_labeled_statement.statement.ref_(self))
+                || is_variable_statement(&node_as_labeled_statement.statement.ref_(self))
             {
                 self.error_on_first_token(
                     &node_as_labeled_statement.label,
@@ -759,12 +769,12 @@ impl BinderType {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        let span = get_span_of_token_at_position(&self.file(), node.pos().try_into().unwrap());
+        let span = get_span_of_token_at_position(&self.file().ref_(self), node.ref_(self).pos().try_into().unwrap());
         self.file()
-            .as_source_file()
+            .ref_(self).as_source_file()
             .bind_diagnostics_mut()
             .push(Gc::new(
-                create_file_diagnostic(&self.file(), span.start, span.length, message, args).into(),
+                create_file_diagnostic(self.file(), span.start, span.length, message, args).into(),
             ));
     }
 
@@ -788,7 +798,7 @@ impl BinderType {
             is_error,
             BaseTextRange::new(
                 get_token_pos_of_node(start_node, Some(self.file()), None, self),
-                end_node.end(),
+                end_node.ref_(self).end(),
             ),
             message,
         );
@@ -802,7 +812,7 @@ impl BinderType {
     ) {
         let diag = Gc::new(
             create_file_diagnostic(
-                &self.file(),
+                self.file(),
                 range.pos(),
                 range.end() - range.pos(),
                 message,
@@ -812,14 +822,15 @@ impl BinderType {
         );
         if is_error {
             self.file()
-                .as_source_file()
+                .ref_(self).as_source_file()
                 .bind_diagnostics_mut()
                 .push(diag);
         } else {
             diag.set_category(DiagnosticCategory::Suggestion);
             let file = self.file();
+            let file_ref = file.ref_(self);
             let mut file_bind_suggestion_diagnostics =
-                file.as_source_file().maybe_bind_suggestion_diagnostics();
+                file_ref.as_source_file().maybe_bind_suggestion_diagnostics();
             if file_bind_suggestion_diagnostics.is_none() {
                 *file_bind_suggestion_diagnostics = Some(vec![]);
             }
@@ -831,19 +842,17 @@ impl BinderType {
     }
 
     pub(super) fn bind(&self, node: Option<Id<Node>>) {
-        if node.is_none() {
+        let Some(node) = node else {
             return;
-        }
-        let node = node.unwrap();
-        let node = node.borrow();
-        set_parent(node, self.maybe_parent());
+        };
+        set_parent(&node.ref_(self), self.maybe_parent());
         let save_in_strict_mode = self.maybe_in_strict_mode();
 
         self.bind_worker(node);
 
-        if node.kind() > SyntaxKind::LastToken {
+        if node.ref_(self).kind() > SyntaxKind::LastToken {
             let save_parent = self.maybe_parent();
-            self.set_parent(Some(node.node_wrapper()));
+            self.set_parent(Some(node));
             let container_flags = self.get_container_flags(node);
             if container_flags == ContainerFlags::None {
                 self.bind_children(node);
@@ -853,8 +862,8 @@ impl BinderType {
             self.set_parent(save_parent);
         } else {
             let save_parent = self.maybe_parent();
-            if node.kind() == SyntaxKind::EndOfFileToken {
-                self.set_parent(Some(node.node_wrapper()));
+            if node.ref_(self).kind() == SyntaxKind::EndOfFileToken {
+                self.set_parent(Some(node));
             }
             self.bind_jsdoc(node);
             self.set_parent(save_parent);
@@ -863,14 +872,14 @@ impl BinderType {
     }
 
     pub(super) fn bind_jsdoc(&self, node: Id<Node>) {
-        if has_jsdoc_nodes(node) {
-            if is_in_js_file(Some(node)) {
-                for j in node.maybe_js_doc().unwrap() {
+        if has_jsdoc_nodes(&node.ref_(self)) {
+            if is_in_js_file(Some(&node.ref_(self))) {
+                for j in node.ref_(self).maybe_js_doc().unwrap() {
                     self.bind(Some(j));
                 }
             } else {
-                for j in node.maybe_js_doc().unwrap() {
-                    set_parent(&j, Some(node.node_wrapper()));
+                for j in node.ref_(self).maybe_js_doc().unwrap() {
+                    set_parent(&j.ref_(self), Some(node));
                     set_parent_recursive(Some(j), false, self);
                 }
             }
@@ -881,8 +890,8 @@ impl BinderType {
         &self,
         statements: &NodeArray, /*<Statement>*/
     ) {
-        if !matches!(self.maybe_in_strict_mode(), Some(true)) {
-            for statement in statements {
+        if self.maybe_in_strict_mode() != Some(true) {
+            for &statement in statements {
                 if !is_prologue_directive(statement, self) {
                     return;
                 }
@@ -901,7 +910,7 @@ impl BinderType {
     ) -> bool {
         let node_text = get_source_text_of_node_from_source_file(
             self.file(),
-            node.as_expression_statement().expression,
+            node.ref_(self).as_expression_statement().expression,
             None,
             self,
         );

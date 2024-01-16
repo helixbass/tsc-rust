@@ -19,6 +19,7 @@ use crate::{
     HasInitializerInterface, HasTypeArgumentsInterface, InArena, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, PatternAmbientModule,
     StringOrNodeArray, StringOrPattern, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    OptionInArena, AllArenas,
 };
 
 impl BinderType {
@@ -31,9 +32,10 @@ impl BinderType {
 
     pub(super) fn bind_delete_expression_flow(&self, node: Id<Node> /*DeleteExpression*/) {
         self.bind_each_child(node);
-        let node_as_delete_expression = node.as_delete_expression();
-        if node_as_delete_expression.expression.kind() == SyntaxKind::PropertyAccessExpression {
-            self.bind_assignment_target_flow(&node_as_delete_expression.expression);
+        let node_ref = node.ref_(self);
+        let node_as_delete_expression = node_ref.as_delete_expression();
+        if node_as_delete_expression.expression.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
+            self.bind_assignment_target_flow(node_as_delete_expression.expression);
         }
     }
 
@@ -44,19 +46,20 @@ impl BinderType {
         let true_label = self.create_branch_label();
         let false_label = self.create_branch_label();
         let post_expression_label = self.create_branch_label();
-        let node_as_conditional_expression = node.as_conditional_expression();
+        let node_ref = node.ref_(self);
+        let node_as_conditional_expression = node_ref.as_conditional_expression();
         self.bind_condition(
-            Some(&*node_as_conditional_expression.condition),
+            Some(node_as_conditional_expression.condition),
             true_label.clone(),
             false_label.clone(),
         );
         self.set_current_flow(Some(self.finish_flow_label(true_label)));
-        self.bind(Some(&*node_as_conditional_expression.question_token));
-        self.bind(Some(&*node_as_conditional_expression.when_true));
+        self.bind(Some(node_as_conditional_expression.question_token));
+        self.bind(Some(node_as_conditional_expression.when_true));
         self.add_antecedent(&post_expression_label, self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(false_label)));
-        self.bind(Some(&*node_as_conditional_expression.colon_token));
-        self.bind(Some(&*node_as_conditional_expression.when_false));
+        self.bind(Some(node_as_conditional_expression.colon_token));
+        self.bind(Some(node_as_conditional_expression.when_false));
         self.add_antecedent(&post_expression_label, self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_expression_label)));
     }
@@ -65,12 +68,12 @@ impl BinderType {
         &self,
         node: Id<Node>, /*VariableDeclaration | ArrayBindingElement*/
     ) {
-        let name: Option<Id<Node>> = if !is_omitted_expression(node) {
-            node.as_named_declaration().maybe_name()
+        let name: Option<Id<Node>> = if !is_omitted_expression(&node.ref_(self)) {
+            node.ref_(self).as_named_declaration().maybe_name()
         } else {
             None
         };
-        if is_binding_pattern(name.as_deref()) {
+        if is_binding_pattern(name.refed(self)) {
             for child in &name.unwrap().as_has_elements().elements() {
                 self.bind_initialized_variable_flow(child);
             }
@@ -88,20 +91,21 @@ impl BinderType {
         node: Id<Node>, /*VariableDeclaration*/
     ) {
         self.bind_each_child(node);
-        if node.as_variable_declaration().maybe_initializer().is_some()
-            || is_for_in_or_of_statement(&node.parent().parent())
+        if node.ref_(self).as_variable_declaration().maybe_initializer().is_some()
+            || is_for_in_or_of_statement(&node.ref_(self).parent().ref_(self).parent().ref_(self))
         {
             self.bind_initialized_variable_flow(node);
         }
     }
 
     pub(super) fn bind_binding_element_flow(&self, node: Id<Node> /*BindingElement*/) {
-        let node_as_binding_element = node.as_binding_element();
-        if is_binding_pattern(node_as_binding_element.maybe_name()) {
+        let node_ref = node.ref_(self);
+        let node_as_binding_element = node_ref.as_binding_element();
+        if is_binding_pattern(node_as_binding_element.maybe_name().refed(self)) {
             self.bind_each(node_as_binding_element.maybe_decorators().as_double_deref());
             self.bind_each(node_as_binding_element.maybe_modifiers().as_double_deref());
-            self.bind(node_as_binding_element.dot_dot_dot_token.clone());
-            self.bind(node_as_binding_element.property_name.clone());
+            self.bind(node_as_binding_element.dot_dot_dot_token);
+            self.bind(node_as_binding_element.property_name);
             self.bind(node_as_binding_element.maybe_initializer());
             self.bind(node_as_binding_element.maybe_name());
         } else {
@@ -113,12 +117,13 @@ impl BinderType {
         &self,
         node: Id<Node>, /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/
     ) {
-        let node_as_jsdoc_tag = node.as_jsdoc_tag();
+        let node_ref = node.ref_(self);
+        let node_as_jsdoc_tag = node_ref.as_jsdoc_tag();
         self.bind(Some(node_as_jsdoc_tag.tag_name()));
-        if node.kind() != SyntaxKind::JSDocEnumTag {
-            let node_as_jsdoc_typedef_or_callback_tag = node.as_jsdoc_typedef_or_callback_tag();
+        if node.ref_(self).kind() != SyntaxKind::JSDocEnumTag {
+            let node_as_jsdoc_typedef_or_callback_tag = node_ref.as_jsdoc_typedef_or_callback_tag();
             if let Some(node_full_name) = node_as_jsdoc_typedef_or_callback_tag.maybe_full_name() {
-                set_parent(&node_full_name, Some(node.node_wrapper()));
+                set_parent(&node_full_name.ref_(self), Some(node));
                 set_parent_recursive(Some(node_full_name), false, self);
             }
         }
@@ -130,9 +135,9 @@ impl BinderType {
 
     pub(super) fn bind_jsdoc_class_tag(&self, node: Id<Node> /*JSDocClassTag*/) {
         self.bind_each_child(node);
-        let host = get_host_signature_from_jsdoc(node);
-        if let Some(host) = host.filter(|host| host.kind() != SyntaxKind::MethodDeclaration) {
-            self.add_declaration_to_symbol(host.symbol(), &host, SymbolFlags::Class);
+        let host = get_host_signature_from_jsdoc(node, self);
+        if let Some(host) = host.filter(|host| host.ref_(self).kind() != SyntaxKind::MethodDeclaration) {
+            self.add_declaration_to_symbol(host.ref_(self).symbol(), host, SymbolFlags::Class);
         }
     }
 
@@ -148,7 +153,7 @@ impl BinderType {
             true_target.clone(),
             false_target.clone(),
         );
-        if !is_optional_chain(node) || is_outermost_optional_chain(node, self) {
+        if !is_optional_chain(&node.ref_(self)) || is_outermost_optional_chain(node, self) {
             self.add_antecedent(
                 &true_target,
                 self.create_flow_condition(
@@ -169,9 +174,10 @@ impl BinderType {
     }
 
     pub(super) fn bind_optional_chain_rest(&self, node: Id<Node> /*OptionalChain*/) {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::PropertyAccessExpression => {
-                let node_as_property_access_expression = node.as_property_access_expression();
+                let node_ref = node.ref_(self);
+                let node_as_property_access_expression = node_ref.as_property_access_expression();
                 self.bind(
                     node_as_property_access_expression
                         .question_dot_token
@@ -180,15 +186,17 @@ impl BinderType {
                 self.bind(Some(&*node_as_property_access_expression.name));
             }
             SyntaxKind::ElementAccessExpression => {
-                let node_as_element_access_expression = node.as_element_access_expression();
-                self.bind(node_as_element_access_expression.question_dot_token.clone());
+                let node_ref = node.ref_(self);
+                let node_as_element_access_expression = node_ref.as_element_access_expression();
+                self.bind(node_as_element_access_expression.question_dot_token);
                 self.bind(Some(
-                    &*node_as_element_access_expression.argument_expression,
+                    node_as_element_access_expression.argument_expression,
                 ));
             }
             SyntaxKind::CallExpression => {
-                let node_as_call_expression = node.as_call_expression();
-                self.bind(node_as_call_expression.question_dot_token.clone());
+                let node_ref = node.ref_(self);
+                let node_as_call_expression = node_ref.as_call_expression();
+                self.bind(node_as_call_expression.question_dot_token);
                 self.bind_each(
                     node_as_call_expression
                         .maybe_type_arguments()
@@ -206,13 +214,13 @@ impl BinderType {
         true_target: Gc<FlowNode /*FlowLabel*/>,
         false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
-        let pre_chain_label = if is_optional_chain_root(node) {
+        let pre_chain_label = if is_optional_chain_root(&node.ref_(self)) {
             Some(self.create_branch_label())
         } else {
             None
         };
         self.bind_optional_expression(
-            &node.as_has_expression().expression(),
+            node.ref_(self).as_has_expression().expression(),
             pre_chain_label
                 .clone()
                 .unwrap_or_else(|| true_target.clone()),
@@ -269,7 +277,7 @@ impl BinderType {
         &self,
         node: Id<Node>, /*NonNullExpression | NonNullChain*/
     ) {
-        if is_optional_chain(node) {
+        if is_optional_chain(&node.ref_(self)) {
             self.bind_optional_chain_flow(node);
         } else {
             self.bind_each_child(node);
@@ -280,7 +288,7 @@ impl BinderType {
         &self,
         node: Id<Node>, /*AccessExpression | PropertyAccessChain | ElementAccessChain*/
     ) {
-        if is_optional_chain(node) {
+        if is_optional_chain(&node.ref_(self)) {
             self.bind_optional_chain_flow(node);
         } else {
             self.bind_each_child(node);
@@ -291,13 +299,14 @@ impl BinderType {
         &self,
         node: Id<Node>, /*CallExpression | CallChain*/
     ) {
-        let node_as_call_expression = node.as_call_expression();
-        if is_optional_chain(node) {
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
+        if is_optional_chain(&node.ref_(self)) {
             self.bind_optional_chain_flow(node);
         } else {
             let expr = skip_parentheses(node_as_call_expression.expression, None, self);
             if matches!(
-                expr.kind(),
+                expr.ref_(self).kind(),
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
             ) {
                 self.bind_each(
@@ -332,7 +341,7 @@ impl BinderType {
     }
 
     pub(super) fn get_container_flags(&self, node: Id<Node>) -> ContainerFlags {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ClassExpression
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::EnumDeclaration
@@ -396,7 +405,7 @@ impl BinderType {
 
             SyntaxKind::ModuleBlock => ContainerFlags::IsControlFlowContainer,
             SyntaxKind::PropertyDeclaration => {
-                if node.as_property_declaration().maybe_initializer().is_some() {
+                if node.ref_(self).as_property_declaration().maybe_initializer().is_some() {
                     ContainerFlags::IsControlFlowContainer
                 } else {
                     ContainerFlags::None
@@ -410,8 +419,8 @@ impl BinderType {
             | SyntaxKind::CaseBlock => ContainerFlags::IsBlockScopedContainer,
 
             SyntaxKind::Block => {
-                if is_function_like(node.maybe_parent())
-                    || is_class_static_block_declaration(&node.parent())
+                if is_function_like(node.ref_(self).maybe_parent().refed(self))
+                    || is_class_static_block_declaration(&node.ref_(self).parent().ref_(self))
                 {
                     ContainerFlags::None
                 } else {
@@ -424,10 +433,10 @@ impl BinderType {
 
     pub(super) fn add_to_container_chain(&self, next: Id<Node>) {
         if let Some(last_container) = self.maybe_last_container() {
-            last_container.set_next_container(Some(next.node_wrapper()));
+            last_container.ref_(self).set_next_container(Some(next));
         }
 
-        self.set_last_container(Some(next.node_wrapper()));
+        self.set_last_container(Some(next));
     }
 
     pub(super) fn declare_symbol_and_add_to_symbol_table(
@@ -436,7 +445,7 @@ impl BinderType {
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Option<Id<Symbol>> {
-        match self.container().kind() {
+        match self.container().ref_(self).kind() {
             SyntaxKind::ModuleDeclaration => {
                 Some(self.declare_module_member(node, symbol_flags, symbol_excludes))
             }
@@ -450,8 +459,8 @@ impl BinderType {
             }
 
             SyntaxKind::EnumDeclaration => Some(self.declare_symbol(
-                &mut *self.container().symbol().ref_(self).exports().borrow_mut(),
-                Some(self.container().symbol()),
+                &mut *self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -464,8 +473,8 @@ impl BinderType {
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::JsxAttributes => Some(self.declare_symbol(
-                &mut *self.container().symbol().ref_(self).members().borrow_mut(),
-                Some(self.container().symbol()),
+                &mut *self.container().ref_(self).symbol().ref_(self).members().borrow_mut(),
+                Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -493,7 +502,7 @@ impl BinderType {
             | SyntaxKind::ClassStaticBlockDeclaration
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::MappedType => Some(self.declare_symbol(
-                &mut self.container().locals().borrow_mut(),
+                &mut self.container().ref_(self).locals().borrow_mut(),
                 Option::<Id<Symbol>>::None,
                 node,
                 symbol_flags,
@@ -513,8 +522,8 @@ impl BinderType {
     ) -> Id<Symbol> {
         if is_static(node, self) {
             self.declare_symbol(
-                &mut *self.container().symbol().ref_(self).exports().borrow_mut(),
-                Some(self.container().symbol()),
+                &mut *self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -523,8 +532,8 @@ impl BinderType {
             )
         } else {
             self.declare_symbol(
-                &mut *self.container().symbol().ref_(self).members().borrow_mut(),
-                Some(self.container().symbol()),
+                &mut *self.container().ref_(self).symbol().ref_(self).members().borrow_mut(),
+                Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -540,12 +549,12 @@ impl BinderType {
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Id<Symbol> {
-        if is_external_module(&self.file()) {
+        if is_external_module(&self.file().ref_(self)) {
             self.declare_module_member(node, symbol_flags, symbol_excludes)
         } else {
             self.declare_symbol(
-                &mut *self.file().locals().borrow_mut(),
-                Option::<Id<Symbol>>::None,
+                &mut *self.file().ref_(self).locals().borrow_mut(),
+                None,
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -559,22 +568,20 @@ impl BinderType {
         &self,
         node: Id<Node>, /*ModuleDeclaration | SourceFile*/
     ) -> bool {
-        let body: Option<Id<Node>> = if is_source_file(node) {
-            Some(node.node_wrapper())
+        let body: Option<Id<Node>> = if is_source_file(&node.ref_(self)) {
+            Some(node)
         } else {
-            node.as_module_declaration()
+            node.ref_(self).as_module_declaration()
                 .body
-                .as_ref()
-                .and_then(|body| try_cast(body, |body| is_module_block(body)))
-                .map(Clone::clone)
+                .and_then(|body| try_cast(body, |body| is_module_block(&body.ref_(self))))
         };
         match body {
             None => false,
             Some(body) => body
-                .as_has_statements()
+                .ref_(self).as_has_statements()
                 .statements()
                 .iter()
-                .any(|s| is_export_declaration(s) || is_export_assignment(s)),
+                .any(|s| is_export_declaration(&s.ref_(self)) || is_export_assignment(&s.ref_(self))),
         }
     }
 
@@ -582,10 +589,10 @@ impl BinderType {
         &self,
         node: Id<Node>, /*ModuleDeclaration | SourceFile*/
     ) {
-        if node.flags().intersects(NodeFlags::Ambient) && !self.has_export_declarations(node) {
-            node.set_flags(node.flags() | NodeFlags::ExportContext);
+        if node.ref_(self).flags().intersects(NodeFlags::Ambient) && !self.has_export_declarations(node) {
+            node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::ExportContext);
         } else {
-            node.set_flags(node.flags() & !NodeFlags::ExportContext);
+            node.ref_(self).set_flags(node.ref_(self).flags() & !NodeFlags::ExportContext);
         }
     }
 
@@ -599,16 +606,17 @@ impl BinderType {
                 self.declare_module_symbol(node);
             } else {
                 let mut pattern: Option<StringOrPattern> = None;
-                let node_as_module_declaration = node.as_module_declaration();
-                if node_as_module_declaration.name.kind() == SyntaxKind::StringLiteral {
+                let node_ref = node.ref_(self);
+                let node_as_module_declaration = node_ref.as_module_declaration();
+                if node_as_module_declaration.name.ref_(self).kind() == SyntaxKind::StringLiteral {
                     let text = node_as_module_declaration
                         .name
-                        .as_literal_like_node()
+                        .ref_(self).as_literal_like_node()
                         .text();
                     pattern = try_parse_pattern(&text);
                     if pattern.is_none() {
                         self.error_on_first_token(
-                            &node_as_module_declaration.name,
+                            node_as_module_declaration.name,
                             &Diagnostics::Pattern_0_can_have_at_most_one_Asterisk_character,
                             Some(vec![text.to_owned()]),
                         );
@@ -623,8 +631,9 @@ impl BinderType {
                     )
                     .unwrap();
                 let file = self.file();
+                let file_ref = file.ref_(selff);
                 let mut pattern_ambient_modules =
-                    file.as_source_file().maybe_pattern_ambient_modules();
+                    file_ref.as_source_file().maybe_pattern_ambient_modules();
                 if pattern_ambient_modules.is_none() {
                     *pattern_ambient_modules = Some(vec![]);
                 }
@@ -641,7 +650,7 @@ impl BinderType {
         } else {
             let state = self.declare_module_symbol(node);
             if state != ModuleInstanceState::NonInstantiated {
-                let symbol = node.symbol();
+                let symbol = node.ref_(self).symbol();
                 symbol.ref_(self).set_const_enum_only_module(Some(
                     !symbol.ref_(self).flags().intersects(
                         SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum,
@@ -696,8 +705,8 @@ impl BindBinaryExpressionFlowStateMachine {
     ) -> Option<Id<Node /*BinaryExpression*/>> {
         if
         /*node &&*/
-        is_binary_expression(node) && !is_destructuring_assignment(node, self) {
-            return Some(node.node_wrapper());
+        is_binary_expression(&node.ref_(self)) && !is_destructuring_assignment(node, self) {
+            return Some(node);
         }
         self.binder.bind(Some(node));
         None
@@ -718,11 +727,11 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         if let Some(state) = state.as_ref() {
             let mut state = state.borrow_mut();
             state.stack_index += 1;
-            set_parent(node, Some(self.binder.parent()));
+            set_parent(&node.ref_(self), Some(self.binder.parent()));
             let save_in_strict_mode = self.binder.maybe_in_strict_mode();
             self.binder.bind_worker(node);
             let save_parent = self.binder.parent();
-            self.binder.set_parent(Some(node.node_wrapper()));
+            self.binder.set_parent(Some(node));
             state.skip = false;
             state.in_strict_mode_stack.push(save_in_strict_mode);
             state.parent_stack.push(Some(save_parent));
@@ -735,8 +744,9 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
             })));
         }
         let state = state.unwrap();
-        let node_as_binary_expression = node.as_binary_expression();
-        let operator = node_as_binary_expression.operator_token.kind();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
+        let operator = node_as_binary_expression.operator_token.ref_(self).kind();
         if matches!(
             operator,
             SyntaxKind::AmpersandAmpersandToken
@@ -784,9 +794,9 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<()> {
         if !(*state).borrow().skip {
-            if operator_token.kind() == SyntaxKind::CommaToken {
+            if operator_token.ref_(self).kind() == SyntaxKind::CommaToken {
                 self.binder
-                    .maybe_bind_expression_flow_if_call(&node.as_binary_expression().left);
+                    .maybe_bind_expression_flow_if_call(node.ref_(self).as_binary_expression().left);
             }
             self.binder.bind(Some(operator_token));
         }
@@ -812,8 +822,9 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         state: Rc<RefCell<WorkArea>>,
     ) -> io::Result<()> {
         if !(*state).borrow().skip {
-            let node_as_binary_expression = node.as_binary_expression();
-            let operator = node_as_binary_expression.operator_token.kind();
+            let node_ref = node.ref_(self);
+            let node_as_binary_expression = node_ref.as_binary_expression();
+            let operator = node_as_binary_expression.operator_token.ref_(self).kind();
             if is_assignment_operator(operator) && !is_assignment_target(node, self) {
                 self.binder
                     .bind_assignment_target_flow(&node_as_binary_expression.left);
@@ -867,5 +878,11 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
 
     fn implements_fold_state(&self) -> bool {
         false
+    }
+}
+
+impl HasArena for BindBinaryExpressionFlowStateMachine {
+    fn arena(&self) -> &AllArenas {
+        self.binder.arena()
     }
 }

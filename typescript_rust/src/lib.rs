@@ -738,7 +738,7 @@ pub use compiler::{
         set_parent_recursive, set_resolved_module, set_resolved_type_reference_directive,
         set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width,
         set_value_declaration, should_preserve_const_enums, skip_parentheses, skip_type_checking,
-        slice_after, source_file_may_be_emitted, strip_quotes, supported_js_extensions_flat,
+        slice_after, slice_after_eq, source_file_may_be_emitted, strip_quotes, supported_js_extensions_flat,
         supported_ts_extensions, supported_ts_extensions_flat, try_extract_ts_extension,
         try_for_each_entry, try_for_each_entry_bool, try_for_each_import_clause_declaration_bool,
         try_for_each_return_statement, try_for_each_yield_expression,

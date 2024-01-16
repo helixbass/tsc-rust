@@ -16,7 +16,7 @@ use crate::{
     is_type_of_expression, node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode,
     FlowNodeBase, FlowReduceLabel, FlowStart, HasArena, HasStatementsInterface, InArena,
     ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind,
+    SyntaxKind, OptionInArena,
 };
 
 impl BinderType {
@@ -35,8 +35,8 @@ impl BinderType {
                     && has_export_modifier
             {
                 self.declare_symbol(
-                    &mut self.container().symbol().ref_(self).exports().borrow_mut(),
-                    Some(self.container().symbol()),
+                    &mut self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                    Some(self.container().ref_(self).symbol()),
                     node,
                     symbol_flags,
                     symbol_excludes,
@@ -45,8 +45,8 @@ impl BinderType {
                 )
             } else {
                 self.declare_symbol(
-                    &mut self.container().locals().borrow_mut(),
-                    Option::<Id<Symbol>>::None,
+                    &mut self.container().ref_(self).locals().borrow_mut(),
+                    None,
                     node,
                     symbol_flags,
                     symbol_excludes,
@@ -55,23 +55,23 @@ impl BinderType {
                 )
             }
         } else {
-            if is_jsdoc_type_alias(node) {
-                Debug_.assert(is_in_js_file(Some(node)), None);
+            if is_jsdoc_type_alias(&node.ref_(self)) {
+                Debug_.assert(is_in_js_file(Some(&node.ref_(self))), None);
             }
             if !is_ambient_module(node, self)
                 && (has_export_modifier
                     || self
                         .container()
-                        .flags()
+                        .ref_(self).flags()
                         .intersects(NodeFlags::ExportContext))
             {
-                if self.container().maybe_locals().is_none()
+                if self.container().ref_(self).maybe_locals().is_none()
                     || has_syntactic_modifier(node, ModifierFlags::Default, self)
                         && self.get_declaration_name(node).is_none()
                 {
                     return self.declare_symbol(
-                        &mut self.container().symbol().ref_(self).exports().borrow_mut(),
-                        Some(self.container().symbol()),
+                        &mut self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                        Some(self.container().ref_(self).symbol()),
                         node,
                         symbol_flags,
                         symbol_excludes,
@@ -85,7 +85,7 @@ impl BinderType {
                     SymbolFlags::None
                 };
                 let local = self.declare_symbol(
-                    &mut self.container().locals().borrow_mut(),
+                    &mut self.container().ref_(self).locals().borrow_mut(),
                     Option::<Id<Symbol>>::None,
                     node,
                     export_kind,
@@ -94,19 +94,19 @@ impl BinderType {
                     None,
                 );
                 local.ref_(self).set_export_symbol(Some(self.declare_symbol(
-                    &mut self.container().symbol().ref_(self).exports().borrow_mut(),
-                    Some(self.container().symbol()),
+                    &mut self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                    Some(self.container().ref_(self).symbol()),
                     node,
                     symbol_flags,
                     symbol_excludes,
                     None,
                     None,
                 )));
-                node.set_local_symbol(Some(local.clone()));
+                node.ref_(self).set_local_symbol(Some(local));
                 local
             } else {
                 self.declare_symbol(
-                    &mut self.container().locals().borrow_mut(),
+                    &mut self.container().ref_(self).locals().borrow_mut(),
                     Option::<Id<Symbol>>::None,
                     node,
                     symbol_flags,
@@ -118,35 +118,32 @@ impl BinderType {
         }
     }
 
-    pub(super) fn jsdoc_treat_as_exported(&self, node: Id<Node>) -> bool {
-        let mut node = node.node_wrapper();
-        if node.maybe_parent().is_some() && is_module_declaration(&node) {
-            node = node.parent();
+    pub(super) fn jsdoc_treat_as_exported(&self, mut node: Id<Node>) -> bool {
+        if node.ref_(self).maybe_parent().is_some() && is_module_declaration(&node.ref_(self)) {
+            node = node.ref_(self).parent();
         }
-        if !is_jsdoc_type_alias(&node) {
+        if !is_jsdoc_type_alias(&node.ref_(self)) {
             return false;
         }
-        if !is_jsdoc_enum_tag(&node)
+        if !is_jsdoc_enum_tag(&node.ref_(self))
             && node
-                .as_jsdoc_typedef_or_callback_tag()
+                .ref_(self).as_jsdoc_typedef_or_callback_tag()
                 .maybe_full_name()
                 .is_some()
         {
             return true;
         }
-        let decl_name = get_name_of_declaration(Some(node), self);
-        if decl_name.is_none() {
+        let Some(decl_name) = get_name_of_declaration(Some(node), self) else {
             return false;
-        }
-        let decl_name = decl_name.unwrap();
-        let decl_name_parent = decl_name.parent();
+        };
+        let decl_name_parent = decl_name.ref_(self).parent();
         if is_property_access_entity_name_expression(decl_name_parent, self)
-            && self.is_top_level_namespace_assignment(&decl_name_parent)
+            && self.is_top_level_namespace_assignment(decl_name_parent)
         {
             return true;
         }
         if is_declaration(decl_name_parent, self)
-            && get_combined_modifier_flags(&decl_name_parent).intersects(ModifierFlags::Export)
+            && get_combined_modifier_flags(decl_name_parent, self).intersects(ModifierFlags::Export)
         {
             return true;
         }
@@ -159,22 +156,22 @@ impl BinderType {
         let saved_block_scope_container = self.maybe_block_scope_container();
 
         if container_flags.intersects(ContainerFlags::IsContainer) {
-            if node.kind() != SyntaxKind::ArrowFunction {
+            if node.ref_(self).kind() != SyntaxKind::ArrowFunction {
                 self.set_this_parent_container(self.maybe_container());
             }
-            self.set_container(Some(node.node_wrapper()));
-            self.set_block_scope_container(Some(node.node_wrapper()));
+            self.set_container(Some(node));
+            self.set_block_scope_container(Some(node));
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container()
-                    .set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
+                    .ref_(self).set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
                     )))));
             }
-            self.add_to_container_chain(&self.container());
+            self.add_to_container_chain(self.container());
         } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {
-            self.set_block_scope_container(Some(node.node_wrapper()));
-            self.block_scope_container().set_locals(None);
+            self.set_block_scope_container(Some(node));
+            self.block_scope_container().ref_(self).set_locals(None);
         }
         if container_flags.intersects(ContainerFlags::IsControlFlowContainer) {
             let save_current_flow = self.maybe_current_flow();
@@ -187,7 +184,7 @@ impl BinderType {
             let is_iife = container_flags.intersects(ContainerFlags::IsFunctionExpression)
                 && !has_syntactic_modifier(node, ModifierFlags::Async, self)
                 && node
-                    .as_function_like_declaration()
+                    .ref_(self).as_function_like_declaration()
                     .maybe_asterisk_token()
                     .is_none()
                 && get_immediately_invoked_function_expression(node, self).is_some();
@@ -201,18 +198,18 @@ impl BinderType {
                 ) {
                     self.current_flow()
                         .as_flow_start()
-                        .set_node(Some(node.node_wrapper()));
+                        .set_node(Some(node));
                 }
             }
             self.set_current_return_target(
                 if is_iife
                     || matches!(
-                        node.kind(),
+                        node.ref_(self).kind(),
                         SyntaxKind::Constructor | SyntaxKind::ClassStaticBlockDeclaration
                     )
-                    || (is_in_js_file(Some(node))
+                    || (is_in_js_file(Some(&node.ref_(self)))
                         && matches!(
-                            node.kind(),
+                            node.ref_(self).kind(),
                             SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
                         ))
                 {
@@ -227,37 +224,37 @@ impl BinderType {
             self.set_active_label_list(None);
             self.set_has_explicit_return(Some(false));
             self.bind_children(node);
-            node.set_flags(node.flags() & !NodeFlags::ReachabilityAndEmitFlags);
+            node.ref_(self).set_flags(node.ref_(self).flags() & !NodeFlags::ReachabilityAndEmitFlags);
             if !self
                 .current_flow()
                 .flags()
                 .intersects(FlowFlags::Unreachable)
                 && container_flags.intersects(ContainerFlags::IsFunctionLike)
-                && node_is_present(match node.kind() {
+                && node_is_present(match node.ref_(self).kind() {
                     SyntaxKind::ClassStaticBlockDeclaration => {
-                        Some(node.as_class_static_block_declaration().body.clone())
+                        Some(node.ref_(self).as_class_static_block_declaration().body)
                     }
                     _ => node
-                        .maybe_as_function_like_declaration()
+                        .ref_(self).maybe_as_function_like_declaration()
                         .and_then(|node| node.maybe_body()),
-                })
+                }.refed(self))
             {
-                node.set_flags(node.flags() | NodeFlags::HasImplicitReturn);
+                node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::HasImplicitReturn);
                 if matches!(self.maybe_has_explicit_return(), Some(true)) {
-                    node.set_flags(node.flags() | NodeFlags::HasExplicitReturn);
+                    node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::HasExplicitReturn);
                 }
-                match node.kind() {
+                match node.ref_(self).kind() {
                     SyntaxKind::ClassStaticBlockDeclaration => node
-                        .as_class_static_block_declaration()
+                        .ref_(self).as_class_static_block_declaration()
                         .set_end_flow_node(self.maybe_current_flow()),
                     _ => node
-                        .as_function_like_declaration()
+                        .ref_(self).as_function_like_declaration()
                         .set_end_flow_node(self.maybe_current_flow()),
                 }
             }
-            if node.kind() == SyntaxKind::SourceFile {
-                node.set_flags(node.flags() | self.emit_flags());
-                node.as_source_file()
+            if node.ref_(self).kind() == SyntaxKind::SourceFile {
+                node.ref_(self).set_flags(node.ref_(self).flags() | self.emit_flags());
+                node.ref_(self).as_source_file()
                     .set_end_flow_node(self.maybe_current_flow());
             }
 
@@ -265,20 +262,20 @@ impl BinderType {
                 self.add_antecedent(&current_return_target, self.current_flow());
                 self.set_current_flow(Some(self.finish_flow_label(current_return_target)));
                 if matches!(
-                    node.kind(),
+                    node.ref_(self).kind(),
                     SyntaxKind::Constructor | SyntaxKind::ClassStaticBlockDeclaration
-                ) || is_in_js_file(Some(node))
+                ) || is_in_js_file(Some(&node.ref_(self)))
                     && matches!(
-                        node.kind(),
+                        node.ref_(self).kind(),
                         SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
                     )
                 {
-                    match node.kind() {
+                    match node.ref_(self).kind() {
                         SyntaxKind::ClassStaticBlockDeclaration => node
-                            .as_class_static_block_declaration()
+                            .ref_(self).as_class_static_block_declaration()
                             .set_return_flow_node(self.maybe_current_flow()),
                         _ => node
-                            .as_function_like_declaration()
+                            .ref_(self).as_function_like_declaration()
                             .set_return_flow_node(self.maybe_current_flow()),
                     }
                 }
@@ -295,10 +292,10 @@ impl BinderType {
         } else if container_flags.intersects(ContainerFlags::IsInterface) {
             self.set_seen_this_keyword(Some(false));
             self.bind_children(node);
-            node.set_flags(if matches!(self.maybe_seen_this_keyword(), Some(true)) {
-                node.flags() | NodeFlags::ContainsThis
+            node.ref_(self).set_flags(if self.maybe_seen_this_keyword() == Some(true) {
+                node.ref_(self).flags() | NodeFlags::ContainsThis
             } else {
-                node.flags() & !NodeFlags::ContainsThis
+                node.ref_(self).flags() & !NodeFlags::ContainsThis
             });
         } else {
             self.bind_children(node);
@@ -311,12 +308,12 @@ impl BinderType {
 
     pub(super) fn bind_each_functions_first(&self, nodes: Option<&[Id<Node>] /*NodeArray*/>) {
         self.bind_each_callback(nodes, |n| {
-            if n.kind() == SyntaxKind::FunctionDeclaration {
+            if n.ref_(self).kind() == SyntaxKind::FunctionDeclaration {
                 self.bind(Some(n))
             }
         });
         self.bind_each_callback(nodes, |n| {
-            if n.kind() != SyntaxKind::FunctionDeclaration {
+            if n.ref_(self).kind() != SyntaxKind::FunctionDeclaration {
                 self.bind(Some(n))
             }
         });
@@ -328,31 +325,31 @@ impl BinderType {
         }
         let nodes = nodes.unwrap();
 
-        for_each(nodes, |node, _| {
-            self.bind(Some(&**node));
+        for_each(nodes, |&node, _| {
+            self.bind(Some(node));
             Option::<()>::None
         });
     }
 
-    pub(super) fn bind_each_callback<TNodeCallback: FnMut(Id<Node>)>(
+    pub(super) fn bind_each_callback(
         &self,
         nodes: Option<&[Id<Node>] /*NodeArray*/>,
-        mut bind_function: TNodeCallback,
+        mut bind_function: impl FnMut(Id<Node>),
     ) {
         if nodes.is_none() {
             return;
         }
         let nodes = nodes.unwrap();
 
-        for_each(nodes, |node, _| {
-            bind_function(&*node);
+        for_each(nodes, |&node, _| {
+            bind_function(node);
             Option::<()>::None
         });
     }
 
     pub(super) fn bind_each_child(&self, node: Id<Node>) {
         for_each_child(
-            node,
+            &node.ref_(self),
             |node| self.bind(Some(node)),
             Some(|nodes: &NodeArray| self.bind_each(Some(nodes))),
         );
@@ -367,13 +364,13 @@ impl BinderType {
             self.set_in_assignment_pattern(save_in_assignment_pattern);
             return;
         }
-        if node.kind() >= SyntaxKind::FirstStatement
-            && node.kind() <= SyntaxKind::LastStatement
-            && !matches!(self.options().allow_unreachable_code, Some(true))
+        if node.ref_(self).kind() >= SyntaxKind::FirstStatement
+            && node.ref_(self).kind() <= SyntaxKind::LastStatement
+            && self.options().allow_unreachable_code != Some(true)
         {
-            node.set_flow_node(self.maybe_current_flow());
+            node.ref_(self).set_flow_node(self.maybe_current_flow());
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::WhileStatement => self.bind_while_statement(node),
             SyntaxKind::DoStatement => self.bind_do_statement(node),
             SyntaxKind::ForStatement => self.bind_for_statement(node),
@@ -415,12 +412,13 @@ impl BinderType {
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => self.bind_jsdoc_type_alias(node),
             SyntaxKind::SourceFile => {
-                let node_as_source_file = node.as_source_file();
+                let node_ref = node.ref_(self);
+                let node_as_source_file = node_ref.as_source_file();
                 self.bind_each_functions_first(Some(&node_as_source_file.statements()));
                 self.bind(Some(node_as_source_file.end_of_file_token()));
             }
             SyntaxKind::Block | SyntaxKind::ModuleBlock => {
-                self.bind_each_functions_first(Some(&node.as_has_statements().statements()));
+                self.bind_each_functions_first(Some(&node.ref_(self).as_has_statements().statements()));
             }
             SyntaxKind::BindingElement => self.bind_binding_element_flow(node),
             SyntaxKind::ObjectLiteralExpression
@@ -439,7 +437,7 @@ impl BinderType {
     }
 
     pub(super) fn is_narrowing_expression(&self, expr: Id<Node> /*Expression*/) -> bool {
-        match expr.kind() {
+        match expr.ref_(self).kind() {
             SyntaxKind::Identifier
             | SyntaxKind::PrivateIdentifier
             | SyntaxKind::ThisKeyword
@@ -447,16 +445,17 @@ impl BinderType {
             | SyntaxKind::ElementAccessExpression => self.contains_narrowable_reference(expr),
             SyntaxKind::CallExpression => self.has_narrowable_argument(expr),
             SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
-                self.is_narrowing_expression(&expr.as_has_expression().expression())
+                self.is_narrowing_expression(expr.ref_(self).as_has_expression().expression())
             }
             SyntaxKind::BinaryExpression => self.is_narrowing_binary_expression(expr),
             SyntaxKind::PrefixUnaryExpression => {
-                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
+                let expr_ref = expr.ref_(self);
+                let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
                 expr_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken
                     && self.is_narrowing_expression(&expr_as_prefix_unary_expression.operand)
             }
             SyntaxKind::TypeOfExpression => {
-                self.is_narrowing_expression(&expr.as_type_of_expression().expression)
+                self.is_narrowing_expression(expr.ref_(self).as_type_of_expression().expression)
             }
             _ => false,
         }
@@ -464,45 +463,48 @@ impl BinderType {
 
     pub(super) fn is_narrowable_reference(&self, expr: Id<Node> /*Expression*/) -> bool {
         is_dotted_name(expr, self)
-            || (is_property_access_expression(expr)
-                || is_non_null_expression(expr)
-                || is_parenthesized_expression(expr))
-                && self.is_narrowable_reference(&expr.as_has_expression().expression())
-            || is_binary_expression(expr) && {
-                let expr_as_binary_expression = expr.as_binary_expression();
-                expr_as_binary_expression.operator_token.kind() == SyntaxKind::CommaToken
-                    && self.is_narrowable_reference(&expr_as_binary_expression.right)
+            || (is_property_access_expression(&expr.ref_(self))
+                || is_non_null_expression(&expr.ref_(self))
+                || is_parenthesized_expression(&expr.ref_(self)))
+                && self.is_narrowable_reference(expr.ref_(self).as_has_expression().expression())
+            || is_binary_expression(&expr.ref_(self)) && {
+                let expr_ref = expr.ref_(self);
+                let expr_as_binary_expression = expr_ref.as_binary_expression();
+                expr_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::CommaToken
+                    && self.is_narrowable_reference(expr_as_binary_expression.right)
             }
-            || is_element_access_expression(expr) && {
-                let expr_as_element_access_expression = expr.as_element_access_expression();
+            || is_element_access_expression(&expr.ref_(self)) && {
+                let expr_ref = expr.ref_(self);
+                let expr_as_element_access_expression = expr_ref.as_element_access_expression();
                 is_string_or_numeric_literal_like(
-                    &expr_as_element_access_expression.argument_expression,
-                ) && self.is_narrowable_reference(&expr_as_element_access_expression.expression)
+                    &expr_as_element_access_expression.argument_expression.ref_(self),
+                ) && self.is_narrowable_reference(expr_as_element_access_expression.expression)
             }
-            || is_assignment_expression(expr, None)
-                && self.is_narrowable_reference(&expr.as_binary_expression().left)
+            || is_assignment_expression(expr, None, self)
+                && self.is_narrowable_reference(expr.ref_(self).as_binary_expression().left)
     }
 
     pub(super) fn contains_narrowable_reference(&self, expr: Id<Node> /*Expression*/) -> bool {
         self.is_narrowable_reference(expr)
-            || is_optional_chain(expr)
-                && self.contains_narrowable_reference(&expr.as_has_expression().expression())
+            || is_optional_chain(&expr.ref_(self))
+                && self.contains_narrowable_reference(expr.ref_(self).as_has_expression().expression())
     }
 
     pub(super) fn has_narrowable_argument(&self, expr: Id<Node> /*CallExpression*/) -> bool {
-        let expr_as_call_expression = expr.as_call_expression();
+        let expr_ref = expr.ref_(self);
+        let expr_as_call_expression = expr_ref.as_call_expression();
         // if (expr.arguments) {
-        for argument in &expr_as_call_expression.arguments {
+        for &argument in &expr_as_call_expression.arguments {
             if self.contains_narrowable_reference(argument) {
                 return true;
             }
         }
         // }
-        if expr_as_call_expression.expression.kind() == SyntaxKind::PropertyAccessExpression
+        if expr_as_call_expression.expression.ref_(self).kind() == SyntaxKind::PropertyAccessExpression
             && self.contains_narrowable_reference(
-                &expr_as_call_expression
+                expr_as_call_expression
                     .expression
-                    .as_property_access_expression()
+                    .ref_(self).as_property_access_expression()
                     .expression,
             )
         {
@@ -516,62 +518,64 @@ impl BinderType {
         expr1: Id<Node>, /*Expression*/
         expr2: Id<Node>, /*Expression*/
     ) -> bool {
-        is_type_of_expression(expr1)
-            && self.is_narrowable_operand(&expr1.as_type_of_expression().expression)
-            && is_string_literal_like(expr2)
+        is_type_of_expression(&expr1.ref_(self))
+            && self.is_narrowable_operand(expr1.ref_(self).as_type_of_expression().expression)
+            && is_string_literal_like(&expr2.ref_(self))
     }
 
     pub(super) fn is_narrowing_binary_expression(
         &self,
         expr: Id<Node>, /*BinaryExpression*/
     ) -> bool {
-        let expr_as_binary_expression = expr.as_binary_expression();
-        match expr_as_binary_expression.operator_token.kind() {
+        let expr_ref = expr.ref_(self);
+        let expr_as_binary_expression = expr_ref.as_binary_expression();
+        match expr_as_binary_expression.operator_token.ref_(self).kind() {
             SyntaxKind::EqualsToken
             | SyntaxKind::BarBarEqualsToken
             | SyntaxKind::AmpersandAmpersandEqualsToken
             | SyntaxKind::QuestionQuestionEqualsToken => {
-                self.contains_narrowable_reference(&expr_as_binary_expression.left)
+                self.contains_narrowable_reference(expr_as_binary_expression.left)
             }
             SyntaxKind::EqualsEqualsToken
             | SyntaxKind::ExclamationEqualsToken
             | SyntaxKind::EqualsEqualsEqualsToken
             | SyntaxKind::ExclamationEqualsEqualsToken => {
-                self.is_narrowable_operand(&expr_as_binary_expression.left)
-                    || self.is_narrowable_operand(&expr_as_binary_expression.right)
+                self.is_narrowable_operand(expr_as_binary_expression.left)
+                    || self.is_narrowable_operand(expr_as_binary_expression.right)
                     || self.is_narrowing_typeof_operands(
-                        &expr_as_binary_expression.right,
-                        &expr_as_binary_expression.left,
+                        expr_as_binary_expression.right,
+                        expr_as_binary_expression.left,
                     )
                     || self.is_narrowing_typeof_operands(
-                        &expr_as_binary_expression.left,
-                        &expr_as_binary_expression.right,
+                        expr_as_binary_expression.left,
+                        expr_as_binary_expression.right,
                     )
             }
             SyntaxKind::InstanceOfKeyword => {
-                self.is_narrowable_operand(&expr_as_binary_expression.left)
+                self.is_narrowable_operand(expr_as_binary_expression.left)
             }
-            SyntaxKind::InKeyword => self.is_narrowing_expression(&expr_as_binary_expression.right),
+            SyntaxKind::InKeyword => self.is_narrowing_expression(expr_as_binary_expression.right),
             SyntaxKind::CommaToken => {
-                self.is_narrowing_expression(&expr_as_binary_expression.right)
+                self.is_narrowing_expression(expr_as_binary_expression.right)
             }
             _ => false,
         }
     }
 
     pub(super) fn is_narrowable_operand(&self, expr: Id<Node> /*Expression*/) -> bool {
-        match expr.kind() {
+        match expr.ref_(self).kind() {
             SyntaxKind::ParenthesizedExpression => {
-                return self.is_narrowable_operand(&expr.as_parenthesized_expression().expression);
+                return self.is_narrowable_operand(expr.ref_(self).as_parenthesized_expression().expression);
             }
             SyntaxKind::BinaryExpression => {
-                let expr_as_binary_expression = expr.as_binary_expression();
-                match expr_as_binary_expression.operator_token.kind() {
+                let expr_ref = expr.ref_(self);
+                let expr_as_binary_expression = expr_ref.as_binary_expression();
+                match expr_as_binary_expression.operator_token.ref_(self).kind() {
                     SyntaxKind::EqualsToken => {
-                        return self.is_narrowable_operand(&expr_as_binary_expression.left);
+                        return self.is_narrowable_operand(expr_as_binary_expression.left);
                     }
                     SyntaxKind::CommaToken => {
-                        return self.is_narrowable_operand(&expr_as_binary_expression.right);
+                        return self.is_narrowable_operand(expr_as_binary_expression.right);
                     }
                     _ => (),
                 }
@@ -645,21 +649,19 @@ impl BinderType {
         if antecedent.flags().intersects(FlowFlags::Unreachable) {
             return antecedent;
         }
-        if expression.is_none() {
+        let Some(expression) = expression else {
             return if flags.intersects(FlowFlags::TrueCondition) {
                 antecedent
             } else {
                 self.unreachable_flow()
             };
-        }
-        let expression = expression.unwrap();
-        let expression = expression.borrow();
-        if (expression.kind() == SyntaxKind::TrueKeyword
+        };
+        if (expression.ref_(self).kind() == SyntaxKind::TrueKeyword
             && flags.intersects(FlowFlags::FalseCondition)
-            || expression.kind() == SyntaxKind::FalseKeyword
+            || expression.ref_(self).kind() == SyntaxKind::FalseKeyword
                 && flags.intersects(FlowFlags::TrueCondition))
             && !is_expression_of_optional_chain_root(expression, self)
-            && !is_nullish_coalesce(expression.parent(), self)
+            && !is_nullish_coalesce(expression.ref_(self).parent(), self)
         {
             return self.unreachable_flow();
         }
@@ -668,7 +670,7 @@ impl BinderType {
         }
         self.set_flow_node_referenced(&antecedent);
         Gc::new(init_flow_node(
-            FlowCondition::new(flags, antecedent, expression.node_wrapper()).into(),
+            FlowCondition::new(flags, antecedent, expression).into(),
         ))
     }
 }

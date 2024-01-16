@@ -699,14 +699,12 @@ impl BinderType {
         node: Id<Node>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-        arena: &impl HasArena,
     ) -> DiagnosticWithLocation {
         create_diagnostic_for_node_in_source_file(
             maybe_get_source_file_of_node(Some(node), self).unwrap_or_else(|| self.file()),
             node,
             message,
             args,
-            arena,
         )
     }
 
@@ -1114,7 +1112,7 @@ impl BinderType {
                             let mut related_information: Vec<Gc<DiagnosticRelatedInformation>> =
                                 vec![];
                             if is_type_alias_declaration(&node.ref_(self))
-                                && node_is_missing(Some(&*node.as_type_alias_declaration().type_))
+                                && node_is_missing(Some(&node.ref_(self).as_type_alias_declaration().type_.ref_(self)))
                                 && has_syntactic_modifier(node, ModifierFlags::Export, self)
                                 && symbol_present.ref_(self).flags().intersects(
                                     SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
@@ -1128,9 +1126,9 @@ impl BinderType {
                                             "export type {{ {} }}",
                                             unescape_leading_underscores(
                                                 &node
-                                                    .as_type_alias_declaration()
+                                                    .ref_(self).as_type_alias_declaration()
                                                     .name()
-                                                    .as_identifier()
+                                                    .ref_(self).as_identifier()
                                                     .escaped_text
                                             )
                                         )]),
@@ -1139,16 +1137,16 @@ impl BinderType {
                                 ));
                             }
 
-                            let declaration_name: Id<Node> = get_name_of_declaration(Some(node), self)
-                                .unwrap_or_else(|| node.node_wrapper());
+                            let declaration_name = get_name_of_declaration(Some(node), self)
+                                .unwrap_or(node);
                             maybe_for_each(
                                 symbol_present.ref_(self).maybe_declarations().as_ref(),
-                                |declaration: &Id<Node>, index| {
+                                |&declaration: &Id<Node>, index| {
                                     let decl = get_name_of_declaration(Some(declaration), self)
-                                        .unwrap_or_else(|| declaration.node_wrapper());
+                                        .unwrap_or(declaration);
                                     let diag: Gc<Diagnostic> = Gc::new(
                                         self.create_diagnostic_for_node(
-                                            &decl,
+                                            decl,
                                             message,
                                             if message_needs_name {
                                                 Some(vec![self
@@ -1157,16 +1155,17 @@ impl BinderType {
                                             } else {
                                                 None
                                             },
+                                            self,
                                         )
                                         .into(),
                                     );
-                                    self.file().as_source_file().bind_diagnostics_mut().push(
+                                    self.file().ref_(self).as_source_file().bind_diagnostics_mut().push(
                                         if multiple_default_exports {
                                             add_related_info(
                                                 &diag,
                                                 vec![Gc::new(
                                                 self.create_diagnostic_for_node(
-                                                    &declaration_name,
+                                                    declaration_name,
                                                     if index == 0 {
                                                         &Diagnostics::Another_export_default_is_here
                                                     } else {
@@ -1185,7 +1184,7 @@ impl BinderType {
                                     if multiple_default_exports {
                                         related_information.push(Gc::new(
                                             self.create_diagnostic_for_node(
-                                                &decl,
+                                                decl,
                                                 &Diagnostics::The_first_export_default_is_here,
                                                 None,
                                             )
@@ -1198,7 +1197,7 @@ impl BinderType {
 
                             let diag: Gc<Diagnostic> = Gc::new(
                                 self.create_diagnostic_for_node(
-                                    &declaration_name,
+                                    declaration_name,
                                     message,
                                     if message_needs_name {
                                         Some(vec![self.get_display_name(node).into_owned()])
@@ -1210,7 +1209,7 @@ impl BinderType {
                             );
                             add_related_info(&diag, related_information);
                             self.file()
-                                .as_source_file()
+                                .ref_(self).as_source_file()
                                 .bind_diagnostics_mut()
                                 .push(diag);
 
