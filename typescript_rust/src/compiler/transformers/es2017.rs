@@ -20,7 +20,7 @@ use crate::{
     is_node_with_possible_hoisted_declaration, is_omitted_expression,
     is_property_access_expression, is_super_property, is_token, is_variable_declaration_list,
     ref_mut_unwrapped, ref_unwrapped, set_emit_flags, set_original_node, set_source_map_range,
-    set_text_range, set_text_range_node_array, set_text_range_rc_node, try_maybe_visit_each_child,
+    set_text_range, set_text_range_node_array, set_text_range_id_node, try_maybe_visit_each_child,
     try_maybe_visit_node, try_maybe_visit_nodes, unescape_leading_underscores,
     BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHint, EmitResolver,
     FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
@@ -611,7 +611,7 @@ impl TransformES2017 {
             );
         }
         Ok(set_original_node(
-            set_text_range_rc_node(
+            set_text_range_id_node(
                 self.factory.create_yield_expression(
                     None,
                     try_maybe_visit_node(
@@ -1180,7 +1180,7 @@ impl TransformES2017 {
     ) -> Id<Node> {
         let node_as_property_access_expression = node.as_property_access_expression();
         if node_as_property_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
-            return set_text_range_rc_node(
+            return set_text_range_id_node(
                 self.factory.create_property_access_expression(
                     self.factory.create_unique_name(
                         "_super",
@@ -1257,7 +1257,7 @@ impl TransformES2017 {
             .enclosing_super_container_flags()
             .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
         {
-            set_text_range_rc_node(
+            set_text_range_id_node(
                 self.factory.create_property_access_expression(
                     self.factory.create_call_expression(
                         self.factory.create_unique_name(
@@ -1275,7 +1275,7 @@ impl TransformES2017 {
                 Some(location),
             )
         } else {
-            set_text_range_rc_node(
+            set_text_range_id_node(
                 self.factory.create_call_expression(
                     self.factory.create_unique_name(
                         "_superIndex",

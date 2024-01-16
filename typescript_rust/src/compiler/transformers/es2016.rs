@@ -4,7 +4,7 @@ use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, compiler::factory::utilities_public::set_text_range_rc_node,
+    chain_bundle, compiler::factory::utilities_public::set_text_range_id_node,
     is_element_access_expression, is_expression, is_property_access_expression,
     maybe_visit_each_child, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node,
     NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
@@ -95,16 +95,16 @@ impl TransformES2016 {
                 Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
                 None,
             );
-            target = set_text_range_rc_node(
+            target = set_text_range_id_node(
                 self.factory.create_element_access_expression(
-                    set_text_range_rc_node(
+                    set_text_range_id_node(
                         self.factory.create_assignment(
                             expression_temp.clone(),
                             left_as_element_access_expression.expression.clone(),
                         ),
                         Some(&*left_as_element_access_expression.expression),
                     ),
-                    set_text_range_rc_node(
+                    set_text_range_id_node(
                         self.factory.create_assignment(
                             argument_expression_temp.clone(),
                             left_as_element_access_expression
@@ -116,7 +116,7 @@ impl TransformES2016 {
                 ),
                 Some(&**left),
             );
-            value = set_text_range_rc_node(
+            value = set_text_range_id_node(
                 self.factory
                     .create_element_access_expression(expression_temp, argument_expression_temp),
                 Some(&**left),
@@ -127,9 +127,9 @@ impl TransformES2016 {
                 Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
                 None,
             );
-            target = set_text_range_rc_node(
+            target = set_text_range_id_node(
                 self.factory.create_property_access_expression(
-                    set_text_range_rc_node(
+                    set_text_range_id_node(
                         self.factory.create_assignment(
                             expression_temp.clone(),
                             left_as_property_access_expression.expression.clone(),
@@ -140,7 +140,7 @@ impl TransformES2016 {
                 ),
                 Some(&**left),
             );
-            value = set_text_range_rc_node(
+            value = set_text_range_id_node(
                 self.factory.create_property_access_expression(
                     expression_temp,
                     left_as_property_access_expression.name.clone(),
@@ -151,10 +151,10 @@ impl TransformES2016 {
             target = left.clone();
             value = left.clone();
         }
-        set_text_range_rc_node(
+        set_text_range_id_node(
             self.factory.create_assignment(
                 target,
-                set_text_range_rc_node(
+                set_text_range_id_node(
                     self.factory.create_global_method_call(
                         "Math",
                         "pow",
@@ -184,7 +184,7 @@ impl TransformES2016 {
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
-        set_text_range_rc_node(
+        set_text_range_id_node(
             self.factory
                 .create_global_method_call("Math", "pow", vec![left, right]),
             Some(node),

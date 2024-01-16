@@ -25,7 +25,7 @@ use crate::{
     is_named_exports, is_property_access_expression, is_source_file,
     is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
-    needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_rc_node,
+    needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_id_node,
     unescape_leading_underscores, AllArenas, HasArena, InArena, InternalSymbolName,
     LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
     NodeBuilderFlags, NodeFlags, NodeInterface, StrOrRcNode, Symbol, SymbolAccessibility,
@@ -925,7 +925,7 @@ impl SymbolTableToDeclarationStatements {
                             SymbolFlags::Value,
                         ).transpose()?;
                     } else {
-                        let statement = set_text_range_rc_node(
+                        let statement = set_text_range_id_node(
                             get_factory().create_variable_statement(
                                 Option::<Gc<NodeArray>>::None,
                                     get_factory().create_variable_declaration_list(

@@ -17,7 +17,7 @@ use crate::{
     is_property_access_expression, is_property_declaration, is_property_signature,
     is_prototype_property_assignment, is_set_accessor, is_single_or_double_quote,
     is_string_a_non_contextual_keyword, is_variable_declaration, length,
-    maybe_get_source_file_of_node, set_text_range_rc_node, some, strip_quotes, symbol_name,
+    maybe_get_source_file_of_node, set_text_range_id_node, some, strip_quotes, symbol_name,
     unescape_leading_underscores, AllArenas, BoolExt, Debug_, HasArena, InArena,
     InternalSymbolName, IteratorExt, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
     NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, OptionTry,
@@ -30,7 +30,7 @@ impl SymbolTableToDeclarationStatements {
         &self,
         local_name: &str,
         target_name: &str,
-        specifier: Option<impl Borrow<Node /*Expression*/>>,
+        specifier: Option<Id<Node /*Expression*/>>,
     ) {
         self.add_result(
             &get_factory().create_export_declaration(
@@ -394,7 +394,7 @@ impl SymbolTableToDeclarationStatements {
                 }
             }
             if private_protected != ModifierFlags::None {
-                return Ok(vec![set_text_range_rc_node(
+                return Ok(vec![set_text_range_id_node(
                     get_factory().create_constructor_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Some(get_factory().create_modifiers_from_modifier_flags(private_protected)),
@@ -416,7 +416,7 @@ impl SymbolTableToDeclarationStatements {
                     &self.context(),
                     Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
                 )?;
-            results.push(set_text_range_rc_node(decl, sig.declaration.as_deref()));
+            results.push(set_text_range_id_node(decl, sig.declaration.as_deref()));
         }
         Ok(results)
     }
@@ -776,7 +776,7 @@ impl MakeSerializePropertySymbol {
         {
             let mut result: Vec<Id<Node /*AccessorDeclaration*/>> = Default::default();
             if p.ref_(self).flags().intersects(SymbolFlags::SetAccessor) {
-                result.push(set_text_range_rc_node(
+                result.push(set_text_range_id_node(
                     get_factory().create_set_accessor_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Some(get_factory().create_modifiers_from_modifier_flags(flag)),
@@ -827,7 +827,7 @@ impl MakeSerializePropertySymbol {
             }
             if p.ref_(self).flags().intersects(SymbolFlags::GetAccessor) {
                 let is_private = modifier_flags.intersects(ModifierFlags::Private);
-                result.push(set_text_range_rc_node(
+                result.push(set_text_range_id_node(
                     get_factory().create_get_accessor_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Some(get_factory().create_modifiers_from_modifier_flags(flag)),
@@ -875,7 +875,7 @@ impl MakeSerializePropertySymbol {
             .flags()
             .intersects(SymbolFlags::Property | SymbolFlags::Variable | SymbolFlags::Accessor)
         {
-            return Ok(vec![set_text_range_rc_node(
+            return Ok(vec![set_text_range_id_node(
                 self.create_property.call(
                     None,
                     Some(
@@ -942,7 +942,7 @@ impl MakeSerializePropertySymbol {
                 .type_checker
                 .get_signatures_of_type(type_, SignatureKind::Call)?;
             if flag.intersects(ModifierFlags::Private) {
-                return Ok(vec![set_text_range_rc_node(
+                return Ok(vec![set_text_range_id_node(
                     self.create_property.call(
                         None,
                         Some(
@@ -1017,7 +1017,7 @@ impl MakeSerializePropertySymbol {
                     })
                     .map(|sig_declaration| sig_declaration.parent())
                     .or_else(|| sig.declaration.clone());
-                results.push(set_text_range_rc_node(decl, location.as_deref()));
+                results.push(set_text_range_id_node(decl, location.as_deref()));
             }
             return Ok(results);
         }

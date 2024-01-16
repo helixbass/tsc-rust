@@ -1190,7 +1190,7 @@ pub(crate) fn get_jsdoc_type_alias_name(
     })
 }
 
-pub fn can_have_modifiers(node: Id<Node>) -> bool {
+pub fn can_have_modifiers(node: &Node) -> bool {
     let kind = node.kind();
     matches!(
         kind,

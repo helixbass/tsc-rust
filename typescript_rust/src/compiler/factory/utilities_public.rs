@@ -1,7 +1,7 @@
 use gc::Gc;
 use id_arena::Id;
 
-use crate::{set_text_range_pos_end, Node, NodeArray, ReadonlyTextRange};
+use crate::{set_text_range_pos_end, Node, NodeArray, ReadonlyTextRange, HasArena, InArena};
 
 pub fn set_text_range<'a, TRange: ReadonlyTextRange + ?Sized>(
     range: &'a TRange,
@@ -16,11 +16,12 @@ pub fn set_text_range<'a, TRange: ReadonlyTextRange + ?Sized>(
     }
 }
 
-pub fn set_text_range_rc_node(
+pub fn set_text_range_id_node(
     node: Id<Node>,
     location: Option<&(impl ReadonlyTextRange + ?Sized)>,
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    set_text_range(&*node, location);
+    set_text_range(&*node.ref_(arena), location);
     node
 }
 

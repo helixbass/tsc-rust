@@ -60,7 +60,7 @@ use crate::{
     add_emit_flags, add_emit_helpers, add_synthetic_leading_comment,
     add_synthetic_trailing_comment, get_emit_flags, move_synthetic_comments, remove_all_comments,
     set_comment_range, set_emit_flags, set_original_node, set_parent_recursive,
-    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_rc_node,
+    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_id_node,
     start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper, GcVec,
     HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
     HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
@@ -2116,7 +2116,7 @@ pub trait NodeExt {
 
 impl NodeExt for Id<Node> {
     fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>) -> Self {
-        set_text_range_rc_node(self, location)
+        set_text_range_id_node(self, location)
     }
 
     fn set_text_range_pos(self, pos: isize) -> Self {

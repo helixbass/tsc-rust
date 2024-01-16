@@ -22,7 +22,7 @@ use crate::{
     is_modifier, is_object_literal_element_like, is_property_access_expression, is_property_name,
     is_super_property, is_token, is_variable_declaration_list, maybe_visit_each_child,
     maybe_visit_node, maybe_visit_nodes, process_tagged_template_expression, set_emit_flags,
-    set_original_node, set_text_range_node_array, set_text_range_rc_node, skip_parentheses, some,
+    set_original_node, set_text_range_node_array, set_text_range_id_node, skip_parentheses, some,
     unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body,
     visit_lexical_environment, visit_node, visit_parameter_list, BaseNodeFactorySynthetic,
     CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel,
@@ -543,9 +543,9 @@ impl TransformES2018 {
                                     self.factory.update_yield_expression(
                                         node,
                                         node_as_yield_expression.asterisk_token.clone(),
-                                        Some(set_text_range_rc_node(
+                                        Some(set_text_range_id_node(
                                             self.emit_helpers().create_async_delegator_helper(
-                                                set_text_range_rc_node(
+                                                set_text_range_id_node(
                                                     self.emit_helpers().create_async_values_helper(
                                                         expression.clone(),
                                                     ),
