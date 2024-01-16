@@ -104,17 +104,15 @@ impl NodeBuilder {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Node>> {
         Debug_.assert(type_.ref_(self).flags().intersects(TypeFlags::Object), None);
-        let type_ref = type_.ref_(self);
+        let type_declaration_ref = type_.ref_(self).as_mapped_type().declaration.ref_(self);
         let type_declaration_as_mapped_type_node =
-            type_ref.as_mapped_type().declaration.as_mapped_type_node();
+            type_declaration_ref.as_mapped_type_node();
         let readonly_token: Option<Id<Node>> = type_declaration_as_mapped_type_node
             .readonly_token
-            .as_ref()
-            .map(|readonly_token| get_factory().create_token(readonly_token.kind()));
+            .map(|readonly_token| get_factory().create_token(readonly_token.ref_(self).kind()));
         let question_token: Option<Id<Node>> = type_declaration_as_mapped_type_node
             .question_token
-            .as_ref()
-            .map(|question_token| get_factory().create_token(question_token.kind()));
+            .map(|question_token| get_factory().create_token(question_token.ref_(self).kind()));
         let appropriate_constraint_type_node: Id<Node /*TypeNode*/>;
         if self
             .type_checker
@@ -205,7 +203,10 @@ impl NodeBuilder {
                     .type_checker
                     .get_base_type_variable_of_class(symbol)?
                     .is_none()
-                && !(matches!(symbol.ref_(self).maybe_value_declaration(), Some(value_declaration) if value_declaration.kind() == SyntaxKind::ClassExpression)
+                && !(matches!(
+                    symbol.ref_(self).maybe_value_declaration(),
+                    Some(value_declaration) if value_declaration.ref_(self).kind() == SyntaxKind::ClassExpression
+                )
                     && context
                         .flags()
                         .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral))
@@ -252,7 +253,7 @@ impl NodeBuilder {
                         symbol.ref_(self).maybe_declarations().as_deref(),
                         |declaration: &Id<Node>, _| {
                             matches!(
-                                declaration.parent().kind(),
+                                declaration.ref_(self).parent().ref_(self).kind(),
                                 SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
                             )
                         },
@@ -267,7 +268,7 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::UseStructuralFallback)
                     || self.type_checker.is_value_symbol_accessible(
                         symbol,
-                        context.maybe_enclosing_declaration().as_deref(),
+                        context.maybe_enclosing_declaration(),
                     )?));
         }
         Ok(false)
@@ -304,13 +305,14 @@ impl NodeBuilder {
             Some(format!(
                 "N{}",
                 get_node_id(
-                    type_
+                    &type_
                         .ref_(self)
                         .as_type_reference()
                         .node
                         .borrow()
-                        .as_ref()
+                        .copied()
                         .unwrap()
+                        .ref_(self)
                 )
             ))
         } else if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
@@ -320,7 +322,7 @@ impl NodeBuilder {
                     &(*type_.ref_(self).as_conditional_type().root)
                         .borrow()
                         .node
-                        .clone()
+                        .ref_(self)
                 )
             ))
         } else if let Some(type_symbol) = type_.ref_(self).maybe_symbol() {
@@ -340,7 +342,6 @@ impl NodeBuilder {
         }
         let links = context
             .maybe_enclosing_declaration()
-            .as_ref()
             .map(|enclosing_declaration| self.type_checker.get_node_links(enclosing_declaration));
         let key = format!(
             "{}|{}",
@@ -367,7 +368,7 @@ impl NodeBuilder {
                 context.truncating.set(Some(true));
             }
             context.increment_approximate_length_by(cached_result.added_length);
-            return Ok(self.deep_clone_or_reuse_node(&cached_result.node));
+            return Ok(self.deep_clone_or_reuse_node(cached_result.node));
         }
         let mut depth: Option<usize> = None;
         if let Some(id) = id.as_ref() {
@@ -439,22 +440,23 @@ impl NodeBuilder {
     }
 
     pub(super) fn deep_clone_or_reuse_node(&self, node: Id<Node>) -> Id<Node> {
-        if !node_is_synthesized(node)
-            && matches!(
-                get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self),
-                Some(parse_tree_node) if ptr::eq(&*parse_tree_node, node)
-            )
+        if !node_is_synthesized(&*node.ref_(self))
+            && get_parse_tree_node(
+                Some(node),
+                Option::<fn(Id<Node>) -> bool>::None,
+                self
+            ) == Some(node)
         {
-            return node.node_wrapper();
+            return node;
         }
         let ret = factory.with(|factory_| {
-            factory_.clone_node(&visit_each_child(
-                node,
+            factory_.clone_node(visit_each_child(
+                &node.ref_(self),
                 |node: Id<Node>| Some(self.deep_clone_or_reuse_node(node).into()),
                 &*null_transformation_context,
             ))
         });
-        set_text_range(&*ret, Some(node));
+        set_text_range(&*ret.ref_(self), Some(node));
         ret
     }
 
@@ -708,7 +710,7 @@ impl NodeBuilder {
                                         get_factory().create_identifier(
                                             &unescape_leading_underscores(
                                                 &self.type_checker.get_tuple_element_label(
-                                                    &type_target_labeled_element_declarations[i],
+                                                    type_target_labeled_element_declarations[i],
                                                 ),
                                             ),
                                         ),
@@ -785,10 +787,13 @@ impl NodeBuilder {
             } else if context
                 .flags()
                 .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
-                && matches!(type_.ref_(self).symbol().ref_(self).maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
+                && matches!(
+                    type_.ref_(self).symbol().ref_(self).maybe_value_declaration(),
+                    Some(value_declaration) if is_class_like(&value_declaration.ref_(self))
+                )
                 && !self.type_checker.is_value_symbol_accessible(
                     type_.ref_(self).symbol(),
-                    context.maybe_enclosing_declaration().as_deref(),
+                    context.maybe_enclosing_declaration(),
                 )?
             {
                 Some(self.create_anonymous_type_node(context, type_)?)
@@ -836,7 +841,7 @@ impl NodeBuilder {
                             result_type = match result_type {
                                 None => Some(ref_),
                                 Some(result_type) => {
-                                    Some(self.append_reference_to_type(&result_type, &ref_))
+                                    Some(self.append_reference_to_type(result_type, ref_))
                                 }
                             };
                         }
@@ -868,7 +873,7 @@ impl NodeBuilder {
                 context.set_flags(flags);
                 Some(match result_type {
                     None => final_ref,
-                    Some(result_type) => self.append_reference_to_type(&result_type, &final_ref),
+                    Some(result_type) => self.append_reference_to_type(result_type, final_ref),
                 })
             },
         )
@@ -879,30 +884,31 @@ impl NodeBuilder {
         root: Id<Node>, /*TypeReferenceNode | ImportTypeNode*/
         ref_: Id<Node>, /*TypeReferenceNode*/
     ) -> Id<Node /*TypeReferenceNode | ImportTypeNode*/> {
-        if is_import_type_node(root) {
-            let root_as_import_type_node = root.as_import_type_node();
+        if is_import_type_node(&root.ref_(self)) {
+            let root_ref = root.ref_(self);
+            let root_as_import_type_node = root_ref.as_import_type_node();
             let type_arguments = root_as_import_type_node.maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
-            let mut qualifier: Option<Id<Node>> = root_as_import_type_node.qualifier.clone();
+            let mut qualifier: Option<Id<Node>> = root_as_import_type_node.qualifier;
             if let Some(qualifier_present) = qualifier {
                 if is_identifier(&qualifier_present) {
                     qualifier = Some(factory.with(|factory_| {
-                        factory_.update_identifier(&qualifier_present, type_arguments.cloned())
+                        factory_.update_identifier(qualifier_present, type_arguments.cloned())
                     }));
                 } else {
                     qualifier = Some(factory.with(|factory_| {
                         factory_.update_qualified_name(
-                            &qualifier_present,
-                            qualifier_present.as_qualified_name().left.clone(),
+                            qualifier_present,
+                            qualifier_present.ref_(self).as_qualified_name().left,
                             factory_.update_identifier(
-                                &qualifier_present.as_qualified_name().right,
+                                qualifier_present.ref_(self).as_qualified_name().right,
                                 type_arguments.cloned(),
                             ),
                         )
                     }));
                 }
             }
-            let type_arguments = ref_.as_type_reference_node().maybe_type_arguments();
+            let type_arguments = ref_.ref_(self).as_type_reference_node().maybe_type_arguments();
             let type_arguments = type_arguments.as_deref();
             let ids = self.get_access_stack(ref_);
             for id in ids {
@@ -924,7 +930,8 @@ impl NodeBuilder {
                     .into()
             })
         } else {
-            let root_as_type_reference_node = root.as_type_reference_node();
+            let root_ref = root.ref_(self);
+            let root_as_type_reference_node = root_ref.as_type_reference_node();
             let type_arguments = root_as_type_reference_node.maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
             let mut type_name: Id<Node> = root_as_type_reference_node.type_name.clone();
@@ -944,7 +951,7 @@ impl NodeBuilder {
                     )
                 });
             }
-            let type_arguments = ref_.as_type_reference_node().maybe_type_arguments();
+            let type_arguments = ref_.ref_(self).as_type_reference_node().maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
             let ids = self.get_access_stack(ref_);
             for id in ids {
@@ -960,14 +967,14 @@ impl NodeBuilder {
         &self,
         ref_: Id<Node>, /*TypeReferenceNode*/
     ) -> Vec<Id<Node /*Identifier*/>> {
-        let mut state: &Id<Node> = &ref_.as_type_reference_node().type_name;
+        let mut state: Id<Node> = ref_.ref_(self).as_type_reference_node().type_name;
         let mut ids = vec![];
-        while !is_identifier(&state) {
+        while !is_identifier(&state.ref_(self)) {
             let state_as_qualified_name = state.as_qualified_name();
             ids.insert(0, state_as_qualified_name.right.clone());
             state = &state_as_qualified_name.left;
         }
-        ids.insert(0, state.clone());
+        ids.insert(0, state);
         ids
     }
 
@@ -1101,10 +1108,9 @@ impl NodeBuilder {
             });
         }
         factory.with(|factory_| {
-            Into::<KeywordTypeNode>::into(
+            self.alloc_node(KeywordTypeNode::from(
                 factory_.create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
-            )
-            .wrap()
+            ).into())
         })
     }
 
@@ -1155,31 +1161,31 @@ impl NodeBuilder {
             if let Some(property_symbol_declarations) =
                 property_symbol.ref_(self).maybe_declarations().as_ref()
             {
-                let decl: &Id<Node> = first(property_symbol_declarations);
+                let decl = *first(property_symbol_declarations);
                 if self.type_checker.has_late_bindable_name(decl)? {
-                    if is_binary_expression(decl) {
+                    if is_binary_expression(&decl.ref_(self)) {
                         let name = get_name_of_declaration(Some(decl), self);
                         if let Some(name) = name.as_ref().filter(|name| {
-                            is_element_access_expression(name)
+                            is_element_access_expression(&name.ref_(self))
                                 && is_property_access_entity_name_expression(
-                                    name.as_element_access_expression().argument_expression,
+                                    name.ref_(self).as_element_access_expression().argument_expression,
                                     self,
                                 )
                         }) {
                             self.track_computed_name(
-                                &name.as_element_access_expression().argument_expression,
-                                save_enclosing_declaration.as_deref(),
+                                name.as_element_access_expression().argument_expression,
+                                save_enclosing_declaration,
                                 context,
                             )?;
                         }
                     } else {
                         self.track_computed_name(
-                            &decl
-                                .as_named_declaration()
+                            decl
+                                .ref_(self).as_named_declaration()
                                 .name()
-                                .as_has_expression()
+                                .ref_(self).as_has_expression()
                                 .expression(),
-                            save_enclosing_declaration.as_deref(),
+                            save_enclosing_declaration,
                             context,
                         )?;
                     }
@@ -1276,7 +1282,7 @@ impl NodeBuilder {
                         context,
                         property_type,
                         property_symbol,
-                        save_enclosing_declaration.as_deref(),
+                        save_enclosing_declaration,
                         Option::<&fn(Id<Symbol>)>::None,
                         None,
                     )?

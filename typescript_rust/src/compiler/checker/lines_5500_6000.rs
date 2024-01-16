@@ -38,7 +38,7 @@ impl NodeBuilder {
     ) -> Id<Node> {
         if some(
             property_symbol.ref_(self).maybe_declarations().as_deref(),
-            Some(|d: &Id<Node>| d.kind() == SyntaxKind::JSDocPropertyTag),
+            Some(|d: &Id<Node>| d.ref_(self).kind() == SyntaxKind::JSDocPropertyTag),
         ) {
             let d: Id<Node> = property_symbol
                 .ref_(self)
@@ -46,10 +46,10 @@ impl NodeBuilder {
                 .as_ref()
                 .unwrap()
                 .into_iter()
-                .find(|d| d.kind() == SyntaxKind::JSDocPropertyTag)
-                .cloned()
+                .find(|d| d.ref_(self).kind() == SyntaxKind::JSDocPropertyTag)
+                .copied()
                 .unwrap();
-            let comment_text = get_text_of_jsdoc_comment(d.as_jsdoc_tag().maybe_comment().map(
+            let comment_text = get_text_of_jsdoc_comment(d.ref_(self).as_jsdoc_tag().maybe_comment().map(
                 |d_comment| -> StrOrNodeArray {
                     match d_comment {
                         StringOrNodeArray::String(d_comment) => (&**d_comment).into(),
@@ -62,7 +62,7 @@ impl NodeBuilder {
                 .filter(|comment_text| !comment_text.is_empty())
             {
                 set_synthetic_leading_comments(
-                    &node,
+                    node,
                     Some(vec![Rc::new(SynthesizedComment {
                         kind: SyntaxKind::MultiLineCommentTrivia,
                         text: format!("*\n * {}\n ", comment_text.replace("\n", "\n * ")),

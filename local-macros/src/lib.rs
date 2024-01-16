@@ -3808,7 +3808,7 @@ pub fn generate_node_factory_method_wrapper(_attr: TokenStream, item: TokenStrea
     let forwarded_arguments = quote!(#(#forwarded_arguments),*);
     let wrapper_fn_body_token_stream: TokenStream = quote! {
         {
-            self.alloc_node(self.#raw_method_name_ident(#forwarded_arguments).into())
+            crate::HasArena::alloc_node(self, self.#raw_method_name_ident(#forwarded_arguments).into())
         }
     }
     .into();

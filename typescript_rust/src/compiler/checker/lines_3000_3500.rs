@@ -493,7 +493,7 @@ impl TypeChecker {
                 self.get_cannot_find_name_diagnostic_for_name(get_first_identifier(name, self))
             };
             let symbol_from_js_prototype =
-                if is_in_js_file(Some(&name.ref_(self))) && !node_is_synthesized(&name.ref_(self)) {
+                if is_in_js_file(Some(&name.ref_(self))) && !node_is_synthesized(&*name.ref_(self)) {
                     self.resolve_entity_name_from_assignment_declaration(name, meaning)?
                 } else {
                     None
@@ -561,8 +561,8 @@ impl TypeChecker {
                                 .ref_(self).as_call_expression()
                                 .arguments[0];
                             let module_sym = self.resolve_external_module_name_(
-                                &module_name,
-                                &module_name,
+                                module_name,
+                                module_name,
                                 None,
                             )?;
                             if let Some(module_sym) = module_sym {
@@ -667,7 +667,7 @@ impl TypeChecker {
             !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated),
             Some("Should never get an instantiated symbol here."),
         );
-        if !node_is_synthesized(&name.ref_(self))
+        if !node_is_synthesized(&*name.ref_(self))
             && is_entity_name(&name.ref_(self))
             && (symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
                 || name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment)
@@ -940,7 +940,7 @@ impl TypeChecker {
                 .maybe_implied_node_format()
         };
         let resolved_module =
-            get_resolved_module(Some(current_source_file), module_reference, mode);
+            get_resolved_module(Some(&current_source_file.ref_(self)), module_reference, mode);
         let resolution_diagnostic = resolved_module.as_ref().and_then(|resolved_module| {
             get_resolution_diagnostic(&self.compiler_options, resolved_module)
         });

@@ -856,7 +856,7 @@ impl TypeChecker {
 
             let type_only_declaration_name = type_only_declaration.ref_(self).as_named_declaration().name();
             let name = unescape_leading_underscores(
-                &type_only_declaration_name.as_identifier().escaped_text,
+                &type_only_declaration_name.ref_(self).as_identifier().escaped_text,
             );
             add_related_info(
                 &self.error(
@@ -1000,11 +1000,11 @@ impl TypeChecker {
             return Ok(true);
         }
         let file = file.unwrap();
-        if !is_source_file_js(&file) {
+        if !is_source_file_js(&file.ref_(self)) {
             return Ok(self.has_export_assignment_symbol(module_symbol));
         }
         Ok(file
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_external_module_indicator()
             .is_none()
             && self
@@ -1093,7 +1093,7 @@ impl TypeChecker {
                         &err,
                         vec![
                             create_diagnostic_for_node(
-                                &export_assignment,
+                                export_assignment,
                                 &Diagnostics::This_module_is_declared_with_using_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag,
                                 Some(
                                     vec![
@@ -1219,9 +1219,9 @@ impl TypeChecker {
             .ref_(self).parent()
             .ref_(self).as_import_declaration()
             .module_specifier;
-        let immediate = self.resolve_external_module_name_(node, &module_specifier, None)?;
+        let immediate = self.resolve_external_module_name_(node, module_specifier, None)?;
         let resolved =
-            self.resolve_es_module_symbol(immediate, &module_specifier, dont_resolve_alias, false)?;
+            self.resolve_es_module_symbol(immediate, module_specifier, dont_resolve_alias, false)?;
         self.mark_symbol_of_alias_declaration_if_type_only(Some(node), immediate, resolved, false)?;
         Ok(resolved)
     }
@@ -1381,7 +1381,7 @@ impl TypeChecker {
             return Ok(None);
         }
         let name_ref = name.ref_(self);
-        let name_as_identifier = name.as_identifier();
+        let name_as_identifier = name_ref.as_identifier();
         let suppress_interop_error = name_as_identifier.escaped_text == InternalSymbolName::Default
             && (matches!(
                 self.compiler_options.allow_synthetic_default_imports,
@@ -1431,7 +1431,7 @@ impl TypeChecker {
                 self.resolve_symbol(symbol_from_variable, Some(dont_resolve_alias))?;
 
             let mut symbol_from_module =
-                self.get_export_of_module(target_symbol, &name, specifier, dont_resolve_alias)?;
+                self.get_export_of_module(target_symbol, name, specifier, dont_resolve_alias)?;
             if symbol_from_module.is_none()
                 && name_as_identifier.escaped_text == InternalSymbolName::Default
             {
@@ -1479,7 +1479,7 @@ impl TypeChecker {
                 let module_name = self.get_fully_qualified_name(module_symbol, Some(node))?;
                 let declaration_name = declaration_name_to_string(Some(name), self);
                 let suggestion =
-                    self.get_suggested_symbol_for_nonexistent_module(&name, target_symbol)?;
+                    self.get_suggested_symbol_for_nonexistent_module(name, target_symbol)?;
                 if let Some(suggestion) = suggestion {
                     let suggestion_name = self.symbol_to_string_(
                         suggestion,
@@ -1489,7 +1489,7 @@ impl TypeChecker {
                         None,
                     )?;
                     let diagnostic = self.error(
-                        Some(&*name),
+                        Some(name),
                         &Diagnostics::_0_has_no_exported_member_named_1_Did_you_mean_2,
                         Some(vec![
                             module_name,
@@ -1517,7 +1517,7 @@ impl TypeChecker {
                         Some(exports) if (**exports).borrow().contains_key(InternalSymbolName::Default)
                     ) {
                         self.error(
-                            Some(&*name),
+                            Some(name),
                             &Diagnostics::Module_0_has_no_exported_member_1_Did_you_mean_to_use_import_1_from_0_instead,
                             Some(vec![
                                 module_name,
@@ -1527,7 +1527,7 @@ impl TypeChecker {
                     } else {
                         self.report_non_exported_member(
                             node,
-                            &name,
+                            name,
                             declaration_name.into_owned(),
                             module_symbol,
                             module_name,
@@ -1631,7 +1631,7 @@ impl TypeChecker {
                 {
                     add_related_info(
                         &diagnostic,
-                        map(local_symbol_declarations, |decl: &Id<Node>, index| {
+                        map(local_symbol_declarations, |&decl: &Id<Node>, index| {
                             create_diagnostic_for_node(
                                 decl,
                                 if index == 0 {
@@ -1711,7 +1711,7 @@ impl TypeChecker {
         } else {
             node.ref_(self).parent().ref_(self).parent().ref_(self).parent()
         };
-        let common_js_property_access = self.get_common_js_property_access(&root);
+        let common_js_property_access = self.get_common_js_property_access(root);
         let common_js_property_access_is_some = common_js_property_access.is_some();
         let resolved = self.get_external_module_member(
             root,
@@ -1724,11 +1724,11 @@ impl TypeChecker {
             .unwrap_or_else(|| node.ref_(self).as_named_declaration().name());
         if common_js_property_access_is_some {
             if let Some(resolved) = resolved {
-                if is_identifier(&name) {
+                if is_identifier(&name.ref_(self)) {
                     return self.resolve_symbol(
                         self.get_property_of_type_(
                             self.get_type_of_symbol(resolved)?,
-                            &name.as_identifier().escaped_text,
+                            &name.ref_(self).as_identifier().escaped_text,
                             None,
                         )?,
                         Some(dont_resolve_alias),
@@ -1794,14 +1794,13 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_export_specifier = node_ref.as_export_specifier();
             self.resolve_entity_name(
-                &node_as_export_specifier
+                node_as_export_specifier
                     .property_name
-                    .clone()
-                    .unwrap_or_else(|| node_as_export_specifier.name.clone()),
+                    .unwrap_or_else(|| node_as_export_specifier.name),
                 meaning,
                 Some(false),
                 dont_resolve_alias,
-                Option::<Id<Node>>::None,
+                None,
             )?
         };
         self.mark_symbol_of_alias_declaration_if_type_only(

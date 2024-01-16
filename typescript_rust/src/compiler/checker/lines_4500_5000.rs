@@ -182,7 +182,7 @@ impl TypeChecker {
             }
             append_if_unique_eq(
                 aliases_to_make_visible.as_mut().unwrap(),
-                aliasing_statement,
+                &aliasing_statement,
             );
         }
         true
@@ -215,7 +215,7 @@ impl TypeChecker {
             &first_identifier.ref_(self).as_identifier().escaped_text,
             meaning,
             None,
-            None,
+            Option::<Id<Node>>::None,
             false,
             None,
         )?;
@@ -274,14 +274,14 @@ impl TypeChecker {
                 symbol,
                 // meaning.unwrap() TODO: this is ! in the Typescript code but would be undefined at runtime when called from propertyRelatedTo()?
                 meaning,
-                enclosing_declaration.as_deref(),
+                enclosing_declaration,
                 Some(node_flags),
                 None,
             )?
             .unwrap();
             let printer = if matches!(
-                enclosing_declaration.as_ref(),
-                Some(enclosing_declaration) if enclosing_declaration.kind() == SyntaxKind::SourceFile
+                enclosing_declaration,
+                Some(enclosing_declaration) if enclosing_declaration.ref_(self).kind() == SyntaxKind::SourceFile
             ) {
                 create_printer(
                     PrinterOptionsBuilder::default()
@@ -301,7 +301,6 @@ impl TypeChecker {
                 )
             };
             let source_file = enclosing_declaration
-                .as_deref()
                 .and_then(|enclosing_declaration| {
                     maybe_get_source_file_of_node(Some(enclosing_declaration), self)
                 });
@@ -379,7 +378,7 @@ impl TypeChecker {
         let sig = self.node_builder().signature_to_signature_declaration(
             signature,
             sig_output,
-            enclosing_declaration.as_deref(),
+            enclosing_declaration,
             Some(
                 self.to_node_builder_flags(Some(flags))
                     | NodeBuilderFlags::IgnoreErrors
@@ -426,7 +425,7 @@ impl TypeChecker {
             || flags.intersects(TypeFormatFlags::NoTruncation);
         let type_node = self.node_builder().type_to_type_node(
             type_,
-            enclosing_declaration.as_deref(),
+            enclosing_declaration,
             Some(
                 self.to_node_builder_flags(Some(flags))
                     | NodeBuilderFlags::IgnoreErrors
@@ -718,10 +717,10 @@ impl NodeBuilder {
         cb: impl FnOnce(&NodeBuilderContext) -> Option<TReturn>,
     ) -> Option<TReturn> {
         Debug_.assert(
-            match enclosing_declaration.as_ref() {
+            match enclosing_declaration {
                 None => true,
                 Some(enclosing_declaration) => !enclosing_declaration
-                    .flags()
+                    .ref_(self).flags()
                     .intersects(NodeFlags::Synthesized),
             },
             None,
@@ -866,63 +865,58 @@ impl NodeBuilder {
                 )));
             }
             if type_ == self.type_checker.unresolved_type() {
-                let ret: Node = Into::<KeywordTypeNode>::into(
+                let ret = self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
                 )
-                .into();
+                .into());
                 add_synthetic_leading_comment(
-                    &ret,
+                    ret,
                     SyntaxKind::MultiLineCommentTrivia,
                     "unresolved",
                     None,
                 );
-                return Ok(Some(ret.wrap()));
+                return Ok(Some(ret));
             }
             context.increment_approximate_length_by(3);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(get_factory().create_keyword_type_node_raw(
+                self.alloc_node(KeywordTypeNode::from(get_factory().create_keyword_type_node_raw(
                     if type_ == self.type_checker.intrinsic_marker_type() {
                         SyntaxKind::IntrinsicKeyword
                     } else {
                         SyntaxKind::AnyKeyword
                     },
-                ))
-                .wrap(),
+                )).into())
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Unknown) {
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::UnknownKeyword),
-                )
-                .wrap(),
+                ).into())
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::String) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::StringKeyword),
-                )
-                .wrap(),
+                ).into()),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Number) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::NumberKeyword),
-                )
-                .wrap(),
+                ).into())
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::BigInt) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::BigIntKeyword),
-                )
-                .wrap(),
+                ).into())
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Boolean)
@@ -930,10 +924,9 @@ impl NodeBuilder {
         {
             context.increment_approximate_length_by(7);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::BooleanKeyword),
-                )
-                .wrap(),
+                ).into())
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral)
@@ -957,18 +950,19 @@ impl NodeBuilder {
             if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
                 return Ok(Some(
                     self.append_reference_to_type(
-                        &parent_name,
-                        &get_factory()
+                        parent_name,
+                        self.alloc_node(get_factory()
                             .create_type_reference_node_raw(
                                 &*member_name,
                                 Option::<Gc<NodeArray>>::None,
                             )
                             .into(),
+                        ),
                     ),
                 ));
             }
-            if is_import_type_node(&parent_name) {
-                parent_name.as_import_type_node().set_is_type_of(true);
+            if is_import_type_node(&parent_name.ref_(self)) {
+                parent_name.ref_(self).as_import_type_node().set_is_type_of(true);
                 return Ok(Some(get_factory().create_indexed_access_type_node(
                     parent_name,
                     get_factory().create_literal_type_node(get_factory().create_string_literal(
@@ -977,10 +971,10 @@ impl NodeBuilder {
                         None,
                     )),
                 )));
-            } else if is_type_reference_node(&parent_name) {
+            } else if is_type_reference_node(&parent_name.ref_(self)) {
                 return Ok(Some(get_factory().create_indexed_access_type_node(
                     get_factory().create_type_query_node(
-                        parent_name.as_type_reference_node().type_name.clone(),
+                        parent_name.ref_(self).as_type_reference_node().type_name,
                     ),
                     get_factory().create_literal_type_node(get_factory().create_string_literal(
                         member_name.into_owned(),
@@ -1064,12 +1058,11 @@ impl NodeBuilder {
             context.increment_approximate_length_by(type_intrinsic_name.len());
             return Ok(Some(
                 get_factory().create_literal_type_node(
-                    if type_intrinsic_name == "true" {
+                    self.alloc_node(if type_intrinsic_name == "true" {
                         get_factory().create_true_raw()
                     } else {
                         get_factory().create_false_raw()
-                    }
-                    .wrap(),
+                    }.into()),
                 ),
             ));
         }
@@ -1084,7 +1077,7 @@ impl NodeBuilder {
             {
                 if self.type_checker.is_value_symbol_accessible(
                     type_.ref_(self).symbol(),
-                    context.maybe_enclosing_declaration().as_deref(),
+                    context.maybe_enclosing_declaration(),
                 )? {
                     context.increment_approximate_length_by(6);
                     return Ok(Some(self.symbol_to_type_node(
@@ -1102,29 +1095,26 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory().create_type_operator_node(
                     SyntaxKind::UniqueKeyword,
-                    Into::<KeywordTypeNode>::into(
+                    self.alloc_node(KeywordTypeNode::from(
                         get_factory().create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
-                    )
-                    .wrap(),
+                    ).into()),
                 ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Void) {
             context.increment_approximate_length_by(4);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::VoidKeyword),
-                )
-                .wrap(),
+                ).into())
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Undefined) {
             context.increment_approximate_length_by(9);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::UndefinedKeyword),
-                )
-                .wrap(),
+                ).into())
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Null) {
@@ -1136,28 +1126,25 @@ impl NodeBuilder {
         if type_.ref_(self).flags().intersects(TypeFlags::Never) {
             context.increment_approximate_length_by(5);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::NeverKeyword),
-                )
-                .wrap(),
+                ).into()),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::ESSymbol) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
-                )
-                .wrap(),
+                ).into()),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::NonPrimitive) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::ObjectKeyword),
-                )
-                .wrap(),
+                ).into()),
             ));
         }
         if self.type_checker.is_this_type_parameter(type_) {
@@ -1187,7 +1174,7 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
                     || self.type_checker.is_type_symbol_accessible(
                         type_alias_symbol,
-                        context.maybe_enclosing_declaration().as_deref(),
+                        context.maybe_enclosing_declaration(),
                     )?
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
@@ -1265,13 +1252,13 @@ impl NodeBuilder {
                     .intersects(TypeFlags::TypeParameter)
                 && !self.type_checker.is_type_symbol_accessible(
                     type_.ref_(self).symbol(),
-                    context.maybe_enclosing_declaration().as_deref(),
+                    context.maybe_enclosing_declaration(),
                 )?
             {
                 let name = self.type_parameter_to_name(type_, context)?;
-                context.increment_approximate_length_by(id_text(&name).len());
+                context.increment_approximate_length_by(id_text(&name.ref_(self)).len());
                 return Ok(Some(get_factory().create_type_reference_node(
-                    get_factory().create_identifier(&id_text(&name)),
+                    get_factory().create_identifier(&id_text(&name.ref_(self))),
                     Option::<Gc<NodeArray>>::None,
                 )));
             }

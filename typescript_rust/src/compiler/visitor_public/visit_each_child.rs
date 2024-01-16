@@ -35,7 +35,7 @@ use crate::{
 
 #[inline(always)]
 pub fn visit_each_child(
-    node: Id<Node>,
+    node: &Node,
     visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
 ) -> Id<Node> {
@@ -44,7 +44,7 @@ pub fn visit_each_child(
 
 #[inline(always)]
 pub fn maybe_visit_each_child(
-    node: Option<Id<Node>>,
+    node: Option<&Node>,
     visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
 ) -> Option<Id<Node>> {
@@ -74,7 +74,7 @@ pub fn maybe_visit_each_child(
 }
 
 pub fn maybe_visit_each_child_full(
-    node: Option<Id<Node>>,
+    node: Option<&Node>,
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
@@ -120,14 +120,13 @@ pub fn maybe_visit_each_child_full(
         }
     };
     let node = node?;
-    let node: Id<Node> = node.borrow();
 
     let kind = node.kind();
 
     if kind > SyntaxKind::FirstToken && kind <= SyntaxKind::LastToken
         || kind == SyntaxKind::ThisType
     {
-        return Some(node.node_wrapper());
+        return Some(node.arena_id());
     }
 
     let factory = context.factory();

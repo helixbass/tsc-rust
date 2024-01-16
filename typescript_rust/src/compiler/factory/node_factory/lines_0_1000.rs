@@ -1094,7 +1094,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_identifier(
         &self,
-        node: Id<Node>, /*Identifier*/
+        node: &Node, /*Identifier*/
         type_arguments: Option<
             impl Into<NodeArrayOrVec>, /*<TypeNode | TypeParameterDeclaration>*/
         >,

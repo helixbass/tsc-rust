@@ -229,9 +229,9 @@ impl TypeChecker {
                 || is_import_call(reference_parent, self)
             {
                 let reference = if is_import_call(reference_parent, self) {
-                    &reference_parent.as_call_expression().arguments[0]
+                    reference_parent.ref_(self).as_call_expression().arguments[0]
                 } else {
-                    &reference_parent.as_import_declaration().module_specifier
+                    reference_parent.ref_(self).as_import_declaration().module_specifier
                 };
                 let type_ = self.get_type_of_symbol(symbol)?;
                 let default_only_type = self.get_type_with_synthetic_default_only(
@@ -244,7 +244,7 @@ impl TypeChecker {
                     return Ok(Some(self.clone_type_as_module_type(
                         symbol,
                         default_only_type,
-                        &reference_parent,
+                        reference_parent,
                     )?));
                 }
 
@@ -273,7 +273,7 @@ impl TypeChecker {
                         return Ok(Some(self.clone_type_as_module_type(
                             symbol,
                             module_type,
-                            &reference_parent,
+                            reference_parent,
                         )?));
                     }
                 }
@@ -526,7 +526,8 @@ impl TypeChecker {
                                 specifier_text: get_text_of_node(
                                     export_node
                                         .ref_(self).as_export_declaration()
-                                        .module_specifier,
+                                        .module_specifier
+                                        .unwrap(),
                                     None,
                                     self,
                                 )
@@ -537,8 +538,7 @@ impl TypeChecker {
                     }
                 }
             } else if let Some(lookup_table) = lookup_table.as_mut() {
-                if let Some(export_node) = export_node.as_ref() {
-                    let export_node = export_node.borrow();
+                if let Some(export_node) = export_node {
                     if matches!(
                         target_symbol,
                         Some(target_symbol) if self.resolve_symbol(Some(target_symbol), None)?.unwrap() !=
@@ -639,7 +639,8 @@ impl TypeChecker {
                             Some(vec![
                                 lookup_table.get(id).unwrap().specifier_text.clone(),
                                 unescape_leading_underscores(id).to_owned()
-                            ])
+                            ]),
+                            self,
                         ).into()
                     );
                 }
@@ -705,8 +706,8 @@ impl TypeChecker {
         let Some(containing_file_imports) =
             containing_file.ref_(self).as_source_file().maybe_imports().as_ref()
         {
-            for import_ref in containing_file_imports {
-                if node_is_synthesized(&**import_ref) {
+            for &import_ref in containing_file_imports {
+                if node_is_synthesized(&*import_ref.ref_(self)) {
                     continue;
                 }
                 let resolved_module = self.resolve_external_module_name_(
@@ -783,7 +784,6 @@ impl TypeChecker {
                     },
                 )?;
                 let mut reexport_containers = enclosing_declaration
-                    .as_ref()
                     .map(|enclosing_declaration| {
                         self.get_alternative_containing_modules(symbol, enclosing_declaration)
                     })
@@ -798,7 +798,7 @@ impl TypeChecker {
                         && self
                             .get_accessible_symbol_chain(
                                 Some(container),
-                                Some(&**enclosing_declaration),
+                                Some(enclosing_declaration),
                                 SymbolFlags::Namespace,
                                 false,
                                 None,
@@ -829,7 +829,7 @@ impl TypeChecker {
                     && meaning == SymbolFlags::Value
                 {
                     self.try_for_each_symbol_table_in_scope(
-                        enclosing_declaration.as_deref(),
+                        enclosing_declaration,
                         |t, _, _, _| -> io::Result<_> {
                             try_for_each_entry(
                                 &*(*t).borrow(),
@@ -943,7 +943,7 @@ impl TypeChecker {
         if meaning.intersects(SymbolFlags::Value) {
             if let Some(first_decl) = first_decl {
                 if let Some(first_decl_parent) = first_decl.ref_(self).maybe_parent() {
-                    if is_variable_declaration(&first_decl_parent) {
+                    if is_variable_declaration(&first_decl_parent.ref_(self)) {
                         let first_decl_parent_ref = first_decl_parent.ref_(self);
                         let first_decl_parent_as_variable_declaration =
                             first_decl_parent_ref.as_variable_declaration();

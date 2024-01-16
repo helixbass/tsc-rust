@@ -15,6 +15,7 @@ use crate::{
     ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, Symbol,
     SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface,
     SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -113,8 +114,8 @@ impl TypeChecker {
     ) -> Option<Id<Node /*ConstructorDeclaration*/>> {
         let members = node.ref_(self).as_class_like_declaration().members();
         for member in &members {
-            if member.kind() == SyntaxKind::Constructor
-                && node_is_present(member.as_constructor_declaration().maybe_body())
+            if member.ref_(self).kind() == SyntaxKind::Constructor
+                && node_is_present(member.ref_(self).as_constructor_declaration().maybe_body().refed(self))
             {
                 return Some(member.clone());
             }
@@ -393,31 +394,31 @@ impl TypeChecker {
         let mut result: Option<TReturn>;
         let mut location: Option<Id<Node>> = enclosing_declaration;
         while let Some(location_unwrapped) = location {
-            if let Some(location_locals) = location_unwrapped.maybe_locals().as_ref() {
-                if !self.is_global_source_file(&location_unwrapped) {
+            if let Some(location_locals) = location_unwrapped.ref_(self).maybe_locals().as_ref() {
+                if !self.is_global_source_file(location_unwrapped) {
                     result = callback(
                         location_locals.clone(),
                         None,
                         Some(true),
-                        Some(&*location_unwrapped),
+                        Some(location_unwrapped),
                     )?;
                     if result.is_some() {
                         return Ok(result);
                     }
                 }
             }
-            match location_unwrapped.kind() {
+            match location_unwrapped.ref_(self).kind() {
                 SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
-                    if !(location_unwrapped.kind() == SyntaxKind::SourceFile
-                        && !is_external_or_common_js_module(&location_unwrapped))
+                    if !(location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile
+                        && !is_external_or_common_js_module(&location_unwrapped.ref_(self)))
                     {
-                        let sym = self.get_symbol_of_node(&location_unwrapped)?;
+                        let sym = self.get_symbol_of_node(location_unwrapped)?;
                         result = callback(
                             sym.and_then(|sym| sym.ref_(self).maybe_exports().clone())
                                 .unwrap_or_else(|| self.empty_symbols()),
                             None,
                             Some(true),
-                            Some(&*location_unwrapped),
+                            Some(location_unwrapped),
                         )?;
                         if result.is_some() {
                             return Ok(result);
@@ -429,7 +430,7 @@ impl TypeChecker {
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
                     for (key, &member_symbol) in &*(*self
-                        .get_symbol_of_node(&location_unwrapped)?
+                        .get_symbol_of_node(location_unwrapped)?
                         .unwrap()
                         .ref_(self)
                         .maybe_members()
@@ -459,7 +460,7 @@ impl TypeChecker {
                             Gc::new(GcCell::new(table)),
                             None,
                             Some(false),
-                            Some(&*location_unwrapped),
+                            Some(location_unwrapped),
                         )?;
                         if result.is_some() {
                             return Ok(result);
@@ -469,7 +470,7 @@ impl TypeChecker {
                 _ => (),
             }
 
-            location = location_unwrapped.maybe_parent();
+            location = location_unwrapped.ref_(self).maybe_parent();
         }
 
         callback(self.globals_rc(), None, Some(true), None)
@@ -508,12 +509,12 @@ impl TypeChecker {
             links.borrow_mut().accessible_chain_cache = Some(HashMap::new());
         }
         let first_relevant_location = self
-            .for_each_symbol_table_in_scope(enclosing_declaration.as_deref(), |_, _, _, node| node);
+            .for_each_symbol_table_in_scope(enclosing_declaration, |_, _, _, node| node);
         let key = format!(
             "{}|{}|{}",
             if use_only_external_aliasing { 0 } else { 1 },
-            if let Some(first_relevant_location) = first_relevant_location.as_ref() {
-                get_node_id(first_relevant_location).to_string()
+            if let Some(first_relevant_location) = first_relevant_location {
+                get_node_id(&first_relevant_location.ref_(self)).to_string()
             } else {
                 "undefined".to_owned()
             },
@@ -533,13 +534,13 @@ impl TypeChecker {
         }
         let visited_symbol_tables = visited_symbol_tables_map.get(&id).unwrap().clone();
         let result = self.try_for_each_symbol_table_in_scope(
-            enclosing_declaration.as_deref(),
+            enclosing_declaration,
             |symbols, ignore_qualification, is_local_name_lookup, _| {
                 self.get_accessible_symbol_chain_from_symbol_table(
                     visited_symbol_tables.clone(),
                     meaning,
                     symbol,
-                    enclosing_declaration.as_deref(),
+                    enclosing_declaration,
                     use_only_external_aliasing,
                     visited_symbol_tables_map,
                     symbols,
@@ -922,7 +923,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let access = self.is_symbol_accessible_worker(
             Some(type_symbol),
-            enclosing_declaration.as_deref(),
+            enclosing_declaration,
             SymbolFlags::Type,
             false,
             true,
@@ -980,7 +981,7 @@ impl TypeChecker {
         for &symbol in symbols {
             let accessible_symbol_chain = self.get_accessible_symbol_chain(
                 Some(symbol),
-                enclosing_declaration.as_deref(),
+                enclosing_declaration,
                 meaning,
                 false,
                 None,
@@ -1019,10 +1020,10 @@ impl TypeChecker {
             }
 
             let containers =
-                self.get_containers_of_symbol(symbol, enclosing_declaration.as_deref(), meaning)?;
+                self.get_containers_of_symbol(symbol, enclosing_declaration, meaning)?;
             let parent_result = self.is_any_symbol_accessible(
                 containers.as_deref(),
-                enclosing_declaration.as_deref(),
+                enclosing_declaration,
                 initial_symbol,
                 if initial_symbol == symbol {
                     self.get_qualified_left_meaning(meaning)
@@ -1053,7 +1054,7 @@ impl TypeChecker {
                 aliases_to_make_visible: None,
                 error_symbol_name: Some(self.symbol_to_string_(
                     initial_symbol,
-                    enclosing_declaration.as_deref(),
+                    enclosing_declaration,
                     Some(meaning),
                     None,
                     None,
@@ -1062,7 +1063,7 @@ impl TypeChecker {
                 error_module_name: if had_accessible_chain != initial_symbol {
                     Some(self.symbol_to_string_(
                         had_accessible_chain,
-                        enclosing_declaration.as_deref(),
+                        enclosing_declaration,
                         Some(SymbolFlags::Namespace),
                         None,
                         None,

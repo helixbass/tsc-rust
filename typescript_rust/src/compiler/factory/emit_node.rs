@@ -162,7 +162,7 @@ pub fn set_comment_range_rc(
     node
 }
 
-pub fn get_synthetic_leading_comments(node: Id<Node>) -> Option<Vec<Rc<SynthesizedComment>>> {
+pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().leading_comments.clone())
 }
