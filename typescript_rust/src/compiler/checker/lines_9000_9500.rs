@@ -250,7 +250,7 @@ impl TypeChecker {
         let min_length: usize = (find_last_index_returns_isize(
             &**elements,
             |&e: &Id<Node>, _| {
-                rest_element != Some(e)
+                !(rest_element == Some(e)
                     || is_omitted_expression(&e.ref_(self))
                     || self.has_default_value(e))
             },
