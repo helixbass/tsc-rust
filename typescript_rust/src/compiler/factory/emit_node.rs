@@ -8,15 +8,16 @@ use crate::{
     return_if_none, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, GetOrInsertDefault,
     Node, NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement, SourceMapRange,
     StringOrNumber, SyntaxKind, SynthesizedComment,
+    HasArena, InArena,
 };
 
-pub(crate) fn get_or_create_emit_node(node: Id<Node>) -> Gc<GcCell<EmitNode>> {
-    match node.maybe_emit_node() {
+pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> Gc<GcCell<EmitNode>> {
+    match node.ref_(arena).maybe_emit_node() {
         None => {
-            if is_parse_tree_node(node) {
-                if node.kind() == SyntaxKind::SourceFile {
+            if is_parse_tree_node(&node.ref_(arena)) {
+                if node.ref_(arena).kind() == SyntaxKind::SourceFile {
                     let ret = Gc::new(GcCell::new(EmitNode {
-                        annotated_nodes: Some(vec![node.node_wrapper()]),
+                        annotated_nodes: Some(vec![node]),
                         // ..Default::default()
                         flags: Default::default(),
                         leading_comments: Default::default(),
@@ -31,24 +32,25 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>) -> Gc<GcCell<EmitNode>> {
                         starts_on_new_line: Default::default(),
                         snippet_element: Default::default(),
                     }));
-                    *node.maybe_emit_node_mut() = Some(ret.clone());
+                    *node.ref_(arena).maybe_emit_node_mut() = Some(ret.clone());
                     return ret;
                 }
 
                 let source_file = maybe_get_source_file_of_node(get_parse_tree_node(
-                    maybe_get_source_file_of_node(Some(node)),
+                    maybe_get_source_file_of_node(Some(node), arena),
                     Option::<fn(Id<Node>) -> bool>::None,
-                ))
+                    arena,
+                ), arena)
                 .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
-                get_or_create_emit_node(source_file)
+                get_or_create_emit_node(source_file, arena)
                     .borrow_mut()
                     .annotated_nodes
                     .as_mut()
                     .unwrap()
-                    .push(node.node_wrapper());
+                    .push(node);
             }
 
-            *node.maybe_emit_node_mut() = Some(Gc::new(GcCell::new(Default::default())));
+            *node.ref_(arena).maybe_emit_node_mut() = Some(Default::default());
         }
         Some(node_emit_node) => {
             Debug_.assert(
@@ -60,7 +62,7 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>) -> Gc<GcCell<EmitNode>> {
             );
         }
     }
-    node.maybe_emit_node().unwrap()
+    node.ref_(arena).maybe_emit_node().unwrap()
 }
 
 pub fn dispose_emit_nodes(source_file: Option<Id<Node> /*SourceFile*/>) {
@@ -77,8 +79,8 @@ pub fn dispose_emit_nodes(source_file: Option<Id<Node> /*SourceFile*/>) {
     }
 }
 
-pub fn remove_all_comments(node: Id<Node>) -> Id<Node> {
-    let emit_node = get_or_create_emit_node(node.borrow());
+pub fn remove_all_comments(node: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+    let emit_node = get_or_create_emit_node(node, arena);
     let mut emit_node = emit_node.borrow_mut();
     emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoComments);
     emit_node.leading_comments = None;
@@ -86,13 +88,13 @@ pub fn remove_all_comments(node: Id<Node>) -> Id<Node> {
     node
 }
 
-pub fn set_emit_flags(node: Id<Node>, emit_flags: EmitFlags) -> Id<Node> {
-    get_or_create_emit_node(node.borrow()).borrow_mut().flags = Some(emit_flags);
+pub fn set_emit_flags(node: Id<Node>, emit_flags: EmitFlags, arena: &impl HasArena) -> Id<Node> {
+    get_or_create_emit_node(node, arena).borrow_mut().flags = Some(emit_flags);
     node
 }
 
-pub fn add_emit_flags(node: Id<Node>, emit_flags: EmitFlags) -> Id<Node> {
-    let emit_node = get_or_create_emit_node(node.borrow());
+pub fn add_emit_flags(node: Id<Node>, emit_flags: EmitFlags, arena: &impl HasArena) -> Id<Node> {
+    let emit_node = get_or_create_emit_node(node, arena);
     let mut emit_node = emit_node.borrow_mut();
     emit_node.flags = Some(emit_node.flags.unwrap_or(EmitFlags::None) | emit_flags);
     node
@@ -107,8 +109,9 @@ pub fn get_source_map_range(node: Id<Node>) -> Gc<SourceMapRange> {
 pub fn set_source_map_range(
     node: Id<Node>,
     range: Option<Gc<SourceMapRange>>,
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    get_or_create_emit_node(node.borrow())
+    get_or_create_emit_node(node, arena)
         .borrow_mut()
         .source_map_range = range;
     node
@@ -118,8 +121,9 @@ pub fn set_token_source_map_range(
     node: Id<Node>,
     token: SyntaxKind,
     range: Option<Gc<SourceMapRange>>,
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    let emit_node = get_or_create_emit_node(node.borrow());
+    let emit_node = get_or_create_emit_node(node, arena);
     emit_node
         .borrow_mut()
         .token_source_map_ranges
@@ -133,9 +137,9 @@ pub(crate) fn get_starts_on_new_line(node: Id<Node>) -> Option<bool> {
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
 }
 
-pub(crate) fn set_starts_on_new_line(node: Id<Node>, new_line: bool) /*-> Id<Node>*/
+pub(crate) fn set_starts_on_new_line(node: Id<Node>, new_line: bool, arena: &impl HasArena) /*-> Id<Node>*/
 {
-    get_or_create_emit_node(node)
+    get_or_create_emit_node(node, arena)
         .borrow_mut()
         .starts_on_new_line = Some(new_line);
     // node
@@ -148,17 +152,9 @@ pub fn get_comment_range(node: Id<Node>) -> BaseTextRange {
         .unwrap_or_else(|| BaseTextRange::new(node.pos(), node.end()))
 }
 
-pub fn set_comment_range(node: Id<Node>, range: &impl ReadonlyTextRange /*TextRange*/)
-/*-> Id<Node>*/
+pub fn set_comment_range(node: Id<Node>, range: &impl ReadonlyTextRange /*TextRange*/, arena: &impl HasArena) -> Id<Node>
 {
-    get_or_create_emit_node(node).borrow_mut().comment_range = Some(range.into());
-}
-
-pub fn set_comment_range_rc(
-    node: Id<Node>,
-    range: &impl ReadonlyTextRange, /*TextRange*/
-) -> Id<Node> {
-    set_comment_range(&node, range);
+    get_or_create_emit_node(node, arena).borrow_mut().comment_range = Some(range.into());
     node
 }
 
@@ -170,17 +166,10 @@ pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedC
 pub fn set_synthetic_leading_comments(
     node: Id<Node>,
     comments: Option<Vec<Rc<SynthesizedComment>>>,
-)
-/*-> Id<Node>*/
+    arena: &impl HasArena,
+) -> Id<Node>
 {
-    get_or_create_emit_node(node).borrow_mut().leading_comments = comments;
-}
-
-pub fn set_synthetic_leading_comments_rc(
-    node: Id<Node>,
-    comments: Option<Vec<Rc<SynthesizedComment>>>,
-) -> Id<Node> {
-    set_synthetic_leading_comments(&node, comments);
+    get_or_create_emit_node(node, arena).borrow_mut().leading_comments = comments;
     node
 }
 
@@ -189,6 +178,7 @@ pub fn add_synthetic_leading_comment(
     kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
     text: &str,
     has_trailing_new_line: Option<bool>,
+    arena: &impl HasArena,
 ) /*-> Id<Node>*/
 {
     let mut synthetic_leading_comments = get_synthetic_leading_comments(node);
@@ -204,7 +194,7 @@ pub fn add_synthetic_leading_comment(
             text: text.to_owned(),
             has_leading_new_line: None,
         }));
-    set_synthetic_leading_comments(node, synthetic_leading_comments);
+    set_synthetic_leading_comments(node, synthetic_leading_comments, arena);
 }
 
 pub fn get_synthetic_trailing_comments(node: Id<Node>) -> Option<Vec<Rc<SynthesizedComment>>> {
@@ -215,10 +205,11 @@ pub fn get_synthetic_trailing_comments(node: Id<Node>) -> Option<Vec<Rc<Synthesi
 pub fn set_synthetic_trailing_comments(
     node: Id<Node>,
     comments: Option<Vec<Rc<SynthesizedComment>>>,
+    arena: &impl HasArena,
 )
 /*-> Id<Node>*/
 {
-    get_or_create_emit_node(node).borrow_mut().trailing_comments = comments;
+    get_or_create_emit_node(node, arena).borrow_mut().trailing_comments = comments;
 }
 
 pub fn add_synthetic_trailing_comment(
@@ -226,6 +217,7 @@ pub fn add_synthetic_trailing_comment(
     kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
     text: &str,
     has_trailing_new_line: Option<bool>,
+    arena: &impl HasArena,
 ) /*-> Id<Node>*/
 {
     let mut synthetic_trailing_comments = get_synthetic_trailing_comments(node);
@@ -241,14 +233,13 @@ pub fn add_synthetic_trailing_comment(
             text: text.to_owned(),
             has_leading_new_line: None,
         }));
-    set_synthetic_trailing_comments(node, synthetic_trailing_comments);
+    set_synthetic_trailing_comments(node, synthetic_trailing_comments, arena);
 }
 
-pub fn move_synthetic_comments(node: Id<Node>, original: Id<Node>) -> Id<Node> {
-    let node_ref = node.borrow();
-    set_synthetic_leading_comments(node_ref, get_synthetic_leading_comments(original));
-    set_synthetic_trailing_comments(node_ref, get_synthetic_trailing_comments(original));
-    let emit = get_or_create_emit_node(original);
+pub fn move_synthetic_comments(node: Id<Node>, original: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+    set_synthetic_leading_comments(node, get_synthetic_leading_comments(original), arena);
+    set_synthetic_trailing_comments(node, get_synthetic_trailing_comments(original), arena);
+    let emit = get_or_create_emit_node(original, arena);
     let mut emit = emit.borrow_mut();
     emit.leading_comments = None;
     emit.trailing_comments = None;
@@ -263,25 +254,26 @@ pub fn get_constant_value(node: Id<Node> /*AccessExpression*/) -> Option<StringO
 pub fn set_constant_value(
     node: Id<Node>, /*AccessExpression*/
     value: StringOrNumber,
+    arena: &impl HasArena,
 ) -> Id<Node /*AccessExpression*/> {
-    let emit_node = get_or_create_emit_node(node);
+    let emit_node = get_or_create_emit_node(node, arena);
     emit_node.borrow_mut().constant_value = Some(value);
-    node.node_wrapper()
+    node
 }
 
-pub fn add_emit_helper(node: Id<Node>, helper: Gc<EmitHelper>) -> Id<Node> {
-    let emit_node = get_or_create_emit_node(node);
+pub fn add_emit_helper(node: Id<Node>, helper: Gc<EmitHelper>, arena: &impl HasArena) -> Id<Node> {
+    let emit_node = get_or_create_emit_node(node, arena);
     emit_node
         .borrow_mut()
         .helpers
         .get_or_insert_default_()
         .push(helper);
-    node.node_wrapper()
+    node
 }
 
-pub fn add_emit_helpers(node: Id<Node>, helpers: Option<&[Gc<EmitHelper>]>) -> Id<Node> {
+pub fn add_emit_helpers(node: Id<Node>, helpers: Option<&[Gc<EmitHelper>]>, arena: &impl HasArena) -> Id<Node> {
     if let Some(helpers) = helpers.non_empty() {
-        let emit_node = get_or_create_emit_node(node);
+        let emit_node = get_or_create_emit_node(node, arena);
         let mut emit_node = emit_node.borrow_mut();
         for helper in helpers {
             push_if_unique_gc(emit_node.helpers.get_or_insert_default_(), helper);
@@ -299,6 +291,7 @@ pub fn move_emit_helpers(
     source: Id<Node>,
     target: Id<Node>,
     mut predicate: impl FnMut(&EmitHelper) -> bool,
+    arena: &impl HasArena,
 ) {
     let source_emit_node = return_if_none!(source.maybe_emit_node());
     let mut source_emit_node = source_emit_node.borrow_mut();
@@ -310,7 +303,7 @@ pub fn move_emit_helpers(
         return;
     }
 
-    let target_emit_node = get_or_create_emit_node(target);
+    let target_emit_node = get_or_create_emit_node(target, arena);
     let mut target_emit_node = target_emit_node.borrow_mut();
     let mut helpers_removed = 0;
     for i in 0..source_emit_helpers.len() {

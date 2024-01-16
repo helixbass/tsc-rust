@@ -1179,7 +1179,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 emit_flags |= EmitFlags::NoComments;
             }
             if emit_flags != EmitFlags::None {
-                set_emit_flags(&*name, emit_flags);
+                set_emit_flags(name, emit_flags, self);
             }
             return name;
         }
@@ -1262,7 +1262,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             emit_flags |= EmitFlags::NoComments;
         }
         if emit_flags != EmitFlags::None {
-            set_emit_flags(&*qualified_name, emit_flags);
+            set_emit_flags(qualified_name, emit_flags, self);
         }
         qualified_name
     }

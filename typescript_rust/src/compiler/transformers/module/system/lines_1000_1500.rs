@@ -147,7 +147,7 @@ impl TransformSystemModule {
             .create_expression_statement(self.create_export_expression(name, value))
             .start_on_new_line();
         if allow_comments != Some(true) {
-            set_emit_flags(&*statement, EmitFlags::NoComments);
+            set_emit_flags(statement, EmitFlags::NoComments, self);
         }
 
         statement
@@ -163,7 +163,7 @@ impl TransformSystemModule {
         } else {
             name.node_wrapper()
         };
-        set_emit_flags(value, get_emit_flags(value) | EmitFlags::NoComments);
+        set_emit_flags(value, get_emit_flags(value) | EmitFlags::NoComments, self);
         self.factory
             .create_call_expression(
                 self.export_function(),

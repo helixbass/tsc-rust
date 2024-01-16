@@ -80,7 +80,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         set_original_node(updated.clone(), Some(node.node_wrapper()));
         let updated = set_text_range(&*updated, Some(node)).node_wrapper();
         if get_starts_on_new_line(node) == Some(true) {
-            set_starts_on_new_line(&updated, true);
+            set_starts_on_new_line(updated, true);
         }
         updated
     }

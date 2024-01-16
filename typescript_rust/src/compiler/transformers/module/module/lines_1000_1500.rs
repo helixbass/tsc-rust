@@ -525,7 +525,7 @@ impl TransformModule {
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper()));
                 if remove_comments_on_expressions {
-                    remove_all_comments(&*statement);
+                    remove_all_comments(statement, self);
                 }
                 statements.get_or_insert_default_().push(statement);
             }
@@ -569,7 +569,7 @@ impl TransformModule {
                 )
             };
             for export_name in exported_names {
-                set_emit_flags(&*expression, EmitFlags::NoSubstitution);
+                set_emit_flags(expression, EmitFlags::NoSubstitution, self);
                 expression =
                     self.create_export_expression(&export_name, &expression, location, None);
             }

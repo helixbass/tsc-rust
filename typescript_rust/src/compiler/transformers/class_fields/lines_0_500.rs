@@ -1060,6 +1060,7 @@ impl TransformClassFields {
         set_comment_range(
             receiver,
             &ReadonlyTextRangeConcrete::from(move_range_pos(receiver, -1)),
+            self,
         );
 
         match info.kind() {

@@ -176,7 +176,7 @@ impl NodeBuilder {
             Option::<Gc<NodeArray>>::None,
         );
         context.increment_approximate_length_by(10);
-        Ok(set_emit_flags(mapped_type_node, EmitFlags::SingleLine))
+        Ok(set_emit_flags(mapped_type_node, EmitFlags::SingleLine, self))
     }
 
     #[allow(clippy::if_same_then_else)]
@@ -506,6 +506,7 @@ impl NodeBuilder {
                         factory_.create_type_literal_node(Option::<Gc<NodeArray>>::None)
                     }),
                     EmitFlags::SingleLine,
+                    self,
                 ));
             }
 
@@ -621,7 +622,7 @@ impl NodeBuilder {
         let type_literal_node = factory.with(|factory_| factory_.create_type_literal_node(members));
         context.increment_approximate_length_by(2);
         set_emit_flags(
-            type_literal_node.clone(),
+            type_literal_node,
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::MultilineObjectLiterals)
@@ -630,6 +631,7 @@ impl NodeBuilder {
             } else {
                 EmitFlags::SingleLine
             },
+            self,
         );
         Ok(type_literal_node)
     }
@@ -755,6 +757,7 @@ impl NodeBuilder {
                         let tuple_type_node = set_emit_flags(
                             get_factory().create_tuple_type_node(Some(tuple_constituent_nodes)),
                             EmitFlags::SingleLine,
+                            self,
                         );
                         return Ok(Some(if type_target.ref_(self).as_tuple_type().readonly {
                             get_factory().create_type_operator_node(
@@ -774,6 +777,7 @@ impl NodeBuilder {
                     let tuple_type_node = set_emit_flags(
                         get_factory().create_tuple_type_node(Some(vec![])),
                         EmitFlags::SingleLine,
+                        self,
                     );
                     return Ok(Some(if type_target.ref_(self).as_tuple_type().readonly {
                         get_factory()

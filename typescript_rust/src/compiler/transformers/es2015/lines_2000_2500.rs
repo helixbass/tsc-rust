@@ -324,8 +324,9 @@ impl TransformES2015 {
                 ))
             {
                 set_source_map_range(
-                    &*declaration_list,
+                    declaration_list,
                     Some(self.get_range_union(&declarations)),
+                    self,
                 );
             }
 
@@ -923,8 +924,9 @@ impl TransformES2015 {
         };
 
         set_emit_flags(
-            &**expression,
+            expression,
             EmitFlags::NoSourceMap | get_emit_flags(expression),
+            self,
         );
 
         let ref for_statement = self

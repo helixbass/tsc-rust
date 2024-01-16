@@ -355,7 +355,7 @@ impl TransformES2015 {
         let call_result = if contains_yield {
             self.factory.create_yield_expression(
                 Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
-                Some(set_emit_flags(call, EmitFlags::Iterator)),
+                Some(set_emit_flags(call, EmitFlags::Iterator, self)),
             )
         } else {
             call
@@ -389,7 +389,7 @@ impl TransformES2015 {
         let call_result = if contains_yield {
             self.factory.create_yield_expression(
                 Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
-                Some(set_emit_flags(call, EmitFlags::Iterator)),
+                Some(set_emit_flags(call, EmitFlags::Iterator, self)),
             )
         } else {
             call

@@ -60,10 +60,11 @@ impl TransformTypeScript {
             )?,
         );
         if !ptr::eq(&*updated, node) {
-            set_comment_range(&updated, node);
+            set_comment_range(updated, node, self);
             set_source_map_range(
-                updated.clone(),
+                updated,
                 Some((&move_range_past_decorators(node)).into()),
+                self,
             );
         }
         Ok(Some(updated.into()))
@@ -113,10 +114,11 @@ impl TransformTypeScript {
             ),
         );
         if !ptr::eq(&*updated, node) {
-            set_comment_range(&updated, node);
+            set_comment_range(updated, node, self);
             set_source_map_range(
-                updated.clone(),
+                updated,
                 Some((&move_range_past_decorators(node)).into()),
+                self,
             );
         }
         Ok(Some(updated.into()))
@@ -157,10 +159,11 @@ impl TransformTypeScript {
             ),
         );
         if !ptr::eq(&*updated, node) {
-            set_comment_range(&updated, node);
+            set_comment_range(updated, node, self);
             set_source_map_range(
-                updated.clone(),
+                updated,
                 Some((&move_range_past_decorators(node)).into()),
+                self,
             );
         }
         Ok(Some(updated.into()))
@@ -315,18 +318,20 @@ impl TransformTypeScript {
             )?,
         );
         if !ptr::eq(&*updated, node) {
-            set_comment_range(&updated, node);
+            set_comment_range(updated, node, self);
             set_text_range(
                 &*updated,
                 Some(&move_range_past_modifiers(node).into_readonly_text_range()),
             );
             set_source_map_range(
-                updated.clone(),
+                updated,
                 Some((&move_range_past_modifiers(node)).into()),
+                self,
             );
             set_emit_flags(
                 updated.as_parameter_declaration().name(),
                 EmitFlags::NoTrailingSourceMap,
+                self,
             );
         }
         Ok(Some(updated.into()))
@@ -720,11 +725,11 @@ impl TransformTypeScript {
             ))
             .set_original_node(Some(node.node_wrapper()));
         if var_added {
-            set_synthetic_leading_comments(&enum_statement, None);
-            set_synthetic_trailing_comments(&enum_statement, None);
+            set_synthetic_leading_comments(enum_statement, None, self);
+            set_synthetic_trailing_comments(enum_statement, None, self);
         }
         set_text_range(&*enum_statement, Some(node));
-        add_emit_flags(enum_statement.clone(), emit_flags);
+        add_emit_flags(enum_statement, emit_flags, self);
         statements.push(enum_statement);
 
         statements.push(

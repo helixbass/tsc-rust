@@ -902,7 +902,7 @@ impl Program {
             external_helpers_module_reference.clone(),
             None,
         );
-        add_emit_flags(import_decl.clone(), EmitFlags::NeverApplyImportHelper);
+        add_emit_flags(import_decl, EmitFlags::NeverApplyImportHelper, self);
         set_parent(&external_helpers_module_reference, Some(&*import_decl));
         set_parent(&import_decl, Some(file));
         external_helpers_module_reference

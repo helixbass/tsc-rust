@@ -142,6 +142,7 @@ impl NodeBuilder {
         let identifier = set_emit_flags(
             get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
             EmitFlags::NoAsciiEscaping,
+            self,
         );
         identifier.set_symbol(symbol.clone());
 
@@ -316,6 +317,7 @@ impl NodeBuilder {
         let identifier: Id<Node> = set_emit_flags(
             get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
             EmitFlags::NoAsciiEscaping,
+            self,
         );
         identifier.set_symbol(symbol.clone());
 
@@ -390,6 +392,7 @@ impl NodeBuilder {
             let identifier = set_emit_flags(
                 get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
                 EmitFlags::NoAsciiEscaping,
+                self,
             );
             identifier.set_symbol(symbol);
 
@@ -434,6 +437,7 @@ impl NodeBuilder {
                 expression = Some(set_emit_flags(
                     get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
                     EmitFlags::NoAsciiEscaping,
+                    self,
                 ));
                 expression.as_ref().unwrap().set_symbol(symbol.clone());
             }
@@ -882,6 +886,7 @@ impl NodeBuilder {
                     node: set_emit_flags(
                         set_original_node(name, Some(node.node_wrapper())),
                         EmitFlags::NoAsciiEscaping,
+                        self,
                     ),
                 });
             }
@@ -1395,7 +1400,7 @@ impl NodeBuilder {
                 ).line
             }
         ) {
-            set_emit_flags(node.node_wrapper(), EmitFlags::SingleLine);
+            set_emit_flags(node, EmitFlags::SingleLine, self);
         }
 
         Ok(Some(

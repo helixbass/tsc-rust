@@ -284,8 +284,8 @@ impl TransformES2015 {
                 .factory
                 .create_assignment(member_name, member_function.clone());
         }
-        set_emit_flags(&*member_function, EmitFlags::NoComments);
-        set_source_map_range(&*member_function, Some(source_map_range));
+        set_emit_flags(member_function, EmitFlags::NoComments, self);
+        set_source_map_range(member_function, Some(source_map_range), self);
         Ok(self
             .factory
             .create_expression_statement(e)
@@ -791,14 +791,15 @@ impl TransformES2015 {
             )
             .set_text_range(node_as_function_like_declaration.maybe_body().as_deref());
         if !multi_line && single_line {
-            set_emit_flags(&*block, EmitFlags::SingleLine);
+            set_emit_flags(block, EmitFlags::SingleLine, self);
         }
 
         if let Some(close_brace_location) = close_brace_location {
             set_token_source_map_range(
-                &*block,
+                block,
                 SyntaxKind::CloseBraceToken,
                 Some((&*close_brace_location).into()),
+                self,
             );
         }
 

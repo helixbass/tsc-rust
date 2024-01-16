@@ -199,7 +199,7 @@ impl TransformES2017 {
         );
         let visited =
             try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
-        add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
+        add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
         Ok(visited)
     }
 
@@ -882,6 +882,7 @@ impl TransformES2017 {
                 node_as_variable_declaration.maybe_initializer().unwrap(),
             ),
             Some(node.into()),
+            self,
         );
         Ok(try_visit_node(
             &converted,
@@ -1015,13 +1016,13 @@ impl TransformES2017 {
                     .get_node_check_flags(node)
                     .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
                 {
-                    add_emit_helper(&block, advanced_async_super_helper());
+                    add_emit_helper(block, advanced_async_super_helper(), self);
                 } else if self
                     .resolver
                     .get_node_check_flags(node)
                     .intersects(NodeCheckFlags::AsyncMethodWithSuper)
                 {
-                    add_emit_helper(&block, async_super_helper());
+                    add_emit_helper(block, async_super_helper(), self);
                 }
             }
 
@@ -1447,10 +1448,11 @@ pub fn create_super_access_variable_statement(
                 None,
                 set_emit_flags(
                     factory.create_property_access_expression(
-                        set_emit_flags(factory.create_super(), EmitFlags::NoSubstitution),
+                        set_emit_flags(factory.create_super(), EmitFlags::NoSubstitution, factory),
                         name,
                     ),
                     EmitFlags::NoSubstitution,
+                    factory,
                 ),
             ),
         ));
@@ -1474,10 +1476,11 @@ pub fn create_super_access_variable_statement(
                     factory.create_assignment(
                         set_emit_flags(
                             factory.create_property_access_expression(
-                                set_emit_flags(factory.create_super(), EmitFlags::NoSubstitution),
+                                set_emit_flags(factory.create_super(), EmitFlags::NoSubstitution, factory),
                                 name,
                             ),
                             EmitFlags::NoSubstitution,
+                            factory,
                         ),
                         factory.create_identifier("v"),
                     ),

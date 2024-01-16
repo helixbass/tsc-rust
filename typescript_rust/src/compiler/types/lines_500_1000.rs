@@ -59,7 +59,7 @@ use super::{
 use crate::{
     add_emit_flags, add_emit_helpers, add_synthetic_leading_comment,
     add_synthetic_trailing_comment, get_emit_flags, move_synthetic_comments, remove_all_comments,
-    set_comment_range_rc, set_emit_flags, set_original_node, set_parent_recursive,
+    set_comment_range, set_emit_flags, set_original_node, set_parent_recursive,
     set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_rc_node,
     start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper, GcVec,
     HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
@@ -2148,7 +2148,7 @@ impl NodeExt for Id<Node> {
     }
 
     fn set_comment_range(self, range: &impl ReadonlyTextRange) -> Self {
-        set_comment_range_rc(self, range)
+        set_comment_range(self, range)
     }
 
     fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self {

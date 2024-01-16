@@ -24,7 +24,7 @@ use crate::{
     is_private_identifier, is_property_access_expression, is_shorthand_ambient_module_symbol,
     is_source_file, is_static, is_string_literal_like, is_variable_declaration,
     is_variable_statement, length, map, maybe_get_source_file_of_node, return_ok_default_if_none,
-    set_parent, set_synthetic_leading_comments_rc, set_text_range_rc_node, some, try_flat_map,
+    set_parent, set_synthetic_leading_comments, set_text_range_rc_node, some, try_flat_map,
     try_map, try_map_defined, try_maybe_first_defined, try_maybe_map, unescape_leading_underscores,
     AsDoubleDeref, AssignmentDeclarationKind, BoolExt, Debug_, HasArena, HasInitializerInterface,
     HasTypeArgumentsInterface, InArena, InternalSymbolName, IteratorExt, MapOrDefault,
@@ -207,7 +207,7 @@ impl SymbolTableToDeclarationStatements {
                     .unwrap())
             })?;
         self.add_result(
-            &set_synthetic_leading_comments_rc(
+            set_synthetic_leading_comments(
                 get_factory().create_type_alias_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
@@ -225,6 +225,7 @@ impl SymbolTableToDeclarationStatements {
                         has_leading_new_line: Default::default(),
                     })],
                 }),
+                self,
             ),
             modifier_flags,
         );

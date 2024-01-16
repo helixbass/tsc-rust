@@ -316,7 +316,7 @@ impl TransformTypeScript {
 
         let visited =
             self.try_save_state_and_invoke(node, |node: Id<Node>| self.visit_source_file(node))?;
-        add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
+        add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
 
         self.set_current_source_file(None);
         Ok(visited)
@@ -902,7 +902,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         let constant_value = self.try_get_const_enum_value(node)?;
 
         if let Some(constant_value) = constant_value {
-            set_constant_value(node, constant_value.clone());
+            set_constant_value(node, constant_value.clone(), self);
 
             let substitute = match constant_value {
                 StringOrNumber::String(constant_value) => self
@@ -940,10 +940,11 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                 };
 
                 add_synthetic_trailing_comment(
-                    &substitute,
+                    substitute,
                     SyntaxKind::MultiLineCommentTrivia,
                     &format!(" {} ", property_name),
                     None,
+                    self,
                 );
             }
 

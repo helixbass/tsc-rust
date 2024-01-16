@@ -858,7 +858,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                     ),
                 );
 
-                let statement = set_emit_flags(statement, EmitFlags::CustomPrologue);
+                let statement = set_emit_flags(statement, EmitFlags::CustomPrologue, self);
 
                 if statements.is_none() {
                     statements = Some(vec![statement]);
@@ -909,11 +909,11 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             self.state() < TransformationState::Completed,
             Some("Cannot modify the lexical environment after transformation has completed."),
         );
-        set_emit_flags(func.node_wrapper(), EmitFlags::CustomPrologue);
+        set_emit_flags(func, EmitFlags::CustomPrologue, self);
         let mut lexical_environment_function_declarations =
             self.lexical_environment_function_declarations();
         if lexical_environment_function_declarations.is_none() {
-            *lexical_environment_function_declarations = Some(vec![func.node_wrapper()]);
+            *lexical_environment_function_declarations = Some(vec![func]);
         } else {
             lexical_environment_function_declarations
                 .as_mut()
@@ -933,8 +933,9 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         );
         let decl = set_emit_flags(
             self.factory()
-                .create_variable_declaration(Some(name.node_wrapper()), None, None, None),
+                .create_variable_declaration(Some(name), None, None, None),
             EmitFlags::NoNestedSourceMaps,
+            self,
         );
         let mut lexical_environment_variable_declarations =
             self.lexical_environment_variable_declarations();
@@ -1035,7 +1036,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             self.state() < TransformationState::Completed,
             Some("Cannot modify the lexical environment after transformation has completed."),
         );
-        set_emit_flags(node.node_wrapper(), EmitFlags::CustomPrologue);
+        set_emit_flags(node, EmitFlags::CustomPrologue, self);
         let mut lexical_environment_statements = self.lexical_environment_statements();
         if lexical_environment_statements.is_none() {
             *lexical_environment_statements = Some(vec![node.node_wrapper()]);

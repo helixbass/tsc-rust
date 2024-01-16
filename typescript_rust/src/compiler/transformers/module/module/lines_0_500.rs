@@ -693,7 +693,7 @@ impl TransformModule {
                 if let Some(import_alias_name) =
                     import_alias_name.filter(|_| include_non_amd_dependencies)
                 {
-                    set_emit_flags(&*import_alias_name, EmitFlags::NoSubstitution);
+                    set_emit_flags(import_alias_name, EmitFlags::NoSubstitution, self);
                     aliased_module_names.push(external_module_name);
                     import_alias_names.push(self.factory.create_parameter_declaration(
                         Option::<Gc<NodeArray>>::None,
@@ -835,7 +835,7 @@ impl TransformModule {
 
         let body = self.factory.create_block(statements, Some(true));
         if self.need_umd_dynamic_import_helper() {
-            add_emit_helper(&body, dynamic_import_umd_helper());
+            add_emit_helper(body, dynamic_import_umd_helper(), self);
         }
 
         Ok(body)

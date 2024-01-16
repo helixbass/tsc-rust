@@ -68,7 +68,7 @@ pub fn create_member_access_for_property_name<
                 .create_element_access_expression(target.node_wrapper(), member_name.node_wrapper())
         }
         .set_text_range(Some(member_name));
-        let emit_node = get_or_create_emit_node(&expression);
+        let emit_node = get_or_create_emit_node(expression, factory);
         let mut emit_node = emit_node.borrow_mut();
         emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoNestedSourceMaps);
         expression
@@ -758,7 +758,7 @@ pub fn create_external_helpers_import_declaration_if_needed<
                         Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap())),
                     )
                     .unwrap();
-                    let emit_node = get_or_create_emit_node(&parse_node);
+                    let emit_node = get_or_create_emit_node(parse_node, node_factory);
                     emit_node.borrow_mut().external_helpers = Some(true);
                 }
             }
@@ -839,7 +839,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
                 Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap())),
             )
             .unwrap();
-            let emit_node = get_or_create_emit_node(&parse_node);
+            let emit_node = get_or_create_emit_node(parse_node, node_factory);
             return Some(
                 emit_node
                     .borrow_mut()

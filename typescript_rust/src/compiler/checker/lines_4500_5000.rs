@@ -874,6 +874,7 @@ impl NodeBuilder {
                     SyntaxKind::MultiLineCommentTrivia,
                     "unresolved",
                     None,
+                    self,
                 );
                 return Ok(Some(ret));
             }
@@ -1015,6 +1016,7 @@ impl NodeBuilder {
                         None,
                     ),
                     EmitFlags::NoAsciiEscaping,
+                    self,
                 )),
             ));
         }

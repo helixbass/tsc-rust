@@ -540,7 +540,7 @@ impl TransformES2015 {
                 None,
             );
             if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
-                set_emit_flags(&*this_arg, EmitFlags::NoSubstitution);
+                set_emit_flags(this_arg, EmitFlags::NoSubstitution, self);
             }
 
             let mut resulting_call: Id<Node /*CallExpression | BinaryExpression*/>;

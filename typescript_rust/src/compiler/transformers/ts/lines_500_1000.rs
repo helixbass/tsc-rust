@@ -258,8 +258,9 @@ impl TransformTypeScript {
                     .create_end_of_declaration_marker(node.node_wrapper()),
             );
             set_emit_flags(
-                &*class_statement,
+                class_statement,
                 get_emit_flags(&class_statement) | EmitFlags::HasEndOfDeclarationMarker,
+                self,
             );
         }
 

@@ -518,7 +518,7 @@ impl TransformModule {
             );
 
             if contains_lexical_this {
-                set_emit_flags(&*func, EmitFlags::CapturesThis);
+                set_emit_flags(func, EmitFlags::CapturesThis, self);
             }
         }
 
@@ -589,7 +589,7 @@ impl TransformModule {
             );
 
             if contains_lexical_this {
-                set_emit_flags(&*func, EmitFlags::CapturesThis);
+                set_emit_flags(func, EmitFlags::CapturesThis, self);
             }
         }
 

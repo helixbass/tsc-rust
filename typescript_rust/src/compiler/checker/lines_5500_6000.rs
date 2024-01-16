@@ -69,6 +69,7 @@ impl NodeBuilder {
                         has_trailing_new_line: Some(true),
                         has_leading_new_line: None,
                     })]),
+                    self,
                 );
             }
         } else if let Some(property_symbol_value_declaration) = property_symbol
@@ -76,7 +77,7 @@ impl NodeBuilder {
             .maybe_value_declaration()
             .as_ref()
         {
-            set_comment_range(&node, &**property_symbol_value_declaration);
+            set_comment_range(node, &*property_symbol_value_declaration.ref_(self), self);
         }
         node
     }
@@ -350,6 +351,7 @@ impl NodeBuilder {
                     get_factory()
                         .create_identifier(type_predicate.parameter_name.as_ref().unwrap()),
                     EmitFlags::NoAsciiEscaping,
+                    self,
                 )
             } else {
                 get_factory().create_this_type_node()
@@ -664,11 +666,13 @@ impl NodeBuilder {
                         SyntaxKind::Identifier => set_emit_flags(
                             get_factory().clone_node(parameter_declaration_name),
                             EmitFlags::NoAsciiEscaping,
+                            self,
                         ),
                         SyntaxKind::QualifiedName => set_emit_flags(
                             get_factory()
                                 .clone_node(&parameter_declaration_name.as_qualified_name().right),
                             EmitFlags::NoAsciiEscaping,
+                            self,
                         ),
                         _ => self.clone_binding_name(context, parameter_declaration_name)?,
                     }
@@ -754,6 +758,7 @@ impl NodeBuilder {
         Ok(set_emit_flags(
             visited,
             EmitFlags::SingleLine | EmitFlags::NoAsciiEscaping,
+            self,
         ))
     }
 

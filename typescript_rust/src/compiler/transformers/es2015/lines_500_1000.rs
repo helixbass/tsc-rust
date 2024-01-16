@@ -385,8 +385,9 @@ impl TransformES2015 {
                     .create_end_of_declaration_marker(node.node_wrapper()),
             );
             set_emit_flags(
-                &*statement,
+                statement,
                 emit_flags | EmitFlags::HasEndOfDeclarationMarker,
+                self,
             );
         }
 
@@ -606,7 +607,7 @@ impl TransformES2015 {
             )
             .set_text_range(Some(constructor.as_deref().unwrap_or(node)));
         if extends_clause_element.is_some() {
-            set_emit_flags(&*constructor_function, EmitFlags::CapturesThis);
+            set_emit_flags(constructor_function, EmitFlags::CapturesThis, self);
         }
 
         statements.push(constructor_function);
@@ -791,7 +792,7 @@ impl TransformES2015 {
                     .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
                         super_call,
                     )));
-                set_emit_flags(&**super_call, EmitFlags::NoComments);
+                set_emit_flags(super_call, EmitFlags::NoComments, self);
                 statements.push(return_statement);
             } else {
                 self.insert_capture_this_for_node(

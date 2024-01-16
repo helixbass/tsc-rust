@@ -284,7 +284,7 @@ impl TransformES2018 {
 
         self.set_current_source_file(Some(node.node_wrapper()));
         let visited = self.visit_source_file(node);
-        add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
+        add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
 
         self.set_current_source_file(None);
         self.set_tagged_template_string_declarations(None);
@@ -1959,13 +1959,13 @@ impl TransformES2018 {
                 .get_node_check_flags(node)
                 .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
             {
-                add_emit_helper(&block, advanced_async_super_helper());
+                add_emit_helper(block, advanced_async_super_helper(), self);
             } else if self
                 .resolver
                 .get_node_check_flags(node)
                 .intersects(NodeCheckFlags::AsyncMethodWithSuper)
             {
-                add_emit_helper(&block, async_super_helper());
+                add_emit_helper(block, async_super_helper(), self);
             }
         }
 
@@ -2065,7 +2065,7 @@ impl TransformES2018 {
                         self.factory
                             .create_variable_declaration_list(declarations, None),
                     );
-                    set_emit_flags(&*statement, EmitFlags::CustomPrologue);
+                    set_emit_flags(statement, EmitFlags::CustomPrologue, self);
                     statements.get_or_insert_default_().push(statement);
                 }
             }

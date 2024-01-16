@@ -385,10 +385,11 @@ impl TransformTypeScript {
             )?,
         );
         if !ptr::eq(&*updated, node) {
-            set_comment_range(&updated, node);
+            set_comment_range(updated, node, self);
             set_source_map_range(
-                updated.clone(),
+                updated,
                 Some((&move_range_past_decorators(node)).into()),
+                self,
             );
         }
         Ok(Some(updated.into()))

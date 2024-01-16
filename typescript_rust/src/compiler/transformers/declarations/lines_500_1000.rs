@@ -18,7 +18,7 @@ use crate::{
     is_omitted_expression, is_private_identifier, is_semicolon_class_element,
     is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
     is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined,
-    needs_scope_marker, return_ok_default_if_none, set_comment_range_rc, set_emit_flags, some,
+    needs_scope_marker, return_ok_default_if_none, set_emit_flags, some,
     try_maybe_map, try_maybe_visit_each_child, try_maybe_visit_node, try_maybe_visit_nodes,
     try_visit_each_child, try_visit_node, visit_nodes, Debug_, EmitFlags,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
@@ -26,6 +26,7 @@ use crate::{
     HasTypeParametersInterface, InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange, SignatureDeclarationInterface,
     SymbolInterface, SyntaxKind, VisitResult,
+    set_comment_range,
 };
 
 impl TransformDeclarations {
@@ -361,9 +362,10 @@ impl TransformDeclarations {
         if has_jsdoc_nodes(updated) && has_jsdoc_nodes(original) {
             updated.set_js_doc(original.maybe_js_doc());
         }
-        set_comment_range_rc(
-            updated.node_wrapper(),
+        set_comment_range(
+            updated,
             &get_comment_range(original).into_readonly_text_range(),
+            self,
         )
     }
 
@@ -1453,7 +1455,7 @@ impl TransformDeclarations {
                 )
                 .line
         {
-            set_emit_flags(input, EmitFlags::SingleLine);
+            set_emit_flags(input, EmitFlags::SingleLine, self);
         }
 
         self.visit_declaration_subtree_cleanup(

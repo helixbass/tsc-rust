@@ -215,7 +215,7 @@ impl TransformJsx {
         ));
         let mut visited =
             visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context);
-        add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
+        add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
         let mut statements: NodeArrayOrVec = visited.as_source_file().statements().into();
         if let Some(current_file_state_filename_declaration) =
             self.current_file_state().filename_declaration.clone()

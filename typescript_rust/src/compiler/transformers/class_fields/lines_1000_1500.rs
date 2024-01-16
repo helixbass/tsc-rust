@@ -244,8 +244,9 @@ impl TransformClassFields {
                 }
 
                 set_emit_flags(
-                    &*class_expression,
+                    class_expression,
                     EmitFlags::Indented | get_emit_flags(&class_expression),
+                    self,
                 );
                 expressions.push(
                     self.factory
@@ -653,7 +654,7 @@ impl TransformClassFields {
                     })
                 {
                     set_original_node(&**transformed, Some(property.node_wrapper()));
-                    add_emit_flags(&**transformed, EmitFlags::AdviseOnEmitNode);
+                    add_emit_flags(transformed, EmitFlags::AdviseOnEmitNode, self);
                     self.class_lexical_environment_map_mut().insert(
                         get_original_node_id(transformed),
                         current_class_lexical_environment,

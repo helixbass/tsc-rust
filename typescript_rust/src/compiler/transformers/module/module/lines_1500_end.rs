@@ -216,7 +216,7 @@ impl TransformModule {
             .set_text_range(location)
             .start_on_new_line();
         if allow_comments != Some(true) {
-            set_emit_flags(&*statement, EmitFlags::NoComments);
+            set_emit_flags(statement, EmitFlags::NoComments, self);
         }
 
         statement

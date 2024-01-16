@@ -117,17 +117,19 @@ impl TransformTypeScript {
         if self.is_first_emitted_declaration_in_scope(node) {
             if node.kind() == SyntaxKind::EnumDeclaration {
                 set_source_map_range(
-                    &*statement.as_variable_statement().declaration_list,
+                    statement.as_variable_statement().declaration_list,
                     Some(node.into()),
+                    self,
                 );
             } else {
-                set_source_map_range(&*statement, Some(node.into()));
+                set_source_map_range(statement, Some(node.into()), self);
             }
 
-            set_comment_range(&statement, node);
+            set_comment_range(statement, node, self);
             add_emit_flags(
-                &*statement,
+                statement,
                 EmitFlags::NoTrailingComments | EmitFlags::HasEndOfDeclarationMarker,
+                self,
             );
             statements.push(statement);
             true
@@ -233,11 +235,11 @@ impl TransformTypeScript {
             .set_original_node(Some(node.node_wrapper()));
 
         if var_added {
-            set_synthetic_leading_comments(&module_statement, None);
-            set_synthetic_trailing_comments(&module_statement, None);
+            set_synthetic_leading_comments(module_statement, None, self);
+            set_synthetic_trailing_comments(module_statement, None, self);
         }
         set_text_range(&*module_statement, Some(node));
-        add_emit_flags(&*module_statement, emit_flags);
+        add_emit_flags(module_statement, emit_flags, self);
         statements.push(module_statement);
 
         statements.push(
@@ -338,7 +340,7 @@ impl TransformTypeScript {
             None => true,
             Some(node_body) => node_body.kind() != SyntaxKind::ModuleBlock,
         } {
-            set_emit_flags(&*block, get_emit_flags(&block) | EmitFlags::NoComments);
+            set_emit_flags(block, get_emit_flags(&block) | EmitFlags::NoComments, self);
         }
 
         Ok(block)

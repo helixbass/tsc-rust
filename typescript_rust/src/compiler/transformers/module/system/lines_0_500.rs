@@ -364,9 +364,9 @@ impl TransformSystemModule {
             .set_emit_flags(EmitFlags::NoTrailingComments);
 
         if !out_file(&self.compiler_options).is_non_empty() {
-            move_emit_helpers(&updated, &module_body_block, |helper: &EmitHelper| {
+            move_emit_helpers(updated, module_body_block, |helper: &EmitHelper| {
                 !helper.scoped()
-            });
+            }, self);
         }
 
         if let Some(no_substitution) = self.maybe_no_substitution().clone() {
