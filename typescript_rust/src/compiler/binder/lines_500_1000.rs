@@ -452,7 +452,7 @@ impl BinderType {
                 let expr_ref = expr.ref_(self);
                 let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
                 expr_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken
-                    && self.is_narrowing_expression(&expr_as_prefix_unary_expression.operand)
+                    && self.is_narrowing_expression(expr_as_prefix_unary_expression.operand)
             }
             SyntaxKind::TypeOfExpression => {
                 self.is_narrowing_expression(expr.ref_(self).as_type_of_expression().expression)

@@ -74,7 +74,7 @@ impl BinderType {
             None
         };
         if is_binding_pattern(name.refed(self)) {
-            for child in &name.unwrap().as_has_elements().elements() {
+            for child in &name.unwrap().ref_(self).as_has_elements().elements() {
                 self.bind_initialized_variable_flow(child);
             }
         } else {
@@ -183,7 +183,7 @@ impl BinderType {
                         .question_dot_token
                         .clone(),
                 );
-                self.bind(Some(&*node_as_property_access_expression.name));
+                self.bind(Some(node_as_property_access_expression.name));
             }
             SyntaxKind::ElementAccessExpression => {
                 let node_ref = node.ref_(self);
@@ -315,21 +315,22 @@ impl BinderType {
                         .as_double_deref(),
                 );
                 self.bind_each(Some(&*node_as_call_expression.arguments));
-                self.bind(Some(&*node_as_call_expression.expression));
+                self.bind(Some(node_as_call_expression.expression));
             } else {
                 self.bind_each_child(node);
-                if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+                if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
                     self.set_current_flow(Some(self.create_flow_call(self.current_flow(), node)));
                 }
             }
         }
-        if node_as_call_expression.expression.kind() == SyntaxKind::PropertyAccessExpression {
-            let property_access = node_as_call_expression
-                .expression
+        if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
+            let node_expression_ref = node_as_call_expression
+                .expression.ref_(self);
+            let property_access = node_expression_ref
                 .as_property_access_expression();
-            if is_identifier(&property_access.name)
-                && self.is_narrowable_operand(&property_access.expression)
-                && is_push_or_unshift_identifier(&property_access.name)
+            if is_identifier(&property_access.name.ref_(self))
+                && self.is_narrowable_operand(property_access.expression)
+                && is_push_or_unshift_identifier(&property_access.name.ref_(self))
             {
                 self.set_current_flow(Some(self.create_flow_mutation(
                     FlowFlags::ArrayMutation,
@@ -631,7 +632,7 @@ impl BinderType {
                     )
                     .unwrap();
                 let file = self.file();
-                let file_ref = file.ref_(selff);
+                let file_ref = file.ref_(self);
                 let mut pattern_ambient_modules =
                     file_ref.as_source_file().maybe_pattern_ambient_modules();
                 if pattern_ambient_modules.is_none() {
@@ -827,16 +828,17 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
             let operator = node_as_binary_expression.operator_token.ref_(self).kind();
             if is_assignment_operator(operator) && !is_assignment_target(node, self) {
                 self.binder
-                    .bind_assignment_target_flow(&node_as_binary_expression.left);
+                    .bind_assignment_target_flow(node_as_binary_expression.left);
                 if operator == SyntaxKind::EqualsToken
-                    && node_as_binary_expression.left.kind() == SyntaxKind::ElementAccessExpression
+                    && node_as_binary_expression.left.ref_(self).kind() == SyntaxKind::ElementAccessExpression
                 {
-                    let element_access = node_as_binary_expression
-                        .left
+                    let node_left_ref = node_as_binary_expression
+                        .left.ref_(self);
+                    let element_access = node_left_ref
                         .as_element_access_expression();
                     if self
                         .binder
-                        .is_narrowable_operand(&element_access.expression)
+                        .is_narrowable_operand(element_access.expression)
                     {
                         self.binder
                             .set_current_flow(Some(self.binder.create_flow_mutation(

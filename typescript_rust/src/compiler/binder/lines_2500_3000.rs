@@ -400,7 +400,7 @@ impl BinderType {
                 let flags = if prop_tag_as_jsdoc_property_like_tag.is_bracketed
                     || matches!(
                         prop_tag_as_jsdoc_property_like_tag.type_expression,
-                        Some(type_expression) if type_expression.ref_(arena).as_jsdoc_type_expression().type_.ref_(arena).kind() == SyntaxKind::JSDocOptionalType
+                        Some(type_expression) if type_expression.ref_(self).as_jsdoc_type_expression().type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
                     )
                 {
                     SymbolFlags::Property | SymbolFlags::Optional
@@ -420,7 +420,7 @@ impl BinderType {
                 let flags = if prop_tag_as_jsdoc_property_like_tag.is_bracketed
                     || matches!(
                         prop_tag_as_jsdoc_property_like_tag.type_expression,
-                        Some(type_expression) if type_expression.ref_(arena).as_jsdoc_type_expression().type_.ref_(arena).kind() == SyntaxKind::JSDocOptionalType
+                        Some(type_expression) if type_expression.ref_(self).as_jsdoc_type_expression().type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
                     )
                 {
                     SymbolFlags::Property | SymbolFlags::Optional
@@ -892,17 +892,17 @@ impl BinderType {
                         this_container_parent_ref.as_binary_expression();
                     if this_container_parent_as_binary_expression
                         .operator_token
-                        .kind()
+                        .ref_(self).kind()
                         == SyntaxKind::EqualsToken
                     {
-                        let l = &this_container_parent_as_binary_expression.left;
+                        let l = this_container_parent_as_binary_expression.left;
                         if is_bindable_static_access_expression(l, None, self)
-                            && is_prototype_access(l.as_has_expression().expression(), self)
+                            && is_prototype_access(l.ref_(self).as_has_expression().expression(), self)
                         {
                             constructor_symbol = self.lookup_symbol_for_property_access(
-                                &l.as_has_expression()
+                                l.ref_(self).as_has_expression()
                                     .expression()
-                                    .as_has_expression()
+                                    .ref_(self).as_has_expression()
                                     .expression(),
                                 Some(self.this_parent_container()),
                             );

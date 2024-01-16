@@ -99,7 +99,7 @@ impl BinderType {
         let is_toplevel = node.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile;
         namespace_symbol = self.bind_potentially_missing_namespaces(
             namespace_symbol,
-            &node_as_call_expression.arguments[0],
+            node_as_call_expression.arguments[0],
             is_toplevel,
             false,
             false,
@@ -324,7 +324,7 @@ impl BinderType {
         let mut includes = SymbolFlags::None;
         let mut excludes = SymbolFlags::None;
         if maybe_is_function_like_declaration(
-            get_assigned_expando_initializer(Some(declaration)).refed(self),
+            get_assigned_expando_initializer(Some(declaration), self).refed(self),
         ) {
             includes = SymbolFlags::Method;
             excludes = SymbolFlags::MethodExcludes;
@@ -498,7 +498,7 @@ impl BinderType {
             lookup_symbol_for_name(self, lookup_container, &node.ref_(self).as_identifier().escaped_text)
         } else {
             let symbol = self.lookup_symbol_for_property_access(
-                node.as_has_expression().expression(),
+                node.ref_(self).as_has_expression().expression(),
                 None,
             );
             symbol
@@ -580,7 +580,7 @@ impl BinderType {
             if let Some(node_name) = node_as_class_expression.maybe_name() {
                 self.classifiable_names()
                     .borrow_mut()
-                    .insert(node_name.as_identifier().escaped_text.clone());
+                    .insert(node_name.ref_(self).as_identifier().escaped_text.clone());
             }
         }
 
@@ -602,7 +602,7 @@ impl BinderType {
                 .bind_diagnostics_mut()
                 .push(Gc::new(
                     self.create_diagnostic_for_node(
-                        &symbol_export
+                        symbol_export
                             .ref_(self)
                             .maybe_declarations()
                             .as_ref()
@@ -679,13 +679,13 @@ impl BinderType {
     }
 
     pub(super) fn bind_parameter(&self, node: Id<Node> /*ParameterDeclaration*/) {
-        if node..ref_(selfkind() == SyntaxKind::JSDocParameterTag
-            && self.container()..ref_(selfkind() != SyntaxKind::JSDocSignature
+        if node.ref_(self).kind() == SyntaxKind::JSDocParameterTag
+            && self.container().ref_(self).kind() != SyntaxKind::JSDocSignature
         {
             return;
         }
-        let node_name = match node..ref_(selfkind() {
-            SyntaxKind::JSDocParameterTag => Some(node..ref_(selfas_jsdoc_property_like_tag().name),
+        let node_name = match node.ref_(self).kind() {
+            SyntaxKind::JSDocParameterTag => Some(node.ref_(self).as_jsdoc_property_like_tag().name),
             _ => node.ref_(self).as_named_declaration().maybe_name(),
         };
         if self.maybe_in_strict_mode() == Some(true)
@@ -694,7 +694,7 @@ impl BinderType {
             self.check_strict_mode_eval_or_arguments(node, node_name);
         }
 
-        if is_binding_pattern(node_name.as_deref()) {
+        if is_binding_pattern(node_name.refed(self)) {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::FunctionScopedVariable,
@@ -775,7 +775,7 @@ impl BinderType {
         }
         self.check_strict_mode_function_name(node);
         let binding_name = match node.ref_(self).as_named_declaration().maybe_name() {
-            Some(name) => name.as_identifier().escaped_text.clone(),
+            Some(name) => name.ref_(self).as_identifier().escaped_text.clone(),
             None => InternalSymbolName::Function.to_owned(),
         };
         self.bind_anonymous_declaration(node, SymbolFlags::Function, binding_name)
@@ -924,7 +924,7 @@ impl BinderType {
                         && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
                         && (!is_variable_statement(&node.ref_(self))
                             || get_combined_node_flags(
-                                node.as_variable_statement().declaration_list,
+                                node.ref_(self).as_variable_statement().declaration_list,
                                 self,
                             )
                             .intersects(NodeFlags::BlockScoped)
@@ -961,7 +961,7 @@ fn each_unreachable_range(node: Id<Node>, mut cb: impl FnMut(Id<Node>, Id<Node>)
         let slice = slice_after_eq(statements, &node);
         get_ranges_where(
             slice,
-            |node| is_executable_statement(node, arena),
+            |&node| is_executable_statement(node, arena),
             |start, after_end| cb(slice[start], slice[after_end - 1]),
         );
     } else {
@@ -1004,11 +1004,11 @@ pub fn is_exports_or_module_exports_or_alias(
     while !q.is_empty() && i < 100 {
         i += 1;
         node = q.remove(0);
-        if is_exports_identifier(&node) || is_module_exports_access_expression(node, binder) {
+        if is_exports_identifier(&node.ref_(binder)) || is_module_exports_access_expression(node, binder) {
             return true;
         } else if is_identifier(&node.ref_(binder)) {
             let symbol =
-                lookup_symbol_for_name(binder, source_file, &node.as_identifier().escaped_text);
+                lookup_symbol_for_name(binder, source_file, &node.ref_(binder).as_identifier().escaped_text);
             if let Some(symbol) = symbol {
                 if let Some(symbol_value_declaration) = binder
                     .symbol(symbol)

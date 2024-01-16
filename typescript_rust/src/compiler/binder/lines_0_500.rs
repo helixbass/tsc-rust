@@ -161,7 +161,7 @@ pub(super) fn get_module_instance_state_worker(
                 )
             {
                 let mut state = ModuleInstanceState::NonInstantiated;
-                for specifier in &export_declaration
+                for &specifier in &export_declaration
                     .export_clause
                     .unwrap()
                     .ref_(arena).as_named_exports()
@@ -705,6 +705,7 @@ impl BinderType {
             node,
             message,
             args,
+            self,
         )
     }
 
@@ -871,14 +872,15 @@ impl BinderType {
                 let name_expression = name.ref_(self).as_computed_property_name().expression;
                 if is_string_or_numeric_literal_like(&name_expression.ref_(self)) {
                     return Some(
-                        escape_leading_underscores(&name_expression.as_literal_like_node().text())
+                        escape_leading_underscores(&name_expression.ref_(self).as_literal_like_node().text())
                             .into_owned()
                             .into(),
                     );
                 }
                 if is_signed_numeric_literal(name_expression, self) {
+                    let name_expression_ref = name_expression.ref_(self);
                     let name_expression_as_prefix_unary_expression =
-                        name_expression.as_prefix_unary_expression();
+                        name_expression_ref.as_prefix_unary_expression();
                     return Some(
                         format!(
                             "{}{}",
@@ -886,7 +888,7 @@ impl BinderType {
                                 .unwrap(),
                             name_expression_as_prefix_unary_expression
                                 .operand
-                                .as_literal_like_node()
+                                .ref_(self).as_literal_like_node()
                                 .text()
                         )
                         .into(),
@@ -949,7 +951,7 @@ impl BinderType {
                 );
                 let function_type = node.ref_(self).parent();
                 let index = index_of_eq(
-                    &function_type.as_jsdoc_function_type().parameters(),
+                    &function_type.ref_(self).as_jsdoc_function_type().parameters(),
                     &node,
                 );
                 Some(format!("arg{}", index).into())
@@ -1155,7 +1157,6 @@ impl BinderType {
                                             } else {
                                                 None
                                             },
-                                            self,
                                         )
                                         .into(),
                                     );

@@ -111,7 +111,8 @@ impl BinderType {
                     ElementKind::Accessor
                 };
 
-                let identifier_as_identifier = identifier.as_identifier();
+                let identifier_ref = identifier.ref_(self);
+                let identifier_as_identifier = identifier_ref.as_identifier();
                 let existing_kind = seen.get(&identifier_as_identifier.escaped_text);
                 if existing_kind.is_none() {
                     seen.insert(identifier_as_identifier.escaped_text.clone(), current_kind);
@@ -561,7 +562,7 @@ impl BinderType {
 
     pub(super) fn is_eval_or_arguments_identifier(&self, node: Id<Node>) -> bool {
         is_identifier(&node.ref_(self)) && matches!(
-            &*node.as_identifier().escaped_text,
+            &*node.ref_(self).as_identifier().escaped_text,
             "eval" | "arguments"
         )
     }
@@ -755,7 +756,7 @@ impl BinderType {
                 || is_variable_statement(&node_as_labeled_statement.statement.ref_(self))
             {
                 self.error_on_first_token(
-                    &node_as_labeled_statement.label,
+                    node_as_labeled_statement.label,
                     &Diagnostics::A_label_is_not_allowed_here,
                     None,
                 );

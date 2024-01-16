@@ -522,7 +522,7 @@ impl BinderType {
         self.add_antecedent(&post_switch_label, self.current_flow());
         let has_default = for_each_bool(
             &node_as_switch_statement.case_block.ref_(self).as_case_block().clauses,
-            |c, _| c.kind() == SyntaxKind::DefaultClause,
+            |c, _| c.ref_(self).kind() == SyntaxKind::DefaultClause,
         );
         node_as_switch_statement.set_possibly_exhaustive(Some(
             !has_default
@@ -553,12 +553,12 @@ impl BinderType {
         while i < clauses.len() {
             let clause_start = i;
             while clauses[i]
-                .as_case_or_default_clause()
+                .ref_(self).as_case_or_default_clause()
                 .statements()
                 .is_empty()
                 && i + 1 < clauses.len()
             {
-                self.bind(Some(&*clauses[i]));
+                self.bind(Some(clauses[i]));
                 i += 1;
             }
             let pre_case_label = self.create_branch_label();
@@ -577,8 +577,8 @@ impl BinderType {
             );
             self.add_antecedent(&pre_case_label, fallthrough_flow);
             self.set_current_flow(Some(self.finish_flow_label(pre_case_label.clone())));
-            let clause = &clauses[i];
-            self.bind(Some(&**clause));
+            let clause = clauses[i];
+            self.bind(Some(clause));
             fallthrough_flow = self.current_flow();
             if !self
                 .current_flow()
@@ -588,7 +588,7 @@ impl BinderType {
                 && matches!(self.options().no_fallthrough_cases_in_switch, Some(true))
             {
                 clause
-                    .as_case_or_default_clause()
+                    .ref_(self).as_case_or_default_clause()
                     .set_fallthrough_flow_node(Some(self.current_flow()));
             }
             i += 1;
@@ -674,23 +674,23 @@ impl BinderType {
                 node,
             )));
         } else if node.ref_(self).kind() == SyntaxKind::ArrayLiteralExpression {
-            for e in &*node.ref_(self).as_array_literal_expression().elements {
-                if e.kind() == SyntaxKind::SpreadElement {
-                    self.bind_assignment_target_flow(&e.as_spread_element().expression);
+            for &e in &*node.ref_(self).as_array_literal_expression().elements {
+                if e.ref_(self).kind() == SyntaxKind::SpreadElement {
+                    self.bind_assignment_target_flow(e.ref_(self).as_spread_element().expression);
                 } else {
                     self.bind_destructuring_target_flow(e);
                 }
             }
         } else if node.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression {
             for p in &*node.ref_(self).as_object_literal_expression().properties {
-                if p.kind() == SyntaxKind::PropertyAssignment {
+                if p.ref_(self).kind() == SyntaxKind::PropertyAssignment {
                     self.bind_destructuring_target_flow(
-                        &p.as_property_assignment().maybe_initializer().unwrap(),
+                        p.ref_(self).as_property_assignment().maybe_initializer().unwrap(),
                     );
-                } else if p.kind() == SyntaxKind::ShorthandPropertyAssignment {
-                    self.bind_assignment_target_flow(&p.as_shorthand_property_assignment().name());
-                } else if p.kind() == SyntaxKind::SpreadAssignment {
-                    self.bind_assignment_target_flow(&p.as_spread_assignment().expression);
+                } else if p.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
+                    self.bind_assignment_target_flow(p.ref_(self).as_shorthand_property_assignment().name());
+                } else if p.ref_(self).kind() == SyntaxKind::SpreadAssignment {
+                    self.bind_assignment_target_flow(p.ref_(self).as_spread_assignment().expression);
                 }
             }
         }
