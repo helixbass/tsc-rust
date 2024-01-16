@@ -36,7 +36,7 @@ impl TypeChecker {
         node: Id<Node>, /*PropertyAssignment*/
         dont_recursively_resolve: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let expression = &node.ref_(self).as_property_assignment().initializer;
+        let expression = node.ref_(self).as_property_assignment().initializer;
         self.get_target_of_alias_like_expression(expression, dont_recursively_resolve)
     }
 
@@ -46,18 +46,19 @@ impl TypeChecker {
         dont_recursively_resolve: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let node_parent = node.ref_(self).parent();
-        if !(is_binary_expression(&node_parent)) {
+        if !(is_binary_expression(&node_parent.ref_(self))) {
             return Ok(None);
         }
-        let node_parent_as_binary_expression = node_parent.ref_(self).as_binary_expression();
+        let node_parent_ref = node_parent.ref_(self);
+        let node_parent_as_binary_expression = node_parent_ref.as_binary_expression();
         if !(node_parent_as_binary_expression.left == node
-            && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken)
+            && node_parent_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::EqualsToken)
         {
             return Ok(None);
         }
 
         self.get_target_of_alias_like_expression(
-            &node_parent_as_binary_expression.right,
+            node_parent_as_binary_expression.right,
             dont_recursively_resolve,
         )
     }
@@ -96,7 +97,7 @@ impl TypeChecker {
                 self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve)?,
             ),
             SyntaxKind::ShorthandPropertyAssignment => self.resolve_entity_name(
-                &node.ref_(self).as_shorthand_property_assignment().name(),
+                node.ref_(self).as_shorthand_property_assignment().name(),
                 SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                 Some(true),
                 Some(dont_recursively_resolve),
@@ -261,7 +262,7 @@ impl TypeChecker {
                     .maybe_declarations()
                     .as_deref()
                     .and_then(|declarations| {
-                        find(declarations, |declaration: &Id<Node>, _| {
+                        find(declarations, |&declaration: &Id<Node>, _| {
                             is_type_only_import_or_export_declaration(declaration, self)
                         })
                         .map(Clone::clone)
@@ -330,7 +331,7 @@ impl TypeChecker {
             let Some(node) = self.get_declaration_of_alias_symbol(symbol)? else {
                 Debug_.fail(None);
             };
-            if is_internal_module_import_equals_declaration(&node.ref_(self)) {
+            if is_internal_module_import_equals_declaration(node, self) {
                 let target = self.resolve_symbol(Some(symbol), None)?.unwrap();
                 if target == self.unknown_symbol()
                     || target.ref_(self).flags().intersects(SymbolFlags::Value)
@@ -363,30 +364,30 @@ impl TypeChecker {
         if entity_name.ref_(self).kind() == SyntaxKind::Identifier
             && is_right_side_of_qualified_name_or_property_access(entity_name, self)
         {
-            entity_name = entity_name.parent();
+            entity_name = entity_name.ref_(self).parent();
         }
         Ok(
-            if entity_name.kind() == SyntaxKind::Identifier
-                || entity_name.parent().kind() == SyntaxKind::QualifiedName
+            if entity_name.ref_(self).kind() == SyntaxKind::Identifier
+                || entity_name.ref_(self).parent().ref_(self).kind() == SyntaxKind::QualifiedName
             {
                 self.resolve_entity_name(
-                    &entity_name,
+                    entity_name,
                     SymbolFlags::Namespace,
                     Some(false),
                     dont_resolve_alias,
-                    Option::<Id<Node>>::None,
+                    None,
                 )?
             } else {
                 Debug_.assert(
-                    entity_name.parent().kind() == SyntaxKind::ImportEqualsDeclaration,
+                    entity_name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ImportEqualsDeclaration,
                     None,
                 );
                 self.resolve_entity_name(
-                    &entity_name,
+                    entity_name,
                     SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                     Some(false),
                     dont_resolve_alias,
-                    Option::<Id<Node>>::None,
+                    None,
                 )?
             },
         )
@@ -473,12 +474,12 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let ignore_errors_unwrapped = ignore_errors.unwrap_or(false);
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
-        if node_is_missing(Some(name)) {
+        if node_is_missing(Some(&name.ref_(self))) {
             return Ok(None);
         }
 
         let namespace_meaning = SymbolFlags::Namespace
-            | if is_in_js_file(Some(name)) {
+            | if is_in_js_file(Some(&name.ref_(self))) {
                 meaning & SymbolFlags::Value
             } else {
                 SymbolFlags::None
@@ -492,13 +493,13 @@ impl TypeChecker {
                 self.get_cannot_find_name_diagnostic_for_name(get_first_identifier(name, self))
             };
             let symbol_from_js_prototype =
-                if is_in_js_file(Some(name)) && !node_is_synthesized(&*name.ref_(self)) {
+                if is_in_js_file(Some(&name.ref_(self))) && !node_is_synthesized(&name.ref_(self)) {
                     self.resolve_entity_name_from_assignment_declaration(name, meaning)?
                 } else {
                     None
                 };
             symbol = self.get_merged_symbol(self.resolve_name_(
-                Some(location.as_deref().unwrap_or(name)),
+                Some(location.unwrap_or(name)),
                 &name.ref_(self).as_identifier().escaped_text,
                 meaning,
                 if ignore_errors_unwrapped || symbol_from_js_prototype.is_some() {
@@ -538,7 +539,7 @@ impl TypeChecker {
                 return Ok(None);
             }
             let mut namespace = namespace.unwrap();
-            if node_is_missing(Some(&**right)) {
+            if node_is_missing(Some(&right.ref_(self))) {
                 return Ok(None);
             } else if namespace == self.unknown_symbol() {
                 return Ok(Some(namespace));
@@ -556,8 +557,8 @@ impl TypeChecker {
                             .maybe_initializer()
                     {
                         if self.is_common_js_require(namespace_value_declaration_initializer)? {
-                            let module_name = &namespace_value_declaration_initializer
-                                .as_call_expression()
+                            let module_name = namespace_value_declaration_initializer
+                                .ref_(self).as_call_expression()
                                 .arguments[0];
                             let module_sym = self.resolve_external_module_name_(
                                 &module_name,
@@ -577,7 +578,7 @@ impl TypeChecker {
             }
             symbol = self.get_merged_symbol(self.get_symbol(
                 &(*self.get_exports_of_symbol(namespace)?).borrow(),
-                &right.as_identifier().escaped_text,
+                &right.ref_(self).as_identifier().escaped_text,
                 meaning,
             )?);
             if symbol.is_none() {
@@ -591,7 +592,7 @@ impl TypeChecker {
                         suggestion_for_nonexistent_module
                     {
                         self.error(
-                            Some(&**right),
+                            Some(right),
                             &Diagnostics::_0_has_no_exported_member_named_1_Did_you_mean_2,
                             Some(vec![
                                 namespace_name,
@@ -634,7 +635,7 @@ impl TypeChecker {
                     {
                         let exported_type_symbol = self.get_merged_symbol(self.get_symbol(
                             &(*self.get_exports_of_symbol(namespace)?).borrow(),
-                            &right.as_identifier().escaped_text,
+                            &right.ref_(self).as_identifier().escaped_text,
                             SymbolFlags::Type,
                         )?);
                         if let Some(exported_type_symbol) = exported_type_symbol {
@@ -651,7 +652,7 @@ impl TypeChecker {
                     }
 
                     self.error(
-                        Some(&**right),
+                        Some(right),
                         &Diagnostics::Namespace_0_has_no_exported_member_1,
                         Some(vec![namespace_name, declaration_name.into_owned()]),
                     );
@@ -666,10 +667,10 @@ impl TypeChecker {
             !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated),
             Some("Should never get an instantiated symbol here."),
         );
-        if !node_is_synthesized(&*name.ref_(self))
-            && is_entity_name(name)
+        if !node_is_synthesized(&name.ref_(self))
+            && is_entity_name(&name.ref_(self))
             && (symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
-                || name.ref_(self).parent().kind() == SyntaxKind::ExportAssignment)
+                || name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment)
         {
             self.mark_symbol_of_alias_declaration_if_type_only(
                 get_alias_declaration_from_name(name, self),
@@ -722,7 +723,7 @@ impl TypeChecker {
             } else {
                 is_jsdoc_type_alias(&node.ref_(self)).into()
             }
-        });
+        }, self);
         if type_alias.is_some() {
             return Ok(None);
         }
@@ -735,9 +736,9 @@ impl TypeChecker {
                         == AssignmentDeclarationKind::PrototypeProperty
                 {
                     let symbol = self.get_symbol_of_node(
-                        &host_as_expression_statement
+                        host_as_expression_statement
                             .expression
-                            .as_binary_expression()
+                            .ref_(self).as_binary_expression()
                             .left,
                     )?;
                     if let Some(symbol) = symbol {
@@ -790,8 +791,8 @@ impl TypeChecker {
             .ref_(self)
             .maybe_value_declaration()?;
         let initializer = if is_assignment_declaration(&decl.ref_(self)) {
-            get_assigned_expando_initializer(Some(&*decl))
-        } else if has_only_expression_initializer(&decl) {
+            get_assigned_expando_initializer(Some(decl), self)
+        } else if has_only_expression_initializer(&decl.ref_(self)) {
             get_declared_expando_initializer(decl, self)
         } else {
             None
@@ -801,19 +802,19 @@ impl TypeChecker {
 
     pub(super) fn get_expando_symbol(&self, symbol: Id<Symbol>) -> io::Result<Option<Id<Symbol>>> {
         let decl = return_ok_default_if_none!(symbol.ref_(self).maybe_value_declaration());
-        if !is_in_js_file(Some(&*decl))
+        if !is_in_js_file(Some(&decl.ref_(self)))
             || symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias)
             || get_expando_initializer(decl, false, self).is_some()
         {
             return Ok(None);
         }
-        let init = if is_variable_declaration(&decl) {
+        let init = if is_variable_declaration(&decl.ref_(self)) {
             get_declared_expando_initializer(decl, self)
         } else {
-            get_assigned_expando_initializer(Some(&*decl))
+            get_assigned_expando_initializer(Some(decl), self)
         };
         if let Some(init) = init {
-            let init_symbol = self.get_symbol_of_node(&init)?;
+            let init_symbol = self.get_symbol_of_node(init)?;
             if let Some(init_symbol) = init_symbol {
                 return self.merge_js_symbols(init_symbol, Some(symbol));
             }
@@ -854,10 +855,10 @@ impl TypeChecker {
         is_for_augmentation: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let is_for_augmentation = is_for_augmentation.unwrap_or(false);
-        Ok(if is_string_literal_like(module_reference_expression) {
+        Ok(if is_string_literal_like(&module_reference_expression.ref_(self)) {
             self.resolve_external_module(
                 location,
-                &module_reference_expression.as_literal_like_node().text(),
+                &module_reference_expression.ref_(self).as_literal_like_node().text(),
                 module_not_found_error,
                 module_reference_expression,
                 Some(is_for_augmentation),
@@ -894,46 +895,52 @@ impl TypeChecker {
             return Ok(ambient_module);
         }
         let current_source_file = get_source_file_of_node(location, self);
-        let context_specifier = if is_string_literal_like(location) {
-            Some(location.node_wrapper())
+        let context_specifier = if is_string_literal_like(&location.ref_(self)) {
+            Some(location)
         } else {
-            find_ancestor(Some(location), |node| is_import_call(node, self)).and_then(|ancestor| ancestor.as_call_expression().arguments.get(0).map(Clone::clone)).or_else(|| {
-                find_ancestor(Some(location), is_import_declaration).map(|ancestor| ancestor.as_import_declaration().module_specifier.clone())
+            find_ancestor(Some(location), |node| is_import_call(node, self), self).and_then(|ancestor| ancestor.ref_(self).as_call_expression().arguments.get(0).copied()).or_else(|| {
+                find_ancestor(Some(location), |node| is_import_declaration(&node.ref_(self)), self).map(|ancestor| ancestor.ref_(self).as_import_declaration().module_specifier)
             }).or_else(|| {
-                find_ancestor(Some(location), is_external_module_import_equals_declaration).map(|ancestor| ancestor.as_import_equals_declaration().module_reference.as_external_module_reference().expression.clone())
+                find_ancestor(Some(location), |node| is_external_module_import_equals_declaration(node, self), self).map(|ancestor| ancestor.ref_(self).as_import_equals_declaration().module_reference.ref_(self).as_external_module_reference().expression)
             }).or_else(|| {
-                find_ancestor(Some(location), is_export_declaration).and_then(|ancestor| ancestor.as_export_declaration().module_specifier.clone())
+                find_ancestor(Some(location), |node| is_export_declaration(&node.ref_(self)), self).and_then(|ancestor| ancestor.ref_(self).as_export_declaration().module_specifier)
             }).or_else(|| {
-                if is_module_declaration(location) {
-                    Some(location.node_wrapper())
-                } else if matches!(location.maybe_parent(), Some(parent) if is_module_declaration(&parent) && ptr::eq(&*parent.as_module_declaration().name, location)) {
-                    location.maybe_parent()
+                if is_module_declaration(&location.ref_(self)) {
+                    Some(location)
+                } else if matches!(
+                    location.ref_(self).maybe_parent(),
+                    Some(parent) if is_module_declaration(&parent.ref_(self)) && parent.ref_(self).as_module_declaration().name == location
+                ) {
+                    location.ref_(self).maybe_parent()
                 } else {
                     None
-                }.map(|node| node.as_module_declaration().name.clone())
+                }.map(|node| node.ref_(self).as_module_declaration().name)
             }).or_else(|| {
                 if is_literal_import_type_node(location, self) {
-                    Some(location.node_wrapper())
+                    Some(location)
                 } else {
                     None
-                }.map(|node| node.as_import_type_node().argument.as_literal_type_node().literal.clone())
+                }.map(|node| node.ref_(self).as_import_type_node().argument.ref_(self).as_literal_type_node().literal)
             })
         };
-        let mode = if matches!(context_specifier.as_ref(), Some(context_specifier) if is_string_literal_like(context_specifier))
-        {
+        let mode = if matches!(
+            context_specifier,
+            Some(context_specifier) if is_string_literal_like(&context_specifier.ref_(self))
+        ) {
             get_mode_for_usage_location(
                 current_source_file
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .maybe_implied_node_format(),
-                context_specifier.as_ref().unwrap(),
+                context_specifier.unwrap(),
+                self,
             )
         } else {
             current_source_file
-                .as_source_file()
+                .ref_(self).as_source_file()
                 .maybe_implied_node_format()
         };
         let resolved_module =
-            get_resolved_module(Some(&*current_source_file), module_reference, mode);
+            get_resolved_module(Some(current_source_file), module_reference, mode);
         let resolution_diagnostic = resolved_module.as_ref().and_then(|resolved_module| {
             get_resolution_diagnostic(&self.compiler_options, resolved_module)
         });
@@ -946,9 +953,9 @@ impl TypeChecker {
             }
         });
         if let Some(source_file) = source_file {
-            if let Some(source_file_symbol) = source_file.maybe_symbol() {
+            if let Some(source_file_symbol) = source_file.ref_(self).maybe_symbol() {
                 let resolved_module = resolved_module.as_ref().unwrap();
-                if matches!(resolved_module.is_external_library_import, Some(true))
+                if resolved_module.is_external_library_import == Some(true)
                     && !resolution_extension_is_ts_or_json(resolved_module.extension())
                 {
                     self.error_on_implicit_any_module(
@@ -962,19 +969,16 @@ impl TypeChecker {
                     get_emit_module_resolution_kind(&self.compiler_options),
                     ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext
                 ) {
-                    let is_sync_import = matches!(
+                    let is_sync_import = 
                         current_source_file
-                            .as_source_file()
-                            .maybe_implied_node_format(),
+                            .ref_(self).as_source_file()
+                            .maybe_implied_node_format() ==
                         Some(ModuleKind::CommonJS)
-                    ) && find_ancestor(Some(location), |node| is_import_call(node, self))
+                    && find_ancestor(Some(location), |node| is_import_call(node, self), self)
                         .is_none()
-                        || find_ancestor(Some(location), is_import_equals_declaration).is_some();
+                        || find_ancestor(Some(location), |node| is_import_equals_declaration(&node.ref_(self)), self).is_some();
                     if is_sync_import
-                        && matches!(
-                            source_file.as_source_file().maybe_implied_node_format(),
-                            Some(ModuleKind::ESNext)
-                        )
+                        && source_file.ref_(self).as_source_file().maybe_implied_node_format() == Some(ModuleKind::ESNext)
                     {
                         self.error(
                             Some(error_node),
@@ -982,7 +986,7 @@ impl TypeChecker {
                             Some(vec![module_reference.to_owned()])
                         );
                     }
-                    if matches!(mode, Some(ModuleKind::ESNext))
+                    if mode == Some(ModuleKind::ESNext)
                         && matches!(self.compiler_options.resolve_json_module, Some(true))
                         && resolved_module.extension() == Extension::Json
                     {
@@ -999,7 +1003,7 @@ impl TypeChecker {
                 self.error(
                     Some(error_node),
                     &Diagnostics::File_0_is_not_a_module,
-                    Some(vec![source_file.as_source_file().file_name().to_owned()]),
+                    Some(vec![source_file.ref_(self).as_source_file().file_name().to_owned()]),
                 );
             }
             return Ok(None);
@@ -1129,7 +1133,7 @@ impl TypeChecker {
                     let absolute_ref = get_normalized_absolute_path(
                         module_reference,
                         Some(&get_directory_path(
-                            &current_source_file.as_source_file().path(),
+                            &current_source_file.ref_(self).as_source_file().path(),
                         )),
                     );
                     let suggested_ext = self

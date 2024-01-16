@@ -784,6 +784,14 @@ enum ComparerOrEqualityComparer<'closure, TItem> {
     EqualityComparer(&'closure dyn Fn(&TItem, &TItem) -> bool),
 }
 
+fn deduplicate_equality_eq<TItem: PartialEq + Clone>(array: &[TItem]) -> Vec<TItem> {
+    let mut result = vec![];
+    for item in array {
+        push_if_unique_eq(&mut result, item);
+    }
+    result
+}
+
 fn deduplicate_equality_gc<TItem: Trace + Finalize>(array: &[Gc<TItem>]) -> Vec<Gc<TItem>> {
     let mut result = vec![];
     for item in array {
@@ -798,6 +806,16 @@ fn deduplicate_equality_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
         push_if_unique_rc(&mut result, item);
     }
     result
+}
+
+pub fn deduplicate_eq<TItem: PartialEq + Clone>(array: &[TItem]) -> Vec<TItem> {
+    if array.is_empty() {
+        vec![]
+    } else if array.len() == 1 {
+        vec![array[0].clone()]
+    } else {
+        deduplicate_equality_eq(array)
+    }
 }
 
 pub fn deduplicate_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {

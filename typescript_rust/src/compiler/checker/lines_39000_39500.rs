@@ -827,7 +827,7 @@ impl TypeChecker {
                     symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(symbol_declarations) if symbol_declarations.len() > 1
                 )
-                && is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options))
+                && is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options), self)
             {
                 let first_non_ambient_class_or_func =
                     self.get_first_non_ambient_class_or_function_declaration(symbol);

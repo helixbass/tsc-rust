@@ -111,7 +111,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> Option<Id<Node /*ConstructorDeclaration*/>> {
-        let members = node.as_class_like_declaration().members();
+        let members = node.ref_(self).as_class_like_declaration().members();
         for member in &members {
             if member.kind() == SyntaxKind::Constructor
                 && node_is_present(member.as_constructor_declaration().maybe_body())
@@ -391,8 +391,7 @@ impl TypeChecker {
         ) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         let mut result: Option<TReturn>;
-        let mut location: Option<Id<Node>> = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        let mut location: Option<Id<Node>> = enclosing_declaration;
         while let Some(location_unwrapped) = location {
             if let Some(location_locals) = location_unwrapped.maybe_locals().as_ref() {
                 if !self.is_global_source_file(&location_unwrapped) {
@@ -508,12 +507,8 @@ impl TypeChecker {
         if (*links).borrow().accessible_chain_cache.is_none() {
             links.borrow_mut().accessible_chain_cache = Some(HashMap::new());
         }
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let first_relevant_location = self
-            .for_each_symbol_table_in_scope(enclosing_declaration.as_deref(), |_, _, _, node| {
-                node.map(|node| node.node_wrapper())
-            });
+            .for_each_symbol_table_in_scope(enclosing_declaration.as_deref(), |_, _, _, node| node);
         let key = format!(
             "{}|{}|{}",
             if use_only_external_aliasing { 0 } else { 1 },
@@ -642,10 +637,10 @@ impl TypeChecker {
                 .ref_(self)
                 .maybe_declarations()
                 .as_deref(),
-            Some(|declaration: &Id<Node>| {
+            Some(|&declaration: &Id<Node>| {
                 self.has_non_global_augmentation_external_module_symbol(declaration)
             }),
-        ) && (matches!(ignore_qualification, Some(true))
+        ) && (ignore_qualification == Some(true)
             || self.can_qualify_symbol(
                 enclosing_declaration,
                 use_only_external_aliasing,
@@ -694,26 +689,29 @@ impl TypeChecker {
                         != InternalSymbolName::ExportEquals
                     && symbol_from_symbol_table.ref_(self).escaped_name()
                         != InternalSymbolName::Default
-                    && !(is_umd_export_symbol(Some(symbol_from_symbol_table, self))
-                        && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(enclosing_declaration, self))))
+                    && !(is_umd_export_symbol(Some(symbol_from_symbol_table), self)
+                        && matches!(
+                            enclosing_declaration,
+                            Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(enclosing_declaration, self).ref_(self))
+                        ))
                     && (!use_only_external_aliasing
                         || some(
                             symbol_from_symbol_table
                                 .ref_(self)
                                 .maybe_declarations()
                                 .as_deref(),
-                            Some(|declaration: &Id<Node>| {
-                                is_external_module_import_equals_declaration(declaration)
+                            Some(|&declaration: &Id<Node>| {
+                                is_external_module_import_equals_declaration(declaration, self)
                             }),
                         ))
-                    && if matches!(is_local_name_lookup, Some(true)) {
+                    && if is_local_name_lookup == Some(true) {
                         !some(
                             symbol_from_symbol_table
                                 .ref_(self)
                                 .maybe_declarations()
                                 .as_deref(),
-                            Some(|declaration: &Id<Node>| {
-                                is_namespace_reexport_declaration(declaration)
+                            Some(|&declaration: &Id<Node>| {
+                                is_namespace_reexport_declaration(declaration, self)
                             }),
                         )
                     } else {
@@ -899,7 +897,7 @@ impl TypeChecker {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
                 for declaration in symbol_declarations {
-                    match declaration.kind() {
+                    match declaration.ref_(self).kind() {
                         SyntaxKind::PropertyDeclaration
                         | SyntaxKind::MethodDeclaration
                         | SyntaxKind::GetAccessor
@@ -922,8 +920,6 @@ impl TypeChecker {
         type_symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
     ) -> io::Result<bool> {
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let access = self.is_symbol_accessible_worker(
             Some(type_symbol),
             enclosing_declaration.as_deref(),
@@ -981,8 +977,6 @@ impl TypeChecker {
 
         let mut had_accessible_chain: Option<Id<Symbol>> = None;
         let mut early_module_bail = false;
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         for &symbol in symbols {
             let accessible_symbol_chain = self.get_accessible_symbol_chain(
                 Some(symbol),
@@ -1006,7 +1000,7 @@ impl TypeChecker {
             if allow_modules {
                 if some(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    Some(|declaration: &Id<Node>| {
+                    Some(|&declaration: &Id<Node>| {
                         self.has_non_global_augmentation_external_module_symbol(declaration)
                     }),
                 ) {
@@ -1108,7 +1102,6 @@ impl TypeChecker {
     ) -> io::Result<SymbolAccessibilityResult> {
         if let Some(symbol) = symbol {
             if let Some(enclosing_declaration) = enclosing_declaration {
-                let enclosing_declaration = enclosing_declaration.borrow();
                 let result = self.is_any_symbol_accessible(
                     Some(&vec![symbol]),
                     Some(enclosing_declaration),
@@ -1123,7 +1116,7 @@ impl TypeChecker {
 
                 let symbol_external_module = try_maybe_for_each(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    |declaration: &Id<Node>, _| self.get_external_module_container(declaration),
+                    |&declaration: &Id<Node>, _| self.get_external_module_container(declaration),
                 )?;
                 if let Some(symbol_external_module) = symbol_external_module {
                     let enclosing_external_module =
@@ -1149,8 +1142,8 @@ impl TypeChecker {
                                 None,
                                 None,
                             )?),
-                            error_node: if is_in_js_file(Some(enclosing_declaration)) {
-                                Some(enclosing_declaration.node_wrapper())
+                            error_node: if is_in_js_file(Some(&enclosing_declaration.ref_(self))) {
+                                Some(enclosing_declaration)
                             } else {
                                 None
                             },
@@ -1189,13 +1182,13 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let node = find_ancestor(Some(declaration), |node| {
             self.has_external_module_symbol(node)
-        });
-        node.try_and_then(|node| self.get_symbol_of_node(&node))
+        }, self);
+        node.try_and_then(|node| self.get_symbol_of_node(node))
     }
 
     pub(super) fn has_external_module_symbol(&self, declaration: Id<Node>) -> bool {
         is_ambient_module(declaration, self)
-            || declaration.kind() == SyntaxKind::SourceFile
-                && is_external_or_common_js_module(declaration)
+            || declaration.ref_(self).kind() == SyntaxKind::SourceFile
+                && is_external_or_common_js_module(&declaration.ref_(self))
     }
 }

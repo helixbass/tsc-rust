@@ -147,7 +147,7 @@ pub use compiler::{
         compare_strings_case_sensitive_maybe, compare_values, comparison_to_ordering, concatenate,
         contains, contains_comparer, contains_gc, contains_rc, count_where,
         create_get_canonical_file_name, create_multi_map, create_multi_map_ordered,
-        create_underscore_escaped_multi_map, deduplicate_gc, deduplicate_rc, element_at, ends_with,
+        create_underscore_escaped_multi_map, deduplicate_eq, deduplicate_gc, deduplicate_rc, element_at, ends_with,
         equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, fill,
         filter, filter_iter, filter_mutate, filter_owning, find, find_best_pattern_match,
         find_index, find_last, find_last_index, find_last_index_returns_isize, first,

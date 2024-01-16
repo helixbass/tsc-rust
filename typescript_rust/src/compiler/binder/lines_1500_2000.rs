@@ -74,7 +74,7 @@ impl BinderType {
             None
         };
         if is_binding_pattern(name.refed(self)) {
-            for child in &name.unwrap().ref_(self).as_has_elements().elements() {
+            for &child in &name.unwrap().ref_(self).as_has_elements().elements() {
                 self.bind_initialized_variable_flow(child);
             }
         } else {

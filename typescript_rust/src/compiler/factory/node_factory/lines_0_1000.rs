@@ -26,6 +26,7 @@ use crate::{
     ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
     ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral,
     StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
+    HasArena, AllArenas,
 };
 
 thread_local! {
@@ -1261,6 +1262,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node.add_transform_flags(transform_flags);
         }
         node
+    }
+}
+
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> HasArena for NodeFactory<TBaseNodeFactory> {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

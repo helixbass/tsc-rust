@@ -223,9 +223,9 @@ impl TypeChecker {
                 return Ok(Some(symbol));
             }
 
-            let reference_parent = referencing_location.parent();
-            if is_import_declaration(&reference_parent)
-                && get_namespace_declaration_node(&reference_parent).is_some()
+            let reference_parent = referencing_location.ref_(self).parent();
+            if is_import_declaration(&reference_parent.ref_(self))
+                && get_namespace_declaration_node(reference_parent, self).is_some()
                 || is_import_call(reference_parent, self)
             {
                 let reference = if is_import_call(reference_parent, self) {
@@ -309,7 +309,7 @@ impl TypeChecker {
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.target = Some(symbol);
-        result_links.originating_import = Some(reference_parent.node_wrapper());
+        result_links.originating_import = Some(reference_parent);
         if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
             result
                 .ref_(self)
@@ -525,9 +525,8 @@ impl TypeChecker {
                             ExportCollisionTracker {
                                 specifier_text: get_text_of_node(
                                     export_node
-                                        .as_export_declaration()
-                                        .module_specifier
-                                        .unwrap(),
+                                        .ref_(self).as_export_declaration()
+                                        .module_specifier,
                                     None,
                                     self,
                                 )
@@ -548,13 +547,13 @@ impl TypeChecker {
                         let collision_tracker = lookup_table.get_mut(id).unwrap();
                         if collision_tracker.exports_with_duplicate.is_none() {
                             collision_tracker.exports_with_duplicate =
-                                Some(vec![export_node.node_wrapper()]);
+                                Some(vec![export_node]);
                         } else {
                             collision_tracker
                                 .exports_with_duplicate
                                 .as_mut()
                                 .unwrap()
-                                .push(export_node.node_wrapper());
+                                .push(export_node);
                         }
                     }
                 }
@@ -604,12 +603,11 @@ impl TypeChecker {
             if let Some(export_stars_declarations) =
                 export_stars.ref_(self).maybe_declarations().as_ref()
             {
-                for node in export_stars_declarations {
+                for &node in export_stars_declarations {
                     let resolved_module = self.resolve_external_module_name_(
                         node,
-                        node.as_export_declaration()
+                        node.ref_(self).as_export_declaration()
                             .module_specifier
-                            .as_ref()
                             .unwrap(),
                         None,
                     )?;
@@ -619,7 +617,7 @@ impl TypeChecker {
                         &mut nested_symbols,
                         exported_symbols.as_ref(),
                         Some(&mut lookup_table),
-                        Some(&**node),
+                        Some(node),
                     )?;
                 }
             }
@@ -633,11 +631,17 @@ impl TypeChecker {
                     continue;
                 }
                 let exports_with_duplicate = exports_with_duplicate.unwrap();
-                for node in exports_with_duplicate {
-                    self.diagnostics().add(create_diagnostic_for_node(node, &Diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity, Some(vec![
-                            lookup_table.get(id).unwrap().specifier_text.clone(),
-                            unescape_leading_underscores(id).to_owned()
-                        ])).into());
+                for &node in exports_with_duplicate {
+                    self.diagnostics().add(
+                        create_diagnostic_for_node(
+                            node,
+                            &Diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity,
+                            Some(vec![
+                                lookup_table.get(id).unwrap().specifier_text.clone(),
+                                unescape_leading_underscores(id).to_owned()
+                            ])
+                        ).into()
+                    );
                 }
             }
             self.extend_export_symbols(
@@ -662,7 +666,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_of_node(&self, node: Id<Node>) -> io::Result<Option<Id<Symbol>>> {
         Ok(self.get_merged_symbol(
-            node.maybe_symbol()
+            node.ref_(self).maybe_symbol()
                 .try_map(|node_symbol| self.get_late_bound_symbol(node_symbol))?,
         ))
     }
@@ -685,7 +689,7 @@ impl TypeChecker {
         enclosing_declaration: Id<Node>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let containing_file = get_source_file_of_node(enclosing_declaration, self);
-        let id = get_node_id(&containing_file);
+        let id = get_node_id(&containing_file.ref_(self));
         let links = self.get_symbol_links(symbol);
         let mut results: Option<Vec<Id<Symbol>>> = None;
         if let Some(links_extended_containers_by_file) =
@@ -699,7 +703,7 @@ impl TypeChecker {
         if
         /*containingFile &&*/
         let Some(containing_file_imports) =
-            containing_file.as_source_file().maybe_imports().as_ref()
+            containing_file.ref_(self).as_source_file().maybe_imports().as_ref()
         {
             for import_ref in containing_file_imports {
                 if node_is_synthesized(&**import_ref) {
@@ -740,8 +744,8 @@ impl TypeChecker {
             return Ok(links_extended_containers.clone());
         }
         let other_files = self.host.get_source_files();
-        for file in &*other_files {
-            if !is_external_module(file) {
+        for &file in &*other_files {
+            if !is_external_module(&file.ref_(self)) {
                 continue;
             }
             let sym = self.get_symbol_of_node(file)?.unwrap();
@@ -766,8 +770,6 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let container = self.get_parent_of_symbol(symbol)?;
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         if let Some(container) = container {
             if !symbol
                 .ref_(self)
@@ -776,7 +778,7 @@ impl TypeChecker {
             {
                 let mut additional_containers: Vec<Id<Symbol>> = try_map_defined(
                     container.ref_(self).maybe_declarations().as_ref(),
-                    |d: &Id<Node>, _| {
+                    |&d: &Id<Node>, _| {
                         self.get_file_symbol_if_file_symbol_export_equals_container(d, container)
                     },
                 )?;
@@ -866,35 +868,37 @@ impl TypeChecker {
         }
         let candidates = try_map_defined(
             symbol.ref_(self).maybe_declarations().as_deref(),
-            |d: &Id<Node>, _| -> io::Result<_> {
+            |&d: &Id<Node>, _| -> io::Result<_> {
                 if !is_ambient_module(d, self) {
-                    if let Some(d_parent) = d.maybe_parent() {
-                        if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
-                            return self.get_symbol_of_node(&d_parent);
+                    if let Some(d_parent) = d.ref_(self).maybe_parent() {
+                        if self.has_non_global_augmentation_external_module_symbol(d_parent) {
+                            return self.get_symbol_of_node(d_parent);
                         }
                     }
                 }
-                if is_class_expression(d) {
-                    let d_parent = d.parent();
-                    if is_binary_expression(&d_parent) {
-                        let d_parent_as_binary_expression = d_parent.as_binary_expression();
-                        if d_parent_as_binary_expression.operator_token.kind()
+                if is_class_expression(&d.ref_(self)) {
+                    let d_parent = d.ref_(self).parent();
+                    if is_binary_expression(&d_parent.ref_(self)) {
+                        let d_parent_ref = d_parent.ref_(self);
+                        let d_parent_as_binary_expression = d_parent_ref.as_binary_expression();
+                        if d_parent_as_binary_expression.operator_token.ref_(self).kind()
                             == SyntaxKind::EqualsToken
-                            && is_access_expression(&d_parent_as_binary_expression.left)
+                            && is_access_expression(&d_parent_as_binary_expression.left.ref_(self))
                         {
                             let d_parent_left_expression = d_parent_as_binary_expression
                                 .left
-                                .as_has_expression()
+                                .ref_(self).as_has_expression()
                                 .expression();
                             if is_entity_name_expression(d_parent_left_expression, self) {
                                 if is_module_exports_access_expression(
-                                    &d_parent_as_binary_expression.left,
-                                ) || is_exports_identifier(&d_parent_left_expression)
+                                    d_parent_as_binary_expression.left,
+                                    self,
+                                ) || is_exports_identifier(&d_parent_left_expression.ref_(self))
                                 {
-                                    return self.get_symbol_of_node(get_source_file_of_node(d), self);
+                                    return self.get_symbol_of_node(get_source_file_of_node(d, self));
                                 }
-                                self.check_expression_cached(&d_parent_left_expression, None)?;
-                                return Ok((*self.get_node_links(&d_parent_left_expression))
+                                self.check_expression_cached(d_parent_left_expression, None)?;
+                                return Ok((*self.get_node_links(d_parent_left_expression))
                                     .borrow()
                                     .resolved_symbol
                                     .clone());
@@ -938,22 +942,17 @@ impl TypeChecker {
             };
         if meaning.intersects(SymbolFlags::Value) {
             if let Some(first_decl) = first_decl {
-                if let Some(first_decl_parent) = first_decl.maybe_parent() {
+                if let Some(first_decl_parent) = first_decl.ref_(self).maybe_parent() {
                     if is_variable_declaration(&first_decl_parent) {
+                        let first_decl_parent_ref = first_decl_parent.ref_(self);
                         let first_decl_parent_as_variable_declaration =
-                            first_decl_parent.as_variable_declaration();
-                        if is_object_literal_expression(&first_decl)
-                            && matches!(
-                                first_decl_parent_as_variable_declaration.maybe_initializer(),
-                                Some(first_decl_parent_initializer) if Gc::ptr_eq(&first_decl, &first_decl_parent_initializer)
-                            )
-                            || is_type_literal_node(&first_decl)
-                                && matches!(
-                                    first_decl_parent_as_variable_declaration.maybe_type(),
-                                    Some(first_decl_parent_type) if Gc::ptr_eq(&first_decl, &first_decl_parent_type)
-                                )
+                            first_decl_parent_ref.as_variable_declaration();
+                        if is_object_literal_expression(&first_decl.ref_(self))
+                            && first_decl_parent_as_variable_declaration.maybe_initializer() == Some(first_decl)
+                            || is_type_literal_node(&first_decl.ref_(self))
+                                && first_decl_parent_as_variable_declaration.maybe_type() == Some(first_decl)
                         {
-                            return self.get_symbol_of_node(&first_decl_parent);
+                            return self.get_symbol_of_node(first_decl_parent);
                         }
                     }
                 }

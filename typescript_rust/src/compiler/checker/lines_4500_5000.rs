@@ -30,6 +30,7 @@ use crate::{
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    append_if_unique_eq,
 };
 
 impl TypeChecker {
@@ -38,8 +39,8 @@ impl TypeChecker {
         declaration: Id<Node>,
     ) -> bool {
         is_module_with_string_literal_name(declaration, self)
-            || declaration.kind() == SyntaxKind::SourceFile
-                && is_external_or_common_js_module(declaration)
+            || declaration.ref_(self).kind() == SyntaxKind::SourceFile
+                && is_external_or_common_js_module(&declaration.ref_(self))
     }
 
     pub(super) fn has_visible_declarations(
@@ -53,10 +54,10 @@ impl TypeChecker {
         if !every(
             &maybe_filter(
                 symbol.ref_(self).maybe_declarations().as_deref(),
-                |d: &Id<Node>| d.kind() != SyntaxKind::Identifier,
+                |d: &Id<Node>| d.ref_(self).kind() != SyntaxKind::Identifier,
             )
             .unwrap_or_else(|| vec![]),
-            |d: &Id<Node>, _| {
+            |&d: &Id<Node>, _| {
                 self.get_is_declaration_visible(
                     symbol,
                     should_compute_aliases_to_make_visible,
@@ -87,28 +88,28 @@ impl TypeChecker {
             if matches!(
                 any_import_syntax,
                 Some(any_import_syntax) if !has_syntactic_modifier(any_import_syntax, ModifierFlags::Export, self)
-                    && self.is_declaration_visible(&any_import_syntax.parent())
+                    && self.is_declaration_visible(any_import_syntax.ref_(self).parent())
             ) {
                 return self.add_visible_alias(
                     should_compute_aliases_to_make_visible,
                     aliases_to_make_visible,
                     declaration,
-                    any_import_syntax.as_ref().unwrap(),
+                    any_import_syntax.unwrap(),
                 );
-            } else if is_variable_declaration(declaration)
-                && is_variable_statement(&declaration.parent().parent())
-                && !has_syntactic_modifier(declaration.parent().parent(), ModifierFlags::Export, self)
-                && self.is_declaration_visible(&declaration.parent().parent().parent())
+            } else if is_variable_declaration(&declaration.ref_(self))
+                && is_variable_statement(&declaration.ref_(self).parent().ref_(self).parent().ref_(self))
+                && !has_syntactic_modifier(declaration.ref_(self).parent().ref_(self).parent(), ModifierFlags::Export, self)
+                && self.is_declaration_visible(declaration.ref_(self).parent().ref_(self).parent().ref_(self).parent())
             {
                 return self.add_visible_alias(
                     should_compute_aliases_to_make_visible,
                     aliases_to_make_visible,
                     declaration,
-                    &declaration.parent().parent(),
+                    declaration.ref_(self).parent().ref_(self).parent(),
                 );
-            } else if is_late_visibility_painted_statement(declaration)
+            } else if is_late_visibility_painted_statement(&declaration.ref_(self))
                 && !has_syntactic_modifier(declaration, ModifierFlags::Export, self)
-                && self.is_declaration_visible(&declaration.parent())
+                && self.is_declaration_visible(declaration.ref_(self).parent())
             {
                 return self.add_visible_alias(
                     should_compute_aliases_to_make_visible,
@@ -117,21 +118,21 @@ impl TypeChecker {
                     declaration,
                 );
             } else if symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
-                && is_binding_element(declaration)
-                && is_in_js_file(Some(declaration))
+                && is_binding_element(&declaration.ref_(self))
+                && is_in_js_file(Some(&declaration.ref_(self)))
             {
                 let declaration_parent_parent = declaration
-                    .maybe_parent()
-                    .and_then(|parent| parent.maybe_parent());
+                    .ref_(self).maybe_parent()
+                    .and_then(|parent| parent.ref_(self).maybe_parent());
                 if let Some(declaration_parent_parent) = declaration_parent_parent {
-                    if is_variable_declaration(&declaration_parent_parent) {
+                    if is_variable_declaration(&declaration_parent_parent.ref_(self)) {
                         let declaration_parent_parent_parent_parent = declaration_parent_parent
-                            .maybe_parent()
-                            .and_then(|parent| parent.maybe_parent());
+                            .ref_(self).maybe_parent()
+                            .and_then(|parent| parent.ref_(self).maybe_parent());
                         if let Some(declaration_parent_parent_parent_parent) =
                             declaration_parent_parent_parent_parent
                         {
-                            if is_variable_statement(&declaration_parent_parent_parent_parent)
+                            if is_variable_statement(&declaration_parent_parent_parent_parent.ref_(self))
                                 && !has_syntactic_modifier(
                                     declaration_parent_parent_parent_parent,
                                     ModifierFlags::Export,
@@ -139,18 +140,18 @@ impl TypeChecker {
                                 )
                             {
                                 let declaration_parent_parent_parent_parent_parent =
-                                    declaration_parent_parent_parent_parent.maybe_parent();
+                                    declaration_parent_parent_parent_parent.ref_(self).maybe_parent();
                                 if let Some(declaration_parent_parent_parent_parent_parent) =
                                     declaration_parent_parent_parent_parent_parent
                                 {
                                     if self.is_declaration_visible(
-                                        &declaration_parent_parent_parent_parent_parent,
+                                        declaration_parent_parent_parent_parent_parent,
                                     ) {
                                         return self.add_visible_alias(
                                             should_compute_aliases_to_make_visible,
                                             aliases_to_make_visible,
                                             declaration,
-                                            &declaration_parent_parent_parent_parent,
+                                            declaration_parent_parent_parent_parent,
                                         );
                                     }
                                 }
@@ -179,9 +180,9 @@ impl TypeChecker {
             if aliases_to_make_visible.is_none() {
                 *aliases_to_make_visible = Some(vec![]);
             }
-            append_if_unique_gc(
+            append_if_unique_eq(
                 aliases_to_make_visible.as_mut().unwrap(),
-                &aliasing_statement.node_wrapper(),
+                aliasing_statement,
             );
         }
         true
@@ -193,15 +194,15 @@ impl TypeChecker {
         enclosing_declaration: Id<Node>,
     ) -> io::Result<SymbolVisibilityResult> {
         let meaning: SymbolFlags;
-        if entity_name.parent().kind() == SyntaxKind::TypeQuery
-            || is_expression_with_type_arguments_in_class_extends_clause(entity_name.parent(), self)
-            || entity_name.parent().kind() == SyntaxKind::ComputedPropertyName
+        if entity_name.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeQuery
+            || is_expression_with_type_arguments_in_class_extends_clause(entity_name.ref_(self).parent(), self)
+            || entity_name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ComputedPropertyName
         {
             meaning = SymbolFlags::Value | SymbolFlags::ExportValue;
         } else if matches!(
-            entity_name.kind(),
+            entity_name.ref_(self).kind(),
             SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
-        ) || entity_name.parent().kind() == SyntaxKind::ImportEqualsDeclaration
+        ) || entity_name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ImportEqualsDeclaration
         {
             meaning = SymbolFlags::Namespace;
         } else {
@@ -211,10 +212,10 @@ impl TypeChecker {
         let first_identifier = get_first_identifier(entity_name, self);
         let symbol = self.resolve_name_(
             Some(enclosing_declaration),
-            &first_identifier.as_identifier().escaped_text,
+            &first_identifier.ref_(self).as_identifier().escaped_text,
             meaning,
             None,
-            Option::<Id<Node>>::None,
+            None,
             false,
             None,
         )?;
@@ -267,8 +268,6 @@ impl TypeChecker {
         } else {
             NodeBuilder::symbol_to_entity_name
         };
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let symbol_to_string_worker = |writer: Gc<Box<dyn EmitTextWriter>>| -> io::Result<_> {
             let entity = builder(
                 &self.node_builder(),
@@ -308,8 +307,8 @@ impl TypeChecker {
                 });
             printer.write_node(
                 EmitHint::Unspecified,
-                &entity,
-                source_file.as_deref(),
+                entity,
+                source_file,
                 writer,
             )?;
             // writer
@@ -377,8 +376,6 @@ impl TypeChecker {
                 SyntaxKind::CallSignature
             };
         }
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let sig = self.node_builder().signature_to_signature_declaration(
             signature,
             sig_output,
@@ -404,8 +401,8 @@ impl TypeChecker {
             });
         printer.write_node(
             EmitHint::Unspecified,
-            &sig.unwrap(),
-            source_file.as_deref(),
+            sig.unwrap(),
+            source_file,
             get_trailing_semicolon_deferring_writer(writer),
         )?;
         // writer
@@ -427,8 +424,6 @@ impl TypeChecker {
         let writer = writer.unwrap_or_else(|| create_text_writer("").as_dyn_emit_text_writer());
         let no_truncation = matches!(self.compiler_options.no_error_truncation, Some(true))
             || flags.intersects(TypeFormatFlags::NoTruncation);
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let type_node = self.node_builder().type_to_type_node(
             type_,
             enclosing_declaration.as_deref(),
@@ -457,8 +452,8 @@ impl TypeChecker {
         });
         printer.write_node(
             EmitHint::Unspecified,
-            &type_node,
-            source_file.as_deref(),
+            type_node,
+            source_file,
             writer.clone(),
         )?;
         let result = writer.get_text();
@@ -527,7 +522,8 @@ impl TypeChecker {
         let symbol = symbol.unwrap();
         Ok(matches!(
             symbol.ref_(self).maybe_value_declaration(),
-            Some(value_declaration) if is_expression(value_declaration, self) && !self.is_context_sensitive(&value_declaration)?
+            Some(value_declaration) if is_expression(value_declaration, self)
+                && !self.is_context_sensitive(value_declaration)?
         ))
     }
 
@@ -721,8 +717,6 @@ impl NodeBuilder {
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         cb: impl FnOnce(&NodeBuilderContext) -> Option<TReturn>,
     ) -> Option<TReturn> {
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         Debug_.assert(
             match enclosing_declaration.as_ref() {
                 None => true,
@@ -769,13 +763,11 @@ impl NodeBuilder {
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         cb: impl FnOnce(&NodeBuilderContext) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         Debug_.assert(
-            match enclosing_declaration.as_ref() {
+            match enclosing_declaration {
                 None => true,
                 Some(enclosing_declaration) => !enclosing_declaration
-                    .flags()
+                    .ref_(self).flags()
                     .intersects(NodeFlags::Synthesized),
             },
             None,
@@ -848,10 +840,9 @@ impl NodeBuilder {
             }
             context.increment_approximate_length_by(3);
             return Ok(Some(
-                Into::<KeywordTypeNode>::into(
+                self.alloc_node(KeywordTypeNode::from(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
-                )
-                .wrap(),
+                ).into())
             ));
         }
         let mut type_ = type_.unwrap();

@@ -3787,9 +3787,9 @@ pub fn generate_node_factory_method_wrapper(_attr: TokenStream, item: TokenStrea
     let mut wrapper_fn_item = parsed_fn_item.clone();
     wrapper_fn_item.sig.ident = Ident::new(wrapper_method_name, Span::call_site());
 
-    let gc_node_token_stream: TokenStream = quote!(-> Gc<Node>).into();
-    let gc_node_return_type = parse_macro_input!(gc_node_token_stream as ReturnType);
-    wrapper_fn_item.sig.output = gc_node_return_type;
+    let id_node_token_stream: TokenStream = quote!(-> id_arena::Id<crate::Node>).into();
+    let id_node_return_type = parse_macro_input!(id_node_token_stream as ReturnType);
+    wrapper_fn_item.sig.output = id_node_return_type;
 
     let forwarded_arguments = parsed_fn_item
         .sig
@@ -3808,7 +3808,7 @@ pub fn generate_node_factory_method_wrapper(_attr: TokenStream, item: TokenStrea
     let forwarded_arguments = quote!(#(#forwarded_arguments),*);
     let wrapper_fn_body_token_stream: TokenStream = quote! {
         {
-            self.#raw_method_name_ident(#forwarded_arguments).wrap()
+            self.alloc_node(self.#raw_method_name_ident(#forwarded_arguments).into())
         }
     }
     .into();

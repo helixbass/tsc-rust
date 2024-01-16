@@ -830,6 +830,6 @@ impl TransformTypeScript {
             return true;
         }
         let ref node = node.unwrap();
-        is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options))
+        is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options), self)
     }
 }

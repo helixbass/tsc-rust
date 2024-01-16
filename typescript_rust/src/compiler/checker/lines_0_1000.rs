@@ -513,8 +513,9 @@ pub fn get_symbol_id(symbol: &Symbol) -> SymbolId {
 pub fn is_instantiated_module(
     node: Id<Node>, /*ModuleDeclaration*/
     preserve_const_enums: bool,
+    arena: &impl HasArena,
 ) -> bool {
-    let module_state = get_module_instance_state(node, None);
+    let module_state = get_module_instance_state(node, None, arena);
     module_state == ModuleInstanceState::Instantiated
         || preserve_const_enums && module_state == ModuleInstanceState::ConstEnumOnly
 }
