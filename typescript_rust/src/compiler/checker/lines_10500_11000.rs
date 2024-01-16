@@ -33,7 +33,7 @@ impl TypeChecker {
         let name = get_name_of_declaration(Some(node), self);
         Ok(match name {
             None => false,
-            Some(name) => self.is_late_bindable_name(&name)?,
+            Some(name) => self.is_late_bindable_name(name)?,
         })
     }
 
@@ -97,32 +97,29 @@ impl TypeChecker {
         symbol
             .ref_(self)
             .set_flags(symbol.ref_(self).flags() | symbol_flags);
-        self.get_symbol_links(member.symbol())
+        self.get_symbol_links(member.ref_(self).symbol())
             .borrow_mut()
             .late_symbol = Some(symbol);
         if symbol.ref_(self).maybe_declarations().is_none() {
             symbol
                 .ref_(self)
-                .set_declarations(vec![member.node_wrapper()]);
-        } else if !matches!(
-            member.symbol().ref_(self).maybe_is_replaceable_by_method(),
-            Some(true)
-        ) {
+                .set_declarations(vec![member]);
+        } else if member.ref_(self).symbol().ref_(self).maybe_is_replaceable_by_method() != Some(true) {
             symbol
                 .ref_(self)
                 .maybe_declarations_mut()
                 .as_mut()
                 .unwrap()
-                .push(member.node_wrapper());
+                .push(member);
         }
         if symbol_flags.intersects(SymbolFlags::Value) {
-            if match symbol.ref_(self).maybe_value_declaration().as_ref() {
+            if match symbol.ref_(self).maybe_value_declaration() {
                 None => true,
-                Some(value_declaration) => value_declaration.kind() != member.kind(),
+                Some(value_declaration) => value_declaration.ref_(self).kind() != member.ref_(self).kind(),
             } {
                 symbol
                     .ref_(self)
-                    .set_value_declaration(member.node_wrapper());
+                    .set_value_declaration(member);
             }
         }
     }
@@ -135,28 +132,28 @@ impl TypeChecker {
         decl: Id<Node>, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
     ) -> io::Result<Id<Symbol>> {
         Debug_.assert(
-            decl.maybe_symbol().is_some(),
+            decl.ref_(self).maybe_symbol().is_some(),
             Some("The member is expected to have a symbol."),
         );
         let links = self.get_node_links(decl);
         if (*links).borrow().resolved_symbol.is_none() {
-            links.borrow_mut().resolved_symbol = decl.maybe_symbol();
-            let decl_name = if is_binary_expression(decl) {
-                decl.as_binary_expression().left.clone()
+            links.borrow_mut().resolved_symbol = decl.ref_(self).maybe_symbol();
+            let decl_name = if is_binary_expression(&decl.ref_(self)) {
+                decl.ref_(self).as_binary_expression().left
             } else {
-                decl.as_named_declaration().name()
+                decl.ref_(self).as_named_declaration().name()
             };
-            let type_ = if is_element_access_expression(&decl_name) {
+            let type_ = if is_element_access_expression(&decl_name.ref_(self)) {
                 self.check_expression_cached(
                     &decl_name.as_element_access_expression().argument_expression,
                     None,
                 )?
             } else {
-                self.check_computed_property_name(&decl_name)?
+                self.check_computed_property_name(decl_name)?
             };
             if self.is_type_usable_as_property_name(type_) {
                 let member_name = self.get_property_name_from_type(type_);
-                let symbol_flags = decl.symbol().ref_(self).flags();
+                let symbol_flags = decl.ref_(self).symbol().ref_(self).flags();
 
                 let mut late_symbol: Option<Id<Symbol>> =
                     late_symbols.get(&*member_name).map(Clone::clone);
@@ -200,11 +197,11 @@ impl TypeChecker {
                     } else {
                         declaration_name_to_string(Some(decl_name), self).into_owned()
                     };
-                    maybe_for_each(declarations.as_deref(), |declaration: &Id<Node>, _| {
+                    maybe_for_each(declarations.as_deref(), |&declaration: &Id<Node>, _| {
                         self.error(
                             Some(
                                 get_name_of_declaration(Some(declaration), self)
-                                    .unwrap_or_else(|| declaration.clone()),
+                                    .unwrap_or(declaration),
                             ),
                             &Diagnostics::Property_0_was_also_declared_here,
                             Some(vec![name.clone()]),
@@ -279,9 +276,9 @@ impl TypeChecker {
                 .map(|early_symbols| (**early_symbols).borrow());
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for decl in symbol_declarations {
-                    let members = get_members_of_declaration(decl);
+                    let members = get_members_of_declaration(&decl, self);
                     if let Some(members) = members {
-                        for member in &members {
+                        for &member in &members {
                             if is_static == has_static_modifier(member, self)
                                 && self.has_late_bindable_name(member)?
                             {
@@ -299,11 +296,11 @@ impl TypeChecker {
                 let assignments = symbol_ref.maybe_assignment_declaration_members();
                 if let Some(assignments) = assignments.as_ref() {
                     let decls = assignments.values();
-                    for member in decls {
+                    for &member in decls {
                         let assignment_kind = get_assignment_declaration_kind(member, self);
                         let is_instance_member = assignment_kind
                             == AssignmentDeclarationKind::PrototypeProperty
-                            || is_binary_expression(member)
+                            || is_binary_expression(&member.ref_(self))
                                 && self.is_possibly_aliased_this_property(
                                     member,
                                     Some(assignment_kind),
@@ -410,7 +407,7 @@ impl TypeChecker {
                 value
             } && try_some(
                 symbol.ref_(self).maybe_declarations().as_deref(),
-                Some(|declaration: &Id<Node>| self.has_late_bindable_name(declaration)),
+                Some(|&declaration: &Id<Node>| self.has_late_bindable_name(declaration)),
             )? {
                 let parent = self
                     .get_merged_symbol(symbol.ref_(self).maybe_parent())
@@ -866,7 +863,7 @@ impl TypeChecker {
             .as_ref();
         let rest_params = try_map(&element_types, |&t: &Id<Type>, i| -> io::Result<_> {
             let tuple_label_name = associated_names
-                .map(|associated_names| self.get_tuple_element_label(&associated_names[i]));
+                .map(|associated_names| self.get_tuple_element_label(associated_names[i]));
             let name = tuple_label_name.try_unwrap_or_else(|| {
                 self.get_parameter_name_at_position(sig, rest_index + i, Some(rest_type))
             })?;
@@ -936,8 +933,8 @@ impl TypeChecker {
             )]);
         }
         let base_type_node = self.get_base_type_node_of_class(class_type).unwrap();
-        let is_java_script = is_in_js_file(Some(&*base_type_node));
-        let type_arguments = self.type_arguments_from_type_reference_node(&base_type_node)?;
+        let is_java_script = is_in_js_file(Some(&base_type_node.ref_(self)));
+        let type_arguments = self.type_arguments_from_type_reference_node(base_type_node)?;
         let type_arg_count = length(type_arguments.as_deref());
         let mut result: Vec<Gc<Signature>> = vec![];
         for base_sig in base_signatures {

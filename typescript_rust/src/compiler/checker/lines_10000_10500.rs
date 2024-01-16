@@ -100,11 +100,11 @@ impl TypeChecker {
         }
         .as_deref()
         {
-            for declaration in type_symbol_declarations {
-                if declaration.kind() == SyntaxKind::InterfaceDeclaration
+            for &declaration in type_symbol_declarations {
+                if declaration.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                     && get_interface_base_type_nodes(declaration, self).is_some()
                 {
-                    for node in get_interface_base_type_nodes(declaration, self)
+                    for &node in get_interface_base_type_nodes(declaration, self)
                         .as_deref()
                         .unwrap()
                     {
@@ -134,7 +134,7 @@ impl TypeChecker {
                                 }
                             } else {
                                 self.error(
-                                    Some(&**node),
+                                    Some(node),
                                     &Diagnostics::An_interface_can_only_extend_an_object_type_or_intersection_of_object_types_with_statically_known_members,
                                     None,
                                 );
@@ -155,16 +155,17 @@ impl TypeChecker {
             return Ok(true);
         }
         let symbol_declarations = symbol_declarations.as_deref().unwrap();
-        for declaration in symbol_declarations {
-            if declaration.kind() == SyntaxKind::InterfaceDeclaration {
-                if declaration.flags().intersects(NodeFlags::ContainsThis) {
+        for &declaration in symbol_declarations {
+            if declaration.ref_(self).kind() == SyntaxKind::InterfaceDeclaration {
+                if declaration.ref_(self).flags().intersects(NodeFlags::ContainsThis) {
                     return Ok(false);
                 }
                 let base_type_nodes = get_interface_base_type_nodes(declaration, self);
                 if let Some(base_type_nodes) = base_type_nodes {
                     for node in &*base_type_nodes {
+                        let node_ref = node.ref_(self);
                         let node_as_expression_with_type_arguments =
-                            node.as_expression_with_type_arguments();
+                            node_ref.as_expression_with_type_arguments();
                         if is_entity_name_expression(
                             node_as_expression_with_type_arguments.expression,
                             self,
@@ -218,7 +219,6 @@ impl TypeChecker {
                 symbol
                     .ref_(self)
                     .maybe_value_declaration()
-                    .as_ref()
                     .try_and_then(|value_declaration| {
                         self.get_assigned_class_symbol(value_declaration)
                     })?,
@@ -333,19 +333,19 @@ impl TypeChecker {
                     .and_then(|declarations| {
                         declarations
                             .iter()
-                            .find(|declaration| is_type_alias(declaration))
-                            .map(|rc| rc.clone())
+                            .find(|declaration| is_type_alias(&declaration.ref_(self)))
+                            .copied()
                     }),
                 Some("Type alias symbol with no valid declaration found"),
             );
-            let type_node = if is_jsdoc_type_alias(&declaration) {
-                declaration.as_jsdoc_type_like_tag().maybe_type_expression()
+            let type_node = if is_jsdoc_type_alias(&declaration.ref_(self)) {
+                declaration.ref_(self).as_jsdoc_type_like_tag().maybe_type_expression()
             } else {
-                Some(declaration.as_type_alias_declaration().type_.clone())
+                Some(declaration.ref_(self).as_type_alias_declaration().type_)
             };
             let mut type_ = type_node.try_map_or_else(
                 || Ok(self.error_type()),
-                |type_node| self.get_type_from_type_node_(&type_node),
+                |type_node| self.get_type_from_type_node_(type_node),
             )?;
 
             if self.pop_type_resolution() {
@@ -363,13 +363,13 @@ impl TypeChecker {
                 }
             } else {
                 type_ = self.error_type();
-                if declaration.kind() == SyntaxKind::JSDocEnumTag {
+                if declaration.ref_(self).kind() == SyntaxKind::JSDocEnumTag {
                     self.error(
                         Some(
-                            &*declaration
-                                .as_jsdoc_type_like_tag()
+                            declaration
+                                .ref_(self).as_jsdoc_type_like_tag()
                                 .type_expression()
-                                .as_jsdoc_type_expression()
+                                .ref_(self).as_jsdoc_type_expression()
                                 .type_,
                         ),
                         &Diagnostics::Type_alias_0_circularly_references_itself,
@@ -383,13 +383,13 @@ impl TypeChecker {
                     );
                 } else {
                     self.error(
-                        Some(if is_named_declaration(&declaration) {
+                        Some(if is_named_declaration(&declaration.ref_(self)) {
                             declaration
-                                .as_named_declaration()
+                                .ref_(self).as_named_declaration()
                                 .maybe_name()
-                                .unwrap_or_else(|| declaration.clone())
+                                .unwrap_or(declaration)
                         } else {
-                            declaration.clone()
+                            declaration
                         }),
                         &Diagnostics::Type_alias_0_circularly_references_itself,
                         Some(vec![self.symbol_to_string_(
@@ -409,12 +409,13 @@ impl TypeChecker {
     }
 
     pub(super) fn is_string_concat_expression(&self, expr: Id<Node>) -> bool {
-        if is_string_literal_like(expr) {
+        if is_string_literal_like(&expr.ref_(self)) {
             return true;
-        } else if expr.kind() == SyntaxKind::BinaryExpression {
-            let expr_as_binary_expression = expr.as_binary_expression();
-            return self.is_string_concat_expression(&expr_as_binary_expression.left)
-                && self.is_string_concat_expression(&expr_as_binary_expression.right);
+        } else if expr.ref_(self).kind() == SyntaxKind::BinaryExpression {
+            let expr_ref = expr.ref_(self);
+            let expr_as_binary_expression = expr_ref.as_binary_expression();
+            return self.is_string_concat_expression(expr_as_binary_expression.left)
+                && self.is_string_concat_expression(expr_as_binary_expression.right);
         }
         false
     }
@@ -423,13 +424,12 @@ impl TypeChecker {
         &self,
         member: Id<Node>, /*EnumMember*/
     ) -> io::Result<bool> {
-        let member_as_enum_member = member.as_enum_member();
-        let expr = member_as_enum_member.initializer.as_deref();
-        if expr.is_none() {
-            return Ok(!member.flags().intersects(NodeFlags::Ambient));
-        }
-        let expr = expr.unwrap();
-        Ok(match expr.kind() {
+        let member_ref = member.ref_(self);
+        let member_as_enum_member = member_ref.as_enum_member();
+        let Some(expr) = member_as_enum_member.initializer else {
+            return Ok(!member.ref_(self).flags().intersects(NodeFlags::Ambient));
+        };
+        Ok(match expr.ref_(self).kind() {
             SyntaxKind::StringLiteral
             | SyntaxKind::NumericLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral => true,
@@ -441,12 +441,12 @@ impl TypeChecker {
             SyntaxKind::Identifier => {
                 node_is_missing(Some(expr))
                     || (*self
-                        .get_symbol_of_node(&member.parent())?
+                        .get_symbol_of_node(member.ref_(self).parent())?
                         .unwrap()
                         .ref_(self)
                         .exports())
                     .borrow()
-                    .get(&expr.as_identifier().escaped_text)
+                    .get(&expr.ref_(self).as_identifier().escaped_text)
                     .is_some()
             }
             SyntaxKind::BinaryExpression => self.is_string_concat_expression(expr),
@@ -462,8 +462,8 @@ impl TypeChecker {
         let mut has_non_literal_member = false;
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             for declaration in symbol_declarations {
-                if declaration.kind() == SyntaxKind::EnumDeclaration {
-                    for member in &declaration.as_enum_declaration().members {
+                if declaration.ref_(self).kind() == SyntaxKind::EnumDeclaration {
+                    for member in &declaration.ref_(self).as_enum_declaration().members {
                         if matches!(member.as_enum_member().initializer.as_ref(), Some(initializer) if is_string_literal_like(initializer))
                         {
                             let ret = EnumKind::Literal;
@@ -514,8 +514,8 @@ impl TypeChecker {
             let mut member_type_list: Vec<Id<Type>> = vec![];
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for declaration in symbol_declarations {
-                    if declaration.kind() == SyntaxKind::EnumDeclaration {
-                        for member in &declaration.as_enum_declaration().members {
+                    if declaration.ref_(self).kind() == SyntaxKind::EnumDeclaration {
+                        for member in &declaration.ref_(self).as_enum_declaration().members {
                             let value = self.get_enum_member_value(member)?;
                             let member_type =
                                 self.get_fresh_type_of_literal_type(self.get_enum_literal_type(
@@ -640,7 +640,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_thisless_type(&self, node: Id<Node> /*TypeNode*/) -> bool {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::AnyKeyword
             | SyntaxKind::UnknownKeyword
             | SyntaxKind::StringKeyword
@@ -653,15 +653,15 @@ impl TypeChecker {
             | SyntaxKind::UndefinedKeyword
             | SyntaxKind::NeverKeyword
             | SyntaxKind::LiteralType => true,
-            SyntaxKind::ArrayType => self.is_thisless_type(&node.as_array_type_node().element_type),
+            SyntaxKind::ArrayType => self.is_thisless_type(node.ref_(self).as_array_type_node().element_type),
             SyntaxKind::TypeReference => {
                 match node
-                    .as_type_reference_node()
+                    .ref_(self).as_type_reference_node()
                     .maybe_type_arguments()
                     .as_deref()
                 {
                     None => true,
-                    Some(type_arguments) => every(type_arguments, |type_argument: &Id<Node>, _| {
+                    Some(type_arguments) => every(type_arguments, |&type_argument: &Id<Node>, _| {
                         self.is_thisless_type(type_argument)
                     }),
                 }
@@ -677,7 +677,7 @@ impl TypeChecker {
         let constraint = get_effective_constraint_of_type_parameter(node, self);
         match constraint {
             None => true,
-            Some(constraint) => self.is_thisless_type(&constraint),
+            Some(constraint) => self.is_thisless_type(constraint),
         }
     }
 
@@ -685,11 +685,11 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*VariableLikeDeclaration*/
     ) -> bool {
-        let type_node = get_effective_type_annotation_node(node);
+        let type_node = get_effective_type_annotation_node(node, self);
         if let Some(type_node) = type_node {
-            self.is_thisless_type(&type_node)
+            self.is_thisless_type(type_node)
         } else {
-            !has_initializer(node)
+            !has_initializer(&node.ref_(self))
         }
     }
 
@@ -697,26 +697,29 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> bool {
-        let return_type = get_effective_return_type_node(node);
-        let type_parameters = get_effective_type_parameter_declarations(node);
-        (node.kind() == SyntaxKind::Constructor
-            || matches!(return_type, Some(return_type) if self.is_thisless_type(&return_type)))
+        let return_type = get_effective_return_type_node(node, self);
+        let type_parameters = get_effective_type_parameter_declarations(node, self);
+        (node.ref_(self).kind() == SyntaxKind::Constructor
+            || matches!(
+                return_type,
+                Some(return_type) if self.is_thisless_type(return_type)
+            ))
             && node
-                .as_signature_declaration()
+                .ref_(self).as_signature_declaration()
                 .parameters()
                 .iter()
-                .all(|parameter: &Id<Node>| self.is_thisless_variable_like_declaration(parameter))
+                .all(|&parameter: &Id<Node>| self.is_thisless_variable_like_declaration(parameter))
             && type_parameters
                 .iter()
-                .all(|type_parameter: &Id<Node>| self.is_thisless_type_parameter(type_parameter))
+                .all(|&type_parameter: &Id<Node>| self.is_thisless_type_parameter(type_parameter))
     }
 
     pub(super) fn is_thisless(&self, symbol: Id<Symbol>) -> bool {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             if symbol_declarations.len() == 1 {
-                let declaration = &symbol_declarations[0];
+                let declaration = symbol_declarations[0];
                 // if (declaration) {
-                match declaration.kind() {
+                match declaration.ref_(self).kind() {
                     SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => {
                         return self.is_thisless_variable_like_declaration(declaration);
                     }
@@ -840,16 +843,16 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*DeclarationName*/
     ) -> io::Result<bool> {
-        if !is_computed_property_name(node) && !is_element_access_expression(node) {
+        if !is_computed_property_name(&node.ref_(self)) && !is_element_access_expression(&node.ref_(self)) {
             return Ok(false);
         }
-        let expr = if is_computed_property_name(node) {
-            &node.as_computed_property_name().expression
+        let expr = if is_computed_property_name(&node.ref_(self)) {
+            node.ref_(self).as_computed_property_name().expression
         } else {
-            &node.as_element_access_expression().argument_expression
+            node.ref_(self).as_element_access_expression().argument_expression
         };
         Ok(is_entity_name_expression(expr, self)
-            && self.is_type_usable_as_property_name(if is_computed_property_name(node) {
+            && self.is_type_usable_as_property_name(if is_computed_property_name(&node.ref_(self)) {
                 self.check_computed_property_name(node)?
             } else {
                 self.check_expression_cached(expr, None)?

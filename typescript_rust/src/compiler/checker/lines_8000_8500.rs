@@ -28,6 +28,7 @@ use crate::{
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
     TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
     TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    push_if_unique_eq,
 };
 
 impl TypeChecker {
@@ -66,8 +67,6 @@ impl TypeChecker {
         flags: TypeFormatFlags,
         writer: Gc<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
-        let enclosing_declaration = enclosing_declaration
-            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let predicate = get_factory().create_type_predicate_node(
             if matches!(
                 type_predicate.kind,
@@ -112,8 +111,8 @@ impl TypeChecker {
             });
         printer.write_node(
             EmitHint::Unspecified,
-            &predicate,
-            source_file.as_deref(),
+            predicate,
+            source_file,
             writer,
         )?;
         // return writer;
@@ -189,9 +188,9 @@ impl TypeChecker {
                     type_symbol.ref_(self).maybe_declarations().as_deref()
                 {
                     let node =
-                        walk_up_parenthesized_types(type_symbol_declarations[0].parent(), self).unwrap();
-                    if node.kind() == SyntaxKind::TypeAliasDeclaration {
-                        return self.get_symbol_of_node(&node);
+                        walk_up_parenthesized_types(type_symbol_declarations[0].ref_(self).parent(), self).unwrap();
+                    if node.ref_(self).kind() == SyntaxKind::TypeAliasDeclaration {
+                        return self.get_symbol_of_node(node);
                     }
                 }
             }
@@ -202,13 +201,14 @@ impl TypeChecker {
     pub(super) fn is_top_level_in_external_module_augmentation(&self, node: Id<Node>) -> bool {
         /*node &&*/
         matches!(
-            node.maybe_parent(),
-            Some(node_parent) if node_parent.kind() == SyntaxKind::ModuleBlock && is_external_module_augmentation(node_parent.parent(), self)
+            node.ref_(self).maybe_parent(),
+            Some(node_parent) if node_parent.ref_(self).kind() == SyntaxKind::ModuleBlock
+                && is_external_module_augmentation(node_parent.ref_(self).parent(), self)
         )
     }
 
     pub(super) fn is_default_binding_context(&self, location: Id<Node>) -> bool {
-        location.kind() == SyntaxKind::SourceFile || is_ambient_module(location, self)
+        location.ref_(self).kind() == SyntaxKind::SourceFile || is_ambient_module(location, self)
     }
 
     pub(super) fn get_name_of_symbol_from_name_type(
@@ -279,11 +279,10 @@ impl TypeChecker {
                     || match symbol.ref_(self).maybe_declarations().as_deref() {
                         None => true,
                         Some(symbol_declarations) => matches!(
-                            context.maybe_enclosing_declaration().as_deref(),
-                            Some(context_enclosing_declaration) if are_option_gcs_equal(
-                                find_ancestor(symbol_declarations.get(0).map(Clone::clone), |declaration| self.is_default_binding_context(declaration)).as_ref(),
-                                find_ancestor(Some(context_enclosing_declaration), |declaration| self.is_default_binding_context(declaration)).as_ref(),
-                            )
+                            context.maybe_enclosing_declaration(),
+                            Some(context_enclosing_declaration) if
+                                find_ancestor(symbol_declarations.get(0).copied(), |declaration| self.is_default_binding_context(declaration), self) ==
+                                find_ancestor(Some(context_enclosing_declaration), |declaration| self.is_default_binding_context(declaration), self)
                         ),
                     })
             {
@@ -292,7 +291,7 @@ impl TypeChecker {
         }
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
-                let mut declaration = first_defined(symbol_declarations, |d: &Id<Node>, _| {
+                let mut declaration = first_defined(symbol_declarations, |&d: &Id<Node>, _| {
                     if get_name_of_declaration(Some(d), self).is_some() {
                         Some(d)
                     } else {
@@ -303,12 +302,12 @@ impl TypeChecker {
                     .and_then(|declaration| get_name_of_declaration(Some(declaration), self));
                 if let Some(declaration) = declaration {
                     if let Some(name) = name {
-                        if is_call_expression(declaration)
+                        if is_call_expression(&declaration.ref_(self))
                             && is_bindable_object_define_property_call(declaration, self)
                         {
                             return symbol_name(symbol, self).into_owned().into();
                         }
-                        if is_computed_property_name(&name)
+                        if is_computed_property_name(&name.ref_(self))
                             && !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late)
                         {
                             let name_type =
@@ -326,17 +325,17 @@ impl TypeChecker {
                     }
                 }
                 if declaration.is_none() {
-                    declaration = Some(&symbol_declarations[0]);
+                    declaration = Some(symbol_declarations[0]);
                 }
                 let declaration = declaration.unwrap();
-                if let Some(declaration_parent) = declaration.maybe_parent() {
+                if let Some(declaration_parent) = declaration.ref_(self).maybe_parent() {
                     if declaration_parent.kind() == SyntaxKind::VariableDeclaration {
                         return declaration_name_to_string(Some(
                             declaration_parent.as_variable_declaration().name(),
                         ), self);
                     }
                 }
-                match declaration.kind() {
+                match declaration.ref_(self).kind() {
                     SyntaxKind::ClassExpression
                     | SyntaxKind::FunctionExpression
                     | SyntaxKind::ArrowFunction => {
@@ -349,7 +348,7 @@ impl TypeChecker {
                                 context.set_encountered_error(true);
                             }
                         }
-                        return if declaration.kind() == SyntaxKind::ClassExpression {
+                        return if declaration.ref_(self).kind() == SyntaxKind::ClassExpression {
                             "(Anonymous class)"
                         } else {
                             "(Anonymous function)"
@@ -382,18 +381,18 @@ impl TypeChecker {
     }
 
     pub(super) fn determine_if_declaration_is_visible(&self, node: Id<Node>) -> bool {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocEnumTag => {
                 matches!(
-                    node.maybe_parent()
-                        .and_then(|node_parent| node_parent.maybe_parent())
-                        .and_then(|node_parent_parent| node_parent_parent.maybe_parent()),
-                    Some(node_parent_parent_parent) if is_source_file(&node_parent_parent_parent)
+                    node.ref_(self).maybe_parent()
+                        .and_then(|node_parent| node_parent.ref_(self).maybe_parent())
+                        .and_then(|node_parent_parent| node_parent_parent.ref_(self).maybe_parent()),
+                    Some(node_parent_parent_parent) if is_source_file(&node_parent_parent_parent.ref_(self))
                 )
             }
-            SyntaxKind::BindingElement => self.is_declaration_visible(&node.parent().parent()),
+            SyntaxKind::BindingElement => self.is_declaration_visible(node.ref_(self).parent().ref_(self).parent()),
             SyntaxKind::VariableDeclaration
             | SyntaxKind::ModuleDeclaration
             | SyntaxKind::ClassDeclaration
@@ -402,12 +401,12 @@ impl TypeChecker {
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::EnumDeclaration
             | SyntaxKind::ImportEqualsDeclaration => {
-                if node.kind() == SyntaxKind::VariableDeclaration
-                    && is_binding_pattern(Some(node.as_variable_declaration().name()))
+                if node.ref_(self).kind() == SyntaxKind::VariableDeclaration
+                    && is_binding_pattern(Some(&node.ref_(self).as_variable_declaration().name().ref_(self)))
                     && node
-                        .as_variable_declaration()
+                        .ref_(self).as_variable_declaration()
                         .name()
-                        .as_has_elements()
+                        .ref_(self).as_has_elements()
                         .elements()
                         .is_empty()
                 {
@@ -417,14 +416,14 @@ impl TypeChecker {
                     return true;
                 }
                 let parent = self.get_declaration_container(node);
-                if !get_combined_modifier_flags(node).intersects(ModifierFlags::Export)
-                    && !(node.kind() != SyntaxKind::ImportEqualsDeclaration
-                        && parent.kind() != SyntaxKind::SourceFile
-                        && parent.flags().intersects(NodeFlags::Ambient))
+                if !get_combined_modifier_flags(node, self).intersects(ModifierFlags::Export)
+                    && !(node.ref_(self).kind() != SyntaxKind::ImportEqualsDeclaration
+                        && parent.ref_(self).kind() != SyntaxKind::SourceFile
+                        && parent.ref_(self).flags().intersects(NodeFlags::Ambient))
                 {
-                    return self.is_global_source_file(&parent);
+                    return self.is_global_source_file(parent);
                 }
-                self.is_declaration_visible(&parent)
+                self.is_declaration_visible(parent)
             }
 
             SyntaxKind::PropertyDeclaration
@@ -436,7 +435,7 @@ impl TypeChecker {
                 if has_effective_modifier(node, ModifierFlags::Private | ModifierFlags::Protected, self) {
                     return false;
                 }
-                self.is_declaration_visible(&node.parent())
+                self.is_declaration_visible(node.ref_(self).parent())
             }
 
             SyntaxKind::Constructor
@@ -454,7 +453,7 @@ impl TypeChecker {
             | SyntaxKind::UnionType
             | SyntaxKind::IntersectionType
             | SyntaxKind::ParenthesizedType
-            | SyntaxKind::NamedTupleMember => self.is_declaration_visible(&node.parent()),
+            | SyntaxKind::NamedTupleMember => self.is_declaration_visible(node.ref_(self).parent()),
 
             SyntaxKind::ImportClause
             | SyntaxKind::NamespaceImport
@@ -478,22 +477,22 @@ impl TypeChecker {
         let mut export_symbol: Option<Id<Symbol>> = None;
         if
         /*node.parent &&*/
-        node.parent().kind() == SyntaxKind::ExportAssignment {
+        node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment {
             export_symbol = self.resolve_name_(
                 Some(node),
-                &node.as_identifier().escaped_text,
+                &node.ref_(self).as_identifier().escaped_text,
                 SymbolFlags::Value
                     | SymbolFlags::Type
                     | SymbolFlags::Namespace
                     | SymbolFlags::Alias,
                 None,
-                Some(node.node_wrapper()),
+                Some(node),
                 false,
                 None,
             )?;
-        } else if node.parent().kind() == SyntaxKind::ExportSpecifier {
+        } else if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportSpecifier {
             export_symbol = self.get_target_of_export_specifier(
-                &node.parent(),
+                node.ref_(self).parent(),
                 SymbolFlags::Value
                     | SymbolFlags::Type
                     | SymbolFlags::Namespace
@@ -522,10 +521,10 @@ impl TypeChecker {
         visited: &mut HashSet<SymbolId>,
         declarations: Option<&[Id<Node /*Declaration*/>]>,
     ) -> io::Result<()> {
-        try_maybe_for_each(declarations, |declaration: &Id<Node>, _| -> io::Result<_> {
+        try_maybe_for_each(declarations, |&declaration: &Id<Node>, _| -> io::Result<_> {
             let result_node = self
                 .get_any_import_syntax(declaration)
-                .unwrap_or_else(|| declaration.node_wrapper());
+                .unwrap_or(declaration);
             if set_visibility {
                 self.get_node_links(declaration).borrow_mut().is_visible = Some(true);
             } else {
@@ -533,15 +532,15 @@ impl TypeChecker {
                 if result.is_none() {
                     *result = Some(vec![]);
                 }
-                push_if_unique_gc(result.as_mut().unwrap(), &result_node);
+                push_if_unique_eq(result.as_mut().unwrap(), &result_node);
             }
 
-            if is_internal_module_import_equals_declaration(declaration) {
+            if is_internal_module_import_equals_declaration(declaration, self) {
                 let internal_module_reference =
-                    &declaration.as_import_equals_declaration().module_reference;
+                    declaration.ref_(self).as_import_equals_declaration().module_reference;
                 let first_identifier = get_first_identifier(internal_module_reference, self);
                 let import_symbol = self.resolve_name_(
-                    Some(&**declaration),
+                    Some(declaration),
                     &first_identifier.as_identifier().escaped_text,
                     SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                     None,
@@ -674,7 +673,7 @@ impl TypeChecker {
     pub(super) fn get_declaration_container(&self, node: Id<Node>) -> Id<Node> {
         find_ancestor(Some(get_root_declaration(node, self)), |node| {
             !matches!(
-                node.kind(),
+                node.ref_(self).kind(),
                 SyntaxKind::VariableDeclaration
                     | SyntaxKind::VariableDeclarationList
                     | SyntaxKind::ImportSpecifier
@@ -682,9 +681,9 @@ impl TypeChecker {
                     | SyntaxKind::NamespaceImport
                     | SyntaxKind::ImportClause
             )
-        })
+        }, self)
         .unwrap()
-        .parent()
+        .ref_(self).parent()
     }
 
     pub(super) fn get_type_of_prototype_property(
@@ -779,7 +778,7 @@ impl TypeChecker {
                 .unwrap());
         }
         let omit_key_type = self.get_union_type(
-            &try_map(properties, |property: &Id<Node>, _| {
+            &try_map(properties, |&property: &Id<Node>, _| {
                 self.get_literal_type_from_property_name(property)
             })?,
             None,
@@ -888,7 +887,7 @@ impl TypeChecker {
         let reference = self.get_synthetic_element_access(node)?;
         Ok(if let Some(reference) = reference {
             self.get_flow_type_of_reference(
-                &reference,
+                reference,
                 declared_type,
                 None,
                 Option::<Id<Node>>::None,
@@ -903,16 +902,16 @@ impl TypeChecker {
         node: Id<Node>, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> io::Result<Option<Id<Node /*ElementAccessExpression*/>>> {
         let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node)?);
-        let ret = parent_access.maybe_flow_node().clone().try_and_then(
+        let ret = parent_access.ref_(self).maybe_flow_node().clone().try_and_then(
             |parent_access_flow_node| -> io::Result<_> {
                 let prop_name =
                     return_ok_default_if_none!(self.get_destructuring_property_name(node)?);
                 let literal = parse_node_factory.with(|parse_node_factory_| {
                     parse_node_factory_.create_string_literal(prop_name, None, None)
                 });
-                set_text_range(&*literal, Some(node));
+                set_text_range(&*literal.ref_(self), Some(&*node.ref_(self)));
                 let lhs_expr = if is_left_hand_side_expression(parent_access, self) {
-                    parent_access.clone()
+                    parent_access
                 } else {
                     parse_node_factory.with(|parse_node_factory_| {
                         parse_node_factory_.create_parenthesized_expression(parent_access.clone())
@@ -922,13 +921,13 @@ impl TypeChecker {
                     parse_node_factory_
                         .create_element_access_expression(lhs_expr.clone(), literal.clone())
                 });
-                set_text_range(&*result, Some(node));
-                set_parent(&literal, Some(&*result));
-                set_parent(&result, Some(node));
-                if !Gc::ptr_eq(&lhs_expr, &parent_access) {
-                    set_parent(&lhs_expr, Some(&*result));
+                set_text_range(&*result.ref_(self), Some(&*node.ref_(self)));
+                set_parent(&literal.ref_(self), Some(result));
+                set_parent(&result.ref_(self), Some(node));
+                if lhs_expr != parent_access {
+                    set_parent(&lhs_expr.ref_(self), Some(result));
                 }
-                result.set_flow_node(Some(parent_access_flow_node));
+                result.ref_(self).set_flow_node(Some(parent_access_flow_node));
                 Ok(Some(result))
             },
         )?;

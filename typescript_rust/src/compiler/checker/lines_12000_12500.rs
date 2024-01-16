@@ -19,6 +19,7 @@ use crate::{
     SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type,
     TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind,
     UnionOrIntersectionTypeInterface,
+    index_of_eq,
 };
 
 impl TypeChecker {
@@ -240,7 +241,7 @@ impl TypeChecker {
                     single_prop
                         .ref_(self)
                         .maybe_value_declaration()
-                        .and_then(|value_declaration| value_declaration.maybe_symbol())
+                        .and_then(|value_declaration| value_declaration.ref_(self).maybe_symbol())
                         .and_then(|symbol| symbol.ref_(self).maybe_parent()),
                 );
                 let clone_symbol_links = clone.ref_(self).as_transient_symbol().symbol_links();
@@ -271,7 +272,7 @@ impl TypeChecker {
                 first_value_declaration = prop.ref_(self).maybe_value_declaration();
             } else if matches!(
                 prop.ref_(self).maybe_value_declaration(),
-                Some(value_declaration) if !Gc::ptr_eq(&value_declaration, first_value_declaration.as_ref().unwrap())
+                Some(value_declaration) if value_declaration != first_value_declaration.unwrap()
             ) {
                 has_non_uniform_value_declaration = true;
             }
@@ -322,7 +323,7 @@ impl TypeChecker {
                     .set_value_declaration(first_value_declaration.clone());
 
                 if let Some(first_value_declaration_symbol_parent) =
-                    first_value_declaration.symbol().ref_(self).maybe_parent()
+                    first_value_declaration.ref_(self).symbol().ref_(self).maybe_parent()
                 {
                     result
                         .ref_(self)
@@ -844,10 +845,10 @@ impl TypeChecker {
         declaration: Id<Node>, /*DeclarationWithTypeParameters*/
     ) -> Option<Vec<Id<Type /*<TypeParameter>*/>>> {
         let mut result: Option<Vec<Id<Type>>> = None;
-        for node in get_effective_type_parameter_declarations(declaration) {
+        for node in get_effective_type_parameter_declarations(declaration, self) {
             result = Some(maybe_append_if_unique_eq(
                 result,
-                &self.get_declared_type_of_type_parameter(node.symbol()),
+                &self.get_declared_type_of_type_parameter(node.ref_(self).symbol()),
             ));
         }
         result
@@ -867,15 +868,18 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> bool {
-        is_in_js_file(Some(node)) && (
-            matches!(node.as_parameter_declaration().maybe_type(), Some(type_) if type_.kind() == SyntaxKind::JSDocOptionalType) ||
-            get_jsdoc_parameter_tags(node).any(|tag: Id<Node>| {
-                let tag_as_jsdoc_property_like_tag = tag.as_jsdoc_property_like_tag();
+        is_in_js_file(Some(&node.ref_(self))) && (
+            matches!(
+                node.ref_(self).as_parameter_declaration().maybe_type(),
+                Some(type_) if type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
+            ) || get_jsdoc_parameter_tags(node, self).any(|tag: Id<Node>| {
+                let tag_ref = tag.ref_(self);
+                let tag_as_jsdoc_property_like_tag = tag_ref.as_jsdoc_property_like_tag();
                 let is_bracketed = tag_as_jsdoc_property_like_tag.is_bracketed;
-                let type_expression = tag_as_jsdoc_property_like_tag.type_expression.as_ref();
+                let type_expression = tag_as_jsdoc_property_like_tag.type_expression;
                 is_bracketed || matches!(
                     type_expression,
-                    Some(type_expression) if type_expression.as_jsdoc_type_expression().type_.kind() == SyntaxKind::JSDocOptionalType
+                    Some(type_expression) if type_expression.ref_(self).as_jsdoc_type_expression().type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
                 )
             })
         )
@@ -905,19 +909,20 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
     ) -> io::Result<bool> {
-        if has_question_token(node)
+        if has_question_token(&node.ref_(self))
             || self.is_optional_jsdoc_property_like_tag(node)
             || self.is_jsdoc_optional_parameter(node)
         {
             return Ok(true);
         }
 
-        let node_as_parameter_declaration = node.as_parameter_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if node_as_parameter_declaration.maybe_initializer().is_some() {
-            let signature = self.get_signature_from_declaration_(&node.parent())?;
-            let parameter_index = index_of_gc(
-                &node.parent().as_signature_declaration().parameters(),
-                &node.node_wrapper(),
+            let signature = self.get_signature_from_declaration_(node.ref_(self).parent())?;
+            let parameter_index = index_of_eq(
+                &node.ref_(self).parent().as_signature_declaration().parameters(),
+                &node,
             );
             Debug_.assert(parameter_index >= 0, None);
             let parameter_index: usize = parameter_index.try_into().unwrap();
@@ -930,15 +935,15 @@ impl TypeChecker {
                     ),
                 )?);
         }
-        let iife = get_immediately_invoked_function_expression(node.parent(), self);
+        let iife = get_immediately_invoked_function_expression(node.ref_(self).parent(), self);
         if let Some(iife) = iife {
             return Ok(node_as_parameter_declaration.maybe_type().is_none()
                 && node_as_parameter_declaration.dot_dot_dot_token.is_none()
-                && index_of_gc(
-                    &node.parent().as_signature_declaration().parameters(),
-                    &node.node_wrapper(),
+                && index_of_eq(
+                    &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters(),
+                    &node,
                 ) >= iife
-                    .as_call_expression()
+                    .ref_(self).as_call_expression()
                     .arguments
                     .len()
                     .try_into()
@@ -952,20 +957,21 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> bool {
-        is_property_declaration(node) && node.as_property_declaration().question_token.is_some()
+        is_property_declaration(&node.ref_(self)) && node.ref_(self).as_property_declaration().question_token.is_some()
     }
 
     pub(super) fn is_optional_jsdoc_property_like_tag(&self, node: Id<Node>) -> bool {
-        if !is_jsdoc_property_like_tag(node) {
+        if !is_jsdoc_property_like_tag(&node.ref_(self)) {
             return false;
         }
-        let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
+        let node_ref = node.ref_(self);
+        let node_as_jsdoc_property_like_tag = node_ref.as_jsdoc_property_like_tag();
         let is_bracketed = node_as_jsdoc_property_like_tag.is_bracketed;
-        let type_expression = node_as_jsdoc_property_like_tag.type_expression.as_ref();
+        let type_expression = node_as_jsdoc_property_like_tag.type_expression;
         is_bracketed
             || matches!(
                 type_expression,
-                Some(type_expression) if type_expression.as_jsdoc_type_expression().type_.kind() == SyntaxKind::JSDocOptionalType
+                Some(type_expression) if type_expression.ref_(self).as_jsdoc_type_expression().type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
             )
     }
 
