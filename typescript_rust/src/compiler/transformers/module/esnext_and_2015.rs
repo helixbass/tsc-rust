@@ -18,6 +18,7 @@ use crate::{
     ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
+    HasArena, AllArenas,
 };
 
 #[derive(Trace, Finalize)]
@@ -519,6 +520,12 @@ impl TransformEcmascriptModule {
 impl TransformerInterface for TransformEcmascriptModule {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
+    }
+}
+
+impl HasArena for TransformEcmascriptModule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

@@ -7,6 +7,7 @@ use crate::{
     chain_bundle, visit_each_child, Node, NodeInterface, TransformFlags, TransformationContext,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     VisitResult,
+    HasArena, AllArenas,
 };
 
 #[derive(Trace, Finalize)]
@@ -47,6 +48,12 @@ impl TransformESNext {
 impl TransformerInterface for TransformESNext {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformESNext {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

@@ -885,6 +885,6 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
 
 impl HasArena for BindBinaryExpressionFlowStateMachine {
     fn arena(&self) -> &AllArenas {
-        self.binder.arena()
+        unimplemented!()
     }
 }

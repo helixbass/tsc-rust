@@ -15,7 +15,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, Diagnostics, ExternalEmitHelpers, HasArena, InArena,
     LeftOrRight, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ObjectFlags,
     OptionTry, ReadonlyTextRange, ScriptTarget, SourceFileLike, Symbol, SyntaxKind, TextSpan, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction, AllArenas,
 };
 
 impl TypeChecker {
@@ -1251,5 +1251,11 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
     fn implements_fold_state(&self) -> bool {
         true
+    }
+}
+
+impl HasArena for CheckBinaryExpressionStateMachine {
+    fn arena(&self) -> &AllArenas {
+        self.type_checker.arena()
     }
 }

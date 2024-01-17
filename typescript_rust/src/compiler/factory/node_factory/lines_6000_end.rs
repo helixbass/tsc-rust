@@ -520,7 +520,7 @@ pub(super) fn get_cooked_text(
     })
 }
 
-pub(super) fn propagate_identifier_name_flags(node: Id<Node>, /*Identifier*/, arena: &impl HasArena) -> TransformFlags {
+pub(super) fn propagate_identifier_name_flags(node: Id<Node> /*Identifier*/, arena: &impl HasArena) -> TransformFlags {
     propagate_child_flags(Some(node), arena) & !TransformFlags::ContainsPossibleTopLevelAwait
 }
 

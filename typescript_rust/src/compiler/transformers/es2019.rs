@@ -8,6 +8,7 @@ use crate::{
     BaseNodeFactorySynthetic, Node, NodeFactory, NodeInterface, SyntaxKind, TransformFlags,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
+    HasArena, AllArenas,
 };
 
 #[derive(Trace, Finalize)]
@@ -90,6 +91,12 @@ impl TransformES2019 {
 impl TransformerInterface for TransformES2019 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformES2019 {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

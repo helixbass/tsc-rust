@@ -25,6 +25,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
+    HasArena, AllArenas,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -205,6 +206,12 @@ impl TransformerInterface for WrapCustomTransformer {
         } else {
             self.transformer.transform_source_file(node)
         })
+    }
+}
+
+impl HasArena for WrapCustomTransformer {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1228,6 +1235,12 @@ impl TransformationContext for TransformNodesTransformationResult {
     }
 }
 
+impl HasArena for TransformNodesTransformationResult {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 #[derive(Trace, Finalize)]
 struct NoEmitNotificationTransformationContextOnEmitNodeOverrider;
 
@@ -1459,4 +1472,10 @@ impl TransformationContext for TransformationContextNull {
     }
 
     fn add_diagnostic(&self, _diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {}
+}
+
+impl HasArena for TransformationContextNull {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
 }

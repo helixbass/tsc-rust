@@ -12,6 +12,7 @@ use crate::{
     EmitFlags, EmitHint, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     LeftOrRight, ListFormat, NamedDeclarationInterface, Node, NodeInterface, ParenthesizerRules,
     Printer, ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
+    HasArena, AllArenas,
 };
 
 impl Printer {
@@ -1364,6 +1365,12 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
 
     fn implements_fold_state(&self) -> bool {
         false
+    }
+}
+
+impl HasArena for EmitBinaryExpressionStateMachine {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

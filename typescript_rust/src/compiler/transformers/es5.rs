@@ -11,6 +11,7 @@ use crate::{
     NodeInterface, SyntaxKind, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface,
+    HasArena, AllArenas,
 };
 
 #[derive(Trace, Finalize)]
@@ -83,6 +84,12 @@ impl TransformES5 {
 impl TransformerInterface for TransformES5 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformES5 {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

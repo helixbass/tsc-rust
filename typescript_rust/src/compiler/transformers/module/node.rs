@@ -8,6 +8,7 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, is_source_file,
     transform_ecmascript_module, transform_module, try_map, Debug_, ModuleKind, SyntaxKind,
+    HasArena, AllArenas,
 };
 
 #[derive(Trace, Finalize)]
@@ -128,6 +129,12 @@ impl TransformNodeModule {
 impl TransformerInterface for TransformNodeModule {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file_or_bundle(node)
+    }
+}
+
+impl HasArena for TransformNodeModule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

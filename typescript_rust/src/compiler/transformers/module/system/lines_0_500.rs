@@ -18,6 +18,7 @@ use crate::{
     is_local_name, is_named_exports, is_statement, map, move_emit_helpers, out_file,
     try_get_module_name_from_file, try_maybe_visit_node, try_visit_nodes, Debug_, EmitFlags,
     EmitHelper, Matches, ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
+    HasArena, AllArenas,
 };
 
 pub(super) struct DependencyGroup {
@@ -851,6 +852,12 @@ impl TransformSystemModule {
 impl TransformerInterface for TransformSystemModule {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
+    }
+}
+
+impl HasArena for TransformSystemModule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

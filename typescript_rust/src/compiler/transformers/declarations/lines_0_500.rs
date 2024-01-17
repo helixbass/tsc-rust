@@ -947,7 +947,7 @@ impl TransformDeclarations {
         references: &'a mut Vec<FileReference>,
         output_file_path: &'a str,
     ) -> impl FnMut(Id<Node> /*SourceFile*/) -> io::Result<()> + 'a {
-        |file: Id<Node>| {
+        move |file: Id<Node>| {
             let file_ref = file.ref_(self);
             let file_as_source_file = file_ref.as_source_file();
             let decl_file_name: String;

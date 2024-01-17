@@ -1712,7 +1712,7 @@ impl Program {
             self.get_compiler_options_object_literal_syntax();
         compiler_options_object_literal_syntax.as_ref().map(
             |compiler_options_object_literal_syntax| {
-                get_property_assignment(compiler_options_object_literal_syntax, name, None)
+                get_property_assignment(compiler_options_object_literal_syntax, name, None, self)
             },
         )
     }

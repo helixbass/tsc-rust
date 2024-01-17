@@ -28,6 +28,7 @@ use crate::{
     visit_node, Debug_, GetOrInsertDefault, HasStatementsInterface, LiteralLikeNodeInterface,
     MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number,
     ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags, VisitResult,
+    HasArena, AllArenas,
 };
 
 #[derive(Builder, Default, Trace, Finalize)]
@@ -1057,6 +1058,12 @@ impl TransformJsx {
 impl TransformerInterface for TransformJsx {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformJsx {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

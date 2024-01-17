@@ -11,6 +11,7 @@ use crate::{
     visit_node, visit_nodes, BaseNodeFactorySynthetic, Debug_, Node, NodeArray, NodeExt,
     NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
+    HasArena, AllArenas,
 };
 
 #[derive(Trace, Finalize)]
@@ -536,6 +537,12 @@ struct FlattenChainReturn {
 impl TransformerInterface for TransformES2020 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformES2020 {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

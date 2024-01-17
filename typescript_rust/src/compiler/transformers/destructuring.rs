@@ -25,6 +25,7 @@ use crate::{
     set_text_range, try_get_property_name_of_binding_or_assignment_element, try_maybe_visit_node,
     try_visit_node, BaseNodeFactory, Debug_, Matches, NamedDeclarationInterface, NodeFactory,
     Number, OptionTry, ReadonlyTextRangeConcrete, TransformFlags, VecExt,
+    InArena, AllArenas,
 };
 
 trait FlattenContext: HasArena {
@@ -176,7 +177,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
     }
 
     fn emit_expression(&self, value: Id<Node> /*Expression*/) {
-        emit_expression(&mut self.expressions.borrow_mut(), value.node_wrapper());
+        emit_expression(&mut self.expressions.borrow_mut(), value);
     }
 
     fn emit_binding_or_assignment(
@@ -189,7 +190,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
         Debug_.assert_node(
             Some(target),
             Some(|node| if self.create_assignment_callback.is_some() {
-                is_identifier(node)
+                is_identifier(&node.ref_(self))
             } else {
                 is_expression(node, self)
             }),
@@ -212,7 +213,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
-                            value.node_wrapper(),
+                            value,
                         )
                         .set_text_range(Some(location), self))
                 },
@@ -271,6 +272,12 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
     }
 }
 
+impl HasArena for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
     node: Id<Node>, /*VariableDeclaration | DestructuringAssignment*/
     visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>,
@@ -286,7 +293,6 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
             ) -> io::Result<Id<Node /*Expression*/>>
             + 'create_assignment_callback,
     >,
-    arena: &impl HasArena,
 ) -> io::Result<Id<Node /*Expression*/>> {
     let mut location/*: TextRange*/ = node.node_wrapper();
     let mut value: Option<Id<Node /*Expression*/>> = _d();
@@ -320,12 +326,12 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                 >,
             >
     });
-    if is_destructuring_assignment(node, arena) {
+    if is_destructuring_assignment(node, &**context) {
         value = Some(node.as_binary_expression().right.clone());
         while is_empty_array_literal(&node.as_binary_expression().left)
             || is_empty_object_literal(&node.as_binary_expression().left)
         {
-            if is_destructuring_assignment(value.unwrap(), arena) {
+            if is_destructuring_assignment(value.unwrap(), &**context) {
                 node = value.clone().unwrap();
                 location = value.clone().unwrap();
                 value = Some(node.as_binary_expression().right.clone());
@@ -335,7 +341,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                     visitor
                         .as_ref()
                         .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
-                    Some(|node| is_expression(node, arena)),
+                    Some(|node| is_expression(node, &**context)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
             }
@@ -358,7 +364,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
             visitor
                 .as_ref()
                 .map(|visitor| |node: Id<Node>| (visitor.borrow_mut())(node)),
-            Some(|node| is_expression(node, arena)),
+            Some(|node| is_expression(node, &**context)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?);
 
@@ -367,7 +373,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                 &node,
                 &value.as_ref().unwrap().as_identifier().escaped_text,
             )
-            || binding_or_assignment_element_contains_non_literal_computed_name(node, arena)
+            || binding_or_assignment_element_contains_non_literal_computed_name(node, &**context)
         {
             value = Some(ensure_identifier(
                 &flatten_context,
@@ -392,7 +398,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
         &node,
         value.as_deref(),
         &*location,
-        Some(is_destructuring_assignment(node, arena)),
+        Some(is_destructuring_assignment(node, &**context)),
     )?;
 
     if let Some(value) = value.filter(|_| needs_value == Some(true)) {
@@ -770,13 +776,18 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
     }
 }
 
+impl HasArena for FlattenDestructuringBindingFlattenContext<'_> {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 fn flatten_binding_or_assignment_element(
     flatten_context: &impl FlattenContext,
     element: Id<Node>, /*BindingOrAssignmentElement*/
     value: Option<Id<Node /*Expression*/>>,
     location: &impl ReadonlyTextRange,
     skip_initializer: Option<bool>,
-    arena: &impl HasArena,
 ) -> io::Result<()> {
     let binding_target = get_target_of_binding_or_assignment_element(element).unwrap();
     let mut value = value.node_wrappered();
@@ -786,7 +797,7 @@ fn flatten_binding_or_assignment_element(
             flatten_context
                 .is_visitor_supported()
                 .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
-            Some(|node| is_expression(node, arena)),
+            Some(|node| is_expression(node, flatten_context)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         if let Some(initializer) = initializer {

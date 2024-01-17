@@ -568,7 +568,7 @@ impl EmitHelperFactory {
 
 impl HasArena for EmitHelperFactory {
     fn arena(&self) -> &AllArenas {
-        self.factory.arena()
+        unimplemented!()
     }
 }
 

@@ -22,6 +22,7 @@ use crate::{
     NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty, SyntaxKind, TransformFlags,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     VecExt,
+    HasArena, AllArenas,
 };
 
 pub(super) struct AsynchronousDependencies {
@@ -889,6 +890,12 @@ impl TransformModule {
 impl TransformerInterface for TransformModule {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
+    }
+}
+
+impl HasArena for TransformModule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

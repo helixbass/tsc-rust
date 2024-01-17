@@ -186,7 +186,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> io::Result<impl Iterator<Item = Id<Symbol>>> {
-        let declaration = get_parse_tree_node(Some(node), Some(|node| is_function_declaration(&node.ref_(self))), self);
+        let declaration = get_parse_tree_node(Some(node), Some(|node: Id<Node>| is_function_declaration(&node.ref_(self))), self);
         if declaration.is_none() {
             return Ok(Either::Right(iter::empty()));
         }

@@ -29,6 +29,7 @@ use crate::{
     ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TypeReferenceSerializationKind, VisitResult,
+    HasArena, AllArenas,
 };
 
 bitflags! {
@@ -1297,6 +1298,12 @@ impl TransformES2017 {
 impl TransformerInterface for TransformES2017 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
+    }
+}
+
+impl HasArena for TransformES2017 {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

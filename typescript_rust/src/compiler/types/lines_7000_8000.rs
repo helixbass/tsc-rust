@@ -8,7 +8,7 @@ use local_macros::enum_unwrapped;
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
     BaseNodeFactory, BaseNodeFactorySynthetic, EmitHelper, EmitHelperFactory, EmitHost,
-    EmitResolver, NodeFactoryFlags,
+    EmitResolver, NodeFactoryFlags, HasArena,
 };
 
 #[derive(Default, Builder, Clone)]
@@ -233,7 +233,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + 
     fn add_initialization_statement(&self, node: Id<Node> /*Statement*/);
 }
 
-pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {
+pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> + HasArena {
     fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>>;
     fn get_emit_host(&self) -> Gc<Box<dyn EmitHost>>;
     fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory>;
@@ -319,7 +319,7 @@ pub trait TransformerFactoryInterface: Trace + Finalize {
 
 pub type Transformer = Gc<Box<dyn TransformerInterface>>;
 
-pub trait TransformerInterface: Trace + Finalize {
+pub trait TransformerInterface: Trace + Finalize + HasArena {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>>;
 }
 

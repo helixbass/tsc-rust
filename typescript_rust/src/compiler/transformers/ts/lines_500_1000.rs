@@ -473,7 +473,7 @@ impl TransformTypeScript {
         node.ref_(self).as_class_like_declaration()
             .members()
             .owned_iter()
-            .filter(move |m| {
+            .filter(move |&m| {
                 if is_static {
                     self.is_static_decorated_class_element(m, node)
                 } else {

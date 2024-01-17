@@ -10,6 +10,7 @@ use crate::{
     skip_parentheses, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node, NodeFactory,
     NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
+    HasArena, AllArenas,
 };
 
 #[derive(Trace, Finalize)]
@@ -181,6 +182,12 @@ impl TransformES2021 {
 impl TransformerInterface for TransformES2021 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformES2021 {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

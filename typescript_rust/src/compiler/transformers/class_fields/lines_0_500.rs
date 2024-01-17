@@ -19,6 +19,7 @@ use crate::{
     maybe_visit_nodes, move_range_pos, set_comment_range, visit_function_body,
     visit_parameter_list, AsDoubleDeref, EmitFlags, HasInitializerInterface,
     NamedDeclarationInterface, NodeCheckFlags, ReadonlyTextRangeConcrete,
+    HasArena, AllArenas,
 };
 
 bitflags! {
@@ -1171,6 +1172,12 @@ impl TransformClassFields {
 impl TransformerInterface for TransformClassFields {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformClassFields {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

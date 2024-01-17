@@ -20,6 +20,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     UnderscoreEscapedMap, VisitResult,
+    HasArena, AllArenas,
 };
 
 pub(super) const USE_NEW_TYPE_METADATA_FORMAT: bool = false;
@@ -635,6 +636,12 @@ impl TransformTypeScript {
 impl TransformerInterface for TransformTypeScript {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file_or_bundle(node)
+    }
+}
+
+impl HasArena for TransformTypeScript {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

@@ -32,6 +32,7 @@ use crate::{
     NodeExt, NodeFactory, NodeFlags, NodeId, NodeInterface, ProcessLevel, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
     TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
+    HasArena, AllArenas,
 };
 
 bitflags! {
@@ -2110,6 +2111,12 @@ impl TransformES2018 {
 impl TransformerInterface for TransformES2018 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformES2018 {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

@@ -19,6 +19,7 @@ use crate::{
     FunctionLikeDeclarationInterface, Matches, NamedDeclarationInterface, NodeArray, NodeExt,
     NodeInterface, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
+    HasArena, AllArenas,
 };
 
 pub(super) type Label = i32;
@@ -1080,6 +1081,12 @@ impl TransformGenerators {
 impl TransformerInterface for TransformGenerators {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
+    }
+}
+
+impl HasArena for TransformGenerators {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

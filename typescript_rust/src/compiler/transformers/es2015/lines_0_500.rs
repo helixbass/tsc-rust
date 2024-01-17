@@ -19,6 +19,7 @@ use crate::{
     SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
+    HasArena, AllArenas,
 };
 
 bitflags! {
@@ -567,6 +568,12 @@ impl TransformES2015 {
 impl TransformerInterface for TransformES2015 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
+    }
+}
+
+impl HasArena for TransformES2015 {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
