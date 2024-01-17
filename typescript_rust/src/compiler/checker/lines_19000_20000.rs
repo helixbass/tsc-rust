@@ -579,7 +579,7 @@ impl CheckTypeRelatedTo {
             .ref_(self)
             .maybe_value_declaration()
             .filter(|unmatched_property_value_declaration| {
-                is_named_declaration(unmatched_property_value_declaration.ref_(self))
+                is_named_declaration(&unmatched_property_value_declaration.ref_(self))
                     && is_private_identifier(
                         &unmatched_property_value_declaration
                             .ref_(self).as_named_declaration()
@@ -598,7 +598,8 @@ impl CheckTypeRelatedTo {
                     unmatched_property_value_declaration
                         .ref_(self).as_named_declaration()
                         .name();
-                let private_identifier_description = &unmatched_property_value_declaration_name
+                let unmatched_property_value_declaration_name_ref = unmatched_property_value_declaration_name.ref_(self);
+                let private_identifier_description = &unmatched_property_value_declaration_name_ref
                     .as_private_identifier()
                     .escaped_text;
                 let symbol_table_key = get_symbol_name_for_private_identifier(

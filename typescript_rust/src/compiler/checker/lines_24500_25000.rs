@@ -109,7 +109,7 @@ impl GetFlowTypeOfReference {
         let expr_as_binary_expression = expr_ref.as_binary_expression();
         let left = self
             .type_checker
-            .get_reference_candidate(&expr_as_binary_expression.left);
+            .get_reference_candidate(expr_as_binary_expression.left);
         if !self
             .type_checker
             .is_matching_reference(self.reference, left)?
@@ -129,7 +129,7 @@ impl GetFlowTypeOfReference {
 
         let right_type = self
             .type_checker
-            .get_type_of_expression(&expr_as_binary_expression.right)?;
+            .get_type_of_expression(expr_as_binary_expression.right)?;
         if !self
             .type_checker
             .is_type_derived_from(right_type, self.type_checker.global_function_type())?
@@ -294,7 +294,7 @@ impl GetFlowTypeOfReference {
             )? && is_identifier(&call_access_as_property_access_expression.name.ref_(self))
                 && call_access_as_property_access_expression
                     .name
-                    .as_identifier()
+                    .ref_(self).as_identifier()
                     .escaped_text
                     == "hasOwnProperty"
                 && call_expression_as_call_expression.arguments.len() == 1
@@ -469,7 +469,7 @@ impl GetFlowTypeOfReference {
                 if expr_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken {
                     return self.narrow_type(
                         type_,
-                        &expr_as_prefix_unary_expression.operand,
+                        expr_as_prefix_unary_expression.operand,
                         !assume_true,
                     );
                 }
@@ -531,15 +531,15 @@ impl TypeChecker {
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier
         ) {
             if is_right_side_of_qualified_name_or_property_access(location, self) {
-                location = location.parent();
+                location = location.ref_(self).parent();
             }
             if is_expression_node(location, self)
                 && (!is_assignment_target(location, self) || is_write_access(location, self))
             {
-                let type_ = self.get_type_of_expression(&location)?;
+                let type_ = self.get_type_of_expression(location)?;
                 if matches!(
                     self.get_export_symbol_of_value_symbol_if_exported(
-                        (*self.get_node_links(&location)).borrow().resolved_symbol.clone()
+                        (*self.get_node_links(location)).borrow().resolved_symbol.clone()
                     ),
                     Some(export_symbol) if export_symbol == symbol
                 ) {
@@ -550,11 +550,11 @@ impl TypeChecker {
         if is_declaration_name(location, self)
             && is_set_accessor(&location.ref_(self).parent().ref_(self))
             && self
-                .get_annotated_accessor_type_node(location.maybe_parent())
+                .get_annotated_accessor_type_node(location.ref_(self).maybe_parent())
                 .is_some()
         {
             return Ok(self
-                .resolve_type_of_accessors(location.parent().symbol(), Some(true))?
+                .resolve_type_of_accessors(location.ref_(self).parent().ref_(self).symbol(), Some(true))?
                 .unwrap());
         }
         self.get_non_missing_type_of_symbol(symbol)
@@ -594,8 +594,8 @@ impl TypeChecker {
                 let mut links = links.borrow_mut();
                 links.flags = links.flags | NodeCheckFlags::AssignmentsMarked;
             }
-            if !self.has_parent_with_assignments_marked(&parent) {
-                self.mark_node_assignments(&parent)?;
+            if !self.has_parent_with_assignments_marked(parent) {
+                self.mark_node_assignments(parent)?;
             }
         }
         Ok(symbol.ref_(self).maybe_is_assigned().unwrap_or(false))
@@ -653,7 +653,7 @@ impl TypeChecker {
                 let annotation_includes_undefined = self.strict_null_checks
                     && declaration.ref_(self).kind() == SyntaxKind::Parameter
                     && matches!(
-                        declaration_as_has_initializer.maybe_initializer().as_ref(),
+                        declaration_as_has_initializer.maybe_initializer(),
                         Some(declaration_initializer) if self.get_falsy_flags(declared_type).intersects(TypeFlags::Undefined) &&
                             !self.get_falsy_flags(self.check_expression(declaration_initializer, None, None)?).intersects(TypeFlags::Undefined)
                     );
@@ -776,7 +776,7 @@ impl TypeChecker {
                     && is_entity_name_expression(n, self))
                 .into();
             }
-            if is_export_specifier(&parent) {
+            if is_export_specifier(&parent.ref_(self)) {
                 let parent_ref = parent.ref_(self);
                 let parent_as_export_specifier = parent_ref.as_export_specifier();
                 return (parent_as_export_specifier.name == n

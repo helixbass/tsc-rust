@@ -147,7 +147,7 @@ impl TypeChecker {
                 match node_as_binary_expression.operator_token.ref_(self).kind() {
                     SyntaxKind::EqualsToken | SyntaxKind::CommaToken => {
                         return self.elaborate_error(
-                            Some(&*node_as_binary_expression.right),
+                            Some(node_as_binary_expression.right),
                             source,
                             target,
                             relation,
@@ -323,7 +323,7 @@ impl TypeChecker {
             None,
         )? {
             let elaborated = /*returnExpression &&*/ self.elaborate_error(
-                Some(&*return_expression),
+                Some(return_expression),
                 source_return,
                 target_return,
                 relation.clone(),
@@ -341,7 +341,7 @@ impl TypeChecker {
                 source_return,
                 target_return,
                 relation.clone(),
-                Some(&*return_expression),
+                Some(return_expression),
                 None,
                 containing_message_chain,
                 Some(result_obj.clone()),
@@ -497,7 +497,7 @@ impl TypeChecker {
                 None,
                 None,
             )? {
-                let elaborated = match next.as_ref() {
+                let elaborated = match next {
                     None => false,
                     Some(next) => self.elaborate_error(
                         Some(next),
@@ -747,7 +747,7 @@ impl TypeChecker {
         let mut member_offset = 0;
         try_flat_map(
             Some(&node_as_jsx_element.children),
-            |child, i| -> io::Result<_> {
+            |&child, i| -> io::Result<_> {
                 let name_type =
                     self.get_number_literal_type(Number::new((i - member_offset) as f64));
                 let elem = self.get_elaboration_element_for_jsx_child(
@@ -911,13 +911,13 @@ impl TypeChecker {
             if more_than_one_real_children {
                 if array_like_target_parts != self.never_type() {
                     let real_source = self.create_tuple_type(
-                        &*self.check_jsx_children(&containing_element, Some(CheckMode::Normal))?,
+                        &*self.check_jsx_children(containing_element, Some(CheckMode::Normal))?,
                         None,
                         None,
                         None,
                     )?;
                     let children = self.generate_jsx_children(
-                        &containing_element,
+                        containing_element,
                         get_invalid_textual_child_diagnostic,
                     )?;
                     result = self.elaborate_elementwise(
@@ -942,7 +942,7 @@ impl TypeChecker {
                 )? {
                     result = true;
                     let diag = self.error(
-                        Some(&*containing_element.as_jsx_element().opening_element.as_jsx_opening_element().tag_name),
+                        Some(containing_element.ref_(self).as_jsx_element().opening_element.ref_(self).as_jsx_opening_element().tag_name),
                         &Diagnostics::This_JSX_tag_s_0_prop_expects_a_single_child_of_type_1_but_multiple_children_were_provided,
                         Some(vec![
                             children_prop_name,
@@ -991,7 +991,7 @@ impl TypeChecker {
                 )? {
                     result = true;
                     let diag = self.error(
-                        Some(&*containing_element.as_jsx_element().opening_element.as_jsx_opening_element().tag_name),
+                        Some(containing_element.ref_(self).as_jsx_element().opening_element.ref_(self).as_jsx_opening_element().tag_name),
                         &Diagnostics::This_JSX_tag_s_0_prop_expects_type_1_which_requires_multiple_children_but_only_a_single_child_was_provided,
                         Some(vec![
                             children_prop_name,

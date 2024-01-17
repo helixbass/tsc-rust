@@ -44,7 +44,6 @@ impl TypeChecker {
         target: Id<Type>,
     ) -> io::Result<()> {
         if let Some(error_node) = error_node {
-            let error_node = error_node.borrow();
             if report_errors && error_output_container.errors_len() > 0 {
                 if self
                     .get_awaited_type_of_promise(target, Option::<Id<Node>>::None, None, None)?
@@ -132,9 +131,9 @@ impl TypeChecker {
                 None,
                 Option::<Id<Node>>::None,
             )];
-            if template.kind() == SyntaxKind::TemplateExpression {
+            if template.ref_(self).kind() == SyntaxKind::TemplateExpression {
                 for_each(
-                    &template.as_template_expression().template_spans,
+                    &template.ref_(self).as_template_expression().template_spans,
                     |span: &Id<Node>, _| -> Option<()> {
                         args.push(span.ref_(self).as_template_span().expression);
                         None
@@ -155,7 +154,7 @@ impl TypeChecker {
                     .properties
                     .is_empty()
                     || is_jsx_opening_element(&node.ref_(self))
-                        && !node.ref_(self).parent().as_jsx_element().children.is_empty()
+                        && !node.ref_(self).parent().ref_(self).as_jsx_element().children.is_empty()
                 {
                     vec![node.ref_(self).as_jsx_opening_like_element().attributes()]
                 } else {
@@ -171,12 +170,12 @@ impl TypeChecker {
         if let Some(spread_index) = spread_index {
             let mut effective_args = args[0..spread_index].to_owned();
             for i in spread_index..args.len() {
-                let arg = &args[i];
-                let spread_type = if arg.kind() == SyntaxKind::SpreadElement {
+                let arg = args[i];
+                let spread_type = if arg.ref_(self).kind() == SyntaxKind::SpreadElement {
                     Some(if self.flow_loop_count() > 0 {
-                        self.check_expression(&arg.as_spread_element().expression, None, None)?
+                        self.check_expression(arg.ref_(self).as_spread_element().expression, None, None)?
                     } else {
-                        self.check_expression_cached(&arg.as_spread_element().expression, None)?
+                        self.check_expression_cached(arg.as_spread_element().expression, None)?
                     })
                 } else {
                     None
@@ -232,18 +231,18 @@ impl TypeChecker {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,
-                    self.get_type_of_symbol(self.get_symbol_of_node(&parent)?.unwrap())?,
+                    self.get_type_of_symbol(self.get_symbol_of_node(parent)?.unwrap())?,
                     None,
                     Option::<Id<Node>>::None,
                 )]
             }
             SyntaxKind::Parameter => {
-                let func = parent.parent();
+                let func = parent.ref_(self).parent();
                 vec![
                     self.create_synthetic_expression(
                         expr,
-                        if parent.parent().kind() == SyntaxKind::Constructor {
-                            self.get_type_of_symbol(self.get_symbol_of_node(&func)?.unwrap())?
+                        if parent.ref_(self).parent().ref_(self).kind() == SyntaxKind::Constructor {
+                            self.get_type_of_symbol(self.get_symbol_of_node(func)?.unwrap())?
                         } else {
                             self.error_type()
                         },
@@ -268,18 +267,18 @@ impl TypeChecker {
             | SyntaxKind::MethodDeclaration
             | SyntaxKind::GetAccessor
             | SyntaxKind::SetAccessor => {
-                let has_prop_desc = parent.kind() != SyntaxKind::PropertyDeclaration
+                let has_prop_desc = parent.ref_(self).kind() != SyntaxKind::PropertyDeclaration
                     && self.language_version != ScriptTarget::ES3;
                 vec![
                     self.create_synthetic_expression(
                         expr,
-                        self.get_parent_type_of_class_element(&parent)?,
+                        self.get_parent_type_of_class_element(parent)?,
                         None,
                         Option::<Id<Node>>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
-                        self.get_class_element_property_key_type(&parent)?,
+                        self.get_class_element_property_key_type(parent)?,
                         None,
                         Option::<Id<Node>>::None,
                     ),
@@ -287,7 +286,7 @@ impl TypeChecker {
                         expr,
                         if has_prop_desc {
                             self.create_typed_property_descriptor_type(
-                                self.get_type_of_node(&parent)?,
+                                self.get_type_of_node(parent)?,
                             )?
                         } else {
                             self.any_type()
@@ -337,7 +336,7 @@ impl TypeChecker {
                 source_file,
                 node_as_call_expression
                     .expression
-                    .as_property_access_expression()
+                    .ref_(self).as_property_access_expression()
                     .name,
                 self,
             );
@@ -376,7 +375,7 @@ impl TypeChecker {
                 start,
                 length,
             } = self.get_diagnostic_span_for_call_node(node, None);
-            Gc::new(create_file_diagnostic(source_file, start, length, message, args, self).into())
+            Gc::new(create_file_diagnostic(source_file, start, length, message, args).into())
         } else {
             Gc::new(create_diagnostic_for_node(node, message, args, self).into())
         }
@@ -396,10 +395,10 @@ impl TypeChecker {
         }
 
         let symbol = self.resolve_name_(
-            Some(&*node_as_call_expression.expression),
+            Some(node_as_call_expression.expression),
             &node_as_call_expression
                 .expression
-                .as_identifier()
+                .ref_(self).as_identifier()
                 .escaped_text,
             SymbolFlags::Value,
             None,
@@ -553,16 +552,16 @@ impl TypeChecker {
                 if let Some(parameter) = parameter {
                     let parameter_error = create_diagnostic_for_node(
                         parameter,
-                        if is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
+                        if is_binding_pattern(parameter.ref_(self).as_named_declaration().maybe_name().refed(self)) {
                             &*Diagnostics::An_argument_matching_this_binding_pattern_was_not_provided
                         } else if is_rest_parameter(parameter, self) {
                             &*Diagnostics::Arguments_for_the_rest_parameter_0_were_not_provided
                         } else {
                             &*Diagnostics::An_argument_for_0_was_not_provided
                         },
-                        if parameter.as_named_declaration().maybe_name().is_none() {
+                        if parameter.ref_(self).as_named_declaration().maybe_name().is_none() {
                             Some(vec![args.len().to_string()])
-                        } else if !is_binding_pattern(parameter.as_named_declaration().maybe_name())
+                        } else if !is_binding_pattern(parameter.ref_(self).as_named_declaration().maybe_name().refed(self))
                         {
                             Some(vec![id_text(&get_first_identifier(
                                 parameter.ref_(self).as_named_declaration().name(),
@@ -572,6 +571,7 @@ impl TypeChecker {
                         } else {
                             None
                         },
+                        self,
                     );
                     add_related_info(&diagnostic, vec![Gc::new(parameter_error.into())]);
                 }
@@ -594,7 +594,7 @@ impl TypeChecker {
                 set_text_range_pos_end(&*error_span, pos, end);
                 Gc::new(
                     create_diagnostic_for_node_array(
-                        get_source_file_of_node(node, self),
+                        &get_source_file_of_node(node, self).ref_(self),
                         &error_span,
                         error,
                         Some(vec![parameter_range, args.len().to_string()]),
@@ -618,7 +618,7 @@ impl TypeChecker {
             let max = length(sig.maybe_type_parameters().as_deref());
             return Gc::new(
                 create_diagnostic_for_node_array(
-                    get_source_file_of_node(node, self),
+                    &get_source_file_of_node(node, self).ref_(self),
                     type_arguments,
                     &Diagnostics::Expected_0_type_arguments_but_got_1,
                     Some(vec![
@@ -653,7 +653,7 @@ impl TypeChecker {
             if above_arg_count != usize::MAX {
                 return Gc::new(
                     create_diagnostic_for_node_array(
-                        get_source_file_of_node(node, self),
+                        &get_source_file_of_node(node, self).ref_(self),
                         type_arguments,
                         &Diagnostics::No_overload_expects_0_type_arguments_but_overloads_do_exist_that_expect_either_1_or_2_type_arguments,
                         Some(vec![
@@ -667,7 +667,7 @@ impl TypeChecker {
         }
         Gc::new(
             create_diagnostic_for_node_array(
-                get_source_file_of_node(node, self),
+                &get_source_file_of_node(node, self).ref_(self),
                 type_arguments,
                 &Diagnostics::Expected_0_type_arguments_but_got_1,
                 Some(vec![
@@ -704,7 +704,7 @@ impl TypeChecker {
 
             if is_tagged_template
                 || is_jsx_opening_or_self_closing_element
-                || node.ref_(self).as_has_expression().ref_(self).expression().ref_(self).kind() != SyntaxKind::SuperKeyword
+                || node.ref_(self).as_has_expression().expression().ref_(self).kind() != SyntaxKind::SuperKeyword
             {
                 try_maybe_for_each(
                     type_arguments.as_ref(),
@@ -1056,7 +1056,7 @@ impl TypeChecker {
         let impl_decl = if is_overload {
             find(&failed_signature_declarations, |d: &Id<Node>, _| {
                 is_function_like_declaration(&d.ref_(self))
-                    && node_is_present(d.ref_(self).as_function_like_declaration().maybe_body())
+                    && node_is_present(d.ref_(self).as_function_like_declaration().maybe_body().refed(self))
             }).copied()
         } else {
             None

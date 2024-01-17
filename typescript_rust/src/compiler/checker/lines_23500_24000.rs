@@ -469,7 +469,7 @@ impl GetFlowTypeOfReference {
             if !self.type_checker.is_reachable_flow_node(flow.clone())? {
                 return Ok(Some(self.type_checker.unreachable_never_type().into()));
             }
-            if is_variable_declaration(&node.ref_(self)) && (is_in_js_file(Some(&node.ref_(self))) || is_var_const(&node.ref_(self)))
+            if is_variable_declaration(&node.ref_(self)) && (is_in_js_file(Some(&node.ref_(self))) || is_var_const(node, self))
             {
                 let init = get_declared_expando_initializer(node, self);
                 if matches!(
@@ -521,15 +521,15 @@ impl GetFlowTypeOfReference {
                 == SyntaxKind::AmpersandAmpersandToken
             {
                 return self.narrow_type_by_assertion(
-                    self.narrow_type_by_assertion(type_, &node_as_binary_expression.left)?,
-                    &node_as_binary_expression.right,
+                    self.narrow_type_by_assertion(type_, node_as_binary_expression.left)?,
+                    node_as_binary_expression.right,
                 );
             }
             if node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::BarBarToken {
                 return self.type_checker.get_union_type(
                     &[
-                        self.narrow_type_by_assertion(type_, &node_as_binary_expression.left)?,
-                        self.narrow_type_by_assertion(type_, &node_as_binary_expression.right)?,
+                        self.narrow_type_by_assertion(type_, node_as_binary_expression.left)?,
+                        self.narrow_type_by_assertion(type_, node_as_binary_expression.right)?,
                     ],
                     None,
                     Option::<Id<Symbol>>::None,
@@ -636,7 +636,7 @@ impl GetFlowTypeOfReference {
                 if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::EvolvingArray) {
                     let mut evolved_type = type_.clone();
                     if node.ref_(self).kind() == SyntaxKind::CallExpression {
-                        for arg in &node.ref_(self).as_call_expression().arguments {
+                        for &arg in &node.ref_(self).as_call_expression().arguments {
                             evolved_type = self
                                 .type_checker
                                 .add_evolving_array_element_type(evolved_type, arg)?;
@@ -645,9 +645,9 @@ impl GetFlowTypeOfReference {
                         let node_ref = node.ref_(self);
                         let node_as_binary_expression = node_ref.as_binary_expression();
                         let index_type = self.type_checker.get_context_free_type_of_expression(
-                            &node_as_binary_expression
+                            node_as_binary_expression
                                 .left
-                                .as_element_access_expression()
+                                .ref_(self).as_element_access_expression()
                                 .argument_expression,
                         )?;
                         if self.type_checker.is_type_assignable_to_kind(
@@ -657,7 +657,7 @@ impl GetFlowTypeOfReference {
                         )? {
                             evolved_type = self.type_checker.add_evolving_array_element_type(
                                 evolved_type,
-                                &node_as_binary_expression.right,
+                                node_as_binary_expression.right,
                             )?;
                         }
                     }
@@ -768,7 +768,7 @@ impl GetFlowTypeOfReference {
                 }
             }
             let access = self.get_discriminant_property_access(expr, type_)?;
-            if let Some(access) = access.as_ref() {
+            if let Some(access) = access {
                 type_ = self.narrow_type_by_switch_on_discriminant_property(
                     type_,
                     access,

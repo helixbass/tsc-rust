@@ -183,7 +183,7 @@ impl TypeChecker {
                                 .is_some()
                                 && matches!(
                                     source_file.ref_(self).maybe_symbol(),
-                                    Some(source_file_symbol) if self.get_resolved_symbol(&expression)? ==
+                                    Some(source_file_symbol) if self.get_resolved_symbol(expression)? ==
                                         source_file_symbol
                                 )
                             {
@@ -192,7 +192,7 @@ impl TypeChecker {
                         }
 
                         return Ok(Some(self.get_widened_type(
-                            self.check_expression_cached(&expression, None)?,
+                            self.check_expression_cached(expression, None)?,
                         )?));
                     }
                 }
@@ -241,7 +241,7 @@ impl TypeChecker {
             links.borrow_mut().resolved_signature = Some(self.any_signature());
             let type_ = if index_of_parameter < args.len() {
                 Some(self.get_widened_literal_type(self.check_expression(
-                    &args[index_of_parameter],
+                    args[index_of_parameter],
                     None,
                     None,
                 )?)?)
@@ -256,7 +256,7 @@ impl TypeChecker {
             links.borrow_mut().resolved_signature = cached;
             return Ok(type_);
         }
-        let contextual_signature = self.get_contextual_signature(&func)?;
+        let contextual_signature = self.get_contextual_signature(func)?;
         if let Some(contextual_signature) = contextual_signature.as_ref() {
             let index = func_as_function_like_declaration
                 .parameters()
@@ -323,26 +323,26 @@ impl TypeChecker {
             .clone()
             .unwrap_or_else(|| declaration_as_binding_element.name());
         let parent_type = self
-            .get_contextual_type_for_variable_like_declaration(&parent)?
+            .get_contextual_type_for_variable_like_declaration(parent)?
             .try_or_else(|| -> io::Result<_> {
                 Ok(
-                    if parent.kind() != SyntaxKind::BindingElement
-                        && parent.as_has_initializer().maybe_initializer().is_some()
+                    if parent.ref_(self).kind() != SyntaxKind::BindingElement
+                        && parent.ref_(self).as_has_initializer().maybe_initializer().is_some()
                     {
-                        Some(self.check_declaration_initializer(&parent, None)?)
+                        Some(self.check_declaration_initializer(parent, None)?)
                     } else {
                         None
                     },
                 )
             })?;
         if parent_type.is_none()
-            || is_binding_pattern(Some(&*name))
+            || is_binding_pattern(Some(&name.ref_(self)))
             || is_computed_non_literal_name(name, self)
         {
             return Ok(None);
         }
         let parent_type = parent_type.unwrap();
-        if parent.as_named_declaration().name().kind() == SyntaxKind::ArrayBindingPattern {
+        if parent.ref_(self).as_named_declaration().name().ref_(self).kind() == SyntaxKind::ArrayBindingPattern {
             let index = index_of_node(
                 &declaration.ref_(self).parent().ref_(self).as_has_elements().elements(),
                 declaration,
@@ -354,7 +354,7 @@ impl TypeChecker {
             let index: usize = index.try_into().unwrap();
             return self.get_contextual_type_for_element_expression(Some(parent_type), index);
         }
-        let name_type = self.get_literal_type_from_property_name(&name)?;
+        let name_type = self.get_literal_type_from_property_name(name)?;
         if self.is_type_usable_as_property_name(name_type) {
             let text = self.get_property_name_from_type(name_type);
             return self.get_type_of_property_of_type_(parent_type, &text);
@@ -389,17 +389,17 @@ impl TypeChecker {
         if has_initializer(&declaration.ref_(self))
             && declaration.ref_(self).as_has_initializer().maybe_initializer() == Some(node)
         {
-            let result = self.get_contextual_type_for_variable_like_declaration(&declaration)?;
+            let result = self.get_contextual_type_for_variable_like_declaration(declaration)?;
             if result.is_some() {
                 return Ok(result);
             }
             if !matches!(
                 context_flags,
                 Some(context_flags) if context_flags.intersects(ContextFlags::SkipBindingPatterns)
-            ) && is_binding_pattern(declaration.as_named_declaration().maybe_name())
+            ) && is_binding_pattern(&declaration.ref_(self).as_named_declaration().maybe_name().ref_(self))
             {
                 return Ok(Some(self.get_type_from_binding_pattern(
-                    &declaration.as_named_declaration().name(),
+                    declaration.ref_(self).as_named_declaration().name(),
                     Some(true),
                     Some(false),
                 )?));
@@ -720,7 +720,7 @@ impl TypeChecker {
             return Ok(Some(self.get_resolved_symbol(e)?));
         }
         if is_property_access_expression(&e.ref_(self)) {
-            let e._ref = e..ref_(self);
+            let e_ref = e.ref_(self);
             let e_as_property_access_expression = e_ref.as_property_access_expression();
             let lhs_type =
                 self.get_type_of_expression(e_as_property_access_expression.expression)?;

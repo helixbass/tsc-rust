@@ -202,7 +202,7 @@ impl TypeChecker {
             return Some(self.get_property_name_from_type(index_type));
         }
         access_node
-            .filter(|access_node| is_property_name(access_node))
+            .filter(|access_node| is_property_name(&access_node.ref_(self)))
             .and_then(|access_node| {
                 get_property_name_for_property_name_node(access_node, self).map(Cow::into_owned)
             })
@@ -268,7 +268,7 @@ impl TypeChecker {
             let prop = self.get_property_of_type_(object_type, prop_name, None)?;
             if let Some(prop) = prop {
                 if access_flags.intersects(AccessFlags::ReportDeprecated) {
-                    if let Some(access_node) = access_node.as_ref() {
+                    if let Some(access_node) = access_node {
                         let prop_ref = prop.ref_(self);
                         let prop_declarations = prop_ref.maybe_declarations();
                         if let Some(prop_declarations) = prop_declarations.as_deref() {
@@ -280,9 +280,8 @@ impl TypeChecker {
                                 let deprecated_node = access_expression
                                     .map(|access_expression| {
                                         access_expression
-                                            .as_element_access_expression()
+                                            .ref_(self).as_element_access_expression()
                                             .argument_expression
-                                            .clone()
                                     })
                                     .unwrap_or_else(|| {
                                         if is_indexed_access_type_node(&access_node.ref_(self)) {
@@ -303,8 +302,8 @@ impl TypeChecker {
                     }
                 }
                 if let Some(access_expression) = access_expression {
-                    let access_expression_as_element_access_expression =
-                        access_expression.as_element_access_expression();
+                    let access_expression_ref = access_expression.ref_(self);
+                    let access_expression_as_element_access_expression = access_expression_ref.as_element_access_expression();
                     self.mark_property_as_referenced(
                         prop,
                         Some(access_expression),
@@ -335,7 +334,7 @@ impl TypeChecker {
                         return Ok(None);
                     }
                     if access_flags.intersects(AccessFlags::CacheSymbol) {
-                        self.get_node_links(access_node.as_ref().unwrap())
+                        self.get_node_links(access_node.unwrap())
                             .borrow_mut()
                             .resolved_symbol = Some(prop.clone());
                     }
@@ -345,7 +344,7 @@ impl TypeChecker {
                 }
                 let prop_type = self.get_type_of_symbol(prop)?;
                 return Ok(Some(
-                    if let Some(access_expression) = access_expression.filter(|access_expression| {
+                    if let Some(access_expression) = access_expression.filter(|&access_expression| {
                         get_assignment_target_kind(access_expression, self) != AssignmentKind::Definite
                     }) {
                         self.get_flow_type_of_reference(
@@ -363,7 +362,7 @@ impl TypeChecker {
                 && self.is_numeric_literal_name(prop_name)
                 && Into::<Number>::into(&**prop_name).value() >= 0.0
             {
-                if let Some(access_node) = access_node.as_ref() {
+                if let Some(access_node) = access_node {
                     if self.every_type(object_type, |t| {
                         !t.ref_(self)
                             .as_type_reference()
@@ -481,7 +480,7 @@ impl TypeChecker {
                     }
                     return Ok(None);
                 }
-                if let Some(access_node) = access_node.as_ref() {
+                if let Some(access_node) = access_node {
                     if index_info.key_type == self.string_type()
                         && !self.is_type_assignable_to_kind(
                             index_type,
@@ -850,7 +849,7 @@ impl TypeChecker {
         if self.is_js_literal_type(object_type)? {
             return Ok(Some(self.any_type()));
         }
-        if let Some(access_node) = access_node.as_ref() {
+        if let Some(access_node) = access_node {
             let index_node = self.get_index_node_for_access_expression(access_node);
             if index_type
                 .ref_(self)
@@ -946,9 +945,9 @@ impl TypeChecker {
                 .ref_(self).as_element_access_expression()
                 .argument_expression
         } else if access_node.ref_(self).kind() == SyntaxKind::IndexedAccessType {
-            access_node.as_indexed_access_type_node().index_type
+            access_node.ref_(self).as_indexed_access_type_node().index_type
         } else if access_node.ref_(self).kind() == SyntaxKind::ComputedPropertyName {
-            access_node.as_computed_property_name().expression
+            access_node.ref_(self).as_computed_property_name().expression
         } else {
             access_node
         }
@@ -1392,7 +1391,7 @@ impl TypeChecker {
                 object_type,
                 index_type,
                 Some(access_flags),
-                access_node.as_deref(),
+                access_node,
                 alias_symbol,
                 alias_type_arguments,
             )?
@@ -1458,8 +1457,8 @@ impl TypeChecker {
         }
         if self.is_generic_index_type(index_type)?
             || if matches!(
-                access_node.as_ref(),
-                Some(access_node) if access_node.kind() != SyntaxKind::IndexedAccessType
+                access_node,
+                Some(access_node) if access_node.ref_(self).kind() != SyntaxKind::IndexedAccessType
             ) {
                 self.is_generic_tuple_type(object_type)
                     && !self.index_type_less_than(
@@ -1533,7 +1532,7 @@ impl TypeChecker {
                     apparent_object_type,
                     t,
                     index_type,
-                    access_node.as_deref(),
+                    access_node,
                     access_flags
                         | if was_missing_prop {
                             AccessFlags::SuppressNoImplicitAnyError

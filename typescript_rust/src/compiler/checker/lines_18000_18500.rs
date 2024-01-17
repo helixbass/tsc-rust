@@ -1618,7 +1618,7 @@ impl CheckTypeRelatedTo {
                                 None
                             };
                             let mut suggestion: Option<String> = None;
-                            if let Some(prop_value_declaration) = prop.ref_(self).maybe_value_declaration().filter(|prop_value_declaration|
+                            if let Some(prop_value_declaration) = prop.ref_(self).maybe_value_declaration().filter(|&prop_value_declaration|
                                 find_ancestor(
                                     Some(prop_value_declaration),
                                     |d| object_literal_declaration == Some(d),

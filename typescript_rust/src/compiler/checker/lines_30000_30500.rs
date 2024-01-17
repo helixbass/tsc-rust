@@ -17,6 +17,7 @@ use crate::{
     SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
     UnionReduction,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -316,9 +317,9 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
         if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
-            let super_type = self.check_super_expression(&node_as_call_expression.expression)?;
+            let super_type = self.check_super_expression(node_as_call_expression.expression)?;
             if self.is_type_any(Some(super_type)) {
-                for arg in &node_as_call_expression.arguments {
+                for &arg in &node_as_call_expression.arguments {
                     self.check_expression(arg, None, None)?;
                 }
                 return Ok(self.any_signature());
@@ -350,10 +351,10 @@ impl TypeChecker {
 
         let call_chain_flags: SignatureFlags;
         let mut func_type =
-            self.check_expression(&node_as_call_expression.expression, None, None)?;
+            self.check_expression(node_as_call_expression.expression, None, None)?;
         if is_call_chain(&node.ref_(self)) {
             let non_optional_type =
-                self.get_optional_expression_type(func_type, &node_as_call_expression.expression)?;
+                self.get_optional_expression_type(func_type, node_as_call_expression.expression)?;
             call_chain_flags = if non_optional_type == func_type {
                 SignatureFlags::None
             } else if is_outermost_optional_chain(node, self) {
@@ -368,7 +369,7 @@ impl TypeChecker {
 
         func_type = self.check_non_null_type_with_reporter(
             func_type,
-            &node_as_call_expression.expression,
+            node_as_call_expression.expression,
             |node: Id<Node>, flags: TypeFlags| {
                 self.report_cannot_invoke_possibly_null_or_undefined_error(node, flags)
             },
@@ -427,7 +428,7 @@ impl TypeChecker {
                         &text,
                         TryInto::<usize>::try_into(skip_trivia(
                             &text,
-                            node_as_call_expression.expression.end(),
+                            node_as_call_expression.expression.ref_(self).end(),
                             Some(true),
                             None,
                             None,
@@ -447,7 +448,7 @@ impl TypeChecker {
                     }
                 }
                 self.invocation_error(
-                    &node_as_call_expression.expression,
+                    node_as_call_expression.expression,
                     apparent_type,
                     SignatureKind::Call,
                     related_information,

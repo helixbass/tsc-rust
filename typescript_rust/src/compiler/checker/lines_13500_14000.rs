@@ -788,7 +788,7 @@ impl TypeChecker {
         node: Id<Node>, /*RestTypeNode | NamedTupleMember*/
     ) -> ElementFlags {
         if self
-            .get_array_element_type_node(node.ref_(self).as_has_type().maybe_type())
+            .get_array_element_type_node(node.ref_(self).as_has_type().maybe_type().unwrap())
             .is_some()
         {
             ElementFlags::Rest
@@ -907,9 +907,9 @@ impl TypeChecker {
                 let node_as_rest_type_node = node_ref.as_rest_type_node();
                 node_as_rest_type_node.type_.ref_(self).kind() != SyntaxKind::ArrayType
                     || self.may_resolve_type_alias(
-                        &node_as_rest_type_node
+                        node_as_rest_type_node
                             .type_
-                            .as_array_type_node()
+                            .ref_(self).as_array_type_node()
                             .element_type,
                     )?
             }
@@ -926,10 +926,10 @@ impl TypeChecker {
             SyntaxKind::ConditionalType => {
                 let node_ref = node.ref_(self);
                 let node_as_conditional_type_node = node_ref.as_conditional_type_node();
-                self.may_resolve_type_alias(&node_as_conditional_type_node.check_type)?
-                    || self.may_resolve_type_alias(&node_as_conditional_type_node.extends_type)?
-                    || self.may_resolve_type_alias(&node_as_conditional_type_node.true_type)?
-                    || self.may_resolve_type_alias(&node_as_conditional_type_node.false_type)?
+                self.may_resolve_type_alias(node_as_conditional_type_node.check_type)?
+                    || self.may_resolve_type_alias(node_as_conditional_type_node.extends_type)?
+                    || self.may_resolve_type_alias(node_as_conditional_type_node.true_type)?
+                    || self.may_resolve_type_alias(node_as_conditional_type_node.false_type)?
             }
             _ => false,
         })

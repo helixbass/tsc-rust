@@ -216,8 +216,8 @@ impl TypeChecker {
                         self.check_type_assignable_to_and_optionally_elaborate(
                             awaited_type,
                             return_or_promised_type,
-                            Some(&**node_body),
-                            Some(&**node_body),
+                            Some(node_body),
+                            Some(node_body),
                             None,
                             None,
                         )?;
@@ -225,8 +225,8 @@ impl TypeChecker {
                         self.check_type_assignable_to_and_optionally_elaborate(
                             expr_type,
                             return_or_promised_type,
-                            Some(&**node_body),
-                            Some(&**node_body),
+                            Some(node_body),
+                            Some(node_body),
                             None,
                             None,
                         )?;
@@ -276,7 +276,7 @@ impl TypeChecker {
         if !is_bindable_object_define_property_call(d, self) {
             return Ok(false);
         }
-        let d._ref = d..ref_(self);
+        let d_ref = d.ref_(self);
         let d_as_call_expression = d_ref.as_call_expression();
         let object_lit_type =
             self.check_expression_cached(d_as_call_expression.arguments[2], None)?;
@@ -544,7 +544,7 @@ impl TypeChecker {
                         if !is_effective_external_module(&source_file.ref_(self), &self.compiler_options) {
                             if span.is_none() {
                                 span = Some(get_span_of_token_at_position(
-                                    source_file,
+                                    &source_file.ref_(self),
                                     node.ref_(self).pos().try_into().unwrap(),
                                 ));
                             }
@@ -570,7 +570,7 @@ impl TypeChecker {
                             || self.language_version < ScriptTarget::ES2017
                         {
                             span = Some(get_span_of_token_at_position(
-                                source_file,
+                                &source_file.ref_(self),
                                 node.ref_(self).pos().try_into().unwrap(),
                             ));
                             let diagnostic: Gc<Diagnostic> = Gc::new(
@@ -589,7 +589,7 @@ impl TypeChecker {
                     let source_file = get_source_file_of_node(node, self);
                     if !self.has_parse_diagnostics(source_file) {
                         let span = get_span_of_token_at_position(
-                            source_file,
+                            &source_file.ref_(self),
                             node.ref_(self).pos().try_into().unwrap(),
                         );
                         let diagnostic: Gc<Diagnostic> = Gc::new(
@@ -674,14 +674,14 @@ impl TypeChecker {
         if operand_type == self.silent_never_type() {
             return Ok(self.silent_never_type());
         }
-        match node_as_prefix_unary_expression.operand.kind() {
+        match node_as_prefix_unary_expression.operand.ref_(self).kind() {
             SyntaxKind::NumericLiteral => match node_as_prefix_unary_expression.operator {
                 SyntaxKind::MinusToken => {
                     return Ok(self.get_fresh_type_of_literal_type(
                         self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
-                                .as_numeric_literal()
+                                .ref_(self).as_numeric_literal()
                                 .text()
                                 .parse::<f64>()
                                 .unwrap()
@@ -694,7 +694,7 @@ impl TypeChecker {
                         self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
-                                .as_numeric_literal()
+                                .ref_(self).as_numeric_literal()
                                 .text()
                                 .parse::<f64>()
                                 .unwrap(),
@@ -711,7 +711,7 @@ impl TypeChecker {
                             parse_pseudo_big_int(
                                 &node_as_prefix_unary_expression
                                     .operand
-                                    .as_big_int_literal()
+                                    .ref_(self).as_big_int_literal()
                                     .text(),
                             ),
                         )),
@@ -722,10 +722,10 @@ impl TypeChecker {
         }
         Ok(match node_as_prefix_unary_expression.operator {
             SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
-                self.check_non_null_type(operand_type, &node_as_prefix_unary_expression.operand)?;
+                self.check_non_null_type(operand_type, node_as_prefix_unary_expression.operand)?;
                 if self.maybe_type_of_kind(operand_type, TypeFlags::ESSymbolLike) {
                     self.error(
-                        Some(&*node_as_prefix_unary_expression.operand),
+                        Some(node_as_prefix_unary_expression.operand),
                         &Diagnostics::The_0_operator_cannot_be_applied_to_type_symbol,
                         Some(vec![token_to_string(
                             node_as_prefix_unary_expression.operator,
@@ -737,7 +737,7 @@ impl TypeChecker {
                 if node_as_prefix_unary_expression.operator == SyntaxKind::PlusToken {
                     if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
                         self.error(
-                            Some(&*node_as_prefix_unary_expression.operand),
+                            Some(node_as_prefix_unary_expression.operand),
                             &Diagnostics::Operator_0_cannot_be_applied_to_type_1,
                             Some(vec![
                                 token_to_string(node_as_prefix_unary_expression.operator)
@@ -757,7 +757,7 @@ impl TypeChecker {
                 self.get_unary_result_type(operand_type)?
             }
             SyntaxKind::ExclamationToken => {
-                self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None)?;
+                self.check_truthiness_expression(node_as_prefix_unary_expression.operand, None)?;
                 let facts = self.get_type_facts(operand_type, None)?
                     & (TypeFacts::Truthy | TypeFacts::Falsy);
                 match facts {
@@ -768,14 +768,14 @@ impl TypeChecker {
             }
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken => {
                 let ok = self.check_arithmetic_operand_type(
-                    &node_as_prefix_unary_expression.operand,
-                    self.check_non_null_type(operand_type, &node_as_prefix_unary_expression.operand)?,
+                    node_as_prefix_unary_expression.operand,
+                    self.check_non_null_type(operand_type, node_as_prefix_unary_expression.operand)?,
                     &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
                     None
                 )?;
                 if ok {
                     self.check_reference_expression(
-                        &node_as_prefix_unary_expression.operand,
+                        node_as_prefix_unary_expression.operand,
                         &Diagnostics::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
                         &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
                     );
@@ -798,14 +798,14 @@ impl TypeChecker {
             return Ok(self.silent_never_type());
         }
         let ok = self.check_arithmetic_operand_type(
-            &node_as_postfix_unary_expression.operand,
-            self.check_non_null_type(operand_type, &node_as_postfix_unary_expression.operand)?,
+            node_as_postfix_unary_expression.operand,
+            self.check_non_null_type(operand_type, node_as_postfix_unary_expression.operand)?,
             &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
             None,
         )?;
         if ok {
             self.check_reference_expression(
-                &node_as_postfix_unary_expression.operand,
+                node_as_postfix_unary_expression.operand,
                 &Diagnostics::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
                 &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
             );

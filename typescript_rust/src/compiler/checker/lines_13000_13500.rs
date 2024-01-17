@@ -21,6 +21,7 @@ use crate::{
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
     TypeMapper, TypeReference, TypeReferenceInterface, TypeSystemPropertyName,
     index_of_eq,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -161,7 +162,7 @@ impl TypeChecker {
                                             self.make_unary_type_mapper(
                                                 self.get_declared_type_of_type_parameter(
                                                     self.get_symbol_of_node(
-                                                        &check_mapped_type.type_parameter,
+                                                        check_mapped_type.type_parameter,
                                                     )?
                                                     .unwrap(),
                                                 ),
@@ -169,9 +170,8 @@ impl TypeChecker {
                                                     check_mapped_type_type_parameter_constraint,
                                                 ) = check_mapped_type
                                                     .type_parameter
-                                                    .as_type_parameter_declaration()
+                                                    .ref_(self).as_type_parameter_declaration()
                                                     .constraint
-                                                    .as_ref()
                                                 {
                                                     self.get_type_from_type_node_(
                                                         check_mapped_type_type_parameter_constraint,
@@ -751,7 +751,7 @@ impl TypeChecker {
                         type_arguments.map(ToOwned::to_owned),
                         Some(&type_parameters),
                         self.get_min_type_argument_count(Some(&type_parameters)),
-                        is_in_js_file(&symbol.ref_(self).maybe_value_declaration().ref_(self)),
+                        is_in_js_file(symbol.ref_(self).maybe_value_declaration().refed(self)),
                     )?,
                 ),
                 alias_symbol,
@@ -895,7 +895,8 @@ impl TypeChecker {
         } else {
             name
         };
-        let text = &identifier.as_identifier().escaped_text;
+        let identifier_ref = identifier.ref_(self);
+        let text = &identifier_ref.as_identifier().escaped_text;
         if &**text != "" {
             let parent_symbol = if name.ref_(self).kind() == SyntaxKind::QualifiedName {
                 Some(self.get_unresolved_symbol_for_entity_name(name.ref_(self).as_qualified_name().left))
@@ -1106,14 +1107,14 @@ impl TypeChecker {
         let mut covariant = true;
         while
         /*node &&*/
-        !is_statement(node, self) && node.kind() != SyntaxKind::JSDocComment {
-            let parent = node.parent();
-            if parent.kind() == SyntaxKind::Parameter {
+        !is_statement(node, self) && node.ref_(self).kind() != SyntaxKind::JSDocComment {
+            let parent = node.ref_(self).parent();
+            if parent.ref_(self).kind() == SyntaxKind::Parameter {
                 covariant = !covariant;
             }
             if (covariant || type_.ref_(self).flags().intersects(TypeFlags::TypeVariable))
-                && parent.kind() == SyntaxKind::ConditionalType
-                && Gc::ptr_eq(&node, &parent.as_conditional_type_node().true_type)
+                && parent.ref_(self).kind() == SyntaxKind::ConditionalType
+                && node == parent.ref_(self).as_conditional_type_node().true_type
             {
                 let parent_as_conditional_type_node = parent.as_conditional_type_node();
                 let constraint = self.get_implied_constraint(
@@ -1189,7 +1190,7 @@ impl TypeChecker {
             let type_args = type_args.as_ref();
             match &*node_as_type_reference_node
                 .type_name
-                .as_identifier()
+                .ref_(self).as_identifier()
                 .escaped_text
             {
                 "String" => {
@@ -1250,8 +1251,8 @@ impl TypeChecker {
                     if let Some(type_args) = type_args {
                         if type_args.len() == 2 {
                             if is_jsdoc_index_signature(node, self) {
-                                let indexed = self.get_type_from_type_node_(&type_args[0])?;
-                                let target = self.get_type_from_type_node_(&type_args[1])?;
+                                let indexed = self.get_type_from_type_node_(type_args[0])?;
+                                let target = self.get_type_from_type_node_(type_args[1])?;
                                 let index_info = if indexed == self.string_type()
                                     || indexed == self.number_type()
                                 {

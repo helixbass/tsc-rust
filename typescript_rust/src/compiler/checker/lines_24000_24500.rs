@@ -84,7 +84,7 @@ impl GetFlowTypeOfReference {
                 }
                 && self
                     .type_checker
-                    .is_matching_reference(self.reference, &*{
+                    .is_matching_reference(self.reference, {
                         let access = access.unwrap();
                         if is_access_expression(&access.ref_(self)) {
                             access.ref_(self).as_has_expression().expression()
@@ -391,8 +391,8 @@ impl GetFlowTypeOfReference {
             | SyntaxKind::AmpersandAmpersandEqualsToken
             | SyntaxKind::QuestionQuestionEqualsToken => {
                 return self.narrow_type_by_truthiness(
-                    self.narrow_type(type_, &expr_as_binary_expression.right, assume_true)?,
-                    &expr_as_binary_expression.left,
+                    self.narrow_type(type_, expr_as_binary_expression.right, assume_true)?,
+                    expr_as_binary_expression.left,
                     assume_true,
                 );
             }
@@ -400,13 +400,13 @@ impl GetFlowTypeOfReference {
             | SyntaxKind::ExclamationEqualsToken
             | SyntaxKind::EqualsEqualsEqualsToken
             | SyntaxKind::ExclamationEqualsEqualsToken => {
-                let operator = expr_as_binary_expression.operator_token.kind();
+                let operator = expr_as_binary_expression.operator_token.ref_(self).kind();
                 let left = self
                     .type_checker
-                    .get_reference_candidate(&expr_as_binary_expression.left);
+                    .get_reference_candidate(expr_as_binary_expression.left);
                 let right = self
                     .type_checker
-                    .get_reference_candidate(&expr_as_binary_expression.right);
+                    .get_reference_candidate(expr_as_binary_expression.right);
                 if left.ref_(self).kind() == SyntaxKind::TypeOfExpression && is_string_literal_like(&right.ref_(self)) {
                     return self.narrow_type_by_typeof(type_, left, operator, right, assume_true);
                 }
@@ -479,7 +479,7 @@ impl GetFlowTypeOfReference {
                 return self.narrow_type_by_instanceof(type_, expr, assume_true);
             }
             SyntaxKind::InKeyword => {
-                if is_private_identifier(&expr_as_binary_expression.left) {
+                if is_private_identifier(&expr_as_binary_expression.left.ref_(self)) {
                     return self.narrow_type_by_private_identifier_in_in_expression(
                         type_,
                         expr,
@@ -488,10 +488,10 @@ impl GetFlowTypeOfReference {
                 }
                 let target = self
                     .type_checker
-                    .get_reference_candidate(&expr_as_binary_expression.right);
+                    .get_reference_candidate(expr_as_binary_expression.right);
                 let left_type = self
                     .type_checker
-                    .get_type_of_node(&expr_as_binary_expression.left)?;
+                    .get_type_of_node(expr_as_binary_expression.left)?;
                 if left_type
                     .ref_(self)
                     .flags()
@@ -531,20 +531,20 @@ impl GetFlowTypeOfReference {
                 }
             }
             SyntaxKind::CommaToken => {
-                return self.narrow_type(type_, &expr_as_binary_expression.right, assume_true);
+                return self.narrow_type(type_, expr_as_binary_expression.right, assume_true);
             }
             SyntaxKind::AmpersandAmpersandToken => {
                 return Ok(if assume_true {
                     self.narrow_type(
-                        self.narrow_type(type_, &expr_as_binary_expression.left, true)?,
-                        &expr_as_binary_expression.right,
+                        self.narrow_type(type_, expr_as_binary_expression.left, true)?,
+                        expr_as_binary_expression.right,
                         true,
                     )?
                 } else {
                     self.type_checker.get_union_type(
                         &[
-                            self.narrow_type(type_, &expr_as_binary_expression.left, false)?,
-                            self.narrow_type(type_, &expr_as_binary_expression.right, false)?,
+                            self.narrow_type(type_, expr_as_binary_expression.left, false)?,
+                            self.narrow_type(type_, expr_as_binary_expression.right, false)?,
                         ],
                         None,
                         Option::<Id<Symbol>>::None,
@@ -557,8 +557,8 @@ impl GetFlowTypeOfReference {
                 return Ok(if assume_true {
                     self.type_checker.get_union_type(
                         &[
-                            self.narrow_type(type_, &expr_as_binary_expression.left, true)?,
-                            self.narrow_type(type_, &expr_as_binary_expression.right, true)?,
+                            self.narrow_type(type_, expr_as_binary_expression.left, true)?,
+                            self.narrow_type(type_, expr_as_binary_expression.right, true)?,
                         ],
                         None,
                         Option::<Id<Symbol>>::None,
@@ -567,8 +567,8 @@ impl GetFlowTypeOfReference {
                     )?
                 } else {
                     self.narrow_type(
-                        self.narrow_type(type_, &expr_as_binary_expression.left, false)?,
-                        &expr_as_binary_expression.right,
+                        self.narrow_type(type_, expr_as_binary_expression.left, false)?,
+                        expr_as_binary_expression.right,
                         false,
                     )?
                 });
@@ -588,7 +588,7 @@ impl GetFlowTypeOfReference {
         let expr_as_binary_expression = expr_ref.as_binary_expression();
         let target = self
             .type_checker
-            .get_reference_candidate(&expr_as_binary_expression.right);
+            .get_reference_candidate(expr_as_binary_expression.right);
         if !self
             .type_checker
             .is_matching_reference(self.reference, target)?
@@ -603,7 +603,7 @@ impl GetFlowTypeOfReference {
         );
         let symbol = self
             .type_checker
-            .get_symbol_for_private_identifier_expression(&expr_as_binary_expression.left);
+            .get_symbol_for_private_identifier_expression(expr_as_binary_expression.left);
         if symbol.is_none() {
             return Ok(type_);
         }
@@ -805,7 +805,7 @@ impl GetFlowTypeOfReference {
         let type_of_expr_as_type_of_expression = type_of_expr_ref.as_type_of_expression();
         let target = self
             .type_checker
-            .get_reference_candidate(&type_of_expr_as_type_of_expression.expression);
+            .get_reference_candidate(type_of_expr_as_type_of_expression.expression);
         let literal_ref = literal.ref_(self);
         let literal_as_literal_like_node = literal_ref.as_literal_like_node();
         if !self
@@ -1178,7 +1178,7 @@ impl GetFlowTypeOfReference {
                 is_string_literal_like(&expr_as_element_access_expression.argument_expression.ref_(self))
                     && &**expr_as_element_access_expression
                         .argument_expression
-                        .as_literal_like_node()
+                        .ref_(self).as_literal_like_node()
                         .text()
                         == "constructor"
             })

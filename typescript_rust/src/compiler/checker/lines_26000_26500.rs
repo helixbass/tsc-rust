@@ -93,8 +93,8 @@ impl TypeChecker {
                     let overall_annotation = get_effective_type_annotation_node(decl, self);
                     if let Some(overall_annotation) = overall_annotation {
                         return Ok(Some(self.get_type_from_type_node_(overall_annotation)?));
-                    } else if is_identifier(&lhs.as_has_expression().expression()) {
-                        let id = &lhs.as_has_expression().expression();
+                    } else if is_identifier(&lhs.ref_(self).as_has_expression().expression().ref_(self)) {
+                        let id = lhs.ref_(self).as_has_expression().expression();
                         let parent_symbol = self.resolve_name_(
                             Some(&**id),
                             &id.as_identifier().escaped_text,
@@ -161,7 +161,6 @@ impl TypeChecker {
                     get_effective_type_annotation_node(value_declaration, self)
                 });
                 annotated
-                    .as_ref()
                     .try_map(|annotated| self.get_type_from_type_node_(annotated))?
             }
             AssignmentDeclarationKind::ModuleExports => {
@@ -263,14 +262,14 @@ impl TypeChecker {
             |node: &Id<Node>| is_access_expression(&node.ref_(self)),
         );
         if !is_object_literal_method(get_this_container(
-            this_access.as_has_expression().expression(),
+            this_access.ref_(self).as_has_expression().expression(),
             false,
             self,
         ), self) {
             return Ok(None);
         }
         let this_type =
-            self.check_this_expression(&this_access.as_has_expression().expression())?;
+            self.check_this_expression(this_access.ref_(self).as_has_expression().expression())?;
         let name_str = get_element_or_property_access_name(this_access, self);
         name_str.as_ref().try_and_then(|name_str| {
             self.get_type_of_property_of_contextual_type(this_type, name_str)
@@ -580,10 +579,10 @@ impl TypeChecker {
                     try_filter(
                         &node.ref_(self).as_object_literal_expression().properties,
                         |p| -> io::Result<_> {
-                            Ok(p.maybe_symbol().is_some() &&
-                                p.kind() == SyntaxKind::PropertyAssignment &&
-                                self.is_possibly_discriminant_value(&p.as_has_initializer().maybe_initializer().unwrap()) &&
-                                self.is_discriminant_property(Some(contextual_type), p.symbol().ref_(self).escaped_name())?)
+                            Ok(p.ref_(self).maybe_symbol().is_some() &&
+                                p.ref_(self).kind() == SyntaxKind::PropertyAssignment &&
+                                self.is_possibly_discriminant_value(p.ref_(self).as_has_initializer().maybe_initializer().unwrap()) &&
+                                self.is_discriminant_property(Some(contextual_type), p.ref_(self).symbol().ref_(self).escaped_name())?)
                         }
                     )?,
                     |prop, _| {
@@ -592,10 +591,10 @@ impl TypeChecker {
                                 let type_checker = self.rc_wrapper();
                                 let prop_clone = prop.clone();
                                 move || {
-                                    type_checker.get_context_free_type_of_expression(&prop_clone.as_has_initializer().maybe_initializer().unwrap())
+                                    type_checker.get_context_free_type_of_expression(prop_clone.ref_(type_checker).as_has_initializer().maybe_initializer().unwrap())
                                 }
                             }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
-                            prop.symbol().ref_(self).escaped_name().to_owned(),
+                            prop.ref_(self).symbol().ref_(self).escaped_name().to_owned(),
                         )
                     }
                 ).into_iter().chain(
@@ -875,37 +874,37 @@ impl TypeChecker {
             SyntaxKind::ArrowFunction | SyntaxKind::ReturnStatement => {
                 self.get_contextual_type_for_return_expression(node)?
             }
-            SyntaxKind::YieldExpression => self.get_contextual_type_for_yield_operand(&parent)?,
+            SyntaxKind::YieldExpression => self.get_contextual_type_for_yield_operand(parent)?,
             SyntaxKind::AwaitExpression => {
-                self.get_contextual_type_for_await_operand(&parent, context_flags)?
+                self.get_contextual_type_for_await_operand(parent, context_flags)?
             }
             SyntaxKind::CallExpression | SyntaxKind::NewExpression => {
-                self.get_contextual_type_for_argument(&parent, node)?
+                self.get_contextual_type_for_argument(parent, node)?
             }
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
-                let parent_type = parent.as_has_type().maybe_type().unwrap();
+                let parent_type = parent.ref_(self).as_has_type().maybe_type().unwrap();
                 if is_const_type_reference(parent_type, self) {
-                    self.try_find_when_const_type_reference(&parent)?
+                    self.try_find_when_const_type_reference(parent)?
                 } else {
-                    Some(self.get_type_from_type_node_(&parent_type)?)
+                    Some(self.get_type_from_type_node_(parent_type)?)
                 }
             }
             SyntaxKind::BinaryExpression => {
                 self.get_contextual_type_for_binary_operand(node, context_flags)?
             }
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
-                self.get_contextual_type_for_object_literal_element_(&parent, context_flags)?
+                self.get_contextual_type_for_object_literal_element_(parent, context_flags)?
             }
             SyntaxKind::SpreadAssignment => {
-                self.get_contextual_type_(&parent.parent(), context_flags)?
+                self.get_contextual_type_(parent.ref_(self).parent(), context_flags)?
             }
             SyntaxKind::ArrayLiteralExpression => {
-                let array_literal = &parent;
+                let array_literal = parent;
                 let type_ =
                     self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
                 self.get_contextual_type_for_element_expression(
                     type_,
-                    index_of_node(&array_literal.as_array_literal_expression().elements, node, self)
+                    index_of_node(&array_literal.ref_(self).as_array_literal_expression().elements, node, self)
                         .try_into()
                         .unwrap(),
                 )?
@@ -915,10 +914,10 @@ impl TypeChecker {
             }
             SyntaxKind::TemplateSpan => {
                 Debug_.assert(
-                    parent.parent().kind() == SyntaxKind::TemplateExpression,
+                    parent.ref_(self).parent().ref_(self).kind() == SyntaxKind::TemplateExpression,
                     None,
                 );
-                self.get_contextual_type_for_substitution_expression(&parent.parent(), node)?
+                self.get_contextual_type_for_substitution_expression(parent.ref_(self).parent(), node)?
             }
             SyntaxKind::ParenthesizedExpression => {
                 let tag = if is_in_js_file(Some(&parent.ref_(self))) {
@@ -954,13 +953,13 @@ impl TypeChecker {
                     }
                 }
             }
-            SyntaxKind::NonNullExpression => self.get_contextual_type_(&parent, context_flags)?,
-            SyntaxKind::JsxExpression => self.get_contextual_type_for_jsx_expression(&parent)?,
+            SyntaxKind::NonNullExpression => self.get_contextual_type_(parent, context_flags)?,
+            SyntaxKind::JsxExpression => self.get_contextual_type_for_jsx_expression(parent)?,
             SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute => {
-                self.get_contextual_type_for_jsx_attribute_(&parent)?
+                self.get_contextual_type_for_jsx_attribute_(parent)?
             }
             SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
-                Some(self.get_contextual_jsx_element_attributes_type(&parent, context_flags)?)
+                Some(self.get_contextual_jsx_element_attributes_type(parent, context_flags)?)
             }
             _ => None,
         })
@@ -1073,7 +1072,7 @@ impl TypeChecker {
             return Ok(self.get_or_create_type_from_signature(fake_signature));
         }
         let tag_type =
-            self.check_expression_cached(&context_as_jsx_opening_like_element.tag_name(), None)?;
+            self.check_expression_cached(context_as_jsx_opening_like_element.tag_name(), None)?;
         if tag_type
             .ref_(self)
             .flags()

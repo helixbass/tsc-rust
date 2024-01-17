@@ -73,8 +73,8 @@ impl TypeChecker {
                     return Ok(if symbol != self.unknown_symbol() {
                         Some(format!(
                             "{}|{}|{}|{}",
-                            if let Some(flow_container) = flow_container.as_ref() {
-                                get_node_id(flow_container).to_string()
+                            if let Some(flow_container) = flow_container {
+                                get_node_id(&flow_container.ref_(self)).to_string()
                             } else {
                                 "-1".to_owned()
                             },
@@ -88,8 +88,8 @@ impl TypeChecker {
                 }
                 return Ok(Some(format!(
                     "0|{}|{}|{}",
-                    if let Some(flow_container) = flow_container.as_ref() {
-                        get_node_id(flow_container).to_string()
+                    if let Some(flow_container) = flow_container {
+                        get_node_id(&flow_container.ref_(self)).to_string()
                     } else {
                         "-1".to_owned()
                     },
@@ -100,8 +100,8 @@ impl TypeChecker {
             SyntaxKind::ThisKeyword => {
                 return Ok(Some(format!(
                     "0|{}|{}|{}",
-                    if let Some(flow_container) = flow_container.as_ref() {
-                        get_node_id(flow_container).to_string()
+                    if let Some(flow_container) = flow_container {
+                        get_node_id(&flow_container.ref_(self)).to_string()
                     } else {
                         "-1".to_owned()
                     },
@@ -121,16 +121,16 @@ impl TypeChecker {
                 let node_ref = node.ref_(self);
                 let node_as_qualified_name = node_ref.as_qualified_name();
                 let left = self.get_flow_cache_key(
-                    &node_as_qualified_name.left,
+                    node_as_qualified_name.left,
                     declared_type,
                     initial_type,
-                    flow_container.as_deref(),
+                    flow_container,
                 )?;
                 return Ok(left.map(|left| {
                     format!(
                         "{}.{}",
                         left,
-                        &*node_as_qualified_name.right.as_identifier().escaped_text,
+                        &*node_as_qualified_name.right.ref_(self).as_identifier().escaped_text,
                     )
                 }));
             }
@@ -141,7 +141,7 @@ impl TypeChecker {
                         node.ref_(self).as_has_expression().expression(),
                         declared_type,
                         initial_type,
-                        flow_container.as_deref(),
+                        flow_container,
                     )?;
                     return Ok(key.map(|key| format!("{}.{}", key, &**prop_name)));
                 }
@@ -167,10 +167,10 @@ impl TypeChecker {
                 return Ok(is_assignment_expression(target, None, self)
                     && self.is_matching_reference(source, target_as_binary_expression.left)?
                     || is_binary_expression(&target.ref_(self))
-                        && target_as_binary_expression.operator_token.kind()
+                        && target_as_binary_expression.operator_token.ref_(self).kind()
                             == SyntaxKind::CommaToken
                         && self
-                            .is_matching_reference(source, &target_as_binary_expression.right)?);
+                            .is_matching_reference(source, target_as_binary_expression.right)?);
             }
             _ => (),
         }
@@ -182,8 +182,8 @@ impl TypeChecker {
                     let target_ref = target.ref_(self);
                     let target_as_meta_property = target_ref.as_meta_property();
                     source_as_meta_property.keyword_token == target_as_meta_property.keyword_token
-                        && source_as_meta_property.name.as_identifier().escaped_text
-                            == target_as_meta_property.name.as_identifier().escaped_text
+                        && source_as_meta_property.name.ref_(self).as_identifier().escaped_text
+                            == target_as_meta_property.name.ref_(self).as_identifier().escaped_text
                 });
             }
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
@@ -263,7 +263,7 @@ impl TypeChecker {
                         if let Some(declaration_initializer) = declaration_as_variable_declaration
                             .maybe_initializer()
                             .filter(|declaration_initializer| {
-                                is_access_expression(declaration_initializer)
+                                is_access_expression(&declaration_initializer.ref_(self))
                             })
                         {
                             return Ok(Some(declaration_initializer));
@@ -282,8 +282,8 @@ impl TypeChecker {
                         let parent_as_variable_declaration = parent_ref.as_variable_declaration();
                         if parent_as_variable_declaration.maybe_type().is_none()
                             && matches!(
-                                parent_as_variable_declaration.maybe_initializer().as_ref(),
-                                Some(parent_initializer) if is_identifier(parent_initializer) || is_access_expression(parent_initializer)
+                                parent_as_variable_declaration.maybe_initializer(),
+                                Some(parent_initializer) if is_identifier(&parent_initializer.ref_(self)) || is_access_expression(&parent_initializer.ref_(self))
                             )
                         {
                             return Ok(Some(declaration));
@@ -340,8 +340,8 @@ impl TypeChecker {
         target: Id<Node>,
     ) -> io::Result<bool> {
         while is_access_expression(&source.ref_(self)) {
-            source = source.as_has_expression().expression();
-            if self.is_matching_reference(&source, target)? {
+            source = source.ref_(self).as_has_expression().expression();
+            if self.is_matching_reference(source, target)? {
                 return Ok(true);
             }
         }
@@ -353,9 +353,9 @@ impl TypeChecker {
         mut source: Id<Node>,
         target: Id<Node>,
     ) -> io::Result<bool> {
-        while is_optional_chain(&source) {
-            source = source.as_has_expression().expression();
-            if self.is_matching_reference(&source, target)? {
+        while is_optional_chain(&source.ref_(self)) {
+            source = source.ref_(self).as_has_expression().expression();
+            if self.is_matching_reference(source, target)? {
                 return Ok(true);
             }
         }
@@ -620,7 +620,7 @@ impl TypeChecker {
         reference: Id<Node>,
     ) -> io::Result<bool> {
         if let Some(expression_arguments) = expression.ref_(self).as_has_arguments().maybe_arguments() {
-            for argument in &expression_arguments {
+            for &argument in &expression_arguments {
                 if self.is_or_contains_matching_reference(reference, argument)? {
                     return Ok(true);
                 }
@@ -631,7 +631,7 @@ impl TypeChecker {
             expression_expression.ref_(self).kind() == SyntaxKind::PropertyAccessExpression
                 && self.is_or_contains_matching_reference(
                     reference,
-                    &expression_expression.as_has_expression().expression(),
+                    expression_expression.ref_(self).as_has_expression().expression(),
                 )?
         } {
             return Ok(true);
@@ -1107,18 +1107,18 @@ impl TypeChecker {
         let parent = node.ref_(self).parent();
         Ok(match parent.ref_(self).kind() {
             SyntaxKind::ForInStatement => self.string_type(),
-            SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(&parent)?, /*|| errorType*/
-            SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(&parent)?,
+            SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(parent)?, /*|| errorType*/
+            SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(parent)?,
             SyntaxKind::DeleteExpression => self.undefined_type(),
             SyntaxKind::ArrayLiteralExpression => {
-                self.get_assigned_type_of_array_literal_element(&parent, node)?
+                self.get_assigned_type_of_array_literal_element(parent, node)?
             }
-            SyntaxKind::SpreadElement => self.get_assigned_type_of_spread_expression(&parent)?,
+            SyntaxKind::SpreadElement => self.get_assigned_type_of_spread_expression(parent)?,
             SyntaxKind::PropertyAssignment => {
-                self.get_assigned_type_of_property_assignment(&parent)?
+                self.get_assigned_type_of_property_assignment(parent)?
             }
             SyntaxKind::ShorthandPropertyAssignment => {
-                self.get_assigned_type_of_shorthand_property_assignment(&parent)?
+                self.get_assigned_type_of_shorthand_property_assignment(parent)?
             }
             _ => self.error_type(),
         })

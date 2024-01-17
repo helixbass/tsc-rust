@@ -276,7 +276,7 @@ impl TypeChecker {
                 .map(|early_symbols| (**early_symbols).borrow());
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for &decl in symbol_declarations {
-                    let members = get_members_of_declaration(decl, self);
+                    let members = get_members_of_declaration(&decl.ref_(self));
                     if let Some(members) = members {
                         for &member in &members {
                             if is_static == has_static_modifier(member, self)

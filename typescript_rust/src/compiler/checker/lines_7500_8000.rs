@@ -395,7 +395,7 @@ impl SymbolTableToDeclarationStatements {
                         Some(vec![]),
                         None,
                     ),
-                    signatures[0].declaration,
+                    signatures[0].declaration.refed(self),
                     self,
                 )]);
             }
@@ -411,7 +411,7 @@ impl SymbolTableToDeclarationStatements {
                     &self.context(),
                     Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
                 )?;
-            results.push(set_text_range_id_node(decl, sig.declaration, self));
+            results.push(set_text_range_id_node(decl, sig.declaration.refed(self), self));
         }
         Ok(results)
     }

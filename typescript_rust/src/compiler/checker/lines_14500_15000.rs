@@ -937,14 +937,14 @@ impl TypeChecker {
             match node_as_type_operator_node.operator {
                 SyntaxKind::KeyOfKeyword => {
                     links.borrow_mut().resolved_type = Some(self.get_index_type(
-                        self.get_type_from_type_node_(&node_as_type_operator_node.type_)?,
+                        self.get_type_from_type_node_(node_as_type_operator_node.type_)?,
                         None,
                         None,
                     )?);
                 }
                 SyntaxKind::UniqueKeyword => {
                     links.borrow_mut().resolved_type = Some(
-                        if node_as_type_operator_node.type_.kind() == SyntaxKind::SymbolKeyword {
+                        if node_as_type_operator_node.type_.ref_(self).kind() == SyntaxKind::SymbolKeyword {
                             self.get_es_symbol_like_type_for_node(
                                 walk_up_parenthesized_types(node.ref_(self).parent(), self).unwrap(),
                             )?
@@ -955,7 +955,7 @@ impl TypeChecker {
                 }
                 SyntaxKind::ReadonlyKeyword => {
                     links.borrow_mut().resolved_type =
-                        Some(self.get_type_from_type_node_(&node_as_type_operator_node.type_)?);
+                        Some(self.get_type_from_type_node_(node_as_type_operator_node.type_)?);
                 }
                 _ => {
                     Debug_.assert_never(node_as_type_operator_node.operator, None);
@@ -976,7 +976,7 @@ impl TypeChecker {
             let node_as_template_literal_type_node = node_ref.as_template_literal_type_node();
             let mut texts = vec![node_as_template_literal_type_node
                 .head
-                .as_literal_like_node()
+                .ref_(self).as_literal_like_node()
                 .text()
                 .clone()];
             texts.extend(
@@ -985,7 +985,7 @@ impl TypeChecker {
                     |span: &Id<Node>, _| {
                         span.ref_(self).as_template_literal_type_span()
                             .literal
-                            .as_literal_like_node()
+                            .ref_(self).as_literal_like_node()
                             .text()
                             .clone()
                     },

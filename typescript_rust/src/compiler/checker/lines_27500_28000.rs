@@ -307,7 +307,7 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         Debug_.assert(
-            self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()),
+            self.is_jsx_intrinsic_identifier(node_as_jsx_opening_like_element.tag_name()),
             None,
         );
         let links = self.get_node_links(node);
@@ -441,7 +441,7 @@ impl TypeChecker {
             let mut jsx_factory_sym: Option<Id<Symbol>> = None;
             if !(is_jsx_opening_fragment(&node.ref_(self)) && jsx_factory_namespace == "null") {
                 jsx_factory_sym = self.resolve_name_(
-                    Some(&*jsx_factory_location),
+                    Some(jsx_factory_location),
                     &jsx_factory_namespace,
                     SymbolFlags::Value,
                     jsx_factory_ref_err,
@@ -473,7 +473,7 @@ impl TypeChecker {
                 let local_jsx_namespace = self.get_local_jsx_namespace(file);
                 if let Some(local_jsx_namespace) = local_jsx_namespace.as_ref() {
                     self.resolve_name_(
-                        Some(&*jsx_factory_location),
+                        Some(jsx_factory_location),
                         local_jsx_namespace,
                         SymbolFlags::Value,
                         jsx_factory_ref_err,
@@ -567,7 +567,7 @@ impl TypeChecker {
         self.check_grammar_jsx_expression(node);
         let node_as_jsx_expression = node.ref_(self).as_jsx_expression();
         Ok(
-            if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
+            if let Some(node_expression) = node_as_jsx_expression.expression {
                 let type_ = self.check_expression(node_expression, check_mode, None)?;
                 if node_as_jsx_expression.dot_dot_dot_token.is_some()
                     && type_ != self.any_type()
@@ -600,7 +600,7 @@ impl TypeChecker {
         {
             return true;
         }
-        if is_in_js_file(symbol.ref_(self).maybe_value_declaration(),refed(self)) {
+        if is_in_js_file(symbol.ref_(self).maybe_value_declaration().refed(self)) {
             let parent = symbol
                 .ref_(self)
                 .maybe_value_declaration()
@@ -664,7 +664,7 @@ impl TypeChecker {
                 if self.symbol_has_non_method_declaration(prop)? {
                     if error_node.is_some() {
                         self.error(
-                            error_node.as_deref(),
+                            error_node,
                             &Diagnostics::Only_public_and_protected_methods_of_the_base_class_are_accessible_via_the_super_keyword,
                             None,
                         );
@@ -675,7 +675,7 @@ impl TypeChecker {
             if flags.intersects(ModifierFlags::Abstract) {
                 if error_node.is_some() {
                     self.error(
-                        error_node.as_deref(),
+                        error_node,
                         &Diagnostics::Abstract_method_0_in_class_1_cannot_be_accessed_via_super_expression,
                         Some(vec![
                             self.symbol_to_string_(
@@ -710,14 +710,14 @@ impl TypeChecker {
                 if self.is_node_used_during_class_initialization(location) {
                     if error_node.is_some() {
                         self.error(
-                            error_node.as_deref(),
+                            error_node,
                             &Diagnostics::Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor,
                             Some(vec![
                                 self.symbol_to_string_(
                                     prop,
                                     Option::<Id<Node>>::None, None, None, None,
                                 )?,
-                                get_text_of_identifier_or_literal(&declaring_class_declaration.ref_(self).as_named_declaration().name()).into_owned()
+                                get_text_of_identifier_or_literal(&declaring_class_declaration.ref_(self).as_named_declaration().name().ref_(self)).into_owned()
                             ])
                         );
                     }
@@ -739,7 +739,7 @@ impl TypeChecker {
             if !self.is_node_within_class(location, declaring_class_declaration) {
                 if error_node.is_some() {
                     self.error(
-                        error_node.as_deref(),
+                        error_node,
                         &Diagnostics::Property_0_is_private_and_only_accessible_within_class_1,
                         Some(vec![
                             self.symbol_to_string_(
@@ -797,7 +797,7 @@ impl TypeChecker {
             } {
                 if error_node.is_some() {
                     self.error(
-                        error_node.as_deref(),
+                        error_node,
                         &Diagnostics::Property_0_is_protected_and_only_accessible_within_class_1_and_its_subclasses,
                         Some(vec![
                             self.symbol_to_string_(
@@ -867,7 +867,7 @@ impl TypeChecker {
         } {
             if error_node.is_some() {
                 self.error(
-                    error_node.as_deref(),
+                    error_node,
                     &Diagnostics::Property_0_is_protected_and_only_accessible_through_an_instance_of_class_1_This_is_an_instance_of_class_2,
                     Some(vec![
                         self.symbol_to_string_(

@@ -503,7 +503,7 @@ impl TypeChecker {
                 return Ok(None);
             }
             let node_present = node.unwrap();
-            match node_present.kind() {
+            match node_present.ref_(self).kind() {
                 SyntaxKind::ClassDeclaration
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration
@@ -526,7 +526,7 @@ impl TypeChecker {
                 | SyntaxKind::ConditionalType => {
                     let mut outer_type_parameters =
                         self.get_outer_type_parameters(node_present, include_this_types)?;
-                    if node_present.kind() == SyntaxKind::MappedType {
+                    if node_present.ref_(self).kind() == SyntaxKind::MappedType {
                         if outer_type_parameters.is_none() {
                             outer_type_parameters = Some(vec![]);
                         }
@@ -535,14 +535,14 @@ impl TypeChecker {
                             Some(
                                 self.get_declared_type_of_type_parameter(
                                     self.get_symbol_of_node(
-                                        &node_present.as_mapped_type_node().type_parameter,
+                                        node_present.ref_(self).as_mapped_type_node().type_parameter,
                                     )?
                                     .unwrap(),
                                 ),
                             ),
                         );
                         return Ok(outer_type_parameters);
-                    } else if node_present.kind() == SyntaxKind::ConditionalType {
+                    } else if node_present.ref_(self).kind() == SyntaxKind::ConditionalType {
                         let infer_type_parameters = self.get_infer_type_parameters(node_present)?;
                         if outer_type_parameters.is_none() && infer_type_parameters.is_none() {
                             return Ok(None);
@@ -558,7 +558,7 @@ impl TypeChecker {
                     )?;
                     let this_type = if matches!(include_this_types, Some(true))
                         && (matches!(
-                            node_present.kind(),
+                            node_present.ref_(self).kind(),
                             SyntaxKind::ClassDeclaration
                                 | SyntaxKind::ClassExpression
                                 | SyntaxKind::InterfaceDeclaration
@@ -596,7 +596,7 @@ impl TypeChecker {
                     let outer_type_parameters =
                         self.get_outer_type_parameters(node_present, include_this_types)?;
                     return Ok(
-                        if let Some(node_tags) = node_present.as_jsdoc().tags.as_deref() {
+                        if let Some(node_tags) = node_present.ref_(self).as_jsdoc().tags.as_deref() {
                             self.append_type_parameters(
                                 outer_type_parameters,
                                 &flat_map(Some(node_tags), |t: &Id<Node>, _| {
@@ -648,7 +648,7 @@ impl TypeChecker {
                 SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::ClassDeclaration
                     | SyntaxKind::ClassExpression
-            ) || self.is_js_constructor(Some(&node.ref_(self)))?
+            ) || self.is_js_constructor(Some(node))?
                 || is_type_alias(&node.ref_(self))
             {
                 let declaration = node;

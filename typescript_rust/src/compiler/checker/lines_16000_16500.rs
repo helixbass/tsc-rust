@@ -19,6 +19,7 @@ use crate::{
     StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
     Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
     TypeReferenceInterface, UniqueESSymbolType,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -34,7 +35,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
                 prop.ref_(self).maybe_declarations().as_ref(),
-                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Id<Node>| maybe_is_class_like(&decl.ref_(self).maybe_parent().ref_(self)))
+                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Id<Node>| maybe_is_class_like(decl.ref_(self).maybe_parent().refed(self)))
             ))
     }
 
@@ -329,7 +330,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(self.get_regular_type_of_literal_type(
-                self.check_expression(&node_as_literal_type_node.literal, None, None)?,
+                self.check_expression(node_as_literal_type_node.literal, None, None)?,
             ));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
@@ -402,7 +403,7 @@ impl TypeChecker {
         }) {
             return Ok(self
                 .get_declared_type_of_class_or_interface(
-                    self.get_symbol_of_node(&parent.parent().as_binary_expression().left)?
+                    self.get_symbol_of_node(parent.ref_(self).parent().ref_(self).as_binary_expression().left)?
                         .unwrap()
                         .ref_(self)
                         .maybe_parent()
@@ -426,7 +427,7 @@ impl TypeChecker {
         }) {
             return Ok(self
                 .get_declared_type_of_class_or_interface(
-                    self.get_symbol_of_node(&host.parent().as_binary_expression().left)?
+                    self.get_symbol_of_node(host.ref_(self).parent().ref_(self).as_binary_expression().left)?
                         .unwrap()
                         .ref_(self)
                         .maybe_parent()
@@ -494,13 +495,13 @@ impl TypeChecker {
                 let node_ref = node.ref_(self);
                 let node_as_tuple_type_node = node_ref.as_tuple_type_node();
                 if node_as_tuple_type_node.elements.len() == 1 {
-                    let node = &node_as_tuple_type_node.elements[0];
-                    if node.kind() == SyntaxKind::RestType
-                        || node.kind() == SyntaxKind::NamedTupleMember
-                            && node.as_named_tuple_member().dot_dot_dot_token.is_some()
+                    let node = node_as_tuple_type_node.elements[0];
+                    if node.ref_(self).kind() == SyntaxKind::RestType
+                        || node.ref_(self).kind() == SyntaxKind::NamedTupleMember
+                            && node.ref_(self).as_named_tuple_member().dot_dot_dot_token.is_some()
                     {
                         return self.get_array_element_type_node(
-                            &node.as_has_type().maybe_type().unwrap(),
+                            node.ref_(self).as_has_type().maybe_type().unwrap(),
                         );
                     }
                 }
@@ -526,7 +527,7 @@ impl TypeChecker {
                     self.get_type_from_rest_type_node(node)?
                 } else {
                     self.add_optionality(
-                        self.get_type_from_type_node_(&node_as_named_tuple_member.type_)?,
+                        self.get_type_from_type_node_(node_as_named_tuple_member.type_)?,
                         Some(true),
                         Some(node_as_named_tuple_member.question_token.is_some()),
                     )?

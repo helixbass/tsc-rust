@@ -65,10 +65,10 @@ impl TypeChecker {
                         if match n.as_ref() {
                             None => true,
                             Some(n) => {
-                                n.kind() == SyntaxKind::Block
-                                    || n.kind() == SyntaxKind::ConditionalType
+                                n.ref_(self).kind() == SyntaxKind::Block
+                                    || n.ref_(self).kind() == SyntaxKind::ConditionalType
                                         && try_for_each_child_bool(
-                                            &n.as_conditional_type_node().extends_type,
+                                            &n.ref_(self).as_conditional_type_node().extends_type.ref_(self),
                                             |child| self.contains_reference(tp, child),
                                             Option::<fn(&NodeArray) -> io::Result<bool>>::None,
                                         )?
@@ -76,7 +76,7 @@ impl TypeChecker {
                         } {
                             return Ok(true);
                         }
-                        n = n.as_ref().unwrap().maybe_parent();
+                        n = n.unwrap().ref_(self).maybe_parent();
                     }
                     return self.contains_reference(tp, node);
                 }
