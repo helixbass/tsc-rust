@@ -68,6 +68,7 @@ use crate::{
     HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
     JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange, SyntheticExpression,
     SyntheticReferenceExpression, UnparsedSyntheticReference,
+    HasArena, InArena,
 };
 
 bitflags! {
@@ -2084,103 +2085,105 @@ impl Clone for BaseNode {
 }
 
 pub trait NodeExt {
-    fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>) -> Self;
-    fn set_text_range_pos(self, pos: isize) -> Self;
-    fn set_text_range_end(self, end: isize) -> Self;
-    fn set_emit_flags(self, emit_flags: EmitFlags) -> Self;
-    fn set_additional_emit_flags(self, emit_flags: EmitFlags) -> Self;
-    fn add_emit_flags(self, emit_flags: EmitFlags) -> Self;
-    fn set_original_node(self, original: Option<Id<Node>>) -> Self;
-    fn set_comment_range(self, range: &impl ReadonlyTextRange) -> Self;
-    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self;
-    fn start_on_new_line(self) -> Self;
-    fn and_set_parent(self, parent: Option<Id<Node>>) -> Self;
-    fn set_parent_recursive(self, incremental: bool) -> Self;
-    fn and_set_original(self, original: Option<Id<Node>>) -> Self;
-    fn remove_all_comments(self) -> Self;
-    fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>) -> Self;
+    fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>, arena: &impl HasArena) -> Self;
+    fn set_text_range_pos(self, pos: isize, arena: &impl HasArena) -> Self;
+    fn set_text_range_end(self, end: isize, arena: &impl HasArena) -> Self;
+    fn set_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self;
+    fn set_additional_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self;
+    fn add_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self;
+    fn set_original_node(self, original: Option<Id<Node>>, arena: &impl HasArena) -> Self;
+    fn set_comment_range(self, range: &impl ReadonlyTextRange, arena: &impl HasArena) -> Self;
+    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>, arena: &impl HasArena) -> Self;
+    fn start_on_new_line(self, arena: &impl HasArena) -> Self;
+    fn and_set_parent(self, parent: Option<Id<Node>>, arena: &impl HasArena) -> Self;
+    fn set_parent_recursive(self, incremental: bool, arena: &impl HasArena) -> Self;
+    fn and_set_original(self, original: Option<Id<Node>>, arena: &impl HasArena) -> Self;
+    fn remove_all_comments(self, arena: &impl HasArena) -> Self;
+    fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>, arena: &impl HasArena) -> Self;
     fn add_synthetic_leading_comment(
         self,
         kind: SyntaxKind,
         text: &str,
         has_trailing_new_line: Option<bool>,
+        arena: &impl HasArena,
     ) -> Self;
     fn add_synthetic_trailing_comment(
         self,
         kind: SyntaxKind,
         text: &str,
         has_trailing_new_line: Option<bool>,
+        arena: &impl HasArena,
     ) -> Self;
-    fn move_synthetic_comments(self, original: Id<Node>) -> Self;
+    fn move_synthetic_comments(self, original: Id<Node>, arena: &impl HasArena) -> Self;
 }
 
 impl NodeExt for Id<Node> {
-    fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>) -> Self {
-        set_text_range_id_node(self, location)
+    fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>, arena: &impl HasArena) -> Self {
+        set_text_range_id_node(self, location, arena)
     }
 
-    fn set_text_range_pos(self, pos: isize) -> Self {
-        set_text_range_pos(&*self, pos);
+    fn set_text_range_pos(self, pos: isize, arena: &impl HasArena) -> Self {
+        set_text_range_pos(&*self.ref_(arena), pos);
         self
     }
 
-    fn set_text_range_end(self, end: isize) -> Self {
-        set_text_range_end(&*self, end);
+    fn set_text_range_end(self, end: isize, arena: &impl HasArena) -> Self {
+        set_text_range_end(&*self.ref_(arena), end);
         self
     }
 
-    fn set_emit_flags(self, emit_flags: EmitFlags) -> Self {
-        set_emit_flags(self, emit_flags)
+    fn set_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self {
+        set_emit_flags(self, emit_flags, arena)
     }
 
-    fn set_additional_emit_flags(self, emit_flags: EmitFlags) -> Self {
-        let existing_emit_flags = get_emit_flags(&self);
-        set_emit_flags(self, emit_flags | existing_emit_flags)
+    fn set_additional_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self {
+        let existing_emit_flags = get_emit_flags(&self.ref_(arena));
+        set_emit_flags(self, emit_flags | existing_emit_flags, arena)
     }
 
-    fn add_emit_flags(self, emit_flags: EmitFlags) -> Self {
-        add_emit_flags(&*self, emit_flags);
+    fn add_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self {
+        add_emit_flags(self, emit_flags, arena);
         self
     }
 
-    fn set_original_node(self, original: Option<Id<Node>>) -> Self {
-        set_original_node(self, original)
+    fn set_original_node(self, original: Option<Id<Node>>, arena: &impl HasArena) -> Self {
+        set_original_node(self, original, arena)
     }
 
-    fn set_comment_range(self, range: &impl ReadonlyTextRange) -> Self {
-        set_comment_range(self, range)
+    fn set_comment_range(self, range: &impl ReadonlyTextRange, arena: &impl HasArena) -> Self {
+        set_comment_range(self, range, arena)
     }
 
-    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self {
-        set_source_map_range(self, range)
+    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>, arena: &impl HasArena) -> Self {
+        set_source_map_range(self, range, arena)
     }
 
-    fn start_on_new_line(self) -> Self {
-        start_on_new_line(self)
+    fn start_on_new_line(self, arena: &impl HasArena) -> Self {
+        start_on_new_line(self, arena)
     }
 
-    fn and_set_parent(self, parent: Option<Id<Node>>) -> Self {
-        self.set_parent(parent);
+    fn and_set_parent(self, parent: Option<Id<Node>>, arena: &impl HasArena) -> Self {
+        self.ref_(arena).set_parent(parent);
         self
     }
 
-    fn set_parent_recursive(self, incremental: bool) -> Self {
-        set_parent_recursive(Some(&*self), incremental);
+    fn set_parent_recursive(self, incremental: bool, arena: &impl HasArena) -> Self {
+        set_parent_recursive(Some(self), incremental, arena);
         self
     }
 
-    fn and_set_original(self, original: Option<Id<Node>>) -> Self {
-        self.set_original(original);
+    fn and_set_original(self, original: Option<Id<Node>>, arena: &impl HasArena) -> Self {
+        self.ref_(arena).set_original(original);
         self
     }
 
-    fn remove_all_comments(self) -> Self {
-        remove_all_comments(&*self);
+    fn remove_all_comments(self, arena: &impl HasArena) -> Self {
+        remove_all_comments(self, arena);
         self
     }
 
-    fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>) -> Self {
-        add_emit_helpers(&self, helpers);
+    fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>, arena: &impl HasArena) -> Self {
+        add_emit_helpers(self, helpers, arena: &impl HasArena);
         self
     }
 
@@ -2189,8 +2192,9 @@ impl NodeExt for Id<Node> {
         kind: SyntaxKind,
         text: &str,
         has_trailing_new_line: Option<bool>,
+        arena: &impl HasArena,
     ) -> Self {
-        add_synthetic_leading_comment(&self, kind, text, has_trailing_new_line);
+        add_synthetic_leading_comment(self, kind, text, has_trailing_new_line, arena);
         self
     }
 
@@ -2199,13 +2203,14 @@ impl NodeExt for Id<Node> {
         kind: SyntaxKind,
         text: &str,
         has_trailing_new_line: Option<bool>,
+        arena: &impl HasArena,
     ) -> Self {
-        add_synthetic_trailing_comment(&self, kind, text, has_trailing_new_line);
+        add_synthetic_trailing_comment(&self, kind, text, has_trailing_new_line, arena);
         self
     }
 
-    fn move_synthetic_comments(self, original: Id<Node>) -> Self {
-        move_synthetic_comments(&*self, original);
+    fn move_synthetic_comments(self, original: Id<Node>, arena: &impl HasArena) -> Self {
+        move_synthetic_comments(self, original, arena);
         self
     }
 }

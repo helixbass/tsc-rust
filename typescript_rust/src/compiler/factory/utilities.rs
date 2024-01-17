@@ -50,24 +50,24 @@ pub fn create_member_access_for_property_name<
     member_name: Id<Node>, /*PropertyName*/
     location: Option<&impl ReadonlyTextRange>,
 ) -> Id<Node /*MemberExpression*/> {
-    if is_computed_property_name(member_name) {
+    if is_computed_property_name(&member_name.ref_(self)) {
         factory
             .create_element_access_expression(
-                target.node_wrapper(),
-                member_name.as_computed_property_name().expression.clone(),
+                target,
+                member_name.ref_(self).as_computed_property_name().expression,
             )
-            .set_text_range(location)
+            .set_text_range(location, factory)
     } else {
-        let expression = if is_member_name(member_name) {
+        let expression = if is_member_name(&member_name.ref_(self)) {
             factory.create_property_access_expression(
-                target.node_wrapper(),
-                member_name.node_wrapper(),
+                target,
+                member_name,
             )
         } else {
             factory
-                .create_element_access_expression(target.node_wrapper(), member_name.node_wrapper())
+                .create_element_access_expression(target, member_name)
         }
-        .set_text_range(Some(member_name));
+        .set_text_range(Some(&*member_name.ref_(self)), factory);
         let emit_node = get_or_create_emit_node(expression, factory);
         let mut emit_node = emit_node.borrow_mut();
         emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoNestedSourceMaps);
@@ -84,6 +84,7 @@ fn create_react_namespace(
         .and_set_parent(get_parse_tree_node(
             Some(parent),
             Option::<fn(Id<Node>) -> bool>::None,
+            self,
         ))
 }
 
@@ -94,8 +95,9 @@ fn create_jsx_factory_expression_from_entity_name<
     jsx_factory: Id<Node>, /*EntityName*/
     parent: Id<Node>,      /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
-    if is_qualified_name(jsx_factory) {
-        let jsx_factory_as_qualified_name = jsx_factory.as_qualified_name();
+    if is_qualified_name(&jsx_factory.ref_(factory)) {
+        let jsx_factory_ref = jsx_factory.ref_(factory);
+        let jsx_factory_as_qualified_name = jsx_factory_ref.as_qualified_name();
         let left = create_jsx_factory_expression_from_entity_name(
             factory,
             &jsx_factory_as_qualified_name.left,
@@ -104,7 +106,7 @@ fn create_jsx_factory_expression_from_entity_name<
         let right = factory.create_identifier(id_text(&jsx_factory_as_qualified_name.right));
         factory.create_property_access_expression(left, right)
     } else {
-        create_react_namespace(Some(id_text(jsx_factory)), parent)
+        create_react_namespace(Some(id_text(&jsx_factory.ref_(factory))), parent)
     }
 }
 
@@ -112,7 +114,7 @@ pub fn create_jsx_factory_expression<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    jsx_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: Option<&str>,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
@@ -124,7 +126,6 @@ pub fn create_jsx_factory_expression<
             )
         },
         |jsx_factory_entity| {
-            let jsx_factory_entity = jsx_factory_entity.borrow();
             create_jsx_factory_expression_from_entity_name(factory, jsx_factory_entity, parent)
         },
     )
@@ -134,7 +135,7 @@ pub fn create_jsx_fragment_factory_expression<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    jsx_fragment_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: &str,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
@@ -146,7 +147,6 @@ pub fn create_jsx_fragment_factory_expression<
             )
         },
         |jsx_fragment_factory_entity| {
-            let jsx_fragment_factory_entity = jsx_fragment_factory_entity.borrow();
             create_jsx_factory_expression_from_entity_name(
                 factory,
                 jsx_fragment_factory_entity,
@@ -162,14 +162,13 @@ pub fn create_expression_for_jsx_element<
     factory: &NodeFactory<TBaseNodeFactory>,
     callee: Id<Node>,   /*Expression*/
     tag_name: Id<Node>, /*Expression*/
-    props: Option<impl Borrow<Node /*Expression*/>>,
+    props: Option<Id<Node /*Expression*/>>,
     children: Option<&[Id<Node /*Expression*/>]>,
     location: &impl ReadonlyTextRange,
 ) -> Id<Node /*LeftHandSideExpression*/> {
-    let mut arguments_list = vec![tag_name.node_wrapper()];
-    if let Some(props) = props.as_ref() {
-        let props = props.borrow();
-        arguments_list.push(props.node_wrapper());
+    let mut arguments_list = vec![tag_name];
+    if let Some(props) = props {
+        arguments_list.push(props);
     }
 
     if let Some(children) = children.non_empty() {
@@ -178,30 +177,30 @@ pub fn create_expression_for_jsx_element<
         }
 
         if children.len() > 1 {
-            for child in children {
-                start_on_new_line(&**child);
-                arguments_list.push(child.clone());
+            for &child in children {
+                start_on_new_line(child, factory);
+                arguments_list.push(child);
             }
         } else {
-            arguments_list.push(children[0].clone());
+            arguments_list.push(children[0]);
         }
     }
 
     factory
         .create_call_expression(
-            callee.node_wrapper(),
+            callee,
             Option::<Gc<NodeArray>>::None,
             Some(arguments_list),
         )
-        .set_text_range(Some(location))
+        .set_text_range(Some(location), factory)
 }
 
 pub fn create_expression_for_jsx_fragment<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
-    jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    jsx_factory_entity: Option<Id<Node /*EntityName*/>>,
+    jsx_fragment_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: &str,
     children: &[Id<Node /*Expression*/>],
     parent_element: Id<Node>, /*JsxOpeningFragment*/
@@ -219,12 +218,12 @@ pub fn create_expression_for_jsx_fragment<
     /*children &&*/
     !children.is_empty() {
         if children.len() > 1 {
-            for child in children {
-                start_on_new_line(&**child);
-                arguments_list.push(child.clone());
+            for &child in children {
+                start_on_new_line(child, factory);
+                arguments_list.push(child);
             }
         } else {
-            arguments_list.push(children[0].clone());
+            arguments_list.push(children[0]);
         }
     }
 
@@ -239,7 +238,7 @@ pub fn create_expression_for_jsx_fragment<
             Option::<Gc<NodeArray>>::None,
             Some(arguments_list),
         )
-        .set_text_range(Some(location))
+        .set_text_range(Some(location), factory)
 }
 
 pub fn create_for_of_binding_statement<
@@ -249,28 +248,28 @@ pub fn create_for_of_binding_statement<
     node: Id<Node>,        /*ForInitializer*/
     bound_value: Id<Node>, /*Expression*/
 ) -> Id<Node /*Statement*/> {
-    if is_variable_declaration_list(node) {
-        let first_declaration = first(&node.as_variable_declaration_list().declarations);
+    if is_variable_declaration_list(&node.ref_(factory)) {
+        let first_declaration = *first(&node.ref_(factory).as_variable_declaration_list().declarations);
         let updated_declaration = factory.update_variable_declaration(
             first_declaration,
-            first_declaration.as_variable_declaration().maybe_name(),
+            first_declaration.ref_(factory).as_variable_declaration().maybe_name(),
             None,
             None,
-            Some(bound_value.node_wrapper()),
+            Some(bound_value),
         );
         factory
             .create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
                 factory.update_variable_declaration_list(node, vec![updated_declaration]),
             )
-            .set_text_range(Some(node))
+            .set_text_range(Some(&*node.ref_(factory)), factory)
     } else {
         let updated_expression = factory
-            .create_assignment(node.node_wrapper(), bound_value.node_wrapper())
-            .set_text_range(Some(node));
+            .create_assignment(node, bound_value)
+            .set_text_range(Some(&*node.ref_(factory)), factory);
         factory
             .create_expression_statement(updated_expression)
-            .set_text_range(Some(node))
+            .set_text_range(Some(&*node.ref_(factory)), factory)
     }
 }
 
@@ -280,21 +279,22 @@ pub fn create_expression_from_entity_name<
     factory: &NodeFactory<TBaseNodeFactory>,
     node: Id<Node>, /*EntityName | Expression*/
 ) -> Id<Node /*Expression*/> {
-    if is_qualified_name(node) {
-        let node_as_qualified_name = node.as_qualified_name();
-        let left = create_expression_from_entity_name(factory, &node_as_qualified_name.left);
+    if is_qualified_name(&node.ref_(factory)) {
+        let node_ref = node.ref_(factory);
+        let node_as_qualified_name = node_ref.as_qualified_name();
+        let left = create_expression_from_entity_name(factory, node_as_qualified_name.left);
         let right = factory
-            .clone_node(&node_as_qualified_name.right)
-            .set_text_range(Some(&*node_as_qualified_name.right))
-            .and_set_parent(node_as_qualified_name.right.maybe_parent());
+            .clone_node(node_as_qualified_name.right)
+            .set_text_range(Some(&*node_as_qualified_name.right.ref_(factory)), factory)
+            .and_set_parent(node_as_qualified_name.right.ref_(factory).maybe_parent(), factory);
         factory
             .create_property_access_expression(left, right)
-            .set_text_range(Some(node))
+            .set_text_range(Some(&*node.ref_(factory)), factory)
     } else {
         factory
             .clone_node(node)
-            .set_text_range(Some(node))
-            .and_set_parent(node.maybe_parent())
+            .set_text_range(Some(&*node.ref_(factory)), factory)
+            .and_set_parent(node.ref_(factory).maybe_parent(), factory)
     }
 }
 
@@ -304,23 +304,25 @@ pub fn create_expression_for_property_name<
     factory: &NodeFactory<TBaseNodeFactory>,
     member_name: Id<Node>, /*Exclude<PropertyName, PrivateIdentifier>*/
 ) -> Id<Node /*Expression*/> {
-    if is_identifier(member_name) {
+    if is_identifier(&member_name.ref_(factory)) {
         factory.create_string_literal_from_node(member_name)
-    } else if is_computed_property_name(member_name) {
-        let member_name_as_computed_property_name = member_name.as_computed_property_name();
+    } else if is_computed_property_name(&member_name.ref_(factory)) {
+        let member_name_ref = member_name.ref_(factory);
+        let member_name_as_computed_property_name = member_name_ref.as_computed_property_name();
         factory
-            .clone_node(&member_name_as_computed_property_name.expression)
-            .set_text_range(Some(&*member_name_as_computed_property_name.expression))
+            .clone_node(member_name_as_computed_property_name.expression)
+            .set_text_range(Some(&*member_name_as_computed_property_name.expression.ref_(factory)), factory)
             .and_set_parent(
                 member_name_as_computed_property_name
                     .expression
-                    .maybe_parent(),
+                    .ref_(factory).maybe_parent(),
+                factory,
             )
     } else {
         factory
             .clone_node(member_name)
-            .set_text_range(Some(member_name))
-            .and_set_parent(member_name.maybe_parent())
+            .set_text_range(Some(&*member_name.ref_(factory)), factory)
+            .and_set_parent(member_name.ref_(factory).maybe_parent(), factory)
     }
 }
 
@@ -369,7 +371,7 @@ fn create_expression_for_accessor_declaration<
                                             .unwrap(),
                                     )
                                     .set_original_node(Some(get_accessor.clone()))
-                                    .set_text_range(Some(&*get_accessor))
+                                    .set_text_range(Some(&*get_accessor), factory)
                             }))
                             .set(set_accessor.map(|set_accessor| {
                                 let set_accessor_as_set_accessor_declaration =
@@ -387,14 +389,14 @@ fn create_expression_for_accessor_declaration<
                                             .unwrap(),
                                     )
                                     .set_original_node(Some(set_accessor.clone()))
-                                    .set_text_range(Some(&*set_accessor))
+                                    .set_text_range(Some(&*set_accessor), factory)
                             }))
                             .build()
                             .unwrap(),
                         Some(!multi_line),
                     ),
                 )
-                .set_text_range(Some(&*first_accessor)),
+                .set_text_range(Some(&*first_accessor), factory),
         );
     }
 
@@ -441,7 +443,7 @@ fn create_expression_for_shorthand_property_assignment<
             ),
             factory.clone_node(&property_as_shorthand_property_assignment.name()),
         )
-        .set_text_range(Some(property))
+        .set_text_range(Some(property), factory)
         .set_original_node(Some(property.node_wrapper()))
 }
 
@@ -471,10 +473,10 @@ fn create_expression_for_method_declaration<
                     None,
                     method_as_method_declaration.maybe_body().unwrap(),
                 )
-                .set_text_range(Some(method))
+                .set_text_range(Some(method), factory)
                 .set_original_node(Some(method.node_wrapper())),
         )
-        .set_text_range(Some(method))
+        .set_text_range(Some(method), factory)
         .set_original_node(Some(method.node_wrapper()))
 }
 
@@ -529,7 +531,7 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     node: Id<Node>,       /*PrefixUnaryExpression | PostfixUnaryExpression*/
     expression: Id<Node>, /*Expression*/
     record_temp_variable: impl FnMut(Id<Node> /*Expression*/),
-    result_variable: Option<impl Borrow<Node /*Identifier*/>>,
+    result_variable: Option<Id<Node /*Identifier*/>>,
 ) -> Id<Node /*Expression*/> {
     let node_as_unary_expression = node.as_unary_expression();
     let operator = node_as_unary_expression.operator();
@@ -544,19 +546,19 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     let temp = factory.create_temp_variable(Some(record_temp_variable), None);
     let mut expression = factory
         .create_assignment(temp.clone(), expression.node_wrapper())
-        .set_text_range(Some(&*node_as_unary_expression.operand()));
+        .set_text_range(Some(&*node_as_unary_expression.operand()), factory);
 
     let mut operation/*: Expression*/ = if is_prefix_unary_expression(node) {
         factory.create_prefix_unary_expression(operator, temp.clone())
     } else {
         factory.create_postfix_unary_expression(temp.clone(), operator)
-    }.set_text_range(Some(node));
+    }.set_text_range(Some(node), factory);
 
     if let Some(result_variable) = result_variable {
         let result_variable = result_variable.borrow();
         operation = factory
             .create_assignment(result_variable.node_wrapper(), operation)
-            .set_text_range(Some(node));
+            .set_text_range(Some(node), factory);
     }
 
     expression = factory.create_comma(expression, operation);
@@ -564,7 +566,7 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     if is_postfix_unary_expression(node) {
         expression = factory
             .create_comma(expression, temp)
-            .set_text_range(Some(node));
+            .set_text_range(Some(node), factory);
     }
 
     expression
@@ -665,8 +667,8 @@ pub fn skip_outer_expressions(mut node: Id<Node>, kinds: Option<OuterExpressionK
     node
 }
 
-pub fn start_on_new_line(node: Id<Node>) -> Id<Node> {
-    set_starts_on_new_line(node.borrow(), true);
+pub fn start_on_new_line(node: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+    set_starts_on_new_line(node, true, arena);
     node
 }
 
@@ -942,7 +944,7 @@ pub fn try_get_module_name_from_file<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
-    file: Option<impl Borrow<Node /*SourceFile*/>>,
+    file: Option<Id<Node /*SourceFile*/>>,
     host: &dyn EmitHost,
     options: &CompilerOptions,
 ) -> Option<Id<Node /*StringLiteral*/>> {

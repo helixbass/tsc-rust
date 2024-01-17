@@ -11,6 +11,7 @@ use crate::{
     is_computed_property_name, is_identifier, Debug_, EmitHelperBase, EmitHelperTextCallback,
     GeneratedIdentifierFlags, GetOrInsertDefault, MapOrDefault, NodeInterface, ReadonlyTextRange,
     ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, UnscopedEmitHelperBuilder, VecExt,
+    HasArena, AllArenas,
 };
 
 // TODO: remove #[unsafe_ignore_trace] from TransformNodesTransformationResult if this ends up
@@ -259,7 +260,7 @@ impl EmitHelperFactory {
                 value,
                 self.factory
                     .create_array_literal_expression(Some(property_names), None)
-                    .set_text_range(Some(location)),
+                    .set_text_range(Some(location), self),
             ]),
         )
     }
@@ -562,6 +563,12 @@ impl EmitHelperFactory {
             Option::<Gc<NodeArray>>::None,
             Some(vec![state, receiver]),
         )
+    }
+}
+
+impl HasArena for EmitHelperFactory {
+    fn arena(&self) -> &AllArenas {
+        self.factory.arena()
     }
 }
 

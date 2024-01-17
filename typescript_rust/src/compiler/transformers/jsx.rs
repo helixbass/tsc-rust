@@ -558,7 +558,7 @@ impl TransformJsx {
         &self,
         tag_name: Id<Node>,          /*Expression*/
         object_properties: Id<Node>, /*Expression*/
-        key_attr: Option<impl Borrow<Node /*JsxAttribute*/>>,
+        key_attr: Option<Id<Node /*JsxAttribute*/>>,
         children: &[Id<Node /*JsxChild*/>],
         is_child: bool,
         location: &impl ReadonlyTextRange,
@@ -634,7 +634,7 @@ impl TransformJsx {
             .set_text_range(Some(location));
 
         if is_child {
-            start_on_new_line(&*element);
+            start_on_new_line(element, self);
         }
 
         element
@@ -685,7 +685,7 @@ impl TransformJsx {
         );
 
         if is_child {
-            start_on_new_line(&*element);
+            start_on_new_line(element, self);
         }
 
         Some(element)
@@ -744,7 +744,7 @@ impl TransformJsx {
         );
 
         if is_child {
-            start_on_new_line(&*element);
+            start_on_new_line(element, self);
         }
 
         Some(element)
@@ -766,7 +766,7 @@ impl TransformJsx {
     fn transform_jsx_attributes_to_object_props(
         &self,
         attrs: &[Id<Node /*JsxSpreadAttribute | JsxAttribute*/>],
-        children: Option<impl Borrow<Node /*PropertyAssignment*/>>,
+        children: Option<Id<Node /*PropertyAssignment*/>>,
     ) -> Id<Node> {
         let target = get_emit_script_target(&self.compiler_options);
         if
@@ -784,7 +784,7 @@ impl TransformJsx {
     fn transform_jsx_attributes_to_props(
         &self,
         attrs: &[Id<Node /*JsxSpreadAttribute | JsxAttribute*/>],
-        children: Option<impl Borrow<Node /*PropertyAssignment*/>>,
+        children: Option<Id<Node /*PropertyAssignment*/>>,
     ) -> Vec<Id<Node>> {
         let mut props = flatten(&span_map(
             attrs,
@@ -809,7 +809,7 @@ impl TransformJsx {
     fn transform_jsx_attributes_to_expression(
         &self,
         attrs: &[Id<Node /*JsxSpreadAttribute | JsxAttribute*/>],
-        children: Option<impl Borrow<Node /*PropertyAssignment*/>>,
+        children: Option<Id<Node /*PropertyAssignment*/>>,
     ) -> Id<Node> {
         let mut expressions = flatten(&span_map(
             attrs,
@@ -877,7 +877,7 @@ impl TransformJsx {
 
     fn transform_jsx_attribute_initializer(
         &self,
-        node: Option<impl Borrow<Node /*StringLiteral | JsxExpression*/>>,
+        node: Option<Id<Node /*StringLiteral | JsxExpression*/>>,
     ) -> Id<Node /*Expression*/> {
         if node.is_none() {
             return self.factory.create_true();

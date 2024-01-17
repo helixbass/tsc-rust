@@ -27,6 +27,7 @@ use crate::{
     set_emit_flags, set_text_range, skip_outer_expressions, skip_parentheses, try_visit_node,
     EmitFlags, MapOrDefault, Matches, NumberOrRcNode, OptionTry,
     ReadonlyTextRangeConcrete, SyntheticReferenceExpression, VecExt,
+    HasArena, InArena,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -627,17 +628,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         //     return node;
         //  }
 
-        let clone = node.clone().wrap();
-        clone.set_pos(-1);
-        clone.set_end(-1);
-        clone.set_id(0);
-        clone.set_modifier_flags_cache(ModifierFlags::None);
-        clone.set_parent(None);
+        let clone = self.alloc_node((*node.ref_(self)).clone());
+        clone.ref_(self).set_pos(-1);
+        clone.ref_(self).set_end(-1);
+        clone.ref_(self).set_id(0);
+        clone.ref_(self).set_modifier_flags_cache(ModifierFlags::None);
+        clone.ref_(self).set_parent(None);
         self.base_factory.update_cloned_node(&*clone);
 
-        clone.set_flags(clone.flags() | (node.flags() & !NodeFlags::Synthesized));
-        clone.set_transform_flags(node.transform_flags());
-        set_original_node(clone.clone(), Some(node.node_wrapper()));
+        clone.ref_(self).set_flags(clone.ref_(self).flags() | (node.ref_(self).flags() & !NodeFlags::Synthesized));
+        clone.ref_(self).set_transform_flags(node.ref_(self).transform_flags());
+        set_original_node(clone, Some(node), self);
 
         clone
     }
@@ -959,7 +960,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn restore_enclosing_label(
         &self,
         node: Id<Node>, /*Statement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
         after_restore_label_callback: Option<impl FnMut(Id<Node> /*LabeledStatement*/)>,
     ) -> Id<Node /*Statement*/> {
         if outermost_labeled_statement.is_none() {
@@ -1036,7 +1037,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .matches(|language_version| language_version < ScriptTarget::ES2015)
             {
                 self.create_identifier("_super")
-                    .set_text_range(Some(&**callee))
+                    .set_text_range(Some(&**callee), self)
             } else {
                 callee.clone()
             };
@@ -1063,10 +1064,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                             this_arg.clone(),
                             callee_as_property_access_expression.expression.clone(),
                         )
-                        .set_text_range(Some(&*callee_as_property_access_expression.expression)),
+                        .set_text_range(Some(&*callee_as_property_access_expression.expression), self),
                         callee_as_property_access_expression.name.clone(),
                     )
-                    .set_text_range(Some(&**callee));
+                    .set_text_range(Some(&**callee), self);
             } else {
                 this_arg = callee_as_property_access_expression.expression.clone();
                 target = callee.clone();
@@ -1089,12 +1090,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                             this_arg.clone(),
                             callee_as_element_access_expression.expression.clone(),
                         )
-                        .set_text_range(Some(&*callee_as_element_access_expression.expression)),
+                        .set_text_range(Some(&*callee_as_element_access_expression.expression), self),
                         callee_as_element_access_expression
                             .argument_expression
                             .clone(),
                     )
-                    .set_text_range(Some(&**callee));
+                    .set_text_range(Some(&**callee), self);
             } else {
                 this_arg = callee_as_element_access_expression.expression.clone();
                 target = callee.clone();
@@ -1156,7 +1157,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(super) fn get_name(
         &self,
-        node: Option<impl Borrow<Node /*Declaration*/>>,
+        node: Option<Id<Node /*Declaration*/>>,
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
         emit_flags: Option<EmitFlags>,
@@ -1169,7 +1170,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         {
             let name = self
                 .clone_node(node_name)
-                .set_text_range(Some(&**node_name))
+                .set_text_range(Some(&**node_name), self)
                 .and_set_parent(node_name.maybe_parent());
             emit_flags |= get_emit_flags(node_name);
             if allow_source_maps != Some(true) {
@@ -1253,7 +1254,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     self.clone_node(name)
                 },
             )
-            .set_text_range(Some(name));
+            .set_text_range(Some(name), self);
         let mut emit_flags: EmitFlags = _d();
         if allow_source_maps != Some(true) {
             emit_flags |= EmitFlags::NoSourceMap;

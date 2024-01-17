@@ -396,7 +396,7 @@ impl TransformES2020 {
                 }
                 _ => (),
             }
-            set_original_node(&*right_expression, Some(segment.clone()));
+            set_original_node(right_expression, Some(segment), self);
         }
 
         let target = if is_delete {

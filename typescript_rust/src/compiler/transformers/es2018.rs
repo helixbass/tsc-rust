@@ -507,7 +507,8 @@ impl TransformES2018 {
                         ))),
                     )
                     .set_text_range(Some(node)),
-                Some(node.node_wrapper()),
+                Some(node),
+                self,
             );
         }
         visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
@@ -558,7 +559,8 @@ impl TransformES2018 {
                                 )),
                             )
                             .set_text_range(Some(node)),
-                        Some(node.node_wrapper()),
+                        Some(node),
+                        self,
                     )
                     .into(),
                 );
@@ -585,7 +587,8 @@ impl TransformES2018 {
                         )),
                     )
                     .set_text_range(Some(node)),
-                Some(node.node_wrapper()),
+                Some(node),
+                self,
             )
             .into(),
         )
@@ -1140,7 +1143,7 @@ impl TransformES2018 {
     fn visit_for_of_statement(
         &self,
         node: Id<Node>, /*ForOfStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
     ) -> VisitResult /*<Statement>*/ {
         let node_as_for_of_statement = node.as_for_of_statement();
         let ancestor_facts = self.enter_subtree(
@@ -1318,7 +1321,7 @@ impl TransformES2018 {
     fn transform_for_await_of_statement(
         &self,
         node: Id<Node>, /*ForOfStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
         ancestor_facts: HierarchyFacts,
     ) -> VisitResult {
         let node_as_for_of_statement = node.as_for_of_statement();

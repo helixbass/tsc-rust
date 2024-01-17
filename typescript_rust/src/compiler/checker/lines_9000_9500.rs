@@ -65,7 +65,7 @@ impl TypeChecker {
         declarations: &[Id<Node /*Declaration*/>],
     ) -> Option<Vec<Id<Type>>> {
         Debug_.assert(types.len() == declarations.len(), None);
-        Some(types.iter().enumerate().filter(|(&i, _)| {
+        Some(types.iter().enumerate().filter(|(i, _)| {
             let declaration = declarations[i];
             let expression = if is_binary_expression(&declaration.ref_(self)) {
                 Some(declaration)
@@ -90,9 +90,9 @@ impl TypeChecker {
         let element_ref = element.ref_(self);
         let element_as_binding_element = element_ref.as_binding_element();
         if element_as_binding_element.maybe_initializer().is_some() {
-            let contextual_type = if is_binding_pattern(Some(element_as_binding_element.name())) {
+            let contextual_type = if is_binding_pattern(Some(&element_as_binding_element.name().ref_(self))) {
                 self.get_type_from_binding_pattern(
-                    &element_as_binding_element.name(),
+                    element_as_binding_element.name(),
                     Some(true),
                     Some(false),
                 )?
@@ -108,9 +108,9 @@ impl TypeChecker {
                 None,
             );
         }
-        if is_binding_pattern(Some(element_as_binding_element.name())) {
+        if is_binding_pattern(Some(&element_as_binding_element.name().ref_(self))) {
             return self.get_type_from_binding_pattern(
-                &element_as_binding_element.name(),
+                element_as_binding_element.name(),
                 include_pattern_in_type,
                 report_errors,
             );
@@ -156,7 +156,7 @@ impl TypeChecker {
                     return Ok(Option::<()>::None);
                 }
 
-                let expr_type = self.get_literal_type_from_property_name(&name)?;
+                let expr_type = self.get_literal_type_from_property_name(name)?;
                 if !self.is_type_usable_as_property_name(expr_type) {
                     object_flags |= ObjectFlags::ObjectLiteralPatternWithComputedProperties;
                     return Ok(Option::<()>::None);
@@ -223,9 +223,9 @@ impl TypeChecker {
         let ref elements = pattern.ref_(self).as_has_elements().elements();
         let last_element = last_or_undefined(&**elements).copied();
         let rest_element = last_element.filter(|last_element| {
-            last_element.kind() == SyntaxKind::BindingElement
+            last_element.ref_(self).kind() == SyntaxKind::BindingElement
                 && last_element
-                    .as_binding_element()
+                    .ref_(self).as_binding_element()
                     .dot_dot_dot_token
                     .is_some()
         });
@@ -480,7 +480,7 @@ impl TypeChecker {
         Debug_.assert_is_defined(&symbol.ref_(self).maybe_value_declaration(), None);
         let declaration = symbol.ref_(self).maybe_value_declaration().unwrap();
         if is_catch_clause_variable_declaration_or_binding_element(declaration, self) {
-            let Some(type_node) get_effective_type_annotation_node(declaration, self) else {
+            let Some(type_node) = get_effective_type_annotation_node(declaration, self) else {
                 return Ok(if self.use_unknown_in_catch_variables {
                     self.unknown_type()
                 } else {
@@ -496,8 +496,9 @@ impl TypeChecker {
                 },
             );
         }
-        if is_source_file(declaration) && is_json_source_file(declaration) {
-            let declaration_as_source_file = declaration.as_source_file();
+        if is_source_file(&declaration.ref_(self)) && is_json_source_file(&declaration.ref_(self)) {
+            let declaration_ref = declaration.ref_(self);
+            let declaration_as_source_file = declaration_ref.as_source_file();
             if declaration_as_source_file.statements().is_empty() {
                 return Ok(self.empty_object_type());
             }
@@ -529,13 +530,13 @@ impl TypeChecker {
             return self.report_circularity_error(symbol);
         }
         let type_: Id<Type>;
-        if declaration.kind() == SyntaxKind::ExportAssignment {
+        if declaration.ref_(self).kind() == SyntaxKind::ExportAssignment {
             type_ = self.widen_type_for_variable_like_declaration(
                 Some(
                     self.try_get_type_from_effective_type_node(declaration)?
                         .try_unwrap_or_else(|| {
                             self.check_expression_cached(
-                                &declaration.as_export_assignment().expression,
+                                declaration.ref_(self).as_export_assignment().expression,
                                 None,
                             )
                         })?,
@@ -543,25 +544,25 @@ impl TypeChecker {
                 declaration,
                 None,
             )?;
-        } else if is_binary_expression(declaration)
-            || is_in_js_file(Some(declaration))
-                && (is_call_expression(declaration)
-                    || (is_property_access_expression(declaration)
+        } else if is_binary_expression(&declaration.ref_(self))
+            || is_in_js_file(Some(&declaration.ref_(self)))
+                && (is_call_expression(&declaration.ref_(self))
+                    || (is_property_access_expression(&declaration.ref_(self))
                         || is_bindable_static_element_access_expression(declaration, None, self))
-                        && is_binary_expression(&declaration.parent()))
+                        && is_binary_expression(&declaration.ref_(self).parent().ref_(self)))
         {
             type_ = self
                 .get_widened_type_for_assignment_declaration(symbol, Option::<Id<Symbol>>::None)?;
-        } else if is_property_access_expression(declaration)
-            || is_element_access_expression(declaration)
-            || is_identifier(declaration)
-            || is_string_literal_like(declaration)
-            || is_numeric_literal(declaration)
-            || is_class_declaration(declaration)
-            || is_function_declaration(declaration)
-            || (is_method_declaration(declaration) && !is_object_literal_method(declaration, self))
-            || is_method_signature(declaration)
-            || is_source_file(declaration)
+        } else if is_property_access_expression(&declaration.ref_(self))
+            || is_element_access_expression(&declaration.ref_(self))
+            || is_identifier(&declaration.ref_(self))
+            || is_string_literal_like(&declaration.ref_(self))
+            || is_numeric_literal(&declaration.ref_(self))
+            || is_class_declaration(&declaration.ref_(self))
+            || is_function_declaration(&declaration.ref_(self))
+            || (is_method_declaration(&declaration.ref_(self)) && !is_object_literal_method(declaration, self))
+            || is_method_signature(&declaration.ref_(self))
+            || is_source_file(&declaration.ref_(self))
         {
             if symbol.ref_(self).flags().intersects(
                 SymbolFlags::Function
@@ -572,7 +573,7 @@ impl TypeChecker {
             ) {
                 return self.get_type_of_func_class_enum_module(symbol);
             }
-            type_ = if is_binary_expression(&declaration.parent()) {
+            type_ = if is_binary_expression(&declaration.ref_(self).parent().ref_(self)) {
                 self.get_widened_type_for_assignment_declaration(
                     symbol,
                     Option::<Id<Symbol>>::None,
@@ -581,20 +582,20 @@ impl TypeChecker {
                 self.try_get_type_from_effective_type_node(declaration)?
                     .unwrap_or_else(|| self.any_type())
             };
-        } else if is_property_assignment(declaration) {
+        } else if is_property_assignment(&declaration.ref_(self)) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
                 .try_unwrap_or_else(|| self.check_property_assignment(declaration, None))?;
-        } else if is_jsx_attribute(declaration) {
+        } else if is_jsx_attribute(&declaration.ref_(self)) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
                 .try_unwrap_or_else(|| self.check_jsx_attribute(declaration, None))?;
-        } else if is_shorthand_property_assignment(declaration) {
+        } else if is_shorthand_property_assignment(&declaration.ref_(self)) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
                 .try_unwrap_or_else(|| {
                     self.check_expression_for_mutable_location(
-                        &declaration.as_shorthand_property_assignment().name(),
+                        declaration.ref_(self).as_shorthand_property_assignment().name(),
                         Some(CheckMode::Normal),
                         None,
                         None,
@@ -606,19 +607,19 @@ impl TypeChecker {
                 .try_unwrap_or_else(|| {
                     self.check_object_literal_method(declaration, Some(CheckMode::Normal))
                 })?;
-        } else if is_parameter(declaration)
-            || is_property_declaration(declaration)
-            || is_property_signature(declaration)
-            || is_variable_declaration(declaration)
-            || is_binding_element(declaration)
-            || is_jsdoc_property_like_tag(declaration)
+        } else if is_parameter(&declaration.ref_(self))
+            || is_property_declaration(&declaration.ref_(self))
+            || is_property_signature(&declaration.ref_(self))
+            || is_variable_declaration(&declaration.ref_(self))
+            || is_binding_element(&declaration.ref_(self))
+            || is_jsdoc_property_like_tag(&declaration.ref_(self))
         {
             type_ = self.get_widened_type_for_variable_like_declaration(declaration, Some(true))?;
-        } else if is_enum_declaration(declaration) {
+        } else if is_enum_declaration(&declaration.ref_(self)) {
             type_ = self.get_type_of_func_class_enum_module(symbol)?;
-        } else if is_enum_member(declaration) {
+        } else if is_enum_member(&declaration.ref_(self)) {
             type_ = self.get_type_of_enum_member(symbol)?;
-        } else if is_accessor(declaration) {
+        } else if is_accessor(&declaration.ref_(self)) {
             type_ = self
                 .resolve_type_of_accessors(symbol, None)?
                 .unwrap_or_else(|| {
@@ -629,7 +630,7 @@ impl TypeChecker {
         } else {
             Debug_.fail(Some(&format!(
                 "Unhandled declaration kind! {} for {}",
-                Debug_.format_syntax_kind(Some(declaration.kind())),
+                Debug_.format_syntax_kind(Some(declaration.ref_(self).kind())),
                 Debug_.format_symbol(&symbol.ref_(self))
             )));
         }

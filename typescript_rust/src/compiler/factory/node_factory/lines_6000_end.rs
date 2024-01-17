@@ -22,6 +22,7 @@ use crate::{
     NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SignatureDeclarationInterface,
     SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
     SyntaxKind, TransformFlags,
+    HasArena, InArena,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -382,10 +383,10 @@ pub(super) fn update_without_original(updated: Id<Node>, original: Id<Node>) -> 
     updated
 }
 
-pub(super) fn update_with_original(updated: Id<Node>, original: Id<Node>) -> Id<Node> {
-    if !ptr::eq(&*updated, original) {
-        set_original_node(updated.clone(), Some(original.node_wrapper()));
-        set_text_range(&*updated, Some(original));
+pub(super) fn update_with_original(updated: Id<Node>, original: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+    if updated != original {
+        set_original_node(updated, Some(original), arena);
+        set_text_range(&*updated.ref_(arena), Some(&*original.ref_(self)));
     }
     updated
 }
@@ -784,14 +785,13 @@ impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
     }
 }
 
-pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>) -> Id<Node> {
-    let node_as_node = node.borrow();
-    node_as_node.set_original(original.clone());
+pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>, arena: &impl HasArena) -> Id<Node> {
+    node.ref_(arena).set_original(original);
     if let Some(original) = original {
-        let emit_node = original.maybe_emit_node();
+        let emit_node = original.ref_(arena).maybe_emit_node();
         if let Some(emit_node) = emit_node.as_ref() {
-            let node_emit_node = node_as_node
-                .maybe_emit_node_mut()
+            let node_emit_node = node
+                .ref_(arena).maybe_emit_node_mut()
                 .get_or_insert_default_()
                 .clone();
             // looks like node and original can share the same Gc<GcCell<EmitNode>> (eg from

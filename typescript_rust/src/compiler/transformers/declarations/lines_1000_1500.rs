@@ -62,7 +62,8 @@ impl TransformDeclarations {
             .map(|return_value| {
                 set_original_node(
                     self.preserve_js_doc(return_value, input),
-                    Some(input.node_wrapper()),
+                    Some(input),
+                    self,
                 )
             })
             .map(Into::into))
@@ -1027,7 +1028,8 @@ impl TransformDeclarations {
         node.map(|node| {
             set_original_node(
                 self.preserve_js_doc(node, input),
-                Some(input.node_wrapper()),
+                Some(input),
+                self,
             )
             .into()
         })

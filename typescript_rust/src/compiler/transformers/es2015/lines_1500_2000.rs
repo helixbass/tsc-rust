@@ -43,7 +43,7 @@ impl TransformES2015 {
         &self,
         statements: &mut Vec<Id<Node>>, /*Statement*/
         node: Id<Node>,
-        initializer: Option<impl Borrow<Node /*Expression*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
     ) {
         let initializer = initializer.node_wrappered();
         self.enable_substitutions_for_captured_this();
@@ -219,7 +219,7 @@ impl TransformES2015 {
     ) -> Id<Node> {
         self.factory
             .create_empty_statement()
-            .set_text_range(Some(member))
+            .set_text_range(Some(member), self)
     }
 
     pub(super) fn transform_class_method_declaration_to_statement(
@@ -289,7 +289,7 @@ impl TransformES2015 {
         Ok(self
             .factory
             .create_expression_statement(e)
-            .set_text_range(Some(member))
+            .set_text_range(Some(member), self)
             .set_original_node(Some(member.node_wrapper()))
             .set_comment_range(&comment_range)
             .set_emit_flags(EmitFlags::NoSourceMap))
@@ -323,7 +323,7 @@ impl TransformES2015 {
         let target = self
             .factory
             .clone_node(receiver)
-            .set_text_range(Some(receiver))
+            .set_text_range(Some(receiver), self)
             .and_set_parent(receiver.maybe_parent())
             .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTrailingSourceMap)
             .set_source_map_range(
@@ -423,7 +423,7 @@ impl TransformES2015 {
             ]),
         );
         if starts_on_new_line {
-            start_on_new_line(&*call);
+            start_on_new_line(call, self);
         }
 
         Ok(call)
@@ -469,7 +469,7 @@ impl TransformES2015 {
                 Option::<Id<Node>>::None,
                 self.transform_function_body(node)?,
             )
-            .set_text_range(Some(node))
+            .set_text_range(Some(node), self)
             .set_original_node(Some(node.node_wrapper()))
             .set_emit_flags(EmitFlags::CapturesThis);
 
@@ -651,7 +651,7 @@ impl TransformES2015 {
                 None,
                 body,
             )
-            .set_text_range(location)
+            .set_text_range(location, self)
             .set_original_node(Some(node.node_wrapper())))
     }
 
@@ -753,7 +753,7 @@ impl TransformES2015 {
             let return_statement = self
                 .factory
                 .create_return_statement(Some(expression))
-                .set_text_range(Some(&**body))
+                .set_text_range(Some(&**body), self)
                 .move_synthetic_comments(body)
                 .set_emit_flags(
                     EmitFlags::NoTokenSourceMaps
@@ -803,7 +803,7 @@ impl TransformES2015 {
             );
         }
 
-        set_original_node(&*block, node_as_function_like_declaration.maybe_body());
+        set_original_node(block, node_as_function_like_declaration.maybe_body(), self);
         Ok(block)
     }
 }

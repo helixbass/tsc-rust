@@ -241,7 +241,7 @@ impl TransformES2015 {
 
         let loop_body = self.factory.create_block(statements, Some(true));
         if is_block(&statement) {
-            set_original_node(&*loop_body, Some(statement.clone()));
+            set_original_node(loop_body, Some(statement), self);
         }
 
         let contains_yield = node
@@ -723,7 +723,7 @@ impl TransformES2015 {
             )
             .set_text_range(Some(property));
         if starts_on_new_line == Some(true) {
-            start_on_new_line(&*expression);
+            start_on_new_line(expression, self);
         }
         Ok(expression)
     }
@@ -754,7 +754,7 @@ impl TransformES2015 {
             )
             .set_text_range(Some(property));
         if starts_on_new_line == Some(true) {
-            start_on_new_line(&*expression);
+            start_on_new_line(expression, self);
         }
         Ok(expression)
     }

@@ -884,7 +884,7 @@ impl NodeBuilder {
                 return Ok(TrackExistingEntityNameReturn {
                     introduces_error,
                     node: set_emit_flags(
-                        set_original_node(name, Some(node.node_wrapper())),
+                        set_original_node(name, Some(node), self),
                         EmitFlags::NoAsciiEscaping,
                         self,
                     ),
@@ -1124,7 +1124,8 @@ impl NodeBuilder {
             return Ok(Some(
                 set_original_node(
                     get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword),
-                    Some(node.node_wrapper()),
+                    Some(node),
+                    self,
                 )
                 .into(),
             ));
@@ -1334,7 +1335,8 @@ impl NodeBuilder {
                         Some(self.type_checker.get_type_from_type_node_(node)?),
                         context,
                     )?.unwrap(),
-                    Some(node.node_wrapper()),
+                    Some(node),
+                    self,
                 ).into()
             ));
         }
@@ -1366,7 +1368,8 @@ impl NodeBuilder {
                             context,
                         )?
                         .unwrap(),
-                        Some(node.node_wrapper()),
+                        Some(node),
+                        self,
                     )
                     .into(),
                 ));

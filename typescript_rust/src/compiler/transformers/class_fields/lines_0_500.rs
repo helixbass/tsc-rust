@@ -1115,7 +1115,7 @@ impl TransformClassFields {
                         &node_as_property_access_expression.expression,
                     )
                     .set_original_node(Some(node.node_wrapper()))
-                    .set_text_range(Some(node))
+                    .set_text_range(Some(node), self)
                     .into(),
                 );
             }
@@ -1157,7 +1157,7 @@ impl TransformClassFields {
                                 ))
                                 .set_text_range(Some(
                                     &*node_as_property_access_expression.expression,
-                                ))
+                                ), self)
                                 .into(),
                         );
                     }
@@ -1384,7 +1384,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                         .factory
                         .clone_node(class_constructor)
                         .set_original_node(Some(node.node_wrapper()))
-                        .set_text_range(Some(node));
+                        .set_text_range(Some(node), self);
                 }
             }
         }

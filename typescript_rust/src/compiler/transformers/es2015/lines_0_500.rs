@@ -661,7 +661,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
                     .transform_es2015
                     .factory
                     .get_generated_name_for_node(Some(original), None)
-                    .set_text_range(Some(node)));
+                    .set_text_range(Some(node), self));
             }
         }
 
@@ -726,7 +726,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
                     .transform_es2015
                     .factory
                     .get_generated_name_for_node(get_name_of_declaration(Some(declaration), self), None)
-                    .set_text_range(Some(node)));
+                    .set_text_range(Some(node), self));
             }
         }
 
@@ -788,7 +788,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
                         GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
                     ),
                 )
-                .set_text_range(Some(node));
+                .set_text_range(Some(node), self);
         }
         node.node_wrapper()
     }

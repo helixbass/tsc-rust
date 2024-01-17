@@ -589,7 +589,7 @@ impl TransformTypeScript {
 
     pub(super) fn serialize_type_node(
         &self,
-        node: Option<impl Borrow<Node /*TypeNode*/>>,
+        node: Option<Id<Node /*TypeNode*/>>,
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         if node.is_none() {
             return Ok(self.factory.create_identifier("Object"));

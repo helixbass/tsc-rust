@@ -522,7 +522,7 @@ impl TransformGenerators {
     pub(super) fn visit_elements(
         &self,
         elements: &NodeArray, /*<Expression>*/
-        leading_element: Option<impl Borrow<Node /*Expression*/>>,
+        leading_element: Option<Id<Node /*Expression*/>>,
         location: Option<&impl ReadonlyTextRange>,
         multi_line: Option<bool>,
     ) -> Id<Node> {

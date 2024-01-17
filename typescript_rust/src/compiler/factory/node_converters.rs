@@ -77,7 +77,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             node_as_function_declaration.maybe_type(),
             node_as_function_declaration.maybe_body().unwrap(),
         );
-        set_original_node(updated.clone(), Some(node.node_wrapper()));
+        set_original_node(updated, Some(node), self);
         let updated = set_text_range(&*updated, Some(node)).node_wrapper();
         if get_starts_on_new_line(node) == Some(true) {
             set_starts_on_new_line(updated, true);
@@ -101,7 +101,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                     .factory
                     .create_spread_element_raw(element_as_binding_element.name());
                 let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-                set_original_node(ret.clone(), Some(element.node_wrapper()));
+                set_original_node(ret, Some(element), self);
                 return ret;
             }
             let expression =
@@ -112,7 +112,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                         .factory
                         .create_assignment_raw(expression, element_initializer);
                     let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-                    set_original_node(ret.clone(), Some(element.node_wrapper()));
+                    set_original_node(ret, Some(element), self);
                     return ret;
                 }
                 None => expression,
@@ -137,7 +137,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                     .factory
                     .create_spread_assignment_raw(element_as_binding_element.name());
                 let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-                set_original_node(ret.clone(), Some(element.node_wrapper()));
+                set_original_node(ret, Some(element), self);
                 return ret;
             }
             if let Some(element_property_name) = element_as_binding_element.property_name.as_ref() {
@@ -153,7 +153,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                     },
                 );
                 let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-                set_original_node(ret.clone(), Some(element.node_wrapper()));
+                set_original_node(ret, Some(element), self);
                 return ret;
             }
             Debug_.assert_node(
@@ -166,7 +166,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 element_as_binding_element.maybe_initializer(),
             );
             let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-            set_original_node(ret.clone(), Some(element.node_wrapper()));
+            set_original_node(ret, Some(element), self);
             return ret;
         }
         cast(Some(element), |element| {
@@ -204,7 +204,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 None,
             );
             let ret = set_text_range(&*ret.wrap(), Some(node)).node_wrapper();
-            set_original_node(ret.clone(), Some(node.node_wrapper()));
+            set_original_node(ret, Some(node), self);
             return ret;
         }
         cast(Some(node), |node| is_object_literal_expression(node)).node_wrapper()
@@ -224,7 +224,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 None,
             );
             let ret = set_text_range(&*ret.wrap(), Some(node)).node_wrapper();
-            set_original_node(ret.clone(), Some(node.node_wrapper()));
+            set_original_node(ret, Some(node), self);
             return ret;
         }
         cast(Some(node), |node| is_array_literal_expression(node)).node_wrapper()

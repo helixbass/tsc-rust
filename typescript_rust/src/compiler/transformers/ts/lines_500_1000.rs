@@ -274,7 +274,7 @@ impl TransformTypeScript {
     pub(super) fn create_class_declaration_head_without_decorators(
         &self,
         node: Id<Node>, /*ClassDeclaration*/
-        name: Option<impl Borrow<Node /*Identifier*/>>,
+        name: Option<Id<Node /*Identifier*/>>,
         facts: ClassFacts,
     ) -> io::Result<Id<Node>> {
         let node_as_class_declaration = node.as_class_declaration();
@@ -320,7 +320,7 @@ impl TransformTypeScript {
     pub(super) fn create_class_declaration_head_with_decorators(
         &self,
         node: Id<Node>, /*ClassDeclaration*/
-        name: Option<impl Borrow<Node /*Identifier*/>>,
+        name: Option<Id<Node /*Identifier*/>>,
     ) -> io::Result<Id<Node>> {
         let node_as_class_declaration = node.as_class_declaration();
         let location = move_range_past_decorators(node);
@@ -510,7 +510,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_decorators_of_parameters(
         &self,
-        node: Option<impl Borrow<Node /*FunctionLikeDeclaration*/>>,
+        node: Option<Id<Node /*FunctionLikeDeclaration*/>>,
     ) -> Option<Vec<Option<NodeArrayOrVec>>> {
         let mut decorators: Option<Vec<Option<NodeArrayOrVec /*Decorator*/>>> = Default::default();
         if let Some(node) = node {

@@ -549,7 +549,7 @@ impl TransformES2015 {
         exclude_facts: HierarchyFacts,
         include_facts: HierarchyFacts,
         node: Id<Node>, /*IterationStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
         convert: Option<
             impl FnMut(
                 Id<Node>,         /*IterationStatement*/
@@ -579,7 +579,7 @@ impl TransformES2015 {
         exclude_facts: HierarchyFacts,
         include_facts: HierarchyFacts,
         node: Id<Node>, /*IterationStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
         convert: Option<
             impl FnMut(
                 Id<Node>,         /*IterationStatement*/
@@ -603,7 +603,7 @@ impl TransformES2015 {
     pub(super) fn visit_do_or_while_statement(
         &self,
         node: Id<Node>, /*DoStatement | WhileStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
         self.visit_iteration_statement_with_facts(
             HierarchyFacts::DoOrWhileStatementExcludes,
@@ -624,7 +624,7 @@ impl TransformES2015 {
     pub(super) fn visit_for_statement(
         &self,
         node: Id<Node>, /*ForStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
         self.visit_iteration_statement_with_facts(
             HierarchyFacts::ForStatementExcludes,
@@ -679,7 +679,7 @@ impl TransformES2015 {
     pub(super) fn visit_for_in_statement(
         &self,
         node: Id<Node>, /*ForInStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
         self.visit_iteration_statement_with_facts(
             HierarchyFacts::ForInOrForOfStatementExcludes,
@@ -700,7 +700,7 @@ impl TransformES2015 {
     pub(super) fn visit_for_of_statement(
         &self,
         node: Id<Node>, /*ForOfStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         self.try_visit_iteration_statement_with_facts(
             HierarchyFacts::ForInOrForOfStatementExcludes,

@@ -439,7 +439,7 @@ impl TransformClassFields {
                     Some(parameters.map_or_else(|| vec![].into(), NodeArrayOrVec::from)),
                     Some(body),
                 )
-                .set_text_range(Some(constructor.as_deref().unwrap_or(node)))
+                .set_text_range(Some(constructor.as_deref().unwrap_or(node)), self)
                 .set_original_node(constructor)
                 .start_on_new_line(),
         )
@@ -448,7 +448,7 @@ impl TransformClassFields {
     pub(super) fn transform_constructor_body(
         &self,
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
-        constructor: Option<impl Borrow<Node /*ConstructorDeclaration*/>>,
+        constructor: Option<Id<Node /*ConstructorDeclaration*/>>,
         is_derived_class: bool,
     ) -> Option<Id<Node>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
@@ -587,6 +587,7 @@ impl TransformClassFields {
                             constructor.as_constructor_declaration().maybe_body()
                         })
                         .as_deref(),
+                    self,
                 ),
         )
     }
@@ -653,7 +654,7 @@ impl TransformClassFields {
                         (**current_class_lexical_environment).borrow().facts != ClassFacts::None
                     })
                 {
-                    set_original_node(&**transformed, Some(property.node_wrapper()));
+                    set_original_node(transformed, Some(property), self);
                     add_emit_flags(transformed, EmitFlags::AdviseOnEmitNode, self);
                     self.class_lexical_environment_map_mut().insert(
                         get_original_node_id(transformed),

@@ -52,7 +52,7 @@ impl TransformES2015 {
             )
             .set_text_range(Some(method));
         if starts_on_new_line == Some(true) {
-            start_on_new_line(&*expression);
+            start_on_new_line(expression, self);
         }
         Ok(expression)
     }
@@ -622,7 +622,7 @@ impl TransformES2015 {
                     initializer
                 };
             }
-            return Ok(set_original_node(resulting_call, Some(node.node_wrapper())));
+            return Ok(set_original_node(resulting_call, Some(node), self));
         }
 
         try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)

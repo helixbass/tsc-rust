@@ -139,7 +139,7 @@ impl TransformGenerators {
         );
         if let Some(visited) = visited {
             if multi_line == Some(true) {
-                start_on_new_line(&*visited);
+                start_on_new_line(visited, self);
             }
             expressions.push(visited);
         }

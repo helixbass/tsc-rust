@@ -94,7 +94,7 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    .set_text_range(Some(node))
+                    .set_text_range(Some(node), self)
                     .set_original_node(Some(node.node_wrapper())),
             )
         } else if node_as_parameter_declaration.maybe_initializer().is_some() {
@@ -109,7 +109,7 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    .set_text_range(Some(node))
+                    .set_text_range(Some(node), self)
                     .set_original_node(Some(node.node_wrapper())),
             )
         } else {
@@ -260,7 +260,7 @@ impl TransformES2015 {
                                 .create_assignment(
                                     self.factory
                                         .clone_node(name)
-                                        .set_text_range(Some(name))
+                                        .set_text_range(Some(name), self)
                                         .and_set_parent(name.maybe_parent())
                                         .set_emit_flags(EmitFlags::NoSourceMap),
                                     initializer.clone().set_emit_flags(
@@ -269,12 +269,12 @@ impl TransformES2015 {
                                             | EmitFlags::NoComments,
                                     ),
                                 )
-                                .set_text_range(Some(parameter))
+                                .set_text_range(Some(parameter), self)
                                 .set_emit_flags(EmitFlags::NoComments),
                         )],
                         None,
                     )
-                    .set_text_range(Some(parameter))
+                    .set_text_range(Some(parameter), self)
                     .set_emit_flags(
                         EmitFlags::SingleLine
                             | EmitFlags::NoTrailingSourceMap
@@ -284,7 +284,7 @@ impl TransformES2015 {
                 None,
             )
             .start_on_new_line()
-            .set_text_range(Some(parameter))
+            .set_text_range(Some(parameter), self)
             .set_emit_flags(
                 EmitFlags::NoTokenSourceMaps
                     | EmitFlags::NoTrailingSourceMap
@@ -298,7 +298,7 @@ impl TransformES2015 {
 
     pub(super) fn should_add_rest_parameter(
         &self,
-        node: Option<impl Borrow<Node /*ParameterDeclaration*/>>,
+        node: Option<Id<Node /*ParameterDeclaration*/>>,
         in_constructor_with_synthesized_super: bool,
     ) -> bool {
         node.matches(|node| {
@@ -328,7 +328,7 @@ impl TransformES2015 {
         let declaration_name = if parameter_name.kind() == SyntaxKind::Identifier {
             self.factory
                 .clone_node(&parameter_name)
-                .set_text_range(Some(&*parameter_name))
+                .set_text_range(Some(&*parameter_name), self)
                 .and_set_parent(parameter_name.maybe_parent())
         } else {
             self.factory
@@ -361,7 +361,7 @@ impl TransformES2015 {
                         None,
                     ),
                 )
-                .set_text_range(Some(&*parameter))
+                .set_text_range(Some(&*parameter), self)
                 .set_emit_flags(EmitFlags::CustomPrologue),
         );
 
@@ -382,7 +382,7 @@ impl TransformES2015 {
                                 )],
                                 None,
                             )
-                            .set_text_range(Some(&*parameter)),
+                            .set_text_range(Some(&*parameter), self),
                     ),
                     Some(
                         self.factory
@@ -393,12 +393,12 @@ impl TransformES2015 {
                                     "length",
                                 ),
                             )
-                            .set_text_range(Some(&*parameter)),
+                            .set_text_range(Some(&*parameter), self),
                     ),
                     Some(
                         self.factory
                             .create_postfix_increment(temp.clone())
-                            .set_text_range(Some(&*parameter)),
+                            .set_text_range(Some(&*parameter), self),
                     ),
                     self.factory.create_block(
                         vec![self
@@ -423,7 +423,7 @@ impl TransformES2015 {
                                     temp.clone(),
                                 ),
                             ))
-                            .set_text_range(Some(&*parameter))
+                            .set_text_range(Some(&*parameter), self)
                             .start_on_new_line()],
                         None,
                     ),
@@ -451,7 +451,7 @@ impl TransformES2015 {
                             None,
                         ),
                     )
-                    .set_text_range(Some(&*parameter))
+                    .set_text_range(Some(&*parameter), self)
                     .set_emit_flags(EmitFlags::CustomPrologue),
             );
         }

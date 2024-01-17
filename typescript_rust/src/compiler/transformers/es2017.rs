@@ -623,7 +623,8 @@ impl TransformES2017 {
                 ),
                 Some(node),
             ),
-            Some(node.node_wrapper()),
+            Some(node),
+            self,
         ))
     }
 

@@ -214,7 +214,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
                             )?,
                             value.node_wrapper(),
                         )
-                        .set_text_range(Some(location)))
+                        .set_text_range(Some(location), self))
                 },
                 |create_assignment_callback| {
                     (create_assignment_callback.borrow_mut())(
@@ -465,7 +465,7 @@ pub fn flatten_destructuring_binding(
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: Gc<Box<dyn TransformationContext>>,
     level: FlattenLevel,
-    rval: Option<impl Borrow<Node /*Expression*/>>,
+    rval: Option<Id<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
     skip_initializer: Option<bool>,
 ) -> Vec<Id<Node /*VariableDeclaration*/>> {
@@ -496,7 +496,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor,
     context: Gc<Box<dyn TransformationContext>>,
     level: FlattenLevel,
-    rval: Option<impl Borrow<Node /*Expression*/>>,
+    rval: Option<Id<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
     skip_initializer: Option<bool>,
 ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
@@ -771,7 +771,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
 fn flatten_binding_or_assignment_element(
     flatten_context: &impl FlattenContext,
     element: Id<Node>, /*BindingOrAssignmentElement*/
-    value: Option<impl Borrow<Node /*Expression*/>>,
+    value: Option<Id<Node /*Expression*/>>,
     location: &impl ReadonlyTextRange,
     skip_initializer: Option<bool>,
     arena: &impl HasArena,
@@ -987,7 +987,7 @@ fn flatten_array_binding_or_assignment_pattern(
                         .is_some()))
                     .then_some(num_elements),
                 )
-                .set_text_range(Some(location)),
+                .set_text_range(Some(location), self),
             false,
             location,
         )?;
@@ -1201,7 +1201,7 @@ fn ensure_identifier(
                     .context()
                     .factory()
                     .create_assignment(temp.clone(), value.node_wrapper())
-                    .set_text_range(Some(location)),
+                    .set_text_range(Some(location), self),
             );
         } else {
             flatten_context.emit_binding_or_assignment(

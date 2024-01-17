@@ -293,7 +293,7 @@ impl TransformES2015 {
         );
 
         if node_as_object_literal_expression.multi_line == Some(true) {
-            start_on_new_line(&*assignment);
+            start_on_new_line(assignment, self);
         }
 
         expressions.push(assignment);
@@ -421,7 +421,7 @@ impl TransformES2015 {
     pub(super) fn convert_iteration_statement_body_if_necessary(
         &self,
         node: Id<Node>, /*IterationStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
         ancestor_facts: Option<HierarchyFacts>,
         convert: Option<
             impl FnMut(
@@ -449,7 +449,7 @@ impl TransformES2015 {
     pub(super) fn try_convert_iteration_statement_body_if_necessary(
         &self,
         node: Id<Node>, /*IterationStatement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
         ancestor_facts: Option<HierarchyFacts>,
         convert: Option<
             impl FnMut(

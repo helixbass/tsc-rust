@@ -67,7 +67,7 @@ impl WrapCustomTransformerFactoryHandleDefault for ChainBundle {
     }
 }
 
-fn contains_default_reference(node: Option<impl Borrow<Node /*NamedImportBindings*/>>) -> bool {
+fn contains_default_reference(node: Option<Id<Node /*NamedImportBindings*/>>) -> bool {
     let node = return_default_if_none!(node);
     let node = node.borrow();
     if !is_named_imports(node) {

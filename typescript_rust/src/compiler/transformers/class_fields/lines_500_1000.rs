@@ -68,7 +68,7 @@ impl TransformClassFields {
                                 ))
                                 .set_text_range(Some(
                                     &*node_as_element_access_expression.expression,
-                                ))
+                                ), self)
                                 .into(),
                         );
                     }
@@ -138,12 +138,12 @@ impl TransformClassFields {
                             SyntaxKind::EqualsToken,
                         )
                         .set_original_node(Some(node.node_wrapper()))
-                        .set_text_range(Some(node));
+                        .set_text_range(Some(node), self);
                     if let Some(temp) = temp {
                         expression = self
                             .factory
                             .create_comma(expression, temp)
-                            .set_text_range(Some(node));
+                            .set_text_range(Some(node), self);
                     }
                     return Some(expression.into());
                 }
@@ -233,7 +233,7 @@ impl TransformClassFields {
                                         getter_name,
                                         Some(class_constructor.clone()),
                                     )
-                                    .set_text_range(Some(&*node_operand));
+                                    .set_text_range(Some(&*node_operand), self);
 
                                 let temp = (!value_is_discarded).then(|| {
                                     self.factory.create_temp_variable(
@@ -262,12 +262,12 @@ impl TransformClassFields {
                                         Some(class_constructor.clone()),
                                     )
                                     .set_original_node(Some(node.node_wrapper()))
-                                    .set_text_range(Some(node));
+                                    .set_text_range(Some(node), self);
                                 if let Some(temp) = temp {
                                     expression = self
                                         .factory
                                         .create_comma(expression, temp)
-                                        .set_text_range(Some(node));
+                                        .set_text_range(Some(node), self);
                                 }
                                 return Some(expression.into());
                             }
@@ -485,7 +485,7 @@ impl TransformClassFields {
                             ),
                         )
                         .set_original_node(Some(node.node_wrapper()))
-                        .set_text_range(Some(node))
+                        .set_text_range(Some(node), self)
                         .into(),
                 );
             }
@@ -574,7 +574,7 @@ impl TransformClassFields {
                         vec![],
                     )
                     .set_original_node(Some(node.node_wrapper()))
-                    .set_text_range(Some(node));
+                    .set_text_range(Some(node), self);
                 return Some(
                     self.factory
                         .update_tagged_template_expression(
@@ -640,7 +640,7 @@ impl TransformClassFields {
                 self.factory
                     .create_immediately_invoked_arrow_function(statements, None, None)
                     .set_original_node(Some(node.node_wrapper()))
-                    .set_text_range(Some(node))
+                    .set_text_range(Some(node), self)
                     .add_emit_flags(EmitFlags::AdviseOnEmitNode),
             );
         }
@@ -706,7 +706,7 @@ impl TransformClassFields {
                             node_as_binary_expression.operator_token.kind(),
                         )
                         .set_original_node(Some(node.node_wrapper()))
-                        .set_text_range(Some(node))
+                        .set_text_range(Some(node), self)
                         .into(),
                     );
                 }
@@ -808,7 +808,7 @@ impl TransformClassFields {
                                         .set_original_node(Some(
                                             node_as_binary_expression.left.clone(),
                                         ))
-                                        .set_text_range(Some(&*node_as_binary_expression.left));
+                                        .set_text_range(Some(&*node_as_binary_expression.left), self);
 
                                     expression = self
                                         .factory
@@ -819,7 +819,7 @@ impl TransformClassFields {
                                             ),
                                             expression,
                                         )
-                                        .set_text_range(Some(node));
+                                        .set_text_range(Some(node), self);
                                 }
 
                                 let temp = (!value_is_discarded).then(|| {
@@ -845,13 +845,13 @@ impl TransformClassFields {
                                         Some(class_constructor.clone()),
                                     )
                                     .set_original_node(Some(node.node_wrapper()))
-                                    .set_text_range(Some(node));
+                                    .set_text_range(Some(node), self);
 
                                 if let Some(temp) = temp {
                                     expression = self
                                         .factory
                                         .create_comma(expression, temp)
-                                        .set_text_range(Some(node));
+                                        .set_text_range(Some(node), self);
                                 }
 
                                 return Some(expression.into());

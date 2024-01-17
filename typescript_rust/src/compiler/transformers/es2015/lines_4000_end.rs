@@ -320,7 +320,7 @@ impl TransformES2015 {
 
     pub(super) fn has_synthesized_default_super_call(
         &self,
-        constructor: Option<impl Borrow<Node /*ConstructorDeclaration*/>>,
+        constructor: Option<Id<Node /*ConstructorDeclaration*/>>,
         has_extends_clause: bool,
     ) -> bool {
         let constructor = return_default_if_none!(constructor);
