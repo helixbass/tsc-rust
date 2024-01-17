@@ -38,11 +38,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 self.create_modifiers_from_modifier_flags(modifiers)
             }
         };
-        if is_parameter(node) {
+        if is_parameter(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
             let node_as_parameter_declaration = node.as_parameter_declaration();
             self.update_parameter_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_parameter_declaration.dot_dot_dot_token.clone(),
                 node_as_parameter_declaration.maybe_name(),
@@ -50,8 +51,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node_as_parameter_declaration.maybe_type(),
                 node_as_parameter_declaration.maybe_initializer(),
             )
-        } else if is_property_signature(node) {
-            let node_as_property_signature = node.as_property_signature();
+        } else if is_property_signature(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_property_signature = node_ref.as_property_signature();
             self.update_property_signature(
                 node,
                 Some(modifiers),
@@ -59,11 +61,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node_as_property_signature.maybe_question_token(),
                 node_as_property_signature.maybe_type(),
             )
-        } else if is_property_declaration(node) {
-            let node_as_property_declaration = node.as_property_declaration();
+        } else if is_property_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_property_declaration = node_ref.as_property_declaration();
             self.update_property_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_property_declaration.name(),
                 node_as_property_declaration
@@ -72,8 +75,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node_as_property_declaration.maybe_type(),
                 node_as_property_declaration.maybe_initializer(),
             )
-        } else if is_method_signature(node) {
-            let node_as_method_signature = node.as_method_signature();
+        } else if is_method_signature(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_method_signature = node_ref.as_method_signature();
             self.update_method_signature(
                 node,
                 Some(modifiers),
@@ -83,11 +87,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node_as_method_signature.parameters(),
                 node_as_method_signature.maybe_type(),
             )
-        } else if is_method_declaration(node) {
-            let node_as_method_declaration = node.as_method_declaration();
+        } else if is_method_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_method_declaration = node_ref.as_method_declaration();
             self.update_method_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_method_declaration.maybe_asterisk_token(),
                 node_as_method_declaration.name(),
@@ -97,47 +102,52 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node_as_method_declaration.maybe_type(),
                 node_as_method_declaration.maybe_body(),
             )
-        } else if is_constructor_declaration(node) {
-            let node_as_constructor_declaration = node.as_constructor_declaration();
+        } else if is_constructor_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_constructor_declaration = node_ref.as_constructor_declaration();
             self.update_constructor_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_constructor_declaration.parameters(),
                 node_as_constructor_declaration.maybe_body(),
             )
-        } else if is_get_accessor_declaration(node) {
-            let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
+        } else if is_get_accessor_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_get_accessor_declaration = node_ref.as_get_accessor_declaration();
             self.update_get_accessor_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_get_accessor_declaration.name(),
                 node_as_get_accessor_declaration.parameters(),
                 node_as_get_accessor_declaration.maybe_type(),
                 node_as_get_accessor_declaration.maybe_body(),
             )
-        } else if is_set_accessor_declaration(node) {
-            let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
+        } else if is_set_accessor_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_set_accessor_declaration = node_ref.as_set_accessor_declaration();
             self.update_set_accessor_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_set_accessor_declaration.name(),
                 node_as_set_accessor_declaration.parameters(),
                 node_as_set_accessor_declaration.maybe_body(),
             )
-        } else if is_index_signature_declaration(node) {
-            let node_as_index_signature_declaration = node.as_index_signature_declaration();
+        } else if is_index_signature_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_index_signature_declaration = node_ref.as_index_signature_declaration();
             self.update_index_signature(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_index_signature_declaration.parameters(),
                 node_as_index_signature_declaration.maybe_type().unwrap(),
             )
-        } else if is_function_expression(node) {
-            let node_as_function_expression = node.as_function_expression();
+        } else if is_function_expression(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_function_expression = node_ref.as_function_expression();
             self.update_function_expression(
                 node,
                 Some(modifiers),
@@ -148,8 +158,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node_as_function_expression.maybe_type(),
                 node_as_function_expression.maybe_body().unwrap(),
             )
-        } else if is_arrow_function(node) {
-            let node_as_arrow_function = node.as_arrow_function();
+        } else if is_arrow_function(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_arrow_function = node_ref.as_arrow_function();
             self.update_arrow_function(
                 node,
                 Some(modifiers),
@@ -159,29 +170,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node_as_arrow_function.equals_greater_than_token.clone(),
                 node_as_arrow_function.maybe_body().unwrap(),
             )
-        } else if is_class_expression(node) {
-            let node_as_class_expression = node.as_class_expression();
+        } else if is_class_expression(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_class_expression = node_ref.as_class_expression();
             self.update_class_expression(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_class_expression.maybe_name(),
                 node_as_class_expression.maybe_type_parameters(),
                 node_as_class_expression.maybe_heritage_clauses(),
                 node_as_class_expression.members(),
             )
-        } else if is_variable_statement(node) {
-            let node_as_variable_statement = node.as_variable_statement();
+        } else if is_variable_statement(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_variable_statement = node_ref.as_variable_statement();
             self.update_variable_statement(
                 node,
                 Some(modifiers),
                 node_as_variable_statement.declaration_list.clone(),
             )
-        } else if is_function_declaration(node) {
-            let node_as_function_declaration = node.as_function_declaration();
+        } else if is_function_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_function_declaration = node_ref.as_function_declaration();
             self.update_function_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_function_declaration.maybe_asterisk_token(),
                 node_as_function_declaration.maybe_name(),
@@ -190,89 +204,98 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node_as_function_declaration.maybe_type(),
                 node_as_function_declaration.maybe_body(),
             )
-        } else if is_class_declaration(node) {
-            let node_as_class_declaration = node.as_class_declaration();
+        } else if is_class_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_class_declaration = node_ref.as_class_declaration();
             self.update_class_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_class_declaration.maybe_name(),
                 node_as_class_declaration.maybe_type_parameters(),
                 node_as_class_declaration.maybe_heritage_clauses(),
                 node_as_class_declaration.members(),
             )
-        } else if is_interface_declaration(node) {
-            let node_as_interface_declaration = node.as_interface_declaration();
+        } else if is_interface_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_interface_declaration = node_ref.as_interface_declaration();
             self.update_interface_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_interface_declaration.name(),
                 node_as_interface_declaration.maybe_type_parameters(),
                 node_as_interface_declaration.maybe_heritage_clauses(),
                 node_as_interface_declaration.members(),
             )
-        } else if is_type_alias_declaration(node) {
-            let node_as_type_alias_declaration = node.as_type_alias_declaration();
+        } else if is_type_alias_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_type_alias_declaration = node_ref.as_type_alias_declaration();
             self.update_type_alias_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_type_alias_declaration.name(),
                 node_as_type_alias_declaration.maybe_type_parameters(),
                 node_as_type_alias_declaration.maybe_type().unwrap(),
             )
-        } else if is_enum_declaration(node) {
-            let node_as_enum_declaration = node.as_enum_declaration();
+        } else if is_enum_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_enum_declaration = node_ref.as_enum_declaration();
             self.update_enum_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_enum_declaration.name(),
                 Some(node_as_enum_declaration.members.clone()),
             )
-        } else if is_module_declaration(node) {
-            let node_as_module_declaration = node.as_module_declaration();
+        } else if is_module_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_module_declaration = node_ref.as_module_declaration();
             self.update_module_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_module_declaration.name(),
                 node_as_module_declaration.body.clone(),
             )
-        } else if is_import_equals_declaration(node) {
-            let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        } else if is_import_equals_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
             self.update_import_equals_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_import_equals_declaration.is_type_only,
                 node_as_import_equals_declaration.name(),
                 node_as_import_equals_declaration.module_reference.clone(),
             )
-        } else if is_import_declaration(node) {
-            let node_as_import_declaration = node.as_import_declaration();
+        } else if is_import_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_import_declaration = node_ref.as_import_declaration();
             self.update_import_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_import_declaration.import_clause.clone(),
                 node_as_import_declaration.module_specifier.clone(),
                 node_as_import_declaration.assert_clause.clone(),
             )
-        } else if is_export_assignment(node) {
-            let node_as_export_assignment = node.as_export_assignment();
+        } else if is_export_assignment(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_export_assignment = node_ref.as_export_assignment();
             self.update_export_assignment(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_export_assignment.expression.clone(),
             )
-        } else if is_export_declaration(node) {
-            let node_as_export_declaration = node.as_export_declaration();
+        } else if is_export_declaration(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_export_declaration = node_ref.as_export_declaration();
             self.update_export_declaration(
                 node,
-                node.maybe_decorators(),
+                node.ref_(self).maybe_decorators(),
                 Some(modifiers),
                 node_as_export_declaration.is_type_only,
                 node_as_export_declaration.export_clause.clone(),
@@ -376,9 +399,9 @@ impl From<Id<Node>> for SyntaxKindOrRcNode {
     }
 }
 
-pub(super) fn update_without_original(updated: Id<Node>, original: Id<Node>) -> Id<Node> {
-    if !ptr::eq(&*updated, original) {
-        set_text_range(&*updated, Some(original));
+pub(super) fn update_without_original(updated: Id<Node>, original: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+    if updated != original {
+        set_text_range(&*updated.ref_(arena), Some(&*original.ref_(arena)));
     }
     updated
 }
@@ -386,7 +409,7 @@ pub(super) fn update_without_original(updated: Id<Node>, original: Id<Node>) -> 
 pub(super) fn update_with_original(updated: Id<Node>, original: Id<Node>, arena: &impl HasArena) -> Id<Node> {
     if updated != original {
         set_original_node(updated, Some(original), arena);
-        set_text_range(&*updated.ref_(arena), Some(&*original.ref_(self)));
+        set_text_range(&*updated.ref_(arena), Some(&*original.ref_(arena)));
     }
     updated
 }
@@ -497,27 +520,25 @@ pub(super) fn get_cooked_text(
     })
 }
 
-pub(super) fn propagate_identifier_name_flags(node: Id<Node>, /*Identifier*/) -> TransformFlags {
-    propagate_child_flags(Some(node)) & !TransformFlags::ContainsPossibleTopLevelAwait
+pub(super) fn propagate_identifier_name_flags(node: Id<Node>, /*Identifier*/, arena: &impl HasArena) -> TransformFlags {
+    propagate_child_flags(Some(node), arena) & !TransformFlags::ContainsPossibleTopLevelAwait
 }
 
 pub(super) fn propagate_property_name_flags_of_child(
-    node: Id<Node>, /*PropertyName*/
+    node: &Node, /*PropertyName*/
     transform_flags: TransformFlags,
 ) -> TransformFlags {
     transform_flags | (node.transform_flags() & TransformFlags::PropertyNamePropagatingFlags)
 }
 
-pub(super) fn propagate_child_flags(child: Option<Id<Node>>) -> TransformFlags {
-    if child.is_none() {
+pub(super) fn propagate_child_flags(child: Option<Id<Node>>, arena: &impl HasArena) -> TransformFlags {
+    let Some(child) = child else {
         return TransformFlags::None;
-    }
-    let child = child.unwrap();
-    let child = child.borrow();
+    };
     let child_flags =
-        child.transform_flags() & !get_transform_flags_subtree_exclusions(child.kind());
-    if is_named_declaration(child) && is_property_name(&*child.as_named_declaration().name()) {
-        propagate_property_name_flags_of_child(&child.as_named_declaration().name(), child_flags)
+        child.ref_(arena).transform_flags() & !get_transform_flags_subtree_exclusions(child.ref_(arena).kind());
+    if is_named_declaration(&child.ref_(arena)) && is_property_name(&child.ref_(arena).as_named_declaration().name().ref_(arena)) {
+        propagate_property_name_flags_of_child(&child.ref_(arena).as_named_declaration().name().ref_(arena), child_flags)
     } else {
         child_flags
     }
@@ -529,10 +550,10 @@ pub(super) fn propagate_children_flags(children: Option<&NodeArray>) -> Transfor
     })
 }
 
-pub(super) fn aggregate_children_flags(children: &NodeArray) {
+pub(super) fn aggregate_children_flags(children: &NodeArray, arena: &impl HasArena) {
     let mut subtree_flags = TransformFlags::None;
-    for child in children.iter() {
-        subtree_flags |= propagate_child_flags(Some(&**child));
+    for &child in children.iter() {
+        subtree_flags |= propagate_child_flags(Some(child), arena);
     }
     children.set_transform_flags(Some(subtree_flags));
 }
@@ -761,7 +782,7 @@ pub fn create_input_files(
             );
         }
     }
-    node.wrap()
+    parse_node_factory.with(|parse_node_factory_| parse_node_factory_.alloc_node(node.into()))
 }
 
 pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {

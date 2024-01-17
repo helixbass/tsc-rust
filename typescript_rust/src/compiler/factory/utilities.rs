@@ -26,7 +26,7 @@ use crate::{
     is_assignment_operator, is_default_import, is_export_namespace_as_default_declaration,
     is_file_level_unique_name, is_generated_identifier, is_property_assignment, is_property_name,
     is_shorthand_property_assignment, is_spread_assignment, map, out_file, push_if_unique_eq,
-    HasArena, ModuleKind,
+    HasArena, ModuleKind, InArena,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -50,15 +50,15 @@ pub fn create_member_access_for_property_name<
     member_name: Id<Node>, /*PropertyName*/
     location: Option<&impl ReadonlyTextRange>,
 ) -> Id<Node /*MemberExpression*/> {
-    if is_computed_property_name(&member_name.ref_(self)) {
+    if is_computed_property_name(&member_name.ref_(factory)) {
         factory
             .create_element_access_expression(
                 target,
-                member_name.ref_(self).as_computed_property_name().expression,
+                member_name.ref_(factory).as_computed_property_name().expression,
             )
             .set_text_range(location, factory)
     } else {
-        let expression = if is_member_name(&member_name.ref_(self)) {
+        let expression = if is_member_name(&member_name.ref_(factory)) {
             factory.create_property_access_expression(
                 target,
                 member_name,
@@ -67,7 +67,7 @@ pub fn create_member_access_for_property_name<
             factory
                 .create_element_access_expression(target, member_name)
         }
-        .set_text_range(Some(&*member_name.ref_(self)), factory);
+        .set_text_range(Some(&*member_name.ref_(factory)), factory);
         let emit_node = get_or_create_emit_node(expression, factory);
         let mut emit_node = emit_node.borrow_mut();
         emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoNestedSourceMaps);
@@ -79,13 +79,14 @@ fn create_react_namespace(
     react_namespace: Option<&str>,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node> {
-    get_parse_node_factory()
+    let factory = get_parse_node_factory();
+    factory
         .create_identifier(react_namespace.non_empty().unwrap_or("React"))
         .and_set_parent(get_parse_tree_node(
             Some(parent),
             Option::<fn(Id<Node>) -> bool>::None,
-            self,
-        ))
+            &*factory,
+        ), &*factory)
 }
 
 fn create_jsx_factory_expression_from_entity_name<
@@ -334,33 +335,33 @@ fn create_expression_for_accessor_declaration<
     property: Id<Node>, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
     receiver: Id<Node>, /*Expression*/
     multi_line: bool,
-    arena: &impl HasArena,
 ) -> Option<Id<Node>> {
     let AllAccessorDeclarations {
         first_accessor,
         get_accessor,
         set_accessor,
         ..
-    } = get_all_accessor_declarations(properties, property, arena);
-    if ptr::eq(property, &*first_accessor) {
+    } = get_all_accessor_declarations(properties, property, factory);
+    if property == first_accessor {
         return Some(
             factory
                 .create_object_define_property_call(
-                    receiver.node_wrapper(),
+                    receiver,
                     create_expression_for_property_name(
                         factory,
-                        &property.as_named_declaration().name(),
+                        property.ref_(factory).as_named_declaration().name(),
                     ),
                     factory.create_property_descriptor(
                         PropertyDescriptorAttributesBuilder::default()
                             .enumerable(factory.create_false())
                             .configurable(true)
                             .get(get_accessor.map(|get_accessor| {
+                                let get_accessor_ref = get_accessor.ref_(factory);
                                 let get_accessor_as_get_accessor_declaration =
-                                    get_accessor.as_get_accessor_declaration();
+                                    get_accessor_ref.as_get_accessor_declaration();
                                 factory
                                     .create_function_expression(
-                                        get_accessor.maybe_modifiers(),
+                                        get_accessor_ref.maybe_modifiers(),
                                         None,
                                         Option::<Id<Node>>::None,
                                         Option::<Gc<NodeArray>>::None,
@@ -370,15 +371,16 @@ fn create_expression_for_accessor_declaration<
                                             .maybe_body()
                                             .unwrap(),
                                     )
-                                    .set_original_node(Some(get_accessor.clone()))
-                                    .set_text_range(Some(&*get_accessor), factory)
+                                    .set_original_node(Some(get_accessor), factory)
+                                    .set_text_range(Some(&*get_accessor.ref_(factory)), factory)
                             }))
                             .set(set_accessor.map(|set_accessor| {
+                                let set_accessor_ref = set_accessor.ref_(factory);
                                 let set_accessor_as_set_accessor_declaration =
-                                    set_accessor.as_set_accessor_declaration();
+                                    set_accessor_ref.as_set_accessor_declaration();
                                 factory
                                     .create_function_expression(
-                                        set_accessor.maybe_modifiers(),
+                                        set_accessor_ref.maybe_modifiers(),
                                         None,
                                         Option::<Id<Node>>::None,
                                         Option::<Gc<NodeArray>>::None,
@@ -388,15 +390,15 @@ fn create_expression_for_accessor_declaration<
                                             .maybe_body()
                                             .unwrap(),
                                     )
-                                    .set_original_node(Some(set_accessor.clone()))
-                                    .set_text_range(Some(&*set_accessor), factory)
+                                    .set_original_node(Some(set_accessor), factory)
+                                    .set_text_range(Some(&*set_accessor.ref_(factory)), factory)
                             }))
                             .build()
                             .unwrap(),
                         Some(!multi_line),
                     ),
                 )
-                .set_text_range(Some(&*first_accessor), factory),
+                .set_text_range(Some(&*first_accessor.ref_(factory)), factory),
         );
     }
 
@@ -410,7 +412,8 @@ fn create_expression_for_property_assignment<
     property: Id<Node>, /*PropertyAssignment*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
-    let property_as_property_assignment = property.as_property_assignment();
+    let property_ref = property.ref_(factory);
+    let property_as_property_assignment = property_ref.as_property_assignment();
     factory
         .create_assignment(
             create_member_access_for_property_name(
@@ -421,8 +424,8 @@ fn create_expression_for_property_assignment<
             ),
             property_as_property_assignment.initializer.clone(),
         )
-        .set_text_range(Some(property))
-        .set_original_node(Some(property.node_wrapper()))
+        .set_text_range(Some(&*property.ref_(factory)), factory)
+        .set_original_node(Some(property), factory)
 }
 
 fn create_expression_for_shorthand_property_assignment<
@@ -432,7 +435,8 @@ fn create_expression_for_shorthand_property_assignment<
     property: Id<Node>, /*ShorthandPropertyAssignment*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
-    let property_as_shorthand_property_assignment = property.as_shorthand_property_assignment();
+    let property_ref = property.ref_(factory);
+    let property_as_shorthand_property_assignment = property_ref.as_shorthand_property_assignment();
     factory
         .create_assignment(
             create_member_access_for_property_name(
@@ -443,8 +447,8 @@ fn create_expression_for_shorthand_property_assignment<
             ),
             factory.clone_node(&property_as_shorthand_property_assignment.name()),
         )
-        .set_text_range(Some(property), factory)
-        .set_original_node(Some(property.node_wrapper()))
+        .set_text_range(Some(&*property.ref_(factory)), factory)
+        .set_original_node(Some(property), factory)
 }
 
 fn create_expression_for_method_declaration<
@@ -454,7 +458,8 @@ fn create_expression_for_method_declaration<
     method: Id<Node>,   /*MethodDeclaration*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
-    let method_as_method_declaration = method.as_method_declaration();
+    let method_ref = method.ref_(factory);
+    let method_as_method_declaration = method_ref.as_method_declaration();
     factory
         .create_assignment(
             create_member_access_for_property_name(
@@ -465,7 +470,7 @@ fn create_expression_for_method_declaration<
             ),
             factory
                 .create_function_expression(
-                    method.maybe_modifiers(),
+                    method.ref_(factory).maybe_modifiers(),
                     method_as_method_declaration.maybe_asterisk_token(),
                     Option::<Id<Node>>::None,
                     Option::<Gc<NodeArray>>::None,
@@ -473,11 +478,11 @@ fn create_expression_for_method_declaration<
                     None,
                     method_as_method_declaration.maybe_body().unwrap(),
                 )
-                .set_text_range(Some(method), factory)
-                .set_original_node(Some(method.node_wrapper())),
+                .set_text_range(Some(&*method.ref_(factory)), factory)
+                .set_original_node(Some(method), factory),
         )
-        .set_text_range(Some(method), factory)
-        .set_original_node(Some(method.node_wrapper()))
+        .set_text_range(Some(&*method.ref_(factory)), factory)
+        .set_original_node(Some(method), factory)
 }
 
 pub fn create_expression_for_object_literal_element_like<
@@ -486,21 +491,21 @@ pub fn create_expression_for_object_literal_element_like<
     factory: &NodeFactory<TBaseNodeFactory>,
     node: Id<Node>,     /*ObjectLiteralExpression*/
     property: Id<Node>, /*ObjectLiteralElementLike*/
-    receiver: Id<Node>,
-    /*Expression*/ arena: &impl HasArena,
+    receiver: Id<Node>, /*Expression*/
 ) -> Option<Id<Node /*Expression*/>> {
-    let node_as_object_literal_expression = node.as_object_literal_expression();
+    let node_ref = node.ref_(factory);
+    let node_as_object_literal_expression = node_ref.as_object_literal_expression();
     if property
-        .as_named_declaration()
+        .ref_(factory).as_named_declaration()
         .maybe_name()
-        .matches(|ref property_name| is_private_identifier(property_name))
+        .matches(|property_name| is_private_identifier(&property_name.ref_(factory)))
     {
         Debug_.fail_bad_syntax_kind(
-            &property.as_named_declaration().name(),
+            &property.ref_(factory).as_named_declaration().name().ref_(factory),
             Some("Private identifiers are not allowed in object literals."),
         );
     }
-    match property.kind() {
+    match property.ref_(factory).kind() {
         SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
             create_expression_for_accessor_declaration(
                 factory,
@@ -508,7 +513,6 @@ pub fn create_expression_for_object_literal_element_like<
                 property,
                 receiver,
                 node_as_object_literal_expression.multi_line == Some(true),
-                arena,
             )
         }
         SyntaxKind::PropertyAssignment => Some(create_expression_for_property_assignment(
@@ -533,7 +537,8 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     record_temp_variable: impl FnMut(Id<Node> /*Expression*/),
     result_variable: Option<Id<Node /*Identifier*/>>,
 ) -> Id<Node /*Expression*/> {
-    let node_as_unary_expression = node.as_unary_expression();
+    let node_ref = node.ref_(factory);
+    let node_as_unary_expression = node_ref.as_unary_expression();
     let operator = node_as_unary_expression.operator();
     Debug_.assert(
         matches!(
@@ -545,48 +550,49 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
 
     let temp = factory.create_temp_variable(Some(record_temp_variable), None);
     let mut expression = factory
-        .create_assignment(temp.clone(), expression.node_wrapper())
+        .create_assignment(temp, expression)
         .set_text_range(Some(&*node_as_unary_expression.operand()), factory);
 
-    let mut operation/*: Expression*/ = if is_prefix_unary_expression(node) {
+    let mut operation/*: Expression*/ = if is_prefix_unary_expression(&node.ref_(factory)) {
         factory.create_prefix_unary_expression(operator, temp.clone())
     } else {
         factory.create_postfix_unary_expression(temp.clone(), operator)
-    }.set_text_range(Some(node), factory);
+    }.set_text_range(Some(&*node.ref_(factory)), factory);
 
     if let Some(result_variable) = result_variable {
         let result_variable = result_variable.borrow();
         operation = factory
-            .create_assignment(result_variable.node_wrapper(), operation)
-            .set_text_range(Some(node), factory);
+            .create_assignment(result_variable, operation)
+            .set_text_range(Some(&*node.ref_(factory)), factory);
     }
 
     expression = factory.create_comma(expression, operation);
 
-    if is_postfix_unary_expression(node) {
+    if is_postfix_unary_expression(&node.ref_(factory)) {
         expression = factory
             .create_comma(expression, temp)
-            .set_text_range(Some(node), factory);
+            .set_text_range(Some(&*node.ref_(factory)), factory);
     }
 
     expression
 }
 
-pub fn is_internal_name(node: Id<Node> /*Identifier*/) -> bool {
+pub fn is_internal_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::InternalName)
 }
 
-pub fn is_local_name(node: Id<Node> /*Identifier*/) -> bool {
+pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)
 }
 
-pub fn is_export_name(node: Id<Node> /*Identifier*/) -> bool {
+pub fn is_export_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::ExportName)
 }
 
-fn is_use_strict_prologue(node: Id<Node> /*ExpressionStatement*/) -> bool {
-    let node_as_expression_statement = node.as_expression_statement();
-    is_string_literal(&node_as_expression_statement.expression)
+fn is_use_strict_prologue(node: Id<Node> /*ExpressionStatement*/, arena: &impl HasArena) -> bool {
+    let node_ref = node.ref_(arena);
+    let node_as_expression_statement = node_ref.as_expression_statement();
+    is_string_literal(&node_as_expression_statement.expression.ref_(arena))
         && &*node_as_expression_statement
             .expression
             .as_string_literal()
@@ -598,10 +604,10 @@ pub fn find_use_strict_prologue(
     statements: &[Id<Node /*Statement*/>],
     arena: &impl HasArena,
 ) -> Option<Id<Node /*Statement*/>> {
-    for statement in statements {
+    for &statement in statements {
         if is_prologue_directive(statement, arena) {
-            if is_use_strict_prologue(statement) {
-                return Some(statement.clone());
+            if is_use_strict_prologue(statement, arena) {
+                return Some(statement);
             }
         } else {
             break;
@@ -611,18 +617,16 @@ pub fn find_use_strict_prologue(
 }
 
 pub fn starts_with_use_strict(statements: &[Id<Node>], arena: &impl HasArena) -> bool {
-    let first_statement = first_or_undefined(statements);
-    if first_statement.is_none() {
+    let Some(&first_statement) = first_or_undefined(statements) else {
         return false;
-    }
-    let first_statement = first_statement.unwrap();
-    is_prologue_directive(first_statement, arena) && is_use_strict_prologue(first_statement)
+    };
+    is_prologue_directive(first_statement, arena) && is_use_strict_prologue(first_statement, arena)
 }
 
-pub fn is_comma_sequence(node: Id<Node> /*Expression*/) -> bool {
-    node.kind() == SyntaxKind::BinaryExpression
-        && node.as_binary_expression().operator_token.kind() == SyntaxKind::CommaToken
-        || node.kind() == SyntaxKind::CommaListExpression
+pub fn is_comma_sequence(node: Id<Node> /*Expression*/, arena: &impl HasArena) -> bool {
+    node.ref_(arena).kind() == SyntaxKind::BinaryExpression
+        && node.ref_(arena).as_binary_expression().operator_token.ref_(arena).kind() == SyntaxKind::CommaToken
+        || node.ref_(arena).kind() == SyntaxKind::CommaListExpression
 }
 
 pub fn is_jsdoc_type_assertion(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -631,15 +635,15 @@ pub fn is_jsdoc_type_assertion(node: Id<Node>, arena: &impl HasArena) -> bool {
         && get_jsdoc_type_tag(node, arena).is_some()
 }
 
-pub fn get_jsdoc_type_assertion_type(node: Id<Node> /*JSDocTypeAssertion*/) -> Id<Node> {
-    let type_ = get_jsdoc_type(node);
+pub fn get_jsdoc_type_assertion_type(node: Id<Node> /*JSDocTypeAssertion*/, arena: &impl HasArena) -> Id<Node> {
+    let type_ = get_jsdoc_type(node, arena);
     Debug_.assert_is_defined(&type_, None);
     type_.unwrap()
 }
 
 pub fn is_outer_expression(node: Id<Node>, kinds: Option<OuterExpressionKinds>, arena: &impl HasArena) -> bool {
     let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::ParenthesizedExpression => {
             if kinds.intersects(OuterExpressionKinds::ExcludeJSDocTypeAssertion)
                 && is_jsdoc_type_assertion(node, arena)
@@ -672,22 +676,24 @@ pub fn start_on_new_line(node: Id<Node>, arena: &impl HasArena) -> Id<Node> {
     node
 }
 
-pub fn get_external_helpers_module_name(node: Id<Node> /*SourceFile*/) -> Option<Id<Node>> {
+pub fn get_external_helpers_module_name(node: Id<Node> /*SourceFile*/, arena: &impl HasArena) -> Option<Id<Node>> {
     let parse_node = maybe_get_original_node_full(
         Some(node),
-        Some(|node: Option<Id<Node>>| is_source_file(node.as_ref().unwrap())),
+        Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap().ref_(arena))),
+        arena,
     )?;
-    let emit_node = parse_node.maybe_emit_node()?;
+    let emit_node = parse_node.ref_(arena).maybe_emit_node()?;
     let ret = (*emit_node).borrow().external_helpers_module_name.clone();
     ret
 }
 
-pub fn has_recorded_external_helpers(source_file: Id<Node> /*SourceFile*/) -> bool {
+pub fn has_recorded_external_helpers(source_file: Id<Node> /*SourceFile*/, arena: &impl HasArena) -> bool {
     let parse_node = maybe_get_original_node_full(
         Some(source_file),
-        Some(|node: Option<Id<Node>>| is_source_file(node.as_ref().unwrap())),
+        Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap().ref_(arena))),
+        arena,
     );
-    let emit_node = parse_node.and_then(|parse_node| parse_node.maybe_emit_node());
+    let emit_node = parse_node.and_then(|parse_node| parse_node.ref_(arena).maybe_emit_node());
     matches!(
         emit_node,
         Some(emit_node) if {
@@ -709,9 +715,10 @@ pub fn create_external_helpers_import_declaration_if_needed<
     has_import_star: Option<bool>,
     has_import_default: Option<bool>,
 ) -> Option<Id<Node>> {
-    let source_file_as_source_file = source_file.as_source_file();
+    let source_file_ref = source_file.ref_(node_factory);
+    let source_file_as_source_file = source_file_ref.as_source_file();
     if compiler_options.import_helpers == Some(true)
-        && is_effective_external_module(source_file, compiler_options)
+        && is_effective_external_module(&source_file.ref_(node_factory), compiler_options)
     {
         let mut named_bindings: Option<Id<Node /*NamedImportBindings*/>> = _d();
         let module_kind = get_emit_module_kind(compiler_options);
@@ -737,7 +744,7 @@ pub fn create_external_helpers_import_declaration_if_needed<
                         helper_names,
                         |ref name: String, _| {
                             if is_file_level_unique_name(
-                                source_file,
+                                &source_file.ref_(node_factory),
                                 name,
                                 Option::<fn(&str) -> bool>::None,
                             ) {
@@ -757,7 +764,8 @@ pub fn create_external_helpers_import_declaration_if_needed<
                     )));
                     let parse_node = maybe_get_original_node_full(
                         Some(source_file),
-                        Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap())),
+                        Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap().ref_(node_factory))),
+                        node_factory,
                     )
                     .unwrap();
                     let emit_node = get_or_create_emit_node(parse_node, node_factory);
@@ -791,7 +799,7 @@ pub fn create_external_helpers_import_declaration_if_needed<
                         ),
                         None,
                     )
-                    .add_emit_flags(EmitFlags::NeverApplyImportHelper),
+                    .add_emit_flags(EmitFlags::NeverApplyImportHelper, node_factory),
             );
         }
     }
@@ -807,11 +815,12 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
     has_export_stars_to_export_values: Option<bool>,
     has_import_star_or_import_default: Option<bool>,
 ) -> Option<Id<Node>> {
-    let node_as_source_file = node.as_source_file();
+    let node_ref = node.ref_(factory);
+    let node_as_source_file = node_ref.as_source_file();
     if compiler_options.import_helpers == Some(true)
-        && is_effective_external_module(node, compiler_options)
+        && is_effective_external_module(&node.ref_(factory), compiler_options)
     {
-        let external_helpers_module_name = get_external_helpers_module_name(node);
+        let external_helpers_module_name = get_external_helpers_module_name(node, factory);
         if external_helpers_module_name.is_some() {
             return external_helpers_module_name;
         }
@@ -838,10 +847,11 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
         if create {
             let parse_node = maybe_get_original_node_full(
                 Some(node),
-                Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap())),
+                Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap().ref_(factory))),
+                factory,
             )
             .unwrap();
-            let emit_node = get_or_create_emit_node(parse_node, node_factory);
+            let emit_node = get_or_create_emit_node(parse_node, factory);
             return Some(
                 emit_node
                     .borrow_mut()
@@ -862,30 +872,29 @@ pub fn get_local_name_for_external_import<
     factory: &NodeFactory<TBaseNodeFactory>,
     node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
     source_file: Id<Node>, /*SourceFile*/
-    arena: &impl HasArena,
 ) -> Option<Id<Node /*Identifier*/>> {
-    let namespace_declaration = get_namespace_declaration_node(node);
+    let namespace_declaration = get_namespace_declaration_node(node, factory);
     if let Some(namespace_declaration) = namespace_declaration
-        .filter(|_| !is_default_import(node, arena) && !is_export_namespace_as_default_declaration(node))
+        .filter(|_| !is_default_import(node, factory) && !is_export_namespace_as_default_declaration(node, factory))
     {
-        let name = namespace_declaration.as_named_declaration().name();
-        return Some(if is_generated_identifier(&name) {
+        let name = namespace_declaration.ref_(factory).as_named_declaration().name();
+        return Some(if is_generated_identifier(&name.ref_(factory)) {
             name
         } else {
             factory.create_identifier(
-                (&*get_source_text_of_node_from_source_file(source_file, name, None, arena))
+                (&*get_source_text_of_node_from_source_file(source_file, name, None, factory))
                     .non_empty()
                     .unwrap_or_else(|| id_text(&name)),
             )
         });
     }
-    if node.kind() == SyntaxKind::ImportDeclaration
-        && node.as_import_declaration().import_clause.is_some()
+    if node.ref_(factory).kind() == SyntaxKind::ImportDeclaration
+        && node.ref_(factory).as_import_declaration().import_clause.is_some()
     {
         return Some(factory.get_generated_name_for_node(Some(node), None));
     }
-    if node.kind() == SyntaxKind::ExportDeclaration
-        && node.as_export_declaration().module_specifier.is_some()
+    if node.ref_(factory).kind() == SyntaxKind::ExportDeclaration
+        && node.ref_(factory).as_export_declaration().module_specifier.is_some()
     {
         return Some(factory.get_generated_name_for_node(Some(node), None));
     }
@@ -901,10 +910,9 @@ pub fn get_external_module_name_literal<
     host: &dyn EmitHost,
     resolver: &dyn EmitResolver,
     compiler_options: &CompilerOptions,
-    arena: &impl HasArena,
 ) -> io::Result<Option<Id<Node>>> {
-    let module_name = get_external_module_name(import_node, arena);
-    if let Some(module_name) = module_name.filter(|module_name| is_string_literal(module_name)) {
+    let module_name = get_external_module_name(import_node, factory);
+    if let Some(module_name) = module_name.filter(|module_name| is_string_literal(&module_name.ref_(factory))) {
         return Ok(Some(
             try_get_module_name_from_declaration(
                 import_node,
@@ -913,8 +921,8 @@ pub fn get_external_module_name_literal<
                 resolver,
                 compiler_options,
             )?
-            .or_else(|| try_rename_external_module(factory, &module_name, source_file))
-            .unwrap_or_else(|| factory.clone_node(&module_name)),
+            .or_else(|| try_rename_external_module(factory, module_name, source_file))
+            .unwrap_or_else(|| factory.clone_node(module_name)),
         ));
     }
 
@@ -927,12 +935,12 @@ fn try_rename_external_module<TBaseNodeFactory: 'static + BaseNodeFactory + Trac
     source_file: Id<Node>, /*SourceFile*/
 ) -> Option<Id<Node>> {
     let rename = source_file
-        .as_source_file()
+        .ref_(factory).as_source_file()
         .maybe_renamed_dependencies()
         .as_ref()
         .and_then(|source_file_renamed_dependencies| {
             source_file_renamed_dependencies
-                .get(&*module_name.as_literal_like_node().text())
+                .get(&*module_name.ref_(factory).as_literal_like_node().text())
                 .cloned()
         });
     rename
@@ -949,8 +957,8 @@ pub fn try_get_module_name_from_file<
     options: &CompilerOptions,
 ) -> Option<Id<Node /*StringLiteral*/>> {
     let file = file?;
-    let file: Id<Node> = file.borrow();
-    let file_as_source_file = file.as_source_file();
+    let file_ref = file.ref_(factory);
+    let file_as_source_file = file_ref.as_source_file();
     if let Some(file_module_name) = file_as_source_file.maybe_module_name().clone().non_empty() {
         return Some(factory.create_string_literal(file_module_name, None, None));
     }
@@ -983,31 +991,32 @@ fn try_get_module_name_from_declaration<
 
 pub fn get_initializer_of_binding_or_assignment_element(
     binding_element: Id<Node>, /*BindingOrAssignmentElement*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Expression*/>> {
-    if is_declaration_binding_element(binding_element) {
-        return binding_element.as_has_initializer().maybe_initializer();
+    if is_declaration_binding_element(&binding_element.ref_(arena)) {
+        return binding_element.ref_(arena).as_has_initializer().maybe_initializer();
     }
 
-    if is_property_assignment(binding_element) {
-        let initializer = &binding_element.as_property_assignment().initializer;
-        return is_assignment_expression(initializer, Some(true))
-            .then(|| initializer.as_binary_expression().right.clone());
+    if is_property_assignment(&binding_element.ref_(arena)) {
+        let initializer = binding_element.ref_(arena).as_property_assignment().initializer;
+        return is_assignment_expression(initializer, Some(true), arena)
+            .then(|| initializer.ref_(arena).as_binary_expression().right);
     }
 
-    if is_shorthand_property_assignment(binding_element) {
+    if is_shorthand_property_assignment(&binding_element.ref_(arena)) {
         return binding_element
-            .as_shorthand_property_assignment()
-            .object_assignment_initializer
-            .clone();
+            .ref_(arena).as_shorthand_property_assignment()
+            .object_assignment_initializer;
     }
 
-    if is_assignment_expression(binding_element, Some(true)) {
-        return Some(binding_element.as_binary_expression().right.clone());
+    if is_assignment_expression(binding_element, Some(true), arena) {
+        return Some(binding_element.ref_(arena).as_binary_expression().right);
     }
 
-    if is_spread_element(binding_element) {
+    if is_spread_element(&binding_element.ref_(arena)) {
         return get_initializer_of_binding_or_assignment_element(
-            &binding_element.as_spread_element().expression,
+            binding_element.ref_(arena).as_spread_element().expression,
+            arena,
         );
     }
     None
@@ -1015,31 +1024,34 @@ pub fn get_initializer_of_binding_or_assignment_element(
 
 pub fn get_target_of_binding_or_assignment_element(
     binding_element: Id<Node>, /*BindingOrAssignmentElement*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*BindingOrAssignmentElementTarget*/>> {
-    if is_declaration_binding_element(binding_element) {
-        return binding_element.as_named_declaration().maybe_name();
+    if is_declaration_binding_element(&binding_element.ref_(arena)) {
+        return binding_element.ref_(arena).as_named_declaration().maybe_name();
     }
 
-    if is_object_literal_element_like(binding_element) {
-        match binding_element.kind() {
+    if is_object_literal_element_like(&binding_element.ref_(arena)) {
+        match binding_element.ref_(arena).kind() {
             SyntaxKind::PropertyAssignment => {
                 return get_target_of_binding_or_assignment_element(
-                    &binding_element
-                        .as_property_assignment()
+                    binding_element
+                        .ref_(arena).as_property_assignment()
                         .maybe_initializer()
                         .unwrap(),
+                    arena,
                 );
             }
 
             SyntaxKind::ShorthandPropertyAssignment => {
                 return binding_element
-                    .as_shorthand_property_assignment()
+                    .ref_(arena).as_shorthand_property_assignment()
                     .maybe_name();
             }
 
             SyntaxKind::SpreadAssignment => {
                 return get_target_of_binding_or_assignment_element(
-                    &binding_element.as_spread_assignment().expression,
+                    binding_element.ref_(arena).as_spread_assignment().expression,
+                    arena,
                 );
             }
             _ => (),
@@ -1048,23 +1060,25 @@ pub fn get_target_of_binding_or_assignment_element(
         return None;
     }
 
-    if is_assignment_expression(binding_element, Some(true)) {
+    if is_assignment_expression(binding_element, Some(true), arena) {
         return get_target_of_binding_or_assignment_element(
-            &binding_element.as_binary_expression().left,
+            binding_element.ref_(arena).as_binary_expression().left,
+            arena,
         );
     }
 
-    if is_spread_element(binding_element) {
+    if is_spread_element(&binding_element.ref_(arena)) {
         return get_target_of_binding_or_assignment_element(
-            &binding_element.as_spread_element().expression,
+            binding_element.ref_(arena).as_spread_element().expression,
+            arena,
         );
     }
 
-    Some(binding_element.node_wrapper())
+    Some(binding_element)
 }
 
 pub fn get_elements_of_binding_or_assignment_pattern(
-    name: Id<Node>, /*BindingOrAssignmentPattern*/
+    name: &Node, /*BindingOrAssignmentPattern*/
 ) -> impl Iterator<Item = Id<Node /*BindingOrAssignmentElement*/>> {
     match name.kind() {
         SyntaxKind::ObjectBindingPattern
@@ -1078,14 +1092,14 @@ pub fn get_elements_of_binding_or_assignment_pattern(
 }
 
 pub fn get_rest_indicator_of_binding_or_assignment_element(
-    binding_element: Id<Node>, /*BindingOrAssignmentElement*/
+    binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> Option<Id<Node /*BindingOrAssignmentElementRestIndicator*/>> {
     match binding_element.kind() {
         SyntaxKind::Parameter | SyntaxKind::BindingElement => binding_element
             .as_has_dot_dot_dot_token()
             .maybe_dot_dot_dot_token(),
         SyntaxKind::SpreadElement | SyntaxKind::SpreadAssignment => {
-            Some(binding_element.node_wrapper())
+            Some(binding_element.arena_id())
         }
         _ => None,
     }
@@ -1104,65 +1118,67 @@ pub fn get_property_name_of_binding_or_assignment_element(
 
 pub fn try_get_property_name_of_binding_or_assignment_element(
     binding_element: Id<Node>, /*BindingOrAssignmentElement*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
-    match binding_element.kind() {
+    match binding_element.ref_(arena).kind() {
         SyntaxKind::BindingElement => {
             if let Some(binding_element_property_name) =
-                binding_element.as_binding_element().property_name.as_ref()
+                binding_element.ref_(arena).as_binding_element().property_name
             {
                 let property_name = binding_element_property_name;
-                if is_private_identifier(property_name) {
-                    Debug_.fail_bad_syntax_kind(property_name, None);
+                if is_private_identifier(&property_name.ref_(arena)) {
+                    Debug_.fail_bad_syntax_kind(&property_name.ref_(arena), None);
                 }
                 return Some(
-                    if is_computed_property_name(property_name)
+                    if is_computed_property_name(&property_name.ref_(arena))
                         && is_string_or_numeric_literal(
-                            &property_name.as_computed_property_name().expression,
+                            &property_name.ref_(arena).as_computed_property_name().expression.ref_(arena),
                         )
                     {
-                        property_name.as_computed_property_name().expression.clone()
+                        property_name.ref_(arena).as_computed_property_name().expression
                     } else {
-                        property_name.clone()
+                        property_name
                     },
                 );
             }
         }
         SyntaxKind::PropertyAssignment => {
             if let Some(binding_element_name) =
-                binding_element.as_property_assignment().maybe_name()
+                binding_element.ref_(arena).as_property_assignment().maybe_name()
             {
-                let property_name = &binding_element_name;
-                if is_private_identifier(property_name) {
-                    Debug_.fail_bad_syntax_kind(property_name, None);
+                let property_name = binding_element_name;
+                if is_private_identifier(&property_name.ref_(arena)) {
+                    Debug_.fail_bad_syntax_kind(&property_name.ref_(arena), None);
                 }
                 return Some(
-                    if is_computed_property_name(property_name)
+                    if is_computed_property_name(&property_name.ref_(arena))
                         && is_string_or_numeric_literal(
-                            &property_name.as_computed_property_name().expression,
+                            &property_name.ref_(arena).as_computed_property_name().expression.ref_(arena),
                         )
                     {
-                        property_name.as_computed_property_name().expression.clone()
+                        property_name.ref_(arena).as_computed_property_name().expression
                     } else {
-                        property_name.clone()
+                        property_name
                     },
                 );
             }
         }
         SyntaxKind::SpreadAssignment => {
-            let binding_element_as_spread_assignment = binding_element.as_spread_assignment();
-            if let Some(ref binding_element_name) = binding_element_as_spread_assignment
+            let binding_element_ref = binding_element.ref_(arena);
+            let binding_element_as_spread_assignment = binding_element_ref.as_spread_assignment();
+            if let Some(binding_element_name) = binding_element_as_spread_assignment
                 .maybe_name()
-                .filter(|binding_element_name| is_private_identifier(binding_element_name))
+                .filter(|binding_element_name| is_private_identifier(&binding_element_name.ref_(arena)))
             {
-                Debug_.fail_bad_syntax_kind(binding_element_name, None);
+                Debug_.fail_bad_syntax_kind(&binding_element_name.ref_(arena), None);
             }
             return binding_element_as_spread_assignment.maybe_name();
         }
         _ => (),
     }
 
-    let target = get_target_of_binding_or_assignment_element(binding_element);
-    if target.as_ref().matches(|target| is_property_name(target)) {
+    let target = get_target_of_binding_or_assignment_element(binding_element, arena);
+    if target.matches(|target| is_property_name(&target.ref_(arena))) {
         return target;
     }
     None

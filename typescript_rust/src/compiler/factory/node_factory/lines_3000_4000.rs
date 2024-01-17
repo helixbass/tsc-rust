@@ -46,7 +46,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(&*node.expression), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | TransformFlags::ContainsES2015,
         );
@@ -88,8 +88,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_expression(SyntaxKind::AsExpression);
         let node = AsExpression::new(node, expression, type_);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.type_))
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.type_), self)
                 | TransformFlags::ContainsTypeScript,
         );
         node
@@ -123,7 +123,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_left_side_of_access(&expression),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
+            propagate_child_flags(Some(&*node.expression), self) | TransformFlags::ContainsTypeScript,
         );
         node
     }
@@ -157,7 +157,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_left_side_of_access(&expression),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
+            propagate_child_flags(Some(&*node.expression), self) | TransformFlags::ContainsTypeScript,
         );
         node
     }
@@ -187,7 +187,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> MetaProperty {
         let node = self.create_base_expression(SyntaxKind::MetaProperty);
         let node = MetaProperty::new(node, keyword_token, name);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.name)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.name), self));
         match keyword_token {
             SyntaxKind::NewKeyword => {
                 node.add_transform_flags(TransformFlags::ContainsES2015);
@@ -227,8 +227,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::TemplateSpan);
         let node = TemplateSpan::new(node, expression, literal);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.literal))
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.literal), self)
                 | TransformFlags::ContainsES2015,
         );
         node
@@ -314,7 +314,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 }
             },
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list), self));
         if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
             .intersects(ModifierFlags::Ambient)
         {
@@ -363,7 +363,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.parenthesizer_rules()
                 .parenthesize_expression_of_expression_statement(&expression),
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
         node
     }
 
@@ -395,9 +395,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_embedded_statement(else_statement),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.then_statement))
-                | propagate_child_flags(node.else_statement.clone()),
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.then_statement), self)
+                | propagate_child_flags(node.else_statement.clone(), self),
         );
         node
     }
@@ -439,8 +439,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             expression,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.statement))
-                | propagate_child_flags(Some(&*node.expression)),
+            propagate_child_flags(Some(&*node.statement), self)
+                | propagate_child_flags(Some(&*node.expression), self),
         );
         node
     }
@@ -474,8 +474,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.statement)),
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.statement), self),
         );
         node
     }
@@ -513,10 +513,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
-            propagate_child_flags(node.initializer.clone())
-                | propagate_child_flags(node.condition.clone())
-                | propagate_child_flags(node.incrementor.clone())
-                | propagate_child_flags(Some(&*node.statement)),
+            propagate_child_flags(node.initializer.clone(), self)
+                | propagate_child_flags(node.condition.clone(), self)
+                | propagate_child_flags(node.incrementor.clone(), self)
+                | propagate_child_flags(Some(&*node.statement), self),
         );
         node
     }
@@ -564,9 +564,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.initializer))
-                | propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.statement)),
+            propagate_child_flags(Some(&*node.initializer), self)
+                | propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.statement), self),
         );
         node
     }
@@ -611,10 +611,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
-            propagate_child_flags(node.await_modifier.clone())
-                | propagate_child_flags(Some(&*node.initializer))
-                | propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.statement))
+            propagate_child_flags(node.await_modifier.clone(), self)
+                | propagate_child_flags(Some(&*node.initializer), self)
+                | propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.statement), self)
                 | TransformFlags::ContainsES2015,
         );
         if await_modifier_is_some {
@@ -656,7 +656,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::ContinueStatement);
         let node = ContinueStatement::new(node, self.as_name(label));
         node.add_transform_flags(
-            propagate_child_flags(node.label.clone())
+            propagate_child_flags(node.label.clone(), self)
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
         );
         node
@@ -683,7 +683,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::BreakStatement);
         let node = BreakStatement::new(node, self.as_name(label));
         node.add_transform_flags(
-            propagate_child_flags(node.label.clone())
+            propagate_child_flags(node.label.clone(), self)
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
         );
         node
@@ -710,7 +710,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::ReturnStatement);
         let node = ReturnStatement::new(node, expression);
         node.add_transform_flags(
-            propagate_child_flags(node.expression.clone())
+            propagate_child_flags(node.expression.clone(), self)
                 | TransformFlags::ContainsES2018
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
         );
@@ -746,8 +746,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.statement)),
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.statement), self),
         );
         node
     }
@@ -782,8 +782,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             case_block,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.case_block)),
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.case_block), self),
         );
         node
     }
@@ -817,8 +817,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.label))
-                | propagate_child_flags(Some(&*node.statement)),
+            propagate_child_flags(Some(&*node.label), self)
+                | propagate_child_flags(Some(&*node.statement), self),
         );
         node
     }
@@ -846,7 +846,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ThrowStatement {
         let node = self.create_base_node(SyntaxKind::ThrowStatement);
         let node = ThrowStatement::new(node, expression);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
         node
     }
 
@@ -873,9 +873,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::TryStatement);
         let node = TryStatement::new(node, try_block, catch_clause, finally_block);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.try_block))
-                | propagate_child_flags(node.catch_clause.clone())
-                | propagate_child_flags(node.finally_block.clone()),
+            propagate_child_flags(Some(&*node.try_block), self)
+                | propagate_child_flags(node.catch_clause.clone(), self)
+                | propagate_child_flags(node.finally_block.clone(), self),
         );
         node
     }
@@ -934,7 +934,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let exclamation_token_is_some = exclamation_token.is_some();
         let node = VariableDeclaration::new(node, exclamation_token);
-        node.add_transform_flags(propagate_child_flags(node.exclamation_token.clone()));
+        node.add_transform_flags(propagate_child_flags(node.exclamation_token.clone(), self));
         if exclamation_token_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
@@ -1052,7 +1052,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(
-                propagate_child_flags(node.maybe_asterisk_token())
+                propagate_child_flags(node.maybe_asterisk_token(), self)
                     | TransformFlags::ContainsHoistedDeclarationOrCompletion,
             );
             if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
@@ -1449,8 +1449,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(
-                propagate_child_flags(Some(&*node.name))
-                    | propagate_child_flags(node.body.clone())
+                propagate_child_flags(Some(&*node.name), self)
+                    | propagate_child_flags(node.body.clone(), self)
                     | TransformFlags::ContainsTypeScript,
             );
         }
@@ -1581,7 +1581,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(name),
         );
         let node = ImportEqualsDeclaration::new(node, is_type_only, module_reference);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.module_reference)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.module_reference), self));
         if !is_external_module_reference(&node.module_reference) {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
@@ -1639,8 +1639,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.create_base_declaration(SyntaxKind::ImportDeclaration, decorators, modifiers);
         let node = ImportDeclaration::new(node, import_clause, module_specifier, assert_clause);
         node.add_transform_flags(
-            propagate_child_flags(node.import_clause.clone())
-                | propagate_child_flags(Some(&*node.module_specifier)),
+            propagate_child_flags(node.import_clause.clone(), self)
+                | propagate_child_flags(Some(&*node.module_specifier), self),
         );
         node
     }
@@ -1697,8 +1697,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::ImportClause);
         let node = ImportClause::new(node, is_type_only, name, named_bindings);
         node.add_transform_flags(
-            propagate_child_flags(node.name.clone())
-                | propagate_child_flags(node.named_bindings.clone()),
+            propagate_child_flags(node.name.clone(), self)
+                | propagate_child_flags(node.named_bindings.clone(), self),
         );
         if is_type_only {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);

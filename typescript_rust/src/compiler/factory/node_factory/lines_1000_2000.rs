@@ -105,7 +105,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::QualifiedName);
         let node = QualifiedName::new(node, left, self.as_name(Some(right)).unwrap());
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.left)) | propagate_identifier_name_flags(&node.right),
+            propagate_child_flags(Some(&*node.left), self) | propagate_identifier_name_flags(&node.right, self),
         );
         node
     }
@@ -138,7 +138,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_expression_of_computed_property_name(&expression),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(&*node.expression), self)
                 | TransformFlags::ContainsES2015
                 | TransformFlags::ContainsComputedPropertyName,
         );
@@ -233,8 +233,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(
-                propagate_child_flags(node.dot_dot_dot_token.clone())
-                    | propagate_child_flags(node.question_token.clone()),
+                propagate_child_flags(node.dot_dot_dot_token.clone(), self)
+                    | propagate_child_flags(node.question_token.clone(), self),
             );
             if question_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -313,7 +313,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_left_side_of_access(&expression),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(&*node.expression), self)
                 | TransformFlags::ContainsTypeScript
                 | TransformFlags::ContainsTypeScriptClassSyntax,
         );
@@ -412,8 +412,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(node.question_token.clone())
-                | propagate_child_flags(node.exclamation_token.clone())
+            propagate_child_flags(node.question_token.clone(), self)
+                | propagate_child_flags(node.exclamation_token.clone(), self)
                 | TransformFlags::ContainsClassFields,
         );
         let node = node.wrap();
@@ -594,8 +594,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.question_token = question_token;
         let node = MethodDeclaration::new(node);
         node.add_transform_flags(
-            propagate_child_flags(node.maybe_asterisk_token())
-                | propagate_child_flags(node.maybe_question_token())
+            propagate_child_flags(node.maybe_asterisk_token(), self)
+                | propagate_child_flags(node.maybe_question_token(), self)
                 | TransformFlags::ContainsES2015,
         );
         if question_token_is_some {
@@ -695,7 +695,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let node = ClassStaticBlockDeclaration::new(node, body.clone());
         node.add_transform_flags(
-            propagate_child_flags(Some(&*body)) | TransformFlags::ContainsClassFields,
+            propagate_child_flags(Some(&*body), self) | TransformFlags::ContainsClassFields,
         );
         node
     }

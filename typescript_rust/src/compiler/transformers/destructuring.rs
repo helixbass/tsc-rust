@@ -27,7 +27,7 @@ use crate::{
     Number, OptionTry, ReadonlyTextRangeConcrete, TransformFlags, VecExt,
 };
 
-trait FlattenContext {
+trait FlattenContext: HasArena {
     fn context(&self) -> Gc<Box<dyn TransformationContext>>;
     fn level(&self) -> FlattenLevel;
     fn downlevel_iteration(&self) -> bool;
@@ -987,7 +987,7 @@ fn flatten_array_binding_or_assignment_pattern(
                         .is_some()))
                     .then_some(num_elements),
                 )
-                .set_text_range(Some(location), self),
+                .set_text_range(Some(location), flatten_context),
             false,
             location,
         )?;
@@ -1201,7 +1201,7 @@ fn ensure_identifier(
                     .context()
                     .factory()
                     .create_assignment(temp.clone(), value.node_wrapper())
-                    .set_text_range(Some(location), self),
+                    .set_text_range(Some(location), flatten_context),
             );
         } else {
             flatten_context.emit_binding_or_assignment(

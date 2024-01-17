@@ -81,7 +81,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_namespace_import_raw(&self, name: Id<Node /*Identifier*/>) -> NamespaceImport {
         let node = self.create_base_node(SyntaxKind::NamespaceImport);
         let node = NamespaceImport::new(node, name);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.name)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.name), self));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
@@ -106,7 +106,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::NamespaceExport);
         let node = NamespaceExport::new(node, name);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.name)) | TransformFlags::ContainsESNext,
+            propagate_child_flags(Some(&*node.name), self) | TransformFlags::ContainsESNext,
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -162,8 +162,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::ImportSpecifier);
         let node = ImportSpecifier::new(node, is_type_only, property_name, name);
         node.add_transform_flags(
-            propagate_child_flags(node.property_name.clone())
-                | propagate_child_flags(Some(&*node.name)),
+            propagate_child_flags(node.property_name.clone(), self)
+                | propagate_child_flags(Some(&*node.name), self),
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -216,7 +216,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     .parenthesize_expression_of_export_default(&expression)
             },
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
@@ -271,8 +271,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             assert_clause,
         );
         node.add_transform_flags(
-            propagate_child_flags(node.export_clause.clone())
-                | propagate_child_flags(node.module_specifier.clone()),
+            propagate_child_flags(node.export_clause.clone(), self)
+                | propagate_child_flags(node.module_specifier.clone(), self),
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -369,8 +369,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_name(Some(name)).unwrap(),
         );
         node.add_transform_flags(
-            propagate_child_flags(node.property_name.clone())
-                | propagate_child_flags(Some(&*node.name)),
+            propagate_child_flags(node.property_name.clone(), self)
+                | propagate_child_flags(Some(&*node.name), self),
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -420,7 +420,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ExternalModuleReference {
         let node = self.create_base_node(SyntaxKind::ExternalModuleReference);
         let node = ExternalModuleReference::new(node, expression);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
@@ -710,7 +710,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JSDocMemberName);
         let node = JSDocMemberName::new(node, left, right);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.left)) | propagate_child_flags(Some(&*node.right)),
+            propagate_child_flags(Some(&*node.left), self) | propagate_child_flags(Some(&*node.right), self),
         );
         node
     }
@@ -816,9 +816,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             closing_element,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.opening_element))
+            propagate_child_flags(Some(&*node.opening_element), self)
                 | propagate_children_flags(Some(&node.children))
-                | propagate_child_flags(Some(&*node.closing_element))
+                | propagate_child_flags(Some(&*node.closing_element), self)
                 | TransformFlags::ContainsJsx,
         );
         node
@@ -861,9 +861,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             attributes,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.tag_name))
+            propagate_child_flags(Some(&*node.tag_name), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_child_flags(Some(&*node.attributes))
+                | propagate_child_flags(Some(&*node.attributes), self)
                 | TransformFlags::ContainsJsx,
         );
         if node.maybe_type_arguments().is_some() {
@@ -914,9 +914,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             attributes,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.tag_name))
+            propagate_child_flags(Some(&*node.tag_name), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_child_flags(Some(&*node.attributes))
+                | propagate_child_flags(Some(&*node.attributes), self)
                 | TransformFlags::ContainsJsx,
         );
         if node.maybe_type_arguments().is_some() {
@@ -960,7 +960,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JsxClosingElement);
         let node = JsxClosingElement::new(node, tag_name);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.tag_name)) | TransformFlags::ContainsJsx,
+            propagate_child_flags(Some(&*node.tag_name), self) | TransformFlags::ContainsJsx,
         );
         node
     }
@@ -993,9 +993,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             closing_fragment,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.opening_fragment))
+            propagate_child_flags(Some(&*node.opening_fragment), self)
                 | propagate_children_flags(Some(&node.children))
-                | propagate_child_flags(Some(&*node.closing_fragment))
+                | propagate_child_flags(Some(&*node.closing_fragment), self)
                 | TransformFlags::ContainsJsx,
         );
         node
@@ -1084,8 +1084,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JsxAttribute);
         let node = JsxAttribute::new(node, name, initializer);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.name))
-                | propagate_child_flags(node.initializer.clone())
+            propagate_child_flags(Some(&*node.name), self)
+                | propagate_child_flags(node.initializer.clone(), self)
                 | TransformFlags::ContainsJsx,
         );
         node
@@ -1145,7 +1145,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JsxSpreadAttribute);
         let node = JsxSpreadAttribute::new(node, expression);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsJsx,
+            propagate_child_flags(Some(&*node.expression), self) | TransformFlags::ContainsJsx,
         );
         node
     }
@@ -1172,8 +1172,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JsxExpression);
         let node = JsxExpression::new(node, dot_dot_dot_token, expression);
         node.add_transform_flags(
-            propagate_child_flags(node.dot_dot_dot_token.clone())
-                | propagate_child_flags(node.expression.clone())
+            propagate_child_flags(node.dot_dot_dot_token.clone(), self)
+                | propagate_child_flags(node.expression.clone(), self)
                 | TransformFlags::ContainsJsx,
         );
         node
@@ -1215,7 +1215,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.create_node_array(Some(statements), None),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(&*node.expression), self)
                 | propagate_children_flags(Some(&node.statements)),
         );
         node
@@ -1337,8 +1337,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let variable_declaration_is_some = variable_declaration.is_some();
         let node = CatchClause::new(node, variable_declaration, block);
         node.add_transform_flags(
-            propagate_child_flags(node.variable_declaration.clone())
-                | propagate_child_flags(Some(&*node.block)),
+            propagate_child_flags(node.variable_declaration.clone(), self)
+                | propagate_child_flags(Some(&*node.block), self),
         );
         if !variable_declaration_is_some {
             node.add_transform_flags(TransformFlags::ContainsES2019);

@@ -428,13 +428,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
         let node = BindingElement::new(node, self.as_name(property_name), dot_dot_dot_token);
         node.add_transform_flags(
-            propagate_child_flags(node.dot_dot_dot_token.clone()) | TransformFlags::ContainsES2015,
+            propagate_child_flags(node.dot_dot_dot_token.clone(), self) | TransformFlags::ContainsES2015,
         );
         if let Some(node_property_name) = node.property_name.as_ref() {
             node.add_transform_flags(if is_identifier(node_property_name) {
-                propagate_identifier_name_flags(&node_property_name)
+                propagate_identifier_name_flags(&node_property_name, self)
             } else {
-                propagate_child_flags(Some(&**node_property_name))
+                propagate_child_flags(Some(node_property_name), self)
             });
         }
         if dot_dot_dot_token_is_some {
@@ -584,11 +584,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_name(Some(name)).unwrap(),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(node.expression), self)
                 | if is_identifier(&node.name) {
-                    propagate_identifier_name_flags(&node.name)
+                    propagate_identifier_name_flags(&node.name, self)
                 } else {
-                    propagate_child_flags(Some(&*node.name))
+                    propagate_child_flags(Some(node.name), self)
                 },
         );
         if is_super_keyword(&expression) {
@@ -646,12 +646,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         node.add_transform_flags(
             TransformFlags::ContainsES2020
-                | propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(node.question_dot_token.clone())
+                | propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(node.question_dot_token.clone(), self)
                 | if is_identifier(&node.name) {
-                    propagate_identifier_name_flags(&node.name)
+                    propagate_identifier_name_flags(&node.name, self)
                 } else {
-                    propagate_child_flags(Some(&*node.name))
+                    propagate_child_flags(Some(&*node.name), self)
                 },
         );
         node
@@ -702,8 +702,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_expression(index),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.argument_expression)),
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.argument_expression), self),
         );
         if is_super_keyword(&expression) {
             node.add_transform_flags(
@@ -760,9 +760,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_expression(index),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(node.question_dot_token.clone())
-                | propagate_child_flags(Some(&*node.argument_expression))
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(node.question_dot_token.clone(), self)
+                | propagate_child_flags(Some(&*node.argument_expression), self)
                 | TransformFlags::ContainsES2020,
         );
         node
@@ -825,7 +825,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 ),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(&*node.expression), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(Some(&node.arguments)),
         );
@@ -903,8 +903,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 ),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(node.question_dot_token.clone())
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(node.question_dot_token.clone(), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(Some(&node.arguments))
                 | TransformFlags::ContainsES2020,
@@ -987,7 +987,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(&*node.expression), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(node.arguments.as_deref())
                 | TransformFlags::ContainsES2020,
@@ -1050,9 +1050,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             None,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.tag))
+            propagate_child_flags(Some(&*node.tag), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_child_flags(Some(&*node.template))
+                | propagate_child_flags(Some(&*node.template), self)
                 | TransformFlags::ContainsES2015,
         );
         if node.maybe_type_arguments().is_some() {
@@ -1105,8 +1105,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             type_,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.type_))
+            propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.type_), self)
                 | TransformFlags::ContainsTypeScript,
         );
         node
@@ -1135,7 +1135,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ParenthesizedExpression {
         let node = self.create_base_expression(SyntaxKind::ParenthesizedExpression);
         let node = ParenthesizedExpression::new(node, expression);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
         node
     }
 
@@ -1175,7 +1175,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         node.asterisk_token = asterisk_token;
         let node = FunctionExpression::new(node);
-        node.add_transform_flags(propagate_child_flags(node.maybe_asterisk_token()));
+        node.add_transform_flags(propagate_child_flags(node.maybe_asterisk_token(), self));
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
@@ -1275,7 +1275,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .unwrap_or_else(|| self.create_token(SyntaxKind::EqualsGreaterThanToken)),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.equals_greater_than_token))
+            propagate_child_flags(Some(&*node.equals_greater_than_token), self)
                 | TransformFlags::ContainsES2015,
         );
         if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
@@ -1342,7 +1342,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
         node
     }
 
@@ -1370,7 +1370,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
         node
     }
 
@@ -1398,7 +1398,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
         node
     }
 
@@ -1427,7 +1427,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_operand_of_prefix_unary(&expression),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(&*node.expression), self)
                 | TransformFlags::ContainsES2017
                 | TransformFlags::ContainsES2018
                 | TransformFlags::ContainsAwait,
@@ -1461,7 +1461,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&operand),
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.operand)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.operand), self));
         if matches!(
             operator,
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -1506,7 +1506,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_operand_of_postfix_unary(&operand),
             operator,
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.operand)));
+        node.add_transform_flags(propagate_child_flags(Some(&*node.operand), self));
         if is_identifier(&node.operand)
             && !is_generated_identifier(&node.operand)
             && !is_local_name(&node.operand)
@@ -1554,9 +1554,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_right_side_of_binary(operator_kind, Some(left), &right),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.left))
-                | propagate_child_flags(Some(&*node.operator_token))
-                | propagate_child_flags(Some(&*node.right)),
+            propagate_child_flags(Some(&*node.left), self)
+                | propagate_child_flags(Some(&*node.operator_token), self)
+                | propagate_child_flags(Some(&*node.right), self),
         );
         if operator_kind == SyntaxKind::QuestionQuestionToken {
             node.add_transform_flags(TransformFlags::ContainsES2020);
@@ -1664,11 +1664,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_branch_of_conditional_expression(&when_false),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.condition))
-                | propagate_child_flags(Some(&*node.question_token))
-                | propagate_child_flags(Some(&*node.when_true))
-                | propagate_child_flags(Some(&*node.colon_token))
-                | propagate_child_flags(Some(&*node.when_false)),
+            propagate_child_flags(Some(&*node.condition), self)
+                | propagate_child_flags(Some(&*node.question_token), self)
+                | propagate_child_flags(Some(&*node.when_true), self)
+                | propagate_child_flags(Some(&*node.colon_token), self)
+                | propagate_child_flags(Some(&*node.when_false), self),
         );
         node
     }
@@ -1720,7 +1720,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.create_node_array(Some(template_spans), None),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.head))
+            propagate_child_flags(Some(&*node.head), self)
                 | propagate_children_flags(Some(&node.template_spans))
                 | TransformFlags::ContainsES2015,
         );
@@ -1895,8 +1895,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             asterisk_token,
         );
         node.add_transform_flags(
-            propagate_child_flags(node.expression.clone())
-                | propagate_child_flags(node.asterisk_token.clone())
+            propagate_child_flags(node.expression.clone(), self)
+                | propagate_child_flags(node.asterisk_token.clone(), self)
                 | TransformFlags::ContainsES2015
                 | TransformFlags::ContainsES2018
                 | TransformFlags::ContainsYield,
@@ -1936,7 +1936,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_expression_for_disallowed_comma(&expression),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(Some(&*node.expression), self)
                 | TransformFlags::ContainsES2015
                 | TransformFlags::ContainsRestOrSpread,
         );

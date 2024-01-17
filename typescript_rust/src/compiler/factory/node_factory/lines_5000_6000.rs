@@ -49,8 +49,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_expression_for_disallowed_comma(&initializer),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.name()))
-                | propagate_child_flags(Some(&*node.initializer)),
+            propagate_child_flags(Some(&*node.name()), self)
+                | propagate_child_flags(Some(&*node.initializer), self),
         );
         node
     }
@@ -122,7 +122,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(node.object_assignment_initializer.clone())
+            propagate_child_flags(node.object_assignment_initializer.clone(), self)
                 | TransformFlags::ContainsES2015,
         );
         node
@@ -197,7 +197,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .parenthesize_expression_for_disallowed_comma(&expression),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(node.expression.clone()))
+            propagate_child_flags(Some(node.expression.clone()), self)
                 | TransformFlags::ContainsES2018
                 | TransformFlags::ContainsObjectRestOrSpread,
         );
@@ -233,8 +233,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.name))
-                | propagate_child_flags(node.initializer.clone())
+            propagate_child_flags(Some(&*node.name), self)
+                | propagate_child_flags(node.initializer.clone(), self)
                 | TransformFlags::ContainsTypeScript,
         );
         node
@@ -284,7 +284,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.set_flags(node.flags() | flags);
         node.add_transform_flags(
             propagate_children_flags(Some(&node.statements()))
-                | propagate_child_flags(Some(node.end_of_file_token())),
+                | propagate_child_flags(Some(node.end_of_file_token()), self),
         );
         node
     }
@@ -321,7 +321,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.set_lib_reference_directives(lib_reference_directives);
         node.set_transform_flags(
             propagate_children_flags(Some(&node.statements()))
-                | propagate_child_flags(Some(node.end_of_file_token())),
+                | propagate_child_flags(Some(node.end_of_file_token()), self),
         );
         node.set_implied_node_format(source_as_source_file.maybe_implied_node_format());
         node.wrap()
@@ -498,7 +498,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.set_original(original.clone());
         node.set_transform_flags(
             node.transform_flags()
-                | propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.expression), self)
                 | TransformFlags::ContainsTypeScript,
         );
         set_text_range(&node, original.as_deref());
@@ -617,8 +617,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = SyntheticReferenceExpression::new(node, expression, this_arg);
         node.set_transform_flags(
             node.transform_flags()
-                | propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.this_arg)),
+                | propagate_child_flags(Some(&*node.expression), self)
+                | propagate_child_flags(Some(&*node.this_arg), self),
         );
         node.wrap()
     }

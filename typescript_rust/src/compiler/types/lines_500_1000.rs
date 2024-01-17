@@ -2183,7 +2183,7 @@ impl NodeExt for Id<Node> {
     }
 
     fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>, arena: &impl HasArena) -> Self {
-        add_emit_helpers(self, helpers, arena: &impl HasArena);
+        add_emit_helpers(self, helpers, arena);
         self
     }
 

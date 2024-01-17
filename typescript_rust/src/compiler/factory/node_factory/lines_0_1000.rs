@@ -89,9 +89,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update(&self, updated: Id<Node>, original: Id<Node>) -> Id<Node> {
         if self.flags.intersects(NodeFactoryFlags::NoOriginalNode) {
-            update_without_original(updated, original)
+            update_without_original(updated, original, self)
         } else {
-            update_with_original(updated, original)
+            update_with_original(updated, original, self)
         }
     }
 
@@ -598,7 +598,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     Some(has_trailing_comma) => elements.has_trailing_comma == has_trailing_comma,
                 } {
                     if elements.maybe_transform_flags().is_none() {
-                        aggregate_children_flags(&elements);
+                        aggregate_children_flags(&elements, self);
                     }
                     Debug_.attach_node_array_debug_info(&elements);
                     return elements;
@@ -619,7 +619,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
                 let array =
                     NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None);
-                aggregate_children_flags(&array);
+                aggregate_children_flags(&array, self);
                 Debug_.attach_node_array_debug_info(&array);
                 array
             }
@@ -676,11 +676,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 | SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertyAssignment => {
                     if is_identifier(&name) {
-                        node.add_transform_flags(propagate_identifier_name_flags(&name));
+                        node.add_transform_flags(propagate_identifier_name_flags(&name, self));
                     }
                 }
                 _ => {
-                    node.add_transform_flags(propagate_child_flags(Some(&*name)));
+                    node.add_transform_flags(propagate_child_flags(Some(name), self));
                 }
             }
         }
@@ -739,7 +739,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
         node.add_transform_flags(
             propagate_children_flags(Some(&node.parameters()))
-                | propagate_child_flags(node.maybe_type()),
+                | propagate_child_flags(node.maybe_type(), self),
         );
         if node.maybe_type().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -782,7 +782,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let body_is_none = body.is_none();
         let node = BaseFunctionLikeDeclaration::new(node, body);
         node.add_transform_flags(
-            propagate_child_flags(node.maybe_body())
+            propagate_child_flags(node.maybe_body(), self)
                 & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         if body_is_none {
@@ -883,7 +883,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> BaseBindingLikeDeclaration {
         let node = self.create_base_named_declaration(kind, decorators, modifiers, name);
         let node = BaseBindingLikeDeclaration::new(node, initializer);
-        node.add_transform_flags(propagate_child_flags(node.maybe_initializer()));
+        node.add_transform_flags(propagate_child_flags(node.maybe_initializer(), self));
         node
     }
 
@@ -905,7 +905,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let type_is_some = type_.is_some();
         let node = BaseVariableLikeDeclaration::new(node, type_);
-        node.add_transform_flags(propagate_child_flags(node.maybe_type()));
+        node.add_transform_flags(propagate_child_flags(node.maybe_type(), self));
         if type_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
