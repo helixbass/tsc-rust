@@ -16,6 +16,7 @@ use crate::{
     ContextFlags, FunctionFlags, HasArena, HasInitializerInterface, InArena,
     NamedDeclarationInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -24,21 +25,19 @@ impl TypeChecker {
         is_call_expression: bool,
         container: Option<Id<Node>>,
     ) -> bool {
-        if container.is_none() {
+        let Some(container) = container else {
             return false;
-        }
-        let container = container.unwrap();
-        let container = container.borrow();
+        };
 
         if is_call_expression {
-            return container.kind() == SyntaxKind::Constructor;
+            return container.ref_(self).kind() == SyntaxKind::Constructor;
         } else {
-            if maybe_is_class_like(container.maybe_parent())
-                || container.parent().kind() == SyntaxKind::ObjectLiteralExpression
+            if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self))
+                || container.ref_(self).parent().ref_(self).kind() == SyntaxKind::ObjectLiteralExpression
             {
                 if is_static(container, self) {
                     return matches!(
-                        container.kind(),
+                        container.ref_(self).kind(),
                         SyntaxKind::MethodDeclaration
                             | SyntaxKind::MethodSignature
                             | SyntaxKind::GetAccessor
@@ -48,7 +47,7 @@ impl TypeChecker {
                     );
                 } else {
                     return matches!(
-                        container.kind(),
+                        container.ref_(self).kind(),
                         SyntaxKind::MethodDeclaration
                             | SyntaxKind::MethodSignature
                             | SyntaxKind::GetAccessor
@@ -69,15 +68,15 @@ impl TypeChecker {
         func: Id<Node>, /*SignatureDeclaration*/
     ) -> Option<Id<Node /*ObjectLiteralExpression*/>> {
         if matches!(
-            func.kind(),
+            func.ref_(self).kind(),
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
-        ) && func.parent().kind() == SyntaxKind::ObjectLiteralExpression
+        ) && func.ref_(self).parent().ref_(self).kind() == SyntaxKind::ObjectLiteralExpression
         {
-            Some(func.parent())
-        } else if func.kind() == SyntaxKind::FunctionExpression
-            && func.parent().kind() == SyntaxKind::PropertyAssignment
+            Some(func.ref_(self).parent())
+        } else if func.ref_(self).kind() == SyntaxKind::FunctionExpression
+            && func.ref_(self).parent().ref_(self).kind() == SyntaxKind::PropertyAssignment
         {
-            Some(func.parent().parent())
+            Some(func.ref_(self).parent().ref_(self).parent())
         } else {
             None
         }
@@ -124,7 +123,7 @@ impl TypeChecker {
         &self,
         func: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        if func.kind() == SyntaxKind::ArrowFunction {
+        if func.ref_(self).kind() == SyntaxKind::ArrowFunction {
             return Ok(None);
         }
         if self.is_context_sensitive_function_or_object_literal_method(func)? {
@@ -136,13 +135,13 @@ impl TypeChecker {
                 }
             }
         }
-        let in_js = is_in_js_file(Some(func));
+        let in_js = is_in_js_file(Some(&func.ref_(self)));
         if self.no_implicit_this || in_js {
             let containing_literal = self.get_containing_object_literal(func);
-            if let Some(containing_literal) = containing_literal.as_ref() {
+            if let Some(containing_literal) = containing_literal {
                 let contextual_type =
                     self.get_apparent_type_of_contextual_type(containing_literal, None)?;
-                let mut literal = containing_literal.clone();
+                let mut literal = containing_literal;
                 let mut type_ = contextual_type.clone();
                 while let Some(type_present) = type_ {
                     let this_type = self.get_this_type_from_contextual_type(type_present)?;
@@ -154,11 +153,11 @@ impl TypeChecker {
                             ),
                         )?));
                     }
-                    if literal.parent().kind() != SyntaxKind::PropertyAssignment {
+                    if literal.ref_(self).parent().ref_(self).kind() != SyntaxKind::PropertyAssignment {
                         break;
                     }
-                    literal = literal.parent().parent();
-                    type_ = self.get_apparent_type_of_contextual_type(&literal, None)?;
+                    literal = literal.ref_(self).parent().ref_(self).parent();
+                    type_ = self.get_apparent_type_of_contextual_type(literal, None)?;
                 }
                 return Ok(Some(self.get_widened_type(
                     if let Some(contextual_type) = contextual_type {
@@ -168,21 +167,22 @@ impl TypeChecker {
                     },
                 )?));
             }
-            let parent = walk_up_parenthesized_expressions(func.parent(), self).unwrap();
-            if parent.kind() == SyntaxKind::BinaryExpression {
-                let parent_as_binary_expression = parent.as_binary_expression();
-                if parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken {
-                    let target = &parent_as_binary_expression.left;
-                    if is_access_expression(target) {
-                        let expression = target.as_has_expression().expression();
-                        if in_js && is_identifier(&expression) {
+            let parent = walk_up_parenthesized_expressions(func.ref_(self).parent(), self).unwrap();
+            if parent.ref_(self).kind() == SyntaxKind::BinaryExpression {
+                let parent_ref = parent.ref_(self);
+                let parent_as_binary_expression = parent_ref.as_binary_expression();
+                if parent_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::EqualsToken {
+                    let target = parent_as_binary_expression.left;
+                    if is_access_expression(&target.ref_(self)) {
+                        let expression = target.ref_(self).as_has_expression().expression();
+                        if in_js && is_identifier(&expression.ref_(self)) {
                             let source_file = get_source_file_of_node(parent, self);
                             if source_file
-                                .as_source_file()
+                                .ref_(self).as_source_file()
                                 .maybe_common_js_module_indicator()
                                 .is_some()
                                 && matches!(
-                                    source_file.maybe_symbol(),
+                                    source_file.ref_(self).maybe_symbol(),
                                     Some(source_file_symbol) if self.get_resolved_symbol(&expression)? ==
                                         source_file_symbol
                                 )
@@ -205,21 +205,23 @@ impl TypeChecker {
         &self,
         parameter: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        let func = parameter.parent();
-        if !self.is_context_sensitive_function_or_object_literal_method(&func)? {
+        let func = parameter.ref_(self).parent();
+        if !self.is_context_sensitive_function_or_object_literal_method(func)? {
             return Ok(None);
         }
         let iife = get_immediately_invoked_function_expression(func, self);
-        let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
-        let func_as_function_like_declaration = func.as_function_like_declaration();
-        if let Some(iife) = iife.as_ref()
+        let parameter_ref = parameter.ref_(self);
+        let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
+        let func_ref = func.ref_(self);
+        let func_as_function_like_declaration = func_ref.as_function_like_declaration();
+        if let Some(iife) = iife
         /*&& iife.arguments*/
         {
             let args = self.get_effective_call_arguments(iife)?;
             let index_of_parameter = func_as_function_like_declaration
                 .parameters()
                 .into_iter()
-                .position(|param| ptr::eq(&**param, parameter))
+                .position(|&param| param == parameter)
                 .unwrap();
             if parameter_as_parameter_declaration
                 .dot_dot_dot_token
@@ -259,7 +261,7 @@ impl TypeChecker {
             let index = func_as_function_like_declaration
                 .parameters()
                 .into_iter()
-                .position(|param| ptr::eq(&**param, parameter))
+                .position(|&param| param == parameter)
                 .unwrap()
                 - if get_this_parameter(func, self).is_some() {
                     1
@@ -272,7 +274,7 @@ impl TypeChecker {
                     .is_some()
                     && matches!(
                         last_or_undefined(&func_as_function_like_declaration.parameters()),
-                        Some(last) if ptr::eq(&**last, parameter)
+                        Some(&last) if last == parameter
                     )
                 {
                     Some(self.get_rest_type_at_position(contextual_signature, index)?)
@@ -288,11 +290,11 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>,
     ) -> io::Result<Option<Id<Type>>> {
-        let type_node = get_effective_type_annotation_node(declaration);
-        if let Some(type_node) = type_node.as_ref() {
+        let type_node = get_effective_type_annotation_node(declaration, self);
+        if let Some(type_node) = type_node {
             return Ok(Some(self.get_type_from_type_node_(type_node)?));
         }
-        match declaration.kind() {
+        match declaration.ref_(self).kind() {
             SyntaxKind::Parameter => {
                 return self.get_contextually_typed_parameter_type(declaration);
             }
@@ -313,8 +315,9 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*BindingElement*/
     ) -> io::Result<Option<Id<Type>>> {
-        let parent = declaration.parent().parent();
-        let declaration_as_binding_element = declaration.as_binding_element();
+        let parent = declaration.ref_(self).parent().ref_(self).parent();
+        let declaration_ref = declaration.ref_(self);
+        let declaration_as_binding_element = declaration_ref.as_binding_element();
         let name = declaration_as_binding_element
             .property_name
             .clone()
@@ -341,7 +344,7 @@ impl TypeChecker {
         let parent_type = parent_type.unwrap();
         if parent.as_named_declaration().name().kind() == SyntaxKind::ArrayBindingPattern {
             let index = index_of_node(
-                &declaration.parent().as_has_elements().elements(),
+                &declaration.ref_(self).parent().ref_(self).as_has_elements().elements(),
                 declaration,
                 self,
             );
@@ -363,8 +366,8 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        let parent_type = return_ok_none_if_none!(if is_expression(declaration.parent(), self) {
-            self.get_contextual_type_(&declaration.parent(), None)?
+        let parent_type = return_ok_none_if_none!(if is_expression(declaration.ref_(self).parent(), self) {
+            self.get_contextual_type_(declaration.ref_(self).parent(), None)?
         } else {
             None
         });
@@ -382,15 +385,9 @@ impl TypeChecker {
         node: Id<Node>,
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
-        let declaration = node.parent();
-        if has_initializer(&declaration)
-            && matches!(
-                declaration.as_has_initializer().maybe_initializer().as_deref(),
-                Some(declaration_initializer) if ptr::eq(
-                    node,
-                    declaration_initializer
-                )
-            )
+        let declaration = node.ref_(self).parent();
+        if has_initializer(&declaration.ref_(self))
+            && declaration.ref_(self).as_has_initializer().maybe_initializer() == Some(node)
         {
             let result = self.get_contextual_type_for_variable_like_declaration(&declaration)?;
             if result.is_some() {
@@ -415,7 +412,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
-        let func = get_containing_function(node);
+        let func = get_containing_function(node, self);
         if let Some(func) = func {
             let contextual_return_type = self.get_contextual_return_type(func)?;
             if let Some(mut contextual_return_type) = contextual_return_type {
@@ -501,13 +498,13 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Option<Id<Type>>> {
-        let func = get_containing_function(node);
+        let func = get_containing_function(node, self);
         if let Some(func) = func {
             let function_flags = get_function_flags(Some(func), self);
             let contextual_return_type = self.get_contextual_return_type(func)?;
             if let Some(contextual_return_type) = contextual_return_type {
-                return Ok(if node.as_yield_expression().asterisk_token.is_some() {
-                    Some(contextual_return_type.clone())
+                return Ok(if node.ref_(self).as_yield_expression().asterisk_token.is_some() {
+                    Some(contextual_return_type)
                 } else {
                     self.get_iteration_type_of_generator_function_return_type(
                         IterationTypeKind::Yield,
@@ -523,40 +520,26 @@ impl TypeChecker {
 
     pub(super) fn is_in_parameter_initializer_before_containing_function(
         &self,
-        node: Id<Node>,
+        mut node: Id<Node>,
     ) -> bool {
         let mut in_binding_initializer = false;
-        let mut node = node.node_wrapper();
         while let Some(node_parent) = node
-            .maybe_parent()
-            .as_ref()
-            .filter(|node_parent| !is_function_like(Some(&***node_parent)))
+            .ref_(self).maybe_parent()
+            .filter(|node_parent| !is_function_like(Some(&node_parent.ref_(self))))
         {
-            if is_parameter(node_parent)
+            if is_parameter(&node_parent.ref_(self))
                 && (in_binding_initializer
-                    || matches!(
-                        node_parent.as_has_initializer().maybe_initializer().as_ref(),
-                        Some(node_parent_initializer) if Gc::ptr_eq(
-                            node_parent_initializer,
-                            &node
-                        )
-                    ))
+                    || node_parent.ref_(self).as_has_initializer().maybe_initializer() == Some(node))
             {
                 return true;
             }
-            if is_binding_element(node_parent)
-                && matches!(
-                    node_parent.as_has_initializer().maybe_initializer().as_ref(),
-                    Some(node_parent_initializer) if Gc::ptr_eq(
-                        node_parent_initializer,
-                        &node
-                    )
-                )
+            if is_binding_element(&node_parent.ref_(self))
+                && node_parent.ref_(self).as_has_initializer().maybe_initializer() == Some(node)
             {
                 in_binding_initializer = true;
             }
 
-            node = node_parent.clone();
+            node = node_parent;
         }
 
         false
@@ -598,7 +581,7 @@ impl TypeChecker {
             return Ok(Some(self.get_return_type_of_signature(signature.clone())?));
         }
         let iife = get_immediately_invoked_function_expression(function_decl, self);
-        if let Some(iife) = iife.as_ref() {
+        if let Some(iife) = iife {
             return self.get_contextual_type_(iife, None);
         }
         Ok(None)

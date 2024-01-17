@@ -284,7 +284,7 @@ impl CheckTypeRelatedTo {
                         let links = self.type_checker.get_symbol_links(source_symbol);
                         if let Some(links_originating_import) =
                             (*links).borrow().originating_import.clone().filter(
-                                |links_originating_import| {
+                                |&links_originating_import| {
                                     !is_import_call(links_originating_import, self)
                                 },
                             )
@@ -300,7 +300,12 @@ impl CheckTypeRelatedTo {
                                 None,
                             )?;
                             if helpful_retry {
-                                let diag: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(&links_originating_import, &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead, None).into();
+                                let diag: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+                                    links_originating_import,
+                                    &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
+                                    None,
+                                    self,
+                                ).into();
                                 if related_information.is_none() {
                                     related_information = Some(vec![]);
                                     append(related_information.as_mut().unwrap(), Some(diag));
@@ -312,9 +317,10 @@ impl CheckTypeRelatedTo {
             }
             let diag: Gc<Diagnostic> = Gc::new(
                 create_diagnostic_for_node_from_message_chain(
-                    self.maybe_error_node().as_ref().unwrap(),
+                    self.maybe_error_node().unwrap(),
                     self.maybe_error_info().as_deref().cloned().unwrap(),
                     related_information,
+                    self,
                 )
                 .into(),
             );
@@ -1288,11 +1294,11 @@ impl CheckTypeRelatedTo {
                 let target_types = target_ref.as_union_or_intersection_type_interface().types();
                 let intrinsic_attributes = self.type_checker.get_jsx_type(
                     &JsxNames::IntrinsicAttributes,
-                    self.maybe_error_node().as_deref(),
+                    self.maybe_error_node(),
                 )?;
                 let intrinsic_class_attributes = self.type_checker.get_jsx_type(
                     &JsxNames::IntrinsicClassAttributes,
-                    self.maybe_error_node().as_deref(),
+                    self.maybe_error_node(),
                 )?;
                 if !self.type_checker.is_error_type(intrinsic_attributes)
                     && !self.type_checker.is_error_type(intrinsic_class_attributes)
@@ -1525,30 +1531,26 @@ impl CheckTypeRelatedTo {
                         if self.maybe_error_node().is_none() {
                             Debug_.fail(None);
                         }
-                        let ref error_node_present = self.maybe_error_node().unwrap();
-                        if is_jsx_attributes(error_node_present)
-                            || is_jsx_opening_like_element(error_node_present)
-                            || is_jsx_opening_like_element(&error_node_present.parent())
+                        let error_node_present = self.maybe_error_node().unwrap();
+                        if is_jsx_attributes(&error_node_present.ref_(self))
+                            || is_jsx_opening_like_element(&error_node_present.ref_(self))
+                            || is_jsx_opening_like_element(&error_node_present.ref_(self).parent().ref_(self))
                         {
                             if let Some(prop_value_declaration) = prop
                                 .ref_(self)
                                 .maybe_value_declaration()
                                 .filter(|prop_value_declaration| {
-                                    is_jsx_attribute(prop_value_declaration)
-                                        && are_option_gcs_equal(
-                                            maybe_get_source_file_of_node(Some(
+                                    is_jsx_attribute(&prop_value_declaration.ref_(self))
+                                        && maybe_get_source_file_of_node(Some(
                                                 error_node_present,
-                                            ), self)
-                                            .as_ref(),
+                                            ), self) ==
                                             maybe_get_source_file_of_node(Some(
-                                                prop_value_declaration.as_jsx_attribute().name,
+                                                prop_value_declaration.ref_(self).as_jsx_attribute().name,
                                             ), self)
-                                            .as_ref(),
-                                        )
                                 })
                             {
                                 self.set_error_node(Some(
-                                    prop_value_declaration.as_jsx_attribute().name.clone(),
+                                    prop_value_declaration.ref_(self).as_jsx_attribute().name,
                                 ));
                             }
                             let prop_name = self.type_checker.symbol_to_string_(
@@ -1618,24 +1620,20 @@ impl CheckTypeRelatedTo {
                             let mut suggestion: Option<String> = None;
                             if let Some(prop_value_declaration) = prop.ref_(self).maybe_value_declaration().filter(|prop_value_declaration|
                                 find_ancestor(
-                                    Some(&**prop_value_declaration),
-                                    |d| matches!(
-                                        object_literal_declaration.as_ref(),
-                                        Some(object_literal_declaration) if ptr::eq(d, &**object_literal_declaration)
-                                    )
+                                    Some(prop_value_declaration),
+                                    |d| object_literal_declaration == Some(d),
+                                    self,
                                 ).is_some() &&
-                                are_option_gcs_equal(
-                                    maybe_get_source_file_of_node(object_literal_declaration, self).as_ref(),
-                                    maybe_get_source_file_of_node(Some(error_node_present), self).as_ref(),
-                                )
+                                maybe_get_source_file_of_node(object_literal_declaration, self) ==
+                                    maybe_get_source_file_of_node(Some(error_node_present), self)
                             ) {
                                 let prop_declaration = prop_value_declaration;
-                                Debug_.assert_node(Some(&*prop_declaration), Some(|node: Id<Node>| is_object_literal_element_like(node)), None);
+                                Debug_.assert_node(Some(prop_declaration), Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))), None);
 
-                                self.set_error_node(Some(prop_declaration.clone()));
+                                self.set_error_node(Some(prop_declaration));
 
-                                let name = prop_declaration.as_named_declaration().name();
-                                if is_identifier(&name) {
+                                let name = prop_declaration.ref_(self).as_named_declaration().name();
+                                if is_identifier(&name.ref_(self)) {
                                     suggestion = self.type_checker.get_suggestion_for_nonexistent_property(
                                         name,
                                         error_target

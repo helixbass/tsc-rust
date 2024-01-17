@@ -386,10 +386,9 @@ impl CheckTypeRelatedTo {
         if source_prop_flags.intersects(ModifierFlags::Private)
             || target_prop_flags.intersects(ModifierFlags::Private)
         {
-            if !are_option_gcs_equal(
-                source_prop.ref_(self).maybe_value_declaration().as_ref(),
-                target_prop.ref_(self).maybe_value_declaration().as_ref(),
-            ) {
+            if source_prop.ref_(self).maybe_value_declaration() !=
+                target_prop.ref_(self).maybe_value_declaration()
+            {
                 if report_errors {
                     if source_prop_flags.intersects(ModifierFlags::Private)
                         && target_prop_flags.intersects(ModifierFlags::Private)
@@ -579,13 +578,13 @@ impl CheckTypeRelatedTo {
         if let Some(unmatched_property_value_declaration) = unmatched_property
             .ref_(self)
             .maybe_value_declaration()
-            .as_ref()
             .filter(|unmatched_property_value_declaration| {
-                is_named_declaration(unmatched_property_value_declaration)
+                is_named_declaration(unmatched_property_value_declaration.ref_(self))
                     && is_private_identifier(
                         &unmatched_property_value_declaration
-                            .as_named_declaration()
-                            .name(),
+                            .ref_(self).as_named_declaration()
+                            .name()
+                            .ref_(self),
                     )
             })
         {
@@ -597,7 +596,7 @@ impl CheckTypeRelatedTo {
             }) {
                 let unmatched_property_value_declaration_name =
                     unmatched_property_value_declaration
-                        .as_named_declaration()
+                        .ref_(self).as_named_declaration()
                         .name();
                 let private_identifier_description = &unmatched_property_value_declaration_name
                     .as_private_identifier()
@@ -635,12 +634,12 @@ impl CheckTypeRelatedTo {
                         Cow::Borrowed(&Diagnostics::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2),
                         Some(vec![
                             self.type_checker.diagnostic_name((&**private_identifier_description).into()).into_owned(),
-                            self.type_checker.diagnostic_name(if source_name.as_identifier().escaped_text == "" {
+                            self.type_checker.diagnostic_name(if source_name.ref_(self).as_identifier().escaped_text == "" {
                                 anon.into()
                             } else {
                                 source_name.into()
                             }).into_owned(),
-                            self.type_checker.diagnostic_name(if target_name.as_identifier().escaped_text == "" {
+                            self.type_checker.diagnostic_name(if target_name.ref_(self).as_identifier().escaped_text == "" {
                                 anon.into()
                             } else {
                                 target_name.into()
@@ -688,13 +687,14 @@ impl CheckTypeRelatedTo {
             {
                 self.associate_related_info(
                     create_diagnostic_for_node(
-                        &unmatched_property
+                        unmatched_property
                             .ref_(self)
                             .maybe_declarations()
                             .as_ref()
                             .unwrap()[0],
                         &Diagnostics::_0_is_declared_here,
                         Some(vec![prop_name]),
+                        self,
                     )
                     .into(),
                 );
@@ -1314,11 +1314,11 @@ impl CheckTypeRelatedTo {
                 && kind == SignatureKind::Construct
                 && source_object_flags & target_object_flags != ObjectFlags::None
                 && (matches!(
-                    target_signature.declaration.as_ref(),
-                    Some(target_signature_declaration) if target_signature_declaration.kind() == SyntaxKind::Constructor
+                    target_signature.declaration,
+                    Some(target_signature_declaration) if target_signature_declaration.ref_(self).kind() == SyntaxKind::Constructor
                 ) || matches!(
-                    source_signature.declaration.as_ref(),
-                    Some(source_signature_declaration) if source_signature_declaration.kind() == SyntaxKind::Constructor
+                    source_signature.declaration,
+                    Some(source_signature_declaration) if source_signature_declaration.ref_(self).kind() == SyntaxKind::Constructor
                 ))
             {
                 let construct_signature_to_string =

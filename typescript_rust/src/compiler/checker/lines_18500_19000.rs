@@ -24,12 +24,9 @@ impl CheckTypeRelatedTo {
     ) -> bool {
         if let Some(prop_value_declaration) = prop.ref_(self).maybe_value_declaration().as_ref() {
             if let Some(container_value_declaration) =
-                container.ref_(self).maybe_value_declaration().as_ref()
+                container.ref_(self).maybe_value_declaration()
             {
-                return Gc::ptr_eq(
-                    &prop_value_declaration.parent(),
-                    container_value_declaration,
-                );
+                return prop_value_declaration.ref_(self).parent() == container_value_declaration;
             }
         }
         false
@@ -957,7 +954,7 @@ impl CheckTypeRelatedTo {
                     .ref_(self)
                     .as_mapped_type()
                     .declaration
-                    .as_mapped_type_node()
+                    .ref_(self).as_mapped_type_node()
                     .name_type
                     .is_none()
                 && self.is_related_to(
@@ -1229,7 +1226,7 @@ impl CheckTypeRelatedTo {
                 .ref_(self)
                 .as_mapped_type()
                 .declaration
-                .as_mapped_type_node()
+                .ref_(self).as_mapped_type_node()
                 .name_type
                 .is_some();
             let template_type = self

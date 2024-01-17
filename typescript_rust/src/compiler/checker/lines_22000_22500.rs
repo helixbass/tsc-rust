@@ -385,7 +385,7 @@ impl InferTypes {
                 .ref_(self)
                 .as_mapped_type()
                 .declaration
-                .as_mapped_type_node()
+                .ref_(self).as_mapped_type_node()
                 .name_type
                 .is_none()
         {
@@ -653,8 +653,8 @@ impl InferTypes {
     ) -> io::Result<()> {
         if !skip_parameters {
             let save_bivariant = self.bivariant();
-            let kind = if let Some(target_declaration) = target.declaration.as_ref() {
-                target_declaration.kind()
+            let kind = if let Some(target_declaration) = target.declaration {
+                target_declaration.ref_(self).kind()
             } else {
                 SyntaxKind::Unknown
             };
@@ -1040,7 +1040,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>,
     ) -> &'static DiagnosticMessage {
-        match &*node.as_identifier().escaped_text {
+        match &*node.ref_(self).as_identifier().escaped_text {
             "document" | "console" => &Diagnostics::Cannot_find_name_0_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_include_dom,
             "$" => {
                 if self.compiler_options.types.is_some() {
@@ -1065,7 +1065,7 @@ impl TypeChecker {
             }
             "Map" | "Set" | "Promise" | "Symbol" | "WeakMap" | "WeakSet" | "Iterator" | "AsyncIterator" | "SharedArrayBuffer" | "Atomics" | "AsyncIterable" | "AsyncIterableIterator" | "AsyncGenerator" | "AsyncGeneratorFunction" | "BigInt" | "Reflect" | "BigInt64Array" | "BigUint64Array" => &Diagnostics::Cannot_find_name_0_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_1_or_later,
             _ => {
-                if node.parent().kind() == SyntaxKind::ShorthandPropertyAssignment {
+                if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
                     &Diagnostics::No_value_exists_in_scope_for_the_shorthand_property_0_Either_declare_one_or_provide_an_initializer
                 } else {
                     &Diagnostics::Cannot_find_name_0

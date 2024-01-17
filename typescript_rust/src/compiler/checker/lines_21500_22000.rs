@@ -185,7 +185,7 @@ impl TypeChecker {
             type_.ref_(self).maybe_symbol(),
             Some(type_symbol) if some(
                 type_symbol.ref_(self).maybe_declarations().as_deref(),
-                Some(|declaration: &Id<Node>| self.has_skip_direct_inference_flag(declaration))
+                Some(|&declaration: &Id<Node>| self.has_skip_direct_inference_flag(declaration))
             )
         )
     }

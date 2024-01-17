@@ -105,19 +105,20 @@ impl GetFlowTypeOfReference {
         expr: Id<Node>, /*BinaryExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
-        let expr_as_binary_expression = expr.as_binary_expression();
+        let expr_ref = expr.ref_(self);
+        let expr_as_binary_expression = expr_ref.as_binary_expression();
         let left = self
             .type_checker
             .get_reference_candidate(&expr_as_binary_expression.left);
         if !self
             .type_checker
-            .is_matching_reference(&self.reference, &left)?
+            .is_matching_reference(self.reference, left)?
         {
             if assume_true
                 && self.type_checker.strict_null_checks
                 && self
                     .type_checker
-                    .optional_chain_contains_reference(&left, &self.reference)?
+                    .optional_chain_contains_reference(left, self.reference)?
             {
                 return self
                     .type_checker
@@ -252,9 +253,9 @@ impl GetFlowTypeOfReference {
     ) -> io::Result<Id<Type>> {
         if self
             .type_checker
-            .has_matching_argument(call_expression, &self.reference)?
+            .has_matching_argument(call_expression, self.reference)?
         {
-            let signature = if assume_true || !is_call_chain(call_expression) {
+            let signature = if assume_true || !is_call_chain(&call_expression.ref_(self)) {
                 self.type_checker.get_effects_signature(call_expression)?
             } else {
                 None
@@ -276,20 +277,21 @@ impl GetFlowTypeOfReference {
                 );
             }
         }
-        let call_expression_as_call_expression = call_expression.as_call_expression();
+        let call_expression_ref = call_expression.ref_(self);
+        let call_expression_as_call_expression = call_expression_ref.as_call_expression();
         if self.type_checker.contains_missing_type(type_)
-            && is_access_expression(&self.reference)
-            && is_property_access_expression(&call_expression_as_call_expression.expression)
+            && is_access_expression(&self.reference.ref_(self))
+            && is_property_access_expression(&call_expression_as_call_expression.expression.ref_(self))
         {
-            let call_access = &call_expression_as_call_expression.expression;
-            let call_access_as_property_access_expression =
-                call_access.as_property_access_expression();
+            let call_access = call_expression_as_call_expression.expression;
+            let call_access_ref = call_access.ref_(self);
+            let call_access_as_property_access_expression = call_access_ref.as_property_access_expression();
             if self.type_checker.is_matching_reference(
-                &self.reference.as_has_expression().expression(),
-                &self
+                self.reference.ref_(self).as_has_expression().expression(),
+                self
                     .type_checker
-                    .get_reference_candidate(&call_access_as_property_access_expression.expression),
-            )? && is_identifier(&call_access_as_property_access_expression.name)
+                    .get_reference_candidate(call_access_as_property_access_expression.expression),
+            )? && is_identifier(&call_access_as_property_access_expression.name.ref_(self))
                 && call_access_as_property_access_expression
                     .name
                     .as_identifier()
@@ -297,11 +299,11 @@ impl GetFlowTypeOfReference {
                     == "hasOwnProperty"
                 && call_expression_as_call_expression.arguments.len() == 1
             {
-                let argument = &call_expression_as_call_expression.arguments[0];
-                if is_string_literal_like(argument)
+                let argument = call_expression_as_call_expression.arguments[0];
+                if is_string_literal_like(&argument.ref_(self))
                     && matches!(
-                        self.type_checker.get_accessed_property_name(&self.reference)?.as_ref(),
-                        Some(accessed_property_name) if accessed_property_name == &escape_leading_underscores(&argument.as_literal_like_node().text())
+                        self.type_checker.get_accessed_property_name(self.reference)?.as_ref(),
+                        Some(accessed_property_name) if accessed_property_name == &escape_leading_underscores(&argument.ref_(self).as_literal_like_node().text())
                     )
                 {
                     return self.type_checker.get_type_with_facts(
@@ -333,10 +335,10 @@ impl GetFlowTypeOfReference {
             let predicate_argument = self
                 .type_checker
                 .get_type_predicate_argument(predicate, call_expression);
-            if let Some(predicate_argument) = predicate_argument.as_ref() {
+            if let Some(predicate_argument) = predicate_argument {
                 if self
                     .type_checker
-                    .is_matching_reference(&self.reference, predicate_argument)?
+                    .is_matching_reference(self.reference, predicate_argument)?
                 {
                     return self.get_narrowed_type(
                         type_,
@@ -351,7 +353,7 @@ impl GetFlowTypeOfReference {
                     && assume_true
                     && self
                         .type_checker
-                        .optional_chain_contains_reference(predicate_argument, &self.reference)?
+                        .optional_chain_contains_reference(predicate_argument, self.reference)?
                     && !self
                         .type_checker
                         .get_type_facts(predicate_type, None)?
@@ -362,7 +364,7 @@ impl GetFlowTypeOfReference {
                         .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)?;
                 }
                 let access = self.get_discriminant_property_access(predicate_argument, type_)?;
-                if let Some(access) = access.as_ref() {
+                if let Some(access) = access {
                     return self.try_narrow_type_by_discriminant(type_, access, |t: Id<Type>| {
                         self.get_narrowed_type(
                             t,
@@ -386,21 +388,22 @@ impl GetFlowTypeOfReference {
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
         if is_expression_of_optional_chain_root(expr, self) || {
-            let expr_parent = expr.parent();
-            is_binary_expression(&expr_parent) && {
-                let expr_parent_as_binary_expression = expr_parent.as_binary_expression();
-                expr_parent_as_binary_expression.operator_token.kind()
+            let expr_parent = expr.ref_(self).parent();
+            is_binary_expression(&expr_parent.ref_(self)) && {
+                let expr_parent_ref = expr_parent.ref_(self);
+                let expr_parent_as_binary_expression = expr_parent_ref.as_binary_expression();
+                expr_parent_as_binary_expression.operator_token.ref_(self).kind()
                     == SyntaxKind::QuestionQuestionToken
-                    && ptr::eq(&*expr_parent_as_binary_expression.left, expr)
+                    && expr_parent_as_binary_expression.left == expr
             }
         } {
             return self.narrow_type_by_optionality(type_, expr, assume_true);
         }
-        match expr.kind() {
+        match expr.ref_(self).kind() {
             SyntaxKind::Identifier => {
                 if !self
                     .type_checker
-                    .is_matching_reference(&self.reference, expr)?
+                    .is_matching_reference(self.reference, expr)?
                     && self.type_checker.inline_level() < 5
                 {
                     let symbol = self.type_checker.get_resolved_symbol(expr)?;
@@ -410,16 +413,16 @@ impl GetFlowTypeOfReference {
                             declaration
                                 .as_ref()
                                 .try_filter(|declaration| -> io::Result<_> {
-                                    Ok(is_variable_declaration(declaration) && {
-                                        let declaration_as_variable_declaration =
-                                            declaration.as_variable_declaration();
+                                    Ok(is_variable_declaration(&declaration.ref_(self)) && {
+                                        let declaration_ref = declaration.ref_(self);
+                                        let declaration_as_variable_declaration = declaration_ref.as_variable_declaration();
                                         declaration_as_variable_declaration.maybe_type().is_none()
                                             && declaration_as_variable_declaration
                                                 .maybe_initializer()
                                                 .is_some()
                                             && self
                                                 .type_checker
-                                                .is_constant_reference(&self.reference)?
+                                                .is_constant_reference(self.reference)?
                                     })
                                 })?
                         {
@@ -427,8 +430,8 @@ impl GetFlowTypeOfReference {
                                 .set_inline_level(self.type_checker.inline_level() + 1);
                             let result = self.narrow_type(
                                 type_,
-                                &declaration
-                                    .as_has_initializer()
+                                declaration
+                                    .ref_(self).as_has_initializer()
                                     .maybe_initializer()
                                     .unwrap(),
                                 assume_true,
@@ -453,7 +456,7 @@ impl GetFlowTypeOfReference {
             SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
                 return self.narrow_type(
                     type_,
-                    &expr.as_has_expression().expression(),
+                    expr.ref_(self).as_has_expression().expression(),
                     assume_true,
                 );
             }
@@ -461,7 +464,8 @@ impl GetFlowTypeOfReference {
                 return self.narrow_type_by_binary_expression(type_, expr, assume_true);
             }
             SyntaxKind::PrefixUnaryExpression => {
-                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
+                let expr_ref = expr.ref_(self);
+                let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
                 if expr_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken {
                     return self.narrow_type(
                         type_,
@@ -483,7 +487,7 @@ impl GetFlowTypeOfReference {
     ) -> io::Result<Id<Type>> {
         if self
             .type_checker
-            .is_matching_reference(&self.reference, expr)?
+            .is_matching_reference(self.reference, expr)?
         {
             return self.type_checker.get_type_with_facts(
                 type_,
@@ -495,7 +499,7 @@ impl GetFlowTypeOfReference {
             );
         }
         let access = self.get_discriminant_property_access(expr, type_)?;
-        if let Some(access) = access.as_ref() {
+        if let Some(access) = access {
             return self.try_narrow_type_by_discriminant(type_, access, |t: Id<Type>| {
                 self.type_checker.get_type_with_facts(
                     t,
@@ -515,16 +519,15 @@ impl TypeChecker {
     pub(super) fn get_type_of_symbol_at_location_(
         &self,
         symbol: Id<Symbol>,
-        location: Id<Node>,
+        mut location: Id<Node>,
     ) -> io::Result<Id<Type>> {
         let symbol = symbol
             .ref_(self)
             .maybe_export_symbol()
             .unwrap_or_else(|| symbol);
 
-        let mut location = location.node_wrapper();
         if matches!(
-            location.kind(),
+            location.ref_(self).kind(),
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier
         ) {
             if is_right_side_of_qualified_name_or_property_access(location, self) {
@@ -544,8 +547,8 @@ impl TypeChecker {
                 }
             }
         }
-        if is_declaration_name(&location)
-            && is_set_accessor(&location.parent())
+        if is_declaration_name(location, self)
+            && is_set_accessor(&location.ref_(self).parent().ref_(self))
             && self
                 .get_annotated_accessor_type_node(location.maybe_parent())
                 .is_some()
@@ -558,16 +561,16 @@ impl TypeChecker {
     }
 
     pub(super) fn maybe_get_control_flow_container(&self, node: Id<Node>) -> Option<Id<Node>> {
-        find_ancestor(node.maybe_parent(), |node: Id<Node>| {
-            is_function_like(Some(node))
+        find_ancestor(node.ref_(self).maybe_parent(), |node: Id<Node>| {
+            is_function_like(Some(&node.ref_(self)))
                 && get_immediately_invoked_function_expression(node, self).is_none()
                 || matches!(
-                    node.kind(),
+                    node.ref_(self).kind(),
                     SyntaxKind::ModuleBlock
                         | SyntaxKind::SourceFile
                         | SyntaxKind::PropertyDeclaration
                 )
-        })
+        }, self)
     }
 
     pub(super) fn get_control_flow_container(&self, node: Id<Node>) -> Id<Node> {
@@ -580,8 +583,8 @@ impl TypeChecker {
             return Ok(false);
         }
         let symbol_value_declaration = symbol_value_declaration.unwrap();
-        let parent = get_root_declaration(symbol_value_declaration, self).parent();
-        let links = self.get_node_links(&parent);
+        let parent = get_root_declaration(symbol_value_declaration, self).ref_(self).parent();
+        let links = self.get_node_links(parent);
         if !(*links)
             .borrow()
             .flags
@@ -599,27 +602,27 @@ impl TypeChecker {
     }
 
     pub(super) fn has_parent_with_assignments_marked(&self, node: Id<Node>) -> bool {
-        find_ancestor(node.maybe_parent(), |node: Id<Node>| {
-            (is_function_like(Some(node)) || is_catch_clause(node))
+        find_ancestor(node.ref_(self).maybe_parent(), |node: Id<Node>| {
+            (is_function_like(Some(&node.ref_(self))) || is_catch_clause(&node.ref_(self)))
                 && (*self.get_node_links(node))
                     .borrow()
                     .flags
                     .intersects(NodeCheckFlags::AssignmentsMarked)
-        })
+        }, self)
         .is_some()
     }
 
     pub(super) fn mark_node_assignments(&self, node: Id<Node>) -> io::Result<()> {
-        if node.kind() == SyntaxKind::Identifier {
+        if node.ref_(self).kind() == SyntaxKind::Identifier {
             if is_assignment_target(node, self) {
                 let symbol = self.get_resolved_symbol(node)?;
-                if is_parameter_or_catch_clause_variable(&symbol.ref_(self)) {
+                if is_parameter_or_catch_clause_variable(symbol, self) {
                     symbol.ref_(self).set_is_assigned(Some(true));
                 }
             }
         } else {
             try_for_each_child(
-                node,
+                &node.ref_(self),
                 |node: Id<Node>| self.mark_node_assignments(node),
                 Option::<fn(&NodeArray) -> io::Result<()>>::None,
             )?;
@@ -640,14 +643,15 @@ impl TypeChecker {
         declared_type: Id<Type>,
         declaration: Id<Node>, /*VariableLikeDeclaration (actually also includes BindingElement)*/
     ) -> io::Result<Id<Type>> {
-        let declaration_as_has_initializer = declaration.as_has_initializer();
+        let declaration_ref = declaration.ref_(self);
+        let declaration_as_has_initializer = declaration_ref.as_has_initializer();
         Ok(
             if self.push_type_resolution(
-                &declaration.symbol().into(),
+                &declaration.ref_(self).symbol().into(),
                 TypeSystemPropertyName::DeclaredType,
             ) {
                 let annotation_includes_undefined = self.strict_null_checks
-                    && declaration.kind() == SyntaxKind::Parameter
+                    && declaration.ref_(self).kind() == SyntaxKind::Parameter
                     && matches!(
                         declaration_as_has_initializer.maybe_initializer().as_ref(),
                         Some(declaration_initializer) if self.get_falsy_flags(declared_type).intersects(TypeFlags::Undefined) &&
@@ -661,7 +665,7 @@ impl TypeChecker {
                     declared_type
                 }
             } else {
-                self.report_circularity_error(declaration.symbol())?;
+                self.report_circularity_error(declaration.ref_(self).symbol())?;
                 declared_type
             },
         )
@@ -672,16 +676,16 @@ impl TypeChecker {
         type_: Id<Type>,
         node: Id<Node>,
     ) -> io::Result<bool> {
-        let parent = node.parent();
-        Ok(parent.kind() == SyntaxKind::PropertyAccessExpression
-            || parent.kind() == SyntaxKind::CallExpression
-                && ptr::eq(&*parent.as_call_expression().expression, node)
-            || parent.kind() == SyntaxKind::ElementAccessExpression
-                && ptr::eq(&*parent.as_element_access_expression().expression, node)
+        let parent = node.ref_(self).parent();
+        Ok(parent.ref_(self).kind() == SyntaxKind::PropertyAccessExpression
+            || parent.ref_(self).kind() == SyntaxKind::CallExpression
+                && parent.ref_(self).as_call_expression().expression == node
+            || parent.ref_(self).kind() == SyntaxKind::ElementAccessExpression
+                && parent.ref_(self).as_element_access_expression().expression == node
                 && !(self.try_some_type(type_, |type_: Id<Type>| {
                     self.is_generic_type_without_nullable_constraint(type_)
                 })? && self.is_generic_index_type(self.get_type_of_expression(
-                    &parent.as_element_access_expression().argument_expression,
+                    parent.ref_(self).as_element_access_expression().argument_expression,
                 )?)?))
     }
 
@@ -712,15 +716,13 @@ impl TypeChecker {
         &self,
         node: Id<Node>,
     ) -> io::Result<bool> {
-        let contextual_type = if (is_identifier(node)
-            || is_property_access_expression(node)
-            || is_element_access_expression(node))
-            && !((is_jsx_opening_element(&node.parent())
-                || is_jsx_self_closing_element(&node.parent()))
-                && ptr::eq(
-                    &*node.parent().as_jsx_opening_like_element().tag_name(),
-                    node,
-                )) {
+        let contextual_type = if (is_identifier(&node.ref_(self))
+            || is_property_access_expression(&node.ref_(self))
+            || is_element_access_expression(&node.ref_(self)))
+            && !((is_jsx_opening_element(&node.ref_(self).parent().ref_(self))
+                || is_jsx_self_closing_element(&node.ref_(self).parent().ref_(self)))
+                && node.ref_(self).parent().ref_(self).as_jsx_opening_like_element().tag_name() == node)
+        {
             self.get_contextual_type_(node, Some(ContextFlags::SkipBindingPatterns))?
         } else {
             None
@@ -766,30 +768,23 @@ impl TypeChecker {
 
     pub(super) fn is_export_or_export_expression(&self, location: Id<Node>) -> bool {
         find_ancestor(Some(location), |n: Id<Node>| {
-            let parent = n.maybe_parent();
-            if parent.is_none() {
+            let Some(parent) = n.ref_(self).maybe_parent() else {
                 return FindAncestorCallbackReturn::Quit;
-            }
-            let parent = parent.unwrap();
-            if is_export_assignment(&parent) {
-                return (ptr::eq(&*parent.as_export_assignment().expression, n)
+            };
+            if is_export_assignment(&parent.ref_(self)) {
+                return (parent.ref_(self).as_export_assignment().expression == n
                     && is_entity_name_expression(n, self))
                 .into();
             }
             if is_export_specifier(&parent) {
-                let parent_as_export_specifier = parent.as_export_specifier();
-                return (ptr::eq(&*parent_as_export_specifier.name, n)
-                    || matches!(
-                        parent_as_export_specifier.property_name.as_deref(),
-                        Some(parent_property_name) if ptr::eq(
-                            parent_property_name,
-                            n
-                        )
-                    ))
+                let parent_ref = parent.ref_(self);
+                let parent_as_export_specifier = parent_ref.as_export_specifier();
+                return (parent_as_export_specifier.name == n
+                    || parent_as_export_specifier.property_name == Some(n))
                 .into();
             }
             false.into()
-        })
+        }, self)
         .is_some()
     }
 
@@ -839,9 +834,9 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
 
-            let container = get_containing_function(node).unwrap();
+            let container = get_containing_function(node, self).unwrap();
             if self.language_version < ScriptTarget::ES2015 {
-                if container.kind() == SyntaxKind::ArrowFunction {
+                if container.ref_(self).kind() == SyntaxKind::ArrowFunction {
                     self.error(
                         Some(node),
                         &Diagnostics::The_arguments_object_cannot_be_referenced_in_an_arrow_function_in_ES3_and_ES5_Consider_using_a_standard_function_expression,
@@ -856,16 +851,14 @@ impl TypeChecker {
                 }
             }
 
-            self.get_node_links(&container).borrow_mut().flags |= NodeCheckFlags::CaptureArguments;
+            self.get_node_links(container).borrow_mut().flags |= NodeCheckFlags::CaptureArguments;
             return self.get_type_of_symbol(symbol);
         }
 
         if !matches!(
-            node.maybe_parent().as_ref(),
-            Some(node_parent) if is_property_access_expression(node_parent) && ptr::eq(
-                &*node_parent.as_property_access_expression().expression,
-                node
-            )
+            node.ref_(self).maybe_parent(),
+            Some(node_parent) if is_property_access_expression(&node_parent.ref_(self))
+                && node_parent.ref_(self).as_property_access_expression().expression == node
         ) {
             self.mark_alias_referenced(symbol, node)?;
         }
@@ -893,19 +886,19 @@ impl TypeChecker {
                 self.add_deprecated_suggestion(
                     node,
                     source_symbol_declarations,
-                    &*node.as_identifier().escaped_text,
+                    &*node.ref_(self).as_identifier().escaped_text,
                 );
             }
         }
 
         let mut declaration = local_or_export_symbol.ref_(self).maybe_value_declaration();
-        if let Some(declaration) = declaration.as_ref() {
+        if let Some(declaration) = declaration {
             if local_or_export_symbol
                 .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Class)
             {
-                if declaration.kind() == SyntaxKind::ClassDeclaration
+                if declaration.ref_(self).kind() == SyntaxKind::ClassDeclaration
                     && node_is_decorated(
                         declaration,
                         None,
@@ -913,16 +906,10 @@ impl TypeChecker {
                         self,
                     )
                 {
-                    let mut container = get_containing_class(node);
-                    while let Some(container_present) = container.as_ref() {
-                        if Gc::ptr_eq(container_present, declaration)
-                            && !matches!(
-                                container_present.as_class_like_declaration().maybe_name().as_deref(),
-                                Some(container_name) if ptr::eq(
-                                    container_name,
-                                    node
-                                )
-                            )
+                    let mut container = get_containing_class(node, self);
+                    while let Some(container_present) = container {
+                        if container_present == declaration
+                            && container_present.ref_(self).as_class_like_declaration().maybe_name() != Some(node)
                         {
                             self.get_node_links(declaration).borrow_mut().flags |=
                                 NodeCheckFlags::ClassWithConstructorReference;
@@ -931,14 +918,14 @@ impl TypeChecker {
                             break;
                         }
 
-                        container = get_containing_class(container_present);
+                        container = get_containing_class(container_present, self);
                     }
-                } else if declaration.kind() == SyntaxKind::ClassExpression {
+                } else if declaration.ref_(self).kind() == SyntaxKind::ClassExpression {
                     let mut container = get_this_container(node, false, self);
-                    while container.kind() != SyntaxKind::SourceFile {
-                        if Gc::ptr_eq(&container.parent(), declaration) {
-                            if is_property_declaration(&container) && is_static(container, self)
-                                || is_class_static_block_declaration(&container)
+                    while container.ref_(self).kind() != SyntaxKind::SourceFile {
+                        if container.ref_(self).parent() == declaration {
+                            if is_property_declaration(&container.ref_(self)) && is_static(container, self)
+                                || is_class_static_block_declaration(&container.ref_(self))
                             {
                                 self.get_node_links(declaration).borrow_mut().flags |=
                                     NodeCheckFlags::ClassWithConstructorReference;
@@ -964,7 +951,7 @@ impl TypeChecker {
                 .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Variable)
-                && !(is_in_js_file(Some(node))
+                && !(is_in_js_file(Some(&node.ref_(self)))
                     && local_or_export_symbol
                         .ref_(self)
                         .flags()
@@ -1077,42 +1064,37 @@ impl TypeChecker {
 
         type_ = self.get_narrowable_type_for_reference(type_, node, check_mode)?;
 
-        let is_parameter = get_root_declaration(declaration, self).kind() == SyntaxKind::Parameter;
-        let declaration_container = self.maybe_get_control_flow_container(&declaration);
+        let is_parameter = get_root_declaration(declaration, self).ref_(self).kind() == SyntaxKind::Parameter;
+        let declaration_container = self.maybe_get_control_flow_container(declaration);
         let mut flow_container = self.get_control_flow_container(node);
-        let is_outer_variable = !matches!(
-            declaration_container.as_ref(),
-            Some(declaration_container) if Gc::ptr_eq(&flow_container, declaration_container)
-        );
+        let is_outer_variable = declaration_container != Some(flow_container);
         let is_spread_destructuring_assignment_target = matches!(
-            node.maybe_parent().as_ref(),
+            node.ref_(self).maybe_parent(),
             Some(node_parent) if matches!(
-                node_parent.maybe_parent().as_ref(),
-                Some(node_parent_parent) if is_spread_assignment(node_parent) && self.is_destructuring_assignment_target(node_parent_parent)
+                node_parent.ref_(self).maybe_parent(),
+                Some(node_parent_parent) if is_spread_assignment(&node_parent.ref_(self))
+                    && self.is_destructuring_assignment_target(node_parent_parent)
             )
         );
         let is_module_exports = symbol
             .ref_(self)
             .flags()
             .intersects(SymbolFlags::ModuleExports);
-        while !matches!(
-            declaration_container.as_ref(),
-            Some(declaration_container) if Gc::ptr_eq(&flow_container, declaration_container)
-        ) && (matches!(
-            flow_container.kind(),
+        while declaration_container != Some(flow_container) && (matches!(
+            flow_container.ref_(self).kind(),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
         ) || is_object_literal_or_class_expression_method_or_accessor(flow_container, self))
             && (self.is_const_variable(local_or_export_symbol) && type_ != self.auto_array_type()
                 || is_parameter && !self.is_symbol_assigned(local_or_export_symbol)?)
         {
-            flow_container = self.get_control_flow_container(&flow_container);
+            flow_container = self.get_control_flow_container(flow_container);
         }
         let assume_initialized = is_parameter
             || is_alias
             || is_outer_variable
             || is_spread_destructuring_assignment_target
             || is_module_exports
-            || is_binding_element(&declaration)
+            || is_binding_element(&declaration.ref_(self))
             || type_ != self.auto_type()
                 && type_ != self.auto_array_type()
                 && (!self.strict_null_checks
@@ -1121,17 +1103,17 @@ impl TypeChecker {
                         .flags()
                         .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Void)
                     || self.is_in_type_query(node)
-                    || node.parent().kind() == SyntaxKind::ExportSpecifier)
-            || node.parent().kind() == SyntaxKind::NonNullExpression
-            || declaration.kind() == SyntaxKind::VariableDeclaration
+                    || node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportSpecifier)
+            || node.ref_(self).parent().ref_(self).kind() == SyntaxKind::NonNullExpression
+            || declaration.ref_(self).kind() == SyntaxKind::VariableDeclaration
                 && declaration
-                    .as_variable_declaration()
+                    .ref_(self).as_variable_declaration()
                     .exclamation_token
                     .is_some()
-            || declaration.flags().intersects(NodeFlags::Ambient);
+            || declaration.ref_(self).flags().intersects(NodeFlags::Ambient);
         let initial_type = if assume_initialized {
             if is_parameter {
-                self.remove_optionality_from_declared_type(type_, &declaration)?
+                self.remove_optionality_from_declared_type(type_, declaration)?
             } else {
                 type_.clone()
             }
@@ -1144,7 +1126,7 @@ impl TypeChecker {
             node,
             type_,
             Some(initial_type),
-            Some(&*flow_container),
+            Some(flow_container),
         )?;
         if !self.is_evolving_array_operation_target(node)?
             && (type_ == self.auto_type() || type_ == self.auto_array_type())

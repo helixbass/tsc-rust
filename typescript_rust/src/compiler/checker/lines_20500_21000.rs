@@ -333,9 +333,9 @@ impl TypeChecker {
         if get_object_flags(&target.ref_(self)).intersects(ObjectFlags::Class) {
             let base_type_node = self.get_base_type_node_of_class(target);
             if matches!(
-                base_type_node.as_ref(),
+                base_type_node,
                 Some(base_type_node) if !matches!(
-                    base_type_node.as_expression_with_type_arguments().expression.kind(),
+                    base_type_node.ref_(self).as_expression_with_type_arguments().expression.ref_(self).kind(),
                     SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression
                 )
             ) {
@@ -1091,7 +1091,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         Ok(if is_expression_of_optional_chain_root(expression, self) {
             self.get_non_nullable_type(expr_type)?
-        } else if is_optional_chain(expression) {
+        } else if is_optional_chain(&expression.ref_(self)) {
             self.remove_optional_type_marker(expr_type)
         } else {
             expr_type

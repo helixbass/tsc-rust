@@ -420,9 +420,9 @@ impl TypeChecker {
             None,
             None,
         )?;
-        if is_in_js_file(Some(declaration))
+        if is_in_js_file(Some(&declaration.ref_(self)))
             && !is_check_js_enabled_for_file(
-                &get_source_file_of_node(declaration, self),
+                &get_source_file_of_node(declaration, self).ref_(self),
                 &self.compiler_options,
             )
         {
@@ -443,13 +443,13 @@ impl TypeChecker {
                 let param = declaration;
                 let param_ref = param.ref_(self);
                 let param_as_parameter_declaration = param_ref.as_parameter_declaration();
-                if is_identifier(&param_as_parameter_declaration.name())
-                    && (is_call_signature_declaration(&param.ref_(self).parent())
-                        || is_method_signature(&param.ref_(self).parent())
-                        || is_function_type_node(&param.ref_(self).parent()))
+                if is_identifier(&param_as_parameter_declaration.name().ref_(self))
+                    && (is_call_signature_declaration(&param.ref_(self).parent().ref_(self))
+                        || is_method_signature(&param.ref_(self).parent().ref_(self))
+                        || is_function_type_node(&param.ref_(self).parent().ref_(self)))
                     && param
                         .ref_(self).parent()
-                        .as_signature_declaration()
+                        .ref_(self).as_signature_declaration()
                         .parameters()
                         .into_iter()
                         .position(|&parameter: &Id<Node>| param == parameter)
@@ -459,14 +459,14 @@ impl TypeChecker {
                             Some(param),
                             &param_as_parameter_declaration
                                 .name()
-                                .as_identifier()
+                                .ref_(self).as_identifier()
                                 .escaped_text,
                             SymbolFlags::Type,
                             None,
                             Some(
                                 &*param_as_parameter_declaration
                                     .name()
-                                    .as_identifier()
+                                    .ref_(self).as_identifier()
                                     .escaped_text,
                             ),
                             true,
@@ -474,7 +474,7 @@ impl TypeChecker {
                         )?
                         .is_some()
                         || matches!(
-                            param_as_parameter_declaration.name().as_identifier().original_keyword_kind,
+                            param_as_parameter_declaration.name().ref_(self).as_identifier().original_keyword_kind,
                             Some(param_name_original_keyword_kind) if is_type_node_kind(param_name_original_keyword_kind)
                         ))
                 {
@@ -482,7 +482,7 @@ impl TypeChecker {
                         "arg{}",
                         param
                             .ref_(self).parent()
-                            .as_signature_declaration()
+                            .ref_(self).as_signature_declaration()
                             .parameters()
                             .into_iter()
                             .position(|&parameter: &Id<Node>| param == parameter)
