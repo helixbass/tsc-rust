@@ -20,6 +20,7 @@ use crate::{
     OptionTry, SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
     TypeMapper, TypeReference, TypeReferenceInterface, TypeSystemPropertyName,
+    index_of_eq,
 };
 
 impl TypeChecker {
@@ -35,23 +36,23 @@ impl TypeChecker {
                 .as_deref()
             {
                 for declaration in type_parameter_symbol_declarations {
-                    if declaration.parent().kind() == SyntaxKind::InferType {
+                    if declaration.ref_(self).parent().ref_(self).kind() == SyntaxKind::InferType {
                         let (child_type_parameter, grand_parent) =
                             walk_up_parenthesized_types_and_get_parent_and_child(
-                                declaration.parent().parent(),
+                                declaration.ref_(self).parent().ref_(self).parent(),
                                 self,
                             );
                         let grand_parent = grand_parent.unwrap();
                         let child_type_parameter =
-                            child_type_parameter.unwrap_or_else(|| declaration.parent());
-                        if grand_parent.kind() == SyntaxKind::TypeReference {
-                            let type_reference = &grand_parent;
+                            child_type_parameter.unwrap_or_else(|| declaration.ref_(self).parent());
+                        if grand_parent.ref_(self).kind() == SyntaxKind::TypeReference {
+                            let type_reference = grand_parent;
                             let type_parameters =
                                 self.get_type_parameters_for_type_reference(type_reference)?;
                             if let Some(type_parameters) = type_parameters {
-                                let index: usize = index_of_gc(
+                                let index: usize = index_of_eq(
                                     type_reference
-                                        .as_type_reference_node()
+                                        .ref_(self).as_type_reference_node()
                                         .maybe_type_arguments()
                                         .as_deref()
                                         .unwrap(),
@@ -81,15 +82,15 @@ impl TypeChecker {
                                     }
                                 }
                             }
-                        } else if grand_parent.kind() == SyntaxKind::Parameter
+                        } else if grand_parent.ref_(self).kind() == SyntaxKind::Parameter
                             && grand_parent
-                                .as_parameter_declaration()
+                                .ref_(self).as_parameter_declaration()
                                 .dot_dot_dot_token
                                 .is_some()
-                            || grand_parent.kind() == SyntaxKind::RestType
-                            || grand_parent.kind() == SyntaxKind::NamedTupleMember
+                            || grand_parent.ref_(self).kind() == SyntaxKind::RestType
+                            || grand_parent.ref_(self).kind() == SyntaxKind::NamedTupleMember
                                 && grand_parent
-                                    .as_named_tuple_member()
+                                    .ref_(self).as_named_tuple_member()
                                     .dot_dot_dot_token
                                     .is_some()
                         {
@@ -100,13 +101,13 @@ impl TypeChecker {
                                 inferences.as_mut().unwrap(),
                                 Some(self.create_array_type(self.unknown_type(), None)),
                             );
-                        } else if grand_parent.kind() == SyntaxKind::TemplateLiteralTypeSpan {
+                        } else if grand_parent.ref_(self).kind() == SyntaxKind::TemplateLiteralTypeSpan {
                             if inferences.is_none() {
                                 inferences = Some(vec![]);
                             }
                             append(inferences.as_mut().unwrap(), Some(self.string_type()));
-                        } else if grand_parent.kind() == SyntaxKind::TypeParameter
-                            && grand_parent.parent().kind() == SyntaxKind::MappedType
+                        } else if grand_parent.ref_(self).kind() == SyntaxKind::TypeParameter
+                            && grand_parent.ref_(self).parent().ref_(self).kind() == SyntaxKind::MappedType
                         {
                             if inferences.is_none() {
                                 inferences = Some(vec![]);
@@ -115,45 +116,41 @@ impl TypeChecker {
                                 inferences.as_mut().unwrap(),
                                 Some(self.keyof_constraint_type()),
                             );
-                        } else if grand_parent.kind() == SyntaxKind::MappedType && {
+                        } else if grand_parent.ref_(self).kind() == SyntaxKind::MappedType && {
+                            let grand_parent_ref = grand_parent.ref_(self);
                             let grand_parent_as_mapped_type_node =
-                                grand_parent.as_mapped_type_node();
+                                grand_parent_ref.as_mapped_type_node();
                             grand_parent_as_mapped_type_node.type_.is_some()
-                                && Gc::ptr_eq(
-                                    &skip_parentheses(
+                                && skip_parentheses(
                                         grand_parent_as_mapped_type_node.type_.unwrap(),
                                         None,
                                         self,
-                                    ),
-                                    &declaration.parent(),
-                                )
-                                && grand_parent.parent().kind() == SyntaxKind::ConditionalType
+                                    ) == declaration.ref_(self).parent()
+                                && grand_parent.ref_(self).parent().ref_(self).kind() == SyntaxKind::ConditionalType
                                 && {
-                                    let grand_parent_parent = grand_parent.parent();
-                                    let grand_parent_parent_as_conditional_type_node =
-                                        grand_parent_parent.as_conditional_type_node();
-                                    Gc::ptr_eq(
-                                        &grand_parent_parent_as_conditional_type_node.extends_type,
-                                        &grand_parent,
-                                    ) && grand_parent_parent_as_conditional_type_node
+                                    let grand_parent_parent = grand_parent.ref_(self).parent();
+                                    let grand_parent_parent_ref = grand_parent_parent.ref_(self);
+                                    let grand_parent_parent_as_conditional_type_node = grand_parent_parent_ref.as_conditional_type_node();
+                                    grand_parent_parent_as_conditional_type_node.extends_type == grand_parent &&
+                                        grand_parent_parent_as_conditional_type_node
                                         .check_type
-                                        .kind()
+                                        .ref_(self).kind()
                                         == SyntaxKind::MappedType
                                         && grand_parent_parent_as_conditional_type_node
                                             .check_type
-                                            .as_mapped_type_node()
+                                            .ref_(self).as_mapped_type_node()
                                             .type_
                                             .is_some()
                                 }
                         } {
                             let check_mapped_type = grand_parent
-                                .parent()
-                                .as_conditional_type_node()
-                                .check_type
-                                .clone();
-                            let check_mapped_type = check_mapped_type.as_mapped_type_node();
+                                .ref_(self).parent()
+                                .ref_(self).as_conditional_type_node()
+                                .check_type;
+                            let check_mapped_type_ref = check_mapped_type.ref_(self);
+                            let check_mapped_type = check_mapped_type_ref.as_mapped_type_node();
                             let node_type = self.get_type_from_type_node_(
-                                check_mapped_type.type_.as_ref().unwrap(),
+                                check_mapped_type.type_.unwrap(),
                             )?;
                             append(
                                 inferences.get_or_insert_default_(),
@@ -237,11 +234,11 @@ impl TypeChecker {
                             );
                     }
                     Some(constraint_declaration) => {
-                        let mut type_ = self.get_type_from_type_node_(&constraint_declaration)?;
+                        let mut type_ = self.get_type_from_type_node_(constraint_declaration)?;
                         if type_.ref_(self).flags().intersects(TypeFlags::Any)
                             && !self.is_error_type(type_)
                         {
-                            type_ = if constraint_declaration.parent().parent().kind()
+                            type_ = if constraint_declaration.ref_(self).parent().ref_(self).parent().ref_(self).kind()
                                 == SyntaxKind::MappedType
                             {
                                 self.keyof_constraint_type()
@@ -280,12 +277,12 @@ impl TypeChecker {
             self,
         )
         .unwrap();
-        let host = if is_jsdoc_template_tag(&tp.parent()) {
-            get_effective_container_for_jsdoc_template_tag(tp.parent(), self)
+        let host = if is_jsdoc_template_tag(&tp.ref_(self).parent().ref_(self)) {
+            get_effective_container_for_jsdoc_template_tag(tp.ref_(self).parent(), self)
         } else {
-            Some(tp.parent())
+            Some(tp.ref_(self).parent())
         };
-        host.try_and_then(|host| self.get_symbol_of_node(&host))
+        host.try_and_then(|host| self.get_symbol_of_node(host))
     }
 
     pub(super) fn get_type_list_id(&self, types: Option<&[Id<Type>]>) -> String {
@@ -437,7 +434,7 @@ impl TypeChecker {
             self.create_object_type(ObjectFlags::Reference, target.ref_(self).maybe_symbol());
         type_.mapper = mapper;
         let type_ = self.alloc_type(TypeReference::new(type_, target, None).into());
-        *type_.ref_(self).as_type_reference().maybe_node_mut() = Some(node.node_wrapper());
+        *type_.ref_(self).as_type_reference().maybe_node_mut() = Some(node);
         *type_.ref_(self).maybe_alias_symbol_mut() = alias_symbol;
         *type_.ref_(self).maybe_alias_type_arguments_mut() = alias_type_arguments;
         Ok(type_)
@@ -482,7 +479,7 @@ impl TypeChecker {
                 vec![]
             } else {
                 let node = node.unwrap();
-                if node.kind() == SyntaxKind::TypeReference {
+                if node.ref_(self).kind() == SyntaxKind::TypeReference {
                     let target = type_.ref_(self).as_type_reference_interface().target();
                     concatenate(
                         {
@@ -494,7 +491,7 @@ impl TypeChecker {
                             outer_type_parameters
                         },
                         self.get_effective_type_arguments(
-                            &node,
+                            node,
                             {
                                 let local_type_parameters = target
                                     .ref_(self)
@@ -506,12 +503,12 @@ impl TypeChecker {
                             .as_deref(),
                         )?,
                     )
-                } else if node.kind() == SyntaxKind::ArrayType {
-                    vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)?]
+                } else if node.ref_(self).kind() == SyntaxKind::ArrayType {
+                    vec![self.get_type_from_type_node_(node.ref_(self).as_array_type_node().element_type)?]
                 } else {
                     try_map(
-                        &node.as_tuple_type_node().elements,
-                        |element: &Id<Node>, _| self.get_type_from_type_node_(element),
+                        &node.ref_(self).as_tuple_type_node().elements,
+                        |&element: &Id<Node>, _| self.get_type_from_type_node_(element),
                     )?
                 }
             };
@@ -625,20 +622,20 @@ impl TypeChecker {
             .map(ToOwned::to_owned);
         if let Some(type_parameters) = type_parameters.as_deref() {
             let num_type_arguments = length(
-                node.as_has_type_arguments()
+                node.ref_(self).as_has_type_arguments()
                     .maybe_type_arguments()
                     .as_double_deref(),
             );
             let min_type_argument_count = self.get_min_type_argument_count(Some(type_parameters));
-            let is_js = is_in_js_file(Some(node));
+            let is_js = is_in_js_file(Some(&node.ref_(self)));
             let is_js_implicit_any = !self.no_implicit_any && is_js;
             if !is_js_implicit_any
                 && (num_type_arguments < min_type_argument_count
                     || num_type_arguments > type_parameters.len())
             {
                 let missing_augments_tag = is_js
-                    && is_expression_with_type_arguments(node)
-                    && !is_jsdoc_augments_tag(&node.parent());
+                    && is_expression_with_type_arguments(&node.ref_(self))
+                    && !is_jsdoc_augments_tag(&node.ref_(self).parent().ref_(self));
                 let diag = if min_type_argument_count == type_parameters.len() {
                     if missing_augments_tag {
                         &*Diagnostics::Expected_0_type_arguments_provide_these_with_an_extends_tag
@@ -672,12 +669,12 @@ impl TypeChecker {
                     return Ok(self.error_type());
                 }
             }
-            if node.kind() == SyntaxKind::TypeReference
+            if node.ref_(self).kind() == SyntaxKind::TypeReference
                 && self.is_deferred_type_reference_node(
                     node,
                     Some(
                         length(
-                            node.as_has_type_arguments()
+                            node.ref_(self).as_has_type_arguments()
                                 .maybe_type_arguments()
                                 .as_double_deref(),
                         ) != type_parameters.len(),
@@ -754,7 +751,7 @@ impl TypeChecker {
                         type_arguments.map(ToOwned::to_owned),
                         Some(&type_parameters),
                         self.get_min_type_argument_count(Some(&type_parameters)),
-                        is_in_js_file(symbol.ref_(self).maybe_value_declaration()),
+                        is_in_js_file(&symbol.ref_(self).maybe_value_declaration().ref_(self)),
                     )?,
                 ),
                 alias_symbol,
@@ -800,7 +797,7 @@ impl TypeChecker {
             .clone();
         if let Some(type_parameters) = type_parameters {
             let num_type_arguments = length(
-                node.as_has_type_arguments()
+                node.ref_(self).as_has_type_arguments()
                     .maybe_type_arguments()
                     .as_double_deref(),
             );
@@ -849,11 +846,11 @@ impl TypeChecker {
         let declaration = symbol_declarations.as_ref().and_then(|declarations| {
             declarations
                 .iter()
-                .find(|declaration: &&Id<Node>| is_type_alias(declaration))
+                .find(|declaration: &&Id<Node>| is_type_alias(&declaration.ref_(self)))
                 .map(Clone::clone)
         });
         declaration
-            .and_then(|declaration| get_containing_function(&declaration))
+            .and_then(|declaration| get_containing_function(declaration, self))
             .is_some()
     }
 
@@ -861,14 +858,14 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeReferenceType*/
     ) -> Option<Id<Node /*EntityNameOrEntityNameExpression*/>> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::TypeReference => {
-                return Some(node.as_type_reference_node().type_name.clone());
+                return Some(node.ref_(self).as_type_reference_node().type_name);
             }
             SyntaxKind::ExpressionWithTypeArguments => {
-                let expr = &node.as_expression_with_type_arguments().expression;
+                let expr = node.ref_(self).as_expression_with_type_arguments().expression;
                 if is_entity_name_expression(expr, self) {
-                    return Some(expr.clone());
+                    return Some(expr);
                 }
             }
             _ => (),
@@ -891,20 +888,20 @@ impl TypeChecker {
         &self,
         name: Id<Node>, /*EntityNameOrEntityNameExpression*/
     ) -> Id<Symbol /*TransientSymbol*/> {
-        let identifier = if name.kind() == SyntaxKind::QualifiedName {
-            name.as_qualified_name().right.clone()
-        } else if name.kind() == SyntaxKind::PropertyAccessExpression {
-            name.as_property_access_expression().name.clone()
+        let identifier = if name.ref_(self).kind() == SyntaxKind::QualifiedName {
+            name.ref_(self).as_qualified_name().right
+        } else if name.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
+            name.ref_(self).as_property_access_expression().name
         } else {
-            name.node_wrapper()
+            name
         };
         let text = &identifier.as_identifier().escaped_text;
         if &**text != "" {
-            let parent_symbol = if name.kind() == SyntaxKind::QualifiedName {
-                Some(self.get_unresolved_symbol_for_entity_name(&name.as_qualified_name().left))
-            } else if name.kind() == SyntaxKind::PropertyAccessExpression {
+            let parent_symbol = if name.ref_(self).kind() == SyntaxKind::QualifiedName {
+                Some(self.get_unresolved_symbol_for_entity_name(name.ref_(self).as_qualified_name().left))
+            } else if name.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
                 Some(self.get_unresolved_symbol_for_entity_name(
-                    &name.as_property_access_expression().expression,
+                    name.ref_(self).as_property_access_expression().expression,
                 ))
             } else {
                 None
@@ -956,7 +953,7 @@ impl TypeChecker {
             }
         };
         let symbol = self.resolve_entity_name(
-            &*name,
+            name,
             meaning,
             Some(ignore_errors),
             None,
@@ -968,7 +965,7 @@ impl TypeChecker {
             } else if ignore_errors {
                 self.unknown_symbol()
             } else {
-                self.get_unresolved_symbol_for_entity_name(&name)
+                self.get_unresolved_symbol_for_entity_name(name)
             },
         )
     }
@@ -1024,8 +1021,8 @@ impl TypeChecker {
             let value_type = self.get_type_of_symbol(symbol)?;
             let mut type_type = value_type.clone();
             if symbol.ref_(self).maybe_value_declaration().is_some() {
-                let is_import_type_with_qualifier = node.kind() == SyntaxKind::ImportType
-                    && node.as_import_type_node().qualifier.is_some();
+                let is_import_type_with_qualifier = node.ref_(self).kind() == SyntaxKind::ImportType
+                    && node.ref_(self).as_import_type_node().qualifier.is_some();
                 if let Some(value_type_symbol) =
                     value_type
                         .ref_(self)
@@ -1072,7 +1069,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_unary_tuple_type_node(&self, node: Id<Node> /*TypeNode*/) -> bool {
-        node.kind() == SyntaxKind::TupleType && node.as_tuple_type_node().elements.len() == 1
+        node.ref_(self).kind() == SyntaxKind::TupleType && node.ref_(self).as_tuple_type_node().elements.len() == 1
     }
 
     pub(super) fn get_implied_constraint(
@@ -1087,8 +1084,8 @@ impl TypeChecker {
             {
                 self.get_implied_constraint(
                     type_,
-                    &check_node.as_tuple_type_node().elements[0],
-                    &extends_node.as_tuple_type_node().elements[0],
+                    check_node.ref_(self).as_tuple_type_node().elements[0],
+                    extends_node.ref_(self).as_tuple_type_node().elements[0],
                 )?
             } else if self.get_actual_type_variable(self.get_type_from_type_node_(check_node)?)?
                 == type_
@@ -1103,11 +1100,10 @@ impl TypeChecker {
     pub(super) fn get_conditional_flow_type_of_type(
         &self,
         type_: Id<Type>,
-        node: Id<Node>,
+        mut node: Id<Node>,
     ) -> io::Result<Id<Type>> {
         let mut constraints: Option<Vec<Id<Type>>> = None;
         let mut covariant = true;
-        let mut node = node.node_wrapper();
         while
         /*node &&*/
         !is_statement(node, self) && node.kind() != SyntaxKind::JSDocComment {
@@ -1146,9 +1142,9 @@ impl TypeChecker {
     }
 
     pub(super) fn is_jsdoc_type_reference(&self, node: Id<Node>) -> bool {
-        node.flags().intersects(NodeFlags::JSDoc)
+        node.ref_(self).flags().intersects(NodeFlags::JSDoc)
             && matches!(
-                node.kind(),
+                node.ref_(self).kind(),
                 SyntaxKind::TypeReference | SyntaxKind::ImportType
             )
     }
@@ -1159,7 +1155,7 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
         if node
-            .as_has_type_arguments()
+            .ref_(self).as_has_type_arguments()
             .maybe_type_arguments()
             .is_some()
         {
@@ -1168,10 +1164,10 @@ impl TypeChecker {
                 &Diagnostics::Type_0_is_not_generic,
                 Some(vec![if let Some(symbol) = symbol {
                     self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?
-                } else if node.kind() == SyntaxKind::TypeReference
+                } else if node.ref_(self).kind() == SyntaxKind::TypeReference
                 /*&& node.as_type_reference_node().type_name.is_some()*/
                 {
-                    declaration_name_to_string(Some(node.as_type_reference_node().type_name), self)
+                    declaration_name_to_string(Some(node.ref_(self).as_type_reference_node().type_name), self)
                         .into_owned()
                 } else {
                     anon.to_owned()
@@ -1186,8 +1182,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Option<Id<Type>>> {
-        let node_as_type_reference_node = node.as_type_reference_node();
-        if is_identifier(&node_as_type_reference_node.type_name) {
+        let node_ref = node.ref_(self);
+        let node_as_type_reference_node = node_ref.as_type_reference_node();
+        if is_identifier(&node_as_type_reference_node.type_name.ref_(self)) {
             let type_args = node_as_type_reference_node.maybe_type_arguments();
             let type_args = type_args.as_ref();
             match &*node_as_type_reference_node

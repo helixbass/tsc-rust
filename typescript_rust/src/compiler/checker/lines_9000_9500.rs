@@ -66,7 +66,7 @@ impl TypeChecker {
     ) -> Option<Vec<Id<Type>>> {
         Debug_.assert(types.len() == declarations.len(), None);
         Some(types.iter().enumerate().filter(|(i, _)| {
-            let declaration = declarations[i];
+            let declaration = declarations[*i];
             let expression = if is_binary_expression(&declaration.ref_(self)) {
                 Some(declaration)
             } else if is_binary_expression(&declaration.ref_(self).parent().ref_(self)) {
@@ -505,8 +505,8 @@ impl TypeChecker {
             return self.get_widened_type(
                 self.get_widened_literal_type(
                     self.check_expression(
-                        &declaration_as_source_file.statements()[0]
-                            .as_expression_statement()
+                        declaration_as_source_file.statements()[0]
+                            .ref_(self).as_expression_statement()
                             .expression,
                         None,
                         None,

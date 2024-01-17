@@ -790,7 +790,7 @@ impl TypeChecker {
                     .transpose()?;
                 let object_literal_container =
                     self.get_variable_declaration_of_object_literal(container, meaning)?;
-                if let Some(enclosing_declaration) = enclosing_declaration.as_ref() {
+                if let Some(enclosing_declaration) = enclosing_declaration {
                     if container
                         .ref_(self)
                         .flags()

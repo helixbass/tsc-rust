@@ -201,7 +201,6 @@ impl TypeChecker {
         if self.is_type_usable_as_property_name(index_type) {
             return Some(self.get_property_name_from_type(index_type));
         }
-        let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         access_node
             .filter(|access_node| is_property_name(access_node))
             .and_then(|access_node| {
@@ -219,18 +218,18 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
         {
-            let parent = find_ancestor(node.maybe_parent(), |n| !is_access_expression(n))
-                .unwrap_or_else(|| node.parent());
-            if is_call_like_expression(&parent) {
-                return Ok(is_call_or_new_expression(&parent)
-                    && is_identifier(node)
-                    && self.has_matching_argument(&parent, node)?);
+            let parent = find_ancestor(node.ref_(self).maybe_parent(), |n| !is_access_expression(&n.ref_(self)), self)
+                .unwrap_or_else(|| node.ref_(self).parent());
+            if is_call_like_expression(&parent.ref_(self)) {
+                return Ok(is_call_or_new_expression(&parent.ref_(self))
+                    && is_identifier(&node.ref_(self))
+                    && self.has_matching_argument(parent, node)?);
             }
             return Ok(maybe_every(
                 symbol.ref_(self).maybe_declarations().as_deref(),
-                |d: &Id<Node>, _| {
-                    !is_function_like(Some(&**d))
-                        || get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
+                |&d: &Id<Node>, _| {
+                    !is_function_like(Some(&d.ref_(self)))
+                        || get_combined_node_flags(d, self).intersects(NodeFlags::Deprecated)
                 },
             ));
         }
@@ -248,15 +247,15 @@ impl TypeChecker {
         >,
         access_flags: AccessFlags,
     ) -> io::Result<Option<Id<Type>>> {
-        let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         let access_expression = access_node
-            .as_deref()
-            .filter(|access_node| access_node.kind() == SyntaxKind::ElementAccessExpression);
-        let prop_name = if matches!(access_node.as_ref(), Some(access_node) if is_private_identifier(access_node))
-        {
+            .filter(|access_node| access_node.ref_(self).kind() == SyntaxKind::ElementAccessExpression);
+        let prop_name = if matches!(
+            access_node,
+            Some(access_node) if is_private_identifier(&access_node.ref_(self))
+        ) {
             None
         } else {
-            self.get_property_name_from_index(index_type, access_node.as_deref())
+            self.get_property_name_from_index(index_type, access_node)
         };
 
         if let Some(prop_name) = prop_name.as_ref() {
@@ -286,13 +285,12 @@ impl TypeChecker {
                                             .clone()
                                     })
                                     .unwrap_or_else(|| {
-                                        if is_indexed_access_type_node(access_node) {
+                                        if is_indexed_access_type_node(&access_node.ref_(self)) {
                                             access_node
-                                                .as_indexed_access_type_node()
+                                                .ref_(self).as_indexed_access_type_node()
                                                 .index_type
-                                                .clone()
                                         } else {
-                                            access_node.clone()
+                                            access_node
                                         }
                                     });
                                 self.add_deprecated_suggestion(
@@ -572,6 +570,7 @@ impl TypeChecker {
                                             None,
                                         )?,
                                     ]),
+                                    self,
                                 )
                                 .into(),
                             );
@@ -662,7 +661,7 @@ impl TypeChecker {
                                         "{}[{}]",
                                         type_name,
                                         get_text_of_node(
-                                            &access_expression.as_element_access_expression().argument_expression,
+                                            access_expression.ref_(self).as_element_access_expression().argument_expression,
                                             None,
                                             self,
                                         ),
@@ -674,7 +673,7 @@ impl TypeChecker {
                             .is_some()
                         {
                             self.error(
-                                Some(&*access_expression.as_element_access_expression().argument_expression),
+                                Some(access_expression.ref_(self).as_element_access_expression().argument_expression),
                                 &Diagnostics::Element_implicitly_has_an_any_type_because_index_expression_is_not_of_type_number,
                                 None,
                             );
@@ -690,7 +689,7 @@ impl TypeChecker {
                                 .filter(|suggestion| !suggestion.is_empty())
                             {
                                 self.error(
-                                    Some(&*access_expression.as_element_access_expression().argument_expression),
+                                    Some(access_expression.ref_(self).as_element_access_expression().argument_expression),
                                     &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
                                     Some(vec![
                                         (*prop_name.unwrap()).to_owned(),
@@ -836,6 +835,7 @@ impl TypeChecker {
                                             access_expression,
                                             error_info.unwrap(),
                                             None,
+                                            self,
                                         )
                                         .into(),
                                     ));
@@ -941,17 +941,16 @@ impl TypeChecker {
         &self,
         access_node: Id<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
     ) -> Id<Node> {
-        if access_node.kind() == SyntaxKind::ElementAccessExpression {
+        if access_node.ref_(self).kind() == SyntaxKind::ElementAccessExpression {
             access_node
-                .as_element_access_expression()
+                .ref_(self).as_element_access_expression()
                 .argument_expression
-                .clone()
-        } else if access_node.kind() == SyntaxKind::IndexedAccessType {
-            access_node.as_indexed_access_type_node().index_type.clone()
-        } else if access_node.kind() == SyntaxKind::ComputedPropertyName {
-            access_node.as_computed_property_name().expression.clone()
+        } else if access_node.ref_(self).kind() == SyntaxKind::IndexedAccessType {
+            access_node.as_indexed_access_type_node().index_type
+        } else if access_node.ref_(self).kind() == SyntaxKind::ComputedPropertyName {
+            access_node.as_computed_property_name().expression
         } else {
-            access_node.node_wrapper()
+            access_node
         }
     }
 
@@ -1388,7 +1387,6 @@ impl TypeChecker {
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let access_flags = access_flags.unwrap_or(AccessFlags::None);
-        let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         Ok(self
             .get_indexed_access_type_or_undefined(
                 object_type,
@@ -1458,7 +1456,6 @@ impl TypeChecker {
         {
             access_flags |= AccessFlags::IncludeUndefined;
         }
-        let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         if self.is_generic_index_type(index_type)?
             || if matches!(
                 access_node.as_ref(),

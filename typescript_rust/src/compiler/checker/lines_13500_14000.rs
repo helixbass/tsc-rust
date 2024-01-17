@@ -21,7 +21,7 @@ impl TypeChecker {
         node: Id<Node>, /*JSDocNullableType*/
     ) -> io::Result<Id<Type>> {
         let type_ =
-            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
+            self.get_type_from_type_node_(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap())?;
         Ok(if self.strict_null_checks {
             self.get_nullable_type(type_, TypeFlags::Null)?
         } else {
@@ -35,10 +35,10 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            if is_const_type_reference(node, self) && is_assertion_expression(&node.parent()) {
+            if is_const_type_reference(node, self) && is_assertion_expression(&node.ref_(self).parent().ref_(self)) {
                 links.borrow_mut().resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.check_expression_cached(
-                    &node.parent().as_has_expression().expression(),
+                    node.ref_(self).parent().ref_(self).as_has_expression().expression(),
                     None,
                 )?;
                 links.borrow_mut().resolved_type = Some(ret.clone());
@@ -82,8 +82,8 @@ impl TypeChecker {
         node: Id<Node>, /*NodeWithTypeArguments*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         try_maybe_map(
-            node.as_has_type_arguments().maybe_type_arguments().as_ref(),
-            |type_argument, _| self.get_type_from_type_node_(&**type_argument),
+            node.ref_(self).as_has_type_arguments().maybe_type_arguments().as_ref(),
+            |&type_argument, _| self.get_type_from_type_node_(type_argument),
         )
         .transpose()
     }
@@ -94,11 +94,12 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let node_as_type_query_node = node.as_type_query_node();
-            let type_ = if is_this_identifier(Some(&*node_as_type_query_node.expr_name)) {
-                self.check_this_expression(&node_as_type_query_node.expr_name)?
+            let node_ref = node.ref_(self);
+            let node_as_type_query_node = node_ref.as_type_query_node();
+            let type_ = if is_this_identifier(Some(&node_as_type_query_node.expr_name.ref_(self))) {
+                self.check_this_expression(node_as_type_query_node.expr_name)?
             } else {
-                self.check_expression(&node_as_type_query_node.expr_name, None, None)?
+                self.check_expression(node_as_type_query_node.expr_name, None, None)?
             };
             links.borrow_mut().resolved_type =
                 Some(self.get_regular_type_of_literal_type(self.get_widened_type(type_)?));
@@ -165,7 +166,7 @@ impl TypeChecker {
         let declarations = symbol_ref.maybe_declarations();
         declarations.as_ref().and_then(|declarations| {
             for declaration in declarations {
-                match declaration.kind() {
+                match declaration.ref_(self).kind() {
                     SyntaxKind::ClassDeclaration
                     | SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::EnumDeclaration => {
@@ -240,9 +241,9 @@ impl TypeChecker {
                     .as_deref()
                     .and_then(|symbol_declarations| {
                         find(symbol_declarations, |declaration: &Id<Node>, _| {
-                            is_type_alias_declaration(declaration)
+                            is_type_alias_declaration(&declaration.ref_(self))
                         })
-                        .map(Clone::clone)
+                        .copied()
                     });
                 self.error(
                     decl,
@@ -764,11 +765,12 @@ impl TypeChecker {
     }
 
     pub(super) fn get_tuple_element_flags(&self, node: Id<Node> /*TypeNode*/) -> ElementFlags {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::OptionalType => ElementFlags::Optional,
             SyntaxKind::RestType => self.get_rest_type_element_flags(node),
             SyntaxKind::NamedTupleMember => {
-                let node_as_named_tuple_member = node.as_named_tuple_member();
+                let node_ref = node.ref_(self);
+                let node_as_named_tuple_member = node_ref.as_named_tuple_member();
                 if node_as_named_tuple_member.question_token.is_some() {
                     ElementFlags::Optional
                 } else if node_as_named_tuple_member.dot_dot_dot_token.is_some() {
@@ -786,7 +788,7 @@ impl TypeChecker {
         node: Id<Node>, /*RestTypeNode | NamedTupleMember*/
     ) -> ElementFlags {
         if self
-            .get_array_element_type_node(&node.as_has_type().maybe_type().unwrap())
+            .get_array_element_type_node(node.ref_(self).as_has_type().maybe_type())
             .is_some()
         {
             ElementFlags::Rest
@@ -799,7 +801,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ArrayTypeNode | TupleTypeNode*/
     ) -> io::Result<Id<Type /*GenericType*/>> {
-        let readonly = self.is_readonly_type_operator(&node.parent());
+        let readonly = self.is_readonly_type_operator(node.ref_(self).parent());
         let element_type = self.get_array_element_type_node(node);
         if element_type.is_some() {
             return Ok(if readonly {
@@ -808,14 +810,15 @@ impl TypeChecker {
                 self.global_array_type()
             });
         }
-        let node_as_tuple_type_node = node.as_tuple_type_node();
+        let node_ref = node.ref_(self);
+        let node_as_tuple_type_node = node_ref.as_tuple_type_node();
         let element_flags = map(
             &node_as_tuple_type_node.elements,
-            |element: &Id<Node>, _| self.get_tuple_element_flags(element),
+            |&element: &Id<Node>, _| self.get_tuple_element_flags(element),
         );
         let missing_name = some(
             Some(&node_as_tuple_type_node.elements),
-            Some(|e: &Id<Node>| e.kind() != SyntaxKind::NamedTupleMember),
+            Some(|e: &Id<Node>| e.ref_(self).kind() != SyntaxKind::NamedTupleMember),
         );
         self.get_tuple_target_type(
             &element_flags,
@@ -835,20 +838,20 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(self.get_alias_symbol_for_type_node(node)?.is_some()
             || self.is_resolved_by_type_alias(node)
-                && if node.kind() == SyntaxKind::ArrayType {
-                    self.may_resolve_type_alias(&node.as_array_type_node().element_type)?
-                } else if node.kind() == SyntaxKind::TupleType {
+                && if node.ref_(self).kind() == SyntaxKind::ArrayType {
+                    self.may_resolve_type_alias(node.ref_(self).as_array_type_node().element_type)?
+                } else if node.ref_(self).kind() == SyntaxKind::TupleType {
                     try_some(
-                        Some(&node.as_tuple_type_node().elements),
-                        Some(|element: &Id<Node>| self.may_resolve_type_alias(element)),
+                        Some(&node.ref_(self).as_tuple_type_node().elements),
+                        Some(|&element: &Id<Node>| self.may_resolve_type_alias(element)),
                     )?
                 } else {
                     matches!(has_default_type_arguments, Some(true))
                         || try_some(
-                            node.as_type_reference_node()
+                            node.ref_(self).as_type_reference_node()
                                 .maybe_type_arguments()
                                 .as_double_deref(),
-                            Some(|type_argument: &Id<Node>| {
+                            Some(|&type_argument: &Id<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),
                         )?
@@ -856,8 +859,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_resolved_by_type_alias(&self, node: Id<Node>) -> bool {
-        let parent = node.parent();
-        match parent.kind() {
+        let parent = node.ref_(self).parent();
+        match parent.ref_(self).kind() {
             SyntaxKind::ParenthesizedType
             | SyntaxKind::NamedTupleMember
             | SyntaxKind::TypeReference
@@ -867,14 +870,14 @@ impl TypeChecker {
             | SyntaxKind::ConditionalType
             | SyntaxKind::TypeOperator
             | SyntaxKind::ArrayType
-            | SyntaxKind::TupleType => self.is_resolved_by_type_alias(&parent),
+            | SyntaxKind::TupleType => self.is_resolved_by_type_alias(parent),
             SyntaxKind::TypeAliasDeclaration => true,
             _ => false,
         }
     }
 
     pub(super) fn may_resolve_type_alias(&self, node: Id<Node>) -> io::Result<bool> {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::TypeReference => {
                 self.is_jsdoc_type_reference(node)
                     || self
@@ -885,9 +888,10 @@ impl TypeChecker {
             }
             SyntaxKind::TypeQuery => true,
             SyntaxKind::TypeOperator => {
-                let node_as_type_operator_node = node.as_type_operator_node();
+                let node_ref = node.ref_(self);
+                let node_as_type_operator_node = node_ref.as_type_operator_node();
                 node_as_type_operator_node.operator != SyntaxKind::UniqueKeyword
-                    && self.may_resolve_type_alias(&node_as_type_operator_node.type_)?
+                    && self.may_resolve_type_alias(node_as_type_operator_node.type_)?
             }
             SyntaxKind::ParenthesizedType
             | SyntaxKind::OptionalType
@@ -896,11 +900,12 @@ impl TypeChecker {
             | SyntaxKind::JSDocNullableType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocTypeExpression => {
-                self.may_resolve_type_alias(&node.as_has_type().maybe_type().unwrap())?
+                self.may_resolve_type_alias(node.ref_(self).as_has_type().maybe_type().unwrap())?
             }
             SyntaxKind::RestType => {
-                let node_as_rest_type_node = node.as_rest_type_node();
-                node_as_rest_type_node.type_.kind() != SyntaxKind::ArrayType
+                let node_ref = node.ref_(self);
+                let node_as_rest_type_node = node_ref.as_rest_type_node();
+                node_as_rest_type_node.type_.ref_(self).kind() != SyntaxKind::ArrayType
                     || self.may_resolve_type_alias(
                         &node_as_rest_type_node
                             .type_
@@ -909,16 +914,18 @@ impl TypeChecker {
                     )?
             }
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => try_some(
-                Some(&node.as_union_or_intersection_type_node().types()),
-                Some(|type_: &Id<Node>| self.may_resolve_type_alias(type_)),
+                Some(&node.ref_(self).as_union_or_intersection_type_node().types()),
+                Some(|&type_: &Id<Node>| self.may_resolve_type_alias(type_)),
             )?,
             SyntaxKind::IndexedAccessType => {
-                let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
-                self.may_resolve_type_alias(&node_as_indexed_access_type_node.object_type)?
-                    || self.may_resolve_type_alias(&node_as_indexed_access_type_node.index_type)?
+                let node_ref = node.ref_(self);
+                let node_as_indexed_access_type_node = node_ref.as_indexed_access_type_node();
+                self.may_resolve_type_alias(node_as_indexed_access_type_node.object_type)?
+                    || self.may_resolve_type_alias(node_as_indexed_access_type_node.index_type)?
             }
             SyntaxKind::ConditionalType => {
-                let node_as_conditional_type_node = node.as_conditional_type_node();
+                let node_ref = node.ref_(self);
+                let node_as_conditional_type_node = node_ref.as_conditional_type_node();
                 self.may_resolve_type_alias(&node_as_conditional_type_node.check_type)?
                     || self.may_resolve_type_alias(&node_as_conditional_type_node.extends_type)?
                     || self.may_resolve_type_alias(&node_as_conditional_type_node.true_type)?
@@ -937,10 +944,10 @@ impl TypeChecker {
             let target = self.get_array_or_tuple_target_type(node)?;
             if target == self.empty_generic_type() {
                 links.borrow_mut().resolved_type = Some(self.empty_object_type());
-            } else if !(node.kind() == SyntaxKind::TupleType
+            } else if !(node.ref_(self).kind() == SyntaxKind::TupleType
                 && some(
-                    Some(&*node.as_tuple_type_node().elements),
-                    Some(|e: &Id<Node>| {
+                    Some(&*node.ref_(self).as_tuple_type_node().elements),
+                    Some(|&e: &Id<Node>| {
                         self.get_tuple_element_flags(e)
                             .intersects(ElementFlags::Variadic)
                     }),
@@ -948,8 +955,8 @@ impl TypeChecker {
                 && self.is_deferred_type_reference_node(node, None)?
             {
                 links.borrow_mut().resolved_type = Some(
-                    if node.kind() == SyntaxKind::TupleType
-                        && node.as_tuple_type_node().elements.is_empty()
+                    if node.ref_(self).kind() == SyntaxKind::TupleType
+                        && node.ref_(self).as_tuple_type_node().elements.is_empty()
                     {
                         target
                     } else {
@@ -963,12 +970,12 @@ impl TypeChecker {
                     },
                 );
             } else {
-                let element_types = if node.kind() == SyntaxKind::ArrayType {
-                    vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)?]
+                let element_types = if node.ref_(self).kind() == SyntaxKind::ArrayType {
+                    vec![self.get_type_from_type_node_(node.ref_(self).as_array_type_node().element_type)?]
                 } else {
                     try_map(
-                        &node.as_tuple_type_node().elements,
-                        |element: &Id<Node>, _| self.get_type_from_type_node_(element),
+                        &node.ref_(self).as_tuple_type_node().elements,
+                        |&element: &Id<Node>, _| self.get_type_from_type_node_(element),
                     )?
                 };
                 links.borrow_mut().resolved_type =
@@ -980,8 +987,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_readonly_type_operator(&self, node: Id<Node>) -> bool {
-        is_type_operator_node(node)
-            && node.as_type_operator_node().operator == SyntaxKind::ReadonlyKeyword
+        is_type_operator_node(&node.ref_(self))
+            && node.ref_(self).as_type_operator_node().operator == SyntaxKind::ReadonlyKeyword
     }
 
     pub(super) fn create_tuple_type(
@@ -1044,7 +1051,7 @@ impl TypeChecker {
                     map(
                         named_member_declarations,
                         |named_member_declaration: &Id<Node>, _| get_node_id(
-                            named_member_declaration
+                            &named_member_declaration.ref_(self)
                         )
                         .to_string()
                     )

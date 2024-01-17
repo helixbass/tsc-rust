@@ -171,11 +171,11 @@ impl TypeChecker {
                             self,
                         ) {
                             let base_symbol = self.resolve_entity_name(
-                                &node_as_expression_with_type_arguments.expression,
+                                node_as_expression_with_type_arguments.expression,
                                 SymbolFlags::Type,
                                 Some(true),
                                 None,
-                                Option::<Id<Node>>::None,
+                                None,
                             )?;
                             if match base_symbol {
                                 None => true,
@@ -434,12 +434,13 @@ impl TypeChecker {
             | SyntaxKind::NumericLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral => true,
             SyntaxKind::PrefixUnaryExpression => {
-                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
+                let expr_ref = expr.ref_(self);
+                let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
                 expr_as_prefix_unary_expression.operator == SyntaxKind::MinusToken
-                    && expr_as_prefix_unary_expression.operand.kind() == SyntaxKind::NumericLiteral
+                    && expr_as_prefix_unary_expression.operand.ref_(self).kind() == SyntaxKind::NumericLiteral
             }
             SyntaxKind::Identifier => {
-                node_is_missing(Some(expr))
+                node_is_missing(Some(&expr.ref_(self)))
                     || (*self
                         .get_symbol_of_node(member.ref_(self).parent())?
                         .unwrap()
@@ -463,9 +464,11 @@ impl TypeChecker {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             for declaration in symbol_declarations {
                 if declaration.ref_(self).kind() == SyntaxKind::EnumDeclaration {
-                    for member in &declaration.ref_(self).as_enum_declaration().members {
-                        if matches!(member.as_enum_member().initializer.as_ref(), Some(initializer) if is_string_literal_like(initializer))
-                        {
+                    for &member in &declaration.ref_(self).as_enum_declaration().members {
+                        if matches!(
+                            member.ref_(self).as_enum_member().initializer,
+                            Some(initializer) if is_string_literal_like(&initializer.ref_(self))
+                        ) {
                             let ret = EnumKind::Literal;
                             links.borrow_mut().enum_kind = Some(ret);
                             return Ok(ret);
@@ -515,7 +518,7 @@ impl TypeChecker {
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for declaration in symbol_declarations {
                     if declaration.ref_(self).kind() == SyntaxKind::EnumDeclaration {
-                        for member in &declaration.ref_(self).as_enum_declaration().members {
+                        for &member in &declaration.ref_(self).as_enum_declaration().members {
                             let value = self.get_enum_member_value(member)?;
                             let member_type =
                                 self.get_fresh_type_of_literal_type(self.get_enum_literal_type(

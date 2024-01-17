@@ -598,7 +598,7 @@ impl TypeChecker {
             source,
             target,
             relation,
-            error_node.map(|error_node| error_node.borrow().node_wrapper()),
+            error_node,
             head_message,
             containing_message_chain,
             error_output_container,

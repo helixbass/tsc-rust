@@ -110,7 +110,6 @@ impl TypeChecker {
             return Ok(false);
         }
         let node = node.unwrap();
-        let node = node.borrow();
         if !self.check_type_related_to(
             source,
             target,
@@ -130,10 +129,10 @@ impl TypeChecker {
         )? {
             return Ok(true);
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::JsxExpression | SyntaxKind::ParenthesizedExpression => {
                 return self.elaborate_error(
-                    node.as_has_expression().maybe_expression(),
+                    node.ref_(self).as_has_expression().maybe_expression(),
                     source,
                     target,
                     relation,
@@ -143,8 +142,9 @@ impl TypeChecker {
                 );
             }
             SyntaxKind::BinaryExpression => {
-                let node_as_binary_expression = node.as_binary_expression();
-                match node_as_binary_expression.operator_token.kind() {
+                let node_ref = node.ref_(self);
+                let node_as_binary_expression = node_ref.as_binary_expression();
+                match node_as_binary_expression.operator_token.ref_(self).kind() {
                     SyntaxKind::EqualsToken | SyntaxKind::CommaToken => {
                         return self.elaborate_error(
                             Some(&*node_as_binary_expression.right),
@@ -263,6 +263,7 @@ impl TypeChecker {
                             &Diagnostics::Did_you_mean_to_call_this_expression
                         },
                         None,
+                        self,
                     )
                     .into()],
                 );
@@ -281,13 +282,14 @@ impl TypeChecker {
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
-        let node_as_arrow_function = node.as_arrow_function();
-        if is_block(&node_as_arrow_function.maybe_body().unwrap()) {
+        let node_ref = node.ref_(self);
+        let node_as_arrow_function = node_ref.as_arrow_function();
+        if is_block(&node_as_arrow_function.maybe_body().unwrap().ref_(self)) {
             return Ok(false);
         }
         if some(
             Some(&node_as_arrow_function.parameters()),
-            Some(|parameter: &Id<Node>| has_type(parameter)),
+            Some(|parameter: &Id<Node>| has_type(&parameter.ref_(self))),
         ) {
             return Ok(false);
         }
@@ -355,7 +357,12 @@ impl TypeChecker {
                         add_related_info(
                             &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
                             vec![
-                                create_diagnostic_for_node(&target_symbol_declarations[0], &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature, None).into()
+                                create_diagnostic_for_node(
+                                    target_symbol_declarations[0],
+                                    &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
+                                    None,
+                                    self,
+                                ).into()
                             ]
                         );
                     }
@@ -380,6 +387,7 @@ impl TypeChecker {
                             node,
                             &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
                             None,
+                            self,
                         )
                         .into()],
                     );
@@ -432,14 +440,14 @@ impl TypeChecker {
         next: Id<Node>, /*Expression*/
         source_prop_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        *next.maybe_contextual_type() = Some(source_prop_type);
+        *next.ref_(self).maybe_contextual_type() = Some(source_prop_type);
         let ret = self.check_expression_for_mutable_location(
             next,
             Some(CheckMode::Contextual),
             Some(source_prop_type),
             None,
         )?;
-        *next.maybe_contextual_type() = None;
+        *next.ref_(self).maybe_contextual_type() = None;
         Ok(ret)
     }
 
@@ -492,7 +500,7 @@ impl TypeChecker {
                 let elaborated = match next.as_ref() {
                     None => false,
                     Some(next) => self.elaborate_error(
-                        Some(&**next),
+                        Some(next),
                         source_prop_type,
                         target_prop_type,
                         relation.clone(),
@@ -507,7 +515,7 @@ impl TypeChecker {
                         Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)));
                     let result_obj: Gc<Box<dyn CheckTypeErrorOutputContainer>> =
                         error_output_container.clone().unwrap_or(result_obj_default);
-                    let specific_source = if let Some(next) = next.as_ref() {
+                    let specific_source = if let Some(next) = next {
                         self.check_expression_for_mutable_location_with_contextual_type(
                             next,
                             source_prop_type,
@@ -522,7 +530,7 @@ impl TypeChecker {
                         )
                     {
                         let diag: Gc<Diagnostic> = create_diagnostic_for_node(
-                            &prop,
+                            prop,
                             &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target,
                             Some(vec![
                                 self.type_to_string_(
@@ -537,7 +545,8 @@ impl TypeChecker {
                                     None,
                                     None,
                                 )?,
-                            ])
+                            ]),
+                            self,
                         ).into();
                         self.diagnostics().add(diag.clone());
                         result_obj.set_errors(vec![diag]);
@@ -568,7 +577,7 @@ impl TypeChecker {
                             specific_source,
                             target_prop_type,
                             relation.clone(),
-                            Some(&*prop),
+                            Some(prop),
                             error_message.clone(),
                             containing_message_chain.clone(),
                             Some(result_obj.clone()),
@@ -578,7 +587,7 @@ impl TypeChecker {
                                 source_prop_type,
                                 target_prop_type,
                                 relation.clone(),
-                                Some(&*prop),
+                                Some(prop),
                                 error_message,
                                 containing_message_chain.clone(),
                                 Some(result_obj.clone()),
@@ -602,9 +611,9 @@ impl TypeChecker {
                             let index_info = self.get_applicable_index_info(target, name_type)?;
                             if let Some(index_info) = index_info.as_ref() {
                                 if let Some(index_info_declaration) =
-                                    index_info.declaration.as_ref().filter(|declaration| {
+                                    index_info.declaration.filter(|&declaration| {
                                         !get_source_file_of_node(declaration, self)
-                                            .as_source_file()
+                                            .ref_(self).as_source_file()
                                             .has_no_default_lib()
                                     })
                                 {
@@ -612,7 +621,12 @@ impl TypeChecker {
                                     add_related_info(
                                         &reported_diag,
                                         vec![
-                                            create_diagnostic_for_node(index_info_declaration, &Diagnostics::The_expected_type_comes_from_this_index_signature, None).into()
+                                            create_diagnostic_for_node(
+                                                index_info_declaration,
+                                                &Diagnostics::The_expected_type_comes_from_this_index_signature,
+                                                None,
+                                                self,
+                                            ).into()
                                         ]
                                     );
                                 }
@@ -650,30 +664,35 @@ impl TypeChecker {
                                     .clone()
                             };
                             if !get_source_file_of_node(target_node, self)
-                                .as_source_file()
+                                .ref_(self).as_source_file()
                                 .has_no_default_lib()
                             {
                                 add_related_info(
                                     &reported_diag,
                                     vec![
-                                        create_diagnostic_for_node(&target_node, &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1, Some(vec![
-                                                    if property_name.is_some() && !name_type.ref_(self).flags().intersects(TypeFlags::UniqueESSymbol) {
-                                                        unescape_leading_underscores(property_name.as_ref().unwrap()).to_owned()
-                                                    } else {
-                                                        self.type_to_string_(
-                                                            name_type,
-                                                            Option::<Id<Node>>::None,
-                                                            None,
-                                                            None,
-                                                        )?
-                                                    },
+                                        create_diagnostic_for_node(
+                                            target_node,
+                                            &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
+                                            Some(vec![
+                                                if property_name.is_some() && !name_type.ref_(self).flags().intersects(TypeFlags::UniqueESSymbol) {
+                                                    unescape_leading_underscores(property_name.as_ref().unwrap()).to_owned()
+                                                } else {
                                                     self.type_to_string_(
-                                                        target,
+                                                        name_type,
                                                         Option::<Id<Node>>::None,
                                                         None,
                                                         None,
                                                     )?
-                                                ])).into()
+                                                },
+                                                self.type_to_string_(
+                                                    target,
+                                                    Option::<Id<Node>>::None,
+                                                    None,
+                                                    None,
+                                                )?
+                                            ]),
+                                            self,
+                                        ).into()
                                     ]
                                 );
                             }
@@ -689,7 +708,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxAttributes*/
     ) -> Vec<ElaborationIteratorItem> {
-        let node_as_jsx_attributes = node.as_jsx_attributes();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_attributes = node_ref.as_jsx_attributes();
         if length(Some(&node_as_jsx_attributes.properties)) == 0 {
             return vec![];
         }
@@ -697,16 +717,17 @@ impl TypeChecker {
             .properties
             .iter()
             .flat_map(|prop| {
-                if is_jsx_spread_attribute(prop)
-                    || self.is_hyphenated_jsx_name(&id_text(&prop.as_jsx_attribute().name))
+                if is_jsx_spread_attribute(&prop.ref_(self))
+                    || self.is_hyphenated_jsx_name(&id_text(&prop.ref_(self).as_jsx_attribute().name.ref_(self)))
                 {
                     return vec![];
                 }
-                let prop_as_jsx_attribute = prop.as_jsx_attribute();
+                let prop_ref = prop.ref_(self);
+                let prop_as_jsx_attribute = prop_ref.as_jsx_attribute();
                 vec![ElaborationIteratorItem {
-                    error_node: prop_as_jsx_attribute.name.clone(),
-                    inner_expression: prop_as_jsx_attribute.initializer.clone(),
-                    name_type: self.get_string_literal_type(&id_text(&prop_as_jsx_attribute.name)),
+                    error_node: prop_as_jsx_attribute.name,
+                    inner_expression: prop_as_jsx_attribute.initializer,
+                    name_type: self.get_string_literal_type(&id_text(&prop_as_jsx_attribute.name.ref_(self))),
                     error_message: None,
                 }]
             })
@@ -718,7 +739,8 @@ impl TypeChecker {
         node: Id<Node>, /*JsxElement*/
         mut get_invalid_text_diagnostic: impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
-        let node_as_jsx_element = node.as_jsx_element();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_element = node_ref.as_jsx_element();
         if length(Some(&node_as_jsx_element.children)) == 0 {
             return Ok(vec![]);
         }
@@ -749,20 +771,20 @@ impl TypeChecker {
         name_type: Id<Type>, /*LiteralType*/
         get_invalid_text_diagnostic: &mut impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
     ) -> io::Result<Option<ElaborationIteratorItem>> {
-        match child.kind() {
+        match child.ref_(self).kind() {
             SyntaxKind::JsxExpression => {
                 return Ok(Some(ElaborationIteratorItem {
-                    error_node: child.node_wrapper(),
-                    inner_expression: child.as_jsx_expression().expression.clone(),
+                    error_node: child,
+                    inner_expression: child.ref_(self).as_jsx_expression().expression,
                     name_type: name_type,
                     error_message: None,
                 }));
             }
             SyntaxKind::JsxText => {
-                if child.as_jsx_text().contains_only_trivia_white_spaces {
+                if child.ref_(self).as_jsx_text().contains_only_trivia_white_spaces {
                 } else {
                     return Ok(Some(ElaborationIteratorItem {
-                        error_node: child.node_wrapper(),
+                        error_node: child,
                         inner_expression: None,
                         name_type: name_type,
                         error_message: Some(get_invalid_text_diagnostic()?),
@@ -773,8 +795,8 @@ impl TypeChecker {
             | SyntaxKind::JsxSelfClosingElement
             | SyntaxKind::JsxFragment => {
                 return Ok(Some(ElaborationIteratorItem {
-                    error_node: child.node_wrapper(),
-                    inner_expression: Some(child.node_wrapper()),
+                    error_node: child,
+                    inner_expression: Some(child),
                     name_type: name_type,
                     error_message: None,
                 }));
@@ -804,8 +826,8 @@ impl TypeChecker {
             error_output_container.clone(),
         )?;
         let mut invalid_text_diagnostic: Option<Cow<'static, DiagnosticMessage>> = None;
-        if is_jsx_opening_element(&node.parent()) && is_jsx_element(&node.parent().parent()) {
-            let containing_element = node.parent().parent();
+        if is_jsx_opening_element(&node.ref_(self).parent().ref_(self)) && is_jsx_element(&node.ref_(self).parent().ref_(self).parent().ref_(self)) {
+            let containing_element = node.ref_(self).parent().ref_(self).parent();
             let child_prop_name = self
                 .get_jsx_element_children_property_name(self.get_jsx_namespace_at(Some(node))?)?;
             let children_prop_name = child_prop_name.map_or_else(
@@ -822,7 +844,7 @@ impl TypeChecker {
                 None,
             )?;
             let valid_children =
-                get_semantic_jsx_children(&containing_element.as_jsx_element().children);
+                get_semantic_jsx_children(&containing_element.ref_(self).as_jsx_element().children, self);
             if length(Some(&valid_children)) == 0 {
                 return Ok(result);
             }
@@ -838,7 +860,7 @@ impl TypeChecker {
                 || -> io::Result<Cow<'static, DiagnosticMessage>> {
                     if invalid_text_diagnostic.is_none() {
                         let tag_name_text = get_text_of_node(
-                            node.parent().as_jsx_opening_like_element().tag_name(),
+                            node.ref_(self).parent().ref_(self).as_jsx_opening_like_element().tag_name(),
                             None,
                             self,
                         );
@@ -939,7 +961,7 @@ impl TypeChecker {
                 }
             } else {
                 if non_array_like_target_parts != self.never_type() {
-                    let child = &valid_children[0];
+                    let child = valid_children[0];
                     let elem = self.get_elaboration_element_for_jsx_child(
                         child,
                         children_name_type,
@@ -996,7 +1018,8 @@ impl TypeChecker {
         node: Id<Node>, /*ArrayLiteralExpression*/
         target: Id<Type>,
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
-        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let node_ref = node.ref_(self);
+        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         let len = length(Some(&node_as_array_literal_expression.elements));
         let mut ret = vec![];
         if len == 0 {
@@ -1010,13 +1033,13 @@ impl TypeChecker {
             {
                 continue;
             }
-            if is_omitted_expression(elem) {
+            if is_omitted_expression(&elem.ref_(self)) {
                 continue;
             }
             let name_type = self.get_number_literal_type(Number::new(i as f64));
             ret.push(ElaborationIteratorItem {
-                error_node: elem.clone(),
-                inner_expression: Some(elem.clone()),
+                error_node: *elem,
+                inner_expression: Some(*elem),
                 name_type,
                 error_message: None,
             });
@@ -1046,11 +1069,11 @@ impl TypeChecker {
                 error_output_container,
             );
         }
-        let old_context = node.maybe_contextual_type().clone();
-        *node.maybe_contextual_type() = Some(target);
+        let old_context = node.ref_(self).maybe_contextual_type().clone();
+        *node.ref_(self).maybe_contextual_type() = Some(target);
         let tupleized_type =
             self.check_array_literal(node, Some(CheckMode::Contextual), Some(true))?;
-        *node.maybe_contextual_type() = old_context;
+        *node.ref_(self).maybe_contextual_type() = old_context;
         if self.is_tuple_like_type(tupleized_type)? {
             return self.elaborate_elementwise(
                 self.generate_limited_tuple_elements(node, target)?,
@@ -1069,14 +1092,15 @@ impl TypeChecker {
         node: Id<Node>, /*ObjectLiteralExpression*/
                         // ) -> impl Iterator<Item = ElaborationIteratorItem> {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
-        let node_as_object_literal_expression = node.as_object_literal_expression();
+        let node_ref = node.ref_(self);
+        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         if length(Some(&node_as_object_literal_expression.properties)) == 0 {
             return Ok(vec![]);
         }
         try_flat_map(
             Some(&node_as_object_literal_expression.properties),
-            |prop: &Id<Node>, _| -> io::Result<_> {
-                if is_spread_assignment(prop) {
+            |&prop: &Id<Node>, _| -> io::Result<_> {
+                if is_spread_assignment(&prop.ref_(self)) {
                     return Ok(vec![]);
                 }
                 let type_ = self.get_literal_type_from_property(
@@ -1089,20 +1113,21 @@ impl TypeChecker {
                 type_.ref_(self).flags().intersects(TypeFlags::Never) {
                     return Ok(vec![]);
                 }
-                Ok(match prop.kind() {
+                Ok(match prop.ref_(self).kind() {
                     SyntaxKind::SetAccessor
                     | SyntaxKind::GetAccessor
                     | SyntaxKind::MethodDeclaration
                     | SyntaxKind::ShorthandPropertyAssignment => {
                         vec![ElaborationIteratorItem {
-                            error_node: prop.as_named_declaration().name(),
+                            error_node: prop.ref_(self).as_named_declaration().name(),
                             inner_expression: None,
                             name_type: type_,
                             error_message: None,
                         }]
                     }
                     SyntaxKind::PropertyAssignment => {
-                        let prop_as_property_assignment = prop.as_property_assignment();
+                        let prop_ref = prop.ref_(self);
+                        let prop_as_property_assignment = prop_ref.as_property_assignment();
                         vec![ElaborationIteratorItem {
                             error_node: prop_as_property_assignment.name(),
                             inner_expression: prop_as_property_assignment.maybe_initializer(),
@@ -1269,7 +1294,7 @@ impl TypeChecker {
 
         let kind = target.declaration.as_ref().map_or_else(
             || SyntaxKind::Unknown,
-            |target_declaration| target_declaration.kind(),
+            |target_declaration| target_declaration.ref_(self).kind(),
         );
         let strict_variance = !check_mode.intersects(SignatureCheckMode::Callback)
             && self.strict_function_types
@@ -1437,13 +1462,12 @@ impl TypeChecker {
             } else if let Some(target_declaration) =
                 target
                     .declaration
-                    .as_ref()
-                    .try_filter(|target_declaration| {
-                        self.is_js_constructor(Some(&***target_declaration))
+                    .try_filter(|&target_declaration| {
+                        self.is_js_constructor(Some(target_declaration))
                     })?
             {
                 self.get_declared_type_of_class_or_interface(
-                    self.get_merged_symbol(target_declaration.maybe_symbol())
+                    self.get_merged_symbol(target_declaration.ref_(self).maybe_symbol())
                         .unwrap(),
                 )?
             } else {
@@ -1457,13 +1481,12 @@ impl TypeChecker {
             } else if let Some(source_declaration) =
                 source
                     .declaration
-                    .as_ref()
-                    .try_filter(|source_declaration| {
-                        self.is_js_constructor(Some(&***source_declaration))
+                    .try_filter(|&source_declaration| {
+                        self.is_js_constructor(Some(source_declaration))
                     })?
             {
                 self.get_declared_type_of_class_or_interface(
-                    self.get_merged_symbol(source_declaration.maybe_symbol())
+                    self.get_merged_symbol(source_declaration.ref_(self).maybe_symbol())
                         .unwrap(),
                 )?
             } else {

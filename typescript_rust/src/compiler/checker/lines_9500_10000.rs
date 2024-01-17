@@ -502,7 +502,7 @@ impl TypeChecker {
             if node.is_none() {
                 return Ok(None);
             }
-            let node_present = node.as_deref().unwrap();
+            let node_present = node.unwrap();
             match node_present.kind() {
                 SyntaxKind::ClassDeclaration
                 | SyntaxKind::ClassExpression
@@ -642,13 +642,13 @@ impl TypeChecker {
         let symbol_declarations = symbol_ref.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_ref());
         let mut result: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
-        for node in symbol_declarations {
+        for &node in symbol_declarations {
             if matches!(
                 node.ref_(self).kind(),
                 SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::ClassDeclaration
                     | SyntaxKind::ClassExpression
-            ) || self.is_js_constructor(Some(node))?
+            ) || self.is_js_constructor(Some(&node.ref_(self)))?
                 || is_type_alias(&node.ref_(self))
             {
                 let declaration = node;

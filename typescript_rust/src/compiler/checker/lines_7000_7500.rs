@@ -31,6 +31,7 @@ use crate::{
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
     NodeInterface, OptionTry, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, SynthesizedComment, Type, TypeInterface,
+    OptionInArena,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -169,9 +170,9 @@ impl SymbolTableToDeclarationStatements {
                 .ref_(self).as_jsdoc_tag()
                 .maybe_comment()
                 .cloned()
-                .or_else(|| jsdoc_alias_decl.ref_(self).parent().as_jsdoc().comment.clone())
+                .or_else(|| jsdoc_alias_decl.ref_(self).parent().ref_(self).as_jsdoc().comment.clone())
         });
-        let comment_text = get_text_of_jsdoc_comment(comment, self);
+        let comment_text = get_text_of_jsdoc_comment(comment.as_ref(), self);
         let old_flags = self.context().flags();
         self.context()
             .set_flags(self.context().flags() | NodeBuilderFlags::InTypeAlias);
@@ -408,7 +409,7 @@ impl SymbolTableToDeclarationStatements {
                                     )?;
                                 if let Some(containing_file) =
                                     containing_file.filter(|&containing_file| {
-                                        if let Some(alias_decl) = alias_decl.as_ref() {
+                                        if let Some(alias_decl) = alias_decl {
                                             containing_file != get_source_file_of_node(alias_decl, self)
                                         } else {
                                             !some(
@@ -554,7 +555,7 @@ impl SymbolTableToDeclarationStatements {
             self.add_result(
                 set_text_range_id_node(
                     decl,
-                    self.get_signature_text_range_location(sig),
+                    self.get_signature_text_range_location(sig).refed(self),
                     self,
                 ),
                 modifier_flags,
@@ -592,7 +593,7 @@ impl SymbolTableToDeclarationStatements {
             .declaration
             .filter(|signature_declaration| signature_declaration.ref_(self).maybe_parent().is_some())
         {
-            let ref signature_declaration_parent = signature_declaration.ref_(self).parent();
+            let signature_declaration_parent = signature_declaration.ref_(self).parent();
             if is_binary_expression(&signature_declaration_parent.ref_(self))
                 && get_assignment_declaration_kind(signature_declaration_parent, self)
                     == AssignmentDeclarationKind::Property
@@ -622,7 +623,7 @@ impl SymbolTableToDeclarationStatements {
                     if length(p.ref_(self).maybe_declarations().as_deref()) == 0
                         || some(
                             p.ref_(self).maybe_declarations().as_deref(),
-                            Some(|d: &Id<Node>| {
+                            Some(|&d: &Id<Node>| {
                                 maybe_get_source_file_of_node(Some(d), self) ==
                                 maybe_get_source_file_of_node(
                                     self.context().maybe_enclosing_declaration(),
@@ -744,21 +745,21 @@ impl SymbolTableToDeclarationStatements {
         &self,
         clauses: &[Id<Node /*ExpressionWithTypeArguments*/>],
     ) -> io::Result<Option<Vec<Id<Node /*ExpressionWithTypeArguments*/>>>> {
-        let result = try_map_defined(Some(clauses), |e: &Id<Node>, _| -> io::Result<_> {
+        let result = try_map_defined(Some(clauses), |&e: &Id<Node>, _| -> io::Result<_> {
             let e_ref = e.ref_(self);
             let e_as_expression_with_type_arguments = e_ref.as_expression_with_type_arguments();
             let old_enclosing = self.context().maybe_enclosing_declaration();
             self.context().set_enclosing_declaration(Some(e));
             let mut expr = e_as_expression_with_type_arguments.expression;
             if is_entity_name_expression(expr, self) {
-                if is_identifier(&expr) && id_text(&expr) == "" {
+                if is_identifier(&expr.ref_(self)) && id_text(&expr.ref_(self)) == "" {
                     return Ok(self.sanitize_jsdoc_implements_cleanup(old_enclosing, None));
                 }
                 let TrackExistingEntityNameReturn {
                     introduces_error,
                     node,
                 } = self.node_builder.track_existing_entity_name(
-                    &expr,
+                    expr,
                     &self.context(),
                     Some(&|symbol: Id<Symbol>| {
                         self.include_private_symbol(symbol);
@@ -1020,7 +1021,8 @@ impl SymbolTableToDeclarationStatements {
                             .copied()
                             .next()
                     })
-                    .as_deref(),
+                    .refed(self),
+                self,
             ),
             modifier_flags,
         );
@@ -1038,7 +1040,8 @@ impl SymbolTableToDeclarationStatements {
                     id_text(
                         &d.ref_(self).as_has_property_name()
                             .maybe_property_name()
-                            .unwrap_or_else(|| d.ref_(self).as_named_declaration().name()),
+                            .unwrap_or_else(|| d.ref_(self).as_named_declaration().name())
+                            .ref_(self),
                     )
                     .to_owned(),
                 ));
@@ -1051,7 +1054,7 @@ impl SymbolTableToDeclarationStatements {
                 };
                 if is_property_access_expression(&expression.ref_(self)) {
                     return Ok(Some(
-                        id_text(&expression.as_property_access_expression().name).to_owned(),
+                        id_text(&expression.ref_(self).as_property_access_expression().name.ref_(self)).to_owned(),
                     ));
                 }
             }
@@ -1121,11 +1124,11 @@ impl SymbolTableToDeclarationStatements {
                                                             false,
                                                             property_name
                                                                 .filter(|property_name| {
-                                                                    is_identifier(property_name)
+                                                                    is_identifier(&property_name.ref_(self))
                                                                 })
                                                                 .map(|property_name| {
                                                                     get_factory().create_identifier(
-                                                                        id_text(property_name),
+                                                                        id_text(&property_name.ref_(self)),
                                                                     )
                                                                 }),
                                                             get_factory()
@@ -1141,9 +1144,10 @@ impl SymbolTableToDeclarationStatements {
                     break 'case;
                 }
                 Debug_.fail_bad_syntax_kind(
-                    node.ref_(self).maybe_parent()
+                    &node.ref_(self).maybe_parent()
                         .and_then(|node_parent| node_parent.ref_(self).maybe_parent())
-                        .unwrap_or(node),
+                        .unwrap_or(node)
+                        .ref_(self),
                     Some(
                         "Unhandled binding element grandparent kind in declaration serialization!",
                     ),
@@ -1193,7 +1197,7 @@ impl SymbolTableToDeclarationStatements {
                             get_factory().create_identifier(local_name),
                             get_factory().create_qualified_name(
                                 unique_name,
-                                initializer.as_property_access_expression().name.clone(),
+                                initializer.ref_(self).as_property_access_expression().name,
                             ),
                         ),
                         modifier_flags,
@@ -1413,11 +1417,10 @@ impl SymbolTableToDeclarationStatements {
                         .then_some(verbatim_target_name)
                         .unwrap_or(target_name),
                     specifier
-                        .as_ref()
-                        .filter(|specifier| is_string_literal_like(specifier))
+                        .filter(|specifier| is_string_literal_like(&specifier.ref_(self)))
                         .map(|specifier| {
                             get_factory().create_string_literal(
-                                specifier.as_literal_like_node().text().clone(),
+                                specifier.ref_(self).as_literal_like_node().text().clone(),
                                 None,
                                 None,
                             )

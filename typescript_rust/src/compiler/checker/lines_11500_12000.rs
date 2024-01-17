@@ -65,9 +65,7 @@ impl TypeChecker {
                     .ref_(self).as_mapped_type_node()
                     .type_;
                 type_
-            }
-            .as_ref()
-            {
+            } {
                 self.instantiate_type(
                     self.add_optionality(
                         self.get_type_from_type_node_(type_declaration_type)?,
@@ -191,7 +189,7 @@ impl TypeChecker {
         (if let Some(declaration_readonly_token) =
             declaration_as_mapped_type_node.readonly_token
         {
-            if declaration_readonly_token.kind() == SyntaxKind::MinusToken {
+            if declaration_readonly_token.ref_(self).kind() == SyntaxKind::MinusToken {
                 MappedTypeModifiers::ExcludeReadonly
             } else {
                 MappedTypeModifiers::IncludeReadonly
@@ -201,7 +199,7 @@ impl TypeChecker {
         }) | if let Some(declaration_question_token) =
             declaration_as_mapped_type_node.question_token.as_ref()
         {
-            if declaration_question_token.kind() == SyntaxKind::MinusToken {
+            if declaration_question_token.ref_(self).kind() == SyntaxKind::MinusToken {
                 MappedTypeModifiers::ExcludeOptional
             } else {
                 MappedTypeModifiers::IncludeOptional
@@ -441,13 +439,14 @@ impl TypeChecker {
         obj: Id<Node>, /*ObjectLiteralExpression | JsxAttributes*/
     ) -> io::Result<bool> {
         let list = obj.ref_(self).as_has_properties().properties();
-        let ret = list.iter().try_any(|property| -> io::Result<_> {
-            let name_type = property.as_named_declaration().maybe_name().try_map(|name| self.get_literal_type_from_property_name(name))?;
+        let ret = list.iter().try_any(|&property| -> io::Result<_> {
+            let name_type = property.ref_(self).as_named_declaration().maybe_name().try_map(|name| self.get_literal_type_from_property_name(name))?;
             let name = name_type.filter(|&name_type| self.is_type_usable_as_property_name(name_type)).map(|name_type| self.get_property_name_from_type(name_type));
             let expected = name.try_and_then(|name| self.get_type_of_property_of_type_(contextual_type, &name))?;
             Ok(matches!(
                 expected,
-                Some(expected) if self.is_literal_type(expected) && !self.is_type_assignable_to(self.get_type_of_node(property)?, expected)?
+                Some(expected) if self.is_literal_type(expected)
+                    && !self.is_type_assignable_to(self.get_type_of_node(property)?, expected)?
             ))
         })?;
         Ok(ret)

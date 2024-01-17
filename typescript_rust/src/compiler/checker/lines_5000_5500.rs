@@ -310,6 +310,7 @@ impl NodeBuilder {
                         .as_type_reference()
                         .node
                         .borrow()
+                        .as_ref()
                         .copied()
                         .unwrap()
                         .ref_(self)
@@ -456,7 +457,7 @@ impl NodeBuilder {
                 &*null_transformation_context,
             ))
         });
-        set_text_range(&*ret.ref_(self), Some(node));
+        set_text_range(&*ret.ref_(self), Some(&*node.ref_(self)));
         ret
     }
 
@@ -895,7 +896,7 @@ impl NodeBuilder {
             let type_arguments = type_arguments.as_ref();
             let mut qualifier: Option<Id<Node>> = root_as_import_type_node.qualifier;
             if let Some(qualifier_present) = qualifier {
-                if is_identifier(&qualifier_present) {
+                if is_identifier(&qualifier_present.ref_(self)) {
                     qualifier = Some(factory.with(|factory_| {
                         factory_.update_identifier(qualifier_present, type_arguments.cloned())
                     }));
@@ -938,18 +939,18 @@ impl NodeBuilder {
             let root_as_type_reference_node = root_ref.as_type_reference_node();
             let type_arguments = root_as_type_reference_node.maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
-            let mut type_name: Id<Node> = root_as_type_reference_node.type_name.clone();
-            if is_identifier(&type_name) {
+            let mut type_name: Id<Node> = root_as_type_reference_node.type_name;
+            if is_identifier(&type_name.ref_(self)) {
                 type_name = factory.with(|factory_| {
-                    factory_.update_identifier(&type_name, type_arguments.cloned())
+                    factory_.update_identifier(type_name, type_arguments.cloned())
                 });
             } else {
                 type_name = factory.with(|factory_| {
                     factory_.update_qualified_name(
-                        &type_name,
-                        type_name.as_qualified_name().left.clone(),
+                        type_name,
+                        type_name.ref_(self).as_qualified_name().left,
                         factory_.update_identifier(
-                            &type_name.as_qualified_name().right,
+                            type_name.ref_(self).as_qualified_name().right,
                             type_arguments.cloned(),
                         ),
                     )
@@ -974,9 +975,10 @@ impl NodeBuilder {
         let mut state: Id<Node> = ref_.ref_(self).as_type_reference_node().type_name;
         let mut ids = vec![];
         while !is_identifier(&state.ref_(self)) {
-            let state_as_qualified_name = state.as_qualified_name();
-            ids.insert(0, state_as_qualified_name.right.clone());
-            state = &state_as_qualified_name.left;
+            let state_ref = state.ref_(self);
+            let state_as_qualified_name = state_ref.as_qualified_name();
+            ids.insert(0, state_as_qualified_name.right);
+            state = state_as_qualified_name.left;
         }
         ids.insert(0, state);
         ids
@@ -1177,7 +1179,7 @@ impl NodeBuilder {
                                 )
                         }) {
                             self.track_computed_name(
-                                name.as_element_access_expression().argument_expression,
+                                name.ref_(self).as_element_access_expression().argument_expression,
                                 save_enclosing_declaration,
                                 context,
                             )?;

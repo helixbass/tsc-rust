@@ -634,7 +634,7 @@ impl NodeBuilder {
                         |parameter_declaration_modifiers| {
                             parameter_declaration_modifiers
                                 .into_iter()
-                                .map(|modifier| get_factory().clone_node(modifier))
+                                .map(|&modifier| get_factory().clone_node(modifier))
                                 .collect()
                         },
                     )
@@ -667,7 +667,7 @@ impl NodeBuilder {
                         ),
                         SyntaxKind::QualifiedName => set_emit_flags(
                             get_factory()
-                                .clone_node(&parameter_declaration_name.as_qualified_name().right),
+                                .clone_node(parameter_declaration_name.ref_(self).as_qualified_name().right),
                             EmitFlags::NoAsciiEscaping,
                             self,
                         ),
@@ -1120,7 +1120,7 @@ impl NodeBuilder {
         let top_as_indexed_access_type_node = top_ref.as_indexed_access_type_node();
         if is_indexed_access_type_node(&top_as_indexed_access_type_node.object_type.ref_(self)) {
             return self
-                .get_topmost_indexed_access_type(&top_as_indexed_access_type_node.object_type);
+                .get_topmost_indexed_access_type(top_as_indexed_access_type_node.object_type);
         }
         top
     }

@@ -25,7 +25,7 @@ impl TypeChecker {
     pub(super) fn is_spreadable_property(&self, prop: Id<Symbol>) -> bool {
         !some(
             prop.ref_(self).maybe_declarations().as_deref(),
-            Some(|declaration: &Id<Node>| {
+            Some(|&declaration: &Id<Node>| {
                 is_private_identifier_class_element_declaration(declaration, self)
             }),
         ) && (!prop
@@ -34,7 +34,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
                 prop.ref_(self).maybe_declarations().as_ref(),
-                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Id<Node>| maybe_is_class_like(decl.maybe_parent()))
+                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Id<Node>| maybe_is_class_like(&decl.ref_(self).maybe_parent().ref_(self)))
             ))
     }
 
@@ -321,8 +321,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*LiteralTypeNode*/
     ) -> io::Result<Id<Type>> {
-        let node_as_literal_type_node = node.as_literal_type_node();
-        if node_as_literal_type_node.literal.kind() == SyntaxKind::NullKeyword {
+        let node_ref = node.ref_(self);
+        let node_as_literal_type_node = node_ref.as_literal_type_node();
+        if node_as_literal_type_node.literal.ref_(self).kind() == SyntaxKind::NullKeyword {
             return Ok(self.null_type());
         }
         let links = self.get_node_links(node);
@@ -356,7 +357,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_es_symbol_like_type_for_node(&self, node: Id<Node>) -> io::Result<Id<Type>> {
-        if is_valid_es_symbol_declaration(node) {
+        if is_valid_es_symbol_declaration(node, self) {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
             let links = self.get_symbol_links(symbol);
             if (*links).borrow().unique_es_symbol_type.is_none() {
@@ -370,15 +371,15 @@ impl TypeChecker {
 
     pub(super) fn get_this_type(&self, node: Id<Node>) -> io::Result<Id<Type>> {
         let container = get_this_container(node, false, self);
-        let parent = /*container &&*/ container.maybe_parent();
-        if let Some(parent) = parent.as_ref().filter(|parent| {
-            is_class_like(parent) || parent.kind() == SyntaxKind::InterfaceDeclaration
+        let parent = /*container &&*/ container.ref_(self).maybe_parent();
+        if let Some(parent) = parent.filter(|parent| {
+            is_class_like(&parent.ref_(self)) || parent.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
         }) {
             if !is_static(container, self)
-                && (!is_constructor_declaration(&container)
+                && (!is_constructor_declaration(&container.ref_(self))
                     || is_node_descendant_of(
                         node,
-                        container.as_constructor_declaration().maybe_body(),
+                        container.ref_(self).as_constructor_declaration().maybe_body(),
                         self,
                     ))
             {
@@ -393,10 +394,10 @@ impl TypeChecker {
             }
         }
 
-        if let Some(parent) = parent.as_ref().filter(|parent| {
-            is_object_literal_expression(parent)
-                && is_binary_expression(&parent.parent())
-                && get_assignment_declaration_kind(parent.parent(), self)
+        if let Some(parent) = parent.filter(|parent| {
+            is_object_literal_expression(&parent.ref_(self))
+                && is_binary_expression(&parent.ref_(self).parent().ref_(self))
+                && get_assignment_declaration_kind(parent.ref_(self).parent(), self)
                     == AssignmentDeclarationKind::Prototype
         }) {
             return Ok(self
@@ -412,15 +413,15 @@ impl TypeChecker {
                 .maybe_this_type()
                 .unwrap());
         }
-        let host = if node.flags().intersects(NodeFlags::JSDoc) {
-            get_host_signature_from_jsdoc(node)
+        let host = if node.ref_(self).flags().intersects(NodeFlags::JSDoc) {
+            get_host_signature_from_jsdoc(node, self)
         } else {
             None
         };
-        if let Some(host) = host.as_ref().filter(|host| {
-            is_function_expression(host)
-                && is_binary_expression(&host.parent())
-                && get_assignment_declaration_kind(host.parent(), self)
+        if let Some(host) = host.filter(|host| {
+            is_function_expression(&host.ref_(self))
+                && is_binary_expression(&host.ref_(self).parent().ref_(self))
+                && get_assignment_declaration_kind(host.ref_(self).parent(), self)
                     == AssignmentDeclarationKind::PrototypeProperty
         }) {
             return Ok(self
@@ -436,12 +437,12 @@ impl TypeChecker {
                 .maybe_this_type()
                 .unwrap());
         }
-        if self.is_js_constructor(Some(&*container))?
-            && is_node_descendant_of(node, container.as_function_like_declaration().maybe_body(), self)
+        if self.is_js_constructor(Some(container))?
+            && is_node_descendant_of(node, container.ref_(self).as_function_like_declaration().maybe_body(), self)
         {
             return Ok(self
                 .get_declared_type_of_class_or_interface(
-                    self.get_symbol_of_node(&container)?.unwrap(),
+                    self.get_symbol_of_node(container)?.unwrap(),
                 )?
                 .ref_(self)
                 .as_interface_type()
@@ -472,10 +473,11 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*RestTypeNode | NamedTupleMember*/
     ) -> io::Result<Id<Type>> {
-        let node_as_has_type = node.as_has_type();
+        let node_ref = node.ref_(self);
+        let node_as_has_type = node_ref.as_has_type();
         self.get_type_from_type_node_(
-            &self
-                .get_array_element_type_node(&node_as_has_type.maybe_type().unwrap())
+            self
+                .get_array_element_type_node(node_as_has_type.maybe_type().unwrap())
                 .unwrap_or_else(|| node_as_has_type.maybe_type().unwrap()),
         )
     }
@@ -484,12 +486,13 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeNode*/
     ) -> Option<Id<Node /*TypeNode*/>> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ParenthesizedType => {
-                return self.get_array_element_type_node(&node.as_parenthesized_type_node().type_);
+                return self.get_array_element_type_node(node.ref_(self).as_parenthesized_type_node().type_);
             }
             SyntaxKind::TupleType => {
-                let node_as_tuple_type_node = node.as_tuple_type_node();
+                let node_ref = node.ref_(self);
+                let node_as_tuple_type_node = node_ref.as_tuple_type_node();
                 if node_as_tuple_type_node.elements.len() == 1 {
                     let node = &node_as_tuple_type_node.elements[0];
                     if node.kind() == SyntaxKind::RestType
@@ -503,7 +506,7 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::ArrayType => {
-                return Some(node.as_array_type_node().element_type.clone());
+                return Some(node.ref_(self).as_array_type_node().element_type);
             }
             _ => (),
         }
@@ -516,7 +519,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let node_as_named_tuple_member = node.as_named_tuple_member();
+            let node_ref = node.ref_(self);
+            let node_as_named_tuple_member = node_ref.as_named_tuple_member();
             links.borrow_mut().resolved_type =
                 Some(if node_as_named_tuple_member.dot_dot_dot_token.is_some() {
                     self.get_type_from_rest_type_node(node)?
@@ -543,7 +547,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {
                 self.any_type()
             }
@@ -558,7 +562,7 @@ impl TypeChecker {
             SyntaxKind::NullKeyword => self.null_type(),
             SyntaxKind::NeverKeyword => self.never_type(),
             SyntaxKind::ObjectKeyword => {
-                if node.flags().intersects(NodeFlags::JavaScriptFile) && !self.no_implicit_any {
+                if node.ref_(self).flags().intersects(NodeFlags::JavaScriptFile) && !self.no_implicit_any {
                     self.any_type()
                 } else {
                     self.non_primitive_type()
@@ -571,7 +575,7 @@ impl TypeChecker {
             SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node)?,
             SyntaxKind::TypeReference => self.get_type_from_type_reference(node)?,
             SyntaxKind::TypePredicate => {
-                if node.as_type_predicate_node().asserts_modifier.is_some() {
+                if node.ref_(self).as_type_predicate_node().asserts_modifier.is_some() {
                     self.void_type()
                 } else {
                     self.boolean_type()
@@ -588,7 +592,7 @@ impl TypeChecker {
             SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node)?,
             SyntaxKind::JSDocOptionalType => self.add_optionality(
                 self.get_type_from_type_node_(
-                    node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
+                    node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap(),
                 )?,
                 None,
                 None,
@@ -597,7 +601,7 @@ impl TypeChecker {
             SyntaxKind::ParenthesizedType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocTypeExpression => {
-                self.get_type_from_type_node_(&node.as_has_type().maybe_type().unwrap())?
+                self.get_type_from_type_node_(node.ref_(self).as_has_type().maybe_type().unwrap())?
             }
             SyntaxKind::RestType => self.get_type_from_rest_type_node(node)?,
             SyntaxKind::JSDocVariadicType => self.get_type_from_jsdoc_variadic_type(node)?,
@@ -1102,7 +1106,7 @@ impl TypeChecker {
                 .unwrap()[0]
                 .clone()
         };
-        let links = self.get_node_links(&declaration);
+        let links = self.get_node_links(declaration);
         let target = if type_
             .ref_(self)
             .as_object_type()
@@ -1123,10 +1127,10 @@ impl TypeChecker {
         let mut type_parameters = (*links).borrow().outer_type_parameters.clone();
         if type_parameters.is_none() {
             let mut outer_type_parameters =
-                self.get_outer_type_parameters(&declaration, Some(true))?;
-            if self.is_js_constructor(Some(&*declaration))? {
+                self.get_outer_type_parameters(declaration, Some(true))?;
+            if self.is_js_constructor(Some(declaration))? {
                 let template_tag_parameters =
-                    self.get_type_parameters_from_declaration(&declaration);
+                    self.get_type_parameters_from_declaration(declaration);
                 outer_type_parameters = maybe_add_range(
                     outer_type_parameters,
                     template_tag_parameters.as_deref(),
@@ -1173,7 +1177,7 @@ impl TypeChecker {
                 try_maybe_filter(type_parameters.as_deref(), |&tp: &Id<Type>| {
                     try_some(
                         Some(&*all_declarations),
-                        Some(|d: &Id<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
+                        Some(|&d: &Id<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
                     )
                 })
                 .transpose()?
@@ -1254,7 +1258,7 @@ impl TypeChecker {
                                 let target = type_.ref_(self).as_type_reference().target;
                                 target
                             },
-                            &*{
+                            {
                                 let node = type_
                                     .ref_(self)
                                     .as_type_reference()

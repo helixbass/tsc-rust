@@ -87,7 +87,7 @@ impl TypeChecker {
             type_predicate.type_.try_and_then(|type_| {
                 self.node_builder().type_to_type_node(
                     type_,
-                    enclosing_declaration.as_deref(),
+                    enclosing_declaration,
                     Some(
                         self.to_node_builder_flags(Some(flags))
                             | NodeBuilderFlags::IgnoreErrors
@@ -105,7 +105,6 @@ impl TypeChecker {
             None,
         );
         let source_file = enclosing_declaration
-            .as_deref()
             .and_then(|enclosing_declaration| {
                 maybe_get_source_file_of_node(Some(enclosing_declaration), self)
             });
@@ -329,9 +328,9 @@ impl TypeChecker {
                 }
                 let declaration = declaration.unwrap();
                 if let Some(declaration_parent) = declaration.ref_(self).maybe_parent() {
-                    if declaration_parent.kind() == SyntaxKind::VariableDeclaration {
+                    if declaration_parent.ref_(self).kind() == SyntaxKind::VariableDeclaration {
                         return declaration_name_to_string(Some(
-                            declaration_parent.as_variable_declaration().name(),
+                            declaration_parent.ref_(self).as_variable_declaration().name(),
                         ), self);
                     }
                 }
@@ -541,7 +540,7 @@ impl TypeChecker {
                 let first_identifier = get_first_identifier(internal_module_reference, self);
                 let import_symbol = self.resolve_name_(
                     Some(declaration),
-                    &first_identifier.as_identifier().escaped_text,
+                    &first_identifier.ref_(self).as_identifier().escaped_text,
                     SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                     None,
                     Option::<Id<Node>>::None,

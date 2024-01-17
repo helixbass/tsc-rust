@@ -145,7 +145,7 @@ impl TypeChecker {
             };
             let type_ = if is_element_access_expression(&decl_name.ref_(self)) {
                 self.check_expression_cached(
-                    &decl_name.as_element_access_expression().argument_expression,
+                    decl_name.ref_(self).as_element_access_expression().argument_expression,
                     None,
                 )?
             } else {
@@ -275,8 +275,8 @@ impl TypeChecker {
                 .as_ref()
                 .map(|early_symbols| (**early_symbols).borrow());
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
-                for decl in symbol_declarations {
-                    let members = get_members_of_declaration(&decl, self);
+                for &decl in symbol_declarations {
+                    let members = get_members_of_declaration(decl, self);
                     if let Some(members) = members {
                         for &member in &members {
                             if is_static == has_static_modifier(member, self)

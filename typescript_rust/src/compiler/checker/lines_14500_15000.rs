@@ -461,10 +461,10 @@ impl TypeChecker {
             links.borrow_mut().resolved_type = Some(
                 self.get_intersection_type(
                     &try_map(
-                        &*node.as_intersection_type_node().types,
-                        |type_: &Id<Node>, _| self.get_type_from_type_node_(type_),
+                        &*node.ref_(self).as_intersection_type_node().types,
+                        |&type_: &Id<Node>, _| self.get_type_from_type_node_(type_),
                     )?,
-                    alias_symbol.clone(),
+                    alias_symbol,
                     self.get_type_arguments_for_alias_symbol(alias_symbol)?
                         .as_deref(),
                 )?,
@@ -717,15 +717,15 @@ impl TypeChecker {
         &self,
         name: Id<Node>, /*PropertyName*/
     ) -> io::Result<Id<Type>> {
-        if is_private_identifier(name) {
+        if is_private_identifier(&name.ref_(self)) {
             return Ok(self.never_type());
         }
-        Ok(if is_identifier(name) {
+        Ok(if is_identifier(&name.ref_(self)) {
             self.get_string_literal_type(&unescape_leading_underscores(
-                &name.as_identifier().escaped_text,
+                &name.ref_(self).as_identifier().escaped_text,
             ))
         } else {
-            self.get_regular_type_of_literal_type(if is_computed_property_name(name) {
+            self.get_regular_type_of_literal_type(if is_computed_property_name(&name.ref_(self)) {
                 self.check_computed_property_name(name)?
             } else {
                 self.check_expression(name, None, None)?
@@ -753,7 +753,7 @@ impl TypeChecker {
                 type_ = if prop.ref_(self).escaped_name() == InternalSymbolName::Default {
                     Some(self.get_string_literal_type("default"))
                 } else if let Some(name) = name {
-                    Some(self.get_literal_type_from_property_name(&name)?)
+                    Some(self.get_literal_type_from_property_name(name)?)
                 } else {
                     if !is_known_symbol(&prop.ref_(self)) {
                         Some(self.get_string_literal_type(&symbol_name(prop, self)))
@@ -932,7 +932,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let node_as_type_operator_node = node.as_type_operator_node();
+            let node_ref = node.ref_(self);
+            let node_as_type_operator_node = node_ref.as_type_operator_node();
             match node_as_type_operator_node.operator {
                 SyntaxKind::KeyOfKeyword => {
                     links.borrow_mut().resolved_type = Some(self.get_index_type(
@@ -945,7 +946,7 @@ impl TypeChecker {
                     links.borrow_mut().resolved_type = Some(
                         if node_as_type_operator_node.type_.kind() == SyntaxKind::SymbolKeyword {
                             self.get_es_symbol_like_type_for_node(
-                                &walk_up_parenthesized_types(node.parent(), self).unwrap(),
+                                walk_up_parenthesized_types(node.ref_(self).parent(), self).unwrap(),
                             )?
                         } else {
                             self.error_type()
@@ -971,7 +972,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let node_as_template_literal_type_node = node.as_template_literal_type_node();
+            let node_ref = node.ref_(self);
+            let node_as_template_literal_type_node = node_ref.as_template_literal_type_node();
             let mut texts = vec![node_as_template_literal_type_node
                 .head
                 .as_literal_like_node()
@@ -981,7 +983,7 @@ impl TypeChecker {
                 map(
                     &*node_as_template_literal_type_node.template_spans,
                     |span: &Id<Node>, _| {
-                        span.as_template_literal_type_span()
+                        span.ref_(self).as_template_literal_type_span()
                             .literal
                             .as_literal_like_node()
                             .text()
@@ -995,7 +997,7 @@ impl TypeChecker {
                 &try_map(
                     &*node_as_template_literal_type_node.template_spans,
                     |span: &Id<Node>, _| {
-                        self.get_type_from_type_node_(&span.as_template_literal_type_span().type_)
+                        self.get_type_from_type_node_(span.ref_(self).as_template_literal_type_span().type_)
                     },
                 )?,
             )?);

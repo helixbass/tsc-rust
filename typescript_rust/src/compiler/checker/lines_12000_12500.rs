@@ -921,7 +921,7 @@ impl TypeChecker {
         if node_as_parameter_declaration.maybe_initializer().is_some() {
             let signature = self.get_signature_from_declaration_(node.ref_(self).parent())?;
             let parameter_index = index_of_eq(
-                &node.ref_(self).parent().as_signature_declaration().parameters(),
+                &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters(),
                 &node,
             );
             Debug_.assert(parameter_index >= 0, None);

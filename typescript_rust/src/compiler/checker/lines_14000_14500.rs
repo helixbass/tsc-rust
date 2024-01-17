@@ -423,7 +423,7 @@ impl TypeChecker {
         node: Id<Node>, /*OptionalTypeNode*/
     ) -> io::Result<Id<Type>> {
         self.add_optionality(
-            self.get_type_from_type_node_(&node.as_optional_type_node().type_)?,
+            self.get_type_from_type_node_(node.ref_(self).as_optional_type_node().type_)?,
             Some(true),
             None,
         )
@@ -1048,11 +1048,11 @@ impl TypeChecker {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             links.borrow_mut().resolved_type = Some(
                 self.get_union_type(
-                    &try_map(&node.as_union_type_node().types, |type_: &Id<Node>, _| {
+                    &try_map(&node.ref_(self).as_union_type_node().types, |&type_: &Id<Node>, _| {
                         self.get_type_from_type_node_(type_)
                     })?,
                     Some(UnionReduction::Literal),
-                    alias_symbol.clone(),
+                    alias_symbol,
                     self.get_type_arguments_for_alias_symbol(alias_symbol)?
                         .as_deref(),
                     None,

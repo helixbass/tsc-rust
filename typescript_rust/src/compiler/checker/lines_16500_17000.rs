@@ -23,27 +23,26 @@ use crate::{
 
 impl TypeChecker {
     pub(super) fn maybe_type_parameter_reference(&self, node: Id<Node>) -> bool {
-        !(node.parent().kind() == SyntaxKind::TypeReference && {
-            let node_parent = node.parent();
-            let node_parent_as_type_reference_node = node_parent.as_type_reference_node();
+        !(node.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeReference && {
+            let node_parent = node.ref_(self).parent();
+            let node_parent_ref = node_parent.ref_(self);
+            let node_parent_as_type_reference_node = node_parent_ref.as_type_reference_node();
             ({
                 let value = node_parent_as_type_reference_node
                     .maybe_type_arguments()
                     .is_some();
                 value
-            }) && ptr::eq(node, &*node_parent_as_type_reference_node.type_name)
-        } || node.parent().kind() == SyntaxKind::ImportType && {
-            let node_parent = node.parent();
-            let node_parent_as_import_type_node = node_parent.as_import_type_node();
+            }) && node == node_parent_as_type_reference_node.type_name
+        } || node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ImportType && {
+            let node_parent = node.ref_(self).parent();
+            let node_parent_ref = node_parent.ref_(self);
+            let node_parent_as_import_type_node = node_parent_ref.as_import_type_node();
             ({
                 let value = node_parent_as_import_type_node
                     .maybe_type_arguments()
                     .is_some();
                 value
-            }) && matches!(
-                node_parent_as_import_type_node.qualifier.as_deref(),
-                Some(qualifier) if ptr::eq(node, qualifier)
-            )
+            }) && node_parent_as_import_type_node.qualifier == Some(node)
         })
     }
 
@@ -57,11 +56,11 @@ impl TypeChecker {
             let tp_symbol_declarations = tp_symbol_ref.maybe_declarations();
             if let Some(tp_symbol_declarations) = tp_symbol_declarations.as_ref() {
                 if tp_symbol_declarations.len() == 1 {
-                    let container = tp_symbol_declarations[0].parent();
-                    let mut n = Some(node.node_wrapper());
-                    while !match n.as_ref() {
+                    let container = tp_symbol_declarations[0].ref_(self).parent();
+                    let mut n = Some(node);
+                    while !match n {
                         None => false,
-                        Some(n) => Gc::ptr_eq(n, &container),
+                        Some(n) => n == container,
                     } {
                         if match n.as_ref() {
                             None => true,
@@ -91,9 +90,9 @@ impl TypeChecker {
         tp: Id<Type>, /*TypeParameter*/
         node: Id<Node>,
     ) -> io::Result<bool> {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::ThisType => {
-                matches!(tp.ref_(self).as_type_parameter().is_this_type, Some(true))
+                tp.ref_(self).as_type_parameter().is_this_type == Some(true)
             }
             SyntaxKind::Identifier => {
                 !matches!(tp.ref_(self).as_type_parameter().is_this_type, Some(true))
@@ -103,31 +102,32 @@ impl TypeChecker {
             }
             SyntaxKind::TypeQuery => true,
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-                let node_as_signature_declaration = node.as_signature_declaration();
+                let node_ref = node.ref_(self);
+                let node_as_signature_declaration = node_ref.as_signature_declaration();
                 node_as_signature_declaration.maybe_type().is_none()
                     && node
-                        .maybe_as_function_like_declaration()
+                        .ref_(self).maybe_as_function_like_declaration()
                         .and_then(|node| node.maybe_body())
                         .is_some()
                     || try_some(
                         node_as_signature_declaration
                             .maybe_type_parameters()
                             .as_double_deref(),
-                        Some(|type_parameter: &Id<Node>| {
+                        Some(|&type_parameter: &Id<Node>| {
                             self.contains_reference(tp, type_parameter)
                         }),
                     )?
                     || try_some(
                         Some(&node_as_signature_declaration.parameters()),
-                        Some(|parameter: &Id<Node>| self.contains_reference(tp, parameter)),
+                        Some(|&parameter: &Id<Node>| self.contains_reference(tp, parameter)),
                     )?
                     || matches!(
                         node_as_signature_declaration.maybe_type(),
-                        Some(type_) if self.contains_reference(tp, &type_)?
+                        Some(type_) if self.contains_reference(tp, type_)?
                     )
             }
             _ => try_for_each_child_bool(
-                node,
+                &node.ref_(self),
                 |child| self.contains_reference(tp, child),
                 Option::<fn(&NodeArray) -> io::Result<bool>>::None,
             )?,
@@ -178,7 +178,7 @@ impl TypeChecker {
                         if t.ref_(self).flags().intersects(
                             TypeFlags::AnyOrUnknown | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object | TypeFlags::Intersection
                         ) && t != self.wildcard_type() && !self.is_error_type(t) {
-                            if type_.ref_(self).as_mapped_type().declaration.as_mapped_type_node().name_type.is_none() {
+                            if type_.ref_(self).as_mapped_type().declaration.ref_(self).as_mapped_type_node().name_type.is_none() {
                                 if self.is_array_type(t)
                                     || t.ref_(self).flags().intersects(TypeFlags::Any)
                                         && self.find_resolution_cycle_start_index(
@@ -954,10 +954,10 @@ impl TypeChecker {
         node: Id<Node>, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
     ) -> io::Result<bool> {
         Debug_.assert(
-            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
+            node.ref_(self).kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
             None,
         );
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
             | SyntaxKind::MethodDeclaration
@@ -965,51 +965,53 @@ impl TypeChecker {
                 self.is_context_sensitive_function_like_declaration(node)?
             }
             SyntaxKind::ObjectLiteralExpression => try_some(
-                Some(&node.as_object_literal_expression().properties),
-                Some(|property: &Id<Node>| self.is_context_sensitive(property)),
+                Some(&node.ref_(self).as_object_literal_expression().properties),
+                Some(|&property: &Id<Node>| self.is_context_sensitive(property)),
             )?,
             SyntaxKind::ArrayLiteralExpression => try_some(
-                Some(&node.as_array_literal_expression().elements),
-                Some(|element: &Id<Node>| self.is_context_sensitive(element)),
+                Some(&node.ref_(self).as_array_literal_expression().elements),
+                Some(|&element: &Id<Node>| self.is_context_sensitive(element)),
             )?,
             SyntaxKind::ConditionalExpression => {
-                let node_as_conditional_expression = node.as_conditional_expression();
-                self.is_context_sensitive(&node_as_conditional_expression.when_true)?
-                    || self.is_context_sensitive(&node_as_conditional_expression.when_false)?
+                let node_ref = node.ref_(self);
+                let node_as_conditional_expression = node_ref.as_conditional_expression();
+                self.is_context_sensitive(node_as_conditional_expression.when_true)?
+                    || self.is_context_sensitive(node_as_conditional_expression.when_false)?
             }
             SyntaxKind::BinaryExpression => {
-                let node_as_binary_expression = node.as_binary_expression();
+                let node_ref = node.ref_(self);
+                let node_as_binary_expression = node_ref.as_binary_expression();
                 matches!(
-                    node_as_binary_expression.operator_token.kind(),
+                    node_as_binary_expression.operator_token.ref_(self).kind(),
                     SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
-                ) && (self.is_context_sensitive(&node_as_binary_expression.left)?
-                    || self.is_context_sensitive(&node_as_binary_expression.right)?)
+                ) && (self.is_context_sensitive(node_as_binary_expression.left)?
+                    || self.is_context_sensitive(node_as_binary_expression.right)?)
             }
             SyntaxKind::PropertyAssignment => {
-                self.is_context_sensitive(&node.as_property_assignment().initializer)?
+                self.is_context_sensitive(node.ref_(self).as_property_assignment().initializer)?
             }
             SyntaxKind::ParenthesizedExpression => {
-                self.is_context_sensitive(&node.as_parenthesized_expression().expression)?
+                self.is_context_sensitive(node.ref_(self).as_parenthesized_expression().expression)?
             }
             SyntaxKind::JsxAttributes => {
                 try_some(
-                    Some(&node.as_jsx_attributes().properties),
-                    Some(|property: &Id<Node>| self.is_context_sensitive(property)),
-                )? || is_jsx_opening_element(&node.parent())
+                    Some(&node.ref_(self).as_jsx_attributes().properties),
+                    Some(|&property: &Id<Node>| self.is_context_sensitive(property)),
+                )? || is_jsx_opening_element(&node.ref_(self).parent().ref_(self))
                     && try_some(
-                        Some(&node.parent().parent().as_jsx_element().children),
-                        Some(|child: &Id<Node>| self.is_context_sensitive(child)),
+                        Some(&node.ref_(self).parent().ref_(self).parent().ref_(self).as_jsx_element().children),
+                        Some(|&child: &Id<Node>| self.is_context_sensitive(child)),
                     )?
             }
             SyntaxKind::JsxAttribute => {
-                let initializer = node.as_jsx_attribute().initializer.as_ref();
+                let initializer = node.ref_(self).as_jsx_attribute().initializer;
                 matches!(
                     initializer,
                     Some(initializer) if self.is_context_sensitive(initializer)?
                 )
             }
             SyntaxKind::JsxExpression => {
-                let expression = node.as_jsx_expression().expression.as_ref();
+                let expression = node.ref_(self).as_jsx_expression().expression;
                 matches!(
                     expression,
                     Some(expression) if self.is_context_sensitive(expression)?
@@ -1023,12 +1025,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
-        Ok((!is_function_declaration(node)
-            || is_in_js_file(Some(node))
+        Ok((!is_function_declaration(&node.ref_(self))
+            || is_in_js_file(Some(&node.ref_(self)))
                 && self
                     .get_type_for_declaration_from_jsdoc_comment(node)?
                     .is_some())
-            && (has_context_sensitive_parameters(node)
+            && (has_context_sensitive_parameters(node, self)
                 || self.has_context_sensitive_return_expression(node)?))
     }
 
@@ -1036,14 +1038,15 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
-        let node_as_function_like_declaration = node.as_function_like_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         Ok(node_as_function_like_declaration
             .maybe_type_parameters()
             .is_none()
-            && get_effective_return_type_node(node).is_none()
+            && get_effective_return_type_node(node, self).is_none()
             && matches!(
                 node_as_function_like_declaration.maybe_body(),
-                Some(node_body) if node_body.kind() != SyntaxKind::Block && self.is_context_sensitive(&node_body)?
+                Some(node_body) if node_body.ref_(self).kind() != SyntaxKind::Block && self.is_context_sensitive(node_body)?
             ))
     }
 
@@ -1051,8 +1054,8 @@ impl TypeChecker {
         &self,
         func: Id<Node>,
     ) -> io::Result<bool> {
-        Ok((is_in_js_file(Some(func)) && is_function_declaration(func)
-            || is_function_expression_or_arrow_function(func)
+        Ok((is_in_js_file(Some(&func.ref_(self))) && is_function_declaration(&func.ref_(self))
+            || is_function_expression_or_arrow_function(&func.ref_(self))
             || is_object_literal_method(func, self))
             && self.is_context_sensitive_function_like_declaration(func)?)
     }
