@@ -367,7 +367,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                 &node,
                 &value.as_ref().unwrap().as_identifier().escaped_text,
             )
-            || binding_or_assignment_element_contains_non_literal_computed_name(&node)
+            || binding_or_assignment_element_contains_non_literal_computed_name(node, arena)
         {
             value = Some(ensure_identifier(
                 &flatten_context,
@@ -437,26 +437,28 @@ fn binding_or_assignment_pattern_assigns_to_name(
 
 fn binding_or_assignment_element_contains_non_literal_computed_name(
     element: Id<Node>, /*BindingOrAssignmentElement*/
+    arena: &impl HasArena,
 ) -> bool {
-    let property_name = try_get_property_name_of_binding_or_assignment_element(element);
-    if property_name.matches(|ref property_name| {
-        is_computed_property_name(property_name)
-            && !is_literal_expression(&property_name.as_computed_property_name().expression)
+    let property_name = try_get_property_name_of_binding_or_assignment_element(element, arena);
+    if property_name.matches(|property_name| {
+        is_computed_property_name(&property_name.ref_(arena))
+            && !is_literal_expression(&property_name.ref_(arena).as_computed_property_name().expression.ref_(arena))
     }) {
         return true;
     }
-    let target = get_target_of_binding_or_assignment_element(element);
-    target.as_ref().matches(|target| {
-        is_binding_or_assigment_pattern(target)
-            && binding_or_assignment_pattern_contains_non_literal_computed_name(target)
+    let target = get_target_of_binding_or_assignment_element(element, arena);
+    target.matches(|target| {
+        is_binding_or_assigment_pattern(&target.ref_(arena))
+            && binding_or_assignment_pattern_contains_non_literal_computed_name(target, arena)
     })
 }
 
 fn binding_or_assignment_pattern_contains_non_literal_computed_name(
     pattern: Id<Node>, /*BindingOrAssignmentPattern*/
+    arena: &impl HasArena,
 ) -> bool {
-    get_elements_of_binding_or_assignment_pattern(pattern).any(|ref element| {
-        binding_or_assignment_element_contains_non_literal_computed_name(element)
+    get_elements_of_binding_or_assignment_pattern(&pattern.ref_(arena)).any(|element| {
+        binding_or_assignment_element_contains_non_literal_computed_name(element, arena)
     })
 }
 
@@ -526,7 +528,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                     &node,
                     &initializer.as_identifier().escaped_text,
                 )
-                || binding_or_assignment_element_contains_non_literal_computed_name(&node)
+                || binding_or_assignment_element_contains_non_literal_computed_name(node, context)
         }) {
             initializer = ensure_identifier(
                 &flatten_context,
@@ -865,7 +867,7 @@ fn flatten_object_binding_or_assignment_pattern(
     for (i, element) in elements.iter().enumerate() {
         if get_rest_indicator_of_binding_or_assignment_element(element).is_none() {
             let property_name =
-                &get_property_name_of_binding_or_assignment_element(element).unwrap();
+                &get_property_name_of_binding_or_assignment_element(element, flatten_context).unwrap();
             if flatten_context.level() >= FlattenLevel::ObjectRest
                 && !element.transform_flags().intersects(
                     TransformFlags::ContainsRestOrSpread
@@ -1094,8 +1096,9 @@ fn flatten_array_binding_or_assignment_pattern(
 
 fn is_simple_binding_or_assignment_element(
     element: Id<Node>, /*BindingOrAssignmentElement*/
+    arena: &impl HasArena,
 ) -> bool {
-    let target = get_target_of_binding_or_assignment_element(element);
+    let target = get_target_of_binding_or_assignment_element(element, arena);
     if target.is_none() {
         return true;
     }
@@ -1103,11 +1106,11 @@ fn is_simple_binding_or_assignment_element(
     if is_omitted_expression(target) {
         return true;
     }
-    let property_name = try_get_property_name_of_binding_or_assignment_element(element);
+    let property_name = try_get_property_name_of_binding_or_assignment_element(element, arena);
     if property_name.matches(|ref property_name| !is_property_name_literal(property_name)) {
         return false;
     }
-    let initializer = get_initializer_of_binding_or_assignment_element(element);
+    let initializer = get_initializer_of_binding_or_assignment_element(element, arena);
     if initializer.matches(|ref initializer| !is_simple_inlineable_expression(initializer)) {
         return false;
     }

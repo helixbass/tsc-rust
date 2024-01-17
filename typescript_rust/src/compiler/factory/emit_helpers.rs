@@ -223,8 +223,8 @@ impl EmitHelperFactory {
         self.context.request_emit_helper(rest_helper());
         let mut property_names: Vec<Id<Node /*Expression*/>> = _d();
         let mut computed_temp_variable_offset = 0;
-        for element in elements.into_iter().take(elements.len() - 1) {
-            let property_name = get_property_name_of_binding_or_assignment_element(element);
+        for &element in elements.into_iter().take(elements.len() - 1) {
+            let property_name = get_property_name_of_binding_or_assignment_element(element, self);
             if let Some(ref property_name) = property_name {
                 if is_computed_property_name(property_name) {
                     Debug_.assert_is_defined(

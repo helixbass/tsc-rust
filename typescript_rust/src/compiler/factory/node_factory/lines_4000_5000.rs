@@ -573,7 +573,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         JSDocTypedefTag::new(
             node,
             full_name.clone(),
-            get_jsdoc_type_alias_name(full_name),
+            get_jsdoc_type_alias_name(full_name, self),
             type_expression,
         )
     }
@@ -643,7 +643,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node,
             type_expression,
             full_name.clone(),
-            get_jsdoc_type_alias_name(full_name),
+            get_jsdoc_type_alias_name(full_name, self),
         )
     }
 

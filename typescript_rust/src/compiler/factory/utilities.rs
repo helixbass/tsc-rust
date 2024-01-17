@@ -1107,10 +1107,11 @@ pub fn get_rest_indicator_of_binding_or_assignment_element(
 
 pub fn get_property_name_of_binding_or_assignment_element(
     binding_element: Id<Node>, /*BindingOrAssignmentElement*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
-    let property_name = try_get_property_name_of_binding_or_assignment_element(binding_element);
+    let property_name = try_get_property_name_of_binding_or_assignment_element(binding_element, arena);
     Debug_.assert(
-        property_name.is_some() || is_spread_assignment(binding_element),
+        property_name.is_some() || is_spread_assignment(&binding_element.ref_(arena)),
         Some("Invalid property name for binding element."),
     );
     property_name
@@ -1184,26 +1185,26 @@ pub fn try_get_property_name_of_binding_or_assignment_element(
     None
 }
 
-fn is_string_or_numeric_literal(node: Id<Node>) -> bool {
+fn is_string_or_numeric_literal(node: &Node) -> bool {
     let kind = node.kind();
     matches!(kind, SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral)
 }
 
 pub(crate) fn get_jsdoc_type_alias_name(
     full_name: Option<Id<Node> /*JSDocNamespaceBody*/>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*Identifier*/>> {
     full_name.map(|full_name| {
-        let full_name = full_name.borrow();
-        let mut right_node = full_name.node_wrapper();
+        let mut right_node = full_name;
         loop {
-            if is_identifier(&right_node) || right_node.as_module_declaration().body.is_none() {
-                return if is_identifier(&right_node) {
+            if is_identifier(&right_node.ref_(arena)) || right_node.ref_(arena).as_module_declaration().body.is_none() {
+                return if is_identifier(&right_node.ref_(arena)) {
                     right_node
                 } else {
-                    right_node.as_module_declaration().name.clone()
+                    right_node.ref_(arena).as_module_declaration().name
                 };
             }
-            right_node = right_node.as_module_declaration().body.clone().unwrap();
+            right_node = right_node.ref_(arena).as_module_declaration().body.unwrap();
         }
     })
 }
@@ -1238,27 +1239,27 @@ pub fn can_have_modifiers(node: &Node) -> bool {
     )
 }
 
-pub fn is_type_node_or_type_parameter_declaration(node: Id<Node>) -> bool {
+pub fn is_type_node_or_type_parameter_declaration(node: &Node) -> bool {
     is_type_node(node) || is_type_parameter_declaration(node)
 }
 
-pub fn is_question_or_exclamation_token(node: Id<Node>) -> bool {
+pub fn is_question_or_exclamation_token(node: &Node) -> bool {
     is_question_token(node) || is_exclamation_token(node)
 }
 
-pub fn is_identifier_or_this_type_node(node: Id<Node>) -> bool {
+pub fn is_identifier_or_this_type_node(node: &Node) -> bool {
     is_identifier(node) || is_this_type_node(node)
 }
 
-pub fn is_readonly_keyword_or_plus_or_minus_token(node: Id<Node>) -> bool {
+pub fn is_readonly_keyword_or_plus_or_minus_token(node: &Node) -> bool {
     is_readonly_keyword(node) || is_plus_token(node) || is_minus_token(node)
 }
 
-pub fn is_question_or_plus_or_minus_token(node: Id<Node>) -> bool {
+pub fn is_question_or_plus_or_minus_token(node: &Node) -> bool {
     is_question_token(node) || is_plus_token(node) || is_minus_token(node)
 }
 
-pub fn is_module_name(node: Id<Node>) -> bool {
+pub fn is_module_name(node: &Node) -> bool {
     is_identifier(node) || is_string_literal(node)
 }
 
@@ -1360,7 +1361,7 @@ fn is_binary_operator(kind: SyntaxKind) -> bool {
     is_assignment_operator_or_higher(kind) || kind == SyntaxKind::CommaToken
 }
 
-pub fn is_binary_operator_token(node: Id<Node>) -> bool {
+pub fn is_binary_operator_token(node: &Node) -> bool {
     is_binary_operator(node.kind())
 }
 
@@ -1465,7 +1466,7 @@ fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(
     push_or_replace(
         user_state_stack,
         stack_index,
-        Some(machine.on_enter(&node_stack[stack_index], prev_user_state, outer_state)?),
+        Some(machine.on_enter(node_stack[stack_index], prev_user_state, outer_state)?),
     );
     push_or_replace(
         state_stack,
@@ -1497,11 +1498,11 @@ fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
         binary_expression_state_next_state(machine, BinaryExpressionState::Left),
     );
     let next_node = machine.on_left(
-        &node_stack[stack_index].as_binary_expression().left,
+        node_stack[stack_index].ref_(machine).as_binary_expression().left,
         user_state_stack[stack_index].clone().unwrap(),
-        &node_stack[stack_index],
+        node_stack[stack_index],
     )?;
-    if let Some(next_node) = next_node.as_ref() {
+    if let Some(next_node) = next_node {
         binary_expression_state_check_circularity(stack_index, node_stack, next_node);
         return Ok(binary_expression_state_push_stack(
             stack_index,
@@ -1536,11 +1537,11 @@ fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
         binary_expression_state_next_state(machine, BinaryExpressionState::Operator),
     );
     machine.on_operator(
-        &node_stack[stack_index]
-            .as_binary_expression()
+        node_stack[stack_index]
+            .ref_(machine).as_binary_expression()
             .operator_token,
         user_state_stack[stack_index].clone().unwrap(),
-        &node_stack[stack_index],
+        node_stack[stack_index],
     )?;
     Ok(stack_index)
 }
@@ -1567,11 +1568,11 @@ fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
         binary_expression_state_next_state(machine, BinaryExpressionState::Right),
     );
     let next_node = machine.on_right(
-        &node_stack[stack_index].as_binary_expression().right,
+        node_stack[stack_index].ref_(machine).as_binary_expression().right,
         user_state_stack[stack_index].clone().unwrap(),
-        &node_stack[stack_index],
+        node_stack[stack_index],
     )?;
-    if let Some(next_node) = next_node.as_ref() {
+    if let Some(next_node) = next_node {
         binary_expression_state_check_circularity(stack_index, node_stack, next_node);
         return Ok(binary_expression_state_push_stack(
             stack_index,
@@ -1605,7 +1606,7 @@ fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
         binary_expression_state_next_state(machine, BinaryExpressionState::Exit),
     );
     let result = machine.on_exit(
-        &node_stack[stack_index],
+        node_stack[stack_index],
         user_state_stack[stack_index].clone().unwrap(),
     )?;
     if stack_index > 0 {
@@ -1697,7 +1698,7 @@ fn binary_expression_state_push_stack<TState>(
 ) -> usize {
     stack_index += 1;
     push_or_replace(state_stack, stack_index, BinaryExpressionState::Enter);
-    push_or_replace(node_stack, stack_index, node.node_wrapper());
+    push_or_replace(node_stack, stack_index, node);
     push_or_replace(user_state_stack, stack_index, None);
     stack_index
 }
@@ -1712,7 +1713,7 @@ fn binary_expression_state_check_circularity(
         /*while stackIndex >= 0*/
         {
             Debug_.assert(
-                !ptr::eq(&*node_stack[stack_index], node),
+                node_stack[stack_index] != node,
                 Some("Circular traversal detected."),
             );
             if stack_index == 0 {
@@ -1723,7 +1724,7 @@ fn binary_expression_state_check_circularity(
     }
 }
 
-pub trait BinaryExpressionStateMachine: Trace + Finalize {
+pub trait BinaryExpressionStateMachine: Trace + Finalize + HasArena {
     type TResult: Clone;
     type TOuterState: Clone;
     type TState: Clone;
@@ -1812,7 +1813,7 @@ impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine
     ) -> io::Result<TMachine::TResult> {
         let result_holder: Rc<RefCell<Option<TMachine::TResult>>> = Rc::new(RefCell::new(None));
         let mut state_stack: Vec<BinaryExpressionState> = vec![BinaryExpressionState::Enter];
-        let mut node_stack: Vec<Id<Node /*BinaryExpression*/>> = vec![node.node_wrapper()];
+        let mut node_stack: Vec<Id<Node /*BinaryExpression*/>> = vec![node];
         let mut user_state_stack: Vec<Option<TMachine::TState>> = vec![None];
         let mut stack_index = 0;
         while state_stack[stack_index] != BinaryExpressionState::Done {
