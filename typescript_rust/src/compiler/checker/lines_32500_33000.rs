@@ -25,7 +25,8 @@ impl TypeChecker {
         source_type: Id<Type>,
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
-        let properties = &node.as_object_literal_expression().properties;
+        let node_ref = node.ref_(self);
+        let properties = &node_ref.as_object_literal_expression().properties;
         if self.strict_null_checks && properties.is_empty() {
             return self.check_non_null_type(source_type, node);
         }
@@ -50,9 +51,10 @@ impl TypeChecker {
         right_is_this: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let right_is_this = right_is_this.unwrap_or(false);
-        let properties = &node.as_object_literal_expression().properties;
-        let property = &properties[property_index];
-        Ok(match property.kind() {
+        let node_ref = node.ref_(self);
+        let properties = &node_ref.as_object_literal_expression().properties;
+        let property = properties[property_index];
+        Ok(match property.ref_(self).kind() {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 let name = property.as_named_declaration().name();
                 let expr_type = self.get_literal_type_from_property_name(&name)?;
@@ -106,8 +108,8 @@ impl TypeChecker {
                     let mut non_rest_names: Vec<Id<Node /*PropertyName*/>> = vec![];
                     if let Some(all_properties) = all_properties {
                         for other_property in all_properties {
-                            if !is_spread_assignment(other_property) {
-                                non_rest_names.push(other_property.as_named_declaration().name());
+                            if !is_spread_assignment(&other_property.ref_(self)) {
+                                non_rest_names.push(other_property.ref_(self).as_named_declaration().name());
                             }
                         }
                     }
@@ -145,7 +147,8 @@ impl TypeChecker {
         source_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let node_ref = node.ref_(self);
+        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         let elements = &node_as_array_literal_expression.elements;
         if self.language_version < ScriptTarget::ES2015
             && self.compiler_options.downlevel_iteration == Some(true)
@@ -196,11 +199,12 @@ impl TypeChecker {
         element_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Option<Id<Type>>> {
-        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let node_ref = node.ref_(self);
+        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         let elements = &node_as_array_literal_expression.elements;
-        let element = &elements[element_index];
-        if element.kind() != SyntaxKind::OmittedExpression {
-            if element.kind() != SyntaxKind::SpreadElement {
+        let element = elements[element_index];
+        if element.ref_(self).kind() != SyntaxKind::OmittedExpression {
+            if element.ref_(self).kind() != SyntaxKind::SpreadElement {
                 let index_type = self.get_number_literal_type(Number::new(element_index as f64));
                 if self.is_array_like_type(source_type)? {
                     let access_flags = AccessFlags::ExpressionPosition
@@ -297,10 +301,11 @@ impl TypeChecker {
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let mut target: Id<Node>;
-        if expr_or_assignment.kind() == SyntaxKind::ShorthandPropertyAssignment {
-            let prop = expr_or_assignment.as_shorthand_property_assignment();
+        if expr_or_assignment.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
+            let expr_or_assignment_ref = expr_or_assignment.ref_(self);
+            let prop = expr_or_assignment_ref.as_shorthand_property_assignment();
             if let Some(prop_object_assignment_initializer) =
-                prop.object_assignment_initializer.as_ref()
+                prop.object_assignment_initializer
             {
                 if self.strict_null_checks
                     && !self
@@ -321,24 +326,24 @@ impl TypeChecker {
                     Option::<Id<Node>>::None,
                 )?;
             }
-            target = expr_or_assignment.as_shorthand_property_assignment().name();
+            target = expr_or_assignment.ref_(self).as_shorthand_property_assignment().name();
         } else {
-            target = expr_or_assignment.node_wrapper();
+            target = expr_or_assignment;
         }
 
-        if target.kind() == SyntaxKind::BinaryExpression
-            && target.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
+        if target.ref_(self).kind() == SyntaxKind::BinaryExpression
+            && target.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::EqualsToken
         {
-            self.check_binary_expression().call(&target, check_mode)?;
-            target = target.as_binary_expression().left.clone();
+            self.check_binary_expression().call(target, check_mode)?;
+            target = target.ref_(self).as_binary_expression().left;
         }
-        if target.kind() == SyntaxKind::ObjectLiteralExpression {
-            return self.check_object_literal_assignment(&target, source_type, right_is_this);
+        if target.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression {
+            return self.check_object_literal_assignment(target, source_type, right_is_this);
         }
-        if target.kind() == SyntaxKind::ArrayLiteralExpression {
-            return self.check_array_literal_assignment(&target, source_type, check_mode);
+        if target.ref_(self).kind() == SyntaxKind::ArrayLiteralExpression {
+            return self.check_array_literal_assignment(target, source_type, check_mode);
         }
-        self.check_reference_assignment(&target, source_type, check_mode)
+        self.check_reference_assignment(target, source_type, check_mode)
     }
 
     pub(super) fn check_reference_assignment(
@@ -348,12 +353,12 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let target_type = self.check_expression(target, check_mode, None)?;
-        let error = if target.parent().kind() == SyntaxKind::SpreadAssignment {
+        let error = if target.ref_(self).parent().ref_(self).kind() == SyntaxKind::SpreadAssignment {
             &*Diagnostics::The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access
         } else {
             &*Diagnostics::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access
         };
-        let optional_error = if target.parent().kind() == SyntaxKind::SpreadAssignment {
+        let optional_error = if target.ref_(self).parent().ref_(self).kind() == SyntaxKind::SpreadAssignment {
             &*Diagnostics::The_target_of_an_object_rest_assignment_may_not_be_an_optional_property_access
         } else {
             &*Diagnostics::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access
@@ -370,7 +375,7 @@ impl TypeChecker {
         }
         if is_private_identifier_property_access_expression(target, self) {
             self.check_external_emit_helpers(
-                &target.parent(),
+                target.ref_(self).parent(),
                 ExternalEmitHelpers::ClassPrivateFieldSet,
             )?;
         }
@@ -379,7 +384,7 @@ impl TypeChecker {
 
     pub(super) fn is_side_effect_free(&self, node: Id<Node>) -> bool {
         let node = skip_parentheses(node, None, self);
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::Identifier
             | SyntaxKind::StringLiteral
             | SyntaxKind::RegularExpressionLiteral
@@ -403,23 +408,25 @@ impl TypeChecker {
             | SyntaxKind::JsxElement => true,
 
             SyntaxKind::ConditionalExpression => {
-                let node_as_conditional_expression = node.as_conditional_expression();
-                self.is_side_effect_free(&node_as_conditional_expression.when_true)
-                    && self.is_side_effect_free(&node_as_conditional_expression.when_false)
+                let node_ref = node.ref_(self);
+                let node_as_conditional_expression = node_ref.as_conditional_expression();
+                self.is_side_effect_free(node_as_conditional_expression.when_true)
+                    && self.is_side_effect_free(node_as_conditional_expression.when_false)
             }
 
             SyntaxKind::BinaryExpression => {
-                let node_as_binary_expression = node.as_binary_expression();
-                if is_assignment_operator(node_as_binary_expression.operator_token.kind()) {
+                let node_ref = node.ref_(self);
+                let node_as_binary_expression = node_ref.as_binary_expression();
+                if is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind()) {
                     return false;
                 }
-                self.is_side_effect_free(&node_as_binary_expression.left)
-                    && self.is_side_effect_free(&node_as_binary_expression.right)
+                self.is_side_effect_free(node_as_binary_expression.left)
+                    && self.is_side_effect_free(node_as_binary_expression.right)
             }
 
             SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
                 matches!(
-                    node.as_unary_expression().operator(),
+                    node.ref_(self).as_unary_expression().operator(),
                     SyntaxKind::ExclamationToken
                         | SyntaxKind::PlusToken
                         | SyntaxKind::MinusToken
@@ -451,12 +458,13 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) {
-        let node_as_binary_expression = node.as_binary_expression();
-        let left = &node_as_binary_expression.left;
-        let operator_token = &node_as_binary_expression.operator_token;
-        let right = &node_as_binary_expression.right;
-        if operator_token.kind() == SyntaxKind::QuestionQuestionToken {
-            if is_binary_expression(left)
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
+        let left = node_as_binary_expression.left;
+        let operator_token = node_as_binary_expression.operator_token;
+        let right = node_as_binary_expression.right;
+        if operator_token.ref_(self).kind() == SyntaxKind::QuestionQuestionToken {
+            if is_binary_expression(&left.ref_(self))
                 && matches!(
                     left.as_binary_expression().operator_token.kind(),
                     SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
@@ -473,7 +481,7 @@ impl TypeChecker {
                     ]),
                 );
             }
-            if is_binary_expression(right)
+            if is_binary_expression(ref_(self).right)
                 && matches!(
                     right.as_binary_expression().operator_token.kind(),
                     SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
@@ -501,10 +509,10 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         error_node: Option<Id<Node>>,
     ) -> io::Result<Id<Type>> {
-        let operator = operator_token.kind();
+        let operator = operator_token.ref_(self).kind();
         if operator == SyntaxKind::EqualsToken
             && matches!(
-                left.kind(),
+                left.ref_(self).kind(),
                 SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
             )
         {
@@ -512,7 +520,7 @@ impl TypeChecker {
                 left,
                 self.check_expression(right, check_mode, None)?,
                 check_mode,
-                Some(right.kind() == SyntaxKind::ThisKeyword),
+                Some(right.ref_(self).kind() == SyntaxKind::ThisKeyword),
             );
         }
         let left_type: Id<Type>;
@@ -547,8 +555,7 @@ impl TypeChecker {
         mut right_type: Id<Type>,
         error_node: Option<Id<Node>>,
     ) -> io::Result<Id<Type>> {
-        let operator = operator_token.kind();
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        let operator = operator_token.ref_(self).kind();
         Ok(match operator {
             SyntaxKind::AsteriskToken
             | SyntaxKind::AsteriskAsteriskToken
@@ -590,7 +597,7 @@ impl TypeChecker {
                         .intersects(TypeFlags::BooleanLike)
                     && {
                         suggested_operator =
-                            self.get_suggested_boolean_operator(operator_token.kind());
+                            self.get_suggested_boolean_operator(operator_token.ref_(self).kind());
                         suggested_operator.is_some()
                     }
                 {

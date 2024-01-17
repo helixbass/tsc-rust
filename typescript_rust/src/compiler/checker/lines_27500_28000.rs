@@ -22,6 +22,7 @@ use crate::{
     SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, HasArena,
     InArena, Node, NodeInterface, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind,
     Type, TypeChecker, TypeFlags, TypeInterface,
+    OptionInArena, AllArenas,
 };
 
 impl TypeChecker {
@@ -228,14 +229,14 @@ impl TypeChecker {
                     self.assignable_relation.clone(),
                     Some(
                         opening_like_element
-                            .as_jsx_opening_like_element()
+                            .ref_(self).as_jsx_opening_like_element()
                             .tag_name(),
                     ),
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
                     )),
                     Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
-                        opening_like_element.node_wrapper(),
+                        opening_like_element,
                     )))),
                     None,
                 )?;
@@ -249,14 +250,14 @@ impl TypeChecker {
                     self.assignable_relation.clone(),
                     Some(
                         opening_like_element
-                            .as_jsx_opening_like_element()
+                            .ref_(self).as_jsx_opening_like_element()
                             .tag_name(),
                     ),
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
                     )),
                     Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
-                        opening_like_element.node_wrapper(),
+                        opening_like_element,
                     )))),
                     None,
                 )?;
@@ -283,14 +284,14 @@ impl TypeChecker {
                 self.assignable_relation.clone(),
                 Some(
                     opening_like_element
-                        .as_jsx_opening_like_element()
+                        .ref_(self).as_jsx_opening_like_element()
                         .tag_name(),
                 ),
                 Some(Cow::Borrowed(
                     &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
                 )),
                 Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
-                    opening_like_element.node_wrapper(),
+                    opening_like_element,
                 )))),
                 None,
             )?;
@@ -303,7 +304,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
-        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         Debug_.assert(
             self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()),
             None,
@@ -410,7 +412,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
     ) -> io::Result<()> {
-        let is_node_opening_like_element = is_jsx_opening_like_element(node);
+        let is_node_opening_like_element = is_jsx_opening_like_element(&node.ref_(self));
 
         if is_node_opening_like_element {
             self.check_grammar_jsx_element(node);
@@ -431,13 +433,13 @@ impl TypeChecker {
             };
             let jsx_factory_namespace = self.get_jsx_namespace_(Some(node));
             let jsx_factory_location = if is_node_opening_like_element {
-                node.as_jsx_opening_like_element().tag_name()
+                node.ref_(self).as_jsx_opening_like_element().tag_name()
             } else {
-                node.node_wrapper()
+                node
             };
 
             let mut jsx_factory_sym: Option<Id<Symbol>> = None;
-            if !(is_jsx_opening_fragment(node) && jsx_factory_namespace == "null") {
+            if !(is_jsx_opening_fragment(&node.ref_(self)) && jsx_factory_namespace == "null") {
                 jsx_factory_sym = self.resolve_name_(
                     Some(&*jsx_factory_location),
                     &jsx_factory_namespace,
@@ -466,9 +468,9 @@ impl TypeChecker {
                 }
             }
 
-            if is_jsx_opening_fragment(node) {
+            if is_jsx_opening_fragment(&node.ref_(self)) {
                 let file = get_source_file_of_node(node, self);
-                let local_jsx_namespace = self.get_local_jsx_namespace(&file);
+                let local_jsx_namespace = self.get_local_jsx_namespace(file);
                 if let Some(local_jsx_namespace) = local_jsx_namespace.as_ref() {
                     self.resolve_name_(
                         Some(&*jsx_factory_location),
@@ -563,7 +565,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.check_grammar_jsx_expression(node);
-        let node_as_jsx_expression = node.as_jsx_expression();
+        let node_as_jsx_expression = node.ref_(self).as_jsx_expression();
         Ok(
             if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
                 let type_ = self.check_expression(node_expression, check_mode, None)?;
@@ -586,7 +588,7 @@ impl TypeChecker {
 
     pub(super) fn get_declaration_node_flags_from_symbol(&self, s: Id<Symbol>) -> NodeFlags {
         if let Some(s_value_declaration) = s.ref_(self).maybe_value_declaration() {
-            get_combined_node_flags(&s_value_declaration)
+            get_combined_node_flags(s_value_declaration, self)
         } else {
             NodeFlags::None
         }
@@ -598,15 +600,15 @@ impl TypeChecker {
         {
             return true;
         }
-        if is_in_js_file(symbol.ref_(self).maybe_value_declaration()) {
+        if is_in_js_file(symbol.ref_(self).maybe_value_declaration(),refed(self)) {
             let parent = symbol
                 .ref_(self)
                 .maybe_value_declaration()
                 .unwrap()
-                .maybe_parent();
+                .ref_(self).maybe_parent();
             return matches!(
-                parent.as_ref(),
-                Some(parent) if is_binary_expression(parent) &&
+                parent,
+                Some(parent) if is_binary_expression(&parent.ref_(self)) &&
                     get_assignment_declaration_kind(parent, self) == AssignmentDeclarationKind::PrototypeProperty
             );
         }
@@ -625,16 +627,16 @@ impl TypeChecker {
         let report_error = report_error.unwrap_or(true);
         let error_node = if !report_error {
             None
-        } else if node.kind() == SyntaxKind::QualifiedName {
-            Some(node.as_qualified_name().right.clone())
-        } else if node.kind() == SyntaxKind::ImportType {
-            Some(node.node_wrapper())
-        } else if node.kind() == SyntaxKind::BindingElement
-            && node.as_binding_element().property_name.is_some()
+        } else if node.ref_(self).kind() == SyntaxKind::QualifiedName {
+            Some(node.ref_(self).as_qualified_name().right)
+        } else if node.ref_(self).kind() == SyntaxKind::ImportType {
+            Some(node)
+        } else if node.ref_(self).kind() == SyntaxKind::BindingElement
+            && node.ref_(self).as_binding_element().property_name.is_some()
         {
-            Some(node.as_binding_element().property_name.clone().unwrap())
+            Some(node.ref_(self).as_binding_element().property_name.unwrap())
         } else {
-            node.as_named_declaration().maybe_name()
+            node.ref_(self).as_named_declaration().maybe_name()
         };
 
         self.check_property_accessibility_at_location(
@@ -657,7 +659,6 @@ impl TypeChecker {
             self,
         );
 
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if is_super {
             if self.language_version < ScriptTarget::ES2015 {
                 if self.symbol_has_non_method_declaration(prop)? {
@@ -698,8 +699,8 @@ impl TypeChecker {
             && self.symbol_has_non_method_declaration(prop)?
             && (is_this_property(location, self)
                 || is_this_initialized_object_binding_expression(Some(location), self)
-                || is_object_binding_pattern(&location.parent())
-                    && is_this_initialized_declaration(location.parent().maybe_parent(), self))
+                || is_object_binding_pattern(&location.ref_(self).parent().ref_(self))
+                    && is_this_initialized_declaration(location.ref_(self).parent().ref_(self).maybe_parent(), self))
         {
             let declaring_class_declaration = get_class_like_declaration_of_symbol(
                 self.get_parent_of_symbol(prop)?.unwrap(),
@@ -716,7 +717,7 @@ impl TypeChecker {
                                     prop,
                                     Option::<Id<Node>>::None, None, None, None,
                                 )?,
-                                get_text_of_identifier_or_literal(&declaring_class_declaration.as_named_declaration().name()).into_owned()
+                                get_text_of_identifier_or_literal(&declaring_class_declaration.ref_(self).as_named_declaration().name()).into_owned()
                             ])
                         );
                     }
@@ -735,7 +736,7 @@ impl TypeChecker {
                 self,
             )
             .unwrap();
-            if !self.is_node_within_class(location, &declaring_class_declaration) {
+            if !self.is_node_within_class(location, declaring_class_declaration) {
                 if error_node.is_some() {
                     self.error(
                         error_node.as_deref(),
@@ -786,10 +787,10 @@ impl TypeChecker {
             let mut this_parameter: Option<Id<Node /*ParameterDeclaration*/>> = None;
             if flags.intersects(ModifierFlags::Static) || {
                 this_parameter = self.get_this_parameter_from_node_context(location);
-                match this_parameter.as_ref() {
+                match this_parameter {
                     None => true,
                     Some(this_parameter) => this_parameter
-                        .as_parameter_declaration()
+                        .ref_(self).as_parameter_declaration()
                         .maybe_type()
                         .is_none(),
                 }
@@ -816,10 +817,9 @@ impl TypeChecker {
             }
 
             let this_type = self.get_type_from_type_node_(
-                &this_parameter
-                    .as_ref()
+                this_parameter
                     .unwrap()
-                    .as_parameter_declaration()
+                    .ref_(self).as_parameter_declaration()
                     .maybe_type()
                     .unwrap(),
             )?;
@@ -913,7 +913,7 @@ impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
         let component_name = get_text_of_node(
             self
                 .opening_like_element
-                .as_jsx_opening_like_element()
+                .ref_(self).as_jsx_opening_like_element()
                 .tag_name(),
             None,
             self,
@@ -923,5 +923,11 @@ impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
             &Diagnostics::_0_cannot_be_used_as_a_JSX_component,
             Some(vec![component_name.into_owned()]),
         )))))
+    }
+}
+
+impl HasArena for GenerateInitialErrorChain {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

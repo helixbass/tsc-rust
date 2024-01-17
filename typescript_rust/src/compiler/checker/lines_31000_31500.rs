@@ -21,22 +21,23 @@ use crate::{
 
 impl TypeChecker {
     pub(super) fn is_symbol_or_symbol_for_call(&self, node: Id<Node>) -> io::Result<bool> {
-        if !is_call_expression(node) {
+        if !is_call_expression(&node.ref_(self)) {
             return Ok(false);
         }
-        let node_as_call_expression = node.as_call_expression();
-        let mut left = node_as_call_expression.expression.clone();
-        if is_property_access_expression(&left)
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
+        let mut left = node_as_call_expression.expression;
+        if is_property_access_expression(&left.ref_(self))
             && left
-                .as_property_access_expression()
+                .ref_(self).as_property_access_expression()
                 .name
-                .as_member_name()
+                .ref_(self).as_member_name()
                 .escaped_text()
                 == "for"
         {
-            left = left.as_property_access_expression().expression.clone();
+            left = left.ref_(self).as_property_access_expression().expression;
         }
-        if !is_identifier(&left) || left.as_identifier().escaped_text != "Symbol" {
+        if !is_identifier(&left.ref_(self)) || left.ref_(self).as_identifier().escaped_text != "Symbol" {
             return Ok(false);
         }
 
@@ -64,7 +65,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ImportCall*/
     ) -> io::Result<Id<Type>> {
-        let node_as_call_expression = node.as_call_expression();
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
         if !self.check_grammar_arguments(Some(&node_as_call_expression.arguments)) {
             self.check_grammar_import_call_expression(node);
         }
@@ -223,11 +225,11 @@ impl TypeChecker {
                     .and_then(|original_symbol_declarations| {
                         original_symbol_declarations
                             .into_iter()
-                            .find(|declaration| is_source_file(declaration))
-                            .cloned()
+                            .find(|declaration| is_source_file(&declaration.ref_(self)))
+                            .copied()
                     });
                 let has_synthetic_default = self.can_have_synthetic_default(
-                    file.as_deref(),
+                    file,
                     original_symbol,
                     false,
                     module_specifier,
@@ -282,9 +284,10 @@ impl TypeChecker {
         if !is_require_call(node, true, self) {
             return Ok(false);
         }
-        let node_as_call_expression = node.as_call_expression();
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
 
-        if !is_identifier(&node_as_call_expression.expression) {
+        if !is_identifier(&node_as_call_expression.expression.ref_(self)) {
             Debug_.fail(None);
         }
         let resolved_require = self
@@ -331,8 +334,8 @@ impl TypeChecker {
             let decl =
                 get_declaration_of_kind(resolved_require, target_declaration_kind, self);
             return Ok(matches!(
-                decl.as_ref(),
-                Some(decl) if decl.flags().intersects(NodeFlags::Ambient)
+                decl,
+                Some(decl) if decl.ref_(self).flags().intersects(NodeFlags::Ambient)
             ));
         }
         Ok(false)
@@ -342,7 +345,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<Id<Type>> {
-        let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        let node_ref = node.ref_(self);
+        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         if !self.check_grammar_tagged_template_chain(node) {
             self.check_grammar_type_arguments(
                 node,
@@ -363,12 +367,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*AssertionExpression*/
     ) -> io::Result<Id<Type>> {
-        if node.kind() == SyntaxKind::TypeAssertionExpression {
+        if node.ref_(self).kind() == SyntaxKind::TypeAssertionExpression {
             let file = maybe_get_source_file_of_node(Some(node), self);
             if matches!(
-                file.as_ref(),
+                file,
                 Some(file) if file_extension_is_one_of(
-                    &file.as_source_file().file_name(),
+                    &file.ref_(self).as_source_file().file_name(),
                     &[Extension::Cts.to_str(), Extension::Mts.to_str()]
                 )
             ) {
@@ -381,14 +385,14 @@ impl TypeChecker {
         }
         self.check_assertion_worker(
             node,
-            &node.as_has_type().maybe_type().unwrap(),
-            &node.as_has_expression().expression(),
+            node.ref_(self).as_has_type().maybe_type().unwrap(),
+            node.ref_(self).as_has_expression().expression(),
             None,
         )
     }
 
     pub(super) fn is_valid_const_assertion_argument(&self, node: Id<Node>) -> io::Result<bool> {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::StringLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::NumericLiteral
@@ -399,12 +403,13 @@ impl TypeChecker {
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::TemplateExpression => true,
             SyntaxKind::ParenthesizedExpression => self.is_valid_const_assertion_argument(
-                &node.as_parenthesized_expression().expression,
+                node.ref_(self).as_parenthesized_expression().expression,
             )?,
             SyntaxKind::PrefixUnaryExpression => {
-                let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+                let node_ref = node.ref_(self);
+                let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
                 let op = node_as_prefix_unary_expression.operator;
-                let arg = &node_as_prefix_unary_expression.operand;
+                let arg = node_as_prefix_unary_expression.operand;
                 op == SyntaxKind::MinusToken
                     && matches!(
                         arg.kind(),
@@ -413,8 +418,8 @@ impl TypeChecker {
                     || op == SyntaxKind::PlusToken && arg.kind() == SyntaxKind::NumericLiteral
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                let expr = node.as_has_expression().expression();
-                let mut symbol = self.get_type_of_node(&expr)?.ref_(self).maybe_symbol();
+                let expr = node.ref_(self).as_has_expression().expression();
+                let mut symbol = self.get_type_of_node(expr)?.ref_(self).maybe_symbol();
                 if let Some(symbol_present) = symbol
                     .filter(|&symbol| symbol.ref_(self).flags().intersects(SymbolFlags::Alias))
                 {
@@ -471,9 +476,9 @@ impl TypeChecker {
         node: Id<Node>, /*NonNullChain*/
     ) -> io::Result<Id<Type>> {
         let left_type =
-            self.check_expression(&node.as_has_expression().expression(), None, None)?;
+            self.check_expression(node.ref_(self).as_has_expression().expression(), None, None)?;
         let non_optional_type =
-            self.get_optional_expression_type(left_type, &node.as_has_expression().expression())?;
+            self.get_optional_expression_type(left_type, node.ref_(self).as_has_expression().expression())?;
         self.propagate_optional_type_marker(
             self.get_non_nullable_type(non_optional_type)?,
             node,
@@ -485,11 +490,11 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*NonNullExpression*/
     ) -> io::Result<Id<Type>> {
-        Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
+        Ok(if node.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
             self.check_non_null_chain(node)?
         } else {
             self.get_non_nullable_type(self.check_expression(
-                &node.as_has_expression().expression(),
+                node.ref_(self).as_has_expression().expression(),
                 None,
                 None,
             )?)?
@@ -502,7 +507,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         self.check_grammar_meta_property(node);
 
-        let node_as_meta_property = node.as_meta_property();
+        let node_ref = node.ref_(self);
+        let node_as_meta_property = node_ref.as_meta_property();
         if node_as_meta_property.keyword_token == SyntaxKind::NewKeyword {
             return self.check_new_target_meta_property(node);
         }
@@ -518,7 +524,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<Id<Type>> {
-        Ok(match node.as_meta_property().keyword_token {
+        Ok(match node.ref_(self).as_meta_property().keyword_token {
             SyntaxKind::ImportKeyword => self.get_global_import_meta_expression_type()?,
             SyntaxKind::NewKeyword => {
                 let type_ = self.check_new_target_meta_property(node)?;
@@ -528,7 +534,7 @@ impl TypeChecker {
                     self.create_new_target_expression_type(type_)?
                 }
             }
-            _ => Debug_.assert_never(node.as_meta_property().keyword_token, None),
+            _ => Debug_.assert_never(node.ref_(self).as_meta_property().keyword_token, None),
         })
     }
 
@@ -537,7 +543,7 @@ impl TypeChecker {
         node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<Id<Type>> {
         let container = get_new_target_container(node, self);
-        Ok(match container.as_ref() {
+        Ok(match container {
             None => {
                 self.error(
                     Some(node),
@@ -549,8 +555,8 @@ impl TypeChecker {
                 self.error_type()
             }
             Some(container) => {
-                if container.kind() == SyntaxKind::Constructor {
-                    let symbol = self.get_symbol_of_node(&container.parent())?.unwrap();
+                if container.ref_(self).kind() == SyntaxKind::Constructor {
+                    let symbol = self.get_symbol_of_node(container.ref_(self).parent())?.unwrap();
                     self.get_type_of_symbol(symbol)?
                 } else {
                     let symbol = self.get_symbol_of_node(container)?.unwrap();
@@ -566,7 +572,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         if matches!(self.module_kind, ModuleKind::Node12 | ModuleKind::NodeNext) {
             if get_source_file_of_node(node, self)
-                .as_source_file()
+                .ref_(self).as_source_file()
                 .maybe_implied_node_format()
                 != Some(ModuleKind::ESNext)
             {
@@ -585,12 +591,12 @@ impl TypeChecker {
         }
         let file = get_source_file_of_node(node, self);
         Debug_.assert(
-            file.flags()
+            file.ref_(self).flags()
                 .intersects(NodeFlags::PossiblyContainsImportMeta),
             Some("Containing file is missing import meta node flag."),
         );
         Ok(
-            if node.as_meta_property().name.as_identifier().escaped_text == "meta" {
+            if node.ref_(self).as_meta_property().name.ref_(self).as_identifier().escaped_text == "meta" {
                 self.get_global_import_meta_type()?
             } else {
                 self.error_type()
@@ -602,7 +608,10 @@ impl TypeChecker {
         let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks {
             let declaration = symbol.ref_(self).maybe_value_declaration();
-            if matches!(declaration.as_ref(), Some(declaration) if has_initializer(&declaration)) {
+            if matches!(
+                declaration,
+                Some(declaration) if has_initializer(&declaration.ref_(self))
+            ) {
                 return self.get_optional_type_(type_, None);
             }
         }
@@ -613,10 +622,10 @@ impl TypeChecker {
         &self,
         d: Id<Node>, /*ParameterDeclaration | NamedTupleMember*/
     ) -> __String {
-        Debug_.assert(is_identifier(&d.as_named_declaration().name()), None);
-        d.as_named_declaration()
+        Debug_.assert(is_identifier(&d.ref_(self).as_named_declaration().name().ref_(self)), None);
+        d.ref_(self).as_named_declaration()
             .name()
-            .as_identifier()
+            .ref_(self).as_identifier()
             .escaped_text
             .clone()
     }
@@ -654,7 +663,7 @@ impl TypeChecker {
                 .as_ref();
             let index = pos - param_count;
             return Ok(associated_names
-                .map(|associated_names| self.get_tuple_element_label(&associated_names[index]))
+                .map(|associated_names| self.get_tuple_element_label(associated_names[index]))
                 .unwrap_or_else(|| {
                     format!("{}_{}", rest_parameter.ref_(self).escaped_name(), index)
                 }));
@@ -704,10 +713,10 @@ impl TypeChecker {
             let associated_name =
                 associated_names.and_then(|associated_names| associated_names.get(index).cloned());
             let is_rest_tuple_element = matches!(
-                associated_name.as_ref(),
-                Some(associated_name) if associated_name.as_has_dot_dot_dot_token().maybe_dot_dot_dot_token().is_some()
+                associated_name,
+                Some(associated_name) if associated_name.ref_(self).as_has_dot_dot_dot_token().maybe_dot_dot_dot_token().is_some()
             );
-            return Ok(associated_name.as_ref().map(|associated_name| {
+            return Ok(associated_name.map(|associated_name| {
                 (
                     self.get_tuple_element_label(associated_name),
                     is_rest_tuple_element,
@@ -726,9 +735,9 @@ impl TypeChecker {
 
     pub(super) fn is_parameter_declaration_with_identifier_name(&self, symbol: Id<Symbol>) -> bool {
         matches!(
-            symbol.ref_(self).maybe_value_declaration().as_ref(),
-            Some(symbol_value_declaration) if is_parameter(symbol_value_declaration) &&
-                is_identifier(&symbol_value_declaration.as_parameter_declaration().name())
+            symbol.ref_(self).maybe_value_declaration(),
+            Some(symbol_value_declaration) if is_parameter(&symbol_value_declaration.ref_(self)) &&
+                is_identifier(&symbol_value_declaration.ref_(self).as_parameter_declaration().name().ref_(self))
         )
     }
 
@@ -736,11 +745,11 @@ impl TypeChecker {
         &self,
         d: Id<Node>, /*Declaration*/
     ) -> bool {
-        d.kind() == SyntaxKind::NamedTupleMember
-            || is_parameter(d)
+        d.ref_(self).kind() == SyntaxKind::NamedTupleMember
+            || is_parameter(&d.ref_(self))
                 && matches!(
-                    d.as_parameter_declaration().maybe_name().as_ref(),
-                    Some(d_name) if is_identifier(d_name)
+                    d.ref_(self).as_parameter_declaration().maybe_name(),
+                    Some(d_name) if is_identifier(&d_name.ref_(self))
                 )
     }
 
@@ -759,7 +768,7 @@ impl TypeChecker {
             let decl = signature.parameters()[pos]
                 .ref_(self)
                 .maybe_value_declaration();
-            return Ok(decl.filter(|decl| self.is_valid_declaration_for_tuple_label(decl)));
+            return Ok(decl.filter(|&decl| self.is_valid_declaration_for_tuple_label(decl)));
         }
         let rest_parameter = signature
             .parameters()
@@ -779,7 +788,7 @@ impl TypeChecker {
             );
         }
         Ok(rest_parameter.ref_(self).maybe_value_declaration().filter(
-            |rest_parameter_value_declaration| {
+            |&rest_parameter_value_declaration| {
                 self.is_valid_declaration_for_tuple_label(rest_parameter_value_declaration)
             },
         ))

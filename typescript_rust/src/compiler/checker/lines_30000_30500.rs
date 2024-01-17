@@ -204,7 +204,7 @@ impl TypeChecker {
         let type_parameters = &type_parameters;
 
         let type_argument_nodes = if self.call_like_expression_may_have_type_arguments(node) {
-            node.as_has_type_arguments().maybe_type_arguments().clone()
+            node.ref_(self).as_has_type_arguments().maybe_type_arguments().clone()
         } else {
             None
         };
@@ -214,7 +214,7 @@ impl TypeChecker {
                 Some(&*self.get_type_arguments_from_nodes(
                     type_argument_nodes,
                     type_parameters,
-                    is_in_js_file(Some(node)),
+                    is_in_js_file(Some(&node.ref_(self))),
                 )?),
             )?)
         } else {
@@ -237,7 +237,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<Type>>> {
         let mut type_arguments = type_argument_nodes
             .into_iter()
-            .map(|type_argument_node| self.get_type_of_node(type_argument_node))
+            .map(|&type_argument_node| self.get_type_of_node(type_argument_node))
             .collect::<Result<Vec<_>, _>>()?;
         while type_arguments.len() > type_parameters.len() {
             type_arguments.pop();
@@ -261,7 +261,7 @@ impl TypeChecker {
         let inference_context = self.create_inference_context(
             type_parameters,
             Some(candidate.clone()),
-            if is_in_js_file(Some(node)) {
+            if is_in_js_file(Some(&node.ref_(self))) {
                 InferenceFlags::AnyDefault
             } else {
                 InferenceFlags::None
@@ -313,8 +313,9 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
-        let node_as_call_expression = node.as_call_expression();
-        if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
+        if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
             let super_type = self.check_super_expression(&node_as_call_expression.expression)?;
             if self.is_type_any(Some(super_type)) {
                 for arg in &node_as_call_expression.arguments {
@@ -324,12 +325,12 @@ impl TypeChecker {
             }
             if !self.is_error_type(super_type) {
                 let base_type_node =
-                    get_effective_base_type_node(get_containing_class(node).unwrap(), self);
-                if let Some(base_type_node) = base_type_node.as_ref() {
+                    get_effective_base_type_node(get_containing_class(node, self).unwrap(), self);
+                if let Some(base_type_node) = base_type_node {
                     let base_constructors = self.get_instantiated_constructors_for_type_arguments(
                         super_type,
                         base_type_node
-                            .as_expression_with_type_arguments()
+                            .ref_(self).as_expression_with_type_arguments()
                             .maybe_type_arguments()
                             .as_double_deref(),
                         base_type_node,
@@ -350,7 +351,7 @@ impl TypeChecker {
         let call_chain_flags: SignatureFlags;
         let mut func_type =
             self.check_expression(&node_as_call_expression.expression, None, None)?;
-        if is_call_chain(node) {
+        if is_call_chain(&node.ref_(self)) {
             let non_optional_type =
                 self.get_optional_expression_type(func_type, &node_as_call_expression.expression)?;
             call_chain_flags = if non_optional_type == func_type {
@@ -420,7 +421,8 @@ impl TypeChecker {
                 let mut related_information: Option<Gc<DiagnosticRelatedInformation>> = None;
                 if node_as_call_expression.arguments.len() == 1 {
                     let source_file = get_source_file_of_node(node, self);
-                    let text = source_file.as_source_file().text_as_chars();
+                    let source_file_ref = source_file.ref_(self);
+                    let text = source_file_ref.as_source_file().text_as_chars();
                     if is_line_break(text_char_at_index(
                         &text,
                         TryInto::<usize>::try_into(skip_trivia(
@@ -435,9 +437,10 @@ impl TypeChecker {
                     )) {
                         related_information = Some(Gc::new(
                             create_diagnostic_for_node(
-                                &node_as_call_expression.expression,
+                                node_as_call_expression.expression,
                                 &Diagnostics::Are_you_missing_a_semicolon,
                                 None,
+                                self,
                             )
                             .into(),
                         ));
@@ -462,8 +465,8 @@ impl TypeChecker {
             return Ok(self.resolving_signature());
         }
         if call_signatures.iter().any(|sig| {
-            is_in_js_file(sig.declaration.as_deref())
-                && get_jsdoc_class_tag(sig.declaration.as_ref().unwrap()).is_some()
+            is_in_js_file(sig.declaration.refed(self))
+                && get_jsdoc_class_tag(sig.declaration.unwrap(), self).is_some()
         }) {
             self.error(
                 Some(node),
@@ -530,13 +533,14 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
-        let node_as_new_expression = node.as_new_expression();
+        let node_ref = node.ref_(self);
+        let node_as_new_expression = node_ref.as_new_expression();
         if let Some(node_arguments) = node_as_new_expression.arguments.as_ref() {
             if self.language_version < ScriptTarget::ES5 {
                 let spread_index = self.get_spread_argument_index(node_arguments);
                 if let Some(spread_index) = spread_index {
                     self.error(
-                        Some(&*node_arguments[spread_index]),
+                        Some(node_arguments[spread_index]),
                         &Diagnostics::Spread_operator_in_new_expressions_is_only_available_when_targeting_ECMAScript_5_and_higher,
                         None,
                     );
@@ -622,8 +626,8 @@ impl TypeChecker {
             )?;
             if !self.no_implicit_any {
                 if matches!(
-                    signature.declaration.as_ref(),
-                    Some(signature_declaration) if !self.is_js_constructor(Some(&**signature_declaration))? &&
+                    signature.declaration,
+                    Some(signature_declaration) if !self.is_js_constructor(Some(signature_declaration))? &&
                         self.get_return_type_of_signature(signature.clone())? != self.void_type()
                 ) {
                     self.error(
@@ -719,29 +723,29 @@ impl TypeChecker {
             return Ok(true);
         }
 
-        let declaration = signature.declaration.as_ref().unwrap();
+        let declaration = signature.declaration.unwrap();
         let modifiers = get_selected_effective_modifier_flags(
             declaration,
             ModifierFlags::NonPublicAccessibilityModifier,
             self,
         );
 
-        if modifiers == ModifierFlags::None || declaration.kind() != SyntaxKind::Constructor {
+        if modifiers == ModifierFlags::None || declaration.ref_(self).kind() != SyntaxKind::Constructor {
             return Ok(true);
         }
 
         let declaring_class_declaration =
-            get_class_like_declaration_of_symbol(declaration.parent().symbol(), self)
+            get_class_like_declaration_of_symbol(declaration.ref_(self).parent().symbol(), self)
                 .unwrap();
-        let declaring_class = self.get_declared_type_of_symbol(declaration.parent().symbol())?;
+        let declaring_class = self.get_declared_type_of_symbol(declaration.ref_(self).parent().symbol())?;
 
-        if !self.is_node_within_class(node, &declaring_class_declaration) {
-            let containing_class = get_containing_class(node);
-            if let Some(containing_class) = containing_class.as_ref() {
+        if !self.is_node_within_class(node, declaring_class_declaration) {
+            let containing_class = get_containing_class(node, self);
+            if let Some(containing_class) = containing_class {
                 if modifiers.intersects(ModifierFlags::Protected) {
                     let containing_type = self.get_type_of_node(containing_class)?;
                     if self.type_has_protected_accessible_base(
-                        declaration.parent().symbol(),
+                        declaration.ref_(self).parent().ref_(self).symbol(),
                         containing_type,
                     )? {
                         return Ok(true);
@@ -899,10 +903,10 @@ impl TypeChecker {
             &*Diagnostics::This_expression_is_not_constructable
         };
 
-        if is_call_expression(&error_target.parent())
+        if is_call_expression(&error_target.ref_(self).parent().ref_(self))
             && error_target
-                .parent()
-                .as_call_expression()
+                .ref_(self).parent()
+                .ref_(self).as_call_expression()
                 .arguments
                 .is_empty()
         {

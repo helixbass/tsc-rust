@@ -30,6 +30,7 @@ use crate::{
     InferenceContext, InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange,
     RelationComparisonResult, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -68,6 +69,7 @@ impl TypeChecker {
                                 error_node,
                                 &Diagnostics::Did_you_forget_to_use_await,
                                 None,
+                                self,
                             )
                             .into(),
                         )],
@@ -83,17 +85,17 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
     ) -> Option<Id<Node /*LeftHandSideExpression*/>> {
-        let expression = if node.kind() == SyntaxKind::CallExpression {
-            Some(node.as_call_expression().expression.clone())
-        } else if node.kind() == SyntaxKind::TaggedTemplateExpression {
-            Some(node.as_tagged_template_expression().tag.clone())
+        let expression = if node.ref_(self).kind() == SyntaxKind::CallExpression {
+            Some(node.ref_(self).as_call_expression().expression)
+        } else if node.ref_(self).kind() == SyntaxKind::TaggedTemplateExpression {
+            Some(node.ref_(self).as_tagged_template_expression().tag)
         } else {
             None
         };
         if let Some(expression) = expression {
             let callee = skip_outer_expressions(expression, None, self);
-            if is_access_expression(&callee) {
-                return callee.as_has_expression().maybe_expression();
+            if is_access_expression(&callee.ref_(self)) {
+                return callee.ref_(self).as_has_expression().maybe_expression();
             }
         }
         None
@@ -110,12 +112,11 @@ impl TypeChecker {
             parse_node_factory_.create_synthetic_expression(
                 type_,
                 is_spread,
-                tuple_name_source
-                    .map(|tuple_name_source| tuple_name_source.borrow().node_wrapper()),
+                tuple_name_source,
             )
         });
-        set_text_range(&*result, Some(parent));
-        set_parent(&result, Some(parent));
+        set_text_range(&*result.ref_(self), Some(&*parent.ref_(self)));
+        set_parent(&result.ref_(self), Some(parent));
         result
     }
 
@@ -123,8 +124,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<Vec<Id<Node /*Expression*/>>> {
-        if node.kind() == SyntaxKind::TaggedTemplateExpression {
-            let template = &node.as_tagged_template_expression().template;
+        if node.ref_(self).kind() == SyntaxKind::TaggedTemplateExpression {
+            let template = node.ref_(self).as_tagged_template_expression().template;
             let mut args: Vec<Id<Node /*Expression*/>> = vec![self.create_synthetic_expression(
                 template,
                 self.get_global_template_strings_array_type()?,
@@ -135,35 +136,35 @@ impl TypeChecker {
                 for_each(
                     &template.as_template_expression().template_spans,
                     |span: &Id<Node>, _| -> Option<()> {
-                        args.push(span.as_template_span().expression.clone());
+                        args.push(span.ref_(self).as_template_span().expression);
                         None
                     },
                 );
             }
             return Ok(args);
         }
-        if node.kind() == SyntaxKind::Decorator {
+        if node.ref_(self).kind() == SyntaxKind::Decorator {
             return self.get_effective_decorator_arguments(node);
         }
-        if is_jsx_opening_like_element(node) {
+        if is_jsx_opening_like_element(&node.ref_(self)) {
             return Ok(
                 if !node
-                    .as_jsx_opening_like_element()
+                    .ref_(self).as_jsx_opening_like_element()
                     .attributes()
-                    .as_jsx_attributes()
+                    .ref_(self).as_jsx_attributes()
                     .properties
                     .is_empty()
-                    || is_jsx_opening_element(node)
-                        && !node.parent().as_jsx_element().children.is_empty()
+                    || is_jsx_opening_element(&node.ref_(self))
+                        && !node.ref_(self).parent().as_jsx_element().children.is_empty()
                 {
-                    vec![node.as_jsx_opening_like_element().attributes()]
+                    vec![node.ref_(self).as_jsx_opening_like_element().attributes()]
                 } else {
                     vec![]
                 },
             );
         }
         let args = node
-            .as_has_arguments()
+            .ref_(self).as_has_arguments()
             .maybe_arguments()
             .map_or_else(|| vec![], |arguments| arguments.to_vec());
         let spread_index = self.get_spread_argument_index(&args);
@@ -225,9 +226,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Decorator*/
     ) -> io::Result<Vec<Id<Node /*Expression*/>>> {
-        let parent = node.parent();
-        let expr = &node.as_decorator().expression;
-        Ok(match parent.kind() {
+        let parent = node.ref_(self).parent();
+        let expr = node.ref_(self).as_decorator().expression;
+        Ok(match parent.ref_(self).kind() {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,
@@ -305,7 +306,7 @@ impl TypeChecker {
         node: Id<Node>, /*Decorator*/
         signature: &Signature,
     ) -> usize {
-        match node.parent().kind() {
+        match node.ref_(self).parent().ref_(self).kind() {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => 1,
             SyntaxKind::PropertyDeclaration => 2,
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
@@ -329,29 +330,31 @@ impl TypeChecker {
         let length: isize;
         let source_file = get_source_file_of_node(node, self);
 
-        let node_as_call_expression = node.as_call_expression();
-        if is_property_access_expression(&node_as_call_expression.expression) {
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
+        if is_property_access_expression(&node_as_call_expression.expression.ref_(self)) {
             let name_span = get_error_span_for_node(
-                &source_file,
-                &node_as_call_expression
+                source_file,
+                node_as_call_expression
                     .expression
                     .as_property_access_expression()
                     .name,
+                self,
             );
             start = name_span.start;
             length = if do_not_include_arguments == Some(true) {
                 name_span.length
             } else {
-                node.end() - start
+                node.ref_(self).end() - start
             };
         } else {
             let expression_span =
-                get_error_span_for_node(&source_file, &node_as_call_expression.expression);
+                get_error_span_for_node(source_file, node_as_call_expression.expression, self);
             start = expression_span.start;
             length = if do_not_include_arguments == Some(true) {
                 expression_span.length
             } else {
-                node.end() - start
+                node.ref_(self).end() - start
             };
         }
         GetDiagnosticSpanForCallNodeReturn {
@@ -367,15 +370,15 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic /*DiagnosticWithLocation*/> {
-        if is_call_expression(node) {
+        if is_call_expression(&node.ref_(self)) {
             let GetDiagnosticSpanForCallNodeReturn {
                 source_file,
                 start,
                 length,
             } = self.get_diagnostic_span_for_call_node(node, None);
-            Gc::new(create_file_diagnostic(&source_file, start, length, message, args).into())
+            Gc::new(create_file_diagnostic(source_file, start, length, message, args, self).into())
         } else {
-            Gc::new(create_diagnostic_for_node(node, message, args).into())
+            Gc::new(create_diagnostic_for_node(node, message, args, self).into())
         }
     }
 
@@ -383,11 +386,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<bool> {
-        if !is_call_expression(node) {
+        if !is_call_expression(&node.ref_(self)) {
             return Ok(false);
         }
-        let node_as_call_expression = node.as_call_expression();
-        if !is_identifier(&node_as_call_expression.expression) {
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
+        if !is_identifier(&node_as_call_expression.expression.ref_(self)) {
             return Ok(false);
         }
 
@@ -408,10 +412,10 @@ impl TypeChecker {
             return Ok(false);
         }
         let decl = decl.unwrap();
-        if !is_parameter(&decl)
-            || !is_function_expression_or_arrow_function(&decl.parent())
-            || !is_new_expression(&decl.parent().parent())
-            || is_identifier(&decl.parent().parent().as_new_expression().expression)
+        if !is_parameter(&decl.ref_(self))
+            || !is_function_expression_or_arrow_function(&decl.ref_(self).parent().ref_(self))
+            || !is_new_expression(&decl.ref_(self).parent().ref_(self).parent().ref_(self))
+            || is_identifier(&decl.ref_(self).parent().ref_(self).parent().ref_(self).as_new_expression().expression.ref_(self))
         {
             return Ok(false);
         }
@@ -420,7 +424,7 @@ impl TypeChecker {
             return_ok_default_if_none!(self.get_global_promise_constructor_symbol(false)?);
 
         let constructor_symbol = self.get_symbol_at_location_(
-            &decl.parent().parent().as_new_expression().expression,
+            decl.ref_(self).parent().ref_(self).parent().ref_(self).as_new_expression().expression,
             Some(true),
         )?;
         Ok(matches!(
@@ -439,9 +443,10 @@ impl TypeChecker {
         if let Some(spread_index) = spread_index {
             return Ok(Gc::new(
                 create_diagnostic_for_node(
-                    &args[spread_index],
+                    args[spread_index],
                     &Diagnostics::A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter,
                     None,
+                    self,
                 ).into()
             ));
         }
@@ -526,10 +531,10 @@ impl TypeChecker {
                 );
                 let parameter = closest_signature
                     .as_ref()
-                    .and_then(|closest_signature| closest_signature.declaration.as_ref())
+                    .and_then(|closest_signature| closest_signature.declaration)
                     .and_then(|closest_signature_declaration| {
                         closest_signature_declaration
-                            .as_signature_declaration()
+                            .ref_(self).as_signature_declaration()
                             .parameters()
                             .get(
                                 if closest_signature
@@ -543,9 +548,9 @@ impl TypeChecker {
                                     args.len()
                                 },
                             )
-                            .cloned()
+                            .copied()
                     });
-                if let Some(parameter) = parameter.as_ref() {
+                if let Some(parameter) = parameter {
                     let parameter_error = create_diagnostic_for_node(
                         parameter,
                         if is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
@@ -560,9 +565,9 @@ impl TypeChecker {
                         } else if !is_binding_pattern(parameter.as_named_declaration().maybe_name())
                         {
                             Some(vec![id_text(&get_first_identifier(
-                                parameter.as_named_declaration().name(),
+                                parameter.ref_(self).as_named_declaration().name(),
                                 self,
-                            ))
+                            ).ref_(self))
                             .to_owned()])
                         } else {
                             None
@@ -581,15 +586,15 @@ impl TypeChecker {
                         None,
                     )
                 });
-                let pos = first(&error_span).pos();
-                let mut end = last(&error_span).end();
+                let pos = first(&error_span).ref_(self).pos();
+                let mut end = last(&error_span).ref_(self).end();
                 if end == pos {
                     end += 1;
                 }
                 set_text_range_pos_end(&*error_span, pos, end);
                 Gc::new(
                     create_diagnostic_for_node_array(
-                        &get_source_file_of_node(node, self),
+                        get_source_file_of_node(node, self),
                         &error_span,
                         error,
                         Some(vec![parameter_range, args.len().to_string()]),
@@ -613,7 +618,7 @@ impl TypeChecker {
             let max = length(sig.maybe_type_parameters().as_deref());
             return Gc::new(
                 create_diagnostic_for_node_array(
-                    &get_source_file_of_node(node, self),
+                    get_source_file_of_node(node, self),
                     type_arguments,
                     &Diagnostics::Expected_0_type_arguments_but_got_1,
                     Some(vec![
@@ -648,7 +653,7 @@ impl TypeChecker {
             if above_arg_count != usize::MAX {
                 return Gc::new(
                     create_diagnostic_for_node_array(
-                        &get_source_file_of_node(node, self),
+                        get_source_file_of_node(node, self),
                         type_arguments,
                         &Diagnostics::No_overload_expects_0_type_arguments_but_overloads_do_exist_that_expect_either_1_or_2_type_arguments,
                         Some(vec![
@@ -662,7 +667,7 @@ impl TypeChecker {
         }
         Gc::new(
             create_diagnostic_for_node_array(
-                &get_source_file_of_node(node, self),
+                get_source_file_of_node(node, self),
                 type_arguments,
                 &Diagnostics::Expected_0_type_arguments_but_got_1,
                 Some(vec![
@@ -687,24 +692,24 @@ impl TypeChecker {
         call_chain_flags: SignatureFlags,
         fallback_error: Option<&'static DiagnosticMessage>,
     ) -> io::Result<Gc<Signature>> {
-        let is_tagged_template = node.kind() == SyntaxKind::TaggedTemplateExpression;
-        let is_decorator = node.kind() == SyntaxKind::Decorator;
-        let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(node);
+        let is_tagged_template = node.ref_(self).kind() == SyntaxKind::TaggedTemplateExpression;
+        let is_decorator = node.ref_(self).kind() == SyntaxKind::Decorator;
+        let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(&node.ref_(self));
         let report_errors = candidates_out_array.is_none() && self.produce_diagnostics;
 
         let mut type_arguments: Option<Gc<NodeArray> /*<TypeNode>*/> = None;
 
         if !is_decorator {
-            type_arguments = node.as_has_type_arguments().maybe_type_arguments().clone();
+            type_arguments = node.ref_(self).as_has_type_arguments().maybe_type_arguments().clone();
 
             if is_tagged_template
                 || is_jsx_opening_or_self_closing_element
-                || node.as_has_expression().expression().kind() != SyntaxKind::SuperKeyword
+                || node.ref_(self).as_has_expression().ref_(self).expression().ref_(self).kind() != SyntaxKind::SuperKeyword
             {
                 try_maybe_for_each(
                     type_arguments.as_ref(),
-                    |type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
-                        self.check_source_element(Some(&**type_argument))?;
+                    |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
+                        self.check_source_element(Some(type_argument))?;
                         Ok(None)
                     },
                 )?;
@@ -734,7 +739,7 @@ impl TypeChecker {
             && !is_single_non_generic_candidate
             && try_some(
                 Some(&*args),
-                Some(|arg: &Id<Node>| self.is_context_sensitive(arg)),
+                Some(|&arg: &Id<Node>| self.is_context_sensitive(arg)),
             )? {
             CheckMode::SkipContextSensitive
         } else {
@@ -747,8 +752,8 @@ impl TypeChecker {
         let mut result: Option<Gc<Signature>> = None;
 
         let signature_help_trailing_comma = check_mode.intersects(CheckMode::IsForSignatureHelp)
-            && node.kind() == SyntaxKind::CallExpression
-            && node.as_call_expression().arguments.has_trailing_comma;
+            && node.ref_(self).kind() == SyntaxKind::CallExpression
+            && node.ref_(self).as_call_expression().arguments.has_trailing_comma;
 
         if candidates.len() > 1 {
             result = self.choose_overload(
@@ -820,7 +825,7 @@ impl TypeChecker {
                     )?;
                     if let Some(diags) = diags.as_ref() {
                         for d in diags {
-                            if let Some(last_declaration) = last.declaration.as_ref() {
+                            if let Some(last_declaration) = last.declaration {
                                 if candidates_for_argument_error_present.len() > 3 {
                                     add_related_info(
                                         d,
@@ -829,6 +834,7 @@ impl TypeChecker {
                                                 last_declaration,
                                                 &Diagnostics::The_last_overload_is_declared_here,
                                                 None,
+                                                self,
                                             )
                                             .into(),
                                         )],
@@ -924,10 +930,7 @@ impl TypeChecker {
                     if every(&diags, |d: &Gc<Diagnostic>, _| {
                         d.start() == diags[0].start()
                             && d.length() == diags[0].length()
-                            && are_option_gcs_equal(
-                                d.maybe_file().as_ref(),
-                                diags[0].maybe_file().as_ref(),
-                            )
+                            && d.maybe_file() == diags[0].maybe_file()
                     }) {
                         diag = Gc::new(
                             BaseDiagnostic::new(
@@ -949,6 +952,7 @@ impl TypeChecker {
                                 node,
                                 chain,
                                 Some(related),
+                                self,
                             )
                             .into(),
                         );
@@ -979,7 +983,7 @@ impl TypeChecker {
             {
                 self.check_type_arguments(
                     candidate_for_type_argument_error,
-                    node.as_has_type_arguments()
+                    node.ref_(self).as_has_type_arguments()
                         .maybe_type_arguments()
                         .as_ref()
                         .unwrap(),
@@ -1040,7 +1044,7 @@ impl TypeChecker {
         let failed_signature_declarations = failed
             .declaration
             .as_ref()
-            .and_then(|failed_declaration| failed_declaration.maybe_symbol())
+            .and_then(|failed_declaration| failed_declaration.ref_(self).maybe_symbol())
             .and_then(|failed_declaration_symbol| {
                 failed_declaration_symbol
                     .ref_(self)
@@ -1051,9 +1055,9 @@ impl TypeChecker {
         let is_overload = failed_signature_declarations.len() > 1;
         let impl_decl = if is_overload {
             find(&failed_signature_declarations, |d: &Id<Node>, _| {
-                is_function_like_declaration(d)
-                    && node_is_present(d.as_function_like_declaration().maybe_body())
-            })
+                is_function_like_declaration(&d.ref_(self))
+                    && node_is_present(d.ref_(self).as_function_like_declaration().maybe_body())
+            }).copied()
         } else {
             None
         };
@@ -1085,6 +1089,7 @@ impl TypeChecker {
                                 impl_decl,
                                 &Diagnostics::The_call_would_have_succeeded_against_this_implementation_but_implementation_signatures_of_overloads_are_not_externally_visible,
                                 None,
+                                self,
                             ).into()
                         )
                     ]
@@ -1181,7 +1186,7 @@ impl TypeChecker {
                     inference_context = Some(self.create_inference_context(
                         candidate_type_parameters,
                         Some(candidate.clone()),
-                        if is_in_js_file(Some(node)) {
+                        if is_in_js_file(Some(&node.ref_(self))) {
                             InferenceFlags::AnyDefault
                         } else {
                             InferenceFlags::None
@@ -1209,7 +1214,7 @@ impl TypeChecker {
                 check_candidate = self.get_signature_instantiation(
                     candidate.clone(),
                     type_argument_types.as_deref(),
-                    is_in_js_file(candidate.declaration.as_deref()),
+                    is_in_js_file(candidate.declaration.refed(self)),
                     inference_context
                         .as_ref()
                         .and_then(|inference_context| {
@@ -1265,7 +1270,7 @@ impl TypeChecker {
                     check_candidate = self.get_signature_instantiation(
                         candidate.clone(),
                         Some(&type_argument_types),
-                        is_in_js_file(candidate.declaration.as_deref()),
+                        is_in_js_file(candidate.declaration.refed(self)),
                         /*inferenceContext &&*/
                         inference_context
                             .maybe_inferred_type_parameters()

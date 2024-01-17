@@ -593,7 +593,7 @@ impl TypeChecker {
         arg: Id<Node>,         /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         let args = self.get_effective_call_arguments(call_target)?;
-        let arg_index = args.iter().position(|argument| ptr::eq(&**argument, arg));
+        let arg_index = args.iter().position(|&argument| argument == arg);
         arg_index.try_map(|arg_index| {
             self.get_contextual_type_for_argument_at_index_(call_target, arg_index)
         })
@@ -626,7 +626,7 @@ impl TypeChecker {
             self.get_resolved_signature_(call_target, None, None)?
         };
 
-        if is_jsx_opening_like_element(call_target) && arg_index == 0 {
+        if is_jsx_opening_like_element(&call_target.ref_(self)) && arg_index == 0 {
             return self
                 .get_effective_first_argument_for_jsx_signature(signature.clone(), call_target);
         }
@@ -655,9 +655,9 @@ impl TypeChecker {
         template: Id<Node>,                /*TemplateExpression*/
         substitution_expression: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
-        if template.parent().kind() == SyntaxKind::TaggedTemplateExpression {
+        if template.ref_(self).parent().ref_(self).kind() == SyntaxKind::TaggedTemplateExpression {
             return self
-                .get_contextual_type_for_argument(&template.parent(), substitution_expression);
+                .get_contextual_type_for_argument(template.ref_(self).parent(), substitution_expression);
         }
 
         Ok(None)
@@ -668,25 +668,26 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
-        let binary_expression = node.parent();
-        let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
-        let left = &binary_expression_as_binary_expression.left;
-        let operator_token = &binary_expression_as_binary_expression.operator_token;
-        let right = &binary_expression_as_binary_expression.right;
-        Ok(match operator_token.kind() {
+        let binary_expression = node.ref_(self).parent();
+        let binary_expression_ref = binary_expression.ref_(self);
+        let binary_expression_as_binary_expression = binary_expression_ref.as_binary_expression();
+        let left = binary_expression_as_binary_expression.left;
+        let operator_token = binary_expression_as_binary_expression.operator_token;
+        let right = binary_expression_as_binary_expression.right;
+        Ok(match operator_token.ref_(self).kind() {
             SyntaxKind::EqualsToken
             | SyntaxKind::AmpersandAmpersandEqualsToken
             | SyntaxKind::BarBarEqualsToken
             | SyntaxKind::QuestionQuestionEqualsToken => {
-                if ptr::eq(node, &**right) {
-                    self.get_contextual_type_for_assignment_declaration(&binary_expression)?
+                if node == right {
+                    self.get_contextual_type_for_assignment_declaration(binary_expression)?
                 } else {
                     None
                 }
             }
             SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken => {
-                let type_ = self.get_contextual_type_(&binary_expression, context_flags)?;
-                if ptr::eq(node, &**right)
+                let type_ = self.get_contextual_type_(binary_expression, context_flags)?;
+                if node == right
                     && match type_ {
                         Some(type_) => type_.ref_(self).maybe_pattern().is_some(),
                         None => !is_defaulted_expando_initializer(binary_expression, self),
@@ -698,8 +699,8 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::AmpersandAmpersandToken | SyntaxKind::CommaToken => {
-                if ptr::eq(node, &**right) {
-                    self.get_contextual_type_(&binary_expression, context_flags)?
+                if node == right {
+                    self.get_contextual_type_(binary_expression, context_flags)?
                 } else {
                     None
                 }
@@ -712,16 +713,17 @@ impl TypeChecker {
         &self,
         e: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Symbol>>> {
-        if e.maybe_symbol().is_some() {
-            return Ok(e.maybe_symbol());
+        if e.ref_(self).maybe_symbol().is_some() {
+            return Ok(e.ref_(self).maybe_symbol());
         }
-        if is_identifier(e) {
+        if is_identifier(&e.ref_(self)) {
             return Ok(Some(self.get_resolved_symbol(e)?));
         }
-        if is_property_access_expression(e) {
-            let e_as_property_access_expression = e.as_property_access_expression();
+        if is_property_access_expression(&e.ref_(self)) {
+            let e._ref = e..ref_(self);
+            let e_as_property_access_expression = e_ref.as_property_access_expression();
             let lhs_type =
-                self.get_type_of_expression(&e_as_property_access_expression.expression)?;
+                self.get_type_of_expression(e_as_property_access_expression.expression)?;
             return Ok(
                 if is_private_identifier(&e_as_property_access_expression.name) {
                     self.try_get_private_identifier_property_of_type(
@@ -749,7 +751,7 @@ impl TypeChecker {
         id: Id<Node>, /*PrivateIdentifier*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let lexically_scoped_symbol = self.lookup_symbol_for_private_identifier_declaration(
-            &id.as_private_identifier().escaped_text,
+            &id.ref_(self).as_private_identifier().escaped_text,
             id,
         );
         lexically_scoped_symbol.try_and_then(|lexically_scoped_symbol| {

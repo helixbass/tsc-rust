@@ -49,12 +49,12 @@ impl TypeChecker {
                 .maybe_value_declaration()
                 .unwrap();
             if declaration
-                .as_parameter_declaration()
+                .ref_(self).as_parameter_declaration()
                 .maybe_type()
                 .is_some()
             {
-                let type_node = get_effective_type_annotation_node(&declaration);
-                if let Some(type_node) = type_node.as_ref() {
+                let type_node = get_effective_type_annotation_node(declaration, self);
+                if let Some(type_node) = type_node {
                     self.infer_types(
                         &inference_context.inferences(),
                         self.get_type_from_type_node_(type_node)?,
@@ -108,8 +108,8 @@ impl TypeChecker {
             if match parameter {
                 None => true,
                 Some(parameter) => matches!(
-                    parameter.ref_(self).maybe_value_declaration().as_ref(),
-                    Some(parameter_value_declaration) if parameter_value_declaration.as_has_type().maybe_type().is_none()
+                    parameter.ref_(self).maybe_value_declaration(),
+                    Some(parameter_value_declaration) if parameter_value_declaration.ref_(self).as_has_type().maybe_type().is_none()
                 ),
             } {
                 if parameter.is_none() {
@@ -131,7 +131,8 @@ impl TypeChecker {
         for i in 0..len {
             let parameter = signature.parameters()[i];
             if get_effective_type_annotation_node(
-                &parameter.ref_(self).maybe_value_declaration().unwrap(),
+                parameter.ref_(self).maybe_value_declaration().unwrap(),
+                self,
             )
             .is_none()
             {
@@ -143,7 +144,8 @@ impl TypeChecker {
             let parameter = *last(signature.parameters());
             if is_transient_symbol(&parameter.ref_(self))
                 || get_effective_type_annotation_node(
-                    &parameter.ref_(self).maybe_value_declaration().unwrap(),
+                    parameter.ref_(self).maybe_value_declaration().unwrap(),
+                    self,
                 )
                 .is_none()
             {
@@ -178,10 +180,10 @@ impl TypeChecker {
         if (*links).borrow().type_.is_none() {
             let declaration = parameter.ref_(self).maybe_value_declaration().unwrap();
             links.borrow_mut().type_ = Some(type_.try_unwrap_or_else(|| {
-                self.get_widened_type_for_variable_like_declaration(&declaration, Some(true))
+                self.get_widened_type_for_variable_like_declaration(declaration, Some(true))
             })?);
-            let declaration_name = declaration.as_named_declaration().name();
-            if declaration_name.kind() != SyntaxKind::Identifier {
+            let declaration_name = declaration.ref_(self).as_named_declaration().name();
+            if declaration_name.ref_(self).kind() != SyntaxKind::Identifier {
                 if (*links).borrow().type_.unwrap() == self.unknown_type() {
                     links.borrow_mut().type_ =
                         Some(self.get_type_from_binding_pattern(&declaration_name, None, None)?);
@@ -197,15 +199,16 @@ impl TypeChecker {
         &self,
         pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<()> {
-        for element in &pattern.as_has_elements().elements() {
-            if !is_omitted_expression(element) {
-                let element_as_binding_element = element.as_binding_element();
-                if element_as_binding_element.name().kind() == SyntaxKind::Identifier {
+        for &element in &pattern.ref_(self).as_has_elements().elements() {
+            if !is_omitted_expression(&element.ref_(self)) {
+                let element_ref = element.ref_(self);
+                let element_as_binding_element = element_ref.as_binding_element();
+                if element_as_binding_element.ref_(self).name().ref_(self).kind() == SyntaxKind::Identifier {
                     self.get_symbol_links(self.get_symbol_of_node(element)?.unwrap())
                         .borrow_mut()
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {
-                    self.assign_binding_element_types(&element_as_binding_element.name())?;
+                    self.assign_binding_element_types(element_as_binding_element.name())?;
                 }
             }
         }
@@ -321,7 +324,8 @@ impl TypeChecker {
         func: Id<Node>, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let func_as_function_like_declaration = func.as_function_like_declaration();
+        let func_ref = func.ref_(self);
+        let func_as_function_like_declaration = func_ref.as_function_like_declaration();
         if func_as_function_like_declaration.maybe_body().is_none() {
             return Ok(self.error_type());
         }
@@ -600,11 +604,12 @@ impl TypeChecker {
         let mut next_types: Vec<Id<Type>> = vec![];
         let is_async = get_function_flags(Some(func), self).intersects(FunctionFlags::Async);
         try_for_each_yield_expression(
-            &func.as_function_like_declaration().maybe_body().unwrap(),
+            func.ref_(self).as_function_like_declaration().maybe_body().unwrap(),
             |yield_expression: Id<Node>| -> io::Result<_> {
-                let yield_expression_as_yield_expression = yield_expression.as_yield_expression();
+                let yield_expression_ref = yield_expression.ref_(self);
+                let yield_expression_as_yield_expression = yield_expression_ref.as_yield_expression();
                 let yield_expression_type = if let Some(yield_expression_expression) =
-                    yield_expression_as_yield_expression.expression.as_ref()
+                    yield_expression_as_yield_expression.expression
                 {
                     self.check_expression(yield_expression_expression, check_mode, None)?
                 } else {
@@ -657,11 +662,11 @@ impl TypeChecker {
         sent_type: Id<Type>,
         is_async: bool,
     ) -> io::Result<Option<Id<Type>>> {
-        let node_as_yield_expression = node.as_yield_expression();
+        let node_ref = node.ref_(self);
+        let node_as_yield_expression = node_ref.as_yield_expression();
         let error_node = node_as_yield_expression
             .expression
-            .clone()
-            .unwrap_or_else(|| node.node_wrapper());
+            .unwrap_or(node);
         let yielded_type = if node_as_yield_expression.asterisk_token.is_some() {
             self.check_iterated_type_or_element_type(
                 if is_async {
@@ -772,8 +777,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<bool> {
-        let node_as_switch_statement = node.as_switch_statement();
-        if node_as_switch_statement.expression.kind() == SyntaxKind::TypeOfExpression {
+        let node_ref = node.ref_(self);
+        let node_as_switch_statement = node_ref.as_switch_statement();
+        if node_as_switch_statement.expression.ref_(self).kind() == SyntaxKind::TypeOfExpression {
             let operand_type = self.get_type_of_expression(
                 &node_as_switch_statement
                     .expression
@@ -800,7 +806,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Never));
         }
-        let type_ = self.get_type_of_expression(&node_as_switch_statement.expression)?;
+        let type_ = self.get_type_of_expression(node_as_switch_statement.expression)?;
         if !self.is_literal_type(type_) {
             return Ok(false);
         }
@@ -829,7 +835,7 @@ impl TypeChecker {
         func: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
         Ok(matches!(
-            func.as_function_like_declaration().maybe_end_flow_node().as_ref(),
+            func.ref_(self).as_function_like_declaration().maybe_end_flow_node().as_ref(),
             Some(func_end_flow_node) if self.is_reachable_flow_node(func_end_flow_node.clone())?
         ))
     }
@@ -844,9 +850,9 @@ impl TypeChecker {
         let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
         try_for_each_return_statement(
-            func.as_function_like_declaration().maybe_body().unwrap(),
+            func.ref_(self).as_function_like_declaration().maybe_body().unwrap(),
             |return_statement: Id<Node>| -> io::Result<_> {
-                let expr = return_statement.as_return_statement().expression.as_ref();
+                let expr = return_statement.ref_(self).as_return_statement().expression;
                 if let Some(expr) = expr {
                     let mut type_ = self.check_expression_cached(
                         expr,
@@ -887,7 +893,7 @@ impl TypeChecker {
             && !(self.is_js_constructor(Some(func))?
                 && aggregated_types
                     .iter()
-                    .any(|&t| t.ref_(self).maybe_symbol() == func.maybe_symbol()))
+                    .any(|&t| t.ref_(self).maybe_symbol() == func.ref_(self).maybe_symbol()))
         {
             push_if_unique_eq(&mut aggregated_types, &self.undefined_type());
         }
@@ -895,10 +901,10 @@ impl TypeChecker {
     }
 
     pub(super) fn may_return_never(&self, func: Id<Node> /*FunctionLikeDeclaration*/) -> bool {
-        match func.kind() {
+        match func.ref_(self).kind() {
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => true,
             SyntaxKind::MethodDeclaration => {
-                func.parent().kind() == SyntaxKind::ObjectLiteralExpression
+                func.ref_(self).parent().ref_(self).kind() == SyntaxKind::ObjectLiteralExpression
             }
             _ => false,
         }
@@ -924,8 +930,9 @@ impl TypeChecker {
             return Ok(());
         }
 
-        if func.kind() == SyntaxKind::MethodSignature || {
-            let func_as_function_like_declaration = func.as_function_like_declaration();
+        if func.ref_(self).kind() == SyntaxKind::MethodSignature || {
+            let func_ref = func.ref_(self);
+            let func_as_function_like_declaration = func_ref.as_function_like_declaration();
             node_is_missing(func_as_function_like_declaration.maybe_body())
                 || func_as_function_like_declaration
                     .maybe_body()
@@ -937,22 +944,22 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let has_explicit_return = func.flags().intersects(NodeFlags::HasExplicitReturn);
+        let has_explicit_return = func.ref_(self).flags().intersects(NodeFlags::HasExplicitReturn);
         let error_node =
-            get_effective_return_type_node(func).unwrap_or_else(|| func.node_wrapper());
+            get_effective_return_type_node(func, self).unwrap_or(func);
 
         if matches!(
             type_,
             Some(type_) if type_.ref_(self).flags().intersects(TypeFlags::Never)
         ) {
             self.error(
-                Some(&*error_node),
+                Some(error_node),
                 &Diagnostics::A_function_returning_never_cannot_have_a_reachable_end_point,
                 None,
             );
         } else if type_.is_some() && !has_explicit_return {
             self.error(
-                Some(&*error_node),
+                Some(error_node),
                 &Diagnostics::A_function_whose_declared_type_is_neither_void_nor_any_must_return_a_value,
                 None,
             );
@@ -961,7 +968,7 @@ impl TypeChecker {
             Some(type_) if self.strict_null_checks && !self.is_type_assignable_to(self.undefined_type(), type_)?
         ) {
             self.error(
-                Some(&*error_node),
+                Some(error_node),
                 &Diagnostics::Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined,
                 None,
             );
@@ -977,7 +984,7 @@ impl TypeChecker {
                 }
             }
             self.error(
-                Some(&*error_node),
+                Some(error_node),
                 &Diagnostics::Not_all_code_paths_return_a_value,
                 None,
             );
