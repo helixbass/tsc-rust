@@ -56,7 +56,7 @@ impl TypeChecker {
             )?));
         }
         let result = self.create_anonymous_type(
-            node.maybe_symbol(),
+            node.ref_(self).maybe_symbol(),
             Gc::new(GcCell::new(properties_table.clone())),
             vec![],
             vec![],
@@ -80,7 +80,7 @@ impl TypeChecker {
             );
         }
         if in_destructuring_pattern {
-            *result.ref_(self).maybe_pattern() = Some(node.node_wrapper());
+            *result.ref_(self).maybe_pattern() = Some(node);
         }
         Ok(result)
     }
@@ -136,9 +136,10 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxElement*/
     ) -> io::Result<()> {
-        let node_as_jsx_element = node.as_jsx_element();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_element = node_ref.as_jsx_element();
         self.check_jsx_opening_like_element_or_opening_fragment(
-            &node_as_jsx_element.opening_element,
+            node_as_jsx_element.opening_element,
         )?;
 
         if self.is_jsx_intrinsic_identifier(
@@ -147,7 +148,7 @@ impl TypeChecker {
                 .as_jsx_closing_element()
                 .tag_name,
         ) {
-            self.get_intrinsic_tag_symbol(&node_as_jsx_element.closing_element)?;
+            self.get_intrinsic_tag_symbol(node_as_jsx_element.closing_element)?;
         } else {
             self.check_expression(
                 &node_as_jsx_element
@@ -178,13 +179,15 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxFragment*/
     ) -> io::Result<Id<Type>> {
-        let node_as_jsx_fragment = node.as_jsx_fragment();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_fragment = node_ref.as_jsx_fragment();
         self.check_jsx_opening_like_element_or_opening_fragment(
-            &node_as_jsx_fragment.opening_fragment,
+            node_as_jsx_fragment.opening_fragment,
         )?;
 
         let node_source_file = get_source_file_of_node(node, self);
-        let node_source_file_as_source_file = node_source_file.as_source_file();
+        let node_source_file_ref = node_source_file.ref_(self);
+        let node_source_file_as_source_file = node_source_file_ref.as_source_file();
         if get_jsx_transform_enabled(&self.compiler_options)
             && (self.compiler_options.jsx_factory.is_some()
                 || node_source_file_as_source_file
@@ -218,8 +221,8 @@ impl TypeChecker {
         &self,
         tag_name: Id<Node>, /*JsxTagNameExpression*/
     ) -> bool {
-        tag_name.kind() == SyntaxKind::Identifier
-            && is_intrinsic_jsx_name(&tag_name.as_identifier().escaped_text)
+        tag_name.ref_(self).kind() == SyntaxKind::Identifier
+            && is_intrinsic_jsx_name(&tag_name.ref_(self).as_identifier().escaped_text)
     }
 
     pub(super) fn check_jsx_attribute(
@@ -228,7 +231,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         Ok(
-            if let Some(node_initializer) = node.as_jsx_attribute().initializer.as_ref() {
+            if let Some(node_initializer) = node.ref_(self).as_jsx_attribute().initializer {
                 self.check_expression_for_mutable_location(
                     node_initializer,
                     check_mode,
@@ -246,8 +249,8 @@ impl TypeChecker {
         opening_like_element: Id<Node>, /*JsxOpeningLikeElement*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let opening_like_element_as_jsx_opening_like_element =
-            opening_like_element.as_jsx_opening_like_element();
+        let opening_like_element_ref = opening_like_element.ref_(self);
+        let opening_like_element_as_jsx_opening_like_element = opening_like_element_ref.as_jsx_opening_like_element();
         let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
         let mut all_attributes_table = if self.strict_null_checks {
             Some(create_symbol_table(
@@ -405,17 +408,16 @@ impl TypeChecker {
             }
         }
 
-        let parent = if opening_like_element.parent().kind() == SyntaxKind::JsxElement {
-            Some(opening_like_element.parent())
+        let parent = if opening_like_element.ref_(self).parent().ref_(self).kind() == SyntaxKind::JsxElement {
+            Some(opening_like_element.ref_(self).parent())
         } else {
             None
         };
-        if let Some(parent) = parent.as_ref().filter(|parent| {
-            let parent_as_jsx_element = parent.as_jsx_element();
-            ptr::eq(
-                &*parent_as_jsx_element.opening_element,
-                opening_like_element,
-            ) && !parent_as_jsx_element.children.is_empty()
+        if let Some(parent) = parent.filter(|parent| {
+            let parent_ref = parent.ref_(self);
+            let parent_as_jsx_element = parent_ref.as_jsx_element();
+            parent_as_jsx_element.opening_element == opening_like_element &&
+                !parent_as_jsx_element.children.is_empty()
         }) {
             let children_types = self.check_jsx_children(parent, check_mode)?;
 
@@ -489,18 +491,18 @@ impl TypeChecker {
                         ),
                     );
                     set_parent(
-                        children_prop_symbol
+                        &children_prop_symbol
                             .ref_(self)
                             .maybe_value_declaration()
                             .as_ref()
-                            .unwrap(),
-                        Some(&*attributes),
+                            .unwrap().ref_(self),
+                        Some(attributes),
                     );
                     children_prop_symbol
                         .ref_(self)
                         .maybe_value_declaration()
                         .unwrap()
-                        .set_symbol(children_prop_symbol.clone());
+                        .ref_(self).set_symbol(children_prop_symbol.clone());
                     let mut child_prop_map =
                         create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                     child_prop_map.insert(
@@ -557,7 +559,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         *object_flags |= self.fresh_object_literal_flag;
         let result = self.create_anonymous_type(
-            attributes.maybe_symbol(),
+            attributes.ref_(self).maybe_symbol(),
             attributes_table,
             vec![],
             vec![],
@@ -578,7 +580,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut children_types: Vec<Id<Type>> = vec![];
-        for child in &node.as_has_children().children() {
+        for child in &node.ref_(self).as_has_children().children() {
             if child.kind() == SyntaxKind::JsxText {
                 if !child.as_jsx_text().contains_only_trivia_white_spaces {
                     children_types.push(self.string_type());
@@ -620,6 +622,7 @@ impl TypeChecker {
                                 spread,
                                 &Diagnostics::This_spread_always_overwrites_this_property,
                                 None,
+                                self,
                             )
                             .into(),
                         )],
@@ -636,7 +639,7 @@ impl TypeChecker {
         node: Id<Node>, /*JsxAttributes*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        self.create_jsx_attributes_type_from_attributes_property(&node.parent(), check_mode)
+        self.create_jsx_attributes_type_from_attributes_property(node.ref_(self).parent(), check_mode)
     }
 
     pub(super) fn get_jsx_type(
@@ -644,8 +647,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         location: Option<Id<Node>>,
     ) -> io::Result<Id<Type>> {
-        let location = location.map(|location| location.borrow().node_wrapper());
-        let namespace = self.get_jsx_namespace_at(location.as_deref())?;
+        let namespace = self.get_jsx_namespace_at(location)?;
         let exports = namespace.try_map(|namespace| self.get_exports_of_symbol(namespace))?;
         let type_symbol = exports.as_ref().try_and_then(|exports| {
             self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type)
@@ -662,7 +664,8 @@ impl TypeChecker {
         node: Id<Node>, /*JsxOpeningLikeElement | JsxClosingElement*/
     ) -> io::Result<Id<Symbol>> {
         let links = self.get_node_links(node);
-        let node_as_has_tag_name = node.as_has_tag_name();
+        let node_ref = node.ref_(self);
+        let node_as_has_tag_name = node_ref.as_has_tag_name();
         if (*links).borrow().resolved_symbol.is_none() {
             let intrinsic_elements_type =
                 self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?;
@@ -724,11 +727,9 @@ impl TypeChecker {
         &self,
         location: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let location = location.map(|location| location.borrow().node_wrapper());
         let file = location
-            .as_ref()
             .and_then(|location| maybe_get_source_file_of_node(Some(location), self));
-        let links = file.as_ref().map(|file| self.get_node_links(file));
+        let links = file.map(|file| self.get_node_links(file));
         if matches!(
             links.as_ref(),
             Some(links) if matches!(
@@ -783,9 +784,7 @@ impl TypeChecker {
         &self,
         location: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let location = location.map(|location| location.borrow().node_wrapper());
         let links = location
-            .as_ref()
             .map(|location| self.get_node_links(location));
         if let Some(Some(links_jsx_namespace)) = links
             .as_ref()

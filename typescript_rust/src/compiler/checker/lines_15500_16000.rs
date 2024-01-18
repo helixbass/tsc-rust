@@ -150,8 +150,8 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_tuple_type_node = node_ref.as_tuple_type_node();
             length(Some(&*node_as_tuple_type_node.elements)) == 1
-                && !is_optional_type_node(node_as_tuple_type_node.elements[0])
-                && !is_rest_type_node(node_as_tuple_type_node.elements[0])
+                && !is_optional_type_node(&node_as_tuple_type_node.elements[0].ref_(self))
+                && !is_rest_type_node(&node_as_tuple_type_node.elements[0].ref_(self))
         }
     }
 
@@ -750,7 +750,7 @@ impl TypeChecker {
             let module_symbol = self
                 .resolve_external_module_symbol(Some(inner_module_symbol), Some(false))?
                 .unwrap();
-            if !node_is_missing(node_as_import_type_node.qualifier) {
+            if !node_is_missing(&node_as_import_type_node.qualifier.ref_(self)) {
                 let mut name_stack: Vec<Id<Node /*Identifier*/>> =
                     self.get_identifier_chain(node_as_import_type_node.qualifier.unwrap());
                 let mut current_namespace = module_symbol.clone();
@@ -903,15 +903,15 @@ impl TypeChecker {
         node: Id<Node>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let mut host = node.ref_(self).parent();
-        while is_parenthesized_type_node(&host)
-            || is_jsdoc_type_expression(&host)
-            || is_type_operator_node(&host)
-                && host.as_type_operator_node().operator == SyntaxKind::ReadonlyKeyword
+        while is_parenthesized_type_node(&host.ref_(self))
+            || is_jsdoc_type_expression(&host.ref_(self))
+            || is_type_operator_node(&host.ref_(self))
+                && host.ref_(self).as_type_operator_node().operator == SyntaxKind::ReadonlyKeyword
         {
-            host = host.parent();
+            host = host.ref_(self).parent();
         }
-        Ok(if is_type_alias(&host) {
-            self.get_symbol_of_node(&host)?
+        Ok(if is_type_alias(&host.ref_(self)) {
+            self.get_symbol_of_node(host)?
         } else {
             None
         })

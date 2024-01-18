@@ -1337,7 +1337,7 @@ impl TypeChecker {
         }
         .try_unwrap_or_else(|| -> io::Result<_> {
             let ret = self.get_declared_type_of_type_parameter(
-                self.get_symbol_of_node(&*{
+                self.get_symbol_of_node({
                     let type_parameter = type_
                         .ref_(self)
                         .as_mapped_type()

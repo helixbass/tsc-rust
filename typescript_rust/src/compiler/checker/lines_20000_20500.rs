@@ -200,11 +200,12 @@ impl CheckTypeRelatedTo {
         target_signature: &Signature,
         report_errors: bool,
     ) -> io::Result<bool> {
-        if source_signature.declaration.is_none() || target_signature.declaration.is_none() {
+        let (Some(source_signature_declaration), Some(target_signature_declaration)) = (
+            source_signature.declaration,
+            target_signature.declaration
+        ) else {
             return Ok(true);
-        }
-        let source_signature_declaration = source_signature.declaration.as_ref().unwrap();
-        let target_signature_declaration = target_signature.declaration.as_ref().unwrap();
+        };
 
         let source_accessibility = get_selected_effective_modifier_flags(
             source_signature_declaration,
