@@ -23,7 +23,7 @@ impl TypeChecker {
     pub(super) fn is_type_assertion(&self, node: Id<Node> /*Expression*/) -> bool {
         let node = skip_parentheses(node, Some(true), self);
         matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression
         ) || is_jsdoc_type_assertion(node, self)
     }
@@ -35,22 +35,22 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let initializer = get_effective_initializer(declaration, self).unwrap();
         let type_ = self
-            .get_quick_type_of_expression(&initializer)?
+            .get_quick_type_of_expression(initializer)?
             .try_unwrap_or_else(|| -> io::Result<_> {
                 Ok(if let Some(contextual_type) = contextual_type {
                     self.check_expression_with_contextual_type(
-                        &initializer,
+                        initializer,
                         contextual_type,
                         None,
                         CheckMode::Normal,
                     )?
                 } else {
-                    self.check_expression_cached(&initializer, None)?
+                    self.check_expression_cached(initializer, None)?
                 })
             })?;
         Ok(
-            if is_parameter(declaration)
-                && declaration.as_parameter_declaration().name().kind()
+            if is_parameter(&declaration.ref_(self))
+                && declaration.ref_(self).as_parameter_declaration().name().ref_(self).kind()
                     == SyntaxKind::ArrayBindingPattern
                 && self.is_tuple_type(type_)
                 && !type_
@@ -62,13 +62,13 @@ impl TypeChecker {
                     .has_rest_element
                 && self.get_type_reference_arity(type_)
                     < declaration
-                        .as_parameter_declaration()
+                        .ref_(self).as_parameter_declaration()
                         .name()
-                        .as_array_binding_pattern()
+                        .ref_(self).as_array_binding_pattern()
                         .elements
                         .len()
             {
-                self.pad_tuple_type(type_, &declaration.as_parameter_declaration().name())?
+                self.pad_tuple_type(type_, declaration.ref_(self).as_parameter_declaration().name())?
             } else {
                 type_
             },
@@ -80,7 +80,8 @@ impl TypeChecker {
         type_: Id<Type>,   /*TupleTypeReference*/
         pattern: Id<Node>, /*ArrayBindingPattern*/
     ) -> io::Result<Id<Type>> {
-        let pattern_elements = &pattern.as_array_binding_pattern().elements;
+        let pattern_ref = pattern.ref_(self);
+        let pattern_elements = &pattern_ref.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_)?;
         let type_target = type_.ref_(self).as_type_reference().target;
         let mut element_flags = type_target.ref_(self).as_tuple_type().element_flags.clone();
@@ -114,14 +115,14 @@ impl TypeChecker {
         declaration: Id<Node>, /*HasExpressionInitializer*/
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const)
-            || is_declaration_readonly(declaration)
+        let widened = if get_combined_node_flags(declaration, self).intersects(NodeFlags::Const)
+            || is_declaration_readonly(declaration, self)
         {
             type_
         } else {
             self.get_widened_literal_type(type_)?
         };
-        if is_in_js_file(Some(declaration)) {
+        if is_in_js_file(Some(&declaration.ref_(self))) {
             if self.is_empty_literal_type(widened) {
                 self.report_implicit_any(declaration, self.any_type(), None)?;
                 return Ok(self.any_type());
@@ -205,16 +206,16 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_context(&self, node: Id<Node> /*Expression*/) -> bool {
-        let parent = node.parent();
-        is_assertion_expression(&parent)
-            && is_const_type_reference(parent.as_has_type().maybe_type().unwrap(), self)
+        let parent = node.ref_(self).parent();
+        is_assertion_expression(&parent.ref_(self))
+            && is_const_type_reference(parent.ref_(self).as_has_type().maybe_type().unwrap(), self)
             || is_jsdoc_type_assertion(parent, self)
-                && is_const_type_reference(get_jsdoc_type_assertion_type(&parent), self)
-            || (is_parenthesized_expression(&parent)
-                || is_array_literal_expression(&parent)
-                || is_spread_element(&parent))
-                && self.is_const_context(&parent)
-            || (is_property_assignment(&parent)
+                && is_const_type_reference(get_jsdoc_type_assertion_type(parent, self), self)
+            || (is_parenthesized_expression(&parent.ref_(self))
+                || is_array_literal_expression(&parent.ref_(self))
+                || is_spread_element(&parent.ref_(self)))
+                && self.is_const_context(parent)
+            || (is_property_assignment(&parent.ref_(self))
                 || is_shorthand_property_assignment(&parent)
                 || is_template_span(&parent))
                 && self.is_const_context(&parent.parent())
@@ -253,9 +254,10 @@ impl TypeChecker {
         node: Id<Node>, /*PropertyAssignment*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_as_property_assignment = node.as_property_assignment();
-        if node_as_property_assignment.name().kind() == SyntaxKind::ComputedPropertyName {
-            self.check_computed_property_name(&node_as_property_assignment.name())?;
+        let node_ref = node.ref_(self);
+        let node_as_property_assignment = node_ref.as_property_assignment();
+        if node_as_property_assignment.name().ref_(self).kind() == SyntaxKind::ComputedPropertyName {
+            self.check_computed_property_name(node_as_property_assignment.name())?;
         }
         self.check_expression_for_mutable_location(
             &node_as_property_assignment.initializer,
@@ -272,9 +274,10 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         self.check_grammar_method(node)?;
 
-        let node_as_method_declaration = node.as_method_declaration();
-        if node_as_method_declaration.name().kind() == SyntaxKind::ComputedPropertyName {
-            self.check_computed_property_name(&node_as_method_declaration.name())?;
+        let node_ref = node.ref_(self);
+        let node_as_method_declaration = node_ref.as_method_declaration();
+        if node_as_method_declaration.name().ref_(self).kind() == SyntaxKind::ComputedPropertyName {
+            self.check_computed_property_name(node_as_method_declaration.name())?;
         }
 
         let uninstantiated_type =
@@ -575,8 +578,9 @@ impl TypeChecker {
         &self,
         expr: Id<Node>, /*CallChain*/
     ) -> io::Result<Option<Id<Type>>> {
-        let expr_as_call_expression = expr.as_call_expression();
-        let func_type = self.check_expression(&expr_as_call_expression.expression, None, None)?;
+        let expr_ref = expr.ref_(self);
+        let expr_as_call_expression = expr_ref.as_call_expression();
+        let func_type = self.check_expression(expr_as_call_expression.expression, None, None)?;
         let non_optional_type =
             self.get_optional_expression_type(func_type, &expr_as_call_expression.expression)?;
         let return_type = self.get_return_type_of_single_non_generic_call_signature(func_type)?;
@@ -593,9 +597,9 @@ impl TypeChecker {
         if let Some(quick_type) = quick_type {
             return Ok(quick_type);
         }
-        if node.flags().intersects(NodeFlags::TypeCached) {
+        if node.ref_(self).flags().intersects(NodeFlags::TypeCached) {
             if let Some(flow_type_cache) = self.maybe_flow_type_cache().as_ref() {
-                let cached_type = flow_type_cache.get(&get_node_id(node));
+                let cached_type = flow_type_cache.get(&get_node_id(&node.ref_(self)));
                 if let Some(cached_type) = cached_type {
                     return Ok(cached_type.clone());
                 }
@@ -609,8 +613,8 @@ impl TypeChecker {
                 *flow_type_cache = Some(HashMap::new());
             }
             let cache = flow_type_cache.as_mut().unwrap();
-            cache.insert(get_node_id(node), type_.clone());
-            set_node_flags(Some(node), node.flags() | NodeFlags::TypeCached);
+            cache.insert(get_node_id(&node.ref_(self)), type_.clone());
+            set_node_flags(Some(&node.ref_(self)), node.ref_(self).flags() | NodeFlags::TypeCached);
         }
         Ok(type_)
     }
@@ -621,35 +625,35 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let mut expr = skip_parentheses(node, Some(true), self);
         if is_jsdoc_type_assertion(expr, self) {
-            let type_ = get_jsdoc_type_assertion_type(&expr);
+            let type_ = get_jsdoc_type_assertion_type(expr, self);
             if !is_const_type_reference(type_, self) {
-                return Ok(Some(self.get_type_from_type_node_(&type_)?));
+                return Ok(Some(self.get_type_from_type_node_(type_)?));
             }
         }
         expr = skip_parentheses(node, None, self);
-        if is_call_expression(node)
-            && expr.as_call_expression().expression.kind() != SyntaxKind::SuperKeyword
+        if is_call_expression(&node.ref_(self))
+            && expr.ref_(self).as_call_expression().expression.ref_(self).kind() != SyntaxKind::SuperKeyword
             && !is_require_call(expr, true, self)
-            && !self.is_symbol_or_symbol_for_call(&expr)?
+            && !self.is_symbol_or_symbol_for_call(expr)?
         {
-            let type_ = if is_call_chain(&expr) {
-                self.get_return_type_of_single_non_generic_signature_of_call_chain(&expr)?
+            let type_ = if is_call_chain(&expr.ref_(self)) {
+                self.get_return_type_of_single_non_generic_signature_of_call_chain(expr)?
             } else {
                 self.get_return_type_of_single_non_generic_call_signature(
-                    self.check_non_null_expression(&expr.as_call_expression().expression)?,
+                    self.check_non_null_expression(expr.ref_(self).as_call_expression().expression)?,
                 )?
             };
             if type_.is_some() {
                 return Ok(type_);
             }
-        } else if is_assertion_expression(&expr)
-            && !is_const_type_reference(expr.as_has_type().maybe_type().unwrap(), self)
+        } else if is_assertion_expression(&expr.ref_(self))
+            && !is_const_type_reference(expr.ref_(self).as_has_type().maybe_type().unwrap(), self)
         {
             return Ok(Some(self.get_type_from_type_node_(
-                &expr.as_has_type().maybe_type().unwrap(),
+                expr.ref_(self).as_has_type().maybe_type().unwrap(),
             )?));
         } else if matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::NumericLiteral
                 | SyntaxKind::StringLiteral
                 | SyntaxKind::TrueKeyword
@@ -668,14 +672,14 @@ impl TypeChecker {
         if let Some(links_context_free_type) = (*links).borrow().context_free_type.clone() {
             return Ok(links_context_free_type);
         }
-        let save_contextual_type = node.maybe_contextual_type().clone();
-        *node.maybe_contextual_type() = Some(self.any_type());
+        let save_contextual_type = node.ref_(self).maybe_contextual_type().clone();
+        *node.ref_(self).maybe_contextual_type() = Some(self.any_type());
         // try {
         let type_ = self.check_expression(node, Some(CheckMode::SkipContextSensitive), None)?;
         links.borrow_mut().context_free_type = Some(type_.clone());
         // }
         // finally {
-        *node.maybe_contextual_type() = save_contextual_type;
+        *node.ref_(self).maybe_contextual_type() = save_contextual_type;
         // }
         Ok(type_)
     }
@@ -688,7 +692,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         // tracing?.push(tracing.Phase.Check, "checkExpression", { kind: node.kind, pos: node.pos, end: node.end });
         let save_current_node = self.maybe_current_node();
-        self.set_current_node(Some(node.node_wrapper()));
+        self.set_current_node(Some(node));
         self.set_instantiation_count(0);
         let uninstantiated_type = self.check_expression_worker(node, check_mode, force_tuple)?;
         let type_ = self.instantiate_type_with_single_generic_call_signature(
@@ -709,23 +713,17 @@ impl TypeChecker {
         node: Id<Node>, /*Expression | QualifiedName*/
         type_: Id<Type>,
     ) {
-        let ok = (node.parent().kind() == SyntaxKind::PropertyAccessExpression
-            && ptr::eq(
-                &*node.parent().as_property_access_expression().expression,
-                node,
-            ))
-            || (node.parent().kind() == SyntaxKind::ElementAccessExpression
-                && ptr::eq(
-                    &*node.parent().as_element_access_expression().expression,
-                    node,
-                ))
+        let ok = (node.ref_(self).parent().ref_(self).kind() == SyntaxKind::PropertyAccessExpression
+            && node.ref_(self).parent().ref_(self).as_property_access_expression().expression == node)
+            || (node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ElementAccessExpression
+                && node.ref_(self).parent().ref_(self).as_element_access_expression().expression == node)
             || (matches!(
-                node.kind(),
+                node.ref_(self).kind(),
                 SyntaxKind::Identifier | SyntaxKind::QualifiedName
             ) && self.is_in_right_side_of_import_or_export_assignment(node)
-                || node.parent().kind() == SyntaxKind::TypeQuery
-                    && ptr::eq(&*node.parent().as_type_query_node().expr_name, node))
-            || node.parent().kind() == SyntaxKind::ExportSpecifier;
+                || node.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeQuery
+                    && node.ref_(self).parent().ref_(self).as_type_query_node().expr_name == node)
+            || node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportSpecifier;
 
         if !ok {
             self.error(
@@ -752,7 +750,7 @@ impl TypeChecker {
                 .maybe_value_declaration()
                 .unwrap();
             if const_enum_declaration
-                .flags()
+                .ref_(self).flags()
                 .intersects(NodeFlags::Ambient)
             {
                 self.error(
@@ -769,13 +767,14 @@ impl TypeChecker {
         node: Id<Node>, /*ParenthesizedExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_as_parenthesized_expression = node.as_parenthesized_expression();
-        if has_jsdoc_nodes(node) && is_jsdoc_type_assertion(node, self) {
-            let type_ = get_jsdoc_type_assertion_type(node);
+        let node_ref = node.ref_(self);
+        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
+        if has_jsdoc_nodes(&node.ref_(self)) && is_jsdoc_type_assertion(node, self) {
+            let type_ = get_jsdoc_type_assertion_type(node, self);
             return self.check_assertion_worker(
-                &type_,
-                &type_,
-                &node_as_parenthesized_expression.expression,
+                type_,
+                type_,
+                node_as_parenthesized_expression.expression,
                 check_mode,
             );
         }
@@ -792,7 +791,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
     ) -> io::Result<Id<Type>> {
-        let kind = node.kind();
+        let kind = node.ref_(self).kind();
         if let Some(cancellation_token) = self.maybe_cancellation_token() {
             match kind {
                 SyntaxKind::ClassExpression
@@ -811,12 +810,12 @@ impl TypeChecker {
             SyntaxKind::NullKeyword => self.null_widening_type(),
             SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::StringLiteral => self
                 .get_fresh_type_of_literal_type(
-                    self.get_string_literal_type(&node.as_literal_like_node().text()),
+                    self.get_string_literal_type(&node.ref_(self).as_literal_like_node().text()),
                 ),
             SyntaxKind::NumericLiteral => {
                 self.check_grammar_numeric_literal(node);
                 self.get_fresh_type_of_literal_type(self.get_number_literal_type(Number::new(
-                    node.as_literal_like_node().text().parse::<f64>().unwrap(),
+                    node.ref_(self).as_literal_like_node().text().parse::<f64>().unwrap(),
                 )))
             }
             SyntaxKind::BigIntLiteral => {
@@ -824,7 +823,7 @@ impl TypeChecker {
                 self.get_fresh_type_of_literal_type(self.get_big_int_literal_type(
                     PseudoBigInt::new(
                         false,
-                        parse_pseudo_big_int(&node.as_literal_like_node().text()),
+                        parse_pseudo_big_int(&node.ref_(self).as_literal_like_node().text()),
                     ),
                 ))
             }
@@ -842,7 +841,7 @@ impl TypeChecker {
             SyntaxKind::QualifiedName => self.check_qualified_name(node, check_mode)?,
             SyntaxKind::ElementAccessExpression => self.check_indexed_access(node, check_mode)?,
             SyntaxKind::CallExpression => {
-                if node.as_call_expression().expression.kind() == SyntaxKind::ImportKeyword {
+                if node.ref_(self).as_call_expression().expression.ref_(self).kind() == SyntaxKind::ImportKeyword {
                     return self.check_import_call_expression(node);
                 }
                 self.check_call_expression(node, check_mode)?

@@ -26,8 +26,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> io::Result<()> {
-        let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
-        if let Some(node_expression) = node_as_type_parameter_declaration.expression.as_ref() {
+        let node_ref = node.ref_(self);
+        let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
+        if let Some(node_expression) = node_as_type_parameter_declaration.expression {
             self.grammar_error_on_first_token(node_expression, &Diagnostics::Type_expected, None);
         }
 

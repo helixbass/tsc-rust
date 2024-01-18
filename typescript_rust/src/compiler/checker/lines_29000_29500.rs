@@ -25,18 +25,17 @@ use crate::{
     ReadonlyTextRange, RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
     TypeMapper,
+    OptionInArena,
 };
 
 impl TypeChecker {
     pub(super) fn is_spread_argument(&self, arg: Option<Id<Node>>) -> bool {
-        if arg.is_none() {
+        let Some(arg) = arg else {
             return false;
-        }
-        let arg = arg.unwrap();
-        let arg = arg.borrow();
-        arg.kind() == SyntaxKind::SpreadElement
-            || arg.kind() == SyntaxKind::SyntheticExpression
-                && arg.as_synthetic_expression().is_spread
+        };
+        arg.ref_(self).kind() == SyntaxKind::SpreadElement
+            || arg.ref_(self).kind() == SyntaxKind::SyntheticExpression
+                && arg.ref_(self).as_synthetic_expression().is_spread
     }
 
     pub(super) fn get_spread_argument_index(
@@ -45,7 +44,7 @@ impl TypeChecker {
     ) -> Option<usize> {
         find_index(
             args,
-            |arg: &Id<Node>, _| self.is_spread_argument(Some(&**arg)),
+            |&arg: &Id<Node>, _| self.is_spread_argument(Some(arg)),
             None,
         )
     }
@@ -73,19 +72,21 @@ impl TypeChecker {
         let mut effective_parameter_count = self.get_parameter_count(signature)?;
         let mut effective_minimum_arguments = self.get_min_argument_count(signature, None)?;
 
-        if node.kind() == SyntaxKind::TaggedTemplateExpression {
+        if node.ref_(self).kind() == SyntaxKind::TaggedTemplateExpression {
             arg_count = args.len();
-            let node_as_tagged_template_expression = node.as_tagged_template_expression();
-            if node_as_tagged_template_expression.template.kind() == SyntaxKind::TemplateExpression
+            let node_ref = node.ref_(self);
+            let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
+            if node_as_tagged_template_expression.template.ref_(self).kind() == SyntaxKind::TemplateExpression
             {
-                let last_span = last(
+                let last_span = *last(
                     &node_as_tagged_template_expression
                         .template
-                        .as_template_expression()
+                        .ref_(self).as_template_expression()
                         .template_spans,
                 );
-                let last_span_as_template_span = last_span.as_template_span();
-                call_is_incomplete = node_is_missing(Some(&*last_span_as_template_span.literal))
+                let last_span_ref = last_span.ref_(self);
+                let last_span_as_template_span = last_span_ref.as_template_span();
+                call_is_incomplete = node_is_missing(Some(&last_span_as_template_span.literal.ref_(self)))
                     || last_span_as_template_span
                         .literal
                         .as_literal_like_node()
@@ -100,11 +101,11 @@ impl TypeChecker {
                 call_is_incomplete =
                     template_literal.as_literal_like_node().is_unterminated() == Some(true);
             }
-        } else if node.kind() == SyntaxKind::Decorator {
+        } else if node.ref_(self).kind() == SyntaxKind::Decorator {
             arg_count = self.get_decorator_argument_count(node, signature);
-        } else if is_jsx_opening_like_element(node) {
+        } else if is_jsx_opening_like_element(&node.ref_(self)) {
             call_is_incomplete =
-                node.as_jsx_opening_like_element().attributes().end() == node.end();
+                node.ref_(self).as_jsx_opening_like_element().attributes().ref_(self) == node.ref_(self).end();
             if call_is_incomplete {
                 return Ok(true);
             }
@@ -119,8 +120,8 @@ impl TypeChecker {
                 1
             };
             effective_minimum_arguments = cmp::min(effective_minimum_arguments, 1);
-        } else if node.as_has_arguments().maybe_arguments().is_none() {
-            Debug_.assert(node.kind() == SyntaxKind::NewExpression, None);
+        } else if node.ref_(self).as_has_arguments().maybe_arguments().is_none() {
+            Debug_.assert(node.ref_(self).kind() == SyntaxKind::NewExpression, None);
             return Ok(self.get_min_argument_count(signature, None)? == 0);
         } else {
             arg_count = if signature_help_trailing_comma {
@@ -130,7 +131,7 @@ impl TypeChecker {
             };
 
             call_is_incomplete =
-                node.as_has_arguments().maybe_arguments().unwrap().end() == node.end();
+                node.ref_(self).as_has_arguments().maybe_arguments().unwrap().end() == node.ref_(self).end();
 
             let spread_arg_index = self.get_spread_argument_index(args);
             if let Some(spread_arg_index) = spread_arg_index {
@@ -153,7 +154,7 @@ impl TypeChecker {
             let type_ = self.get_type_at_position(signature, i)?;
             if self
                 .filter_type(type_, |type_: Id<Type>| {
-                    if is_in_js_file(Some(node)) && !self.strict_null_checks {
+                    if is_in_js_file(Some(&node.ref_(self))) && !self.strict_null_checks {
                         self.accepts_void_undefined_unknown_or_any(type_)
                     } else {
                         self.accepts_void(type_)
@@ -321,7 +322,7 @@ impl TypeChecker {
         self.get_signature_instantiation(
             signature.clone(),
             Some(&*self.get_inferred_types(&context)?),
-            is_in_js_file(contextual_signature.declaration.as_deref()),
+            is_in_js_file(contextual_signature.declaration.refed(self)),
             None,
         )
     }
@@ -336,7 +337,7 @@ impl TypeChecker {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
         let check_attr_type = self.check_expression_with_contextual_type(
-            &node.as_jsx_opening_like_element().attributes(),
+            node.ref_(self).as_jsx_opening_like_element().attributes(),
             param_type,
             Some(context.clone()),
             check_mode,
@@ -355,15 +356,13 @@ impl TypeChecker {
         &self,
         this_argument_node: Option<Id<Node> /*LeftHandSideExpression*/>,
     ) -> io::Result<Id<Type>> {
-        if this_argument_node.is_none() {
+        let Some(this_argument_node) = this_argument_node else {
             return Ok(self.void_type());
-        }
-        let this_argument_node = this_argument_node.unwrap();
-        let this_argument_node = this_argument_node.borrow();
+        };
         let this_argument_type = self.check_expression(this_argument_node, None, None)?;
-        Ok(if is_optional_chain_root(&this_argument_node.parent()) {
+        Ok(if is_optional_chain_root(&this_argument_node.ref_(self).parent().ref_(self)) {
             self.get_non_nullable_type(this_argument_type)?
-        } else if is_optional_chain(&this_argument_node.parent()) {
+        } else if is_optional_chain(&this_argument_node.ref_(self).parent().ref_(self)) {
             self.remove_optional_type_marker(this_argument_type)
         } else {
             this_argument_type
@@ -378,11 +377,11 @@ impl TypeChecker {
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
-        if is_jsx_opening_like_element(node) {
+        if is_jsx_opening_like_element(&node.ref_(self)) {
             return self.infer_jsx_type_arguments(node, signature, check_mode, context);
         }
 
-        if node.kind() != SyntaxKind::Decorator {
+        if node.ref_(self).kind() != SyntaxKind::Decorator {
             let contextual_type = self.get_contextual_type_(
                 node,
                 Some(
@@ -491,7 +490,7 @@ impl TypeChecker {
                 info.set_implied_arity(
                     if find_index(
                         args,
-                        |arg: &Id<Node>, _| self.is_spread_argument(Some(&**arg)),
+                        |&arg: &Id<Node>, _| self.is_spread_argument(Some(arg)),
                         None,
                     )
                     .is_none()
@@ -509,7 +508,7 @@ impl TypeChecker {
             let this_argument_node = self.get_this_argument_of_call(node);
             self.infer_types(
                 &context.inferences(),
-                self.get_this_argument_type(this_argument_node.as_deref())?,
+                self.get_this_argument_type(this_argument_node)?,
                 this_type,
                 None,
                 None,
@@ -517,8 +516,8 @@ impl TypeChecker {
         }
 
         for i in 0..arg_count {
-            let arg = &args[i];
-            if arg.kind() != SyntaxKind::OmittedExpression {
+            let arg = args[i];
+            if arg.ref_(self).kind() != SyntaxKind::OmittedExpression {
                 let param_type = self.get_type_at_position(&signature, i)?;
                 let arg_type = self.check_expression_with_contextual_type(
                     arg,
@@ -597,14 +596,14 @@ impl TypeChecker {
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {
         if index >= arg_count - 1 {
-            let arg = &args[arg_count - 1];
-            if self.is_spread_argument(Some(&**arg)) {
+            let arg = args[arg_count - 1];
+            if self.is_spread_argument(Some(arg)) {
                 return self.get_mutable_array_or_tuple_type(
-                    if arg.kind() == SyntaxKind::SyntheticExpression {
-                        arg.as_synthetic_expression().type_.clone()
+                    if arg.ref_(self).kind() == SyntaxKind::SyntheticExpression {
+                        arg.ref_(self).as_synthetic_expression().type_
                     } else {
                         self.check_expression_with_contextual_type(
-                            &arg.as_spread_element().expression,
+                            arg.as_spread_element().expression,
                             rest_type,
                             context.clone(),
                             check_mode,
@@ -617,12 +616,12 @@ impl TypeChecker {
         let mut flags: Vec<ElementFlags> = vec![];
         let mut names: Vec<Id<Node>> = vec![];
         for i in index..arg_count {
-            let arg = &args[i];
-            if self.is_spread_argument(Some(&**arg)) {
-                let spread_type = if arg.kind() == SyntaxKind::SyntheticExpression {
-                    arg.as_synthetic_expression().type_.clone()
+            let arg = args[i];
+            if self.is_spread_argument(Some(arg)) {
+                let spread_type = if arg.ref_(self).kind() == SyntaxKind::SyntheticExpression {
+                    arg.ref_(self).as_synthetic_expression().type_
                 } else {
-                    self.check_expression(&arg.as_spread_element().expression, None, None)?
+                    self.check_expression(arg.ref_(self).as_spread_element().expression, None, None)?
                 };
                 if self.is_array_like_type(spread_type)? {
                     types.push(spread_type);
@@ -632,10 +631,10 @@ impl TypeChecker {
                         IterationUse::Spread,
                         spread_type,
                         self.undefined_type(),
-                        Some(if arg.kind() == SyntaxKind::SpreadElement {
-                            arg.as_spread_element().expression.clone()
+                        Some(if arg.ref_(self).kind() == SyntaxKind::SpreadElement {
+                            arg.ref_(self).as_spread_element().expression
                         } else {
-                            arg.clone()
+                            arg
                         }),
                     )?);
                     flags.push(ElementFlags::Rest);
@@ -669,11 +668,11 @@ impl TypeChecker {
                 });
                 flags.push(ElementFlags::Required);
             }
-            if arg.kind() == SyntaxKind::SyntheticExpression {
+            if arg.ref_(self).kind() == SyntaxKind::SyntheticExpression {
                 if let Some(arg_tuple_name_source) =
-                    arg.as_synthetic_expression().tuple_name_source.as_ref()
+                    arg.ref_(self).as_synthetic_expression().tuple_name_source
                 {
-                    names.push(arg_tuple_name_source.clone());
+                    names.push(arg_tuple_name_source);
                 }
             }
         }
@@ -696,11 +695,11 @@ impl TypeChecker {
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
-        let is_javascript = is_in_js_file(signature.declaration.as_deref());
+        let is_javascript = is_in_js_file(signature.declaration.refed(self));
         let type_parameters = signature.maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
-                Some(try_map(type_argument_nodes, |node: &Id<Node>, _| {
+                Some(try_map(type_argument_nodes, |&node: &Id<Node>, _| {
                     self.get_type_from_type_node_(node)
                 })?),
                 Some(&type_parameters),
@@ -739,7 +738,7 @@ impl TypeChecker {
                         None,
                     )?,
                     if report_errors {
-                        Some(&*type_argument_nodes[i])
+                        Some(type_argument_nodes[i])
                     } else {
                         None
                     },
@@ -758,8 +757,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<JsxReferenceKind> {
-        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
-        if self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()) {
+        let node_ref = node.ref_(self);
+        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
+        if self.is_jsx_intrinsic_identifier(node_as_jsx_opening_like_element.tag_name()) {
             return Ok(JsxReferenceKind::Mixed);
         }
         let tag_type = self.get_apparent_type(self.check_expression(
@@ -794,7 +794,8 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
-        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         let attributes_type = self.check_expression_with_contextual_type(
             &node_as_jsx_opening_like_element.attributes(),
             param_type,
@@ -833,39 +834,34 @@ impl TypeChecker {
         {
             return Ok(true);
         }
-        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
-        let tag_type = if is_jsx_opening_element(node)
-            || is_jsx_self_closing_element(node)
-                && !self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name())
+        let node_ref = node.ref_(self);
+        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
+        let Some(tag_type) = (if is_jsx_opening_element(&node.ref_(self))
+            || is_jsx_self_closing_element(&node.ref_(self))
+                && !self.is_jsx_intrinsic_identifier(node_as_jsx_opening_like_element.tag_name())
         {
-            Some(self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None)?)
+            Some(self.check_expression(node_as_jsx_opening_like_element.tag_name(), None, None)?)
         } else {
             None
-        };
-        if tag_type.is_none() {
+        }) else {
             return Ok(true);
-        }
-        let tag_type = tag_type.unwrap();
+        };
         let tag_call_signatures = self.get_signatures_of_type(tag_type, SignatureKind::Call)?;
         if length(Some(&*tag_call_signatures)) == 0 {
             return Ok(true);
         }
-        let factory = self.get_jsx_factory_entity(node);
-        if factory.is_none() {
+        let Some(factory) = self.get_jsx_factory_entity(node) else {
             return Ok(true);
-        }
-        let factory = factory.unwrap();
-        let factory_symbol = self.resolve_entity_name(
-            &factory,
+        };
+        let Some(factory_symbol) = self.resolve_entity_name(
+            factory,
             SymbolFlags::Value,
             Some(true),
             Some(false),
             Some(node),
-        )?;
-        if factory_symbol.is_none() {
+        )? else {
             return Ok(true);
-        }
-        let factory_symbol = factory_symbol.unwrap();
+        };
 
         let factory_type = self.get_type_of_symbol(factory_symbol)?;
         let call_signatures = self.get_signatures_of_type(factory_type, SignatureKind::Call)?;
@@ -910,7 +906,7 @@ impl TypeChecker {
         if report_errors {
             let diag: Gc<Diagnostic> = Gc::new(
                 create_diagnostic_for_node(
-                    &node_as_jsx_opening_like_element.tag_name(),
+                    node_as_jsx_opening_like_element.tag_name(),
                     &Diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
                     Some(vec![
                         entity_name_to_string(
@@ -920,7 +916,8 @@ impl TypeChecker {
                         absolute_min_arg_count.to_string(),
                         entity_name_to_string(factory, self).into_owned(),
                         max_param_count.to_string(),
-                    ])
+                    ]),
+                    self,
                 ).into()
             );
             let tag_name_declaration = self
@@ -938,6 +935,7 @@ impl TypeChecker {
                                 self,
                             )
                             .into_owned()]),
+                            self,
                         )
                         .into(),
                     )],
@@ -968,7 +966,7 @@ impl TypeChecker {
         let error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>> = Gc::new(Box::new(
             CheckTypeErrorOutputContainerConcrete::new(Some(true)),
         ));
-        if is_jsx_opening_like_element(node) {
+        if is_jsx_opening_like_element(&node.ref_(self)) {
             if !self.check_applicable_signature_for_jsx_opening_like_element(
                 node,
                 signature.clone(),
@@ -988,15 +986,14 @@ impl TypeChecker {
         }
         let this_type = self.get_this_type_of_signature(&signature)?;
         if let Some(this_type) = this_type.filter(|&this_type| {
-            this_type != self.void_type() && node.kind() != SyntaxKind::NewExpression
+            this_type != self.void_type() && node.ref_(self).kind() != SyntaxKind::NewExpression
         }) {
             let this_argument_node = self.get_this_argument_of_call(node);
-            let this_argument_type = self.get_this_argument_type(this_argument_node.as_deref())?;
+            let this_argument_type = self.get_this_argument_type(this_argument_node)?;
             let error_node = if report_errors {
                 Some(
                     this_argument_node
-                        .clone()
-                        .unwrap_or_else(|| node.node_wrapper()),
+                        .unwrap_or(node),
                 )
             } else {
                 None
@@ -1027,8 +1024,8 @@ impl TypeChecker {
             args.len()
         };
         for i in 0..arg_count {
-            let arg = &args[i];
-            if arg.kind() != SyntaxKind::OmittedExpression {
+            let arg = args[i];
+            if arg.ref_(self).kind() != SyntaxKind::OmittedExpression {
                 let param_type = self.get_type_at_position(&signature, i)?;
                 let arg_type =
                     self.check_expression_with_contextual_type(arg, param_type, None, check_mode)?;
@@ -1059,7 +1056,7 @@ impl TypeChecker {
                         report_errors,
                         error_output_container.clone(),
                         relation.clone(),
-                        Some(&**arg),
+                        Some(arg),
                         check_arg_type,
                         param_type,
                     )?;
@@ -1080,9 +1077,9 @@ impl TypeChecker {
             let error_node = if !report_errors {
                 None
             } else if rest_arg_count == 0 {
-                Some(node.node_wrapper())
+                Some(node)
             } else if rest_arg_count == 1 {
-                Some(args[arg_count].clone())
+                Some(args[arg_count])
             } else {
                 let error_node = self.create_synthetic_expression(
                     node,
@@ -1091,9 +1088,9 @@ impl TypeChecker {
                     Option::<Id<Node>>::None,
                 );
                 set_text_range_pos_end(
-                    &*error_node,
-                    args[arg_count].pos(),
-                    args[args.len() - 1].end(),
+                    error_node,
+                    args[arg_count].ref_(self).pos(),
+                    args[args.len() - 1].ref_(self).end(),
                 );
                 Some(error_node)
             };

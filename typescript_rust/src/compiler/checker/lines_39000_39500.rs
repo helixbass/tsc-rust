@@ -21,6 +21,7 @@ use crate::{
     HasTypeParametersInterface, InArena, InterfaceTypeInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeCheckFlags, NodeFlags, NodeInterface, Number, OptionTry,
     ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -30,17 +31,18 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if !self.strict_null_checks
             || !self.strict_property_initialization
-            || node.flags().intersects(NodeFlags::Ambient)
+            || node.ref_(self).flags().intersects(NodeFlags::Ambient)
         {
             return Ok(());
         }
         let constructor = self.find_constructor_declaration(node);
-        for member in &node.as_class_like_declaration().members() {
+        for member in &node.ref_(self).as_class_like_declaration().members() {
             if get_effective_modifier_flags(member, self).intersects(ModifierFlags::Ambient) {
                 continue;
             }
             if !is_static(member, self) && self.is_property_without_initializer(member) {
-                let member_as_property_declaration = member.as_property_declaration();
+                let member_ref = member.ref_(self);
+                let member_as_property_declaration = member_ref.as_property_declaration();
                 let prop_name = member_as_property_declaration.name();
                 if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                     let type_ =
@@ -48,7 +50,7 @@ impl TypeChecker {
                     if !(type_.ref_(self).flags().intersects(TypeFlags::AnyOrUnknown)
                         || self.get_falsy_flags(type_).intersects(TypeFlags::Undefined))
                     {
-                        if match constructor.as_ref() {
+                        if match constructor {
                             None => true,
                             Some(constructor) => !self.is_property_initialized_in_constructor(
                                 &prop_name,
@@ -73,8 +75,9 @@ impl TypeChecker {
     }
 
     pub(super) fn is_property_without_initializer(&self, node: Id<Node>) -> bool {
-        node.kind() == SyntaxKind::PropertyDeclaration && !has_abstract_modifier(node, self) && {
-            let node_as_property_declaration = node.as_property_declaration();
+        node.ref_(self).kind() == SyntaxKind::PropertyDeclaration && !has_abstract_modifier(node, self) && {
+            let node_ref = node.ref_(self);
+            let node_as_property_declaration = node_ref.as_property_declaration();
             node_as_property_declaration.exclamation_token.is_none()
                 && node_as_property_declaration.maybe_initializer().is_none()
         }
@@ -88,24 +91,24 @@ impl TypeChecker {
         start_pos: isize,
         end_pos: isize,
     ) -> io::Result<bool> {
-        for ref static_block in static_blocks {
-            if static_block.pos() >= start_pos && static_block.pos() <= end_pos {
+        for static_block in static_blocks {
+            if static_block.ref_(self).pos() >= start_pos && static_block.ref_(self).pos() <= end_pos {
                 let reference: Id<Node> = factory.with(|factory_| {
                     factory_.create_property_access_expression(
                         factory_.create_this(),
-                        prop_name.node_wrapper(),
+                        prop_name,
                     )
                 });
                 set_parent(
-                    &reference.as_property_access_expression().expression,
-                    Some(&*reference),
+                    &reference.ref_(self).as_property_access_expression().expression.ref_(self),
+                    Some(reference),
                 );
-                set_parent(&reference, Some(&**static_block));
-                *reference.maybe_flow_node_mut() = static_block
-                    .as_class_static_block_declaration()
+                set_parent(&reference.ref_(self), Some(static_block));
+                *reference.ref_(self).maybe_flow_node_mut() = static_block
+                    .ref_(self).as_class_static_block_declaration()
                     .maybe_return_flow_node();
                 let flow_type = self.get_flow_type_of_reference(
-                    &reference,
+                    reference,
                     prop_type,
                     Some(self.get_optional_type_(prop_type, None)?),
                     Option::<Id<Node>>::None,
@@ -129,18 +132,18 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let reference = get_factory().create_property_access_expression(
             get_factory().create_this(),
-            prop_name.node_wrapper(),
+            prop_name,
         );
         set_parent(
-            &reference.as_property_access_expression().expression,
-            Some(&*reference),
+            &reference.ref_(self).as_property_access_expression().expression.ref_(self),
+            Some(reference),
         );
-        set_parent(&reference, Some(constructor));
-        *reference.maybe_flow_node_mut() = constructor
-            .as_constructor_declaration()
+        set_parent(&reference.ref_(self), Some(constructor));
+        *reference.ref_(self).maybe_flow_node_mut() = constructor
+            .ref_(self).as_constructor_declaration()
             .maybe_return_flow_node();
         let flow_type = self.get_flow_type_of_reference(
-            &reference,
+            reference,
             prop_type,
             Some(self.get_optional_type_(prop_type, None)?),
             Option::<Id<Node>>::None,
@@ -158,7 +161,8 @@ impl TypeChecker {
             self.check_grammar_interface_declaration(node);
         }
 
-        let node_as_interface_declaration = node.as_interface_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_interface_declaration = node_ref.as_interface_declaration();
         self.check_type_parameters(
             node_as_interface_declaration
                 .maybe_type_parameters()
@@ -176,10 +180,7 @@ impl TypeChecker {
 
             let first_interface_decl =
                 get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration, self);
-            if matches!(
-                first_interface_decl.as_ref(),
-                Some(first_interface_decl) if ptr::eq(node, &**first_interface_decl)
-            ) {
+            if first_interface_decl == Some(node) {
                 let type_ = self.get_declared_type_of_symbol(symbol)?;
                 let type_with_this = self.get_type_with_this_argument(type_, None, None)?;
                 if self.check_inherited_properties_are_identical(
@@ -211,9 +212,9 @@ impl TypeChecker {
         }
         try_maybe_for_each(
             get_interface_base_type_nodes(node, self).as_ref(),
-            |heritage_element: &Id<Node>, _| -> io::Result<Option<()>> {
-                let heritage_element_as_expression_with_type_arguments =
-                    heritage_element.as_expression_with_type_arguments();
+            |&heritage_element: &Id<Node>, _| -> io::Result<Option<()>> {
+                let heritage_element_ref = heritage_element.ref_(self);
+                let heritage_element_as_expression_with_type_arguments = heritage_element_ref.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
                     heritage_element_as_expression_with_type_arguments.expression,
                     self,
@@ -252,7 +253,8 @@ impl TypeChecker {
         node: Id<Node>, /*TypeAliasDeclaration*/
     ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
-        let node_as_type_alias_declaration = node.as_type_alias_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_type_alias_declaration = node_ref.as_type_alias_declaration();
         self.check_type_name_is_reserved(
             &node_as_type_alias_declaration.name(),
             &Diagnostics::Type_alias_name_cannot_be_0,
@@ -301,7 +303,7 @@ impl TypeChecker {
         {
             node_links.borrow_mut().flags |= NodeCheckFlags::EnumValuesComputed;
             let mut auto_value: Option<Number> = Some(Number::new(0.0));
-            for member in &node.as_enum_declaration().members {
+            for member in &node.ref_(self).as_enum_declaration().members {
                 let value = self.compute_member_value(member, auto_value)?;
                 self.get_node_links(member).borrow_mut().enum_member_value = value.clone();
                 auto_value = if let Some(StringOrNumber::Number(value)) = value.as_ref() {
@@ -320,7 +322,8 @@ impl TypeChecker {
         member: Id<Node>, /*EnumMember*/
         auto_value: Option<Number>,
     ) -> io::Result<Option<StringOrNumber>> {
-        let member_as_enum_member = member.as_enum_member();
+        let member_ref = member.ref_(self);
+        let member_as_enum_member = member_ref.as_enum_member();
         if is_computed_non_literal_name(member_as_enum_member.name, self) {
             self.error(
                 Some(&*member_as_enum_member.name),
@@ -328,7 +331,7 @@ impl TypeChecker {
                 None,
             );
         } else {
-            let text = get_text_of_property_name(&member_as_enum_member.name);
+            let text = get_text_of_property_name(member_as_enum_member.name, self);
             if self.is_numeric_literal_name(&text) && !is_infinity_or_nan_string(&text) {
                 self.error(
                     Some(&*member_as_enum_member.name),
@@ -340,9 +343,9 @@ impl TypeChecker {
         if member_as_enum_member.initializer.is_some() {
             return self.compute_constant_value(member);
         }
-        if member.parent().flags().intersects(NodeFlags::Ambient)
-            && !is_enum_const(&member.parent())
-            && self.get_enum_kind(self.get_symbol_of_node(&member.parent())?.unwrap())?
+        if member.ref_(self).parent().ref_(self).flags().intersects(NodeFlags::Ambient)
+            && !is_enum_const(member.ref_(self).parent(), self)
+            && self.get_enum_kind(self.get_symbol_of_node(member.ref_(self).parent())?.unwrap())?
                 == EnumKind::Numeric
         {
             return Ok(None);
@@ -362,10 +365,11 @@ impl TypeChecker {
         &self,
         member: Id<Node>, /*EnumMember*/
     ) -> io::Result<Option<StringOrNumber>> {
-        let enum_kind = self.get_enum_kind(self.get_symbol_of_node(&member.parent())?.unwrap())?;
-        let is_const_enum = is_enum_const(&member.parent());
-        let member_as_enum_member = member.as_enum_member();
-        let initializer = member_as_enum_member.initializer.as_ref().unwrap();
+        let enum_kind = self.get_enum_kind(self.get_symbol_of_node(member.ref_(self).parent())?.unwrap())?;
+        let is_const_enum = is_enum_const(member.ref_(self).parent(), self);
+        let member_ref = member.ref_(self);
+        let member_as_enum_member = member_ref.as_enum_member();
+        let initializer = member_as_enum_member.initializer.unwrap();
         let value = if enum_kind == EnumKind::Literal && !self.is_literal_enum_member(member)? {
             None
         } else {
@@ -400,7 +404,7 @@ impl TypeChecker {
                 &Diagnostics::const_enum_member_initializers_can_only_contain_literal_values_and_other_computed_enum_values,
                 None,
             );
-        } else if member.parent().flags().intersects(NodeFlags::Ambient) {
+        } else if member.ref_(self).parent().ref_(self).flags().intersects(NodeFlags::Ambient) {
             self.error(
                 Some(&**initializer),
                 &Diagnostics::In_ambient_enum_declarations_member_initializer_must_be_constant_expression,
@@ -424,7 +428,7 @@ impl TypeChecker {
                 self.check_type_assignable_to(
                     source,
                     self.get_declared_type_of_symbol(
-                        self.get_symbol_of_node(&member.parent())?.unwrap(),
+                        self.get_symbol_of_node(member.ref_(self).parent())?.unwrap(),
                     )?,
                     Some(&**initializer),
                     None,
@@ -441,10 +445,11 @@ impl TypeChecker {
         member: Id<Node>,
         expr: Id<Node>, /*Expression*/
     ) -> io::Result<Option<StringOrNumber>> {
-        match expr.kind() {
+        match expr.ref_(self).kind() {
             SyntaxKind::PrefixUnaryExpression => {
-                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
-                let value = self.evaluate(member, &expr_as_prefix_unary_expression.operand)?;
+                let expr_ref = expr.ref_(self);
+                let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
+                let value = self.evaluate(member, expr_as_prefix_unary_expression.operand)?;
                 if let Some(StringOrNumber::Number(value)) = value.as_ref() {
                     match expr_as_prefix_unary_expression.operator {
                         SyntaxKind::PlusToken => {
@@ -461,9 +466,10 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::BinaryExpression => {
-                let expr_as_binary_expression = expr.as_binary_expression();
-                let left = self.evaluate(member, &expr_as_binary_expression.left)?;
-                let right = self.evaluate(member, &expr_as_binary_expression.right)?;
+                let expr_ref = expr.ref_(self);
+                let expr_as_binary_expression = expr_ref.as_binary_expression();
+                let left = self.evaluate(member, expr_as_binary_expression.left)?;
+                let right = self.evaluate(member, expr_as_binary_expression.right)?;
                 if let (Some(StringOrNumber::Number(left)), Some(StringOrNumber::Number(right))) =
                     (left.as_ref(), right.as_ref())
                 {
@@ -521,30 +527,31 @@ impl TypeChecker {
             }
             SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
                 return Ok(Some(StringOrNumber::String(
-                    expr.as_literal_like_node().text().clone(),
+                    expr.ref_(self).as_literal_like_node().text().clone(),
                 )));
             }
             SyntaxKind::NumericLiteral => {
                 self.check_grammar_numeric_literal(expr);
                 return Ok(Some(StringOrNumber::Number(
-                    (&**expr.as_literal_like_node().text()).into(),
+                    (&**expr.ref_(self).as_literal_like_node().text()).into(),
                 )));
             }
             SyntaxKind::ParenthesizedExpression => {
-                return self.evaluate(member, &expr.as_parenthesized_expression().expression);
+                return self.evaluate(member, expr.ref_(self).as_parenthesized_expression().expression);
             }
             SyntaxKind::Identifier => {
-                let identifier = expr.as_identifier();
+                let expr_ref = expr.ref_(self);
+                let identifier = expr_ref.as_identifier();
                 if is_infinity_or_nan_string(&identifier.escaped_text) {
                     unimplemented!("Infinity/NaN not implemented yet")
                 }
-                return Ok(if node_is_missing(Some(expr)) {
+                return Ok(if node_is_missing(Some(&expr.ref_(self))) {
                     Some(StringOrNumber::Number(Number::new(0.0)))
                 } else {
                     self.evaluate_enum_member(
                         member,
                         expr,
-                        self.get_symbol_of_node(&member.parent())?.unwrap(),
+                        self.get_symbol_of_node(member.ref_(self).parent())?.unwrap(),
                         &identifier.escaped_text,
                     )?
                 });
@@ -553,25 +560,25 @@ impl TypeChecker {
                 let ex = expr;
                 if self.is_constant_member_access(ex) {
                     let type_ =
-                        self.get_type_of_expression(&ex.as_has_expression().expression())?;
+                        self.get_type_of_expression(ex.ref_(self).as_has_expression().expression())?;
                     if let Some(type_symbol) =
                         type_.ref_(self).maybe_symbol().filter(|&type_symbol| {
                             type_symbol.ref_(self).flags().intersects(SymbolFlags::Enum)
                         })
                     {
                         let name: __String;
-                        if ex.kind() == SyntaxKind::PropertyAccessExpression {
+                        if ex.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
                             name = ex
-                                .as_property_access_expression()
+                                .ref_(self).as_property_access_expression()
                                 .name
-                                .as_member_name()
+                                .ref_(self).as_member_name()
                                 .escaped_text()
                                 .to_owned();
                         } else {
                             name = escape_leading_underscores(
                                 &cast_present(
-                                    &ex.as_element_access_expression().argument_expression,
-                                    |expression: &&Id<Node>| is_literal_expression(expression),
+                                    ex.ref_(self).as_element_access_expression().argument_expression,
+                                    |expression: &Id<Node>| is_literal_expression(&expression.ref_(self)),
                                 )
                                 .as_literal_like_node()
                                 .text(),
@@ -600,14 +607,8 @@ impl TypeChecker {
             .cloned();
         if let Some(member_symbol) = member_symbol {
             let declaration = member_symbol.ref_(self).maybe_value_declaration();
-            if !matches!(
-                declaration.as_ref(),
-                Some(declaration) if ptr::eq(
-                    &**declaration,
-                    member
-                )
-            ) {
-                if let Some(declaration) = declaration.as_ref().try_filter(|declaration| {
+            if declaration != Some(member) {
+                if let Some(declaration) = declaration.try_filter(|&declaration| {
                     self.is_block_scoped_name_declared_before_use(declaration, member)
                 })? {
                     return self.get_enum_member_value(declaration);
@@ -636,12 +637,12 @@ impl TypeChecker {
     }
 
     pub(super) fn is_constant_member_access(&self, node: Id<Node> /*Expression*/) -> bool {
-        node.kind() == SyntaxKind::Identifier
-            || node.kind() == SyntaxKind::PropertyAccessExpression
-                && self.is_constant_member_access(&node.as_property_access_expression().expression)
-            || node.kind() == SyntaxKind::ElementAccessExpression
-                && self.is_constant_member_access(&node.as_element_access_expression().expression)
-                && is_string_literal_like(&node.as_element_access_expression().argument_expression)
+        node.ref_(self).kind() == SyntaxKind::Identifier
+            || node.ref_(self).kind() == SyntaxKind::PropertyAccessExpression
+                && self.is_constant_member_access(node.ref_(self).as_property_access_expression().expression)
+            || node.ref_(self).kind() == SyntaxKind::ElementAccessExpression
+                && self.is_constant_member_access(node.ref_(self).as_element_access_expression().expression)
+                && is_string_literal_like(&node.ref_(self).as_element_access_expression().argument_expression.ref_(self))
     }
 
     pub(super) fn check_enum_declaration(
@@ -654,7 +655,8 @@ impl TypeChecker {
 
         self.check_grammar_decorators_and_modifiers(node);
 
-        let node_as_enum_declaration = node.as_enum_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_enum_declaration = node_ref.as_enum_declaration();
         self.check_collisions_for_declaration_name(node, node_as_enum_declaration.maybe_name());
         self.check_exports_on_merged_declarations(node)?;
         for member in &node_as_enum_declaration.members {
@@ -664,25 +666,19 @@ impl TypeChecker {
         self.compute_enum_member_values(node)?;
 
         let enum_symbol = self.get_symbol_of_node(node)?.unwrap();
-        let first_declaration = get_declaration_of_kind(enum_symbol, node.kind(), self);
-        if matches!(
-            first_declaration.as_ref(),
-            Some(first_declaration) if ptr::eq(
-                node,
-                &**first_declaration
-            )
-        ) {
+        let first_declaration = get_declaration_of_kind(enum_symbol, node.ref_(self).kind(), self);
+        if first_declaration == Some(node) {
             if let Some(enum_symbol_declarations) = enum_symbol
                 .ref_(self)
                 .maybe_declarations()
                 .as_ref()
                 .filter(|enum_symbol_declarations| enum_symbol_declarations.len() > 1)
             {
-                let enum_is_const = is_enum_const(node);
+                let enum_is_const = is_enum_const(node, self);
                 for_each(
                     enum_symbol_declarations,
-                    |decl: &Id<Node>, _| -> Option<()> {
-                        if is_enum_declaration(decl) && is_enum_const(decl) != enum_is_const {
+                    |&decl: &Id<Node>, _| -> Option<()> {
+                        if is_enum_declaration(&decl.ref_(self)) && is_enum_const(decl, self) != enum_is_const {
                             self.error(
                                 get_name_of_declaration(Some(decl), self),
                                 &Diagnostics::Enum_declarations_must_all_be_const_or_non_const,
@@ -698,17 +694,19 @@ impl TypeChecker {
             maybe_for_each(
                 enum_symbol.ref_(self).maybe_declarations().as_ref(),
                 |declaration: &Id<Node>, _| -> Option<()> {
-                    if declaration.kind() != SyntaxKind::EnumDeclaration {
+                    if declaration.ref_(self).kind() != SyntaxKind::EnumDeclaration {
                         return None;
                     }
 
-                    let enum_declaration = declaration.as_enum_declaration();
+                    let declaration_ref = declaration.ref_(self);
+                    let enum_declaration = declaration_ref.as_enum_declaration();
                     if enum_declaration.members.is_empty() {
                         return None;
                     }
 
-                    let first_enum_member = &enum_declaration.members[0];
-                    let first_enum_member_as_enum_member = first_enum_member.as_enum_member();
+                    let first_enum_member = enum_declaration.members[0];
+                    let first_enum_member_ref = first_enum_member.ref_(self);
+                    let first_enum_member_as_enum_member = first_enum_member_ref.as_enum_member();
                     if first_enum_member_as_enum_member.initializer.is_none() {
                         if seen_enum_missing_initial_initializer {
                             self.error(
@@ -729,7 +727,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_enum_member(&self, node: Id<Node> /*EnumMember*/) {
-        if is_private_identifier(&node.as_enum_member().name) {
+        if is_private_identifier(&node.ref_(self).as_enum_member().name.ref_(self)) {
             self.error(
                 Some(node),
                 &Diagnostics::An_enum_member_cannot_be_named_with_a_private_identifier,
@@ -746,12 +744,12 @@ impl TypeChecker {
         let declarations = symbol_ref.maybe_declarations();
         if let Some(declarations) = declarations.as_ref() {
             for declaration in declarations {
-                if (declaration.kind() == SyntaxKind::ClassDeclaration
-                    || declaration.kind() == SyntaxKind::FunctionDeclaration
-                        && node_is_present(declaration.as_function_declaration().maybe_body()))
-                    && !declaration.flags().intersects(NodeFlags::Ambient)
+                if (declaration.ref_(self).kind() == SyntaxKind::ClassDeclaration
+                    || declaration.ref_(self).kind() == SyntaxKind::FunctionDeclaration
+                        && node_is_present(declaration.ref_(self).as_function_declaration().maybe_body().refed(self)))
+                    && !declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
                 {
-                    return Some(declaration.clone());
+                    return Some(declaration);
                 }
             }
         }
@@ -761,12 +759,12 @@ impl TypeChecker {
     pub(super) fn in_same_lexical_scope(&self, node1: Id<Node>, node2: Id<Node>) -> bool {
         let container1 = get_enclosing_block_scope_container(node1, self).unwrap();
         let container2 = get_enclosing_block_scope_container(node2, self).unwrap();
-        if self.is_global_source_file(&container1) {
-            self.is_global_source_file(&container2)
-        } else if self.is_global_source_file(&container2) {
+        if self.is_global_source_file(container1) {
+            self.is_global_source_file(container2)
+        } else if self.is_global_source_file(container2) {
             false
         } else {
-            Gc::ptr_eq(&container1, &container2)
+            container1 == container2
         }
     }
 
@@ -774,10 +772,11 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ModuleDeclaration*/
     ) -> io::Result<()> {
-        let node_as_module_declaration = node.as_module_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_module_declaration = node_ref.as_module_declaration();
         if self.produce_diagnostics {
-            let is_global_augmentation = is_global_scope_augmentation(node);
-            let in_ambient_context = node.flags().intersects(NodeFlags::Ambient);
+            let is_global_augmentation = is_global_scope_augmentation(&node.ref_(self));
+            let in_ambient_context = node.ref_(self).flags().intersects(NodeFlags::Ambient);
             if is_global_augmentation && !in_ambient_context {
                 self.error(
                     Some(&*node_as_module_declaration.name),
@@ -832,19 +831,17 @@ impl TypeChecker {
                 let first_non_ambient_class_or_func =
                     self.get_first_non_ambient_class_or_function_declaration(symbol);
                 if let Some(first_non_ambient_class_or_func) =
-                    first_non_ambient_class_or_func.as_ref()
+                    first_non_ambient_class_or_func
                 {
-                    if !are_option_gcs_equal(
-                        maybe_get_source_file_of_node(Some(node), self).as_ref(),
+                    if maybe_get_source_file_of_node(Some(node), self) !=
                         maybe_get_source_file_of_node(Some(first_non_ambient_class_or_func), self)
-                            .as_ref(),
-                    ) {
+                    {
                         self.error(
                             Some(&*node_as_module_declaration.name),
                             &Diagnostics::A_namespace_declaration_cannot_be_in_a_different_file_from_a_class_or_function_with_which_it_is_merged,
                             None,
                         );
-                    } else if node.pos() < first_non_ambient_class_or_func.pos() {
+                    } else if node.ref_(self).pos() < first_non_ambient_class_or_func.ref_(self).pos() {
                         self.error(
                             Some(&*node_as_module_declaration.name),
                             &Diagnostics::A_namespace_declaration_cannot_be_located_prior_to_a_class_or_function_with_which_it_is_merged,
@@ -856,7 +853,7 @@ impl TypeChecker {
                 let merged_class =
                     get_declaration_of_kind(symbol, SyntaxKind::ClassDeclaration, self);
                 if matches!(
-                    merged_class.as_ref(),
+                    merged_class,
                     Some(merged_class) if self.in_same_lexical_scope(
                         node,
                         merged_class
@@ -886,7 +883,7 @@ impl TypeChecker {
                             }
                         }
                     }
-                } else if self.is_global_source_file(&node.parent()) {
+                } else if self.is_global_source_file(node.ref_(self).parent()) {
                     if is_global_augmentation {
                         self.error(
                             Some(&*node_as_module_declaration.name),
@@ -922,7 +919,7 @@ impl TypeChecker {
 
         if let Some(node_body) = node_as_module_declaration.body.as_ref() {
             self.check_source_element(Some(&**node_body))?;
-            if !is_global_scope_augmentation(node) {
+            if !is_global_scope_augmentation(&node.ref_(self)) {
                 self.register_for_unused_identifiers_check(node);
             }
         }
@@ -935,12 +932,12 @@ impl TypeChecker {
         node: Id<Node>,
         is_global_augmentation: bool,
     ) -> io::Result<()> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::VariableStatement => {
                 for decl in &node
-                    .as_variable_statement()
+                    .ref_(self).as_variable_statement()
                     .declaration_list
-                    .as_variable_declaration_list()
+                    .ref_(self).as_variable_declaration_list()
                     .declarations
                 {
                     self.check_module_augmentation_element(decl, is_global_augmentation)?;
@@ -961,8 +958,8 @@ impl TypeChecker {
                 );
             }
             SyntaxKind::BindingElement | SyntaxKind::VariableDeclaration => {
-                let name = node.as_named_declaration().maybe_name();
-                if is_binding_pattern(name.as_deref()) {
+                let name = node.ref_(self).as_named_declaration().maybe_name();
+                if is_binding_pattern(name.refed(self)) {
                     for el in &name.as_ref().unwrap().as_has_elements().elements() {
                         self.check_module_augmentation_element(el, is_global_augmentation)?;
                     }
