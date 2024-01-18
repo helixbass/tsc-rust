@@ -257,7 +257,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn is_identifier_and_not_undefined(&self, node: Option<Id<Node>>) -> bool {
         matches!(
             node,
-            Some(node) if node.borrow().kind() == SyntaxKind::Identifier
+            Some(node) if node.ref_(self).kind() == SyntaxKind::Identifier
         )
     }
 
@@ -265,11 +265,11 @@ impl SymbolTableToDeclarationStatements {
         &self,
         statement: Id<Node>, /*Statement*/
     ) -> Vec<Id<Node /*Identifier*/>> {
-        if is_variable_statement(statement) {
+        if is_variable_statement(&statement.ref_(self)) {
             return statement
-                .as_variable_statement()
+                .ref_(self).as_variable_statement()
                 .declaration_list
-                .as_variable_declaration_list()
+                .ref_(self).as_variable_declaration_list()
                 .declarations
                 .iter()
                 .map(|declaration| get_name_of_declaration(Some(declaration), self))
@@ -279,7 +279,7 @@ impl SymbolTableToDeclarationStatements {
         }
         [get_name_of_declaration(Some(statement), self)]
             .into_iter()
-            .filter(|declaration| self.is_identifier_and_not_undefined(declaration.as_deref()))
+            .filter(|declaration| self.is_identifier_and_not_undefined(declaration))
             .map(Option::unwrap)
             .collect()
     }
@@ -290,36 +290,37 @@ impl SymbolTableToDeclarationStatements {
     ) -> Vec<Id<Node>> {
         let export_assignment = statements
             .iter()
-            .find(|statement| is_export_assignment(statement));
+            .find(|statement| is_export_assignment(&statement.ref_(self)))
+            .copied();
         let ns_index = statements
             .iter()
-            .position(|statement| is_module_declaration(statement));
+            .position(|statement| is_module_declaration(&statement.ref_(self)));
         let ns = ns_index.map(|ns_index| statements[ns_index].clone());
         let mut statements = statements.to_owned();
         if let (Some(mut ns), Some(export_assignment)) = (ns, export_assignment) {
-            let export_assignment_as_export_assignment = export_assignment.as_export_assignment();
-            if is_identifier(&export_assignment_as_export_assignment.expression)
-                && is_identifier(&ns.as_module_declaration().name)
-                && id_text(&ns.as_module_declaration().name)
-                    == id_text(&export_assignment_as_export_assignment.expression)
+            let export_assignment_ref = export_assignment.ref_(self);
+            let export_assignment_as_export_assignment = export_assignment_ref.as_export_assignment();
+            if is_identifier(&export_assignment_as_export_assignment.expression.ref_(self))
+                && is_identifier(&ns.ref_(self).as_module_declaration().name.ref_(self))
+                && id_text(&ns.ref_(self).as_module_declaration().name.ref_(self))
+                    == id_text(&export_assignment_as_export_assignment.expression.ref_(self))
             {
                 if let Some(ns_body) = ns
-                    .as_module_declaration()
+                    .ref_(self).as_module_declaration()
                     .body
-                    .as_ref()
-                    .filter(|ns_body| is_module_block(ns_body))
+                    .filter(|ns_body| is_module_block(&ns_body.ref_(self)))
                 {
                     let excess_exports = filter(&statements, |&s: &Id<Node>| {
                         get_effective_modifier_flags(s, self).intersects(ModifierFlags::Export)
                     });
-                    let ref name = ns.as_module_declaration().name.clone();
-                    let mut body = ns_body.clone();
+                    let name = ns.ref_(self).as_module_declaration().name;
+                    let mut body = ns_body;
                     if !excess_exports.is_empty() {
                         ns = get_factory().update_module_declaration(
-                            &ns,
-                            ns.maybe_decorators(),
-                            ns.maybe_modifiers(),
-                            ns.as_module_declaration().name.clone(),
+                            ns,
+                            ns.ref_(self).maybe_decorators(),
+                            ns.ref_(self).maybe_modifiers(),
+                            ns.ref_(self).as_module_declaration().name,
                             Some({
                                 body = get_factory().update_module_block(
                                     &body,
@@ -334,7 +335,7 @@ impl SymbolTableToDeclarationStatements {
                                                 Some(get_factory().create_named_exports(map(
                                                     flat_map(
                                                         Some(&excess_exports),
-                                                        |e: &Id<Node>, _| {
+                                                        |&e: &Id<Node>, _| {
                                                             self.get_names_of_declaration(e)
                                                         },
                                                     ),
@@ -365,14 +366,14 @@ impl SymbolTableToDeclarationStatements {
 
                     if !statements
                         .iter()
-                        .any(|s| !Gc::ptr_eq(s, &ns) && node_has_name(s, name, self))
+                        .any(|&s| s != ns && node_has_name(s, name, self))
                     {
                         self.set_results(vec![]);
                         let body_as_module_block = body.as_module_block();
                         let mixin_export_flag = !body_as_module_block.statements.iter().any(|s| {
                             has_syntactic_modifier(s, ModifierFlags::Export, self)
-                                || is_export_assignment(s)
-                                || is_export_declaration(s)
+                                || is_export_assignment(&s.ref_(self))
+                                || is_export_declaration(&s.ref_(self))
                         });
                         body_as_module_block.statements.iter().for_each(|s| {
                             self.add_result(
@@ -385,8 +386,8 @@ impl SymbolTableToDeclarationStatements {
                             );
                         });
                         statements = {
-                            let mut statements = filter(&statements, |s: &Id<Node>| {
-                                !Gc::ptr_eq(s, &ns) && !Gc::ptr_eq(s, export_assignment)
+                            let mut statements = filter(&statements, |&s: &Id<Node>| {
+                                s != ns && s != export_assignment
                             });
                             statements.extend(self.results().iter().cloned());
                             statements
@@ -403,8 +404,9 @@ impl SymbolTableToDeclarationStatements {
         statements: &[Id<Node /*Statement*/>],
     ) -> Vec<Id<Node>> {
         let exports = filter(statements, |d: &Id<Node>| {
-            is_export_declaration(d) && {
-                let d_as_export_declaration = d.as_export_declaration();
+            is_export_declaration(&d.ref_(self)) && {
+                let d._ref = d..ref_(self);
+                let d_as_export_declaration = d_ref.as_export_declaration();
                 d_as_export_declaration.module_specifier.is_none()
                     && matches!(
                         d_as_export_declaration.export_clause.as_ref(),
@@ -415,8 +417,9 @@ impl SymbolTableToDeclarationStatements {
         let mut statements = statements.to_owned();
         if length(Some(&exports)) > 1 {
             let non_exports = filter(&statements, |d: &Id<Node>| {
-                !is_export_declaration(d) || {
-                    let d_as_export_declaration = d.as_export_declaration();
+                !is_export_declaration(&d.ref_(self)) || {
+                    let d._ref = d..ref_(self);
+                    let d_as_export_declaration = d_ref.as_export_declaration();
                     d_as_export_declaration.module_specifier.is_some()
                         || d_as_export_declaration.export_clause.is_none()
                 }
@@ -431,10 +434,10 @@ impl SymbolTableToDeclarationStatements {
                         Some(&exports),
                         |e: &Id<Node>, _| {
                             cast(
-                                e.as_export_declaration().export_clause.as_ref(),
-                                |export_clause: &&Id<Node>| is_named_exports(export_clause),
+                                e.ref_(self).as_export_declaration().export_clause,
+                                |export_clause: &Id<Node>| is_named_exports(&export_clause.ref_(self)),
                             )
-                            .as_named_exports()
+                            .ref_(self).as_named_exports()
                             .elements
                             .to_vec()
                         },
@@ -447,8 +450,9 @@ impl SymbolTableToDeclarationStatements {
         }
 
         let reexports = filter(&statements, |d: &Id<Node>| {
-            is_export_declaration(d) && {
-                let d_as_export_declaration = d.as_export_declaration();
+            is_export_declaration(&d.ref_(self)) && {
+                let d._ref = d..ref_(self);
+                let d_as_export_declaration = d_ref.as_export_declaration();
                 d_as_export_declaration.module_specifier.is_some()
                     && matches!(
                         d_as_export_declaration.export_clause.as_ref(),
@@ -460,7 +464,8 @@ impl SymbolTableToDeclarationStatements {
             let groups: Vec<Vec<Id<Node>>> = group(
                 &reexports,
                 |decl: &Id<Node>| {
-                    let decl_as_export_declaration = decl.as_export_declaration();
+                    let decl_ref = decl.ref_(self);
+                    let decl_as_export_declaration = decl_ref.as_export_declaration();
                     if is_string_literal(
                         decl_as_export_declaration
                             .module_specifier
@@ -486,10 +491,10 @@ impl SymbolTableToDeclarationStatements {
                 for group in groups {
                     if group.len() > 1 {
                         statements = {
-                            let mut statements = filter(&statements, |s: &Id<Node>| {
+                            let mut statements = filter(&statements, |&s: &Id<Node>| {
                                 group
                                     .iter()
-                                    .position(|item: &Id<Node>| Gc::ptr_eq(item, s))
+                                    .position(|&item: &Id<Node>| item == s)
                                     .is_none()
                             });
                             statements.push(get_factory().create_export_declaration(
@@ -500,17 +505,17 @@ impl SymbolTableToDeclarationStatements {
                                     Some(&group),
                                     |e: &Id<Node>, _| {
                                         cast(
-                                            e.as_export_declaration().export_clause.as_ref(),
-                                            |export_clause: &&Id<Node>| {
-                                                is_named_exports(export_clause)
+                                            e.ref_(self).as_export_declaration().export_clause,
+                                            |export_clause: &Id<Node>| {
+                                                is_named_exports(&export_clause.ref_(self))
                                             },
                                         )
-                                        .as_named_exports()
+                                        .ref_(self).as_named_exports()
                                         .elements
                                         .to_vec()
                                     },
                                 ))),
-                                group[0].as_export_declaration().module_specifier.clone(),
+                                group[0].ref_(self).as_export_declaration().module_specifier,
                                 None,
                             ));
                             statements
@@ -529,8 +534,9 @@ impl SymbolTableToDeclarationStatements {
         let index = find_index(
             &statements,
             |d: &Id<Node>, _| {
-                is_export_declaration(d) && {
-                    let d_as_export_declaration = d.as_export_declaration();
+                is_export_declaration(&d.ref_(self)) && {
+                    let d._ref = d..ref_(self);
+                    let d_as_export_declaration = d_ref.as_export_declaration();
                     d_as_export_declaration.module_specifier.is_none()
                         && d_as_export_declaration.assert_clause.is_none()
                         && matches!(
@@ -542,8 +548,9 @@ impl SymbolTableToDeclarationStatements {
             None,
         );
         if let Some(index) = index {
-            let export_decl = statements[index].clone();
-            let export_decl_as_export_declaration = export_decl.as_export_declaration();
+            let export_decl = statements[index];
+            let export_decl_ref = export_decl.ref_(self);
+            let export_decl_as_export_declaration = export_decl_ref.as_export_declaration();
             let replacements = map_defined(
                 Some(
                     &export_decl_as_export_declaration
@@ -554,7 +561,8 @@ impl SymbolTableToDeclarationStatements {
                         .elements,
                 ),
                 |e: &Id<Node>, _| {
-                    let e_as_export_specifier = e.as_export_specifier();
+                    let e._ref = e..ref_(self);
+                    let e_as_export_specifier = e_ref.as_export_specifier();
                     if e_as_export_specifier.property_name.is_none() {
                         let indices = indices_of(&statements);
                         let associated_indices = filter(&indices, |&i: &usize| {
@@ -562,11 +570,11 @@ impl SymbolTableToDeclarationStatements {
                         });
                         if length(Some(&associated_indices)) > 0
                             && every(&associated_indices, |&i: &usize, _| {
-                                self.can_have_export_modifier(&statements[i])
+                                self.can_have_export_modifier(statements[i])
                             })
                         {
                             for index in associated_indices {
-                                statements[index] = self.add_export_modifier(&statements[index]);
+                                statements[index] = self.add_export_modifier(statements[index]);
                             }
                             return None;
                         }
@@ -578,9 +586,9 @@ impl SymbolTableToDeclarationStatements {
                 ordered_remove_item_at(&mut statements, index);
             } else {
                 statements[index] = get_factory().update_export_declaration(
-                    &export_decl,
-                    export_decl.maybe_decorators(),
-                    export_decl.maybe_modifiers(),
+                    export_decl,
+                    export_decl.ref_(self).maybe_decorators(),
+                    export_decl.ref_(self).maybe_modifiers(),
                     export_decl_as_export_declaration.is_type_only,
                     Some(
                         get_factory().update_named_exports(
@@ -608,16 +616,16 @@ impl SymbolTableToDeclarationStatements {
         let mut statements = self.inline_export_modifiers(statements);
         if
         /*enclosingDeclaration &&*/
-        (is_source_file(&self.enclosing_declaration)
-            && is_external_or_common_js_module(&self.enclosing_declaration)
-            || is_module_declaration(&self.enclosing_declaration))
+        (is_source_file(&self.enclosing_declaration.ref_(self))
+            && is_external_or_common_js_module(&self.enclosing_declaration.ref_(self))
+            || is_module_declaration(&self.enclosing_declaration.ref_(self)))
             && (!statements
                 .iter()
-                .any(|statement| is_external_module_indicator(statement, self))
+                .any(|&statement| is_external_module_indicator(statement, self))
                 || !has_scope_marker(&statements, self)
                     && statements
                         .iter()
-                        .any(|statement| needs_scope_marker(statement, self)))
+                        .any(|&statement| needs_scope_marker(statement, self)))
         {
             statements.push(create_empty_exports(&get_factory()));
         }
@@ -625,14 +633,14 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub(super) fn can_have_export_modifier(&self, node: Id<Node> /*Statement*/) -> bool {
-        is_enum_declaration(node)
-            || is_variable_statement(node)
-            || is_function_declaration(node)
-            || is_class_declaration(node)
-            || is_module_declaration(node)
+        is_enum_declaration(&node.ref_(self))
+            || is_variable_statement(&node.ref_(self))
+            || is_function_declaration(&node.ref_(self))
+            || is_class_declaration(&node.ref_(self))
+            || is_module_declaration(&node.ref_(self))
                 && !is_external_module_augmentation(node, self)
-                && !is_global_scope_augmentation(node)
-            || is_interface_declaration(node)
+                && !is_global_scope_augmentation(&node.ref_(self))
+            || is_interface_declaration(&node.ref_(self))
             || self.type_checker.is_type_declaration(node)
     }
 
@@ -715,10 +723,10 @@ impl SymbolTableToDeclarationStatements {
                     .as_ref()
                     .unwrap()
                     .iter()
-                    .any(|d| {
-                        find_ancestor(Some(&**d), |n: Id<Node>| {
-                            ptr::eq(n, &*self.enclosing_declaration)
-                        })
+                    .any(|&d| {
+                        find_ancestor(Some(d), |n: Id<Node>| {
+                            n == self.enclosing_declaration
+                        }, self)
                         .is_some()
                     })
         {
@@ -863,46 +871,47 @@ impl SymbolTableToDeclarationStatements {
                         |symbol_declarations| {
                             symbol_declarations
                                 .iter()
-                                .find(|d| is_variable_declaration(d))
-                                .cloned()
+                                .find(|d| is_variable_declaration(&d.ref_(self)))
+                                .copied()
                         },
                     );
                     if let Some(text_range_present) = text_range.as_ref().filter(|text_range| {
-                        is_variable_declaration_list(&text_range.parent())
+                        is_variable_declaration_list(&text_range.ref_(self).parent().ref_(self))
                             && text_range
-                                .parent()
-                                .as_variable_declaration_list()
+                                .ref_(self).parent()
+                                .ref_(self).as_variable_declaration_list()
                                 .declarations
                                 .len()
                                 == 1
                     }) {
-                        text_range = text_range_present.parent().maybe_parent();
+                        text_range = text_range_present.ref_(self).parent().ref_(self).maybe_parent();
                     }
                     let property_access_require =
                         symbol.ref_(self).maybe_declarations().as_ref().and_then(
                             |symbol_declarations| {
                                 symbol_declarations
                                     .iter()
-                                    .find(|declaration| is_property_access_expression(declaration))
-                                    .cloned()
+                                    .find(|declaration| is_property_access_expression(&declaration.ref_(self)))
+                                    .copied()
                             },
                         );
                     if let Some(property_access_require) = property_access_require.as_ref().filter(|property_access_require| {
-                        let property_access_require_parent = property_access_require.parent();
-                        is_binary_expression(&property_access_require_parent) && is_identifier(&property_access_require_parent.as_binary_expression().right) &&
+                        let property_access_require_parent = property_access_require.ref_(self).parent();
+                        is_binary_expression(&property_access_require_parent.ref_(self))
+                            && is_identifier(&property_access_require_parent.ref_(self).as_binary_expression().right.ref_(self)) &&
                             matches!(
                                 type_.ref_(self).maybe_symbol().and_then(|type_symbol| type_symbol.ref_(self).maybe_value_declaration()),
-                                Some(type_symbol_value_declaration) if is_source_file(&type_symbol_value_declaration)
+                                Some(type_symbol_value_declaration) if is_source_file(&type_symbol_value_declaration.ref_(self))
                             )
                     }) {
-                        let property_access_require_parent_right = property_access_require.parent().as_binary_expression().right.clone();
-                        let alias = if local_name == property_access_require_parent_right.as_identifier().escaped_text {
+                        let property_access_require_parent_right = property_access_require.ref_(self).parent().ref_(self).as_binary_expression().right;
+                        let alias = if local_name == property_access_require_parent_right.ref_(self).as_identifier().escaped_text {
                             None
                         } else {
                             Some(property_access_require_parent_right)
                         };
                         self.add_result(
-                            &get_factory().create_export_declaration(
+                            get_factory().create_export_declaration(
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 false,
@@ -937,7 +946,7 @@ impl SymbolTableToDeclarationStatements {
                                                     &self.context(),
                                                     type_,
                                                     symbol,
-                                                    Some(&*self.enclosing_declaration),
+                                                    Some(self.enclosing_declaration),
                                                     Some(&|symbol: Id<Symbol>| self.include_private_symbol(symbol)),
                                                     self.bundled,
                                                 )?),
@@ -947,10 +956,11 @@ impl SymbolTableToDeclarationStatements {
                                         flags,
                                     )
                             ),
-                            text_range.as_deref(),
+                            text_range,
+                            self,
                         );
                         self.add_result(
-                            &statement,
+                            statement,
                             if name != local_name {
                                 modifier_flags & !ModifierFlags::Export
                             } else {
@@ -959,7 +969,7 @@ impl SymbolTableToDeclarationStatements {
                         );
                         if name != local_name && !is_private {
                             self.add_result(
-                                &get_factory().create_export_declaration(
+                                get_factory().create_export_declaration(
                                         Option::<Gc<NodeArray>>::None,
                                         Option::<Gc<NodeArray>>::None,
                                         false,
@@ -989,9 +999,9 @@ impl SymbolTableToDeclarationStatements {
         if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
             if symbol.ref_(self).flags().intersects(SymbolFlags::Property)
                 && matches!(
-                    symbol.ref_(self).maybe_value_declaration().as_ref(),
-                    Some(symbol_value_declaration) if is_binary_expression(&symbol_value_declaration.parent()) &&
-                        is_class_expression(&symbol_value_declaration.parent().as_binary_expression().right)
+                    symbol.ref_(self).maybe_value_declaration(),
+                    Some(symbol_value_declaration) if is_binary_expression(&symbol_value_declaration.ref_(self).parent().ref_(self)) &&
+                        is_class_expression(&symbol_value_declaration.ref_(self).parent().ref_(self).as_binary_expression().right.ref_(self))
                 )
             {
                 self.serialize_as_alias(
@@ -1039,18 +1049,17 @@ impl SymbolTableToDeclarationStatements {
             .intersects(SymbolFlags::ExportStar)
         {
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_ref() {
-                for node in symbol_declarations {
+                for &node in symbol_declarations {
                     let resolved_module =
                         continue_if_none!(self.type_checker.resolve_external_module_name_(
                             node,
-                            node.as_export_declaration()
+                            node.ref_(self).as_export_declaration()
                                 .module_specifier
-                                .as_ref()
                                 .unwrap(),
                             None,
                         )?);
                     self.add_result(
-                        &get_factory().create_export_declaration(
+                        get_factory().create_export_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             false,
@@ -1072,7 +1081,7 @@ impl SymbolTableToDeclarationStatements {
         }
         if needs_post_export_default {
             self.add_result(
-                &get_factory().create_export_assignment(
+                get_factory().create_export_assignment(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     Some(false),
@@ -1083,7 +1092,7 @@ impl SymbolTableToDeclarationStatements {
             );
         } else if needs_export_declaration {
             self.add_result(
-                &get_factory().create_export_declaration(
+                get_factory().create_export_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     false,
@@ -1157,7 +1166,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         }
         let accessible_result =
             self.type_checker
-                .is_symbol_accessible(Some(sym), decl.as_deref(), meaning, false);
+                .is_symbol_accessible(Some(sym), decl, meaning, false);
         let accessible_result = match accessible_result {
             Err(accessible_result) => return Some(Err(accessible_result)),
             Ok(accessible_result) => accessible_result,

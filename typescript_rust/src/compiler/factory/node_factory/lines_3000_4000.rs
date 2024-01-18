@@ -39,14 +39,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = ExpressionWithTypeArguments::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(&expression),
+                .parenthesize_left_side_of_access(expression),
             type_arguments.and_then(|type_arguments| {
                 self.parenthesizer_rules()
                     .parenthesize_type_arguments(Some(type_arguments.into()))
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression), self)
+            propagate_child_flags(Some(node.expression), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | TransformFlags::ContainsES2015,
         );
@@ -59,12 +59,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Id<Node>, /*Expression*/
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> Id<Node> {
-        let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
+        let node_ref = node.ref_(self);
+        let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
         let type_arguments = type_arguments.map(Into::into);
-        if !Gc::ptr_eq(
-            &node_as_expression_with_type_arguments.expression,
-            &expression,
-        ) || has_option_node_array_changed(
+        if node_as_expression_with_type_arguments.expression != expression
+        || has_option_node_array_changed(
             node_as_expression_with_type_arguments
                 .maybe_type_arguments()
                 .as_deref(),
@@ -75,7 +74,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
