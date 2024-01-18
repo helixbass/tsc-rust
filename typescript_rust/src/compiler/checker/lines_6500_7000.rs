@@ -405,7 +405,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> Vec<Id<Node>> {
         let exports = filter(statements, |d: &Id<Node>| {
             is_export_declaration(&d.ref_(self)) && {
-                let d._ref = d..ref_(self);
+                let d_ref = d.ref_(self);
                 let d_as_export_declaration = d_ref.as_export_declaration();
                 d_as_export_declaration.module_specifier.is_none()
                     && matches!(
@@ -418,7 +418,7 @@ impl SymbolTableToDeclarationStatements {
         if length(Some(&exports)) > 1 {
             let non_exports = filter(&statements, |d: &Id<Node>| {
                 !is_export_declaration(&d.ref_(self)) || {
-                    let d._ref = d..ref_(self);
+                    let d_ref = d.ref_(self);
                     let d_as_export_declaration = d_ref.as_export_declaration();
                     d_as_export_declaration.module_specifier.is_some()
                         || d_as_export_declaration.export_clause.is_none()
@@ -451,7 +451,7 @@ impl SymbolTableToDeclarationStatements {
 
         let reexports = filter(&statements, |d: &Id<Node>| {
             is_export_declaration(&d.ref_(self)) && {
-                let d._ref = d..ref_(self);
+                let d_ref = d.ref_(self);
                 let d_as_export_declaration = d_ref.as_export_declaration();
                 d_as_export_declaration.module_specifier.is_some()
                     && matches!(
@@ -535,7 +535,7 @@ impl SymbolTableToDeclarationStatements {
             &statements,
             |d: &Id<Node>, _| {
                 is_export_declaration(&d.ref_(self)) && {
-                    let d._ref = d..ref_(self);
+                    let d_ref = d.ref_(self);
                     let d_as_export_declaration = d_ref.as_export_declaration();
                     d_as_export_declaration.module_specifier.is_none()
                         && d_as_export_declaration.assert_clause.is_none()
@@ -561,7 +561,7 @@ impl SymbolTableToDeclarationStatements {
                         .elements,
                 ),
                 |e: &Id<Node>, _| {
-                    let e._ref = e..ref_(self);
+                    let e_ref = e.ref_(self);
                     let e_as_export_specifier = e_ref.as_export_specifier();
                     if e_as_export_specifier.property_name.is_none() {
                         let indices = indices_of(&statements);

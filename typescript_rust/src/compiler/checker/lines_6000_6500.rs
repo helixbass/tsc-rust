@@ -1042,7 +1042,7 @@ impl NodeBuilder {
                     try_maybe_map(
                         node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.as_deref(),
                         |t: &Id<Node>, _| -> io::Result<Id<Node>> {
-                            let t._ref = t..ref_(self);
+                            let t_ref = t.ref_(self);
                             let t_as_jsdoc_property_like_tag = t_ref.as_jsdoc_property_like_tag();
                             let name = if is_identifier(
                                 &t_as_jsdoc_property_like_tag.name.ref_(self)

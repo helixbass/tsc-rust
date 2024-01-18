@@ -1009,7 +1009,7 @@ impl TypeChecker {
                         } else {
                             duplicate_function_declaration = true;
                         }
-                    } else if previous_declaration.and_then(|previous_declaration| previous_declaration.ref_(self).maybe_parent() == node.ref_(self).maybe_parent()
+                    } else if previous_declaration.and_then(|previous_declaration| previous_declaration.ref_(self).maybe_parent()) == node.ref_(self).maybe_parent()
                         && previous_declaration.unwrap().ref_(self).end() != node.ref_(self).pos()
                     {
                         self.report_implementation_expected_error(

@@ -1069,7 +1069,7 @@ impl TypeChecker {
         }
 
         let root = get_root_declaration(node, self);
-        if is_parameter(&&.ref_(selfroot)
+        if is_parameter(&root.ref_(self))
             && node_is_missing(&root.ref_(self).parent().ref_(self).as_function_like_declaration().maybe_body().ref_(self))
         {
             return false;
