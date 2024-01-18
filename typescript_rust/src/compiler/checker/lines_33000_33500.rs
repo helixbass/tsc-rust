@@ -52,7 +52,7 @@ impl TypeChecker {
                     )?;
                     if matches!(
                         symbol.and_then(|symbol| symbol.ref_(self).maybe_declarations().clone()).as_ref(),
-                        Some(symbol_declarations) if symbol_declarations.iter().any(|symbol_declaration| is_jsdoc_typedef_tag(symbol_declaration))
+                        Some(symbol_declarations) if symbol_declarations.iter().any(|symbol_declaration| is_jsdoc_typedef_tag(&symbol_declaration.ref_(self)))
                     ) {
                         self.add_duplicate_declaration_errors_for_symbols(
                             symbol.unwrap(),
@@ -75,7 +75,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_eval_node(&self, node: Id<Node> /*Expression*/) -> bool {
-        node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text == "eval"
+        node.ref_(self).kind() == SyntaxKind::Identifier && node.ref_(self).as_identifier().escaped_text == "eval"
     }
 
     pub(super) fn check_for_disallowed_es_symbol_operand(
@@ -88,14 +88,14 @@ impl TypeChecker {
     ) -> bool {
         let offending_symbol_operand =
             if self.maybe_type_of_kind(left_type, TypeFlags::ESSymbolLike) {
-                Some(left.node_wrapper())
+                Some(left)
             } else if self.maybe_type_of_kind(right_type, TypeFlags::ESSymbolLike) {
-                Some(right.node_wrapper())
+                Some(right)
             } else {
                 None
             };
 
-        if let Some(offending_symbol_operand) = offending_symbol_operand.as_ref() {
+        if let Some(offending_symbol_operand) = offending_symbol_operand {
             self.error(
                 Some(&**offending_symbol_operand),
                 &Diagnostics::The_0_operator_cannot_be_applied_to_type_symbol,
@@ -137,15 +137,16 @@ impl TypeChecker {
                 &Diagnostics::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
                 &Diagnostics::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
             ) && (
-                !is_identifier(left) ||
-                unescape_leading_underscores(&left.as_identifier().escaped_text) != "exports"
+                !is_identifier(&left.ref_(self)) ||
+                unescape_leading_underscores(&left.ref_(self).as_identifier().escaped_text) != "exports"
             ) {
                 let mut head_message: Option<&'static DiagnosticMessage> = None;
-                if self.exact_optional_property_types == Some(true) && is_property_access_expression(left) && self.maybe_type_of_kind(
+                if self.exact_optional_property_types == Some(true) && is_property_access_expression(&left.ref_(self)) && self.maybe_type_of_kind(
                     value_type,
                     TypeFlags::Undefined
                 ) {
-                    let left_as_property_access_expression = left.as_property_access_expression();
+                    let left_ref = left.ref_(self);
+                    let left_as_property_access_expression = left_ref.as_property_access_expression();
                     let target = self.get_type_of_property_of_type_(
                         self.get_type_of_expression(&left_as_property_access_expression.expression)?,
                         &left_as_property_access_expression.name.as_member_name().escaped_text()
@@ -185,10 +186,10 @@ impl TypeChecker {
             | AssignmentDeclarationKind::PrototypeProperty
             | AssignmentDeclarationKind::ThisProperty => {
                 let symbol = self.get_symbol_of_node(left)?;
-                let init = get_assigned_expando_initializer(Some(right));
+                let init = get_assigned_expando_initializer(Some(right), self);
                 matches!(
-                    init.as_ref(),
-                    Some(init) if is_object_literal_expression(init)
+                    init,
+                    Some(init) if is_object_literal_expression(&init.ref_(self))
                 ) && matches!(
                     symbol.and_then(|symbol| symbol.ref_(self).maybe_exports().clone()),
                     Some(symbol_exports) if !(*symbol_exports).borrow().is_empty()
@@ -228,10 +229,7 @@ impl TypeChecker {
         mut is_related: Option<impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>>,
     ) -> io::Result<()> {
         let mut would_work_with_await = false;
-        let err_node = error_node.map_or_else(
-            || operator_token.node_wrapper(),
-            |error_node| error_node.borrow().node_wrapper(),
-        );
+        let err_node = error_node.unwrap_or(operator_token);
         if let Some(is_related) = is_related.as_mut() {
             let awaited_left_type =
                 self.get_awaited_type_no_alias(left_type, Option::<Id<Node>>::None, None, None)?;
@@ -269,7 +267,7 @@ impl TypeChecker {
                 would_work_with_await,
                 &Diagnostics::Operator_0_cannot_be_applied_to_types_1_and_2,
                 Some(vec![
-                    token_to_string(operator_token.kind()).unwrap().to_owned(),
+                    token_to_string(operator_token.ref_(self).kind()).unwrap().to_owned(),
                     left_str,
                     right_str,
                 ]),
@@ -288,7 +286,7 @@ impl TypeChecker {
         right_str: &str,
     ) -> Option<Gc<Diagnostic>> {
         let mut type_name: Option<&'static str> = None;
-        match operator_token.kind() {
+        match operator_token.ref_(self).kind() {
             SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::EqualsEqualsToken => {
                 type_name = Some("false");
             }
@@ -336,7 +334,7 @@ impl TypeChecker {
         node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Id<Type>> {
         if self.produce_diagnostics {
-            if !node.flags().intersects(NodeFlags::YieldContext) {
+            if !node.ref_(self).flags().intersects(NodeFlags::YieldContext) {
                 self.grammar_error_on_first_token(
                     node,
                     &Diagnostics::A_yield_expression_is_only_allowed_in_a_generator_body,
@@ -353,7 +351,7 @@ impl TypeChecker {
             }
         }
 
-        let func = get_containing_function(node);
+        let func = get_containing_function(node, self);
         if func.is_none() {
             return Ok(self.any_type());
         }
@@ -365,7 +363,8 @@ impl TypeChecker {
         }
 
         let is_async = function_flags.intersects(FunctionFlags::Async);
-        let node_as_yield_expression = node.as_yield_expression();
+        let node_ref = node.ref_(self);
+        let node_as_yield_expression = node_ref.as_yield_expression();
         if node_as_yield_expression.asterisk_token.is_some() {
             if is_async && self.language_version < ScriptTarget::ESNext {
                 self.check_external_emit_helpers(
@@ -382,7 +381,7 @@ impl TypeChecker {
             }
         }
 
-        let return_type = self.get_return_type_from_annotation(&func)?;
+        let return_type = self.get_return_type_from_annotation(func)?;
         let iteration_types = return_type.try_and_then(|return_type| {
             self.get_iteration_types_of_generator_function_return_type(return_type, is_async)
         })?;
@@ -420,10 +419,9 @@ impl TypeChecker {
                     Some(
                         node_as_yield_expression
                             .expression
-                            .clone()
-                            .unwrap_or_else(|| node.node_wrapper()),
+                            .unwrap_or(node),
                     ),
-                    node_as_yield_expression.expression.as_deref(),
+                    node_as_yield_expression.expression,
                     None,
                     None,
                 )?;
@@ -453,7 +451,7 @@ impl TypeChecker {
                 )?
                 .unwrap_or_else(|| self.any_type()));
         }
-        let mut type_ = self.get_contextual_iteration_type(IterationTypeKind::Next, &func)?;
+        let mut type_ = self.get_contextual_iteration_type(IterationTypeKind::Next, func)?;
         if type_.is_none() {
             type_ = Some(self.any_type());
             if self.produce_diagnostics
@@ -481,9 +479,10 @@ impl TypeChecker {
         node: Id<Node>, /*ConditionalExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_as_conditional_expression = node.as_conditional_expression();
+        let node_ref = node.ref_(self);
+        let node_as_conditional_expression = node_ref.as_conditional_expression();
         let type_ =
-            self.check_truthiness_expression(&node_as_conditional_expression.condition, None)?;
+            self.check_truthiness_expression(node_as_conditional_expression.condition, None)?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
             &node_as_conditional_expression.condition,
             type_,
@@ -503,20 +502,18 @@ impl TypeChecker {
     }
 
     pub(super) fn is_template_literal_context(&self, node: Id<Node>) -> bool {
-        let parent = node.parent();
-        is_parenthesized_expression(node) && self.is_template_literal_context(&parent)
-            || is_element_access_expression(&parent)
-                && ptr::eq(
-                    &*parent.as_element_access_expression().argument_expression,
-                    node,
-                )
+        let parent = node.ref_(self).parent();
+        is_parenthesized_expression(&node.ref_(self)) && self.is_template_literal_context(parent)
+            || is_element_access_expression(&parent.ref_(self))
+                && parent.ref_(self).as_element_access_expression().argument_expression == node
     }
 
     pub(super) fn check_template_expression(
         &self,
         node: Id<Node>, /*TemplateExpression*/
     ) -> io::Result<Id<Type>> {
-        let node_as_template_expression = node.as_template_expression();
+        let node_ref = node.ref_(self);
+        let node_as_template_expression = node_ref.as_template_expression();
         let mut texts = vec![node_as_template_expression
             .head
             .as_literal_like_node()
@@ -580,11 +577,11 @@ impl TypeChecker {
     }
 
     pub(super) fn get_context_node(&self, node: Id<Node> /*Expression*/) -> Id<Node> {
-        if node.kind() == SyntaxKind::JsxAttributes && !is_jsx_self_closing_element(&node.parent())
+        if node.ref_(self).kind() == SyntaxKind::JsxAttributes && !is_jsx_self_closing_element(&node.ref_(self).parent().ref_(self))
         {
-            return node.parent().parent();
+            return node.ref_(self).parent().ref_(self).parent();
         }
-        node.node_wrapper()
+        node
     }
 
     pub(super) fn check_expression_with_contextual_type(
@@ -595,11 +592,11 @@ impl TypeChecker {
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {
         let context = self.get_context_node(node);
-        let save_contextual_type = context.maybe_contextual_type().clone();
-        let save_inference_context = context.maybe_inference_context().clone();
+        let save_contextual_type = context.ref_(self).maybe_contextual_type().clone();
+        let save_inference_context = context.ref_(self).maybe_inference_context().clone();
         // try {
-        *context.maybe_contextual_type() = Some(contextual_type);
-        *context.maybe_inference_context() = inference_context.clone();
+        *context.ref_(self).maybe_contextual_type() = Some(contextual_type);
+        *context.ref_(self).maybe_inference_context() = inference_context.clone();
         let type_ = self.check_expression(
             node,
             Some(
@@ -624,8 +621,8 @@ impl TypeChecker {
         };
         // }
         // finally {
-        *context.maybe_contextual_type() = save_contextual_type;
-        *context.maybe_inference_context() = save_inference_context;
+        *context.ref_(self).maybe_contextual_type() = save_contextual_type;
+        *context.ref_(self).maybe_inference_context() = save_inference_context;
         // }
         Ok(result)
     }

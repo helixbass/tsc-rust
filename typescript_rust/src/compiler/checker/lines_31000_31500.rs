@@ -75,15 +75,15 @@ impl TypeChecker {
             return self.create_promise_return_type(node, self.any_type());
         }
 
-        let specifier = &node_as_call_expression.arguments[0];
+        let specifier = node_as_call_expression.arguments[0];
         let specifier_type = self.check_expression_cached(specifier, None)?;
         let options_type = if node_as_call_expression.arguments.len() > 1 {
-            Some(self.check_expression_cached(&node_as_call_expression.arguments[1], None)?)
+            Some(self.check_expression_cached(node_as_call_expression.arguments[1], None)?)
         } else {
             None
         };
         for i in 2..node_as_call_expression.arguments.len() {
-            self.check_expression_cached(&node_as_call_expression.arguments[i], None)?;
+            self.check_expression_cached(node_as_call_expression.arguments[i], None)?;
         }
 
         if specifier_type
@@ -97,7 +97,7 @@ impl TypeChecker {
             || !self.is_type_assignable_to(specifier_type, self.string_type())?
         {
             self.error(
-                Some(&**specifier),
+                Some(specifier),
                 &Diagnostics::Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0,
                 Some(vec![self.type_to_string_(
                     specifier_type,
@@ -114,7 +114,7 @@ impl TypeChecker {
                 self.check_type_assignable_to(
                     options_type,
                     self.get_nullable_type(import_call_options_type, TypeFlags::Undefined)?,
-                    Some(&*node_as_call_expression.arguments[1]),
+                    Some(node_as_call_expression.arguments[1]),
                     None,
                     None,
                     None,
@@ -292,10 +292,10 @@ impl TypeChecker {
         }
         let resolved_require = self
             .resolve_name_(
-                Some(&*node_as_call_expression.expression),
+                Some(node_as_call_expression.expression),
                 &node_as_call_expression
                     .expression
-                    .as_identifier()
+                    .ref_(self).as_identifier()
                     .escaped_text,
                 SymbolFlags::Value,
                 None,
@@ -412,10 +412,10 @@ impl TypeChecker {
                 let arg = node_as_prefix_unary_expression.operand;
                 op == SyntaxKind::MinusToken
                     && matches!(
-                        arg.kind(),
+                        arg.ref_(self).kind(),
                         SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral
                     )
-                    || op == SyntaxKind::PlusToken && arg.kind() == SyntaxKind::NumericLiteral
+                    || op == SyntaxKind::PlusToken && arg.ref_(self).kind() == SyntaxKind::NumericLiteral
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 let expr = node.ref_(self).as_has_expression().expression();

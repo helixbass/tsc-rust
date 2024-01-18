@@ -550,7 +550,7 @@ impl TypeChecker {
         }
 
         let mut expression_type =
-            self.check_non_null_expression(&node_as_new_expression.expression)?;
+            self.check_non_null_expression(node_as_new_expression.expression)?;
         if expression_type == self.silent_never_type() {
             return Ok(self.silent_never_signature());
         }
@@ -652,7 +652,7 @@ impl TypeChecker {
         }
 
         self.invocation_error(
-            &node_as_new_expression.expression,
+            node_as_new_expression.expression,
             expression_type,
             SignatureKind::Construct,
             None,
@@ -736,9 +736,9 @@ impl TypeChecker {
         }
 
         let declaring_class_declaration =
-            get_class_like_declaration_of_symbol(declaration.ref_(self).parent().symbol(), self)
+            get_class_like_declaration_of_symbol(declaration.ref_(self).parent().ref_(self).symbol(), self)
                 .unwrap();
-        let declaring_class = self.get_declared_type_of_symbol(declaration.ref_(self).parent().symbol())?;
+        let declaring_class = self.get_declared_type_of_symbol(declaration.ref_(self).parent().ref_(self).symbol())?;
 
         if !self.is_node_within_class(node, declaring_class_declaration) {
             let containing_class = get_containing_class(node, self);

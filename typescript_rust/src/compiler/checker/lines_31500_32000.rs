@@ -16,6 +16,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Signature, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, UnionReduction,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -186,9 +187,9 @@ impl TypeChecker {
             if declaration_name.ref_(self).kind() != SyntaxKind::Identifier {
                 if (*links).borrow().type_.unwrap() == self.unknown_type() {
                     links.borrow_mut().type_ =
-                        Some(self.get_type_from_binding_pattern(&declaration_name, None, None)?);
+                        Some(self.get_type_from_binding_pattern(declaration_name, None, None)?);
                 }
-                self.assign_binding_element_types(&declaration_name)?;
+                self.assign_binding_element_types(declaration_name)?;
             }
         }
 
@@ -203,7 +204,7 @@ impl TypeChecker {
             if !is_omitted_expression(&element.ref_(self)) {
                 let element_ref = element.ref_(self);
                 let element_as_binding_element = element_ref.as_binding_element();
-                if element_as_binding_element.ref_(self).name().ref_(self).kind() == SyntaxKind::Identifier {
+                if element_as_binding_element.name().ref_(self).kind() == SyntaxKind::Identifier {
                     self.get_symbol_links(self.get_symbol_of_node(element)?.unwrap())
                         .borrow_mut()
                         .type_ = self.get_type_for_binding_element(element)?;
@@ -339,9 +340,9 @@ impl TypeChecker {
         let mut yield_type: Option<Id<Type>> = None;
         let mut next_type: Option<Id<Type>> = None;
         let mut fallback_return_type = self.void_type();
-        if func_body.kind() != SyntaxKind::Block {
+        if func_body.ref_(self).kind() != SyntaxKind::Block {
             return_type = Some(self.check_expression_cached(
-                &func_body,
+                func_body,
                 check_mode.map(|check_mode| check_mode & !CheckMode::SkipGenericFunctions),
             )?);
             if is_async {
@@ -635,7 +636,7 @@ impl TypeChecker {
                         } else {
                             IterationUse::YieldStar
                         },
-                        yield_expression_as_yield_expression.expression.as_deref(),
+                        yield_expression_as_yield_expression.expression,
                     )?;
                     next_type = iteration_types.map(|iteration_types| iteration_types.next_type());
                 } else {
@@ -676,7 +677,7 @@ impl TypeChecker {
                 },
                 expression_type,
                 sent_type,
-                Some(&*error_node),
+                Some(error_node),
             )?
         } else {
             expression_type
@@ -781,9 +782,9 @@ impl TypeChecker {
         let node_as_switch_statement = node_ref.as_switch_statement();
         if node_as_switch_statement.expression.ref_(self).kind() == SyntaxKind::TypeOfExpression {
             let operand_type = self.get_type_of_expression(
-                &node_as_switch_statement
+                node_as_switch_statement
                     .expression
-                    .as_type_of_expression()
+                    .ref_(self).as_type_of_expression()
                     .expression,
             )?;
             let witnesses = self
@@ -933,11 +934,11 @@ impl TypeChecker {
         if func.ref_(self).kind() == SyntaxKind::MethodSignature || {
             let func_ref = func.ref_(self);
             let func_as_function_like_declaration = func_ref.as_function_like_declaration();
-            node_is_missing(func_as_function_like_declaration.maybe_body())
+            node_is_missing(func_as_function_like_declaration.maybe_body().refed(self))
                 || func_as_function_like_declaration
                     .maybe_body()
                     .unwrap()
-                    .kind()
+                    .ref_(self).kind()
                     != SyntaxKind::Block
                 || !self.function_has_implicit_return(func)?
         } {

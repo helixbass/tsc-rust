@@ -48,15 +48,15 @@ impl TypeChecker {
             })?;
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
-        for member in &node.as_class_like_declaration().members() {
+        for member in &node.ref_(self).as_class_like_declaration().members() {
             if has_ambient_modifier(member, self) {
                 continue;
             }
 
-            if is_constructor_declaration(member) {
+            if is_constructor_declaration(&member.ref_(self)) {
                 try_for_each(
-                    &member.as_constructor_declaration().parameters(),
-                    |param: &Id<Node>, _| -> io::Result<Option<()>> {
+                    &member.ref_(self).as_constructor_declaration().parameters(),
+                    |&param: &Id<Node>, _| -> io::Result<Option<()>> {
                         if is_parameter_property_declaration(param, member, self) {
                             self.check_existing_member_for_override_modifier(
                                 node,
@@ -103,16 +103,13 @@ impl TypeChecker {
         report_errors: Option<bool>,
     ) -> io::Result<MemberOverrideStatus> {
         let report_errors = report_errors.unwrap_or(true);
-        let declared_prop =
-            if let Some(member_name) = member.as_named_declaration().maybe_name().as_ref() {
-                self.get_symbol_at_location_(member_name, None)?
-            } else {
-                self.get_symbol_at_location_(member, None)?
-            };
-        if declared_prop.is_none() {
+        let Some(declared_prop) = (if let Some(member_name) = member.ref_(self).as_named_declaration().maybe_name() {
+            self.get_symbol_at_location_(member_name, None)?
+        } else {
+            self.get_symbol_at_location_(member, None)?
+        }) else {
             return Ok(MemberOverrideStatus::Ok);
-        }
-        let declared_prop = declared_prop.unwrap();
+        };
 
         self.check_member_for_override_modifier(
             node,
@@ -145,8 +142,8 @@ impl TypeChecker {
         member_name: &str,
         error_node: Option<Id<Node>>,
     ) -> io::Result<MemberOverrideStatus> {
-        let is_js = is_in_js_file(Some(node));
-        let node_in_ambient_context = node.flags().intersects(NodeFlags::Ambient);
+        let is_js = is_in_js_file(Some(&node.ref_(self)));
+        let node_in_ambient_context = node.ref_(self).flags().intersects(NodeFlags::Ambient);
         if let Some(base_with_this) = base_with_this.filter(|_| {
             member_has_override_modifier || self.compiler_options.no_implicit_override == Some(true)
         }) {
@@ -250,12 +247,14 @@ impl TypeChecker {
         broad_diag: &'static DiagnosticMessage,
     ) -> io::Result<()> {
         let mut issued_member_error = false;
-        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         for member in &node_as_class_like_declaration.members() {
             if is_static(member, self) {
                 continue;
             }
-            let member_as_named_declaration = member.as_named_declaration();
+            let member_ref = member.ref_(self);
+            let member_as_named_declaration = member_ref.as_named_declaration();
             let declared_prop = member_as_named_declaration
                 .maybe_name()
                 .as_ref()
@@ -304,7 +303,7 @@ impl TypeChecker {
                 Some(
                     node_as_class_like_declaration
                         .maybe_name()
-                        .unwrap_or_else(|| node.node_wrapper()),
+                        .unwrap_or(node),
                 ),
                 Some(broad_diag),
                 None,
@@ -330,7 +329,7 @@ impl TypeChecker {
                 let type_class_declaration =
                     get_class_like_declaration_of_symbol(type_.ref_(self).symbol(), self)
                         .unwrap();
-                if !self.is_node_within_class(node, &type_class_declaration) {
+                if !self.is_node_within_class(node, type_class_declaration) {
                     self.error(
                         Some(node),
                         &Diagnostics::Cannot_extend_a_class_0_Class_constructor_is_marked_as_private,
@@ -353,11 +352,9 @@ impl TypeChecker {
         node: Id<Node>,   /*ClassLikeDeclaration*/
         member: Id<Node>, /*ClassElement*/
     ) -> io::Result<MemberOverrideStatus> {
-        let member_name = member.as_named_declaration().maybe_name();
-        if member_name.is_none() {
+        let Some(member_name) = member.ref_(self).as_named_declaration().maybe_name() else {
             return Ok(MemberOverrideStatus::Ok);
-        }
-        let member_name = member_name.unwrap();
+        };
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(symbol)?;
@@ -382,13 +379,13 @@ impl TypeChecker {
             })?;
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
-        let member_has_override_modifier = if member.maybe_parent().is_some() {
+        let member_has_override_modifier = if member.ref_(self).maybe_parent().is_some() {
             has_override_modifier(member, self)
         } else {
             has_syntactic_modifier(member, ModifierFlags::Override, self)
         };
 
-        let text_of_property_name = get_text_of_property_name(&member_name);
+        let text_of_property_name = get_text_of_property_name(member_name, self);
         let member_name = unescape_leading_underscores(&text_of_property_name);
 
         self.check_member_for_override_modifier(
@@ -427,7 +424,7 @@ impl TypeChecker {
             symbol.ref_(self).maybe_declarations().as_deref(),
             |d: &Id<Node>| {
                 matches!(
-                    d.kind(),
+                    d.ref_(self).kind(),
                     SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
                 )
             },
@@ -481,9 +478,9 @@ impl TypeChecker {
                         }
                     }
 
-                    if derived_class_decl.kind() == SyntaxKind::ClassExpression {
+                    if derived_class_decl.ref_(self).kind() == SyntaxKind::ClassExpression {
                         self.error(
-                            Some(&*derived_class_decl),
+                            Some(derived_class_decl),
                             &Diagnostics::Non_abstract_class_expression_does_not_implement_inherited_abstract_member_0_from_class_1,
                             Some(vec![
                                 self.symbol_to_string_(
@@ -500,7 +497,7 @@ impl TypeChecker {
                         );
                     } else {
                         self.error(
-                            Some(&*derived_class_decl),
+                            Some(derived_class_decl),
                             &Diagnostics::Non_abstract_class_0_does_not_implement_inherited_abstract_member_1_from_class_2,
                             Some(vec![
                                 self.type_to_string_(
@@ -543,17 +540,17 @@ impl TypeChecker {
                 {
                     if base_declaration_flags.intersects(ModifierFlags::Abstract)
                         && !matches!(
-                            base.ref_(self).maybe_value_declaration().as_ref(),
-                            Some(base_value_declaration) if is_property_declaration(base_value_declaration) &&
-                                base_value_declaration.as_property_declaration().maybe_initializer().is_some()
+                            base.ref_(self).maybe_value_declaration(),
+                            Some(base_value_declaration) if is_property_declaration(&base_value_declaration.ref_(self)) &&
+                                base_value_declaration.ref_(self).as_property_declaration().maybe_initializer().is_some()
                         )
                         || matches!(
-                            base.ref_(self).maybe_value_declaration().as_ref(),
-                            Some(base_value_declaration) if base_value_declaration.parent().kind() == SyntaxKind::InterfaceDeclaration
+                            base.ref_(self).maybe_value_declaration(),
+                            Some(base_value_declaration) if base_value_declaration.ref_(self).parent().ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                         )
                         || matches!(
-                            derived.ref_(self).maybe_value_declaration().as_ref(),
-                            Some(derived_value_declaration) if is_binary_expression(derived_value_declaration)
+                            derived.ref_(self).maybe_value_declaration(),
+                            Some(derived_value_declaration) if is_binary_expression(&derived_value_declaration.ref_(self))
                         )
                     {
                         continue;
@@ -597,15 +594,15 @@ impl TypeChecker {
                                     derived_declarations
                                         .into_iter()
                                         .find(|d| {
-                                            d.kind() == SyntaxKind::PropertyDeclaration
-                                                && d.as_property_declaration()
+                                            d.ref_(self).kind() == SyntaxKind::PropertyDeclaration
+                                                && d.ref_(self).as_property_declaration()
                                                     .maybe_initializer()
                                                     .is_none()
                                         })
-                                        .cloned()
+                                        .copied()
                                 },
                             );
-                        if let Some(uninitialized) = uninitialized.as_ref() {
+                        if let Some(uninitialized) = uninitialized {
                             if !derived
                                 .ref_(self)
                                 .flags()
@@ -614,29 +611,29 @@ impl TypeChecker {
                                 && !derived_declaration_flags.intersects(ModifierFlags::Abstract)
                                 && !matches!(
                                     derived.ref_(self).maybe_declarations().as_ref(),
-                                    Some(derived_declarations) if derived_declarations.into_iter().any(|d| d.flags().intersects(NodeFlags::Ambient))
+                                    Some(derived_declarations) if derived_declarations.into_iter().any(|d| d.ref_(self).flags().intersects(NodeFlags::Ambient))
                                 )
                             {
                                 let constructor = self.find_constructor_declaration(
-                                    &get_class_like_declaration_of_symbol(
+                                    get_class_like_declaration_of_symbol(
                                         type_.ref_(self).symbol(),
                                         self,
                                     )
                                     .unwrap(),
                                 );
-                                let uninitialized_as_property_declaration =
-                                    uninitialized.as_property_declaration();
+                                let uninitialized_ref = uninitialized.ref_(self);
+                                let uninitialized_as_property_declaration = uninitialized_ref.as_property_declaration();
                                 let prop_name = uninitialized_as_property_declaration.name();
                                 if uninitialized_as_property_declaration
                                     .exclamation_token
                                     .is_some()
                                     || constructor.is_none()
-                                    || !is_identifier(&prop_name)
+                                    || !is_identifier(&prop_name.ref_(self))
                                     || !self.strict_null_checks
                                     || !self.is_property_initialized_in_constructor(
-                                        &prop_name,
+                                        prop_name,
                                         type_,
-                                        constructor.as_ref().unwrap(),
+                                        constructor.unwrap(),
                                     )?
                                 {
                                     let error_message = &Diagnostics::Property_0_will_overwrite_the_base_property_in_1_If_this_is_intentional_add_an_initializer_Otherwise_add_a_declare_modifier_or_remove_the_redundant_declaration;
@@ -847,7 +844,7 @@ impl TypeChecker {
                             );
                             self.diagnostics().add(Gc::new(
                                 create_diagnostic_for_node_from_message_chain(
-                                    type_node, error_info, None,
+                                    type_node, error_info, None, self,
                                 )
                                 .into(),
                             ));

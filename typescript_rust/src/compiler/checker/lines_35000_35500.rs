@@ -14,6 +14,7 @@ use crate::{
     ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, OptionTry,
     ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -22,7 +23,8 @@ impl TypeChecker {
         is_constructor: bool,
         node: Id<Node>, /*SignatureDeclaration*/
     ) {
-        let node_as_signature_declaration = node.as_signature_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_signature_declaration = node_ref.as_signature_declaration();
         if matches!(
             node_as_signature_declaration.maybe_name().as_ref(),
             Some(node_name) if node_is_missing(Some(&**node_name))
@@ -32,32 +34,31 @@ impl TypeChecker {
 
         let mut seen = false;
         let subsequent_node = for_each_child_returns(
-            &node.parent(),
+            &node.ref_(self).parent().ref_(self),
             |c: Id<Node>| {
                 if seen {
-                    Some(c.node_wrapper())
+                    Some(c)
                 } else {
-                    seen = ptr::eq(c, node);
+                    seen = c == node;
                     None
                 }
             },
             Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
         );
         if let Some(subsequent_node) = subsequent_node
-            .as_ref()
-            .filter(|subsequent_node| subsequent_node.pos() == node.end())
+            .filter(|subsequent_node| subsequent_node.ref_(self).pos() == node.ref_(self).end())
         {
-            if subsequent_node.kind() == node.kind() {
+            if subsequent_node.ref_(self).kind() == node.ref_(self).kind() {
                 let error_node = subsequent_node
-                    .as_named_declaration()
+                    .ref_(self).as_named_declaration()
                     .maybe_name()
-                    .unwrap_or_else(|| subsequent_node.clone());
-                let subsequent_name = subsequent_node.as_named_declaration().maybe_name();
+                    .unwrap_or(subsequent_node);
+                let subsequent_name = subsequent_node.ref_(self).as_named_declaration().maybe_name();
                 if let (Some(node_name), Some(subsequent_name)) = (
-                    node.as_named_declaration().maybe_name().as_ref(),
-                    subsequent_name.as_ref(),
+                    node.ref_(self).as_named_declaration().maybe_name(),
+                    subsequent_name,
                 ) {
-                    if is_private_identifier(node_name)
+                    if is_private_identifier(&node_name.ref_(self))
                         && is_private_identifier(subsequent_name)
                         && node_name.as_private_identifier().escaped_text
                             == subsequent_name.as_private_identifier().escaped_text
@@ -69,7 +70,7 @@ impl TypeChecker {
                                 == get_escaped_text_of_identifier_or_literal(subsequent_name)
                     {
                         let report_error = matches!(
-                            node.kind(),
+                            node.ref_(self).kind(),
                             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature
                         ) && is_static(node, self) != is_static(subsequent_node, self);
                         if report_error {
@@ -83,12 +84,12 @@ impl TypeChecker {
                         return;
                     }
                 }
-                if node_is_present(subsequent_node.as_function_like_declaration().maybe_body()) {
+                if node_is_present(subsequent_node.ref_(self).as_function_like_declaration().maybe_body().refed(self)) {
                     self.error(
                         Some(&*error_node),
                         &Diagnostics::Function_implementation_name_must_be_0,
                         Some(vec![declaration_name_to_string(
-                            node.as_named_declaration().maybe_name(),
+                            node.ref_(self).as_named_declaration().maybe_name(),
                             self,
                         )
                         .into_owned()]),
@@ -98,9 +99,9 @@ impl TypeChecker {
             }
         }
         let error_node = node
-            .as_signature_declaration()
+            .ref_(self).as_signature_declaration()
             .maybe_name()
-            .unwrap_or_else(|| node.node_wrapper());
+            .unwrap_or(node);
         if is_constructor {
             self.error(
                 Some(&*error_node),
@@ -132,7 +133,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let mut symbol = node.maybe_local_symbol();
+        let mut symbol = node.ref_(self).maybe_local_symbol();
         if symbol.is_none() {
             symbol = self.get_symbol_of_node(node)?;
             let symbol = symbol.unwrap();
@@ -143,8 +144,8 @@ impl TypeChecker {
         let symbol = symbol.unwrap();
 
         if !matches!(
-            get_declaration_of_kind(symbol, node.kind(), self).as_ref(),
-            Some(declaration) if ptr::eq(&**declaration, node)
+            get_declaration_of_kind(symbol, node.ref_(self).kind(), self),
+            Some(declaration) if declaration == node
         ) {
             return Ok(());
         }
@@ -187,7 +188,7 @@ impl TypeChecker {
                     .intersects(common_declaration_spaces_for_default_and_non_default)
                 {
                     self.error(
-                        name.as_deref(),
+                        name,
                         &Diagnostics::Merged_declaration_0_cannot_include_a_default_export_declaration_Consider_adding_a_separate_export_default_0_declaration_instead,
                         Some(vec![
                             declaration_name_to_string(name, self).into_owned()
@@ -197,7 +198,7 @@ impl TypeChecker {
                     .intersects(common_declaration_spaces_for_exports_and_locals)
                 {
                     self.error(
-                        name.as_deref(),
+                        name,
                         &Diagnostics::Individual_declarations_in_merged_declaration_0_must_be_all_exported_or_all_local,
                         Some(vec![
                             declaration_name_to_string(name, self).into_owned()
@@ -215,7 +216,7 @@ impl TypeChecker {
         decl: Id<Node>, /*Declaration*/
     ) -> io::Result<DeclarationSpaces> {
         let d = decl;
-        Ok(match d.kind() {
+        Ok(match d.ref_(self).kind() {
             SyntaxKind::InterfaceDeclaration
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::JSDocTypedefTag
@@ -223,7 +224,7 @@ impl TypeChecker {
             | SyntaxKind::JSDocEnumTag => DeclarationSpaces::ExportType,
             SyntaxKind::ModuleDeclaration => {
                 if is_ambient_module(d, self)
-                    || get_module_instance_state(d, None) != ModuleInstanceState::NonInstantiated
+                    || get_module_instance_state(d, None, self) != ModuleInstanceState::NonInstantiated
                 {
                     DeclarationSpaces::ExportNamespace | DeclarationSpaces::ExportValue
                 } else {
@@ -240,10 +241,10 @@ impl TypeChecker {
             }
             SyntaxKind::ExportAssignment | SyntaxKind::BinaryExpression => {
                 let node = d;
-                let expression = if is_export_assignment(node) {
-                    node.as_export_assignment().expression.clone()
+                let expression = if is_export_assignment(&node.ref_(self)) {
+                    node.ref_(self).as_export_assignment().expression
                 } else {
-                    node.as_binary_expression().right.clone()
+                    node.ref_(self).as_binary_expression().right
                 };
                 if !is_entity_name_expression(expression, self) {
                     return Ok(DeclarationSpaces::ExportValue);
@@ -254,7 +255,7 @@ impl TypeChecker {
                 let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
                     target.ref_(self).maybe_declarations().as_deref(),
-                    |d: &Id<Node>, _| -> io::Result<Option<()>> {
+                    |&d: &Id<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
                         Ok(None)
                     },
@@ -265,10 +266,10 @@ impl TypeChecker {
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportClause => {
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
+                let target = self.resolve_alias(self.get_symbol_of_node(d)?.unwrap())?;
                 try_maybe_for_each(
                     target.ref_(self).maybe_declarations().as_deref(),
-                    |d: &Id<Node>, _| -> io::Result<Option<()>> {
+                    |&d: &Id<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
                         Ok(None)
                     },
@@ -280,7 +281,7 @@ impl TypeChecker {
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::ImportSpecifier
             | SyntaxKind::Identifier => DeclarationSpaces::ExportValue,
-            _ => Debug_.fail_bad_syntax_kind(d, None),
+            _ => Debug_.fail_bad_syntax_kind(&d.ref_(self), None),
         })
     }
 
@@ -291,8 +292,7 @@ impl TypeChecker {
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> io::Result<Option<Id<Type>>> {
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
-        let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref())?;
+        let promised_type = self.get_promised_type_of_promise(type_, error_node)?;
         promised_type.try_and_then(|promised_type| {
             self.get_awaited_type_(promised_type, error_node, diagnostic_message, args)
         })
@@ -542,7 +542,6 @@ impl TypeChecker {
             return Ok(Some(type_as_awaitable_awaited_type_of_type.clone()));
         }
 
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             let mut mapper = |constituent_type: Id<Type>| {
                 if error_node.is_some() {

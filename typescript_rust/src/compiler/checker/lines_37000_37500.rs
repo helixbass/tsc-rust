@@ -19,11 +19,10 @@ use crate::{
 impl TypeChecker {
     pub(super) fn is_symbol_used_in_binary_expression_chain(
         &self,
-        node: Id<Node>,
+        mut node: Id<Node>,
         tested_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        let mut node = node.node_wrapper();
-        while is_binary_expression(&node)
+        while is_binary_expression(&node.ref_(self))
             && node.as_binary_expression().operator_token.kind()
                 == SyntaxKind::AmpersandAmpersandToken
         {
@@ -45,7 +44,7 @@ impl TypeChecker {
         tested_symbol: Id<Symbol>,
         child: Id<Node>,
     ) -> io::Result<bool> {
-        if is_identifier(child) {
+        if is_identifier(&child.ref_(self)) {
             let symbol = self.get_symbol_at_location_(child, None)?;
             if matches!(
                 symbol,
@@ -55,7 +54,7 @@ impl TypeChecker {
             }
         }
         try_for_each_child_bool(
-            child,
+            &child.ref_(self),
             |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
             Option::<fn(&NodeArray) -> io::Result<bool>>::None,
         )
@@ -64,9 +63,10 @@ impl TypeChecker {
     pub(super) fn check_do_statement(&self, node: Id<Node> /*DoStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        let node_as_do_statement = node.as_do_statement();
-        self.check_source_element(Some(&*node_as_do_statement.statement))?;
-        self.check_truthiness_expression(&node_as_do_statement.expression, None)?;
+        let node_ref = node.ref_(self);
+        let node_as_do_statement = node_ref.as_do_statement();
+        self.check_source_element(Some(node_as_do_statement.statement))?;
+        self.check_truthiness_expression(node_as_do_statement.expression, None)?;
 
         Ok(())
     }
@@ -77,9 +77,10 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        let node_as_while_statement = node.as_while_statement();
-        self.check_truthiness_expression(&node_as_while_statement.expression, None)?;
-        self.check_source_element(Some(&*node_as_while_statement.statement))?;
+        let node_ref = node.ref_(self);
+        let node_as_while_statement = node_ref.as_while_statement();
+        self.check_truthiness_expression(node_as_while_statement.expression, None)?;
+        self.check_source_element(Some(node_as_while_statement.statement))?;
 
         Ok(())
     }
@@ -107,7 +108,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ForStatement*/
     ) -> io::Result<()> {
-        let node_as_for_statement = node.as_for_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_statement = node_ref.as_for_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
             if let Some(node_initializer) =
                 node_as_for_statement
@@ -121,11 +123,11 @@ impl TypeChecker {
             }
         }
 
-        if let Some(node_initializer) = node_as_for_statement.initializer.as_ref() {
-            if node_initializer.kind() == SyntaxKind::VariableDeclarationList {
+        if let Some(node_initializer) = node_as_for_statement.initializer {
+            if node_initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
                 try_for_each(
-                    &node_initializer.as_variable_declaration_list().declarations,
-                    |declaration: &Id<Node>, _| -> io::Result<Option<()>> {
+                    &node_initializer.ref_(self).as_variable_declaration_list().declarations,
+                    |&declaration: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_variable_declaration(declaration)?;
                         Ok(None)
                     },
@@ -135,14 +137,14 @@ impl TypeChecker {
             }
         }
 
-        if let Some(node_condition) = node_as_for_statement.condition.as_ref() {
+        if let Some(node_condition) = node_as_for_statement.condition {
             self.check_truthiness_expression(node_condition, None)?;
         }
-        if let Some(node_incrementor) = node_as_for_statement.incrementor.as_ref() {
+        if let Some(node_incrementor) = node_as_for_statement.incrementor {
             self.check_expression(node_incrementor, None, None)?;
         }
-        self.check_source_element(Some(&*node_as_for_statement.statement))?;
-        if node.maybe_locals().is_some() {
+        self.check_source_element(Some(node_as_for_statement.statement))?;
+        if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
 
@@ -155,12 +157,13 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_for_in_or_for_of_statement(node);
 
-        let container = get_containing_function_or_class_static_block(node);
-        let node_as_for_of_statement = node.as_for_of_statement();
-        if let Some(node_await_modifier) = node_as_for_of_statement.await_modifier.as_ref() {
+        let container = get_containing_function_or_class_static_block(node, self);
+        let node_ref = node.ref_(self);
+        let node_as_for_of_statement = node_ref.as_for_of_statement();
+        if let Some(node_await_modifier) = node_as_for_of_statement.await_modifier {
             if matches!(
-                container.as_ref(),
-                Some(container) if is_class_static_block_declaration(container)
+                container,
+                Some(container) if is_class_static_block_declaration(&container.ref_(self))
             ) {
                 self.grammar_error_on_node(
                     node_await_modifier,
@@ -222,8 +225,8 @@ impl TypeChecker {
             }
         }
 
-        self.check_source_element(Some(&*node_as_for_of_statement.statement))?;
-        if node.maybe_locals().is_some() {
+        self.check_source_element(Some(node_as_for_of_statement.statement))?;
+        if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
 
@@ -236,7 +239,8 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_for_in_or_for_of_statement(node);
 
-        let node_as_for_in_statement = node.as_for_in_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_in_statement = node_ref.as_for_in_statement();
         let right_type = self.get_non_nullable_type_if_needed(self.check_expression(
             &node_as_for_in_statement.expression,
             None,
@@ -307,8 +311,8 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(Some(&*node_as_for_in_statement.statement))?;
-        if node.maybe_locals().is_some() {
+        self.check_source_element(Some(node_as_for_in_statement.statement))?;
+        if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
 
@@ -320,10 +324,11 @@ impl TypeChecker {
         iteration_statement: Id<Node>, /*ForInOrOfStatement*/
     ) -> io::Result<()> {
         let variable_declaration_list = iteration_statement
-            .as_has_initializer()
+            .ref_(self).as_has_initializer()
             .maybe_initializer()
             .unwrap();
-        let variable_declaration_list = variable_declaration_list.as_variable_declaration_list();
+        let variable_declaration_list_ref = variable_declaration_list.ref_(self);
+        let variable_declaration_list = variable_declaration_list_ref.as_variable_declaration_list();
         if !variable_declaration_list.declarations.is_empty() {
             let decl = &variable_declaration_list.declarations[0];
             self.check_variable_declaration(decl)?;
@@ -336,7 +341,8 @@ impl TypeChecker {
         &self,
         statement: Id<Node>, /*ForOfStatement*/
     ) -> io::Result<Id<Type>> {
-        let statement_as_for_of_statement = statement.as_for_of_statement();
+        let statement_ref = statement.ref_(self);
+        let statement_as_for_of_statement = statement_ref.as_for_of_statement();
         let use_ = if statement_as_for_of_statement.await_modifier.is_some() {
             IterationUse::ForAwaitOf
         } else {
@@ -374,7 +380,6 @@ impl TypeChecker {
         check_assignability: bool,
     ) -> io::Result<Option<Id<Type>>> {
         let allow_async_iterables = use_.intersects(IterationUse::AllowsAsyncIterablesFlag);
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if input_type == self.never_type() {
             self.report_type_not_iterable_error(
                 error_node.as_ref().unwrap(),
@@ -788,7 +793,6 @@ impl TypeChecker {
             return Ok(Some(self.any_iteration_types()));
         }
 
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if !type_.ref_(self).flags().intersects(TypeFlags::Union) {
             let iteration_types =
                 self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref())?;

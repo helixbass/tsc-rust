@@ -33,7 +33,6 @@ impl TypeChecker {
         if error_node.is_some() {
             self.get_global_awaited_symbol(true)?;
         }
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         Ok(self.create_iteration_types(
             Some(
                 self.get_awaited_type_(yield_type, error_node.as_deref(), None, None)?
@@ -99,7 +98,6 @@ impl TypeChecker {
             }
         }
 
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
             let iteration_types = self.get_iteration_types_of_iterable_slow(
                 type_,
@@ -672,7 +670,6 @@ impl TypeChecker {
 
         let mut return_types: Option<Vec<Id<Type>>> = None;
         let mut next_type: Option<Id<Type>> = None;
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if method_name != "throw" {
             let method_parameter_type = if let Some(method_parameter_types) = method_parameter_types
             {
@@ -760,7 +757,6 @@ impl TypeChecker {
         resolver: &IterationTypesResolver,
         error_node: Option<Id<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
-        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let iteration_types = self.combine_iteration_types(&[
             self.get_iteration_types_of_method(type_, resolver, "next", error_node.as_deref())?,
             self.get_iteration_types_of_method(type_, resolver, "return", error_node.as_deref())?,
@@ -866,10 +862,10 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let container = get_containing_function_or_class_static_block(node);
+        let container = get_containing_function_or_class_static_block(node, self);
         if matches!(
-            container.as_ref(),
-            Some(container) if is_class_static_block_declaration(container)
+            container,
+            Some(container) if is_class_static_block_declaration(&container.ref_(self))
         ) {
             self.grammar_error_on_first_token(
                 node,
@@ -889,19 +885,20 @@ impl TypeChecker {
         }
         let container = container.unwrap();
 
-        let signature = self.get_signature_from_declaration_(&container)?;
+        let signature = self.get_signature_from_declaration_(container)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         let function_flags = get_function_flags(Some(container), self);
-        let node_as_return_statement = node.as_return_statement();
+        let node_ref = node.ref_(self);
+        let node_as_return_statement = node_ref.as_return_statement();
         if self.strict_null_checks
             || node_as_return_statement.expression.is_some()
             || return_type.ref_(self).flags().intersects(TypeFlags::Never)
         {
-            let expr_type = match node_as_return_statement.expression.as_ref() {
-                Some(expression) => self.check_expression_cached(&expression, None)?,
+            let expr_type = match node_as_return_statement.expression {
+                Some(expression) => self.check_expression_cached(expression, None)?,
                 None => self.undefined_type(),
             };
-            if container.kind() == SyntaxKind::SetAccessor {
+            if container.ref_(self).kind() == SyntaxKind::SetAccessor {
                 if node_as_return_statement.expression.is_some() {
                     self.error(
                         Some(node),
@@ -909,7 +906,7 @@ impl TypeChecker {
                         None,
                     );
                 }
-            } else if container.kind() == SyntaxKind::Constructor {
+            } else if container.ref_(self).kind() == SyntaxKind::Constructor {
                 if matches!(
                     node_as_return_statement.expression.as_ref(),
                     Some(node_expression) if !self.check_type_assignable_to_and_optionally_elaborate(
@@ -926,7 +923,7 @@ impl TypeChecker {
                         None,
                     );
                 }
-            } else if self.get_return_type_from_annotation(&container)?.is_some() {
+            } else if self.get_return_type_from_annotation(container)?.is_some() {
                 let unwrapped_return_type = self
                     .unwrap_return_type(return_type, function_flags)?/*?? returnType*/;
                 let unwrapped_expr_type = if function_flags.intersects(FunctionFlags::Async) {
@@ -951,9 +948,9 @@ impl TypeChecker {
                 )?;
                 // }
             }
-        } else if container.kind() != SyntaxKind::Constructor
+        } else if container.ref_(self).kind() != SyntaxKind::Constructor
             && self.compiler_options.no_implicit_returns == Some(true)
-            && !self.is_unwrapped_return_type_void_or_any(&container, return_type)?
+            && !self.is_unwrapped_return_type_void_or_any(container, return_type)?
         {
             self.error(
                 Some(node),
