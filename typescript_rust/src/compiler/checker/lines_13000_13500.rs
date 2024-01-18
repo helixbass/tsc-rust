@@ -1116,7 +1116,8 @@ impl TypeChecker {
                 && parent.ref_(self).kind() == SyntaxKind::ConditionalType
                 && node == parent.ref_(self).as_conditional_type_node().true_type
             {
-                let parent_as_conditional_type_node = parent.as_conditional_type_node();
+                let parent_ref = parent.ref_(self);
+                let parent_as_conditional_type_node = parent_ref.as_conditional_type_node();
                 let constraint = self.get_implied_constraint(
                     type_,
                     &parent_as_conditional_type_node.check_type,

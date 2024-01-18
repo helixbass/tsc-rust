@@ -211,7 +211,7 @@ impl TypeChecker {
         ) {
             let expr = current.ref_(self).parent();
             is_assigned = matches!(
-                expr.as_unary_expression().operator(),
+                expr.ref_(self).as_unary_expression().operator(),
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
             );
         }
@@ -624,16 +624,10 @@ impl TypeChecker {
                                 is_object_literal_expression(&container_parent_parent.ref_(self))
                                     && {
                                         let container_parent_parent_parent =
-                                            container_parent_parent.parent();
+                                            container_parent_parent.ref_(self).parent();
                                         is_call_expression(&container_parent_parent_parent) &&
-                                            matches!(
-                                                container_parent_parent_parent.as_call_expression().arguments.get(2),
-                                                Some(argument) if Gc::ptr_eq(
-                                                    argument,
-                                                    &container_parent_parent
-                                                )
-                                            ) &&
-                                            get_assignment_declaration_kind(container_parent_parent_parent, self) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
+                                            container_parent_parent_parent.as_call_expression().arguments.get(2).copied() == Some(container_parent_parent)
+                                                && get_assignment_declaration_kind(container_parent_parent_parent, self) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                                     }
                             }
                     }

@@ -96,11 +96,11 @@ impl TypeChecker {
                     } else if is_identifier(&lhs.ref_(self).as_has_expression().expression().ref_(self)) {
                         let id = lhs.ref_(self).as_has_expression().expression();
                         let parent_symbol = self.resolve_name_(
-                            Some(&**id),
-                            &id.as_identifier().escaped_text,
+                            Some(id),
+                            &id.ref_(self).as_identifier().escaped_text,
                             SymbolFlags::Value,
                             None,
-                            Some(&*id.as_identifier().escaped_text),
+                            Some(&*id.ref_(self).as_identifier().escaped_text),
                             true,
                             None,
                         )?;
@@ -591,7 +591,7 @@ impl TypeChecker {
                                 let type_checker = self.rc_wrapper();
                                 let prop_clone = prop.clone();
                                 move || {
-                                    type_checker.get_context_free_type_of_expression(prop_clone.ref_(type_checker).as_has_initializer().maybe_initializer().unwrap())
+                                    type_checker.get_context_free_type_of_expression(prop_clone.ref_(&*type_checker).as_has_initializer().maybe_initializer().unwrap())
                                 }
                             }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                             prop.ref_(self).symbol().ref_(self).escaped_name().to_owned(),

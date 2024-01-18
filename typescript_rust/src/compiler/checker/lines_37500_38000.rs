@@ -35,11 +35,11 @@ impl TypeChecker {
         }
         Ok(self.create_iteration_types(
             Some(
-                self.get_awaited_type_(yield_type, error_node.as_deref(), None, None)?
+                self.get_awaited_type_(yield_type, error_node, None, None)?
                     .unwrap_or_else(|| self.any_type()),
             ),
             Some(
-                self.get_awaited_type_(return_type, error_node.as_deref(), None, None)?
+                self.get_awaited_type_(return_type, error_node, None, None)?
                     .unwrap_or_else(|| self.any_type()),
             ),
             Some(next_type.clone()),
@@ -102,7 +102,7 @@ impl TypeChecker {
             let iteration_types = self.get_iteration_types_of_iterable_slow(
                 type_,
                 &self.async_iteration_types_resolver,
-                error_node.as_deref(),
+                error_node,
             )?;
             if !Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 return Ok(iteration_types);
@@ -113,7 +113,7 @@ impl TypeChecker {
             let iteration_types = self.get_iteration_types_of_iterable_slow(
                 type_,
                 &self.sync_iteration_types_resolver,
-                error_node.as_deref(),
+                error_node,
             )?;
             if !Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
@@ -123,7 +123,7 @@ impl TypeChecker {
                         // iterationTypes ?
                         self.get_async_from_sync_iteration_types(
                             &iteration_types,
-                            error_node.as_deref(),
+                            error_node,
                         )?, // : noIterationTypes
                     ));
                 } else {
@@ -717,7 +717,7 @@ impl TypeChecker {
         if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
             if error_node.is_some() {
                 self.error(
-                    error_node.as_deref(),
+                    error_node,
                     resolver.must_have_a_value_diagnostic,
                     Some(vec![method_name.to_owned()]),
                 );
@@ -758,9 +758,9 @@ impl TypeChecker {
         error_node: Option<Id<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
         let iteration_types = self.combine_iteration_types(&[
-            self.get_iteration_types_of_method(type_, resolver, "next", error_node.as_deref())?,
-            self.get_iteration_types_of_method(type_, resolver, "return", error_node.as_deref())?,
-            self.get_iteration_types_of_method(type_, resolver, "throw", error_node.as_deref())?,
+            self.get_iteration_types_of_method(type_, resolver, "next", error_node)?,
+            self.get_iteration_types_of_method(type_, resolver, "return", error_node)?,
+            self.get_iteration_types_of_method(type_, resolver, "throw", error_node)?,
         ])?;
         Ok(self.set_cached_iteration_types(type_, resolver.iterator_cache_key, iteration_types))
     }
@@ -908,12 +908,12 @@ impl TypeChecker {
                 }
             } else if container.ref_(self).kind() == SyntaxKind::Constructor {
                 if matches!(
-                    node_as_return_statement.expression.as_ref(),
+                    node_as_return_statement.expression,
                     Some(node_expression) if !self.check_type_assignable_to_and_optionally_elaborate(
                         expr_type,
                         return_type,
                         Some(node),
-                        Some(&**node_expression),
+                        Some(node_expression),
                         None, None,
                     )?
                 ) {
@@ -942,7 +942,7 @@ impl TypeChecker {
                     unwrapped_expr_type,
                     unwrapped_return_type,
                     Some(node),
-                    node_as_return_statement.expression.as_deref(),
+                    node_as_return_statement.expression,
                     None,
                     None,
                 )?;

@@ -14,6 +14,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry, ScriptTarget, Symbol,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, UnionReduction,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -23,18 +24,18 @@ impl TypeChecker {
         tested_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         while is_binary_expression(&node.ref_(self))
-            && node.as_binary_expression().operator_token.kind()
+            && node.ref_(self).as_binary_expression().operator_token.ref_(self).kind()
                 == SyntaxKind::AmpersandAmpersandToken
         {
             let is_used = try_for_each_child_bool(
-                &node.as_binary_expression().right,
+                &node.ref_(self).as_binary_expression().right.ref_(self),
                 |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
                 Option::<fn(&NodeArray) -> io::Result<bool>>::None,
             )?;
             if is_used {
                 return Ok(true);
             }
-            node = node.parent();
+            node = node.ref_(self).parent();
         }
         Ok(false)
     }
@@ -114,9 +115,8 @@ impl TypeChecker {
             if let Some(node_initializer) =
                 node_as_for_statement
                     .initializer
-                    .as_ref()
                     .filter(|node_initializer| {
-                        node_initializer.kind() == SyntaxKind::VariableDeclarationList
+                        node_initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList
                     })
             {
                 self.check_grammar_variable_declaration_list(node_initializer);
@@ -188,14 +188,14 @@ impl TypeChecker {
             self.check_external_emit_helpers(node, ExternalEmitHelpers::ForOfIncludes)?;
         }
 
-        if node_as_for_of_statement.initializer.kind() == SyntaxKind::VariableDeclarationList {
+        if node_as_for_of_statement.initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
             self.check_for_in_or_for_of_variable_declaration(node)?;
         } else {
-            let var_expr = &node_as_for_of_statement.initializer;
+            let var_expr = node_as_for_of_statement.initializer;
             let iterated_type = self.check_right_hand_side_of_for_of(node)?;
 
             if matches!(
-                var_expr.kind(),
+                var_expr.ref_(self).kind(),
                 SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
             ) {
                 self.check_destructuring_assignment(
@@ -216,8 +216,8 @@ impl TypeChecker {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     iterated_type,
                     left_type,
-                    Some(&**var_expr),
-                    Some(&*node_as_for_of_statement.expression),
+                    Some(var_expr),
+                    Some(node_as_for_of_statement.expression),
                     None,
                     None,
                 )?;
@@ -242,18 +242,19 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_for_in_statement = node_ref.as_for_in_statement();
         let right_type = self.get_non_nullable_type_if_needed(self.check_expression(
-            &node_as_for_in_statement.expression,
+            node_as_for_in_statement.expression,
             None,
             None,
         )?)?;
-        if node_as_for_in_statement.initializer.kind() == SyntaxKind::VariableDeclarationList {
+        if node_as_for_in_statement.initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
             let variable = node_as_for_in_statement
                 .initializer
-                .as_variable_declaration_list()
+                .ref_(self).as_variable_declaration_list()
                 .declarations
-                .get(0);
+                .get(0)
+                .copied();
             if let Some(variable) = variable.filter(|variable| {
-                is_binding_pattern(variable.as_variable_declaration().maybe_name())
+                is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self))
             }) {
                 self.error(
                     variable.as_variable_declaration().maybe_name(),
@@ -263,14 +264,14 @@ impl TypeChecker {
             }
             self.check_for_in_or_for_of_variable_declaration(node)?;
         } else {
-            let var_expr = &node_as_for_in_statement.initializer;
+            let var_expr = node_as_for_in_statement.initializer;
             let left_type = self.check_expression(var_expr, None, None)?;
             if matches!(
-                var_expr.kind(),
+                var_expr.ref_(self).kind(),
                 SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
             ) {
                 self.error(
-                    Some(&**var_expr),
+                    Some(var_expr),
                     &Diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern,
                     None,
                 );
@@ -278,7 +279,7 @@ impl TypeChecker {
                 .is_type_assignable_to(self.get_index_type_or_string(right_type)?, left_type)?
             {
                 self.error(
-                    Some(&**var_expr),
+                    Some(var_expr),
                     &Diagnostics::The_left_hand_side_of_a_for_in_statement_must_be_of_type_string_or_any,
                     None,
                 );
@@ -299,7 +300,7 @@ impl TypeChecker {
             )?
         {
             self.error(
-                Some(&*node_as_for_in_statement.expression),
+                Some(node_as_for_in_statement.expression),
                 &Diagnostics::The_right_hand_side_of_a_for_in_statement_must_be_of_type_any_an_object_type_or_a_type_parameter_but_here_has_type_0,
                 Some(vec![
                     self.type_to_string_(
@@ -330,7 +331,7 @@ impl TypeChecker {
         let variable_declaration_list_ref = variable_declaration_list.ref_(self);
         let variable_declaration_list = variable_declaration_list_ref.as_variable_declaration_list();
         if !variable_declaration_list.declarations.is_empty() {
-            let decl = &variable_declaration_list.declarations[0];
+            let decl = variable_declaration_list.declarations[0];
             self.check_variable_declaration(decl)?;
         }
 
@@ -350,9 +351,9 @@ impl TypeChecker {
         };
         self.check_iterated_type_or_element_type(
             use_,
-            self.check_non_null_expression(&statement_as_for_of_statement.expression)?,
+            self.check_non_null_expression(statement_as_for_of_statement.expression)?,
             self.undefined_type(),
-            Some(&*statement_as_for_of_statement.expression),
+            Some(statement_as_for_of_statement.expression),
         )
     }
 
@@ -382,7 +383,7 @@ impl TypeChecker {
         let allow_async_iterables = use_.intersects(IterationUse::AllowsAsyncIterablesFlag);
         if input_type == self.never_type() {
             self.report_type_not_iterable_error(
-                error_node.as_ref().unwrap(),
+                error_node.unwrap(),
                 input_type,
                 allow_async_iterables,
             )?;
@@ -404,7 +405,7 @@ impl TypeChecker {
                 input_type,
                 use_,
                 if uplevel_iteration {
-                    error_node.as_deref()
+                    error_node
                 } else {
                     None
                 },
@@ -426,7 +427,7 @@ impl TypeChecker {
                         self.check_type_assignable_to(
                             sent_type,
                             iteration_types.next_type(),
-                            error_node.as_deref(),
+                            error_node,
                             Some(diagnostic),
                             None,
                             None,
@@ -482,7 +483,7 @@ impl TypeChecker {
                 if self.language_version < ScriptTarget::ES5 {
                     if error_node.is_some() {
                         self.error(
-                            error_node.as_deref(),
+                            error_node,
                             &Diagnostics::Using_a_string_in_a_for_of_statement_is_only_supported_in_ECMAScript_5_and_higher,
                             None,
                         );
@@ -501,7 +502,7 @@ impl TypeChecker {
         }
 
         if !self.is_array_like_type(array_type)? {
-            if let Some(error_node) = error_node.as_ref() {
+            if let Some(error_node) = error_node {
                 if !reported_error {
                     let allows_strings = use_.intersects(IterationUse::AllowsStringInputFlag)
                         && !has_string_constituent;
@@ -795,9 +796,9 @@ impl TypeChecker {
 
         if !type_.ref_(self).flags().intersects(TypeFlags::Union) {
             let iteration_types =
-                self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref())?;
+                self.get_iteration_types_of_iterable_worker(type_, use_, error_node)?;
             if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
-                if let Some(error_node) = error_node.as_ref() {
+                if let Some(error_node) = error_node {
                     self.report_type_not_iterable_error(
                         error_node,
                         type_,
@@ -828,7 +829,7 @@ impl TypeChecker {
             let iteration_types = self.get_iteration_types_of_iterable_worker(
                 constituent,
                 use_,
-                error_node.as_deref(),
+                error_node,
             )?;
             if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if let Some(error_node) = error_node.as_ref() {

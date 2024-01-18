@@ -598,7 +598,7 @@ impl GetFlowTypeOfReference {
 
         Debug_.assert_node(
             Some(expr_as_binary_expression.left),
-            Some(|node| is_private_identifier(&node.ref_(self))),
+            Some(|node: Id<Node>| is_private_identifier(&node.ref_(self))),
             None,
         );
         let symbol = self

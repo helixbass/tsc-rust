@@ -293,7 +293,7 @@ impl TypeChecker {
                                         }
                                     });
                                 self.add_deprecated_suggestion(
-                                    &deprecated_node,
+                                    deprecated_node,
                                     prop_declarations,
                                     prop_name,
                                 );
@@ -308,7 +308,7 @@ impl TypeChecker {
                         prop,
                         Some(access_expression),
                         self.is_self_type_access(
-                            &access_expression_as_element_access_expression.expression,
+                            access_expression_as_element_access_expression.expression,
                             object_type.ref_(self).maybe_symbol(),
                         )?,
                     );
@@ -319,7 +319,7 @@ impl TypeChecker {
                     )? {
                         self.error(
                             Some(
-                                &*access_expression_as_element_access_expression
+                                access_expression_as_element_access_expression
                                     .argument_expression,
                             ),
                             &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,

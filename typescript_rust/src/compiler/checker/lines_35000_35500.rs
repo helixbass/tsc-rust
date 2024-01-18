@@ -26,8 +26,8 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_signature_declaration = node_ref.as_signature_declaration();
         if matches!(
-            node_as_signature_declaration.maybe_name().as_ref(),
-            Some(node_name) if node_is_missing(Some(&**node_name))
+            node_as_signature_declaration.maybe_name(),
+            Some(node_name) if node_is_missing(Some(&node_name.ref_(self)))
         ) {
             return;
         }
@@ -59,15 +59,15 @@ impl TypeChecker {
                     subsequent_name,
                 ) {
                     if is_private_identifier(&node_name.ref_(self))
-                        && is_private_identifier(subsequent_name)
-                        && node_name.as_private_identifier().escaped_text
-                            == subsequent_name.as_private_identifier().escaped_text
-                        || is_computed_property_name(node_name)
-                            && is_computed_property_name(subsequent_name)
-                        || is_property_name_literal(node_name)
-                            && is_property_name_literal(subsequent_name)
-                            && get_escaped_text_of_identifier_or_literal(node_name)
-                                == get_escaped_text_of_identifier_or_literal(subsequent_name)
+                        && is_private_identifier(&subsequent_name.ref_(self))
+                        && node_name.ref_(self).as_private_identifier().escaped_text
+                            == subsequent_name.ref_(self).as_private_identifier().escaped_text
+                        || is_computed_property_name(&node_name.ref_(self))
+                            && is_computed_property_name(&subsequent_name.ref_(self))
+                        || is_property_name_literal(&node_name.ref_(self))
+                            && is_property_name_literal(&subsequent_name.ref_(self))
+                            && get_escaped_text_of_identifier_or_literal(&node_name.ref_(self))
+                                == get_escaped_text_of_identifier_or_literal(&subsequent_name.ref_(self))
                     {
                         let report_error = matches!(
                             node.ref_(self).kind(),
@@ -79,14 +79,14 @@ impl TypeChecker {
                             } else {
                                 &*Diagnostics::Function_overload_must_not_be_static
                             };
-                            self.error(Some(&*error_node), diagnostic, None);
+                            self.error(Some(error_node), diagnostic, None);
                         }
                         return;
                     }
                 }
                 if node_is_present(subsequent_node.ref_(self).as_function_like_declaration().maybe_body().refed(self)) {
                     self.error(
-                        Some(&*error_node),
+                        Some(error_node),
                         &Diagnostics::Function_implementation_name_must_be_0,
                         Some(vec![declaration_name_to_string(
                             node.ref_(self).as_named_declaration().maybe_name(),
@@ -104,20 +104,20 @@ impl TypeChecker {
             .unwrap_or(node);
         if is_constructor {
             self.error(
-                Some(&*error_node),
+                Some(error_node),
                 &Diagnostics::Constructor_implementation_is_missing,
                 None,
             );
         } else {
             if has_syntactic_modifier(node, ModifierFlags::Abstract, self) {
                 self.error(
-                    Some(&*error_node),
+                    Some(error_node),
                     &Diagnostics::All_declarations_of_an_abstract_method_must_be_consecutive,
                     None,
                 );
             } else {
                 self.error(
-                    Some(&*error_node),
+                    Some(error_node),
                     &Diagnostics::Function_implementation_is_missing_or_not_immediately_following_the_declaration,
                     None,
                 );
@@ -153,7 +153,7 @@ impl TypeChecker {
         let mut exported_declaration_spaces = DeclarationSpaces::None;
         let mut non_exported_declaration_spaces = DeclarationSpaces::None;
         let mut default_exported_declaration_spaces = DeclarationSpaces::None;
-        for d in symbol.ref_(self).maybe_declarations().as_ref().unwrap() {
+        for &d in symbol.ref_(self).maybe_declarations().as_ref().unwrap() {
             let declaration_spaces = self.get_declaration_spaces(d)?;
             let effective_declaration_flags = self
                 .get_effective_declaration_flags(d, ModifierFlags::Export | ModifierFlags::Default);
@@ -180,7 +180,7 @@ impl TypeChecker {
         if common_declaration_spaces_for_exports_and_locals != DeclarationSpaces::None
             || common_declaration_spaces_for_default_and_non_default != DeclarationSpaces::None
         {
-            for d in symbol.ref_(self).maybe_declarations().as_ref().unwrap() {
+            for &d in symbol.ref_(self).maybe_declarations().as_ref().unwrap() {
                 let declaration_spaces = self.get_declaration_spaces(d)?;
 
                 let name = get_name_of_declaration(Some(d), self);
@@ -252,7 +252,7 @@ impl TypeChecker {
 
                 let d = expression;
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
+                let target = self.resolve_alias(self.get_symbol_of_node(d)?.unwrap())?;
                 try_maybe_for_each(
                     target.ref_(self).maybe_declarations().as_deref(),
                     |&d: &Id<Node>, _| -> io::Result<Option<()>> {
@@ -547,7 +547,7 @@ impl TypeChecker {
                 if error_node.is_some() {
                     self.get_awaited_type_no_alias(
                         constituent_type,
-                        error_node.as_deref(),
+                        error_node,
                         diagnostic_message,
                         args.clone(),
                     )
@@ -577,7 +577,7 @@ impl TypeChecker {
             {
                 if error_node.is_some() {
                     self.error(
-                        error_node.as_deref(),
+                        error_node,
                         &Diagnostics::Type_is_referenced_directly_or_indirectly_in_the_fulfillment_callback_of_its_own_then_method,
                         None,
                     );
@@ -588,7 +588,7 @@ impl TypeChecker {
             self.awaited_type_stack().push(type_.ref_(self).id());
             let awaited_type = self.get_awaited_type_no_alias(
                 promised_type,
-                error_node.as_deref(),
+                error_node,
                 diagnostic_message,
                 args.clone(),
             )?;
@@ -603,7 +603,7 @@ impl TypeChecker {
         if self.is_thenable_type(type_)? {
             if error_node.is_some() {
                 Debug_.assert_is_defined(&diagnostic_message, None);
-                self.error(error_node.as_deref(), diagnostic_message.unwrap(), args);
+                self.error(error_node, diagnostic_message.unwrap(), args);
                 return Ok(None);
             }
         }

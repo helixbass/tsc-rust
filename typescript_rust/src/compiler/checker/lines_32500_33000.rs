@@ -77,7 +77,7 @@ impl TypeChecker {
                     object_literal_type,
                     expr_type,
                     Some(AccessFlags::ExpressionPosition),
-                    Some(&*name),
+                    Some(name),
                     Option::<Id<Symbol>>::None,
                     None,
                 )?;
@@ -254,11 +254,11 @@ impl TypeChecker {
             } else {
                 let rest_expression = element.ref_(self).as_spread_element().expression;
                 if rest_expression.ref_(self).kind() == SyntaxKind::BinaryExpression
-                    && rest_expression.as_binary_expression().operator_token.kind()
+                    && rest_expression.ref_(self).as_binary_expression().operator_token.ref_(self).kind()
                         == SyntaxKind::EqualsToken
                 {
                     self.error(
-                        Some(&*rest_expression.as_binary_expression().operator_token),
+                        Some(rest_expression.ref_(self).as_binary_expression().operator_token),
                         &Diagnostics::A_rest_element_cannot_have_an_initializer,
                         None,
                     );
@@ -1091,7 +1091,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 self.set_last_result(
                     &mut state,
                     Some(self.type_checker.check_expression(
-                        &node_as_binary_expression.right,
+                        node_as_binary_expression.right,
                         check_mode,
                         None,
                     )?),
@@ -1106,7 +1106,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         let operator = node_as_binary_expression.operator_token.ref_(self).kind();
         if operator == SyntaxKind::EqualsToken
             && matches!(
-                node_as_binary_expression.left.kind(),
+                node_as_binary_expression.left.ref_(self).kind(),
                 SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
             )
         {
@@ -1116,14 +1116,14 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 self.set_last_result(
                     &mut state,
                     Some(self.type_checker.check_destructuring_assignment(
-                        &node_as_binary_expression.left,
+                        node_as_binary_expression.left,
                         self.type_checker.check_expression(
-                            &node_as_binary_expression.right,
+                            node_as_binary_expression.right,
                             check_mode,
                             None,
                         )?,
                         check_mode,
-                        Some(node_as_binary_expression.right.kind() == SyntaxKind::ThisKeyword),
+                        Some(node_as_binary_expression.right.ref_(self).kind() == SyntaxKind::ThisKeyword),
                     )?),
                 );
             }
@@ -1180,7 +1180,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         )?;
                 }
                 self.type_checker
-                    .check_truthiness_of_type(left_type, &node_as_binary_expression.left);
+                    .check_truthiness_of_type(left_type, node_as_binary_expression.left);
             }
         }
 
@@ -1219,9 +1219,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
             let node_ref = node.ref_(self);
             let node_as_binary_expression = node_ref.as_binary_expression();
             result = Some(self.type_checker.check_binary_like_expression_worker(
-                &node_as_binary_expression.left,
-                &node_as_binary_expression.operator_token,
-                &node_as_binary_expression.right,
+                node_as_binary_expression.left,
+                node_as_binary_expression.operator_token,
+                node_as_binary_expression.right,
                 left_type,
                 right_type,
                 Some(node),

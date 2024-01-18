@@ -97,7 +97,7 @@ impl TypeChecker {
 
         if let Some(offending_symbol_operand) = offending_symbol_operand {
             self.error(
-                Some(&**offending_symbol_operand),
+                Some(offending_symbol_operand),
                 &Diagnostics::The_0_operator_cannot_be_applied_to_type_symbol,
                 Some(vec![token_to_string(operator).unwrap().to_owned()]),
             );
@@ -148,8 +148,8 @@ impl TypeChecker {
                     let left_ref = left.ref_(self);
                     let left_as_property_access_expression = left_ref.as_property_access_expression();
                     let target = self.get_type_of_property_of_type_(
-                        self.get_type_of_expression(&left_as_property_access_expression.expression)?,
-                        &left_as_property_access_expression.name.as_member_name().escaped_text()
+                        self.get_type_of_expression(left_as_property_access_expression.expression)?,
+                        &left_as_property_access_expression.name.ref_(self).as_member_name().escaped_text()
                     )?;
                     if self.is_exact_optional_property_mismatch(
                         Some(value_type),
@@ -255,7 +255,7 @@ impl TypeChecker {
         if self
             .try_give_better_primary_error(
                 operator_token,
-                &err_node,
+                err_node,
                 would_work_with_await,
                 &left_str,
                 &right_str,
@@ -263,7 +263,7 @@ impl TypeChecker {
             .is_none()
         {
             self.error_and_maybe_suggest_await(
-                &err_node,
+                err_node,
                 would_work_with_await,
                 &Diagnostics::Operator_0_cannot_be_applied_to_types_1_and_2,
                 Some(vec![
@@ -400,7 +400,7 @@ impl TypeChecker {
             signature_next_type
         };
         let yield_expression_type =
-            if let Some(node_expression) = node_as_yield_expression.expression.as_ref() {
+            if let Some(node_expression) = node_as_yield_expression.expression {
                 self.check_expression(node_expression, None, None)?
             } else {
                 self.undefined_widening_type()
@@ -439,7 +439,7 @@ impl TypeChecker {
                     use_,
                     IterationTypeKind::Return,
                     yield_expression_type,
-                    node_as_yield_expression.expression.as_deref(),
+                    node_as_yield_expression.expression,
                 )?
                 .unwrap_or_else(|| self.any_type()));
         } else if let Some(return_type) = return_type {
@@ -484,14 +484,14 @@ impl TypeChecker {
         let type_ =
             self.check_truthiness_expression(node_as_conditional_expression.condition, None)?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
-            &node_as_conditional_expression.condition,
+            node_as_conditional_expression.condition,
             type_,
-            Some(&*node_as_conditional_expression.when_true),
+            Some(node_as_conditional_expression.when_true),
         )?;
         let type1 =
-            self.check_expression(&node_as_conditional_expression.when_true, check_mode, None)?;
+            self.check_expression(node_as_conditional_expression.when_true, check_mode, None)?;
         let type2 =
-            self.check_expression(&node_as_conditional_expression.when_false, check_mode, None)?;
+            self.check_expression(node_as_conditional_expression.when_false, check_mode, None)?;
         self.get_union_type(
             &[type1, type2],
             Some(UnionReduction::Subtype),
@@ -516,12 +516,13 @@ impl TypeChecker {
         let node_as_template_expression = node_ref.as_template_expression();
         let mut texts = vec![node_as_template_expression
             .head
-            .as_literal_like_node()
+            .ref_(self).as_literal_like_node()
             .text()];
         let mut types = vec![];
         for span in node_as_template_expression.template_spans.iter() {
-            let span = span.as_template_span();
-            let type_ = self.check_expression(&span.expression, None, None)?;
+            let span_ref = span.ref_(self);
+            let span = span_ref.as_template_span();
+            let type_ = self.check_expression(span.expression, None, None)?;
             if self.maybe_type_of_kind(type_, TypeFlags::ESSymbolLike) {
                 self.error(
                     Some(&*span.expression),

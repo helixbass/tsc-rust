@@ -213,7 +213,7 @@ impl TypeChecker {
                     witnesses.push(Some(
                         clause_as_case_clause
                             .expression
-                            .as_literal_like_node()
+                            .ref_(self).as_literal_like_node()
                             .text()
                             .clone(),
                     ));

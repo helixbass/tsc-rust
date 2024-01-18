@@ -175,7 +175,7 @@ impl TypeChecker {
                     Some(if self.flow_loop_count() > 0 {
                         self.check_expression(arg.ref_(self).as_spread_element().expression, None, None)?
                     } else {
-                        self.check_expression_cached(arg.as_spread_element().expression, None)?
+                        self.check_expression_cached(arg.ref_(self).as_spread_element().expression, None)?
                     })
                 } else {
                     None

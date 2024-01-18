@@ -44,7 +44,7 @@ impl TypeChecker {
         let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(source_file) {
             let start =
-                get_span_of_token_at_position(source_file, node.ref_(self).pos().try_into().unwrap()).start;
+                get_span_of_token_at_position(&source_file.ref_(self), node.ref_(self).pos().try_into().unwrap()).start;
             let end = node_as_with_statement.statement.ref_(self).pos();
             self.grammar_error_at_pos(
                 source_file,
@@ -73,7 +73,7 @@ impl TypeChecker {
             self.check_expression(node_as_switch_statement.expression, None, None)?;
         let expression_is_literal = self.is_literal_type(expression_type);
         try_for_each(
-            &node_as_switch_statement.case_block.as_case_block().clauses,
+            &node_as_switch_statement.case_block.ref_(self).as_case_block().clauses,
             |&clause: &Id<Node>, _| -> io::Result<Option<()>> {
                 if clause.ref_(self).kind() == SyntaxKind::DefaultClause && !has_duplicate_default_clause {
                     if first_default_clause.is_none() {
@@ -108,7 +108,7 @@ impl TypeChecker {
                         self.check_type_comparable_to(
                             case_type,
                             compared_expression_type,
-                            &clause_as_case_clause.expression,
+                            clause_as_case_clause.expression,
                             None,
                             None,
                         )?;
@@ -140,7 +140,7 @@ impl TypeChecker {
                 Ok(None)
             },
         )?;
-        if node_as_switch_statement.case_block.maybe_locals().is_some() {
+        if node_as_switch_statement.case_block.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node_as_switch_statement.case_block);
         }
 
@@ -167,7 +167,7 @@ impl TypeChecker {
                         == node_as_labeled_statement.label.ref_(self).as_identifier().escaped_text
                 {
                     self.grammar_error_on_node(
-                        &node_as_labeled_statement.label,
+                        node_as_labeled_statement.label,
                         &Diagnostics::Duplicate_label_0,
                         Some(vec![get_text_of_node(
                             node_as_labeled_statement.label,
@@ -179,7 +179,7 @@ impl TypeChecker {
                     return true.into();
                 }
                 false.into()
-            }, );
+            }, self);
         }
 
         self.check_source_element(Some(node_as_labeled_statement.statement))?;
@@ -194,10 +194,10 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_throw_statement = node_ref.as_throw_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
-            if is_identifier(&node_as_throw_statement.expression)
+            if is_identifier(&node_as_throw_statement.expression.ref_(self))
                 && node_as_throw_statement
                     .expression
-                    .as_identifier()
+                    .ref_(self).as_identifier()
                     .escaped_text
                     .is_empty()
             {
@@ -210,7 +210,7 @@ impl TypeChecker {
         }
 
         // if (node.expression) {
-        self.check_expression(&node_as_throw_statement.expression, None, None)?;
+        self.check_expression(node_as_throw_statement.expression, None, None)?;
         // }
 
         Ok(())
@@ -227,9 +227,10 @@ impl TypeChecker {
         self.check_block(node_as_try_statement.try_block)?;
         let catch_clause = node_as_try_statement.catch_clause;
         if let Some(catch_clause) = catch_clause {
-            let catch_clause_as_catch_clause = catch_clause.as_catch_clause();
+            let catch_clause_ref = catch_clause.ref_(self);
+            let catch_clause_as_catch_clause = catch_clause_ref.as_catch_clause();
             if let Some(catch_clause_variable_declaration) =
-                catch_clause_as_catch_clause.variable_declaration.as_ref()
+                catch_clause_as_catch_clause.variable_declaration
             {
                 let declaration = catch_clause_variable_declaration;
                 let type_node =
@@ -260,7 +261,7 @@ impl TypeChecker {
                     if let Some(block_locals) = block_locals {
                         let block_locals = (*block_locals).borrow();
                         for_each_key(
-                            &*(*catch_clause.maybe_locals().clone().unwrap()).borrow(),
+                            &*(*catch_clause.ref_(self).maybe_locals().clone().unwrap()).borrow(),
                             |caught_name: &__String| -> Option<()> {
                                 let block_local = block_locals.get(caught_name);
                                 if let Some(&block_local) = block_local {
@@ -329,7 +330,7 @@ impl TypeChecker {
         if let Some(type_declaration) = type_declaration
             .filter(|type_declaration| is_class_like(&type_declaration.ref_(self)))
         {
-            for member in &type_declaration.ref_(self).as_class_like_declaration().members() {
+            for &member in &type_declaration.ref_(self).as_class_like_declaration().members() {
                 if !is_static(member, self) && !self.has_bindable_name(member)? {
                     let symbol = self.get_symbol_of_node(member)?.unwrap();
                     self.check_index_constraint_for_property(
@@ -466,8 +467,7 @@ impl TypeChecker {
                     self.get_parent_of_symbol(self.get_symbol_of_node(declaration)?.unwrap())?
                         == type_.ref_(self).maybe_symbol(),
                 )
-            })?
-            .cloned();
+            })?;
         for info in &index_infos {
             if ptr::eq(&**info, check_info) {
                 continue;
@@ -714,7 +714,7 @@ impl TypeChecker {
         let max_type_argument_count = length(target_parameters);
         let min_type_argument_count = self.get_min_type_argument_count(target_parameters);
 
-        for declaration in declarations {
+        for &declaration in declarations {
             let source_parameters = get_effective_type_parameter_declarations(declaration, self);
             let num_type_parameters = source_parameters.len();
             if num_type_parameters < min_type_argument_count
@@ -755,7 +755,6 @@ impl TypeChecker {
 
                 let source_default = source_as_type_parameter_declaration
                     .default
-                    .as_ref()
                     .try_map(|source_default| self.get_type_from_type_node_(source_default))?;
                 let target_default = self.get_default_from_type_parameter_(target)?;
                 if matches!(
@@ -853,7 +852,7 @@ impl TypeChecker {
             node,
             node_as_class_like_declaration.maybe_name(),
         );
-        self.check_type_parameters(Some(get_effective_type_parameter_declarations(node, self)))?;
+        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node, self)))?;
         self.check_exports_on_merged_declarations(node)?;
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(symbol)?;
@@ -1024,7 +1023,7 @@ impl TypeChecker {
                         },
                     )? {
                         self.error(
-                            Some(&*base_type_node_as_expression_with_type_arguments.expression),
+                            Some(base_type_node_as_expression_with_type_arguments.expression),
                             &Diagnostics::Base_constructors_must_all_have_the_same_return_type,
                             None,
                         );
@@ -1048,7 +1047,7 @@ impl TypeChecker {
                     &type_ref_node_as_expression_with_type_arguments.expression.ref_(self),
                 ) {
                     self.error(
-                        Some(&*type_ref_node_as_expression_with_type_arguments.expression),
+                        Some(type_ref_node_as_expression_with_type_arguments.expression),
                         &Diagnostics::A_class_can_only_implement_an_identifier_Slashqualified_name_with_optional_type_arguments,
                         None,
                     );

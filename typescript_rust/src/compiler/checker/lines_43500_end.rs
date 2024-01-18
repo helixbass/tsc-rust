@@ -71,7 +71,7 @@ impl TypeChecker {
         } else {
             let elements = name.ref_(self).as_has_elements().elements();
             for element in &elements {
-                if !is_omitted_expression(element) {
+                if !is_omitted_expression(&element.ref_(self)) {
                     self.check_grammar_name_in_let_or_const_declarations(
                         element.ref_(self).as_binding_element().name(),
                     );
@@ -157,12 +157,12 @@ impl TypeChecker {
             SyntaxKind::NewKeyword => {
                 if escaped_text != "target" {
                     return self.grammar_error_on_node(
-                        &node_as_meta_property.name,
+                        node_as_meta_property.name,
                         &Diagnostics::_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2,
                         Some(vec![
                             node_as_meta_property
                                 .name
-                                .as_identifier()
+                                .ref_(self).as_identifier()
                                 .escaped_text
                                 .clone(),
                             token_to_string(node_as_meta_property.keyword_token)
@@ -176,12 +176,12 @@ impl TypeChecker {
             SyntaxKind::ImportKeyword => {
                 if escaped_text != "meta" {
                     return self.grammar_error_on_node(
-                        &node_as_meta_property.name,
+                        node_as_meta_property.name,
                         &Diagnostics::_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2,
                         Some(vec![
                             node_as_meta_property
                                 .name
-                                .as_identifier()
+                                .ref_(self).as_identifier()
                                 .escaped_text
                                 .clone(),
                             token_to_string(node_as_meta_property.keyword_token)
@@ -352,8 +352,9 @@ impl TypeChecker {
         let node_as_named_declaration = node_ref.as_named_declaration();
         let node_name = node_as_named_declaration.name();
         if is_computed_property_name(&node_name.ref_(self)) && {
-            let node_name_as_computed_property_name = node_name.as_computed_property_name();
-            is_binary_expression(&node_name_as_computed_property_name.expression)
+            let node_name_ref = node_name.ref_(self);
+            let node_name_as_computed_property_name = node_name_ref.as_computed_property_name();
+            is_binary_expression(&node_name_as_computed_property_name.expression.ref_(self))
                 && node_name_as_computed_property_name
                     .expression
                     .as_binary_expression()
@@ -368,31 +369,31 @@ impl TypeChecker {
             ));
         }
         if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)) {
-            if is_string_literal(&node_name)
-                && &*node_name.as_string_literal().text() == "constructor"
+            if is_string_literal(&node_name.ref_(self))
+                && &*node_name.ref_(self).as_string_literal().text() == "constructor"
             {
                 return Ok(self.grammar_error_on_node(
-                    &node_name,
+                    node_name,
                     &Diagnostics::Classes_may_not_have_a_field_named_constructor,
                     None,
                 ));
             }
             if self.check_grammar_for_invalid_dynamic_name(
-                &node_name,
+                node_name,
                 &Diagnostics::A_computed_property_name_in_a_class_property_declaration_must_have_a_simple_literal_type_or_a_unique_symbol_type,
             )? {
                 return Ok(true);
             }
-            if self.language_version < ScriptTarget::ES2015 && is_private_identifier(&node_name) {
+            if self.language_version < ScriptTarget::ES2015 && is_private_identifier(&node_name.ref_(self)) {
                 return Ok(self.grammar_error_on_node(
-                    &node_name,
+                    node_name,
                     &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
                     None,
                 ));
             }
         } else if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::InterfaceDeclaration {
             if self.check_grammar_for_invalid_dynamic_name(
-                &node_name,
+                node_name,
                 &Diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
             )? {
                 return Ok(true);
@@ -406,7 +407,7 @@ impl TypeChecker {
             }
         } else if is_type_literal_node(&node.ref_(self).parent().ref_(self)) {
             if self.check_grammar_for_invalid_dynamic_name(
-                &node_name,
+                node_name,
                 &Diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
             )? {
                 return Ok(true);
@@ -485,7 +486,7 @@ impl TypeChecker {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> bool {
-        for decl in &file.ref_(self).as_source_file().statements() {
+        for &decl in &file.ref_(self).as_source_file().statements() {
             if is_declaration(decl, self) || decl.ref_(self).kind() == SyntaxKind::VariableStatement {
                 if self.check_grammar_top_level_element_for_required_declare_modifier(decl) {
                     return true;
@@ -630,7 +631,7 @@ impl TypeChecker {
     ) -> bool {
         let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(source_file) {
-            let span = get_span_of_token_at_position(source_file, node.ref_(self).pos().try_into().unwrap());
+            let span = get_span_of_token_at_position(&source_file.ref_(self), node.ref_(self).pos().try_into().unwrap());
             self.diagnostics().add(Gc::new(
                 create_file_diagnostic(source_file, text_span_end(&span), 0, message, args).into(),
             ));
@@ -670,9 +671,8 @@ impl TypeChecker {
             if let Some(node_named_bindings) =
                 node_as_import_clause
                     .named_bindings
-                    .as_ref()
                     .filter(|node_named_bindings| {
-                        node_named_bindings.kind() == SyntaxKind::NamedImports
+                        node_named_bindings.ref_(self).kind() == SyntaxKind::NamedImports
                     })
             {
                 return self.check_grammar_named_imports_or_exports(node_named_bindings);
@@ -731,7 +731,7 @@ impl TypeChecker {
             self.check_grammar_for_disallowed_trailing_comma(Some(node_arguments), None);
 
             if node_arguments.len() > 1 {
-                let assertion_argument = &node_arguments[1];
+                let assertion_argument = node_arguments[1];
                 return self.grammar_error_on_node(
                     assertion_argument,
                     &Diagnostics::Dynamic_imports_only_support_a_second_argument_when_the_module_option_is_set_to_esnext,
@@ -1458,7 +1458,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<AllAccessorDeclarations> {
         let accessor =
-            get_parse_tree_node(Some(accessor), Some(|node| is_get_or_set_accessor_declaration(&node.ref_(self))), self).unwrap();
+            get_parse_tree_node(Some(accessor), Some(|node: Id<Node>| is_get_or_set_accessor_declaration(&node.ref_(self))), self).unwrap();
         let other_kind = if accessor.ref_(self).kind() == SyntaxKind::SetAccessor {
             SyntaxKind::GetAccessor
         } else {
@@ -1541,7 +1541,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             Some("Non-sourcefile node passed into getDeclarationsForSourceFile"),
         );
         let Some(sym) = self.type_checker.get_symbol_of_node(node)? else {
-            return Ok(match node.maybe_locals().as_ref() {
+            return Ok(match node.ref_(self).maybe_locals().as_ref() {
                 None => Some(vec![]),
                 Some(node_locals) => self
                     .type_checker

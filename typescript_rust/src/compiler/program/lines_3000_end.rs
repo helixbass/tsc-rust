@@ -1710,7 +1710,7 @@ impl Program {
     ) -> Option<impl Iterator<Item = Id<Node>> + 'name> {
         let compiler_options_object_literal_syntax =
             self.get_compiler_options_object_literal_syntax();
-        compiler_options_object_literal_syntax.as_ref().map(
+        compiler_options_object_literal_syntax.map(
             |compiler_options_object_literal_syntax| {
                 get_property_assignment(compiler_options_object_literal_syntax, name, None, self)
             },

@@ -31,14 +31,15 @@ impl TypeChecker {
             SyntaxKind::Identifier => node,
             SyntaxKind::QualifiedName => {
                 while {
-                    node = node.as_qualified_name().left.clone();
-                    node.kind() != SyntaxKind::Identifier
+                    node = node.ref_(self).as_qualified_name().left;
+                    node.ref_(self).kind() != SyntaxKind::Identifier
                 } {}
                 node
             }
             SyntaxKind::PropertyAccessExpression => {
                 while {
-                    let node_as_property_access_expression = node.as_property_access_expression();
+                    let node_ref = node.ref_(self);
+                    let node_as_property_access_expression = node_ref.as_property_access_expression();
                     if is_module_exports_access_expression(
                         node_as_property_access_expression.expression, self,
                     ) && !is_private_identifier(&node_as_property_access_expression.name.ref_(self))
@@ -207,10 +208,10 @@ impl TypeChecker {
                                 let node_ref = node.ref_(self);
                                 let node_as_export_specifier = node_ref.as_export_specifier();
                                 let name = id_text(
-                                    node_as_export_specifier
+                                    &node_as_export_specifier
                                         .property_name
-                                        .as_ref()
-                                        .unwrap_or(&node_as_export_specifier.name),
+                                        .unwrap_or(node_as_export_specifier.name)
+                                        .ref_(self),
                                 );
                                 self.add_type_only_declaration_related_info(
                                     self.error(Some(node), message, Some(vec![name.to_owned()])),
@@ -262,10 +263,10 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_import_specifier = node_ref.as_import_specifier();
             id_text(
-                node_as_import_specifier
+                &node_as_import_specifier
                     .property_name
-                    .as_ref()
-                    .unwrap_or(&node_as_import_specifier.name),
+                    .unwrap_or(node_as_import_specifier.name)
+                    .ref_(self),
             ) == "default"
                 && get_es_module_interop(&self.compiler_options) == Some(true)
                 && self.module_kind != ModuleKind::System
@@ -366,12 +367,12 @@ impl TypeChecker {
                     } else {
                         let module_existed = self.resolve_external_module_name_(
                             node,
-                            &node_as_import_declaration.module_specifier,
+                            node_as_import_declaration.module_specifier,
                             None,
                         )?;
                         if module_existed.is_some() {
                             try_for_each(
-                                &import_clause_named_bindings.as_named_imports().elements,
+                                &import_clause_named_bindings.ref_(self).as_named_imports().elements,
                                 |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                                     self.check_import_binding(element)?;
                                     Ok(None)
@@ -442,7 +443,7 @@ impl TypeChecker {
                     }
                     if target.ref_(self).flags().intersects(SymbolFlags::Type) {
                         self.check_type_name_is_reserved(
-                            &node_as_import_equals_declaration.name(),
+                            node_as_import_equals_declaration.name(),
                             &Diagnostics::Import_name_cannot_be_0,
                         );
                     }
@@ -496,11 +497,11 @@ impl TypeChecker {
 
         let node_ref = node.ref_(self);
         let node_as_export_declaration = node_ref.as_export_declaration();
-        if node_as_export_declaration.module_specifier
+        if node_as_export_declaration.module_specifier.is_some()
             && matches!(
-                node_as_export_declaration.export_clause.as_ref(),
-                Some(node_export_clause) if is_named_exports(node_export_clause) &&
-                    length(Some(&node_export_clause.as_named_exports().elements)) > 0
+                node_as_export_declaration.export_clause,
+                Some(node_export_clause) if is_named_exports(&node_export_clause.ref_(self)) &&
+                    length(Some(&node_export_clause.ref_(self).as_named_exports().elements)) > 0
             )
             && self.language_version == ScriptTarget::ES3
         {
@@ -513,11 +514,10 @@ impl TypeChecker {
         {
             if let Some(node_export_clause) = node_as_export_declaration
                 .export_clause
-                .as_ref()
-                .filter(|node_export_clause| !is_namespace_export(node_export_clause))
+                .filter(|node_export_clause| !is_namespace_export(&node_export_clause.ref_(self)))
             {
                 try_for_each(
-                    &node_export_clause.as_named_exports().elements,
+                    &node_export_clause.ref_(self).as_named_exports().elements,
                     |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_export_specifier(element)?;
                         Ok(None)
@@ -544,7 +544,6 @@ impl TypeChecker {
                     node,
                     node_as_export_declaration
                         .module_specifier
-                        .as_ref()
                         .unwrap(),
                     None,
                 )?;
@@ -552,7 +551,7 @@ impl TypeChecker {
                     .filter(|&module_symbol| self.has_export_assignment_symbol(module_symbol))
                 {
                     self.error(
-                        node_as_export_declaration.module_specifier.as_deref(),
+                        node_as_export_declaration.module_specifier,
                         &Diagnostics::Module_0_uses_export_and_cannot_be_used_with_export_Asterisk,
                         Some(vec![self.symbol_to_string_(
                             module_symbol,
@@ -563,7 +562,7 @@ impl TypeChecker {
                         )?]),
                     );
                 } else if let Some(node_export_clause) =
-                    node_as_export_declaration.export_clause.as_ref()
+                    node_as_export_declaration.export_clause
                 {
                     self.check_alias_symbol(node_export_clause)?;
                 }
@@ -601,8 +600,7 @@ impl TypeChecker {
         if node_as_export_declaration.is_type_only {
             if let Some(node_export_clause) = node_as_export_declaration
                 .export_clause
-                .as_ref()
-                .filter(|node_export_clause| node_export_clause.kind() == SyntaxKind::NamedExports)
+                .filter(|node_export_clause| node_export_clause.ref_(self).kind() == SyntaxKind::NamedExports)
             {
                 return self.check_grammar_named_imports_or_exports(node_export_clause);
             } else {
@@ -703,7 +701,7 @@ impl TypeChecker {
         &self,
         source_file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
-        for statement in &source_file.ref_(self).as_source_file().statements() {
+        for &statement in &source_file.ref_(self).as_source_file().statements() {
             if self.can_convert_import_declaration_to_type_only(statement)?
                 || self.can_convert_import_equals_declaration_to_type_only(statement)?
             {
@@ -729,8 +727,7 @@ impl TypeChecker {
             self.collect_linked_aliases(
                 node_as_export_specifier
                     .property_name
-                    .as_ref()
-                    .unwrap_or(&node_as_export_specifier.name),
+                    .unwrap_or(node_as_export_specifier.name),
                 Some(true),
             )?;
         }
@@ -743,11 +740,10 @@ impl TypeChecker {
         {
             let exported_name = node_as_export_specifier
                 .property_name
-                .as_ref()
-                .unwrap_or(&node_as_export_specifier.name);
+                .unwrap_or(node_as_export_specifier.name);
             let symbol = self.resolve_name_(
-                Some(&**exported_name),
-                &exported_name.as_identifier().escaped_text,
+                Some(exported_name),
+                &exported_name.ref_(self).as_identifier().escaped_text,
                 SymbolFlags::Value
                     | SymbolFlags::Type
                     | SymbolFlags::Namespace
@@ -771,10 +767,10 @@ impl TypeChecker {
                     )
             ) {
                 self.error(
-                    Some(&**exported_name),
+                    Some(exported_name),
                     &Diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
                     Some(vec![
-                        id_text(exported_name).to_owned()
+                        id_text(&exported_name.ref_(self)).to_owned()
                     ])
                 );
             } else {
@@ -798,8 +794,7 @@ impl TypeChecker {
                     self.check_expression_cached(
                         node_as_export_specifier
                             .property_name
-                            .as_ref()
-                            .unwrap_or(&node_as_export_specifier.name),
+                            .unwrap_or(node_as_export_specifier.name),
                         None,
                     )?;
                 }
@@ -813,10 +808,9 @@ impl TypeChecker {
                         .maybe_implied_node_format()
                         == Some(ModuleKind::CommonJS))
                 && id_text(
-                    node_as_export_specifier
+                    &node_as_export_specifier
                         .property_name
-                        .as_ref()
-                        .unwrap_or(&node_as_export_specifier.name),
+                        .unwrap_or(node_as_export_specifier.name).ref_(self),
                 ) == "default"
             {
                 self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault)?;
@@ -841,7 +835,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let ref container = if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile {
+        let container = if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile {
             node.ref_(self).parent()
         } else {
             node.ref_(self).parent().ref_(self).parent()
@@ -874,7 +868,7 @@ impl TypeChecker {
         let type_annotation_node = get_effective_type_annotation_node(node, self);
         if let Some(type_annotation_node) = type_annotation_node {
             self.check_type_assignable_to(
-                self.check_expression_cached(&node_as_export_assignment.expression, None)?,
+                self.check_expression_cached(node_as_export_assignment.expression, None)?,
                 self.get_type_from_type_node_(type_annotation_node)?,
                 Some(node_as_export_assignment.expression),
                 None,
@@ -884,7 +878,7 @@ impl TypeChecker {
         }
 
         if node_as_export_assignment.expression.ref_(self).kind() == SyntaxKind::Identifier {
-            let id = &node_as_export_assignment.expression;
+            let id = node_as_export_assignment.expression;
             let sym =
                 self.resolve_entity_name(id, SymbolFlags::All, Some(true), Some(true), Some(node))?;
             if let Some(sym) = sym {
@@ -897,14 +891,14 @@ impl TypeChecker {
                 if target == self.unknown_symbol()
                     || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 {
-                    self.check_expression_cached(&node_as_export_assignment.expression, None)?;
+                    self.check_expression_cached(node_as_export_assignment.expression, None)?;
                 }
             } else {
-                self.check_expression_cached(&node_as_export_assignment.expression, None)?;
+                self.check_expression_cached(node_as_export_assignment.expression, None)?;
             }
 
             if get_emit_declarations(&self.compiler_options) {
-                self.collect_linked_aliases(&node_as_export_assignment.expression, Some(true))?;
+                self.collect_linked_aliases(node_as_export_assignment.expression, Some(true))?;
             }
         } else {
             self.check_expression_cached(node_as_export_assignment.expression, None)?;
@@ -916,7 +910,7 @@ impl TypeChecker {
             && !is_entity_name_expression(node_as_export_assignment.expression, self)
         {
             self.grammar_error_on_node(
-                &node_as_export_assignment.expression,
+                node_as_export_assignment.expression,
                 &Diagnostics::The_expression_of_an_export_assignment_must_be_an_identifier_or_qualified_name_in_an_ambient_context,
                 None,
             );

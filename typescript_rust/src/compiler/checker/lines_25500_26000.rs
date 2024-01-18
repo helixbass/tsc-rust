@@ -396,7 +396,7 @@ impl TypeChecker {
             if !matches!(
                 context_flags,
                 Some(context_flags) if context_flags.intersects(ContextFlags::SkipBindingPatterns)
-            ) && is_binding_pattern(&declaration.ref_(self).as_named_declaration().maybe_name().ref_(self))
+            ) && is_binding_pattern(declaration.ref_(self).as_named_declaration().maybe_name().refed(self))
             {
                 return Ok(Some(self.get_type_from_binding_pattern(
                     declaration.ref_(self).as_named_declaration().name(),
@@ -725,17 +725,17 @@ impl TypeChecker {
             let lhs_type =
                 self.get_type_of_expression(e_as_property_access_expression.expression)?;
             return Ok(
-                if is_private_identifier(&e_as_property_access_expression.name) {
+                if is_private_identifier(&e_as_property_access_expression.name.ref_(self)) {
                     self.try_get_private_identifier_property_of_type(
                         lhs_type,
-                        &e_as_property_access_expression.name,
+                        e_as_property_access_expression.name,
                     )?
                 } else {
                     self.get_property_of_type_(
                         lhs_type,
                         &e_as_property_access_expression
                             .name
-                            .as_identifier()
+                            .ref_(self).as_identifier()
                             .escaped_text,
                         None,
                     )?

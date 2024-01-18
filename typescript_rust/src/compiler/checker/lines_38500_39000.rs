@@ -48,7 +48,7 @@ impl TypeChecker {
             })?;
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
-        for member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &node.ref_(self).as_class_like_declaration().members() {
             if has_ambient_modifier(member, self) {
                 continue;
             }
@@ -249,7 +249,7 @@ impl TypeChecker {
         let mut issued_member_error = false;
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
-        for member in &node_as_class_like_declaration.members() {
+        for &member in &node_as_class_like_declaration.members() {
             if is_static(member, self) {
                 continue;
             }
@@ -257,7 +257,6 @@ impl TypeChecker {
             let member_as_named_declaration = member_ref.as_named_declaration();
             let declared_prop = member_as_named_declaration
                 .maybe_name()
-                .as_ref()
                 .try_and_then(|member_name| self.get_symbol_at_location_(member_name, None))?
                 .try_or_else(|| self.get_symbol_at_location_(member, None))?;
             if let Some(declared_prop) = declared_prop {

@@ -42,16 +42,17 @@ use crate::{
     DiagnosticMessage, HasArena, InArena, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags,
     SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
     TransientSymbolInterface, TypeChecker, _d,
+    push_if_unique_eq, index_of_eq,
 };
 
 impl TypeChecker {
     pub(super) fn get_jsx_namespace_(&self, location: Option<Id<Node>>) -> __String {
         if let Some(location) = location {
-            let location = location.borrow();
             let file = maybe_get_source_file_of_node(Some(location), self);
             if let Some(file) = file {
-                let file_as_source_file = file.as_source_file();
-                if is_jsx_opening_fragment(location) {
+                let file_ref = file.ref_(self);
+                let file_as_source_file = file_ref.as_source_file();
+                if is_jsx_opening_fragment(&location.ref_(self)) {
                     if let Some(file_local_jsx_fragment_namespace) = file_as_source_file
                         .maybe_local_jsx_fragment_namespace()
                         .as_ref()
@@ -83,7 +84,7 @@ impl TypeChecker {
                             file_local_jsx_fragment_factory.as_ref()
                         {
                             let ret = get_first_identifier(file_local_jsx_fragment_factory, self)
-                                .as_identifier()
+                                .ref_(self).as_identifier()
                                 .escaped_text
                                 .clone();
                             *file_as_source_file.maybe_local_jsx_fragment_namespace() =
@@ -96,7 +97,7 @@ impl TypeChecker {
                         *file_as_source_file.maybe_local_jsx_fragment_factory() =
                             Some(entity.clone());
                         let ret = get_first_identifier(entity, self)
-                            .as_identifier()
+                            .ref_(self).as_identifier()
                             .escaped_text
                             .clone();
                         *file_as_source_file.maybe_local_jsx_fragment_namespace() =
@@ -104,7 +105,7 @@ impl TypeChecker {
                         return ret;
                     }
                 } else {
-                    let local_jsx_namespace = self.get_local_jsx_namespace(&file);
+                    let local_jsx_namespace = self.get_local_jsx_namespace(file);
                     if let Some(local_jsx_namespace) = local_jsx_namespace {
                         *file_as_source_file.maybe_local_jsx_namespace() =
                             Some(local_jsx_namespace.clone());
@@ -123,15 +124,15 @@ impl TypeChecker {
                     self.language_version,
                 );
                 maybe_visit_node(
-                    _jsx_factory_entity.as_deref(),
+                    _jsx_factory_entity.clone(),
                     Some(|node: Id<Node>| self.mark_as_synthetic(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
-                if let Some(_jsx_factory_entity) = _jsx_factory_entity {
+                if let Some(_jsx_factory_entity) = _jsx_factory_entity.clone() {
                     *_jsx_namespace = Some(
                         get_first_identifier(_jsx_factory_entity, self)
-                            .as_identifier()
+                            .ref_(self).as_identifier()
                             .escaped_text
                             .clone(),
                     );
@@ -160,7 +161,8 @@ impl TypeChecker {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> Option<__String> {
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         if let Some(file_local_jsx_namespace) =
             file_as_source_file.maybe_local_jsx_namespace().as_ref()
         {
@@ -188,7 +190,7 @@ impl TypeChecker {
             );
             if let Some(file_local_jsx_factory) = file_local_jsx_factory {
                 let ret = get_first_identifier(file_local_jsx_factory, self)
-                    .as_identifier()
+                    .ref_(self).as_identifier()
                     .escaped_text
                     .clone();
                 *file_as_source_file.maybe_local_jsx_namespace() = Some(ret.clone());
@@ -199,9 +201,9 @@ impl TypeChecker {
     }
 
     pub(super) fn mark_as_synthetic(&self, node: Id<Node>) -> VisitResult {
-        set_text_range_pos_end(node, -1, -1);
+        set_text_range_pos_end(&*node.ref_(self), -1, -1);
         maybe_visit_each_child(
-            Some(node),
+            Some(&node.ref_(self)),
             |node: Id<Node>| self.mark_as_synthetic(node),
             &*null_transformation_context,
         )
@@ -224,8 +226,7 @@ impl TypeChecker {
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
         let diagnostic: Gc<Diagnostic> = Gc::new(if let Some(location) = location {
-            let location = location.borrow();
-            create_diagnostic_for_node(location, message, args).into()
+            create_diagnostic_for_node(location, message, args, self).into()
         } else {
             create_compiler_diagnostic(message, args).into()
         });
@@ -256,8 +257,7 @@ impl TypeChecker {
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
         Gc::new(if let Some(location) = location {
-            let location = location.borrow();
-            create_diagnostic_for_node(location, message, args).into()
+            create_diagnostic_for_node(location, message, args, self).into()
         } else {
             create_compiler_diagnostic(message, args).into()
         })
@@ -291,7 +291,7 @@ impl TypeChecker {
         args: Option<Vec<String>>,
     ) {
         let message = message.into();
-        if location.pos() < 0 || location.end() < 0 {
+        if location.ref_(self).pos() < 0 || location.ref_(self).end() < 0 {
             if !is_error {
                 return;
             }
@@ -300,10 +300,10 @@ impl TypeChecker {
                 is_error,
                 Gc::new(match message {
                     DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessage(message) => {
-                        create_file_diagnostic(&file, 0, 0, &message, args).into()
+                        create_file_diagnostic(file, 0, 0, &message, args).into()
                     }
                     DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessageChain(message) => {
-                        create_diagnostic_for_file_from_message_chain(&file, message, None).into()
+                        create_diagnostic_for_file_from_message_chain(file, message, None).into()
                     }
                 }),
             );
@@ -313,10 +313,10 @@ impl TypeChecker {
             is_error,
             Gc::new(match message {
                 DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessage(message) => {
-                    create_diagnostic_for_node(location, &message, args).into()
+                    create_diagnostic_for_node(location, &message, args, self).into()
                 }
                 DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessageChain(message) => {
-                    create_diagnostic_for_node_from_message_chain(location, message, None).into()
+                    create_diagnostic_for_node_from_message_chain(location, message, None, self).into()
                 }
             }),
         );
@@ -335,6 +335,7 @@ impl TypeChecker {
                 location,
                 &Diagnostics::Did_you_forget_to_use_await,
                 None,
+                self,
             )
             .into();
             add_related_info(&diagnostic, vec![related]);
@@ -347,16 +348,17 @@ impl TypeChecker {
         declarations: &[Id<Node>],
         diagnostic: Gc<Diagnostic /*DiagnosticWithLocation*/>,
     ) -> Gc<Diagnostic> {
-        let deprecated_tag = for_each(declarations, |declaration, _| {
-            get_jsdoc_deprecated_tag(declaration)
+        let deprecated_tag = for_each(declarations, |&declaration, _| {
+            get_jsdoc_deprecated_tag(declaration, self)
         });
         if let Some(deprecated_tag) = deprecated_tag {
             add_related_info(
                 &diagnostic,
                 vec![create_diagnostic_for_node(
-                    &deprecated_tag,
+                    deprecated_tag,
                     &Diagnostics::The_declaration_was_marked_as_deprecated_here,
                     None,
+                    self,
                 )
                 .into()],
             );
@@ -375,6 +377,7 @@ impl TypeChecker {
             location,
             &Diagnostics::_0_is_deprecated,
             Some(vec![deprecated_entity.to_owned()]),
+            self,
         )
         .into();
         self.add_deprecated_suggestion_worker(declarations, diagnostic)
@@ -396,6 +399,7 @@ impl TypeChecker {
                         signature_string.to_owned(),
                         deprecated_entity.to_owned(),
                     ]),
+                    self,
                 )
                 .into()
             } else {
@@ -403,10 +407,11 @@ impl TypeChecker {
                     location,
                     &Diagnostics::_0_is_deprecated,
                     Some(vec![signature_string.to_owned()]),
+                    self,
                 )
                 .into()
             });
-        self.add_deprecated_suggestion_worker(&vec![declaration.node_wrapper()], diagnostic)
+        self.add_deprecated_suggestion_worker(&vec![declaration], diagnostic)
     }
 
     pub(super) fn create_symbol(
@@ -667,16 +672,13 @@ impl TypeChecker {
                 && target_symbol_file.is_some()
                 && self.maybe_amalgamated_duplicates().is_some()
                 && !is_either_enum
-                && !Gc::ptr_eq(
-                    source_symbol_file.as_ref().unwrap(),
-                    target_symbol_file.as_ref().unwrap(),
-                )
+                && source_symbol_file.unwrap() != target_symbol_file.unwrap()
             {
                 let source_symbol_file = source_symbol_file.unwrap();
                 let target_symbol_file = target_symbol_file.unwrap();
                 let first_file = if compare_paths(
-                    &source_symbol_file.as_source_file().path(),
-                    &target_symbol_file.as_source_file().path(),
+                    &source_symbol_file.ref_(self).as_source_file().path(),
+                    &target_symbol_file.ref_(self).as_source_file().path(),
                     Option::<String>::None,
                     None,
                 ) == Comparison::LessThan
@@ -685,10 +687,10 @@ impl TypeChecker {
                 } else {
                     target_symbol_file.clone()
                 };
-                let second_file = if Gc::ptr_eq(&first_file, &source_symbol_file) {
-                    target_symbol_file.clone()
+                let second_file = if first_file == source_symbol_file {
+                    target_symbol_file
                 } else {
-                    source_symbol_file.clone()
+                    source_symbol_file
                 };
                 let mut amalgamated_duplicates = self.maybe_amalgamated_duplicates();
                 let amalgamated_duplicates = amalgamated_duplicates.as_mut().unwrap();
@@ -696,8 +698,8 @@ impl TypeChecker {
                     amalgamated_duplicates,
                     format!(
                         "{}|{}",
-                        &**first_file.as_source_file().path(),
-                        &**second_file.as_source_file().path()
+                        &**first_file.ref_(self).as_source_file().path(),
+                        &**second_file.ref_(self).as_source_file().path()
                     ),
                     || DuplicateInfoForFiles {
                         first_file,
@@ -746,8 +748,8 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_ref() {
-            for decl in symbol_declarations {
-                push_if_unique_gc(locs, &decl);
+            for &decl in symbol_declarations {
+                push_if_unique_eq(locs, &decl);
             }
         }
     }
@@ -761,7 +763,7 @@ impl TypeChecker {
     ) {
         maybe_for_each(
             target.ref_(self).maybe_declarations().as_deref(),
-            |node, _| {
+            |&node, _| {
                 self.add_duplicate_declaration_error(
                     node,
                     message,
@@ -785,21 +787,21 @@ impl TypeChecker {
         } else {
             get_name_of_declaration(Some(node), self)
         })
-        .unwrap_or_else(|| node.node_wrapper());
+        .unwrap_or(node);
         let err = self.lookup_or_issue_error(
-            Some(&*error_node),
+            Some(error_node),
             message,
             Some(vec![symbol_name.to_owned()]),
         );
         if let Some(related_nodes) = related_nodes {
-            for related_node in related_nodes {
+            for &related_node in related_nodes {
                 let adjusted_node = (if get_expando_initializer(related_node, false, self).is_some() {
                     get_name_of_expando(related_node, self)
                 } else {
                     get_name_of_declaration(Some(related_node), self)
                 })
-                .unwrap_or_else(|| related_node.node_wrapper());
-                if Gc::ptr_eq(&adjusted_node, &error_node) {
+                .unwrap_or(related_node);
+                if adjusted_node == error_node {
                     continue;
                 }
                 {
@@ -809,13 +811,14 @@ impl TypeChecker {
                     }
                 }
                 let leading_message: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
-                    &adjusted_node,
+                    adjusted_node,
                     &Diagnostics::_0_was_also_declared_here,
                     Some(vec![symbol_name.to_owned()]),
+                    self,
                 )
                 .into();
                 let follow_on_message: Gc<DiagnosticRelatedInformation> =
-                    create_diagnostic_for_node(&adjusted_node, &Diagnostics::and_here, None).into();
+                    create_diagnostic_for_node(adjusted_node, &Diagnostics::and_here, None, self).into();
                 if length(err.maybe_related_information().as_deref()) >= 5
                     || some(
                         err.maybe_related_information().as_deref(),
@@ -895,10 +898,10 @@ impl TypeChecker {
         &self,
         module_name: Id<Node>, /*StringLiteral | Identifier*/
     ) -> io::Result<()> {
-        let module_augmentation = module_name.parent();
+        let module_augmentation = module_name.ref_(self).parent();
         if !matches!(
-            module_augmentation.symbol().ref_(self).maybe_declarations().as_ref().and_then(|declarations| declarations.get(0)),
-            Some(declaration) if Gc::ptr_eq(declaration, &module_augmentation)
+            module_augmentation.ref_(self).symbol().ref_(self).maybe_declarations().as_ref().and_then(|declarations| declarations.get(0)).copied(),
+            Some(declaration) if declaration == module_augmentation
         ) {
             Debug_.assert(matches!(module_augmentation.symbol().ref_(self).maybe_declarations().as_ref(), Some(declarations) if declarations.len() > 1), None);
             return Ok(());
@@ -916,9 +919,9 @@ impl TypeChecker {
             )?;
         } else {
             let module_not_found_error = if !module_name
-                .parent()
-                .parent()
-                .flags()
+                .ref_(self).parent()
+                .ref_(self).parent()
+                .ref_(self).flags()
                 .intersects(NodeFlags::Ambient)
             {
                 Some(&*Diagnostics::Invalid_module_name_in_augmentation_module_0_cannot_be_found)
@@ -927,8 +930,8 @@ impl TypeChecker {
             };
             let main_module = return_ok_default_if_none!(self
                 .resolve_external_module_name_worker(
-                    &module_name,
-                    &module_name,
+                    module_name,
+                    module_name,
                     module_not_found_error,
                     Some(true),
                 )?);
@@ -954,7 +957,7 @@ impl TypeChecker {
                     pattern_ambient_module_augmentations
                         .as_mut()
                         .unwrap()
-                        .insert(module_name.as_literal_like_node().text().clone(), merged);
+                        .insert(module_name.ref_(self).as_literal_like_node().text().clone(), merged);
                 } else {
                     if main_module
                         .ref_(self)
@@ -999,7 +1002,7 @@ impl TypeChecker {
                 self.error(
                     Some(module_name),
                     &Diagnostics::Cannot_augment_module_0_because_it_resolves_to_a_non_module_entity,
-                    Some(vec![module_name.as_literal_like_node().text().clone()])
+                    Some(vec![module_name.ref_(self).as_literal_like_node().text().clone()])
                 );
             }
         }
@@ -1018,12 +1021,13 @@ impl TypeChecker {
             if let Some(&target_symbol) = target_symbol {
                 maybe_for_each(
                     target_symbol.ref_(self).maybe_declarations().as_deref(),
-                    |declaration: &Id<Node /*Declaration*/>, _| {
+                    |&declaration: &Id<Node /*Declaration*/>, _| {
                         self.diagnostics().add(
                             create_diagnostic_for_node(
                                 declaration,
                                 message,
                                 Some(vec![unescape_leading_underscores(id).to_owned()]),
+                                self,
                             )
                             .into(),
                         );
@@ -1051,7 +1055,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_node_links(&self, node: Id<Node>) -> Gc<GcCell<NodeLinks>> {
-        let id = get_node_id(node);
+        let id = get_node_id(&node.ref_(self));
         let mut node_links_table = self.node_links.borrow_mut();
         if let Some(node_links) = node_links_table.get(&id) {
             return node_links.clone();
@@ -1062,7 +1066,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_global_source_file(&self, node: Id<Node>) -> bool {
-        node.kind() == SyntaxKind::SourceFile && !is_external_or_common_js_module(node)
+        node.ref_(self).kind() == SyntaxKind::SourceFile && !is_external_or_common_js_module(&node.ref_(self))
     }
 
     pub(super) fn get_symbol(
@@ -1099,8 +1103,8 @@ impl TypeChecker {
         parameter: Id<Node>,  /*ParameterDeclaration*/
         parameter_name: &str, /*__String*/
     ) -> io::Result<Vec<Id<Symbol>>> {
-        let constructor_declaration = parameter.parent();
-        let class_declaration = parameter.parent().parent();
+        let constructor_declaration = parameter.ref_(self).parent();
+        let class_declaration = parameter.ref_(self).parent().ref_(self).parent();
 
         let parameter_symbol = self.get_symbol(
             &(*constructor_declaration.locals()).borrow(),
@@ -1127,33 +1131,37 @@ impl TypeChecker {
         let declaration_file = get_source_file_of_node(declaration, self);
         let use_file = get_source_file_of_node(usage, self);
         let decl_container = get_enclosing_block_scope_container(declaration, self).unwrap();
-        if !Gc::ptr_eq(&declaration_file, &use_file) {
+        if declaration_file != use_file {
             if self.module_kind != ModuleKind::None
                 && (declaration_file
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .maybe_external_module_indicator()
                     .is_some()
                     || use_file
-                        .as_source_file()
+                        .ref_(self).as_source_file()
                         .maybe_external_module_indicator()
                         .is_some())
-                || !matches!(out_file(&self.compiler_options), Some(out_file) if !out_file.is_empty())
+                || !matches!(
+                    out_file(&self.compiler_options),
+                    Some(out_file) if !out_file.is_empty()
+                )
                 || self.is_in_type_query(usage)
-                || declaration.flags().intersects(NodeFlags::Ambient)
+                || declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
             {
                 return Ok(true);
             }
-            if self.is_used_in_function_or_instance_property(&decl_container, usage, declaration)? {
+            if self.is_used_in_function_or_instance_property(decl_container, usage, declaration)? {
                 return Ok(true);
             }
             let source_files = self.host.get_source_files();
-            return Ok(index_of_gc(&*source_files, &declaration_file)
-                <= index_of_gc(&*source_files, &use_file));
+            return Ok(index_of_eq(&*source_files, &declaration_file)
+                <= index_of_eq(&*source_files, &use_file));
         }
 
-        if declaration.pos() <= usage.pos()
-            && !(is_property_declaration(declaration) && is_this_property(usage.parent(), self) && {
-                let declaration_as_property_declaration = declaration.as_property_declaration();
+        if declaration.ref_(self).pos() <= usage.ref_(self).pos()
+            && !(is_property_declaration(&declaration.ref_(self)) && is_this_property(usage.ref_(self).parent(), self) && {
+                let declaration_ref = declaration.ref_(self);
+                let declaration_as_property_declaration = declaration_ref.as_property_declaration();
                 !declaration_as_property_declaration
                     .maybe_initializer()
                     .is_some()
@@ -1162,47 +1170,44 @@ impl TypeChecker {
                         .is_some()
             })
         {
-            if declaration.kind() == SyntaxKind::BindingElement {
+            if declaration.ref_(self).kind() == SyntaxKind::BindingElement {
                 let error_binding_element = get_ancestor(Some(usage), SyntaxKind::BindingElement, self);
                 if let Some(error_binding_element) = error_binding_element {
-                    return Ok(!are_option_gcs_equal(
-                        find_ancestor(Some(&*error_binding_element), is_binding_element).as_ref(),
-                        find_ancestor(Some(declaration), is_binding_element).as_ref(),
-                    ) || declaration.pos() < error_binding_element.pos());
+                    return Ok(
+                        find_ancestor(Some(error_binding_element), |node: Id<Node>| is_binding_element(&node.ref_(self)), self) !=
+                        find_ancestor(Some(declaration), |node: Id<Node>| is_binding_element(&node.ref_(self)), self)
+                     || declaration.ref_(self).pos() < error_binding_element.ref_(self).pos());
                 }
                 return self.is_block_scoped_name_declared_before_use(
-                    &get_ancestor(Some(declaration), SyntaxKind::VariableDeclaration, self).unwrap(),
+                    get_ancestor(Some(declaration), SyntaxKind::VariableDeclaration, self).unwrap(),
                     usage,
                 );
-            } else if declaration.kind() == SyntaxKind::VariableDeclaration {
+            } else if declaration.ref_(self).kind() == SyntaxKind::VariableDeclaration {
                 return Ok(
                     !self.is_immediately_used_in_initializer_of_block_scoped_variable(
-                        &decl_container,
+                        decl_container,
                         declaration,
                         usage,
                     ),
                 );
-            } else if is_class_declaration(declaration) {
+            } else if is_class_declaration(&declaration.ref_(self)) {
                 return Ok(find_ancestor(Some(usage), |n| {
-                    is_computed_property_name(n) && ptr::eq(&*n.parent().parent(), declaration)
-                })
+                    is_computed_property_name(&n.ref_(self)) && n.ref_(self).parent().ref_(self).parent() == declaration
+                }, self)
                 .is_none());
-            } else if is_property_declaration(declaration) {
+            } else if is_property_declaration(&declaration.ref_(self)) {
                 return Ok(!self.is_property_immediately_referenced_within_declaration(
                     declaration,
                     usage,
                     false,
                 ));
-            } else if is_parameter_property_declaration(declaration, declaration.parent(), self) {
+            } else if is_parameter_property_declaration(declaration, declaration.ref_(self).parent(), self) {
                 return Ok(!(get_emit_script_target(&self.compiler_options)
                     == ScriptTarget::ESNext
                     && self.use_define_for_class_fields
-                    && are_option_gcs_equal(
-                        get_containing_class(declaration).as_ref(),
-                        get_containing_class(usage).as_ref(),
-                    )
+                    && get_containing_class(declaration, self) == get_containing_class(usage, self)
                     && self.is_used_in_function_or_instance_property(
-                        &decl_container,
+                        decl_container,
                         usage,
                         declaration,
                     )?));
@@ -1210,33 +1215,30 @@ impl TypeChecker {
             return Ok(true);
         }
 
-        if usage.parent().kind() == SyntaxKind::ExportSpecifier
-            || usage.parent().kind() == SyntaxKind::ExportAssignment
-                && matches!(
-                    usage.parent().as_export_assignment().is_export_equals,
-                    Some(true)
-                )
+        if usage.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportSpecifier
+            || usage.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment
+                && usage.ref_(self).parent().ref_(self).as_export_assignment().is_export_equals == Some(true)
         {
             return Ok(true);
         }
-        if usage.kind() == SyntaxKind::ExportAssignment
-            && matches!(usage.as_export_assignment().is_export_equals, Some(true))
+        if usage.ref_(self).kind() == SyntaxKind::ExportAssignment
+            && usage.ref_(self).as_export_assignment().is_export_equals == Some(true)
         {
             return Ok(true);
         }
 
-        if usage.flags().intersects(NodeFlags::JSDoc)
+        if usage.ref_(self).flags().intersects(NodeFlags::JSDoc)
             || self.is_in_type_query(usage)
             || self.usage_in_type_declaration(usage)
         {
             return Ok(true);
         }
-        if self.is_used_in_function_or_instance_property(&decl_container, usage, declaration)? {
+        if self.is_used_in_function_or_instance_property(decl_container, usage, declaration)? {
             if get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
                 && self.use_define_for_class_fields
-                && get_containing_class(declaration).is_some()
-                && (is_property_declaration(declaration)
-                    || is_parameter_property_declaration(declaration, declaration.parent(), self))
+                && get_containing_class(declaration, self).is_some()
+                && (is_property_declaration(ref_(self).declaration)
+                    || is_parameter_property_declaration(declaration, declaration.ref_(self).parent(), self))
             {
                 return Ok(!self.is_property_immediately_referenced_within_declaration(
                     declaration,
@@ -1252,8 +1254,8 @@ impl TypeChecker {
 
     pub(super) fn usage_in_type_declaration(&self, usage: Id<Node>) -> bool {
         find_ancestor(Some(usage), |node| {
-            is_interface_declaration(node) || is_type_alias_declaration(node)
-        })
+            is_interface_declaration(&node.ref_(self)) || is_type_alias_declaration(&node.ref_(self))
+        }, self)
         .is_some()
     }
 
@@ -1263,7 +1265,7 @@ impl TypeChecker {
         declaration: Id<Node>, /*VariableDeclaration*/
         usage: Id<Node>,
     ) -> bool {
-        match declaration.parent().parent().kind() {
+        match declaration.ref_(self).parent().ref_(self).parent().ref_(self).kind() {
             SyntaxKind::VariableStatement
             | SyntaxKind::ForStatement
             | SyntaxKind::ForOfStatement => {
@@ -1274,8 +1276,8 @@ impl TypeChecker {
             _ => (),
         }
 
-        let grandparent = declaration.parent().parent();
-        is_for_in_or_of_statement(&grandparent)
+        let grandparent = declaration.ref_(self).parent().ref_(self).parent();
+        is_for_in_or_of_statement(&grandparent.ref_(self))
             && self.is_same_scope_descendent_of(
                 usage,
                 Some(grandparent.as_has_expression().expression()),
@@ -1290,66 +1292,58 @@ impl TypeChecker {
         declaration: Id<Node>,
     ) -> io::Result<bool> {
         Ok(try_find_ancestor(Some(usage), |current| -> io::Result<_> {
-            if ptr::eq(current, decl_container) {
+            if current == decl_container {
                 return Ok(FindAncestorCallbackReturn::Quit);
             }
-            if is_function_like(Some(current)) {
+            if is_function_like(Some(&current.ref_(self))) {
                 return Ok(true.into());
             }
-            if is_class_static_block_declaration(current) {
-                return Ok((declaration.pos() < usage.pos()).into());
+            if is_class_static_block_declaration(&current.ref_(self)) {
+                return Ok((declaration.ref_(self).pos() < usage.ref_(self).pos()).into());
             }
 
-            let property_declaration = current.maybe_parent().and_then(|parent| {
-                try_cast(parent, |node: &Id<Node>| is_property_declaration(node))
+            let property_declaration = current.ref_(self).maybe_parent().and_then(|parent| {
+                try_cast(parent, |node: &Id<Node>| is_property_declaration(&node.ref_(self)))
             });
             if let Some(property_declaration) = property_declaration {
-                let initializer_of_property = matches!(
-                    property_declaration.as_property_declaration().maybe_initializer(),
-                    Some(initializer) if ptr::eq(&*initializer, current)
-                );
+                let initializer_of_property =
+                    property_declaration.ref_(self).as_property_declaration().maybe_initializer() == Some(current);
                 if initializer_of_property {
-                    if is_static(current.parent(), self) {
-                        if declaration.kind() == SyntaxKind::MethodDeclaration {
+                    if is_static(current.ref_(self).parent(), self) {
+                        if declaration.ref_(self).kind() == SyntaxKind::MethodDeclaration {
                             return Ok(true.into());
                         }
-                        if is_property_declaration(declaration)
-                            && are_option_gcs_equal(
-                                get_containing_class(usage).as_ref(),
-                                get_containing_class(declaration).as_ref(),
-                            )
+                        if is_property_declaration(&declaration.ref_(self))
+                            && get_containing_class(usage, self) == get_containing_class(declaration, self)
                         {
-                            let prop_name = declaration.as_property_declaration().name();
-                            if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
+                            let prop_name = declaration.ref_(self).as_property_declaration().name();
+                            if is_identifier(&prop_name.ref_(self)) || is_private_identifier(&prop_name.ref_(self)) {
                                 let type_ = self.get_type_of_symbol(
                                     self.get_symbol_of_node(declaration)?.unwrap(),
                                 )?;
                                 let static_blocks = declaration
-                                    .parent()
-                                    .as_class_like_declaration()
+                                    .ref_(self).parent()
+                                    .ref_(self).as_class_like_declaration()
                                     .members()
                                     .owned_iter()
-                                    .filter(|node| is_class_static_block_declaration(node));
+                                    .filter(|node| is_class_static_block_declaration(&node.ref_(self)));
                                 if self.is_property_initialized_in_static_blocks(
-                                    &prop_name,
+                                    prop_name,
                                     type_,
                                     static_blocks,
-                                    declaration.parent().pos(),
-                                    current.pos(),
+                                    declaration.ref_(self).parent().ref_(self).pos(),
+                                    current.ref_(self).pos(),
                                 )? {
                                     return Ok(true.into());
                                 }
                             }
                         }
                     } else {
-                        let is_declaration_instance_property = declaration.kind()
+                        let is_declaration_instance_property = declaration.ref_(self).kind()
                             == SyntaxKind::PropertyDeclaration
                             && !is_static(declaration, self);
                         if !is_declaration_instance_property
-                            || !are_option_gcs_equal(
-                                get_containing_class(usage).as_ref(),
-                                get_containing_class(declaration).as_ref(),
-                            )
+                            || get_containing_class(usage, self) != get_containing_class(declaration, self)
                         {
                             return Ok(true.into());
                         }
@@ -1357,7 +1351,7 @@ impl TypeChecker {
                 }
             }
             Ok(false.into())
-        })?
+        }, self)?
         .is_some())
     }
 
@@ -1367,26 +1361,26 @@ impl TypeChecker {
         usage: Id<Node>,
         stop_at_any_property_declaration: bool,
     ) -> bool {
-        if usage.end() > declaration.end() {
+        if usage.ref_(self).end() > declaration.ref_(self).end() {
             return false;
         }
 
         let ancestor_changing_reference_scope = find_ancestor(Some(usage), |node| {
-            if ptr::eq(node, declaration) {
+            if node == declaration {
                 return FindAncestorCallbackReturn::Quit;
             }
 
-            match node.kind() {
+            match node.ref_(self).kind() {
                 SyntaxKind::ArrowFunction => true.into(),
                 SyntaxKind::PropertyDeclaration => {
                     if stop_at_any_property_declaration
-                        && (is_property_declaration(declaration)
-                            && Gc::ptr_eq(&node.parent(), &declaration.parent())
+                        && (is_property_declaration(&declaration.ref_(self))
+                            && node.ref_(self).parent() == declaration.ref_(self).parent()
                             || is_parameter_property_declaration(
                                 declaration,
-                                declaration.parent(),
+                                declaration.ref_(self).parent(),
                                 self,
-                            ) && Gc::ptr_eq(&node.parent(), &declaration.parent().parent()))
+                            ) && node.ref_(self).parent() == declaration.ref_(self).parent().ref_(self).parent())
                     {
                         FindAncestorCallbackReturn::Quit
                     } else {
@@ -1394,7 +1388,7 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::Block => matches!(
-                    node.parent().kind(),
+                    node.ref_(self).parent().ref_(self).kind(),
                     SyntaxKind::GetAccessor
                         | SyntaxKind::MethodDeclaration
                         | SyntaxKind::SetAccessor
@@ -1402,7 +1396,7 @@ impl TypeChecker {
                 .into(),
                 _ => false.into(),
             }
-        });
+        }, self);
 
         ancestor_changing_reference_scope.is_none()
     }
@@ -1414,8 +1408,9 @@ impl TypeChecker {
         last_location: Id<Node>,
     ) -> bool {
         let target = get_emit_script_target(&self.compiler_options);
-        let function_location = location.maybe_as_function_like_declaration();
-        if is_parameter(last_location)
+        let location_ref = location.ref_(self);
+        let function_location = location_ref.maybe_as_function_like_declaration();
+        if is_parameter(&last_location.ref_(self))
             && match (
                 function_location.and_then(|function_location| function_location.maybe_body()),
                 result.ref_(self).maybe_value_declaration().as_ref(),
@@ -1434,7 +1429,7 @@ impl TypeChecker {
                     links.declaration_requires_scope_change = Some(
                         for_each_bool(
                             &function_location.unwrap().parameters(),
-                            |node: &Id<Node>, _| self.requires_scope_change(target, node),
+                            |&node: &Id<Node>, _| self.requires_scope_change(target, node),
                         ) || false,
                     );
                 }
@@ -1451,7 +1446,10 @@ impl TypeChecker {
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> bool {
         self.requires_scope_change_worker(target, node)
-            || matches!(node.as_parameter_declaration().maybe_initializer(), Some(initializer) if self.requires_scope_change_worker(target, &initializer))
+            || matches!(
+                node.ref_(self).as_parameter_declaration().maybe_initializer(),
+                Some(initializer) if self.requires_scope_change_worker(target, initializer)
+            )
     }
 
     pub(super) fn requires_scope_change_worker(
@@ -1459,7 +1457,7 @@ impl TypeChecker {
         target: ScriptTarget,
         node: Id<Node>,
     ) -> bool {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ArrowFunction
             | SyntaxKind::FunctionExpression
             | SyntaxKind::FunctionDeclaration
@@ -1468,29 +1466,29 @@ impl TypeChecker {
             | SyntaxKind::GetAccessor
             | SyntaxKind::SetAccessor
             | SyntaxKind::PropertyAssignment => {
-                self.requires_scope_change_worker(target, &node.as_named_declaration().name())
+                self.requires_scope_change_worker(target, node.ref_(self).as_named_declaration().name())
             }
             SyntaxKind::PropertyDeclaration => {
                 if has_static_modifier(node, self) {
                     return target < ScriptTarget::ESNext || !self.use_define_for_class_fields;
                 }
-                self.requires_scope_change_worker(target, &node.as_property_declaration().name())
+                self.requires_scope_change_worker(target, node.ref_(self).as_property_declaration().name())
             }
             _ => {
-                if is_nullish_coalesce(node, self) || is_optional_chain(node) {
+                if is_nullish_coalesce(node, self) || is_optional_chain(&node.ref_(self)) {
                     return target < ScriptTarget::ES2020;
                 }
-                if is_binding_element(node)
-                    && node.as_binding_element().dot_dot_dot_token.is_some()
-                    && is_object_binding_pattern(&node.parent())
+                if is_binding_element(&node.ref_(self))
+                    && node.ref_(self).as_binding_element().dot_dot_dot_token.is_some()
+                    && is_object_binding_pattern(&node.ref_(self).parent().ref_(self))
                 {
                     return target < ScriptTarget::ES2017;
                 }
-                if is_type_node(node) {
+                if is_type_node(&node.ref_(self)) {
                     return false;
                 }
                 for_each_child_bool(
-                    node,
+                    &node.ref_(self),
                     |child| self.requires_scope_change_worker(target, child),
                     Option::<fn(&NodeArray) -> bool>::None,
                 ) || false
@@ -1525,7 +1523,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_name_helper<'name_arg>(
         &self,
-        location: Option<Id<Node>>,
+        mut location: Option<Id<Node>>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,
@@ -1539,7 +1537,7 @@ impl TypeChecker {
         ) -> io::Result<Option<Id<Symbol>>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let mut location: Option<Id<Node>> = location.map(|node| node.borrow().node_wrapper());
-        let original_location = location.clone();
+        let original_location = location;
         let mut result: Option<Id<Symbol>> = None;
         let mut last_location: Option<Id<Node>> = None;
         let mut last_self_reference_location: Option<Id<Node>> = None;
@@ -1548,7 +1546,7 @@ impl TypeChecker {
             Id<Node /*ParameterDeclaration | BindingElement*/>,
         > = None;
         let mut within_deferred_context = false;
-        let error_location = location.clone();
+        let error_location = location;
         let mut grandparent: Id<Node>;
         let mut is_in_external_module = false;
 
@@ -1562,36 +1560,31 @@ impl TypeChecker {
                             let mut use_result = true;
                             if is_function_like(Some(&*location_unwrapped))
                                 && last_location.is_some()
-                                && !are_option_gcs_equal(
-                                    last_location.as_ref(),
+                                && last_location !=
                                     location_unwrapped
-                                        .maybe_as_function_like_declaration()
+                                        .ref_(self).maybe_as_function_like_declaration()
                                         .and_then(|location_unwrapped| {
                                             location_unwrapped.maybe_body()
                                         })
-                                        .as_ref(),
-                                )
                             {
-                                let last_location_unwrapped = last_location.as_ref().unwrap();
+                                let last_location_unwrapped = last_location.unwrap();
                                 if meaning & result_unwrapped.ref_(self).flags() & SymbolFlags::Type
                                     != SymbolFlags::None
-                                    && last_location_unwrapped.kind() != SyntaxKind::JSDocComment
+                                    && last_location_unwrapped.ref_(self).kind() != SyntaxKind::JSDocComment
                                 {
                                     use_result = if result_unwrapped
                                         .ref_(self)
                                         .flags()
                                         .intersects(SymbolFlags::TypeParameter)
                                     {
-                                        are_option_gcs_equal(
-                                            last_location.as_ref(),
+                                        last_location ==
                                             location_unwrapped
-                                                .maybe_as_has_type()
+                                                .ref_(self).maybe_as_has_type()
                                                 .and_then(|location_unwrapped| {
                                                     location_unwrapped.maybe_type()
                                                 })
-                                                .as_ref(),
-                                        ) || matches!(
-                                            last_location_unwrapped.kind(),
+                                        || matches!(
+                                            last_location_unwrapped.ref_(self).kind(),
                                             SyntaxKind::Parameter | SyntaxKind::TypeParameter
                                         )
                                     } else {
@@ -1605,8 +1598,8 @@ impl TypeChecker {
                                 {
                                     if self.use_outer_variable_scope_in_parameter(
                                         result_unwrapped,
-                                        &location_unwrapped,
-                                        &last_location_unwrapped,
+                                        location_unwrapped,
+                                        last_location_unwrapped,
                                     ) {
                                         use_result = false;
                                     } else if result_unwrapped
@@ -1614,28 +1607,25 @@ impl TypeChecker {
                                         .flags()
                                         .intersects(SymbolFlags::FunctionScopedVariable)
                                     {
-                                        use_result = last_location_unwrapped.kind()
+                                        use_result = last_location_unwrapped.ref_(self).kind()
                                             == SyntaxKind::Parameter
-                                            || are_option_gcs_equal(
-                                                last_location.as_ref(),
+                                            || last_location ==
                                                 location_unwrapped
-                                                    .as_has_type()
+                                                    .ref_(self).as_has_type()
                                                     .maybe_type()
-                                                    .as_ref(),
-                                            ) && find_ancestor(
+                                            && find_ancestor(
                                                 result_unwrapped
                                                     .ref_(self)
                                                     .maybe_value_declaration(),
-                                                is_parameter,
+                                                |node: Id<Node>| is_parameter(&node.ref_(self)),
+                                                self,
                                             )
                                             .is_some()
                                     }
                                 }
                             } else if location_unwrapped.kind() == SyntaxKind::ConditionalType {
-                                use_result = are_option_gcs_equal(
-                                    last_location.as_ref(),
-                                    Some(&location_unwrapped.as_conditional_type_node().true_type),
-                                );
+                                use_result = 
+                                    last_location == Some(location_unwrapped.as_conditional_type_node().true_type);
                             }
 
                             if use_result {
@@ -1648,13 +1638,13 @@ impl TypeChecker {
                 }
             }
             within_deferred_context = within_deferred_context
-                || self.get_is_deferred_context(&location_unwrapped, last_location.as_deref());
-            match location_unwrapped.kind() {
+                || self.get_is_deferred_context(location_unwrapped, last_location);
+            match location_unwrapped.ref_(self).kind() {
                 SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
-                    if !(location_unwrapped.kind() == SyntaxKind::SourceFile
+                    if !(location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile
                         && !is_external_or_common_js_module(&location_unwrapped))
                     {
-                        if location_unwrapped.kind() == SyntaxKind::SourceFile {
+                        if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile {
                             is_in_external_module = true;
                         }
                         let module_exports: Gc<GcCell<SymbolTable>> = self
@@ -1663,7 +1653,7 @@ impl TypeChecker {
                             .unwrap_or_else(|| self.empty_symbols());
                         let module_exports = (*module_exports).borrow();
                         let mut should_skip_rest_of_match_arm = false;
-                        if location_unwrapped.kind() == SyntaxKind::SourceFile
+                        if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile
                             || (is_module_declaration(&location_unwrapped)
                                 && location_unwrapped.flags().intersects(NodeFlags::Ambient)
                                 && !is_global_scope_augmentation(&location_unwrapped))
@@ -1702,7 +1692,7 @@ impl TypeChecker {
                                     meaning & SymbolFlags::ModuleMember,
                                 )?;
                                 if let Some(result_unwrapped) = result {
-                                    if is_source_file(&location_unwrapped)
+                                    if is_source_file(&location_unwrapped.ref_(self))
                                         && location_unwrapped
                                             .as_source_file()
                                             .maybe_common_js_module_indicator()
@@ -1712,7 +1702,7 @@ impl TypeChecker {
                                                 .ref_(self)
                                                 .maybe_declarations()
                                                 .as_deref(),
-                                            Some(|node: &Id<Node>| is_jsdoc_type_alias(node)),
+                                            Some(|node: &Id<Node>| is_jsdoc_type_alias(&node.ref_(self))),
                                         )
                                     {
                                         result = None;
@@ -1740,9 +1730,9 @@ impl TypeChecker {
                 }
                 SyntaxKind::PropertyDeclaration => {
                     if !is_static(location_unwrapped, self) {
-                        let ctor = self.find_constructor_declaration(&location_unwrapped.parent());
+                        let ctor = self.find_constructor_declaration(location_unwrapped.ref_(self).parent());
                         if let Some(ctor) = ctor {
-                            if let Some(ctor_locals) = ctor.maybe_locals().as_ref() {
+                            if let Some(ctor_locals) = ctor.ref_(self).maybe_locals().as_ref() {
                                 if lookup(
                                     &(**ctor_locals).borrow(),
                                     name,
@@ -1808,14 +1798,13 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::ExpressionWithTypeArguments => {
-                    if are_option_gcs_equal(
-                        last_location.as_ref(),
+                    if last_location ==
                         Some(
-                            &location_unwrapped
-                                .as_expression_with_type_arguments()
+                            location_unwrapped
+                                .ref_(self).as_expression_with_type_arguments()
                                 .expression,
-                        ),
-                    ) && matches!(
+                        )
+                    && matches!(
                         location_unwrapped.parent().maybe_as_heritage_clause(),
                         Some(location_parent) if location_parent.token == SyntaxKind::ExtendsKeyword
                     ) {
@@ -1841,13 +1830,13 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::ComputedPropertyName => {
-                    grandparent = location_unwrapped.parent().parent();
-                    if is_class_like(&grandparent)
-                        || grandparent.kind() == SyntaxKind::InterfaceDeclaration
+                    grandparent = location_unwrapped.ref_(self).parent().ref_(self).parent();
+                    if is_class_like(&grandparent.ref_(self))
+                        || grandparent.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                     {
                         result = lookup(
                             &(*self
-                                .get_symbol_of_node(&grandparent)?
+                                .get_symbol_of_node(grandparent)?
                                 .unwrap()
                                 .ref_(self)
                                 .members())
@@ -1907,17 +1896,18 @@ impl TypeChecker {
                 SyntaxKind::JSDocTypedefTag
                 | SyntaxKind::JSDocCallbackTag
                 | SyntaxKind::JSDocEnumTag => {
-                    let root = get_jsdoc_root(&location_unwrapped);
+                    let root = get_jsdoc_root(location_unwrapped, self);
                     if let Some(root) = root {
-                        location = root.maybe_parent();
+                        location = root.ref_(self).maybe_parent();
                         location_unwrapped = location.unwrap();
                     }
                 }
                 SyntaxKind::Parameter => {
-                    if matches!(last_location.as_ref(), Some(last_location) if {
-                        let location_as_parameter_declaration = location_unwrapped.as_parameter_declaration();
-                        are_option_gcs_equal(Some(last_location), location_as_parameter_declaration.maybe_initializer().as_ref()) ||
-                        are_option_gcs_equal(Some(last_location), location_as_parameter_declaration.maybe_name().as_ref()) && is_binding_pattern(Some(&**last_location))
+                    if matches!(last_location, Some(last_location) if {
+                        let location_unwrapped_ref = location_unwrapped.ref_(self);
+                        let location_as_parameter_declaration = location_unwrapped_ref.as_parameter_declaration();
+                        Some(last_location) == location_as_parameter_declaration.maybe_initializer() ||
+                        Some(last_location) == location_as_parameter_declaration.maybe_name() && is_binding_pattern(Some(&last_location.ref_(self)))
                     }) {
                         if associated_declaration_for_containing_initializer_or_binding_name
                             .is_none()
@@ -1928,10 +1918,11 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::BindingElement => {
-                    if matches!(last_location.as_ref(), Some(last_location) if {
-                        let location_as_binding_element = location_unwrapped.as_binding_element();
-                        are_option_gcs_equal(Some(last_location), location_as_binding_element.maybe_initializer().as_ref()) ||
-                        are_option_gcs_equal(Some(last_location), location_as_binding_element.maybe_name().as_ref()) && is_binding_pattern(Some(&**last_location))
+                    if matches!(last_location, Some(last_location) if {
+                        let location_unwrapped_ref = location_unwrapped.ref_(self);
+                        let location_as_binding_element = location_unwrapped_ref.as_binding_element();
+                        Some(last_location) == location_as_binding_element.maybe_initializer() ||
+                        Some(last_location) == location_as_binding_element.maybe_name() && is_binding_pattern(Some(&last_location.ref_(self)))
                     }) {
                         if is_parameter_declaration(location_unwrapped, self)
                             && associated_declaration_for_containing_initializer_or_binding_name
@@ -1959,23 +1950,23 @@ impl TypeChecker {
                 _ => (),
             }
             if self.is_self_reference_location(&location_unwrapped) {
-                last_self_reference_location = Some(location_unwrapped.clone());
+                last_self_reference_location = Some(location_unwrapped);
             }
-            last_location = Some(location_unwrapped.clone());
-            location = if is_jsdoc_template_tag(&location_unwrapped) {
+            last_location = Some(location_unwrapped);
+            location = if is_jsdoc_template_tag(&location_unwrapped.ref_(self)) {
                 get_effective_container_for_jsdoc_template_tag(location_unwrapped, self)
                     .or_else(|| location_unwrapped.maybe_parent())
             } else {
-                location_unwrapped.maybe_parent()
+                location_unwrapped.ref_(self).maybe_parent()
             };
         }
 
         if is_use {
             if let Some(result) = result {
-                if match last_self_reference_location.as_ref() {
+                if match last_self_reference_location {
                     None => true,
                     Some(last_self_reference_location) => {
-                        result != last_self_reference_location.symbol()
+                        result != last_self_reference_location.ref_(self).symbol()
                     }
                 } {
                     result.ref_(self).set_is_referenced(Some(
@@ -1991,15 +1982,15 @@ impl TypeChecker {
 
         if result.is_none() {
             if let Some(last_location) = last_location {
-                Debug_.assert(last_location.kind() == SyntaxKind::SourceFile, None);
+                Debug_.assert(last_location.ref_(self).kind() == SyntaxKind::SourceFile, None);
                 if last_location
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .maybe_common_js_module_indicator()
                     .is_some()
                     && name == "exports"
-                    && meaning.intersects(last_location.symbol().ref_(self).flags())
+                    && meaning.intersects(last_location.ref_(self).symbol().ref_(self).flags())
                 {
-                    return Ok(Some(last_location.symbol()));
+                    return Ok(Some(last_location.ref_(self).symbol()));
                 }
             }
 
@@ -2061,7 +2052,7 @@ impl TypeChecker {
                         )?;
                         let is_global_scope_augmentation_declaration = matches!(
                             suggestion.and_then(|suggestion| suggestion.ref_(self).maybe_value_declaration()),
-                            Some(value_declaration) if is_ambient_module(value_declaration, self) && is_global_scope_augmentation(&value_declaration)
+                            Some(value_declaration) if is_ambient_module(value_declaration, self) && is_global_scope_augmentation(&value_declaration.ref_(self))
                         );
                         if is_global_scope_augmentation_declaration {
                             suggestion = None;
@@ -2080,7 +2071,13 @@ impl TypeChecker {
                                 false,
                             );
                             let message = if meaning == SymbolFlags::Namespace
-                                || matches!(name_arg.as_ref(), Some(name_arg) if matches!(name_arg.clone().into(), ResolveNameNameArg::Node(name_arg) if node_is_synthesized(&*name_arg)))
+                                || matches!(
+                                    name_arg.as_ref(),
+                                    Some(name_arg) if matches!(
+                                        name_arg.clone().into(),
+                                        ResolveNameNameArg::Node(name_arg) if node_is_synthesized(&*name_arg.ref_(self))
+                                    )
+                                )
                             {
                                 &*Diagnostics::Cannot_find_namespace_0_Did_you_mean_1
                             } else if is_unchecked_js {
@@ -2104,9 +2101,10 @@ impl TypeChecker {
                                 add_related_info(
                                     &diagnostic,
                                     vec![create_diagnostic_for_node(
-                                        &suggestion_value_declaration,
+                                        suggestion_value_declaration,
                                         &Diagnostics::_0_is_declared_here,
                                         Some(vec![suggestion_name]),
+                                        self,
                                     )
                                     .into()],
                                 );
@@ -2148,7 +2146,7 @@ impl TypeChecker {
                     && self.use_define_for_class_fields)
                 {
                     let property_name = property_with_invalid_initializer
-                        .as_named_declaration()
+                        .ref_(self).as_named_declaration()
                         .name();
                     self.error(
                         error_location.as_deref(),
@@ -2204,9 +2202,9 @@ impl TypeChecker {
                     && every(
                         merged.ref_(self).maybe_declarations().as_deref().unwrap(),
                         |d, _| {
-                            is_namespace_export_declaration(d)
-                                || is_source_file(d)
-                                    && d.symbol().ref_(self).maybe_global_exports().is_some()
+                            is_namespace_export_declaration(&d.ref_(self))
+                                || is_source_file(&d.ref_(self))
+                                    && d.ref_(self).symbol().ref_(self).maybe_global_exports().is_some()
                         },
                     )
                 {
@@ -2222,7 +2220,7 @@ impl TypeChecker {
             if
             /*result &&*/
             let Some(associated_declaration_for_containing_initializer_or_binding_name) =
-                associated_declaration_for_containing_initializer_or_binding_name.as_ref()
+                associated_declaration_for_containing_initializer_or_binding_name
             {
                 if !within_deferred_context && meaning & SymbolFlags::Value == SymbolFlags::Value {
                     let candidate = self
@@ -2234,25 +2232,24 @@ impl TypeChecker {
                     );
                     if Some(candidate)
                         == self.get_symbol_of_node(
-                            &associated_declaration_for_containing_initializer_or_binding_name,
+                            associated_declaration_for_containing_initializer_or_binding_name,
                         )?
                     {
                         self.error(
-                            error_location.as_deref(),
+                            error_location,
                             &Diagnostics::Parameter_0_cannot_reference_itself,
                             Some(vec![declaration_name_to_string(Some(
                                 associated_declaration_for_containing_initializer_or_binding_name
-                                    .as_named_declaration()
+                                    .ref_(self).as_named_declaration()
                                     .name(),
-                                self,
-                            ))
+                            ), self)
                             .into_owned()]),
                         );
                     } else if matches!(
                         candidate.ref_(self).maybe_value_declaration(),
-                        Some(value_declaration) if value_declaration.pos() > associated_declaration_for_containing_initializer_or_binding_name.pos() &&
+                        Some(value_declaration) if value_declaration.ref_(self).pos() > associated_declaration_for_containing_initializer_or_binding_name.ref_(self).pos() &&
                             matches!(
-                                root.parent().maybe_locals().as_ref(),
+                                root.ref_(self).parent().ref_(self).maybe_locals().as_ref(),
                                 Some(locals) if lookup(&(**locals).borrow(), candidate.ref_(self).escaped_name(), meaning)? == Some(candidate)
                             )
                     ) {
@@ -2261,7 +2258,7 @@ impl TypeChecker {
                             &Diagnostics::Parameter_0_cannot_reference_identifier_1_declared_after_it,
                             Some(vec![declaration_name_to_string(
                                 Some(associated_declaration_for_containing_initializer_or_binding_name
-                                    .as_named_declaration()
+                                    .ref_(self).as_named_declaration()
                                     .name()),
                                 self,
                             ).into_owned(), declaration_name_to_string(error_location, self).into_owned()]),

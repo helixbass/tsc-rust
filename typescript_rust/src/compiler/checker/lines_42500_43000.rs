@@ -16,6 +16,7 @@ use crate::{
     InterfaceOrClassLikeDeclarationInterface, LineAndCharacter, NamedDeclarationInterface,
     NodeArray, NodeFlags, ReadonlyTextRange, ScriptTarget, SourceFileLike, SyntaxKind, TypeFlags,
     TypeInterface, __String, for_each, HasArena, InArena, Node, NodeInterface, Type, TypeChecker,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -168,7 +169,6 @@ impl TypeChecker {
             let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
             if let Some(parameter_dot_dot_dot_token) = parameter_as_parameter_declaration
                 .dot_dot_dot_token
-                .as_ref()
             {
                 if i != parameter_count - 1 {
                     return Ok(self.grammar_error_on_node(
@@ -199,7 +199,7 @@ impl TypeChecker {
                     .is_some()
                 {
                     return Ok(self.grammar_error_on_node(
-                        &parameter_as_parameter_declaration.name(),
+                        parameter_as_parameter_declaration.name(),
                         &Diagnostics::A_rest_parameter_cannot_have_an_initializer,
                         None,
                     ));
@@ -212,7 +212,7 @@ impl TypeChecker {
                         .is_some()
                 {
                     return Ok(self.grammar_error_on_node(
-                        &parameter_as_parameter_declaration.name(),
+                        parameter_as_parameter_declaration.name(),
                         &Diagnostics::Parameter_cannot_have_question_mark_and_initializer,
                         None,
                     ));
@@ -223,7 +223,7 @@ impl TypeChecker {
                     .is_none()
             {
                 return Ok(self.grammar_error_on_node(
-                    &parameter_as_parameter_declaration.name(),
+                    parameter_as_parameter_declaration.name(),
                     &Diagnostics::A_required_parameter_cannot_follow_an_optional_parameter,
                     None,
                 ));
@@ -242,7 +242,7 @@ impl TypeChecker {
             parameter_as_parameter_declaration
                 .maybe_initializer()
                 .is_some()
-                || is_binding_pattern(parameter_as_parameter_declaration.maybe_name())
+                || is_binding_pattern(parameter_as_parameter_declaration.maybe_name().refed(self))
                 || is_rest_parameter(parameter, self)
         })
     }
@@ -256,9 +256,8 @@ impl TypeChecker {
             let node_as_function_like_declaration = node_ref.as_function_like_declaration();
             let use_strict_directive = node_as_function_like_declaration
                 .maybe_body()
-                .as_ref()
-                .filter(|node_body| is_block(node_body))
-                .and_then(|node_body| find_use_strict_prologue(&node_body.as_block().statements, self));
+                .filter(|node_body| is_block(&node_body.ref_(self)))
+                .and_then(|node_body| find_use_strict_prologue(&node_body.ref_(self).as_block().statements, self));
             if let Some(use_strict_directive) = use_strict_directive {
                 let non_simple_parameters =
                     self.get_non_simple_parameters(&node_as_function_like_declaration.parameters());
@@ -372,7 +371,7 @@ impl TypeChecker {
                 !(node_type_parameters.len() > 1
                     || node_type_parameters.has_trailing_comma
                     || node_type_parameters[0]
-                        .as_type_parameter_declaration()
+                        .ref_(self).as_type_parameter_declaration()
                         .constraint
                         .is_some())
             })
@@ -384,23 +383,23 @@ impl TypeChecker {
                 &[Extension::Mts.to_str(), Extension::Cts.to_str()],
             ) {
                 self.grammar_error_on_node(
-                    &node_type_parameters[0],
+                    node_type_parameters[0],
                     &Diagnostics::This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Add_a_trailing_comma_or_explicit_constraint,
                     None,
                 );
             }
         }
 
-        let equals_greater_than_token = &node_as_arrow_function.equals_greater_than_token;
+        let equals_greater_than_token = node_as_arrow_function.equals_greater_than_token;
         let LineAndCharacter {
             line: start_line, ..
         } = get_line_and_character_of_position(
             file.ref_(self).as_source_file(),
-            equals_greater_than_token.pos().try_into().unwrap(),
+            equals_greater_than_token.ref_(self).pos().try_into().unwrap(),
         );
         let LineAndCharacter { line: end_line, .. } = get_line_and_character_of_position(
             file.ref_(self).as_source_file(),
-            equals_greater_than_token.end().try_into().unwrap(),
+            equals_greater_than_token.ref_(self).end().try_into().unwrap(),
         );
         start_line != end_line
             && self.grammar_error_on_node(
@@ -441,7 +440,6 @@ impl TypeChecker {
         let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
         if let Some(parameter_dot_dot_dot_token) = parameter_as_parameter_declaration
             .dot_dot_dot_token
-            .as_ref()
         {
             return Ok(self.grammar_error_on_node(
                 parameter_dot_dot_dot_token,
@@ -451,13 +449,13 @@ impl TypeChecker {
         }
         if has_effective_modifiers(parameter, self) {
             return Ok(self.grammar_error_on_node(
-                &parameter_as_parameter_declaration.name(),
+                parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_cannot_have_an_accessibility_modifier,
                 None,
             ));
         }
         if let Some(parameter_question_token) =
-            parameter_as_parameter_declaration.question_token.as_ref()
+            parameter_as_parameter_declaration.question_token
         {
             return Ok(self.grammar_error_on_node(
                 parameter_question_token,
@@ -470,20 +468,20 @@ impl TypeChecker {
             .is_some()
         {
             return Ok(self.grammar_error_on_node(
-                &parameter_as_parameter_declaration.name(),
+                parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_cannot_have_an_initializer,
                 None,
             ));
         }
         if parameter_as_parameter_declaration.maybe_type().is_none() {
             return Ok(self.grammar_error_on_node(
-                &parameter_as_parameter_declaration.name(),
+                parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_must_have_a_type_annotation,
                 None,
             ));
         }
         let type_ = self
-            .get_type_from_type_node_(&parameter_as_parameter_declaration.maybe_type().unwrap())?;
+            .get_type_from_type_node_(parameter_as_parameter_declaration.maybe_type().unwrap())?;
         if self.some_type(type_, |t: Id<Type>| {
             t.ref_(self)
                 .flags()
@@ -491,14 +489,14 @@ impl TypeChecker {
         }) || self.is_generic_type(type_)?
         {
             return Ok(self.grammar_error_on_node(
-                &parameter_as_parameter_declaration.name(),
+                parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_type_cannot_be_a_literal_type_or_generic_type_Consider_using_a_mapped_object_type_instead,
                 None,
             ));
         }
         if !self.try_every_type(type_, |type_: Id<Type>| self.is_valid_index_key_type(type_))? {
             return Ok(self.grammar_error_on_node(
-                &parameter_as_parameter_declaration.name(),
+                parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type,
                 None,
             ));
@@ -570,7 +568,7 @@ impl TypeChecker {
             || node.ref_(self).flags().intersects(NodeFlags::OptionalChain)
         {
             return self.grammar_error_on_node(
-                &node_as_tagged_template_expression.template,
+                node_as_tagged_template_expression.template,
                 &Diagnostics::Tagged_template_expressions_are_not_permitted_in_an_optional_chain,
                 None,
             );
@@ -656,8 +654,9 @@ impl TypeChecker {
             if let Some(node_heritage_clauses) =
                 node.ref_(self).as_class_like_declaration().maybe_heritage_clauses()
             {
-                for heritage_clause in &node_heritage_clauses {
-                    let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
+                for &heritage_clause in &node_heritage_clauses {
+                    let heritage_clause_ref = heritage_clause.ref_(self);
+                    let heritage_clause_as_heritage_clause = heritage_clause_ref.as_heritage_clause();
                     if heritage_clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
                         if seen_extends_clause {
                             return self.grammar_error_on_first_token(
@@ -717,8 +716,9 @@ impl TypeChecker {
         if let Some(node_heritage_clauses) =
             node.ref_(self).as_interface_declaration().maybe_heritage_clauses()
         {
-            for heritage_clause in &node_heritage_clauses {
-                let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
+            for &heritage_clause in &node_heritage_clauses {
+                let heritage_clause_ref = heritage_clause.ref_(self);
+                let heritage_clause_as_heritage_clause = heritage_clause_ref.as_heritage_clause();
                 if heritage_clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
                     if seen_extends_clause {
                         return self.grammar_error_on_first_token(
@@ -757,13 +757,13 @@ impl TypeChecker {
         if computed_property_name.expression.ref_(self).kind() == SyntaxKind::BinaryExpression
             && computed_property_name
                 .expression
-                .as_binary_expression()
+                .ref_(self).as_binary_expression()
                 .operator_token
-                .kind()
+                .ref_(self).kind()
                 == SyntaxKind::CommaToken
         {
             return self.grammar_error_on_node(
-                &computed_property_name.expression,
+                computed_property_name.expression,
                 &Diagnostics::A_comma_expression_is_not_allowed_in_a_computed_property_name,
                 None,
             );
@@ -779,7 +779,6 @@ impl TypeChecker {
         let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         if let Some(node_asterisk_token) = node_as_function_like_declaration
             .maybe_asterisk_token()
-            .as_ref()
         {
             Debug_.assert(
                 matches!(
@@ -843,12 +842,12 @@ impl TypeChecker {
             if prop.ref_(self).kind() == SyntaxKind::SpreadAssignment {
                 if in_destructuring {
                     let expression =
-                        skip_parentheses(prop.as_spread_assignment().expression, None, self);
+                        skip_parentheses(prop.ref_(self).as_spread_assignment().expression, None, self);
                     if is_array_literal_expression(&expression.ref_(self))
                         || is_object_literal_expression(&expression.ref_(self))
                     {
                         return self.grammar_error_on_node(
-                            &prop.as_spread_assignment().expression,
+                            prop.ref_(self).as_spread_assignment().expression,
                             &Diagnostics::A_rest_element_cannot_contain_a_binding_pattern,
                             None,
                         );
@@ -856,26 +855,26 @@ impl TypeChecker {
                 }
                 continue;
             }
-            let name = prop.as_named_declaration().name();
-            if name.kind() == SyntaxKind::ComputedPropertyName {
+            let name = prop.ref_(self).as_named_declaration().name();
+            if name.ref_(self).kind() == SyntaxKind::ComputedPropertyName {
                 self.check_grammar_computed_property_name(&name);
             }
 
-            if prop.kind() == SyntaxKind::ShorthandPropertyAssignment
+            if prop.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment
                 && !in_destructuring
                 && prop
-                    .as_shorthand_property_assignment()
+                    .ref_(self).as_shorthand_property_assignment()
                     .object_assignment_initializer
                     .is_some()
             {
                 return self.grammar_error_on_node(
-                    prop.as_shorthand_property_assignment().equals_token.as_ref().unwrap(),
+                    prop.ref_(self).as_shorthand_property_assignment().equals_token.unwrap(),
                     &Diagnostics::Did_you_mean_to_use_a_Colon_An_can_only_follow_a_property_name_when_the_containing_object_literal_is_part_of_a_destructuring_pattern,
                     None,
                 );
             }
 
-            if name.kind() == SyntaxKind::PrivateIdentifier {
+            if name.ref_(self).kind() == SyntaxKind::PrivateIdentifier {
                 self.grammar_error_on_node(
                     &name,
                     &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
@@ -883,10 +882,10 @@ impl TypeChecker {
                 );
             }
 
-            if let Some(prop_modifiers) = prop.maybe_modifiers().as_ref() {
+            if let Some(prop_modifiers) = prop.ref_(self).maybe_modifiers().as_ref() {
                 for mod_ in prop_modifiers {
-                    if mod_.kind() != SyntaxKind::AsyncKeyword
-                        || prop.kind() != SyntaxKind::MethodDeclaration
+                    if mod_.ref_(self).kind() != SyntaxKind::AsyncKeyword
+                        || prop.ref_(self).kind() != SyntaxKind::MethodDeclaration
                     {
                         self.grammar_error_on_node(
                             mod_,
@@ -898,28 +897,28 @@ impl TypeChecker {
             }
 
             let current_kind: DeclarationMeaning;
-            match prop.kind() {
+            match prop.ref_(self).kind() {
                 SyntaxKind::ShorthandPropertyAssignment => {
                     self.check_grammar_for_invalid_exclamation_token(
-                        prop.as_shorthand_property_assignment().exclamation_token.as_deref(),
+                        prop.ref_(self).as_shorthand_property_assignment().exclamation_token,
                         &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
                     );
                     self.check_grammar_for_invalid_question_mark(
-                        prop.as_has_question_token().maybe_question_token(),
+                        prop.ref_(self).as_has_question_token().maybe_question_token(),
                         &Diagnostics::An_object_member_cannot_be_declared_optional,
                     );
-                    if name.kind() == SyntaxKind::NumericLiteral {
-                        self.check_grammar_numeric_literal(&name);
+                    if name.ref_(self).kind() == SyntaxKind::NumericLiteral {
+                        self.check_grammar_numeric_literal(name);
                     }
                     current_kind = DeclarationMeaning::PropertyAssignment;
                 }
                 SyntaxKind::PropertyAssignment => {
                     self.check_grammar_for_invalid_question_mark(
-                        prop.as_has_question_token().maybe_question_token(),
+                        prop.ref_(self).as_has_question_token().maybe_question_token(),
                         &Diagnostics::An_object_member_cannot_be_declared_optional,
                     );
-                    if name.kind() == SyntaxKind::NumericLiteral {
-                        self.check_grammar_numeric_literal(&name);
+                    if name.ref_(self).kind() == SyntaxKind::NumericLiteral {
+                        self.check_grammar_numeric_literal(name);
                     }
                     current_kind = DeclarationMeaning::PropertyAssignment;
                 }
@@ -934,7 +933,7 @@ impl TypeChecker {
                 }
                 _ => Debug_.assert_never(
                     prop,
-                    Some(&format!("Unexpected syntax kind:{:?}", prop.kind())),
+                    Some(&format!("Unexpected syntax kind:{:?}", prop.ref_(self).kind())),
                 ),
             }
 

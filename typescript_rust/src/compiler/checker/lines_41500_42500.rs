@@ -99,7 +99,8 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         if node_is_present(
             node.ref_(self).maybe_as_function_like_declaration()
-                .and_then(|node| node.maybe_body()),
+                .and_then(|node| node.maybe_body())
+                .refed(self),
         ) {
             if is_get_accessor(&node.ref_(self)) || is_set_accessor(&node.ref_(self)) {
                 return Ok(false);
@@ -158,7 +159,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let declaration = return_ok_default_if_none!(get_parse_tree_node(
             Some(node),
-            Some(|node| is_function_declaration(&node.ref_(self))),
+            Some(|node: Id<Node>| is_function_declaration(&node.ref_(self))),
             self,
         ));
         let symbol = return_ok_default_if_none!(self.get_symbol_of_node(declaration)?);
@@ -266,13 +267,13 @@ impl TypeChecker {
         type_name_in: Id<Node>, /*EntityName*/
         mut location: Option<Id<Node>>,
     ) -> io::Result<TypeReferenceSerializationKind> {
-        let Some(type_name) = get_parse_tree_node(Some(type_name_in), Some(|node| is_entity_name(&node.ref_(self))), self) else {
+        let Some(type_name) = get_parse_tree_node(Some(type_name_in), Some(|node: Id<Node>| is_entity_name(&node.ref_(self))), self) else {
             return Ok(TypeReferenceSerializationKind::Unknown);
         };
 
         if location.is_some() {
             location =
-                get_parse_tree_node(location.as_deref(), Option::<fn(Id<Node>) -> bool>::None, self);
+                get_parse_tree_node(location, Option::<fn(Id<Node>) -> bool>::None, self);
             if location.is_none() {
                 return Ok(TypeReferenceSerializationKind::Unknown);
             }
@@ -290,9 +291,9 @@ impl TypeChecker {
             is_type_only = matches!(
                 root_value_symbol,
                 Some(root_value_symbol) if matches!(
-                    root_value_symbol.ref_(self).maybe_declarations(),
+                    root_value_symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(root_value_symbol_declarations) if root_value_symbol_declarations.into_iter().all(
-                        |declaration| is_type_only_import_or_export_declaration(declaration, self)
+                        |&declaration| is_type_only_import_or_export_declaration(declaration, self)
                     )
                 )
             );
@@ -302,7 +303,7 @@ impl TypeChecker {
             SymbolFlags::Value,
             Some(true),
             Some(true),
-            location.as_deref(),
+            location,
         )?;
         let resolved_symbol = if let Some(value_symbol) = value_symbol.filter(|&value_symbol| {
             value_symbol
@@ -477,7 +478,7 @@ impl TypeChecker {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        let Some(expr) = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)), self) {
+        let Some(expr) = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)), self) else {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         };
         let type_ = self.get_widened_type(self.get_regular_type_of_expression(expr)?)?;
@@ -689,8 +690,8 @@ impl TypeChecker {
             get_external_module_name(declaration, self)
         };
         let module_symbol = return_ok_default_if_none!(self.resolve_external_module_name_worker(
-            specifier.as_ref().unwrap(),
-            specifier.as_ref().unwrap(),
+            specifier.unwrap(),
+            specifier.unwrap(),
             None,
             None,
         )?);
@@ -726,7 +727,7 @@ impl TypeChecker {
                             .clone()
                     })
                 {
-                    for declaration in file_global_this_symbol_declarations {
+                    for &declaration in file_global_this_symbol_declarations {
                         self.diagnostics().add(
                             Gc::new(
                                 create_diagnostic_for_node(
@@ -1223,17 +1224,17 @@ impl TypeChecker {
                     return self.grammar_error_on_node(
                         modifier,
                         &Diagnostics::_0_modifier_cannot_appear_on_a_type_member,
-                        Some(vec![token_to_string(modifier.kind()).unwrap().to_owned()]),
+                        Some(vec![token_to_string(modifier.ref_(self).kind()).unwrap().to_owned()]),
                     );
                 }
                 if node.ref_(self).kind() == SyntaxKind::IndexSignature
-                    && (modifier.kind() != SyntaxKind::StaticKeyword
+                    && (modifier.ref_(self).kind() != SyntaxKind::StaticKeyword
                         || !maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)))
                 {
                     return self.grammar_error_on_node(
                         modifier,
                         &Diagnostics::_0_modifier_cannot_appear_on_an_index_signature,
-                        Some(vec![token_to_string(modifier.kind()).unwrap().to_owned()]),
+                        Some(vec![token_to_string(modifier.ref_(self).kind()).unwrap().to_owned()]),
                     );
                 }
             }
@@ -1282,7 +1283,7 @@ impl TypeChecker {
                 SyntaxKind::PublicKeyword
                 | SyntaxKind::ProtectedKeyword
                 | SyntaxKind::PrivateKeyword => {
-                    let text = self.visibility_to_string(modifier_to_flag(modifier.kind()));
+                    let text = self.visibility_to_string(modifier_to_flag(modifier.ref_(self).kind()));
 
                     if flags.intersects(ModifierFlags::AccessibilityModifier) {
                         return self.grammar_error_on_node(
@@ -1326,7 +1327,7 @@ impl TypeChecker {
                             ])
                         );
                     } else if flags.intersects(ModifierFlags::Abstract) {
-                        if modifier.kind() == SyntaxKind::PrivateKeyword {
+                        if modifier.ref_(self).kind() == SyntaxKind::PrivateKeyword {
                             return self.grammar_error_on_node(
                                 modifier,
                                 &Diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
@@ -1346,7 +1347,7 @@ impl TypeChecker {
                             None
                         );
                     }
-                    flags |= modifier_to_flag(modifier.kind());
+                    flags |= modifier_to_flag(modifier.ref_(self).kind());
                 }
 
                 SyntaxKind::StaticKeyword => {
