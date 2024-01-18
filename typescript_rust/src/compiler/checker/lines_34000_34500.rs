@@ -19,6 +19,7 @@ use crate::{
     ModifierFlags, NamedDeclarationInterface, Node, NodeInterface, ScriptTarget,
     SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
     TypePredicateKind,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -32,8 +33,8 @@ impl TypeChecker {
             self.grammar_error_on_first_token(node_expression, &Diagnostics::Type_expected, None);
         }
 
-        self.check_source_element(node_as_type_parameter_declaration.constraint.as_deref())?;
-        self.check_source_element(node_as_type_parameter_declaration.default.as_deref())?;
+        self.check_source_element(node_as_type_parameter_declaration.constraint)?;
+        self.check_source_element(node_as_type_parameter_declaration.default)?;
         let type_parameter =
             self.get_declared_type_of_type_parameter(self.get_symbol_of_node(node)?.unwrap());
         self.get_base_constraint_of_type(type_parameter)?;
@@ -85,11 +86,12 @@ impl TypeChecker {
         self.check_grammar_decorators_and_modifiers(node);
 
         self.check_variable_like_declaration(node)?;
-        let func = get_containing_function(node).unwrap();
-        let node_as_parameter_declaration = node.as_parameter_declaration();
+        let func = get_containing_function(node, self).unwrap();
+        let node_ref = node.ref_(self);
+        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier, self) {
-            if !(func.kind() == SyntaxKind::Constructor
-                && node_is_present(func.as_function_like_declaration().maybe_body()))
+            if !(func.ref_(self).kind() == SyntaxKind::Constructor
+                && node_is_present(func.ref_(self).as_function_like_declaration().maybe_body().refed(self)))
             {
                 self.error(
                     Some(node),
@@ -97,7 +99,7 @@ impl TypeChecker {
                     None,
                 );
             }
-            if func.kind() == SyntaxKind::Constructor
+            if func.ref_(self).kind() == SyntaxKind::Constructor
                 && is_identifier(&node_as_parameter_declaration.name())
                 && node_as_parameter_declaration
                     .name()
@@ -115,7 +117,7 @@ impl TypeChecker {
         if node_as_parameter_declaration.question_token.is_some()
             && is_binding_pattern(node_as_parameter_declaration.maybe_name())
             && func
-                .maybe_as_function_like_declaration()
+                .ref_(self).maybe_as_function_like_declaration()
                 .and_then(|func| func.maybe_body())
                 .is_some()
         {
@@ -135,10 +137,10 @@ impl TypeChecker {
                 })
         {
             if func
-                .as_signature_declaration()
+                .ref_(self).as_signature_declaration()
                 .parameters()
                 .into_iter()
-                .position(|parameter| ptr::eq(&**parameter, node))
+                .position(|&parameter| parameter == node)
                 != Some(0)
             {
                 self.error(
@@ -148,7 +150,7 @@ impl TypeChecker {
                 );
             }
             if matches!(
-                func.kind(),
+                func.ref_(self).kind(),
                 SyntaxKind::Constructor
                     | SyntaxKind::ConstructSignature
                     | SyntaxKind::ConstructorType
@@ -159,7 +161,7 @@ impl TypeChecker {
                     None,
                 );
             }
-            if func.kind() == SyntaxKind::ArrowFunction {
+            if func.ref_(self).kind() == SyntaxKind::ArrowFunction {
                 self.error(
                     Some(node),
                     &Diagnostics::An_arrow_function_cannot_have_a_this_parameter,
@@ -167,7 +169,7 @@ impl TypeChecker {
                 );
             }
             if matches!(
-                func.kind(),
+                func.ref_(self).kind(),
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
             ) {
                 self.error(
@@ -179,9 +181,9 @@ impl TypeChecker {
         }
 
         if node_as_parameter_declaration.dot_dot_dot_token.is_some()
-            && !is_binding_pattern(node_as_parameter_declaration.maybe_name())
+            && !is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self))
             && !self.is_type_assignable_to(
-                self.get_reduced_type(self.get_type_of_symbol(node.symbol())?)?,
+                self.get_reduced_type(self.get_type_of_symbol(node.ref_(self).symbol())?)?,
                 self.any_readonly_array_type(),
             )?
         {
@@ -199,25 +201,24 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypePredicateNode*/
     ) -> io::Result<()> {
-        let parent = self.get_type_predicate_parent(node);
-        if parent.is_none() {
+        let Some(parent) = self.get_type_predicate_parent(node) else {
             self.error(
                 Some(node),
                 &Diagnostics::A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods,
                 None,
             );
             return Ok(());
-        }
-        let parent = parent.unwrap();
+        };
 
-        let signature = self.get_signature_from_declaration_(&parent)?;
+        let signature = self.get_signature_from_declaration_(parent)?;
         let type_predicate =
             return_ok_default_if_none!(self.get_type_predicate_of_signature(&signature)?);
 
-        let node_as_type_predicate_node = node.as_type_predicate_node();
-        self.check_source_element(node_as_type_predicate_node.type_.as_deref())?;
+        let node_ref = node.ref_(self);
+        let node_as_type_predicate_node = node_ref.as_type_predicate_node();
+        self.check_source_element(node_as_type_predicate_node.type_)?;
 
-        let parameter_name = &node_as_type_predicate_node.parameter_name;
+        let parameter_name = node_as_type_predicate_node.parameter_name;
         if matches!(
             type_predicate.kind,
             TypePredicateKind::This | TypePredicateKind::AssertsThis
@@ -254,7 +255,7 @@ impl TypeChecker {
             /*if (parameterName)*/
             {
                 let mut has_reported_error = false;
-                for parameter in &parent.as_signature_declaration().parameters() {
+                for parameter in &parent.ref_(self).as_signature_declaration().parameters() {
                     let name = parameter.as_named_declaration().name();
                     if is_binding_pattern(Some(&*name))
                         && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
@@ -284,7 +285,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>,
     ) -> Option<Id<Node /*SignatureDeclaration*/>> {
-        match node.parent().kind() {
+        match node.ref_(self).parent().ref_(self).kind() {
             SyntaxKind::ArrowFunction
             | SyntaxKind::CallSignature
             | SyntaxKind::FunctionDeclaration
@@ -292,11 +293,8 @@ impl TypeChecker {
             | SyntaxKind::FunctionType
             | SyntaxKind::MethodDeclaration
             | SyntaxKind::MethodSignature => {
-                let parent = node.parent();
-                if matches!(
-                    parent.as_has_type().maybe_type().as_ref(),
-                    Some(parent_type) if ptr::eq(node, &**parent_type)
-                ) {
+                let parent = node.ref_(self).parent();
+                if parent.ref_(self).as_has_type().maybe_type() == Some(node) {
                     return Some(parent);
                 }
             }
@@ -311,14 +309,14 @@ impl TypeChecker {
         predicate_variable_node: Id<Node>,
         predicate_variable_name: &str,
     ) -> bool {
-        for element in &pattern.as_has_elements().elements() {
-            if is_omitted_expression(element) {
+        for element in &pattern.ref_(self).as_has_elements().elements() {
+            if is_omitted_expression(&element.ref_(self)) {
                 continue;
             }
 
-            let name = element.as_named_declaration().name();
-            if name.kind() == SyntaxKind::Identifier
-                && name.as_identifier().escaped_text == predicate_variable_name
+            let name = element.ref_(self).as_named_declaration().name();
+            if name.ref_(self).kind() == SyntaxKind::Identifier
+                && name.ref_(self).as_identifier().escaped_text == predicate_variable_name
             {
                 self.error(
                     Some(predicate_variable_node),
@@ -327,11 +325,11 @@ impl TypeChecker {
                 );
                 return true;
             } else if matches!(
-                name.kind(),
+                name.ref_(self).kind(),
                 SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
             ) {
                 if self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
-                    &name,
+                    name,
                     predicate_variable_node,
                     predicate_variable_name,
                 ) {
@@ -346,10 +344,10 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<()> {
-        if node.kind() == SyntaxKind::IndexSignature {
+        if node.ref_(self).kind() == SyntaxKind::IndexSignature {
             self.check_grammar_index_signature(node)?;
         } else if matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::FunctionType
                 | SyntaxKind::FunctionDeclaration
                 | SyntaxKind::ConstructorType
@@ -384,26 +382,27 @@ impl TypeChecker {
             }
         }
 
-        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)))?;
+        self.check_type_parameters(Some(get_effective_type_parameter_declarations(node, self)))?;
 
-        let node_as_signature_declaration = node.as_signature_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_signature_declaration = node_ref.as_signature_declaration();
         try_for_each(
             &node_as_signature_declaration.parameters(),
-            |parameter: &Id<Node>, _| -> io::Result<Option<()>> {
+            |&parameter: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_parameter(parameter)?;
                 Ok(None)
             },
         )?;
 
-        if let Some(node_type) = node_as_signature_declaration.maybe_type().as_ref() {
-            self.check_source_element(Some(&**node_type))?;
+        if let Some(node_type) = node_as_signature_declaration.maybe_type() {
+            self.check_source_element(Some(node_type))?;
         }
 
         if self.produce_diagnostics {
             self.check_collision_with_arguments_in_generated_code(node);
-            let return_type_node = get_effective_return_type_node(node);
+            let return_type_node = get_effective_return_type_node(node, self);
             if self.no_implicit_any && return_type_node.is_none() {
-                match node.kind() {
+                match node.ref_(self).kind() {
                     SyntaxKind::ConstructSignature => {
                         self.error(
                             Some(node),
@@ -430,7 +429,7 @@ impl TypeChecker {
                     let return_type = self.get_type_from_type_node_(return_type_node)?;
                     if return_type == self.void_type() {
                         self.error(
-                            Some(&**return_type_node),
+                            Some(return_type_node),
                             &Diagnostics::A_generator_cannot_have_a_void_type_annotation,
                             None,
                         );
@@ -465,7 +464,7 @@ impl TypeChecker {
                         self.check_type_assignable_to(
                             generator_instantiation,
                             return_type,
-                            Some(&**return_type_node),
+                            Some(return_type_node),
                             None,
                             None,
                             None,
@@ -476,7 +475,7 @@ impl TypeChecker {
                 }
             }
             if !matches!(
-                node.kind(),
+                node.ref_(self).kind(),
                 SyntaxKind::IndexSignature | SyntaxKind::JSDocFunctionType
             ) {
                 self.register_for_unused_identifiers_check(node);
@@ -493,19 +492,19 @@ impl TypeChecker {
         let mut instance_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut static_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut private_identifiers: HashMap<__String, DeclarationMeaning> = HashMap::new();
-        for member in &node.as_class_like_declaration().members() {
-            if member.kind() == SyntaxKind::Constructor {
-                for param in &member.as_constructor_declaration().parameters() {
+        for &member in &node.ref_(self).as_class_like_declaration().members() {
+            if member.ref_(self).kind() == SyntaxKind::Constructor {
+                for param in &member.ref_(self).as_constructor_declaration().parameters() {
                     if is_parameter_property_declaration(param, member, self)
-                        && !is_binding_pattern(param.as_named_declaration().maybe_name())
+                        && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name().refed(self))
                     {
                         self.add_name(
                             &mut instance_names,
-                            &param.as_named_declaration().name(),
+                            param.ref_(self).as_named_declaration().name(),
                             &param
-                                .as_named_declaration()
+                                .ref_(self).as_named_declaration()
                                 .name()
-                                .as_identifier()
+                                .ref_(self).as_identifier()
                                 .escaped_text,
                             DeclarationMeaning::GetOrSetAccessor,
                         );
@@ -626,8 +625,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> io::Result<()> {
-        for member in &node.as_class_like_declaration().members() {
-            let member_name_node = member.as_named_declaration().maybe_name();
+        for &member in &node.ref_(self).as_class_like_declaration().members() {
+            let member_name_node = member.ref_(self).as_named_declaration().maybe_name();
             let is_static_member = is_static(member, self);
             if is_static_member {
                 if let Some(member_name_node) = member_name_node {
@@ -645,7 +644,7 @@ impl TypeChecker {
                                 )
                                 .into_owned();
                             self.error(
-                                Some(&**member_name_node),
+                                Some(member_name_node),
                                 message,
                                 Some(vec![member_name.into_owned(), class_name]),
                             );
@@ -663,7 +662,7 @@ impl TypeChecker {
         node: Id<Node>, /*TypeLiteralNode | InterfaceDeclaration*/
     ) {
         let mut names: HashMap<String, bool> = HashMap::new();
-        for member in &node.as_has_members().members() {
+        for member in &node.ref_(self).as_has_members().members() {
             if member.kind() == SyntaxKind::PropertySignature {
                 let member_name: String;
                 let name = member.as_named_declaration().name();
@@ -704,15 +703,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>,
     ) -> io::Result<()> {
-        if node.kind() == SyntaxKind::InterfaceDeclaration {
+        if node.ref_(self).kind() == SyntaxKind::InterfaceDeclaration {
             let node_symbol = self.get_symbol_of_node(node)?.unwrap();
             if matches!(
                 node_symbol.ref_(self).maybe_declarations().as_ref(),
                 Some(node_symbol_declarations) if !node_symbol_declarations.is_empty() &&
-                    !ptr::eq(
-                        &*node_symbol_declarations[0],
-                        node
-                    )
+                    node_symbol_declarations[0] != node
             ) {
                 return Ok(());
             }
@@ -726,13 +722,13 @@ impl TypeChecker {
             let mut index_signature_map: HashMap<TypeId, IndexSignatureMapValue> = HashMap::new();
             for declaration in index_symbol_declarations {
                 if declaration
-                    .as_index_signature_declaration()
+                    .ref_(self).as_index_signature_declaration()
                     .parameters()
                     .len()
                     == 1
                 {
                     if let Some(declaration_parameters_0_type) =
-                        declaration.as_index_signature_declaration().parameters()[0]
+                        declaration.ref_(self).as_index_signature_declaration().parameters()[0]
                             .as_parameter_declaration()
                             .maybe_type()
                             .as_ref()
@@ -757,9 +753,9 @@ impl TypeChecker {
                 index_signature_map.values(),
                 |entry, _| -> io::Result<Option<()>> {
                     if entry.declarations.len() > 1 {
-                        for declaration in &entry.declarations {
+                        for &declaration in &entry.declarations {
                             self.error(
-                                Some(&**declaration),
+                                Some(declaration),
                                 &Diagnostics::Duplicate_index_signature_for_type_0,
                                 Some(vec![self.type_to_string_(
                                     entry.type_,
@@ -783,17 +779,18 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*PropertySignature*/
     ) -> io::Result<()> {
-        let node_as_named_declaration = node.as_named_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_named_declaration = node_ref.as_named_declaration();
         if !self.check_grammar_decorators_and_modifiers(node)
             && !self.check_grammar_property(node)?
         {
-            self.check_grammar_computed_property_name(&node_as_named_declaration.name());
+            self.check_grammar_computed_property_name(node_as_named_declaration.name());
         }
         self.check_variable_like_declaration(node)?;
 
         self.set_node_links_for_private_identifier_scope(node);
-        if is_private_identifier(&node_as_named_declaration.name()) && has_static_modifier(node, self) {
-            if let Some(node_initializer) = node.as_has_initializer().maybe_initializer().as_ref() {
+        if is_private_identifier(&node_as_named_declaration.name().ref_(self)) && has_static_modifier(node, self) {
+            if let Some(node_initializer) = node.ref_(self).as_has_initializer().maybe_initializer() {
                 if self.language_version == ScriptTarget::ESNext
                     && self.compiler_options.use_define_for_class_fields != Some(true)
                 {
@@ -806,8 +803,8 @@ impl TypeChecker {
             }
         }
         if has_syntactic_modifier(node, ModifierFlags::Abstract, self)
-            && node.kind() == SyntaxKind::PropertyDeclaration
-            && node.as_has_initializer().maybe_initializer().is_some()
+            && node.ref_(self).kind() == SyntaxKind::PropertyDeclaration
+            && node.ref_(self).as_has_initializer().maybe_initializer().is_some()
         {
             self.error(
                 Some(node),
@@ -827,7 +824,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*PropertySignature*/
     ) -> io::Result<()> {
-        if is_private_identifier(&node.as_property_signature().name()) {
+        if is_private_identifier(&node.ref_(self).as_property_signature().name().ref_(self)) {
             self.error(
                 Some(node),
                 &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
@@ -843,16 +840,17 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*MethodDeclaration | MethodSignature*/
     ) -> io::Result<()> {
-        let node_as_named_declaration = node.as_named_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_named_declaration = node_ref.as_named_declaration();
         if !self.check_grammar_method(node)? {
-            self.check_grammar_computed_property_name(&node_as_named_declaration.name());
+            self.check_grammar_computed_property_name(node_as_named_declaration.name());
         }
 
         self.check_function_or_method_declaration(node)?;
 
         if has_syntactic_modifier(node, ModifierFlags::Abstract, self)
-            && node.kind() == SyntaxKind::MethodDeclaration
-            && node.as_function_like_declaration().maybe_body().is_some()
+            && node.ref_(self).kind() == SyntaxKind::MethodDeclaration
+            && node.ref_(self).as_function_like_declaration().maybe_body().is_some()
         {
             self.error(
                 Some(node),
@@ -865,8 +863,8 @@ impl TypeChecker {
             );
         }
 
-        if is_private_identifier(&node_as_named_declaration.name())
-            && get_containing_class(node).is_none()
+        if is_private_identifier(&node_as_named_declaration.name().ref_(self))
+            && get_containing_class(node, self).is_none()
         {
             self.error(
                 Some(node),
@@ -884,24 +882,25 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*PropertyDeclaration | PropertySignature | MethodDeclaration | MethodSignature | AccessorDeclaration*/
     ) {
-        let node_as_named_declaration = node.as_named_declaration();
-        if is_private_identifier(&node_as_named_declaration.name())
+        let node_ref = node.ref_(self);
+        let node_as_named_declaration = node_ref.as_named_declaration();
+        if is_private_identifier(&node_as_named_declaration.name().ref_(self))
             && self.language_version < ScriptTarget::ESNext
         {
             let mut lexical_scope = get_enclosing_block_scope_container(node, self);
-            while let Some(ref lexical_scope_present) = lexical_scope {
+            while let Some(lexical_scope_present) = lexical_scope {
                 self.get_node_links(lexical_scope_present)
                     .borrow_mut()
                     .flags |= NodeCheckFlags::ContainsClassWithPrivateIdentifiers;
                 lexical_scope = get_enclosing_block_scope_container(lexical_scope_present, self);
             }
 
-            if is_class_expression(&node.parent()) {
+            if is_class_expression(&node.ref_(self).parent().ref_(self)) {
                 let enclosing_iteration_statement =
-                    self.get_enclosing_iteration_statement(&node.parent());
-                if let Some(enclosing_iteration_statement) = enclosing_iteration_statement.as_ref()
+                    self.get_enclosing_iteration_statement(node.ref_(self).parent());
+                if let Some(enclosing_iteration_statement) = enclosing_iteration_statement
                 {
-                    self.get_node_links(&node_as_named_declaration.name())
+                    self.get_node_links(node_as_named_declaration.name())
                         .borrow_mut()
                         .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
                     self.get_node_links(enclosing_iteration_statement)
