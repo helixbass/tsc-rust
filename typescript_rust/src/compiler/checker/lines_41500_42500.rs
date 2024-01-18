@@ -28,6 +28,7 @@ use crate::{
     PragmaName, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
     SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeReferenceSerializationKind, UnwrapOrEmpty,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -84,7 +85,7 @@ impl TypeChecker {
 
         if check_children == Some(true) {
             return try_for_each_child_bool(
-                node,
+                &node.ref_(self),
                 |node| self.is_referenced_alias_declaration(node, check_children),
                 Option::<fn(&NodeArray) -> io::Result<bool>>::None,
             );
@@ -97,23 +98,17 @@ impl TypeChecker {
         node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         if node_is_present(
-            node.maybe_as_function_like_declaration()
+            node.ref_(self).maybe_as_function_like_declaration()
                 .and_then(|node| node.maybe_body()),
         ) {
-            if is_get_accessor(node) || is_set_accessor(node) {
+            if is_get_accessor(&node.ref_(self)) || is_set_accessor(&node.ref_(self)) {
                 return Ok(false);
             }
             let symbol = self.get_symbol_of_node(node)?;
             let signatures_of_symbol = self.get_signatures_of_symbol(symbol)?;
             return Ok(signatures_of_symbol.len() > 1
                 || signatures_of_symbol.len() == 1
-                    && !matches!(
-                        signatures_of_symbol[0].declaration.as_ref(),
-                        Some(declaration) if ptr::eq(
-                            &**declaration,
-                            node,
-                        )
-                    ));
+                    && signatures_of_symbol[0].declaration != Some(node));
         }
         Ok(false)
     }
@@ -124,9 +119,9 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(self.strict_null_checks
             && !self.is_optional_parameter_(parameter)?
-            && !is_jsdoc_parameter_tag(parameter)
+            && !is_jsdoc_parameter_tag(&parameter.ref_(self))
             && parameter
-                .as_parameter_declaration()
+                .ref_(self).as_parameter_declaration()
                 .maybe_initializer()
                 .is_some()
             && !has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier, self))
@@ -139,7 +134,7 @@ impl TypeChecker {
         Ok(self.strict_null_checks
             && self.is_optional_parameter_(parameter)?
             && parameter
-                .as_parameter_declaration()
+                .ref_(self).as_parameter_declaration()
                 .maybe_initializer()
                 .is_none()
             && has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier, self))
@@ -152,7 +147,7 @@ impl TypeChecker {
         Ok(self.strict_null_checks
             && self.is_optional_parameter_(parameter)?
             && parameter
-                .as_parameter_declaration()
+                .ref_(self).as_parameter_declaration()
                 .maybe_initializer()
                 .is_none())
     }
@@ -163,7 +158,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let declaration = return_ok_default_if_none!(get_parse_tree_node(
             Some(node),
-            Some(is_function_declaration),
+            Some(|node| is_function_declaration(&node.ref_(self))),
             self,
         ));
         let symbol = return_ok_default_if_none!(self.get_symbol_of_node(declaration)?);
@@ -175,8 +170,8 @@ impl TypeChecker {
             |&p: &Id<Symbol>, _| {
                 p.ref_(self).flags().intersects(SymbolFlags::Value)
                     && matches!(
-                        p.ref_(self).maybe_value_declaration().as_ref(),
-                        Some(p_value_declaration) if is_property_access_expression(p_value_declaration)
+                        p.ref_(self).maybe_value_declaration(),
+                        Some(p_value_declaration) if is_property_access_expression(&p_value_declaration.ref_(self))
                     )
             },
         ))
@@ -201,7 +196,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_node_check_flags(&self, node: Id<Node>) -> NodeCheckFlags {
-        let node_id = node.maybe_id().unwrap_or(0);
+        let node_id = node.ref_(self).maybe_id().unwrap_or(0);
         /*if (nodeId < 0 || nodeId >= nodeLinks.length) return 0;*/
         self.node_links()
             .get(&node_id)
@@ -215,7 +210,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*EnumMember*/
     ) -> io::Result<Option<StringOrNumber>> {
-        self.compute_enum_member_values(&node.parent())?;
+        self.compute_enum_member_values(node.ref_(self).parent())?;
         let ret = (*self.get_node_links(node))
             .borrow()
             .enum_member_value
@@ -225,7 +220,7 @@ impl TypeChecker {
 
     pub(super) fn can_have_constant_value(&self, node: Id<Node>) -> bool {
         matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::EnumMember
                 | SyntaxKind::PropertyAccessExpression
                 | SyntaxKind::ElementAccessExpression
@@ -236,7 +231,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*EnumMember | AccessExpression*/
     ) -> io::Result<Option<StringOrNumber>> {
-        if node.kind() == SyntaxKind::EnumMember {
+        if node.ref_(self).kind() == SyntaxKind::EnumMember {
             return self.get_enum_member_value(node);
         }
 
@@ -250,8 +245,8 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::EnumMember)
         }) {
-            let ref member = symbol.ref_(self).maybe_value_declaration().unwrap();
-            if is_enum_const(member.parent(), self) {
+            let member = symbol.ref_(self).maybe_value_declaration().unwrap();
+            if is_enum_const(member.ref_(self).parent(), self) {
                 return self.get_enum_member_value(member);
             }
         }
@@ -269,15 +264,12 @@ impl TypeChecker {
     pub(super) fn get_type_reference_serialization_kind(
         &self,
         type_name_in: Id<Node>, /*EntityName*/
-        location: Option<Id<Node>>,
+        mut location: Option<Id<Node>>,
     ) -> io::Result<TypeReferenceSerializationKind> {
-        let type_name = get_parse_tree_node(Some(type_name_in), Some(is_entity_name), self);
-        if type_name.is_none() {
+        let Some(type_name) = get_parse_tree_node(Some(type_name_in), Some(|node| is_entity_name(&node.ref_(self))), self) else {
             return Ok(TypeReferenceSerializationKind::Unknown);
-        }
-        let type_name = type_name.as_ref().unwrap();
+        };
 
-        let mut location = location.map(|location| location.borrow().node_wrapper());
         if location.is_some() {
             location =
                 get_parse_tree_node(location.as_deref(), Option::<fn(Id<Node>) -> bool>::None, self);
@@ -287,18 +279,18 @@ impl TypeChecker {
         }
 
         let mut is_type_only = false;
-        if is_qualified_name(type_name) {
+        if is_qualified_name(&type_name.ref_(self)) {
             let root_value_symbol = self.resolve_entity_name(
                 get_first_identifier(type_name, self),
                 SymbolFlags::Value,
                 Some(true),
                 Some(true),
-                location.as_deref(),
+                location,
             )?;
             is_type_only = matches!(
                 root_value_symbol,
                 Some(root_value_symbol) if matches!(
-                    root_value_symbol.ref_(self).maybe_declarations().as_ref(),
+                    root_value_symbol.ref_(self).maybe_declarations(),
                     Some(root_value_symbol_declarations) if root_value_symbol_declarations.into_iter().all(
                         |declaration| is_type_only_import_or_export_declaration(declaration, self)
                     )
@@ -328,7 +320,7 @@ impl TypeChecker {
                 Some(value_symbol) if matches!(
                     value_symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(value_symbol_declarations) if value_symbol_declarations.into_iter().all(
-                        |declaration| is_type_only_import_or_export_declaration(declaration, self)
+                        |&declaration| is_type_only_import_or_export_declaration(declaration, self)
                     )
                 )
             );
@@ -338,7 +330,7 @@ impl TypeChecker {
             SymbolFlags::Type,
             Some(true),
             Some(false),
-            location.as_deref(),
+            location,
         )?;
         if let Some(resolved_symbol) = resolved_symbol.filter(|&resolved_symbol| {
             matches!(
@@ -418,15 +410,13 @@ impl TypeChecker {
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        let declaration = get_parse_tree_node(
+        let Some(declaration) = get_parse_tree_node(
             Some(declaration_in),
             Some(|node: Id<Node>| is_variable_like_or_accessor(&node.ref_(self))),
             self,
-        );
-        if declaration.is_none() {
+        ) else {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
-        }
-        let declaration = declaration.as_ref().unwrap();
+        };
         let symbol = self.get_symbol_of_node(declaration)?;
         let mut type_ = if let Some(symbol) = symbol.filter(|&symbol| {
             !symbol
@@ -464,15 +454,13 @@ impl TypeChecker {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        let signature_declaration = get_parse_tree_node(
+        let Some(signature_declaration) = get_parse_tree_node(
             Some(signature_declaration_in),
-            Some(|node: Id<Node>| is_function_like(Some(node))),
+            Some(|node: Id<Node>| is_function_like(Some(&node.ref_(self)))),
             self,
-        );
-        if signature_declaration.is_none() {
+        ) else {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
-        }
-        let signature_declaration = signature_declaration.as_ref().unwrap();
+        };
         let signature = self.get_signature_from_declaration_(signature_declaration)?;
         self.node_builder().type_to_type_node(
             self.get_return_type_of_signature(signature)?,
@@ -489,11 +477,9 @@ impl TypeChecker {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        let expr = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)), self);
-        if expr.is_none() {
+        let Some(expr) = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)), self) {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
-        }
-        let expr = expr.as_ref().unwrap();
+        };
         let type_ = self.get_widened_type(self.get_regular_type_of_expression(expr)?)?;
         self.node_builder().type_to_type_node(
             type_,
@@ -521,17 +507,11 @@ impl TypeChecker {
             return Ok(resolved_symbol);
         }
 
-        let mut location = reference.node_wrapper();
+        let mut location = reference;
         if start_in_declaration_container == Some(true) {
-            let parent = reference.parent();
+            let parent = reference.ref_(self).parent();
             if is_declaration(parent, self)
-                && matches!(
-                    parent.as_named_declaration().maybe_name().as_ref(),
-                    Some(parent_name) if ptr::eq(
-                        reference,
-                        &**parent_name
-                    )
-                )
+                && parent.ref_(self).as_named_declaration().maybe_name() == Some(reference)
             {
                 location = self.get_declaration_container(parent);
             }
@@ -539,7 +519,7 @@ impl TypeChecker {
 
         self.resolve_name_(
             Some(location),
-            &reference.as_identifier().escaped_text,
+            &reference.ref_(self).as_identifier().escaped_text,
             SymbolFlags::Value | SymbolFlags::ExportValue | SymbolFlags::Alias,
             None,
             Option::<Id<Node>>::None,
@@ -552,13 +532,13 @@ impl TypeChecker {
         &self,
         reference_in: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
-        if !is_generated_identifier(reference_in) {
+        if !is_generated_identifier(&reference_in.ref_(self)) {
             let reference = get_parse_tree_node(
                 Some(reference_in),
-                Some(|node: Id<Node>| is_identifier(node)),
+                Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                 self,
             );
-            if let Some(reference) = reference.as_ref() {
+            if let Some(reference) = reference {
                 let symbol = self.get_referenced_value_symbol(reference, None)?;
                 if let Some(symbol) = symbol {
                     return Ok(self
@@ -577,7 +557,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> io::Result<bool> {
-        if is_declaration_readonly(node, self) || is_variable_declaration(node) && is_var_const(node, self) {
+        if is_declaration_readonly(node, self) || is_variable_declaration(&node.ref_(self)) && is_var_const(node, self) {
             return Ok(self.is_fresh_literal_type(
                 self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?,
             ));
@@ -639,7 +619,7 @@ impl TypeChecker {
         /*location ?*/
         self.get_jsx_namespace_(Some(location));
         get_source_file_of_node(location, self)
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_local_jsx_factory()
             .clone()
             .or_else(|| self._jsx_factory_entity.borrow().clone())
@@ -652,8 +632,9 @@ impl TypeChecker {
     ) -> Option<Id<Node /*EntityName*/>> {
         // if (location) {
         let file = maybe_get_source_file_of_node(Some(location), self);
-        if let Some(file) = file.as_ref() {
-            let file_as_source_file = file.as_source_file();
+        if let Some(file) = file {
+            let file_ref = file.ref_(self);
+            let file_as_source_file = file_ref.as_source_file();
             if let Some(file_local_jsx_fragment_factory) = file_as_source_file
                 .maybe_local_jsx_fragment_factory()
                 .as_ref()
@@ -699,10 +680,10 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*AnyImportOrReExport | ModuleDeclaration | ImportTypeNode | ImportCall*/
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
-        let specifier = if declaration.kind() == SyntaxKind::ModuleDeclaration {
+        let specifier = if declaration.ref_(self).kind() == SyntaxKind::ModuleDeclaration {
             try_cast(
-                declaration.as_module_declaration().name(),
-                |node: &Id<Node>| is_string_literal(node),
+                declaration.ref_(self).as_module_declaration().name(),
+                |node: &Id<Node>| is_string_literal(&node.ref_(self)),
             )
         } else {
             get_external_module_name(declaration, self)
@@ -722,7 +703,7 @@ impl TypeChecker {
 
     pub(super) fn initialize_type_checker(&self) -> io::Result<()> {
         for file in &*self.host.get_source_files() {
-            bind_source_file(file, self.compiler_options.clone());
+            bind_source_file(&file.ref_(self), self.compiler_options.clone());
             // println!("post-binding: {:#?}", file);
         }
 
@@ -730,12 +711,13 @@ impl TypeChecker {
 
         let mut augmentations: Option<Vec<Vec<Id<Node /*StringLiteral | Identifier*/>>>> = None;
         for file in &*self.host.get_source_files() {
-            let file_as_source_file = file.as_source_file();
+            let file_ref = file.ref_(self);
+            let file_as_source_file = file_ref.as_source_file();
             if file_as_source_file.maybe_redirect_info().is_some() {
                 continue;
             }
-            if !is_external_or_common_js_module(file) {
-                let file_global_this_symbol = (*file.locals()).borrow().get("globalThis").cloned();
+            if !is_external_or_common_js_module(&file.ref_(self)) {
+                let file_global_this_symbol = (*file.ref_(self).locals()).borrow().get("globalThis").cloned();
                 if let Some(ref file_global_this_symbol_declarations) = file_global_this_symbol
                     .and_then(|file_global_this_symbol| {
                         file_global_this_symbol
@@ -752,13 +734,14 @@ impl TypeChecker {
                                     &Diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
                                     Some(vec![
                                         "globalThis".to_owned()
-                                    ])
+                                    ]),
+                                    self,
                                 ).into()
                             )
                         );
                     }
                 }
-                self.merge_symbol_table(self.globals_rc(), &(*file.locals()).borrow(), None)?;
+                self.merge_symbol_table(self.globals_rc(), &(*file.ref_(self).locals()).borrow(), None)?;
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations().clone()
@@ -796,7 +779,7 @@ impl TypeChecker {
                     .push(file_module_augmentations.clone());
             }
             if let Some(file_symbol_global_exports) = file
-                .maybe_symbol()
+                .ref_(self).maybe_symbol()
                 .and_then(|file_symbol| file_symbol.ref_(self).maybe_global_exports().clone())
             {
                 let source = file_symbol_global_exports;
@@ -811,8 +794,8 @@ impl TypeChecker {
 
         if let Some(augmentations) = augmentations.as_ref() {
             for list in augmentations {
-                for augmentation in list {
-                    if !is_global_scope_augmentation(&augmentation.parent()) {
+                for &augmentation in list {
+                    if !is_global_scope_augmentation(&augmentation.ref_(self).parent().ref_(self)) {
                         continue;
                     }
                     self.merge_module_augmentation(augmentation)?;
@@ -898,8 +881,8 @@ impl TypeChecker {
 
         if let Some(augmentations) = augmentations.as_ref() {
             for list in augmentations {
-                for augmentation in list {
-                    if is_global_scope_augmentation(&augmentation.parent()) {
+                for &augmentation in list {
+                    if is_global_scope_augmentation(&augmentation.ref_(self).parent().ref_(self)) {
                         continue;
                     }
                     self.merge_module_augmentation(augmentation)?;
@@ -913,8 +896,8 @@ impl TypeChecker {
             .unwrap()
             .values()
         {
-            let first_file = &duplicate_info_for_files.first_file;
-            let second_file = &duplicate_info_for_files.second_file;
+            let first_file = duplicate_info_for_files.first_file;
+            let second_file = duplicate_info_for_files.second_file;
             let conflicting_symbols = &duplicate_info_for_files.conflicting_symbols;
             if conflicting_symbols.len() < 8 {
                 for (symbol_name, duplicate_info_for_symbol) in conflicting_symbols {
@@ -926,7 +909,7 @@ impl TypeChecker {
                     } else {
                         &*Diagnostics::Duplicate_identifier_0
                     };
-                    for node in first_file_locations {
+                    for &node in first_file_locations {
                         self.add_duplicate_declaration_error(
                             node,
                             message,
@@ -934,7 +917,7 @@ impl TypeChecker {
                             Some(second_file_locations),
                         );
                     }
-                    for node in second_file_locations {
+                    for &node in second_file_locations {
                         self.add_duplicate_declaration_error(
                             node,
                             message,
@@ -957,7 +940,8 @@ impl TypeChecker {
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
                                 Some(vec![
                                     list.clone()
-                                ])
+                                ]),
+                                self,
                             ).into()
                         );
                         add_related_info(
@@ -968,6 +952,7 @@ impl TypeChecker {
                                         second_file,
                                         &Diagnostics::Conflicts_are_in_this_file,
                                         None,
+                                        self,
                                     ).into()
                                 )
                             ]
@@ -983,7 +968,8 @@ impl TypeChecker {
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
                                 Some(vec![
                                     list.clone()
-                                ])
+                                ]),
+                                self,
                             ).into()
                         );
                         add_related_info(
@@ -994,6 +980,7 @@ impl TypeChecker {
                                         first_file,
                                         &Diagnostics::Conflicts_are_in_this_file,
                                         None,
+                                        self,
                                     ).into()
                                 )
                             ]
@@ -1017,10 +1004,10 @@ impl TypeChecker {
             && self.compiler_options.import_helpers == Some(true)
         {
             let source_file = get_source_file_of_node(location, self);
-            if is_effective_external_module(&source_file, &self.compiler_options)
-                && !location.flags().intersects(NodeFlags::Ambient)
+            if is_effective_external_module(&source_file.ref_(self), &self.compiler_options)
+                && !location.ref_(self).flags().intersects(NodeFlags::Ambient)
             {
-                let helpers_module = self.resolve_helpers_module(&source_file, location)?;
+                let helpers_module = self.resolve_helpers_module(source_file, location)?;
                 if helpers_module != self.unknown_symbol() {
                     let unchecked_helpers = helpers & !self.requested_external_emit_helpers();
                     let mut helper = ExternalEmitHelpers::FirstEmitHelper;
@@ -1174,12 +1161,12 @@ impl TypeChecker {
     }
 
     pub(super) fn check_grammar_decorators(&self, node: Id<Node>) -> bool {
-        if node.maybe_decorators().is_none() {
+        if node.ref_(self).maybe_decorators().is_none() {
             return false;
         }
-        if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent(), self) {
-            if node.kind() == SyntaxKind::MethodDeclaration
-                && !node_is_present(node.as_method_declaration().maybe_body())
+        if !node_can_be_decorated(node, Some(node.ref_(self).parent()), node.ref_(self).parent().ref_(self).maybe_parent(), self) {
+            if node.ref_(self).kind() == SyntaxKind::MethodDeclaration
+                && !node_is_present(node.ref_(self).as_method_declaration().maybe_body().refed(self))
             {
                 return self.grammar_error_on_first_token(
                     node,
@@ -1194,22 +1181,16 @@ impl TypeChecker {
                 );
             }
         } else if matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
         ) {
             let accessors = get_all_accessor_declarations(
-                &node.parent().as_class_like_declaration().members(),
+                &node.ref_(self).parent().ref_(self).as_class_like_declaration().members(),
                 node,
                 self,
             );
-            if accessors.first_accessor.maybe_decorators().is_some()
-                && matches!(
-                    accessors.second_accessor.as_ref(),
-                    Some(accessors_second_accessor) if ptr::eq(
-                        node,
-                        &**accessors_second_accessor
-                    )
-                )
+            if accessors.first_accessor.ref_(self).maybe_decorators().is_some()
+                && accessors.second_accessor == Some(node)
             {
                 return self.grammar_error_on_first_token(
                     node,
@@ -1233,10 +1214,10 @@ impl TypeChecker {
         let mut last_readonly: Option<Id<Node>> = None;
         let mut last_override: Option<Id<Node>> = None;
         let mut flags = ModifierFlags::None;
-        for modifier in node.maybe_modifiers().as_ref().unwrap() {
-            if modifier.kind() != SyntaxKind::ReadonlyKeyword {
+        for &modifier in node.ref_(self).maybe_modifiers().as_ref().unwrap() {
+            if modifier.ref_(self).kind() != SyntaxKind::ReadonlyKeyword {
                 if matches!(
-                    node.kind(),
+                    node.ref_(self).kind(),
                     SyntaxKind::PropertySignature | SyntaxKind::MethodSignature
                 ) {
                     return self.grammar_error_on_node(
@@ -1245,9 +1226,9 @@ impl TypeChecker {
                         Some(vec![token_to_string(modifier.kind()).unwrap().to_owned()]),
                     );
                 }
-                if node.kind() == SyntaxKind::IndexSignature
+                if node.ref_(self).kind() == SyntaxKind::IndexSignature
                     && (modifier.kind() != SyntaxKind::StaticKeyword
-                        || !maybe_is_class_like(node.maybe_parent()))
+                        || !maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)))
                 {
                     return self.grammar_error_on_node(
                         modifier,
@@ -1256,9 +1237,9 @@ impl TypeChecker {
                     );
                 }
             }
-            match modifier.kind() {
+            match modifier.ref_(self).kind() {
                 SyntaxKind::ConstKeyword => {
-                    if node.kind() != SyntaxKind::EnumDeclaration {
+                    if node.ref_(self).kind() != SyntaxKind::EnumDeclaration {
                         return self.grammar_error_on_node(
                             node,
                             &Diagnostics::A_class_member_cannot_have_the_0_keyword,
@@ -1334,7 +1315,7 @@ impl TypeChecker {
                             Some(vec![text.to_owned(), "async".to_owned()]),
                         );
                     } else if matches!(
-                        node.parent().kind(),
+                        node.ref_(self).parent().ref_(self).kind(),
                         SyntaxKind::ModuleBlock | SyntaxKind::SourceFile
                     ) {
                         return self.grammar_error_on_node(
@@ -1388,7 +1369,7 @@ impl TypeChecker {
                             Some(vec!["static".to_owned(), "async".to_owned()]),
                         );
                     } else if matches!(
-                        node.parent().kind(),
+                        node.ref_(self).parent().ref_(self).kind(),
                         SyntaxKind::ModuleBlock | SyntaxKind::SourceFile
                     ) {
                         return self.grammar_error_on_node(
@@ -1398,7 +1379,7 @@ impl TypeChecker {
                                 "static".to_owned(),
                             ])
                         );
-                    } else if node.kind() == SyntaxKind::Parameter {
+                    } else if node.ref_(self).kind() == SyntaxKind::Parameter {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_a_parameter,
@@ -1429,7 +1410,7 @@ impl TypeChecker {
                             Some(vec!["readonly".to_owned()]),
                         );
                     } else if !matches!(
-                        node.kind(),
+                        node.ref_(self).kind(),
                         SyntaxKind::PropertyDeclaration
                             | SyntaxKind::PropertySignature
                             | SyntaxKind::IndexSignature
@@ -1470,13 +1451,13 @@ impl TypeChecker {
                             &Diagnostics::_0_modifier_must_precede_1_modifier,
                             Some(vec!["export".to_owned(), "async".to_owned()]),
                         );
-                    } else if maybe_is_class_like(node.maybe_parent()) {
+                    } else if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)) {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_class_elements_of_this_kind,
                             Some(vec!["export".to_owned()]),
                         );
-                    } else if node.kind() == SyntaxKind::Parameter {
+                    } else if node.ref_(self).kind() == SyntaxKind::Parameter {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_a_parameter,
@@ -1486,12 +1467,12 @@ impl TypeChecker {
                     flags |= ModifierFlags::Export;
                 }
                 SyntaxKind::DefaultKeyword => {
-                    let container = if node.parent().kind() == SyntaxKind::SourceFile {
-                        node.parent()
+                    let container = if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile {
+                        node.ref_(self).parent()
                     } else {
-                        node.parent().parent()
+                        node.ref_(self).parent().ref_(self).parent()
                     };
-                    if container.kind() == SyntaxKind::ModuleDeclaration
+                    if container.ref_(self).kind() == SyntaxKind::ModuleDeclaration
                         && !is_ambient_module(container, self)
                     {
                         return self.grammar_error_on_node(
@@ -1528,22 +1509,22 @@ impl TypeChecker {
                             &Diagnostics::_0_modifier_cannot_be_used_in_an_ambient_context,
                             Some(vec!["override".to_owned()]),
                         );
-                    } else if maybe_is_class_like(node.maybe_parent())
-                        && !is_property_declaration(node)
+                    } else if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self))
+                        && !is_property_declaration(&node.ref_(self))
                     {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_class_elements_of_this_kind,
                             Some(vec!["declare".to_owned()]),
                         );
-                    } else if node.kind() == SyntaxKind::Parameter {
+                    } else if node.ref_(self).kind() == SyntaxKind::Parameter {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_a_parameter,
                             Some(vec!["declare".to_owned()]),
                         );
-                    } else if node.parent().flags().intersects(NodeFlags::Ambient)
-                        && node.parent().kind() == SyntaxKind::ModuleBlock
+                    } else if node.ref_(self).parent().ref_(self).flags().intersects(NodeFlags::Ambient)
+                        && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ModuleBlock
                     {
                         return self.grammar_error_on_node(
                             modifier,
@@ -1558,7 +1539,7 @@ impl TypeChecker {
                         );
                     }
                     flags |= ModifierFlags::Ambient;
-                    last_declare = Some(modifier.clone());
+                    last_declare = Some(modifier);
                 }
 
                 SyntaxKind::AbstractKeyword => {
@@ -1570,11 +1551,11 @@ impl TypeChecker {
                         );
                     }
                     if !matches!(
-                        node.kind(),
+                        node.ref_(self).kind(),
                         SyntaxKind::ClassDeclaration | SyntaxKind::ConstructorType
                     ) {
                         if !matches!(
-                            node.kind(),
+                            node.ref_(self).kind(),
                             SyntaxKind::MethodDeclaration
                                 | SyntaxKind::PropertyDeclaration
                                 | SyntaxKind::GetAccessor
@@ -1586,8 +1567,8 @@ impl TypeChecker {
                                 None,
                             );
                         }
-                        if !(node.parent().kind() == SyntaxKind::ClassDeclaration
-                            && has_syntactic_modifier(node.parent(), ModifierFlags::Abstract, self))
+                        if !(node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ClassDeclaration
+                            && has_syntactic_modifier(node.ref_(self).parent(), ModifierFlags::Abstract, self))
                         {
                             return self.grammar_error_on_node(
                                 modifier,
@@ -1610,7 +1591,7 @@ impl TypeChecker {
                             );
                         }
                         if flags.intersects(ModifierFlags::Async) {
-                            if let Some(last_async) = last_async.as_ref() {
+                            if let Some(last_async) = last_async {
                                 return self.grammar_error_on_node(
                                     last_async,
                                     &Diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
@@ -1626,8 +1607,8 @@ impl TypeChecker {
                             );
                         }
                     }
-                    if is_named_declaration(node)
-                        && node.as_named_declaration().name().kind()
+                    if is_named_declaration(&node.ref_(self))
+                        && node.ref_(self).as_named_declaration().name().ref_(self).kind()
                             == SyntaxKind::PrivateIdentifier
                     {
                         return self.grammar_error_on_node(
@@ -1648,14 +1629,14 @@ impl TypeChecker {
                             Some(vec!["async".to_owned()]),
                         );
                     } else if flags.intersects(ModifierFlags::Ambient)
-                        || node.parent().flags().intersects(NodeFlags::Ambient)
+                        || node.ref_(self).parent().ref_(self).flags().intersects(NodeFlags::Ambient)
                     {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_be_used_in_an_ambient_context,
                             Some(vec!["async".to_owned()]),
                         );
-                    } else if node.kind() == SyntaxKind::Parameter {
+                    } else if node.ref_(self).kind() == SyntaxKind::Parameter {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_a_parameter,
@@ -1676,10 +1657,10 @@ impl TypeChecker {
             }
         }
 
-        if node.kind() == SyntaxKind::Constructor {
+        if node.ref_(self).kind() == SyntaxKind::Constructor {
             if flags.intersects(ModifierFlags::Static) {
                 return self.grammar_error_on_node(
-                    last_static.as_ref().unwrap(),
+                    last_static.unwrap(),
                     &Diagnostics::_0_modifier_cannot_appear_on_a_constructor_declaration,
                     Some(vec!["static".to_owned()]),
                 );
@@ -1687,53 +1668,53 @@ impl TypeChecker {
             if flags.intersects(ModifierFlags::Abstract) {
                 return self.grammar_error_on_node(
                     // TODO: this is what's in the Typescript version but seems like it should be lastDeclare instead?
-                    last_static.as_ref().unwrap(),
+                    last_static.unwrap(),
                     &Diagnostics::_0_modifier_cannot_appear_on_a_constructor_declaration,
                     Some(vec!["abstract".to_owned()]),
                 );
             }
             if flags.intersects(ModifierFlags::Override) {
                 return self.grammar_error_on_node(
-                    last_override.as_ref().unwrap(),
+                    last_override.unwrap(),
                     &Diagnostics::_0_modifier_cannot_appear_on_a_constructor_declaration,
                     Some(vec!["override".to_owned()]),
                 );
             } else if flags.intersects(ModifierFlags::Async) {
                 return self.grammar_error_on_node(
-                    last_async.as_ref().unwrap(),
+                    last_async.unwrap(),
                     &Diagnostics::_0_modifier_cannot_appear_on_a_constructor_declaration,
                     Some(vec!["async".to_owned()]),
                 );
             } else if flags.intersects(ModifierFlags::Readonly) {
                 return self.grammar_error_on_node(
-                    last_readonly.as_ref().unwrap(),
+                    last_readonly.unwrap(),
                     &Diagnostics::_0_modifier_cannot_appear_on_a_constructor_declaration,
                     Some(vec!["readonly".to_owned()]),
                 );
             }
             return false;
         } else if matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
         ) && flags.intersects(ModifierFlags::Ambient)
         {
             return self.grammar_error_on_node(
-                last_declare.as_ref().unwrap(),
+                last_declare.unwrap(),
                 &Diagnostics::A_0_modifier_cannot_be_used_with_an_import_declaration,
                 Some(vec!["declare".to_owned()]),
             );
-        } else if node.kind() == SyntaxKind::Parameter
+        } else if node.ref_(self).kind() == SyntaxKind::Parameter
             && flags.intersects(ModifierFlags::ParameterPropertyModifier)
-            && is_binding_pattern(node.as_parameter_declaration().maybe_name())
+            && is_binding_pattern(node.ref_(self).as_parameter_declaration().maybe_name().refed(self))
         {
             return self.grammar_error_on_node(
                 node,
                 &Diagnostics::A_parameter_property_may_not_be_declared_using_a_binding_pattern,
                 None,
             );
-        } else if node.kind() == SyntaxKind::Parameter
+        } else if node.ref_(self).kind() == SyntaxKind::Parameter
             && flags.intersects(ModifierFlags::ParameterPropertyModifier)
-            && node.as_parameter_declaration().dot_dot_dot_token.is_some()
+            && node.ref_(self).as_parameter_declaration().dot_dot_dot_token.is_some()
         {
             return self.grammar_error_on_node(
                 node,
@@ -1742,7 +1723,7 @@ impl TypeChecker {
             );
         }
         if flags.intersects(ModifierFlags::Async) {
-            return self.check_grammar_async_modifier(node, last_async.as_ref().unwrap());
+            return self.check_grammar_async_modifier(node, last_async.unwrap());
         }
         false
     }

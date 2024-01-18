@@ -440,7 +440,7 @@ pub(super) enum UnusedKind {
 
 // type AddUnusedDiagnostic = (containingNode: Node, type: UnusedKind, diagnostic: DiagnosticWithLocation) => void;
 
-pub(super) fn is_not_overload_and_not_accessor(declaration: Id<Node> /*Declaration*/) -> bool {
+pub(super) fn is_not_overload_and_not_accessor(declaration: &Node /*Declaration*/) -> bool {
     is_not_overload(declaration) && is_not_accessor(declaration)
 }
 

@@ -764,8 +764,8 @@ impl TypeChecker {
                     || matches!(
                         symbol.ref_(self).maybe_declarations().as_ref(),
                         Some(symbol_declarations) if self.is_global_source_file(
-                            &self.get_declaration_container(
-                                &symbol_declarations[0]
+                            self.get_declaration_container(
+                                symbol_declarations[0]
                             )
                         )
                     )
@@ -809,7 +809,7 @@ impl TypeChecker {
                 && self.module_kind != ModuleKind::System
                 && (self.module_kind < ModuleKind::ES2015
                     || get_source_file_of_node(node, self)
-                        .as_source_file()
+                        .ref_(self).as_source_file()
                         .maybe_implied_node_format()
                         == Some(ModuleKind::CommonJS))
                 && id_text(
@@ -830,7 +830,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<()> {
-        let node_as_export_assignment = node.as_export_assignment();
+        let node_ref = node.ref_(self);
+        let node_as_export_assignment = node_ref.as_export_assignment();
         let illegal_context_message = if node_as_export_assignment.is_export_equals == Some(true) {
             &*Diagnostics::An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration
         } else {
@@ -840,12 +841,12 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let ref container = if node.parent().kind() == SyntaxKind::SourceFile {
-            node.parent()
+        let ref container = if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile {
+            node.ref_(self).parent()
         } else {
-            node.parent().parent()
+            node.ref_(self).parent().ref_(self).parent()
         };
-        if container.kind() == SyntaxKind::ModuleDeclaration && !is_ambient_module(container, self) {
+        if container.ref_(self).kind() == SyntaxKind::ModuleDeclaration && !is_ambient_module(container, self) {
             if node_as_export_assignment.is_export_equals == Some(true) {
                 self.error(
                     Some(node),
@@ -870,19 +871,19 @@ impl TypeChecker {
             );
         }
 
-        let type_annotation_node = get_effective_type_annotation_node(node);
-        if let Some(type_annotation_node) = type_annotation_node.as_ref() {
+        let type_annotation_node = get_effective_type_annotation_node(node, self);
+        if let Some(type_annotation_node) = type_annotation_node {
             self.check_type_assignable_to(
                 self.check_expression_cached(&node_as_export_assignment.expression, None)?,
                 self.get_type_from_type_node_(type_annotation_node)?,
-                Some(&*node_as_export_assignment.expression),
+                Some(node_as_export_assignment.expression),
                 None,
                 None,
                 None,
             )?;
         }
 
-        if node_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
+        if node_as_export_assignment.expression.ref_(self).kind() == SyntaxKind::Identifier {
             let id = &node_as_export_assignment.expression;
             let sym =
                 self.resolve_entity_name(id, SymbolFlags::All, Some(true), Some(true), Some(node))?;
@@ -906,12 +907,12 @@ impl TypeChecker {
                 self.collect_linked_aliases(&node_as_export_assignment.expression, Some(true))?;
             }
         } else {
-            self.check_expression_cached(&node_as_export_assignment.expression, None)?;
+            self.check_expression_cached(node_as_export_assignment.expression, None)?;
         }
 
         self.check_external_module_exports(container)?;
 
-        if node.flags().intersects(NodeFlags::Ambient)
+        if node.ref_(self).flags().intersects(NodeFlags::Ambient)
             && !is_entity_name_expression(node_as_export_assignment.expression, self)
         {
             self.grammar_error_on_node(
@@ -922,11 +923,11 @@ impl TypeChecker {
         }
 
         if node_as_export_assignment.is_export_equals == Some(true)
-            && !node.flags().intersects(NodeFlags::Ambient)
+            && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
         {
             if self.module_kind >= ModuleKind::ES2015
                 && get_source_file_of_node(node, self)
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .maybe_implied_node_format()
                     != Some(ModuleKind::CommonJS)
             {
@@ -969,12 +970,12 @@ impl TypeChecker {
                     let declaration = self
                         .get_declaration_of_alias_symbol(export_equals_symbol)?
                         .or_else(|| export_equals_symbol.ref_(self).maybe_value_declaration());
-                    if let Some(declaration) = declaration.as_ref().filter(|declaration| {
+                    if let Some(declaration) = declaration.filter(|&declaration| {
                         !self.is_top_level_in_external_module_augmentation(declaration)
-                            && !is_in_js_file(Some(&***declaration))
+                            && !is_in_js_file(Some(&declaration.ref_(self)))
                     }) {
                         self.error(
-                            Some(&**declaration),
+                            Some(declaration),
                             &Diagnostics::An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements,
                             None,
                         );
@@ -998,20 +999,21 @@ impl TypeChecker {
                 }
                 let exported_declarations_count =
                     count_where(declarations.as_deref(), |declaration: &Id<Node>, _| {
-                        is_not_overload_and_not_accessor(declaration)
+                        is_not_overload_and_not_accessor(&declaration.ref_(self))
                     });
                 if flags.intersects(SymbolFlags::TypeAlias) && exported_declarations_count <= 2 {
                     continue;
                 }
                 if exported_declarations_count > 1 {
                     if !self.is_duplicated_common_js_export(declarations.as_deref()) {
-                        for declaration in declarations.as_ref().unwrap() {
-                            if is_not_overload(declaration) {
+                        for &declaration in declarations.as_ref().unwrap() {
+                            if is_not_overload(&declaration.ref_(self)) {
                                 self.diagnostics().add(
                                     create_diagnostic_for_node(
                                         declaration,
                                         &Diagnostics::Cannot_redeclare_exported_variable_0,
                                         Some(vec![unescape_leading_underscores(id).to_owned()]),
+                                        self,
                                     )
                                     .into(),
                                 );
