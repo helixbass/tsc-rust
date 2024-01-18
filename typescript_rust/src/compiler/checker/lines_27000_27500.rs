@@ -274,9 +274,9 @@ impl TypeChecker {
             self.get_jsx_namespace_at(Some(opening_like_element))?,
         )?;
 
-        for attribute_decl in &attributes.ref_(self).as_jsx_attributes().properties {
-            let member = attribute_decl.maybe_symbol();
-            if is_jsx_attribute(attribute_decl) {
+        for &attribute_decl in &attributes.ref_(self).as_jsx_attributes().properties {
+            let member = attribute_decl.ref_(self).maybe_symbol();
+            if is_jsx_attribute(&attribute_decl.ref_(self)) {
                 let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
                 object_flags |=
                     get_object_flags(&expr_type.ref_(self)) & ObjectFlags::PropagatingFlags;
@@ -327,9 +327,9 @@ impl TypeChecker {
                     jsx_children_property_name.as_ref(),
                     Some(jsx_children_property_name) if
                         &attribute_decl
-                        .as_jsx_attribute()
+                        .ref_(self).as_jsx_attribute()
                         .name
-                        .as_identifier()
+                        .ref_(self).as_identifier()
                         .escaped_text
                         == jsx_children_property_name
                 ) {
@@ -337,7 +337,7 @@ impl TypeChecker {
                 }
             } else {
                 Debug_.assert(
-                    attribute_decl.kind() == SyntaxKind::JsxSpreadAttribute,
+                    attribute_decl.ref_(self).kind() == SyntaxKind::JsxSpreadAttribute,
                     None,
                 );
                 if !(*attributes_table).borrow().is_empty() {
@@ -356,7 +356,7 @@ impl TypeChecker {
                         create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 }
                 let expr_type = self.get_reduced_type(self.check_expression_cached(
-                    &attribute_decl.as_jsx_spread_attribute().expression,
+                    attribute_decl.ref_(self).as_jsx_spread_attribute().expression,
                     check_mode,
                 )?)?;
                 if self.is_type_any(Some(expr_type)) {

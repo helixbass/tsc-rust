@@ -43,14 +43,16 @@ impl TypeChecker {
             .ref_(self).as_jsx_attributes()
             .properties
         {
-            if attr.kind() == SyntaxKind::JsxSpreadAttribute {
+            if attr.ref_(self).kind() == SyntaxKind::JsxSpreadAttribute {
                 continue;
             }
 
-            let attr_as_jsx_attribute = attr.as_jsx_attribute();
-            let name = &attr_as_jsx_attribute.name;
-            let initializer = attr_as_jsx_attribute.initializer.as_ref();
-            let name_as_identifier = name.as_identifier();
+            let attr_ref = attr.ref_(self);
+            let attr_as_jsx_attribute = attr_ref.as_jsx_attribute();
+            let name = attr_as_jsx_attribute.name;
+            let initializer = attr_as_jsx_attribute.initializer;
+            let name_ref = name.ref_(self);
+            let name_as_identifier = name_ref.as_identifier();
             if seen.get(&name_as_identifier.escaped_text).copied() != Some(true) {
                 seen.insert(name_as_identifier.escaped_text.clone(), true);
             } else {
@@ -604,7 +606,7 @@ impl TypeChecker {
                 ) {
                     return Ok(true);
                 } else if self.check_grammar_for_invalid_exclamation_token(
-                    node_as_method_declaration
+                    *node_as_method_declaration
                         .maybe_exclamation_token(),
                     &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
                 ) {

@@ -101,11 +101,11 @@ impl TypeChecker {
                     let statements = &node_body.ref_(self).as_block().statements;
                     let mut super_call_statement: Option<Id<Node /*ExpressionStatement*/>> = None;
 
-                    for statement in statements {
-                        if statement.kind() == SyntaxKind::ExpressionStatement
-                            && is_super_call(statement.as_expression_statement().expression, self)
+                    for &statement in statements {
+                        if statement.ref_(self).kind() == SyntaxKind::ExpressionStatement
+                            && is_super_call(statement.ref_(self).as_expression_statement().expression, self)
                         {
-                            super_call_statement = Some(statement.node_wrapper());
+                            super_call_statement = Some(statement);
                             break;
                         }
                         if !is_prologue_directive(statement, self) {
@@ -411,7 +411,7 @@ impl TypeChecker {
             if let Some(symbol) = symbol {
                 if some(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    Some(|d: &Id<Node>| {
+                    Some(|&d: &Id<Node>| {
                         self.is_type_declaration(d) && d.ref_(self).flags().intersects(NodeFlags::Deprecated)
                     }),
                 ) {
@@ -843,7 +843,7 @@ impl TypeChecker {
             self.check_type_assignable_to(
                 type_,
                 self.template_constraint_type(),
-                Some(&*span_as_template_literal_type_span.type_),
+                Some(span_as_template_literal_type_span.type_),
                 None,
                 None,
                 None,
@@ -1263,7 +1263,7 @@ impl TypeChecker {
     ) {
         if some_have_question_token != all_have_question_token {
             let canonical_has_question_token =
-                has_question_token(self.get_canonical_overload(overloads, implementation).ref_(self));
+                has_question_token(&self.get_canonical_overload(overloads, implementation).ref_(self));
             for_each(overloads, |&o: &Id<Node>, _| -> Option<()> {
                 let deviation = has_question_token(&o.ref_(self)) != canonical_has_question_token;
                 if deviation {

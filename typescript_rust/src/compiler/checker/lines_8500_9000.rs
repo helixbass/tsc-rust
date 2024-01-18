@@ -153,7 +153,8 @@ impl TypeChecker {
                 }
                 let mut literal_members: Vec<Id<Node /*PropertyName*/>> = vec![];
                 for element in &pattern.ref_(self).as_object_binding_pattern().elements {
-                    let element_as_binding_element = element.as_binding_element();
+                    let element_ref = element.ref_(self);
+                    let element_as_binding_element = element_ref.as_binding_element();
                     if element_as_binding_element.dot_dot_dot_token.is_none() {
                         literal_members.push(
                             element_as_binding_element
@@ -902,10 +903,10 @@ impl TypeChecker {
                         get_assignment_declaration_kind(expression, self)
                     };
                     if kind == AssignmentDeclarationKind::ThisProperty
-                        || is_binary_expression(&expression)
-                            && self.is_possibly_aliased_this_property(&expression, Some(kind))?
+                        || is_binary_expression(&expression.ref_(self))
+                            && self.is_possibly_aliased_this_property(expression, Some(kind))?
                     {
-                        if self.is_declaration_in_constructor(&expression) {
+                        if self.is_declaration_in_constructor(expression) {
                             defined_in_constructor = true;
                         } else {
                             defined_in_method = true;
@@ -914,7 +915,7 @@ impl TypeChecker {
                     if !is_call_expression(&expression.ref_(self)) {
                         jsdoc_type = self.get_annotated_type_for_assignment_declaration(
                             jsdoc_type,
-                            &expression,
+                            expression,
                             symbol,
                             declaration,
                         )?;
@@ -924,12 +925,12 @@ impl TypeChecker {
                             types = Some(vec![]);
                         }
                         types.as_mut().unwrap().push(
-                            if is_binary_expression(&expression) || is_call_expression(&expression)
+                            if is_binary_expression(&expression.ref_(self)) || is_call_expression(&expression.ref_(self))
                             {
                                 self.get_initializer_type_from_assignment_declaration(
                                     symbol,
                                     resolved_symbol,
-                                    &expression,
+                                    expression,
                                     kind,
                                 )?
                             } else {

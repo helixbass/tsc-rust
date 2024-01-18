@@ -654,7 +654,7 @@ impl TypeChecker {
                                 Some(for_in_variable_symbol) if for_in_variable_symbol == symbol
                             )
                             && self.has_numeric_property_names(
-                                self.get_type_of_expression(&node_as_for_in_statement.expression)?,
+                                self.get_type_of_expression(node_as_for_in_statement.expression)?,
                             )?
                     } {
                         return Ok(true);

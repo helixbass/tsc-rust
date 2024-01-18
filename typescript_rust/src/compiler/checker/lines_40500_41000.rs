@@ -837,7 +837,7 @@ impl TypeChecker {
                 } else if is_literal_type_node(&parent.ref_(self)) && is_indexed_access_type_node(&grand_parent.ref_(self))
                 {
                     Some(self.get_type_from_type_node_(
-                        grand_parent.as_indexed_access_type_node().object_type,
+                        grand_parent.ref_(self).as_indexed_access_type_node().object_type,
                     )?)
                 } else {
                     None

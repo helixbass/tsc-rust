@@ -258,7 +258,7 @@ impl TypeChecker {
                     let name = parameter.ref_(self).as_named_declaration().name();
                     if is_binding_pattern(Some(&name.ref_(self)))
                         && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
-                            &name,
+                            name,
                             parameter_name,
                             type_predicate.parameter_name.as_ref().unwrap(),
                         )
@@ -511,7 +511,7 @@ impl TypeChecker {
                 }
             } else {
                 let is_static_member = is_static(member, self);
-                let Some(name) = member.ref_(self).as_named_declaration().maybe_name() {
+                let Some(name) = member.ref_(self).as_named_declaration().maybe_name() else {
                     continue;
                 };
                 let is_private = is_private_identifier(&name);
@@ -665,10 +665,10 @@ impl TypeChecker {
                 let name = member.ref_(self).as_named_declaration().name();
                 match name.ref_(self).kind() {
                     SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral => {
-                        member_name = name.as_literal_like_node().text().clone();
+                        member_name = name.ref_(self).as_literal_like_node().text().clone();
                     }
                     SyntaxKind::Identifier => {
-                        member_name = id_text(&name).to_owned();
+                        member_name = id_text(&name.ref_(self)).to_owned();
                     }
                     _ => {
                         continue;

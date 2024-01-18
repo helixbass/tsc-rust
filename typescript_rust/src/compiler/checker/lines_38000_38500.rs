@@ -266,7 +266,7 @@ impl TypeChecker {
                                 let block_local = block_locals.get(caught_name);
                                 if let Some(&block_local) = block_local {
                                     if let Some(block_local_value_declaration) =
-                                        block_local.ref_(self).maybe_value_declaration().as_ref()
+                                        block_local.ref_(self).maybe_value_declaration()
                                     {
                                         if block_local
                                             .ref_(self)

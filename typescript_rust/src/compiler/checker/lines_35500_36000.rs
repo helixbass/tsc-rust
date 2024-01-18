@@ -461,7 +461,7 @@ impl TypeChecker {
                         self.get_parameter_type_node_for_decorator_check(node),
                     )?;
                     let containing_signature = node.ref_(self).parent();
-                    for parameter in &containing_signature.ref_(self).as_signature_declaration().parameters() {
+                    for &parameter in &containing_signature.ref_(self).as_signature_declaration().parameters() {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
                         )?;
@@ -610,11 +610,11 @@ impl TypeChecker {
                         &Diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name_It_would_match_arguments_if_it_had_an_array_type,
                         Some(vec![
                             id_text(
-                                &*if node_as_jsdoc_property_like_tag.name.ref_(self).kind() == SyntaxKind::QualifiedName {
+                                &if node_as_jsdoc_property_like_tag.name.ref_(self).kind() == SyntaxKind::QualifiedName {
                                     node_as_jsdoc_property_like_tag.name.ref_(self).as_qualified_name().right
                                 } else {
                                     node_as_jsdoc_property_like_tag.name
-                                }
+                                }.ref_(self)
                             ).to_owned()
                         ])
                     );

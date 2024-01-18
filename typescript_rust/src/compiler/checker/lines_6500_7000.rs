@@ -372,12 +372,12 @@ impl SymbolTableToDeclarationStatements {
                         self.set_results(vec![]);
                         let body_ref = body.ref_(self);
                         let body_as_module_block = body_ref.as_module_block();
-                        let mixin_export_flag = !body_as_module_block.statements.iter().any(|s| {
+                        let mixin_export_flag = !body_as_module_block.statements.iter().any(|&s| {
                             has_syntactic_modifier(s, ModifierFlags::Export, self)
                                 || is_export_assignment(&s.ref_(self))
                                 || is_export_declaration(&s.ref_(self))
                         });
-                        body_as_module_block.statements.iter().for_each(|s| {
+                        body_as_module_block.statements.iter().for_each(|&s| {
                             self.add_result(
                                 s,
                                 if mixin_export_flag {
@@ -412,7 +412,7 @@ impl SymbolTableToDeclarationStatements {
                 d_as_export_declaration.module_specifier.is_none()
                     && matches!(
                         d_as_export_declaration.export_clause,
-                        Some(d_export_clause) if is_named_exports(d_export_clause)
+                        Some(d_export_clause) if is_named_exports(&d_export_clause.ref_(self))
                     )
             }
         });
@@ -458,7 +458,7 @@ impl SymbolTableToDeclarationStatements {
                 d_as_export_declaration.module_specifier.is_some()
                     && matches!(
                         d_as_export_declaration.export_clause,
-                        Some(d_export_clause) if is_named_exports(d_export_clause)
+                        Some(d_export_clause) if is_named_exports(&d_export_clause.ref_(self))
                     )
             }
         });

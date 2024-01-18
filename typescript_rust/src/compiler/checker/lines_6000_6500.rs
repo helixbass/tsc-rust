@@ -820,8 +820,8 @@ impl NodeBuilder {
                 || is_qualified_name(&leftmost_parent.ref_(self)) && {
                     let leftmost_parent_ref = leftmost_parent.ref_(self);
                     let leftmost_parent_as_qualified_name = leftmost_parent_ref.as_qualified_name();
-                    is_module_identifier(&leftmost_parent_as_qualified_name.left)
-                        && is_exports_identifier(&leftmost_parent_as_qualified_name.right)
+                    is_module_identifier(&leftmost_parent_as_qualified_name.left.ref_(self))
+                        && is_exports_identifier(&leftmost_parent_as_qualified_name.right.ref_(self))
                 })
         {
             introduces_error = true;
@@ -1061,7 +1061,7 @@ impl NodeBuilder {
                                 Ok(matches!(
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref(),
                                     Some(t_type_expression) if self.type_checker.get_type_from_type_node_(
-                                        &t_type_expression.ref_(self).as_jsdoc_type_expression().type_
+                                        t_type_expression.ref_(self).as_jsdoc_type_expression().type_
                                     )? != type_via_parent
                                 ))
                             })?.try_and_then(|type_via_parent| {
@@ -1077,7 +1077,7 @@ impl NodeBuilder {
                                 if t_as_jsdoc_property_like_tag.is_bracketed ||
                                     matches!(
                                         t_as_jsdoc_property_like_tag.type_expression,
-                                        Some(t_type_expression) if is_jsdoc_optional_type(t_type_expression)
+                                        Some(t_type_expression) if is_jsdoc_optional_type(&t_type_expression.ref_(self))
                                     ) {
                                     Some(get_factory().create_token(
                                         SyntaxKind::QuestionToken,

@@ -1557,13 +1557,13 @@ impl TypeChecker {
 
         while let Some(mut location_unwrapped) = location {
             {
-                let location_maybe_locals = location_unwrapped.maybe_locals();
+                let location_maybe_locals = location_unwrapped.ref_(self).maybe_locals();
                 if let Some(location_locals) = location_maybe_locals.as_ref() {
-                    if !self.is_global_source_file(&*location_unwrapped) {
+                    if !self.is_global_source_file(location_unwrapped) {
                         result = lookup(&(**location_locals).borrow(), name, meaning)?;
                         if let Some(result_unwrapped) = result {
                             let mut use_result = true;
-                            if is_function_like(Some(&*location_unwrapped))
+                            if is_function_like(Some(&location_unwrapped.ref_(self)))
                                 && last_location.is_some()
                                 && last_location !=
                                     location_unwrapped
@@ -1628,9 +1628,9 @@ impl TypeChecker {
                                             .is_some()
                                     }
                                 }
-                            } else if location_unwrapped.kind() == SyntaxKind::ConditionalType {
+                            } else if location_unwrapped.ref_(self).kind() == SyntaxKind::ConditionalType {
                                 use_result = 
-                                    last_location == Some(location_unwrapped.as_conditional_type_node().true_type);
+                                    last_location == Some(location_unwrapped.ref_(self).as_conditional_type_node().true_type);
                             }
 
                             if use_result {
@@ -1647,21 +1647,21 @@ impl TypeChecker {
             match location_unwrapped.ref_(self).kind() {
                 SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
                     if !(location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile
-                        && !is_external_or_common_js_module(&location_unwrapped))
+                        && !is_external_or_common_js_module(&location_unwrapped.ref_(self)))
                     {
                         if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile {
                             is_in_external_module = true;
                         }
                         let module_exports: Gc<GcCell<SymbolTable>> = self
-                            .get_symbol_of_node(&location_unwrapped)?
+                            .get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols());
                         let module_exports = (*module_exports).borrow();
                         let mut should_skip_rest_of_match_arm = false;
                         if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile
-                            || (is_module_declaration(&location_unwrapped)
-                                && location_unwrapped.flags().intersects(NodeFlags::Ambient)
-                                && !is_global_scope_augmentation(&location_unwrapped))
+                            || (is_module_declaration(&location_unwrapped.ref_(self))
+                                && location_unwrapped.ref_(self).flags().intersects(NodeFlags::Ambient)
+                                && !is_global_scope_augmentation(&location_unwrapped.ref_(self)))
                         {
                             result = module_exports.get(InternalSymbolName::Default).cloned();
                             if let Some(result_unwrapped) = result {
@@ -1699,7 +1699,7 @@ impl TypeChecker {
                                 if let Some(result_unwrapped) = result {
                                     if is_source_file(&location_unwrapped.ref_(self))
                                         && location_unwrapped
-                                            .as_source_file()
+                                            .ref_(self).as_source_file()
                                             .maybe_common_js_module_indicator()
                                             .is_some()
                                         && !some(
@@ -1722,7 +1722,7 @@ impl TypeChecker {
                 SyntaxKind::EnumDeclaration => {
                     result = lookup(
                         &(*self
-                            .get_symbol_of_node(&location_unwrapped)?
+                            .get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols()))
                         .borrow(),
@@ -1757,7 +1757,7 @@ impl TypeChecker {
                 | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
                         &*(*self
-                            .get_symbol_of_node(&*location_unwrapped)?
+                            .get_symbol_of_node(location_unwrapped)?
                             .unwrap()
                             .ref_(self)
                             .maybe_members()
@@ -1771,7 +1771,7 @@ impl TypeChecker {
                     if let Some(result_unwrapped) = result {
                         if !self.is_type_parameter_symbol_declared_in_container(
                             result_unwrapped,
-                            &location_unwrapped,
+                            location_unwrapped,
                         ) {
                             result = None;
                             should_skip_rest_of_match_arm = true;
@@ -1779,7 +1779,7 @@ impl TypeChecker {
                         if matches!(last_location, Some(last_location) if is_static(last_location, self))
                         {
                             self.error(
-                                error_location.as_deref(),
+                                error_location,
                                 &Diagnostics::Static_members_cannot_reference_class_type_parameters,
                                 None,
                             );
@@ -1790,13 +1790,13 @@ impl TypeChecker {
                         }
                     }
                     if !should_skip_rest_of_match_arm {
-                        if location_unwrapped.kind() == SyntaxKind::ClassExpression
+                        if location_unwrapped.ref_(self).kind() == SyntaxKind::ClassExpression
                             && meaning.intersects(SymbolFlags::Class)
                         {
-                            let class_name = location_unwrapped.as_class_expression().maybe_name();
+                            let class_name = location_unwrapped.ref_(self).as_class_expression().maybe_name();
                             if matches!(class_name, Some(class_name) if name == &class_name.as_identifier().escaped_text)
                             {
-                                result = Some(location_unwrapped.symbol());
+                                result = Some(location_unwrapped.ref_(self).symbol());
                                 break;
                             }
                         }
@@ -1810,11 +1810,11 @@ impl TypeChecker {
                                 .expression,
                         )
                     && matches!(
-                        location_unwrapped.parent().maybe_as_heritage_clause(),
+                        location_unwrapped.ref_(self).parent().maybe_as_heritage_clause(),
                         Some(location_parent) if location_parent.token == SyntaxKind::ExtendsKeyword
                     ) {
-                        let container = location_unwrapped.parent().parent();
-                        if is_class_like(&container) {
+                        let container = location_unwrapped.ref_(self).parent().ref_(self).parent();
+                        if is_class_like(&container.ref_(self)) {
                             result = lookup(
                                 &(*self
                                     .get_symbol_of_node(&container)?
@@ -1827,7 +1827,7 @@ impl TypeChecker {
                             )?;
                             if result.is_some() {
                                 if name_not_found_message.is_some() {
-                                    self.error(error_location.as_deref(), &Diagnostics::Base_class_expressions_cannot_reference_class_type_parameters, None);
+                                    self.error(error_location, &Diagnostics::Base_class_expressions_cannot_reference_class_type_parameters, None);
                                 }
                                 return Ok(None);
                             }
@@ -1850,7 +1850,7 @@ impl TypeChecker {
                             meaning & SymbolFlags::Type,
                         )?;
                         if result.is_some() {
-                            self.error(error_location.as_deref(), &Diagnostics::A_computed_property_name_cannot_reference_a_type_parameter_from_its_containing_type, None);
+                            self.error(error_location, &Diagnostics::A_computed_property_name_cannot_reference_a_type_parameter_from_its_containing_type, None);
                             return Ok(None);
                         }
                     }
@@ -1861,7 +1861,7 @@ impl TypeChecker {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::FunctionDeclaration => {
-                    if !(location_unwrapped.kind() == SyntaxKind::ArrowFunction
+                    if !(location_unwrapped.ref_(self).kind() == SyntaxKind::ArrowFunction
                         && get_emit_script_target(&self.compiler_options) >= ScriptTarget::ES2015)
                     {
                         if meaning.intersects(SymbolFlags::Variable) && name == "arguments" {
@@ -1878,23 +1878,27 @@ impl TypeChecker {
 
                     if meaning.intersects(SymbolFlags::Function) {
                         let function_name =
-                            location_unwrapped.as_function_expression().maybe_name();
+                            location_unwrapped.ref_(self).as_function_expression().maybe_name();
                         if matches!(function_name, Some(function_name) if name == &function_name.as_identifier().escaped_text)
                         {
-                            result = Some(location_unwrapped.symbol());
+                            result = Some(location_unwrapped.ref_(self).symbol());
                             break;
                         }
                     }
                 }
                 SyntaxKind::Decorator => {
-                    if matches!(location_unwrapped.maybe_parent(), Some(parent) if parent.kind() == SyntaxKind::Parameter)
-                    {
-                        location = location_unwrapped.maybe_parent();
+                    if matches!(
+                        location_unwrapped.ref_(self).maybe_parent(),
+                        Some(parent) if parent.ref_(self).kind() == SyntaxKind::Parameter
+                    ) {
+                        location = location_unwrapped.ref_(self).maybe_parent();
                         location_unwrapped = location.unwrap();
                     }
-                    if matches!(location_unwrapped.maybe_parent(), Some(parent) if is_class_element(&parent) || parent.kind() == SyntaxKind::ClassDeclaration)
-                    {
-                        location = location_unwrapped.maybe_parent();
+                    if matches!(
+                        location_unwrapped.ref_(self).maybe_parent(),
+                        Some(parent) if is_class_element(&parent.ref_(self)) || parent.ref_(self).kind() == SyntaxKind::ClassDeclaration
+                    ) {
+                        location = location_unwrapped.ref_(self).maybe_parent();
                         location_unwrapped = location.unwrap();
                     }
                 }
@@ -1941,12 +1945,14 @@ impl TypeChecker {
                 SyntaxKind::InferType => {
                     if meaning.intersects(SymbolFlags::TypeParameter) {
                         let location_type_parameter =
-                            &location_unwrapped.as_infer_type_node().type_parameter;
+                            location_unwrapped.ref_(self).as_infer_type_node().type_parameter;
                         let parameter_name = location_type_parameter
-                            .as_type_parameter_declaration()
+                            .ref_(self).as_type_parameter_declaration()
                             .maybe_name();
-                        if matches!(parameter_name, Some(parameter_name) if name == &parameter_name.as_identifier().escaped_text)
-                        {
+                        if matches!(
+                            parameter_name,
+                            Some(parameter_name) if name == &parameter_name.ref_(self).as_identifier().escaped_text
+                        ) {
                             result = Some(location_type_parameter.symbol());
                             break;
                         }
@@ -1954,13 +1960,13 @@ impl TypeChecker {
                 }
                 _ => (),
             }
-            if self.is_self_reference_location(&location_unwrapped) {
+            if self.is_self_reference_location(location_unwrapped) {
                 last_self_reference_location = Some(location_unwrapped);
             }
             last_location = Some(location_unwrapped);
             location = if is_jsdoc_template_tag(&location_unwrapped.ref_(self)) {
                 get_effective_container_for_jsdoc_template_tag(location_unwrapped, self)
-                    .or_else(|| location_unwrapped.maybe_parent())
+                    .or_else(|| location_unwrapped.ref_(self).maybe_parent())
             } else {
                 location_unwrapped.ref_(self).maybe_parent()
             };
@@ -2004,9 +2010,9 @@ impl TypeChecker {
             }
         }
         if result.is_none() {
-            if let Some(original_location) = original_location.as_ref() {
-                if is_in_js_file(Some(&**original_location)) {
-                    if let Some(original_location_parent) = original_location.maybe_parent() {
+            if let Some(original_location) = original_location {
+                if is_in_js_file(Some(&original_location.ref_(self))) {
+                    if let Some(original_location_parent) = original_location.ref_(self).maybe_parent() {
                         if is_require_call(original_location_parent, false, self) {
                             return Ok(Some(self.require_symbol()));
                         }
@@ -2017,7 +2023,7 @@ impl TypeChecker {
         if result.is_none() {
             if let Some(name_not_found_message) = name_not_found_message {
                 if error_location.is_none() || {
-                    let error_location = error_location.as_ref().unwrap();
+                    let error_location = error_location.unwrap();
                     !self.check_and_report_error_for_missing_prefix(
                         error_location,
                         name,
@@ -2051,7 +2057,7 @@ impl TypeChecker {
                     let mut suggestion: Option<Id<Symbol>> = None;
                     if self.suggestion_count() < self.maximum_suggestion_count {
                         suggestion = self.get_suggested_symbol_for_nonexistent_symbol_(
-                            original_location.as_deref(),
+                            original_location,
                             name,
                             meaning,
                         )?;
@@ -2071,7 +2077,7 @@ impl TypeChecker {
                                 None,
                             )?;
                             let is_unchecked_js = self.is_unchecked_js_suggestion(
-                                original_location.as_deref(),
+                                original_location,
                                 Some(suggestion),
                                 false,
                             );
@@ -2091,7 +2097,7 @@ impl TypeChecker {
                                 &*Diagnostics::Cannot_find_name_0_Did_you_mean_1
                             };
                             let diagnostic = self.create_error(
-                                error_location.as_deref(),
+                                error_location,
                                 message,
                                 Some(vec![
                                     self.diagnostic_name(name_arg.clone().unwrap().into())
@@ -2154,7 +2160,7 @@ impl TypeChecker {
                         .ref_(self).as_named_declaration()
                         .name();
                     self.error(
-                        error_location.as_deref(),
+                        error_location,
                         &Diagnostics::Initializer_of_instance_member_variable_0_cannot_reference_identifier_1_declared_in_the_constructor,
                         Some(vec![declaration_name_to_string(Some(property_name), self).into_owned(), self.diagnostic_name(name_arg.unwrap().into()).into_owned()])
                     );
@@ -2162,7 +2168,7 @@ impl TypeChecker {
                 }
             }
 
-            if let Some(error_location) = error_location.as_ref() {
+            if let Some(error_location) = error_location {
                 if meaning.intersects(SymbolFlags::BlockScopedVariable)
                     || (meaning.intersects(SymbolFlags::Class)
                         || meaning.intersects(SymbolFlags::Enum))
@@ -2197,9 +2203,8 @@ impl TypeChecker {
             is_in_external_module
                 && meaning & SymbolFlags::Value == SymbolFlags::Value
                 && !original_location
-                    .as_ref()
                     .unwrap()
-                    .flags()
+                    .ref_(self).flags()
                     .intersects(NodeFlags::JSDoc)
             {
                 let merged = self.get_merged_symbol(Some(result)).unwrap();
@@ -2215,7 +2220,7 @@ impl TypeChecker {
                 {
                     self.error_or_suggestion(
                         !matches!(self.compiler_options.allow_umd_global_access, Some(true)),
-                        error_location.as_deref().unwrap(),
+                        error_location.unwrap(),
                         &*Diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead,
                         Some(vec![unescape_leading_underscores(name).to_owned()])
                     );
@@ -2259,7 +2264,7 @@ impl TypeChecker {
                             )
                     ) {
                         self.error(
-                            error_location.as_deref(),
+                            error_location,
                             &Diagnostics::Parameter_0_cannot_reference_identifier_1_declared_after_it,
                             Some(vec![declaration_name_to_string(
                                 Some(associated_declaration_for_containing_initializer_or_binding_name
@@ -2273,7 +2278,7 @@ impl TypeChecker {
             }
             if
             /*result &&*/
-            let Some(error_location) = error_location.as_ref() {
+            let Some(error_location) = error_location {
                 if meaning.intersects(SymbolFlags::Value)
                     && result.ref_(self).flags().intersects(SymbolFlags::Alias)
                 {

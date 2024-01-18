@@ -28,8 +28,8 @@ impl TypeChecker {
                     is_access_expression(&d.ref_(self)) && {
                         let d_ref = d.ref_(self);
                         let d_as_has_expression = d_ref.as_has_expression();
-                        is_exports_identifier(&d_as_has_expression.ref_(self).expression().ref_(self)) ||
-                        is_module_exports_access_expression(d_as_has_expression.ref_(self).expression(), self)
+                        is_exports_identifier(&d_as_has_expression.expression().ref_(self)) ||
+                        is_module_exports_access_expression(d_as_has_expression.expression(), self)
                     }
                 )
         )

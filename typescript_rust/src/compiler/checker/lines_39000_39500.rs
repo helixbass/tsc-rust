@@ -875,7 +875,7 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Transient);
                     if check_body {
                         if let Some(node_body) = node_as_module_declaration.body {
-                            for statement in &node_body.ref_(self).as_module_block().statements {
+                            for &statement in &node_body.ref_(self).as_module_block().statements {
                                 self.check_module_augmentation_element(
                                     statement,
                                     is_global_augmentation,
@@ -960,7 +960,7 @@ impl TypeChecker {
             SyntaxKind::BindingElement | SyntaxKind::VariableDeclaration => {
                 let name = node.ref_(self).as_named_declaration().maybe_name();
                 if is_binding_pattern(name.refed(self)) {
-                    for el in &name.unwrap().ref_(self).as_has_elements().elements() {
+                    for &el in &name.unwrap().ref_(self).as_has_elements().elements() {
                         self.check_module_augmentation_element(el, is_global_augmentation)?;
                     }
                 }

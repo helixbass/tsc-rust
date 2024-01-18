@@ -378,8 +378,8 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::Constructor => {
-                    for parameter in &member.ref_(self).as_constructor_declaration().parameters() {
-                        if match parameter.symbol().ref_(self).maybe_is_referenced() {
+                    for &parameter in &member.ref_(self).as_constructor_declaration().parameters() {
+                        if match parameter.ref_(self).symbol().ref_(self).maybe_is_referenced() {
                             None => true,
                             Some(parameter_symbol_is_referenced) => {
                                 parameter_symbol_is_referenced == SymbolFlags::None
@@ -391,10 +391,10 @@ impl TypeChecker {
                                 UnusedKind::Local,
                                 Gc::new(
                                     create_diagnostic_for_node(
-                                        parameter.as_parameter_declaration().name(),
+                                        parameter.ref_(self).as_parameter_declaration().name(),
                                         &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
                                         Some(vec![
-                                            symbol_name(parameter.symbol(), self).into_owned()
+                                            symbol_name(parameter.ref_(self).symbol(), self).into_owned()
                                         ]),
                                         self,
                                     ).into()
