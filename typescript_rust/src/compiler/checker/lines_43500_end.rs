@@ -357,9 +357,9 @@ impl TypeChecker {
             is_binary_expression(&node_name_as_computed_property_name.expression.ref_(self))
                 && node_name_as_computed_property_name
                     .expression
-                    .as_binary_expression()
+                    .ref_(self).as_binary_expression()
                     .operator_token
-                    .kind()
+                    .ref_(self).kind()
                     == SyntaxKind::InKeyword
         } {
             return Ok(self.grammar_error_on_node(

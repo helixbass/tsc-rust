@@ -89,23 +89,23 @@ impl TypeChecker {
                 call_is_incomplete = node_is_missing(Some(&last_span_as_template_span.literal.ref_(self)))
                     || last_span_as_template_span
                         .literal
-                        .as_literal_like_node()
+                        .ref_(self).as_literal_like_node()
                         .is_unterminated()
                         == Some(true);
             } else {
                 let template_literal = &node_as_tagged_template_expression.template;
                 Debug_.assert(
-                    template_literal.kind() == SyntaxKind::NoSubstitutionTemplateLiteral,
+                    template_literal.ref_(self).kind() == SyntaxKind::NoSubstitutionTemplateLiteral,
                     None,
                 );
                 call_is_incomplete =
-                    template_literal.as_literal_like_node().is_unterminated() == Some(true);
+                    template_literal.ref_(self).as_literal_like_node().is_unterminated() == Some(true);
             }
         } else if node.ref_(self).kind() == SyntaxKind::Decorator {
             arg_count = self.get_decorator_argument_count(node, signature);
         } else if is_jsx_opening_like_element(&node.ref_(self)) {
             call_is_incomplete =
-                node.ref_(self).as_jsx_opening_like_element().attributes().ref_(self) == node.ref_(self).end();
+                node.ref_(self).as_jsx_opening_like_element().attributes().ref_(self).end() == node.ref_(self).end();
             if call_is_incomplete {
                 return Ok(true);
             }
@@ -603,7 +603,7 @@ impl TypeChecker {
                         arg.ref_(self).as_synthetic_expression().type_
                     } else {
                         self.check_expression_with_contextual_type(
-                            arg.as_spread_element().expression,
+                            arg.ref_(self).as_spread_element().expression,
                             rest_type,
                             context.clone(),
                             check_mode,
@@ -763,7 +763,7 @@ impl TypeChecker {
             return Ok(JsxReferenceKind::Mixed);
         }
         let tag_type = self.get_apparent_type(self.check_expression(
-            &node_as_jsx_opening_like_element.tag_name(),
+            node_as_jsx_opening_like_element.tag_name(),
             None,
             None,
         )?)?;
@@ -797,7 +797,7 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         let attributes_type = self.check_expression_with_contextual_type(
-            &node_as_jsx_opening_like_element.attributes(),
+            node_as_jsx_opening_like_element.attributes(),
             param_type,
             None,
             check_mode,
@@ -921,9 +921,9 @@ impl TypeChecker {
                 ).into()
             );
             let tag_name_declaration = self
-                .get_symbol_at_location_(&node_as_jsx_opening_like_element.tag_name(), None)?
+                .get_symbol_at_location_(node_as_jsx_opening_like_element.tag_name(), None)?
                 .and_then(|symbol| symbol.ref_(self).maybe_value_declaration());
-            if let Some(tag_name_declaration) = tag_name_declaration.as_ref() {
+            if let Some(tag_name_declaration) = tag_name_declaration {
                 add_related_info(
                     &diag,
                     vec![Gc::new(
@@ -1088,7 +1088,7 @@ impl TypeChecker {
                     Option::<Id<Node>>::None,
                 );
                 set_text_range_pos_end(
-                    error_node,
+                    &*error_node.ref_(self),
                     args[arg_count].ref_(self).pos(),
                     args[args.len() - 1].ref_(self).end(),
                 );

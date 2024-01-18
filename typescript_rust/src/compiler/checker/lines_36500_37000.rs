@@ -345,7 +345,7 @@ impl TypeChecker {
 
                     let names_share_scope = matches!(
                         container,
-                        Some(container) if container.ref_(self).kind() == SyntaxKind::Block && is_function_like(container.ref_(self).maybe_parent()) ||
+                        Some(container) if container.ref_(self).kind() == SyntaxKind::Block && is_function_like(container.ref_(self).maybe_parent().refed(self)) ||
                             matches!(
                                 container.ref_(self).kind(),
                                 SyntaxKind::ModuleBlock |
@@ -770,8 +770,8 @@ impl TypeChecker {
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
                 .declarations,
-            |declaration, _| -> io::Result<Option<()>> {
-                self.check_source_element(Some(&**declaration))?;
+            |&declaration, _| -> io::Result<Option<()>> {
+                self.check_source_element(Some(declaration))?;
                 Ok(None)
             },
         )?;
@@ -833,8 +833,8 @@ impl TypeChecker {
         } else {
             cond_expr
         };
-        if is_property_access_expression(location)
-            && self.is_type_assertion(&location.as_property_access_expression().expression)
+        if is_property_access_expression(&location.ref_(self))
+            && self.is_type_assertion(location.ref_(self).as_property_access_expression().expression)
         {
             return Ok(());
         }
@@ -860,7 +860,6 @@ impl TypeChecker {
         }
 
         let tested_symbol = tested_node
-            .as_ref()
             .try_and_then(|tested_node| self.get_symbol_at_location_(tested_node, None))?;
         if tested_symbol.is_none() && !is_promise {
             return Ok(());
@@ -871,11 +870,11 @@ impl TypeChecker {
             Some(tested_symbol) if is_binary_expression(&cond_expr.ref_(self).parent().ref_(self)) &&
                 self.is_symbol_used_in_binary_expression_chain(cond_expr.ref_(self).parent(), tested_symbol)?
         ) || matches!(
-            (tested_symbol, body.as_ref()),
+            (tested_symbol, body),
             (Some(tested_symbol), Some(body)) if self.is_symbol_used_in_condition_body(
                 cond_expr,
                 body,
-                tested_node.as_ref().unwrap(),
+                tested_node.unwrap(),
                 tested_symbol,
             )?
         );

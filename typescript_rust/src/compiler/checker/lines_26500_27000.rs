@@ -109,7 +109,7 @@ impl TypeChecker {
                     &*context
                         .ref_(self).as_jsx_opening_like_element()
                         .attributes()
-                        .as_jsx_attributes()
+                        .ref_(self).as_jsx_attributes()
                         .properties,
                 )) > 0
                 {
@@ -436,8 +436,9 @@ impl TypeChecker {
         let target_ref = target.ref_(self);
         let target_as_signature_declaration = target_ref.as_signature_declaration();
         while target_parameter_count < target_as_signature_declaration.parameters().len() {
-            let param = &target_as_signature_declaration.parameters()[target_parameter_count];
-            let param_as_parameter_declaration = param.as_parameter_declaration();
+            let param = target_as_signature_declaration.parameters()[target_parameter_count];
+            let param_ref = param.ref_(self);
+            let param_as_parameter_declaration = param_ref.as_parameter_declaration();
             if param_as_parameter_declaration.maybe_initializer().is_some()
                 || param_as_parameter_declaration.question_token.is_some()
                 || param_as_parameter_declaration.dot_dot_dot_token.is_some()
@@ -600,8 +601,8 @@ impl TypeChecker {
         let in_const_context = self.is_const_context(node);
         let mut has_omitted_expression = false;
         for i in 0..element_count {
-            let e = &elements[i];
-            if e.kind() == SyntaxKind::SpreadElement {
+            let e = elements[i];
+            if e.ref_(self).kind() == SyntaxKind::SpreadElement {
                 if self.language_version < ScriptTarget::ES2015 {
                     self.check_external_emit_helpers(
                         e,
@@ -613,7 +614,7 @@ impl TypeChecker {
                     )?;
                 }
                 let spread_type = self.check_expression(
-                    &e.as_spread_element().expression,
+                    e.ref_(self).as_spread_element().expression,
                     check_mode,
                     force_tuple,
                 )?;
@@ -640,12 +641,12 @@ impl TypeChecker {
                         IterationUse::Spread,
                         spread_type,
                         self.undefined_type(),
-                        Some(&*e.as_spread_element().expression),
+                        Some(e.ref_(self).as_spread_element().expression),
                     )?);
                     element_flags.push(ElementFlags::Rest);
                 }
             } else if self.exact_optional_property_types == Some(true)
-                && e.kind() == SyntaxKind::OmittedExpression
+                && e.ref_(self).kind() == SyntaxKind::OmittedExpression
             {
                 has_omitted_expression = true;
                 element_types.push(self.missing_type());
@@ -815,7 +816,7 @@ impl TypeChecker {
                 return Ok(ret);
             }
             let links_resolved_type =
-                self.check_expression(&node_as_computed_property_name.expression, None, None)?;
+                self.check_expression(node_as_computed_property_name.expression, None, None)?;
             links.borrow_mut().resolved_type = Some(links_resolved_type.clone());
             if is_property_declaration(&node.ref_(self).parent().ref_(self))
                 && !has_static_modifier(node.ref_(self).parent(), self)
@@ -971,7 +972,7 @@ impl TypeChecker {
         let contextual_type_has_pattern = matches!(
             contextual_type,
             Some(contextual_type) if matches!(
-                contextual_type.ref_(self).maybe_pattern(),
+                *contextual_type.ref_(self).maybe_pattern(),
                 Some(contextual_type_pattern) if matches!(
                     contextual_type_pattern.ref_(self).kind(),
                     SyntaxKind::ObjectBindingPattern |
@@ -997,9 +998,9 @@ impl TypeChecker {
 
         for elem in &node_as_object_literal_expression.properties {
             if let Some(elem_name) = elem
-                .as_named_declaration()
+                .ref_(self).as_named_declaration()
                 .maybe_name()
-                .filter(|elem_name| is_computed_property_name(elem_name))
+                .filter(|elem_name| is_computed_property_name(&elem_name.ref_(self)))
             {
                 self.check_computed_property_name(elem_name)?;
             }
@@ -1027,7 +1028,7 @@ impl TypeChecker {
                     let member_decl_ref = member_decl.ref_(self);
                     let member_decl_as_shorthand_property_assignment = member_decl_ref.as_shorthand_property_assignment();
                     self.check_expression_for_mutable_location(
-                        &*if !in_destructuring_pattern
+                        if !in_destructuring_pattern
                             && member_decl_as_shorthand_property_assignment
                                 .object_assignment_initializer
                                 .is_some()

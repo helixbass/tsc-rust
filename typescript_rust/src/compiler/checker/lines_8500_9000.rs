@@ -60,9 +60,8 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_binding_element = node_ref.as_binding_element();
             return self.get_literal_property_name_text(
-                &node_as_binding_element
+                node_as_binding_element
                     .property_name
-                    .clone()
                     .unwrap_or_else(|| node_as_binding_element.name()),
             );
         }
@@ -153,7 +152,7 @@ impl TypeChecker {
                     return Ok(Some(self.error_type()));
                 }
                 let mut literal_members: Vec<Id<Node /*PropertyName*/>> = vec![];
-                for element in &pattern.as_object_binding_pattern().elements {
+                for element in &pattern.ref_(self).as_object_binding_pattern().elements {
                     let element_as_binding_element = element.as_binding_element();
                     if element_as_binding_element.dot_dot_dot_token.is_none() {
                         literal_members.push(
@@ -174,12 +173,12 @@ impl TypeChecker {
                     .property_name
                     .clone()
                     .unwrap_or_else(|| declaration_as_binding_element.name());
-                let index_type = self.get_literal_type_from_property_name(&name)?;
+                let index_type = self.get_literal_type_from_property_name(name)?;
                 let declared_type = self.get_indexed_access_type(
                     parent_type,
                     index_type,
                     Some(AccessFlags::ExpressionPosition),
-                    Some(&*name),
+                    Some(name),
                     Option::<Id<Symbol>>::None,
                     None,
                 )?;
@@ -195,10 +194,10 @@ impl TypeChecker {
                     },
                 parent_type,
                 self.undefined_type(),
-                Some(&*pattern),
+                Some(pattern),
             )?;
             let index: usize = index_of_eq(
-                &pattern.as_array_binding_pattern().elements,
+                &pattern.ref_(self).as_array_binding_pattern().elements,
                 &declaration,
             )
             .try_into()
@@ -528,7 +527,7 @@ impl TypeChecker {
                     .try_map(|type_| self.add_optionality(type_, Some(true), Some(is_optional)));
             } else {
                 let static_blocks = filter(
-                    &declaration.ref_(self).parent().as_class_like_declaration().members(),
+                    &declaration.ref_(self).parent().ref_(self).as_class_like_declaration().members(),
                     |member: &Id<Node>| is_class_static_block_declaration(&member.ref_(self)),
                 );
                 let type_ = if !static_blocks.is_empty() {
@@ -583,8 +582,8 @@ impl TypeChecker {
                                             || is_string_or_numeric_literal_like(
                                                 &declaration_as_binary_expression
                                                     .left
-                                                    .as_element_access_expression()
-                                                    .argument_expression,
+                                                    .ref_(self).as_element_access_expression()
+                                                    .argument_expression.ref_(self),
                                             )
                                     }
                                     && self
@@ -655,7 +654,7 @@ impl TypeChecker {
         let access_name = unescape_leading_underscores(symbol_ref.escaped_name());
         let are_all_module_exports = every(
             symbol.ref_(self).maybe_declarations().as_deref().unwrap(),
-            |d: &Id<Node>, _| {
+            |&d: &Id<Node>, _| {
                 is_in_js_file(Some(&d.ref_(self)))
                     && is_access_expression(&d.ref_(self))
                     && is_module_exports_access_expression(d, self)
@@ -723,7 +722,7 @@ impl TypeChecker {
         } else {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
-        for static_block in static_blocks {
+        for &static_block in static_blocks {
             let reference = factory.with(|factory_| {
                 factory_
                     .create_property_access_expression(factory_.create_this(), access_name.clone())
@@ -881,7 +880,7 @@ impl TypeChecker {
             let mut types: Option<Vec<Id<Type>>> = None;
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 let mut jsdoc_type: Option<Id<Type>> = None;
-                for declaration in symbol_declarations {
+                for &declaration in symbol_declarations {
                     let Some(expression) =
                         (if is_binary_expression(&declaration.ref_(self)) || is_call_expression(&declaration.ref_(self)) {
                             Some(declaration)
@@ -1025,7 +1024,7 @@ impl TypeChecker {
             Option::<&[Id<Symbol>]>::None,
         )));
         while is_binary_expression(&decl.ref_(self)) || is_property_access_expression(&decl.ref_(self)) {
-            let s = self.get_symbol_of_node(&decl)?;
+            let s = self.get_symbol_of_node(decl)?;
             if let Some(s) = s {
                 if let Some(s_exports) = s.ref_(self).maybe_exports().as_deref() {
                     let s_exports = (*s_exports).borrow();
@@ -1034,10 +1033,10 @@ impl TypeChecker {
                     }
                 }
             }
-            decl = if is_binary_expression(&decl) {
-                decl.parent()
+            decl = if is_binary_expression(&decl.ref_(self)) {
+                decl.ref_(self).parent()
             } else {
-                decl.parent().parent()
+                decl.ref_(self).parent().ref_(self).parent()
             };
         }
         let s = self.get_symbol_of_node(decl)?;
@@ -1141,8 +1140,8 @@ impl TypeChecker {
         let expression_ref = expression.ref_(self);
         let expression_as_binary_expression = expression_ref.as_binary_expression();
         if self.contains_same_named_this_property(
-            &expression_as_binary_expression.left,
-            &expression_as_binary_expression.right,
+            expression_as_binary_expression.left,
+            expression_as_binary_expression.right,
         )? {
             return Ok(self.any_type());
         }
@@ -1150,7 +1149,7 @@ impl TypeChecker {
             self.get_type_of_symbol(resolved_symbol)?
         } else {
             self.get_widened_literal_type(
-                self.check_expression_cached(&expression_as_binary_expression.right, None)?,
+                self.check_expression_cached(expression_as_binary_expression.right, None)?,
             )?
         };
         if type_.ref_(self).flags().intersects(TypeFlags::Object)
@@ -1199,7 +1198,7 @@ impl TypeChecker {
                                         exported_member_value_declaration,
                                         |node: &Id<Node>| is_named_declaration(&node.ref_(self)),
                                     )
-                                    .and_then(|named_declaration: &Id<Node>| {
+                                    .and_then(|named_declaration: Id<Node>| {
                                         named_declaration.ref_(self).as_named_declaration().maybe_name()
                                     })
                                     .unwrap_or(exported_member_value_declaration);

@@ -644,7 +644,7 @@ impl NodeBuilder {
             .and_then(|symbol_declarations| {
                 find(symbol_declarations, |&s: &Id<Node>, _| {
                     get_effective_type_annotation_node(s, self).is_some()
-                        && (match enclosing_declaration.as_ref() {
+                        && (match enclosing_declaration {
                             None => true,
                             Some(enclosing_declaration) => {
                                 find_ancestor(Some(s), |n| n == enclosing_declaration, self)
@@ -693,7 +693,6 @@ impl NodeBuilder {
                 let decl_with_existing_annotation =
                     self.get_declaration_with_type_annotation(symbol, Some(enclosing_declaration));
                 if let Some(decl_with_existing_annotation) = decl_with_existing_annotation
-                    .as_ref()
                     .filter(|decl_with_existing_annotation| {
                         !is_function_like_declaration(&decl_with_existing_annotation.ref_(self))
                             && !is_get_accessor_declaration(&decl_with_existing_annotation.ref_(self))
@@ -819,7 +818,8 @@ impl NodeBuilder {
             && (is_exports_identifier(&leftmost.ref_(self))
                 || is_module_exports_access_expression(leftmost_parent, self)
                 || is_qualified_name(&leftmost_parent.ref_(self)) && {
-                    let leftmost_parent_as_qualified_name = leftmost_parent.as_qualified_name();
+                    let leftmost_parent_ref = leftmost_parent.ref_(self);
+                    let leftmost_parent_as_qualified_name = leftmost_parent_ref.as_qualified_name();
                     is_module_identifier(&leftmost_parent_as_qualified_name.left)
                         && is_exports_identifier(&leftmost_parent_as_qualified_name.right)
                 })
@@ -1055,13 +1055,13 @@ impl NodeBuilder {
                                 self.type_checker.get_type_from_type_node_(
                                     node
                                 )?,
-                                &name.as_identifier().escaped_text
+                                &name.ref_(self).as_identifier().escaped_text
                             )?;
                             let override_type_node = type_via_parent.try_filter(|&type_via_parent| -> io::Result<_> {
                                 Ok(matches!(
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref(),
                                     Some(t_type_expression) if self.type_checker.get_type_from_type_node_(
-                                        &t_type_expression.as_jsdoc_type_expression().type_
+                                        &t_type_expression.ref_(self).as_jsdoc_type_expression().type_
                                     )? != type_via_parent
                                 ))
                             })?.try_and_then(|type_via_parent| {
@@ -1076,7 +1076,7 @@ impl NodeBuilder {
                                 name,
                                 if t_as_jsdoc_property_like_tag.is_bracketed ||
                                     matches!(
-                                        t_as_jsdoc_property_like_tag.type_expression.as_ref(),
+                                        t_as_jsdoc_property_like_tag.type_expression,
                                         Some(t_type_expression) if is_jsdoc_optional_type(t_type_expression)
                                     ) {
                                     Some(get_factory().create_token(
@@ -1088,7 +1088,7 @@ impl NodeBuilder {
                                 Some(override_type_node.try_or_else(|| {
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref().try_and_then(|t_type_expression| {
                                         try_maybe_visit_node(
-                                            Some(&*t_type_expression.as_jsdoc_type_expression().type_),
+                                            Some(t_type_expression.ref_(self).as_jsdoc_type_expression().type_),
                                             Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                             Option::<fn(Id<Node>) -> bool>::None,
                                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1202,8 +1202,8 @@ impl NodeBuilder {
                                 let p_ref = p.ref_(self);
                                 let p_as_parameter_declaration = p_ref.as_parameter_declaration();
                                 Ok(if matches!(
-                                    p_as_parameter_declaration.maybe_name().as_ref(),
-                                    Some(p_name) if is_identifier(p_name) && p_name.as_identifier().escaped_text == "new",
+                                    p_as_parameter_declaration.maybe_name(),
+                                    Some(p_name) if is_identifier(&p_name.ref_(self)) && p_name.ref_(self).as_identifier().escaped_text == "new",
                                 ) {
                                     new_type_node = p_as_parameter_declaration.maybe_type();
                                     None

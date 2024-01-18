@@ -26,6 +26,7 @@ use crate::{
     JSDocTagInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
     OptionTry, ScriptTarget, SignatureDeclarationInterface, SymbolFlags, SymbolInterface,
     SyntaxKind, TextRange, TypeChecker,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -43,7 +44,7 @@ impl TypeChecker {
                 class_like,
                 &Diagnostics::JSDoc_0_is_not_attached_to_a_class,
                 Some(vec![
-                    id_text(&node_as_jsdoc_implements_tag.tag_name()).to_owned()
+                    id_text(&node_as_jsdoc_implements_tag.tag_name().ref_(self)).to_owned()
                 ]),
             );
         }
@@ -63,7 +64,7 @@ impl TypeChecker {
                 class_like,
                 &Diagnostics::JSDoc_0_is_not_attached_to_a_class,
                 Some(vec![
-                    id_text(&node_as_jsdoc_augments_tag.tag_name()).to_owned()
+                    id_text(&node_as_jsdoc_augments_tag.tag_name().ref_(self)).to_owned()
                 ]),
             );
             return;
@@ -85,9 +86,9 @@ impl TypeChecker {
 
         let name = self
             .get_identifier_from_entity_name_expression(
-                &node_as_jsdoc_augments_tag
+                node_as_jsdoc_augments_tag
                     .class
-                    .as_expression_with_type_arguments()
+                    .ref_(self).as_expression_with_type_arguments()
                     .expression,
             )
             .unwrap();
@@ -198,12 +199,12 @@ impl TypeChecker {
         )?;
 
         if self.produce_diagnostics && get_effective_return_type_node(node, self).is_none() {
-            if node_is_missing(body.as_deref()) && !self.is_private_within_ambient(node) {
+            if node_is_missing(body.refed(self)) && !self.is_private_within_ambient(node) {
                 self.report_implicit_any(node, self.any_type(), None)?;
             }
 
             if function_flags.intersects(FunctionFlags::Generator)
-                && node_is_present(body.as_deref())
+                && node_is_present(body.refed(self))
             {
                 self.get_return_type_of_signature(self.get_signature_from_declaration_(node)?)?;
             }
@@ -223,7 +224,7 @@ impl TypeChecker {
                 })?
             {
                 self.error(
-                    Some(&*type_tag_type_expression.as_jsdoc_type_expression().type_),
+                    Some(type_tag_type_expression.ref_(self).as_jsdoc_type_expression().type_),
                     &Diagnostics::The_type_of_a_function_declaration_must_match_the_function_s_signature,
                     None,
                 );
@@ -340,7 +341,7 @@ impl TypeChecker {
                 | SyntaxKind::SetAccessor => {
                     if !(member.ref_(self).kind() == SyntaxKind::SetAccessor
                         && member
-                            .symbol()
+                            .ref_(self).symbol()
                             .ref_(self)
                             .flags()
                             .intersects(SymbolFlags::GetAccessor))
@@ -350,16 +351,16 @@ impl TypeChecker {
                             None => true,
                             Some(symbol_is_referenced) => symbol_is_referenced == SymbolFlags::None,
                         } && (has_effective_modifier(member, ModifierFlags::Private, self)
-                            || is_named_declaration(member)
-                                && is_private_identifier(&member.as_named_declaration().name()))
-                            && !member.flags().intersects(NodeFlags::Ambient)
+                            || is_named_declaration(&member.ref_(self))
+                                && is_private_identifier(&member.ref_(self).as_named_declaration().name().ref_(self)))
+                            && !member.ref_(self).flags().intersects(NodeFlags::Ambient)
                         {
                             add_diagnostic(
                                 member,
                                 UnusedKind::Local,
                                 Gc::new(
                                     create_diagnostic_for_node(
-                                        member.as_named_declaration().name(),
+                                        member.ref_(self).as_named_declaration().name(),
                                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                         Some(vec![self.symbol_to_string_(
                                             symbol,
@@ -377,7 +378,7 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::Constructor => {
-                    for parameter in &member.as_constructor_declaration().parameters() {
+                    for parameter in &member.ref_(self).as_constructor_declaration().parameters() {
                         if match parameter.symbol().ref_(self).maybe_is_referenced() {
                             None => true,
                             Some(parameter_symbol_is_referenced) => {
@@ -429,7 +430,7 @@ impl TypeChecker {
                         node,
                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                         Some(vec![id_text(
-                            &type_parameter.as_type_parameter_declaration().name(),
+                            &type_parameter.ref_(self).as_type_parameter_declaration().name().ref_(self),
                         )
                         .to_owned()]),
                         self,
@@ -477,7 +478,7 @@ impl TypeChecker {
             {
                 if try_add_to_set(&mut seen_parents_with_every_unused, parent) {
                     let source_file = get_source_file_of_node(parent, self);
-                    let range = if is_jsdoc_template_tag(&parent) {
+                    let range = if is_jsdoc_template_tag(&parent.ref_(self)) {
                         range_of_node(parent, self)
                     } else {
                         range_of_type_parameters(
@@ -490,7 +491,7 @@ impl TypeChecker {
                         )
                     };
                     let only = parent
-                        .as_has_type_parameters()
+                        .ref_(self).as_has_type_parameters()
                         .maybe_type_parameters()
                         .as_ref()
                         .unwrap()
@@ -584,11 +585,11 @@ impl TypeChecker {
             if is_object_binding_pattern(&declaration.ref_(self).parent().ref_(self)) {
                 return declaration_as_binding_element.property_name.is_some()
                     && self.is_identifier_that_starts_with_underscore(
-                        &declaration_as_binding_element.name(),
+                        declaration_as_binding_element.name(),
                     );
             }
             return self
-                .is_identifier_that_starts_with_underscore(&declaration_as_binding_element.name());
+                .is_identifier_that_starts_with_underscore(declaration_as_binding_element.name());
         }
         is_ambient_module(declaration, self)
             || (is_variable_declaration(&declaration.ref_(self))
@@ -687,14 +688,12 @@ impl TypeChecker {
                         let parameter = local
                             .ref_(self)
                             .maybe_value_declaration()
-                            .as_ref()
                             .and_then(|local_value_declaration| {
                                 self.try_get_root_parameter_declaration(local_value_declaration)
                             });
                         let name = local
                             .ref_(self)
                             .maybe_value_declaration()
-                            .as_ref()
                             .and_then(|local_value_declaration| {
                                 get_name_of_declaration(Some(local_value_declaration), self)
                             });
@@ -750,11 +749,11 @@ impl TypeChecker {
                 0
             } + if let Some(import_clause_named_bindings) = import_clause_as_import_clause.named_bindings
             {
-                if import_clause_named_bindings.kind() == SyntaxKind::NamespaceImport {
+                if import_clause_named_bindings.ref_(self).kind() == SyntaxKind::NamespaceImport {
                     1
                 } else {
                     import_clause_named_bindings
-                        .as_named_imports()
+                        .ref_(self).as_named_imports()
                         .elements
                         .len()
                 }
@@ -763,7 +762,7 @@ impl TypeChecker {
             };
             if n_declarations == unuseds.len() {
                 add_diagnostic(
-                    &import_decl,
+                    import_decl,
                     UnusedKind::Local,
                     Gc::new(if unuseds.len() == 1 {
                         create_diagnostic_for_node(
@@ -795,7 +794,8 @@ impl TypeChecker {
                 }
             }
         }
-        for (&binding_pattern, binding_elements) in unused_destructures.values() {
+        for (binding_pattern, binding_elements) in unused_destructures.values() {
+            let binding_pattern = *binding_pattern;
             let kind = if self
                 .try_get_root_parameter_declaration(binding_pattern.ref_(self).parent())
                 .is_some()
@@ -863,7 +863,8 @@ impl TypeChecker {
                 }
             }
         }
-        for (&declaration_list, declarations) in unused_variables.values() {
+        for (declaration_list, declarations) in unused_variables.values() {
+            let declaration_list = *declaration_list;
             if declaration_list
                 .ref_(self).as_variable_declaration_list()
                 .declarations
@@ -894,6 +895,7 @@ impl TypeChecker {
                             },
                             &Diagnostics::All_variables_are_unused,
                             None,
+                            self,
                         )
                         .into()
                     }),
@@ -929,7 +931,7 @@ impl TypeChecker {
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
                 .binding_name_text(
                     cast_present(
-                        *first(&**name.as_has_elements().elements()),
+                        *first(&**name.ref_(self).as_has_elements().elements()),
                         |element: &Id<Node>| is_binding_element(&element.ref_(self)),
                     )
                     .ref_(self).as_binding_element()
@@ -974,8 +976,8 @@ impl TypeChecker {
             let save_flow_analysis_disabled = self.flow_analysis_disabled();
             try_for_each(
                 &node_as_has_statements.statements(),
-                |statement, _| -> io::Result<_> {
-                    self.check_source_element(Some(&**statement))?;
+                |&statement, _| -> io::Result<_> {
+                    self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
                 },
             )?;
@@ -983,8 +985,8 @@ impl TypeChecker {
         } else {
             try_for_each(
                 &node_as_has_statements.statements(),
-                |statement, _| -> io::Result<_> {
-                    self.check_source_element(Some(&**statement))?;
+                |&statement, _| -> io::Result<_> {
+                    self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
                 },
             )?;
@@ -1004,8 +1006,8 @@ impl TypeChecker {
             || !has_rest_parameter(node, self)
             || node.ref_(self).flags().intersects(NodeFlags::Ambient)
             || node_is_missing(
-                &node.ref_(self).maybe_as_function_like_declaration()
-                    .and_then(|node| node.maybe_body()).ref_(self),
+                node.ref_(self).maybe_as_function_like_declaration()
+                    .and_then(|node| node.maybe_body()).refed(self),
             )
         {
             return;
@@ -1070,7 +1072,7 @@ impl TypeChecker {
 
         let root = get_root_declaration(node, self);
         if is_parameter(&root.ref_(self))
-            && node_is_missing(&root.ref_(self).parent().ref_(self).as_function_like_declaration().maybe_body().ref_(self))
+            && node_is_missing(root.ref_(self).parent().ref_(self).as_function_like_declaration().maybe_body().refed(self))
         {
             return false;
         }

@@ -27,6 +27,7 @@ use crate::{
     FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, HasArena, InArena,
     InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -43,7 +44,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbols_in_scope_(
         &self,
-        mut location: Id<Node>,
+        location: Id<Node>,
         meaning: SymbolFlags,
     ) -> io::Result<Vec<Id<Symbol>>> {
         if location.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
@@ -53,6 +54,7 @@ impl TypeChecker {
         let mut symbols = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         let mut is_static_symbol = false;
 
+        let mut location = Some(location);
         self.populate_symbols(&mut location, meaning, &mut symbols, &mut is_static_symbol)?;
 
         symbols.remove(InternalSymbolName::This);
@@ -309,7 +311,7 @@ impl TypeChecker {
     pub(super) fn is_node_used_during_class_initialization(&self, node: Id<Node>) -> bool {
         find_ancestor(Some(node), |element| {
             if is_constructor_declaration(&element.ref_(self))
-                && node_is_present(element.ref_(self).as_constructor_declaration().maybe_body())
+                && node_is_present(element.ref_(self).as_constructor_declaration().maybe_body().refed(self))
                 || is_property_declaration(&element.ref_(self))
             {
                 return true.into();
@@ -339,28 +341,24 @@ impl TypeChecker {
         }
 
         if node_on_right_side.ref_(self).parent().ref_(self).kind() == SyntaxKind::ImportEqualsDeclaration {
-            return if Gc::ptr_eq(
-                &node_on_right_side
-                    .parent()
-                    .as_import_equals_declaration()
-                    .module_reference,
-                &node_on_right_side,
-            ) {
-                node_on_right_side.maybe_parent()
+            return if node_on_right_side
+                .ref_(self).parent()
+                .ref_(self).as_import_equals_declaration()
+                .module_reference == node_on_right_side
+            {
+                node_on_right_side.ref_(self).maybe_parent()
             } else {
                 None
             };
         }
 
         if node_on_right_side.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment {
-            return if Gc::ptr_eq(
-                &node_on_right_side
-                    .parent()
-                    .as_export_assignment()
-                    .expression,
-                &node_on_right_side,
-            ) {
-                node_on_right_side.maybe_parent()
+            return if node_on_right_side
+                .ref_(self).parent()
+                .ref_(self).as_export_assignment()
+                .expression == node_on_right_side
+            {
+                node_on_right_side.ref_(self).maybe_parent()
             } else {
                 None
             };
@@ -386,7 +384,7 @@ impl TypeChecker {
         Ok(match special_property_assignment_kind {
             AssignmentDeclarationKind::ExportsProperty
             | AssignmentDeclarationKind::PrototypeProperty => {
-                self.get_symbol_of_node(&entity_name.ref_(self).parent())?
+                self.get_symbol_of_node(entity_name.ref_(self).parent())?
             }
             AssignmentDeclarationKind::ThisProperty
             | AssignmentDeclarationKind::ModuleExports
@@ -403,19 +401,13 @@ impl TypeChecker {
     ) -> Option<Id<Node /*ImportTypeNode*/>> {
         let mut parent = node.ref_(self).parent();
         while is_qualified_name(&parent.ref_(self)) {
-            node = parent.clone();
-            parent = parent.parent();
+            node = parent;
+            parent = parent.ref_(self).parent();
         }
         if
         /*parent &&*/
-        parent.kind() == SyntaxKind::ImportType
-            && matches!(
-                parent.as_import_type_node().qualifier.as_ref(),
-                Some(parent_qualifier) if Gc::ptr_eq(
-                    parent_qualifier,
-                    &node,
-                )
-            )
+        parent.ref_(self).kind() == SyntaxKind::ImportType
+            && parent.ref_(self).as_import_type_node().qualifier == Some(node)
         {
             return Some(parent);
         }
@@ -486,10 +478,10 @@ impl TypeChecker {
 
         if self.is_heritage_clause_element_identifier(name) {
             let mut meaning;
-            if name.parent().kind() == SyntaxKind::ExpressionWithTypeArguments {
+            if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExpressionWithTypeArguments {
                 meaning = SymbolFlags::Type;
 
-                if is_expression_with_type_arguments_in_class_extends_clause(name.parent(), self) {
+                if is_expression_with_type_arguments_in_class_extends_clause(name.ref_(self).parent(), self) {
                     meaning |= SymbolFlags::Value;
                 }
             } else {
@@ -535,9 +527,9 @@ impl TypeChecker {
             } else {
                 SymbolFlags::Value
             };
-            if name.kind() == SyntaxKind::Identifier {
+            if name.ref_(self).kind() == SyntaxKind::Identifier {
                 if is_jsx_tag_name(name, self) && self.is_jsx_intrinsic_identifier(name) {
-                    let symbol = self.get_intrinsic_tag_symbol(&name.parent())?;
+                    let symbol = self.get_intrinsic_tag_symbol(name.ref_(self).parent())?;
                     return Ok(if symbol == self.unknown_symbol() {
                         None
                     } else {
@@ -564,7 +556,7 @@ impl TypeChecker {
             } else if is_private_identifier(&name.ref_(self)) {
                 return Ok(self.get_symbol_for_private_identifier_expression(name));
             } else if matches!(
-                name.kind(),
+                name.ref_(self).kind(),
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName
             ) {
                 let links = self.get_node_links(name);
@@ -573,14 +565,14 @@ impl TypeChecker {
                     return Ok(links_resolved_symbol);
                 }
 
-                if name.kind() == SyntaxKind::PropertyAccessExpression {
+                if name.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
                     self.check_property_access_expression(name, Some(CheckMode::Normal))?;
                 } else {
                     self.check_qualified_name(name, Some(CheckMode::Normal))?;
                 }
                 if (*links).borrow().resolved_symbol.is_none()
                     && is_jsdoc
-                    && is_qualified_name(name)
+                    && is_qualified_name(&name.ref_(self))
                 {
                     return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
                 }
@@ -589,7 +581,7 @@ impl TypeChecker {
                 return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
             }
         } else if self.is_type_reference_identifier(name) {
-            let meaning = if name.parent().kind() == SyntaxKind::TypeReference {
+            let meaning = if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeReference {
                 SymbolFlags::Type
             } else {
                 SymbolFlags::Namespace
@@ -697,8 +689,8 @@ impl TypeChecker {
                 None
             });
         }
-        let ref parent = node.ref_(self).parent();
-        let ref grand_parent = parent.ref_(self).parent();
+        let parent = node.ref_(self).parent();
+        let grand_parent = parent.ref_(self).parent();
 
         if node.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
             return Ok(None);
@@ -716,7 +708,7 @@ impl TypeChecker {
                 },
             );
         } else if is_literal_computed_property_declaration_name(node, self) {
-            return self.get_symbol_of_node(&parent.parent());
+            return self.get_symbol_of_node(parent.ref_(self).parent());
         }
 
         if node.ref_(self).kind() == SyntaxKind::Identifier {
@@ -724,7 +716,7 @@ impl TypeChecker {
                 return self.get_symbol_of_name_or_property_access_expression(node);
             } else if parent.ref_(self).kind() == SyntaxKind::BindingElement
                 && grand_parent.ref_(self).kind() == SyntaxKind::ObjectBindingPattern
-                && parent.as_binding_element().property_name == Some(node)
+                && parent.ref_(self).as_binding_element().property_name == Some(node)
             {
                 let type_of_pattern = self.get_type_of_node(grand_parent)?;
                 let property_declaration = self.get_property_of_type_(
@@ -736,7 +728,7 @@ impl TypeChecker {
                 if property_declaration.is_some() {
                     return Ok(property_declaration);
                 }
-            } else if is_meta_property(parent) {
+            } else if is_meta_property(&parent.ref_(self)) {
                 let parent_type = self.get_type_of_node(parent)?;
                 let property_declaration = self.get_property_of_type_(
                     parent_type,
@@ -797,9 +789,8 @@ impl TypeChecker {
                 let constructor_declaration = node.ref_(self).maybe_parent();
                 if let Some(constructor_declaration) =
                     constructor_declaration
-                        .as_ref()
                         .filter(|constructor_declaration| {
-                            constructor_declaration.kind() == SyntaxKind::Constructor
+                            constructor_declaration.ref_(self).kind() == SyntaxKind::Constructor
                         })
                 {
                     return Ok(constructor_declaration.ref_(self).parent().ref_(self).maybe_symbol());
@@ -825,20 +816,20 @@ impl TypeChecker {
                 {
                     return self.resolve_external_module_name_(node, node, ignore_errors);
                 }
-                if is_call_expression(ref_(self).parent)
+                if is_call_expression(&parent.ref_(self))
                     && is_bindable_object_define_property_call(parent, self)
                     && parent.ref_(self).as_call_expression().arguments[1] == node
                 {
                     return self.get_symbol_of_node(parent);
                 }
 
-                let object_type = if is_element_access_expression(parent) {
+                let object_type = if is_element_access_expression(&parent.ref_(self)) {
                     let parent_ref = parent.ref_(self);
                     let parent_as_element_access_expression = parent_ref.as_element_access_expression();
                     if parent_as_element_access_expression.argument_expression == node
                      {
                         Some(self.get_type_of_expression(
-                            &parent_as_element_access_expression.expression,
+                            parent_as_element_access_expression.expression,
                         )?)
                     } else {
                         None
@@ -846,7 +837,7 @@ impl TypeChecker {
                 } else if is_literal_type_node(&parent.ref_(self)) && is_indexed_access_type_node(&grand_parent.ref_(self))
                 {
                     Some(self.get_type_from_type_node_(
-                        &grand_parent.as_indexed_access_type_node().object_type,
+                        grand_parent.as_indexed_access_type_node().object_type,
                     )?)
                 } else {
                     None
@@ -866,7 +857,7 @@ impl TypeChecker {
                     let parent_as_element_access_expression = parent_ref.as_element_access_expression();
                     if parent_as_element_access_expression.argument_expression == node {
                         Some(self.get_type_of_expression(
-                            &parent_as_element_access_expression.expression,
+                            parent_as_element_access_expression.expression,
                         )?)
                     } else {
                         None
@@ -874,7 +865,7 @@ impl TypeChecker {
                 } else if is_literal_type_node(&parent.ref_(self)) && is_indexed_access_type_node(&grand_parent.ref_(self))
                 {
                     Some(self.get_type_from_type_node_(
-                        &grand_parent.as_indexed_access_type_node().object_type,
+                        grand_parent.ref_(self).as_indexed_access_type_node().object_type,
                     )?)
                 } else {
                     None

@@ -676,7 +676,7 @@ impl TypeChecker {
 
                         if heritage_clause_as_heritage_clause.types.len() > 1 {
                             return self.grammar_error_on_first_token(
-                                &heritage_clause_as_heritage_clause.types[1],
+                                heritage_clause_as_heritage_clause.types[1],
                                 &Diagnostics::Classes_can_only_extend_a_single_class,
                                 None,
                             );
@@ -857,7 +857,7 @@ impl TypeChecker {
             }
             let name = prop.ref_(self).as_named_declaration().name();
             if name.ref_(self).kind() == SyntaxKind::ComputedPropertyName {
-                self.check_grammar_computed_property_name(&name);
+                self.check_grammar_computed_property_name(name);
             }
 
             if prop.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment
@@ -876,14 +876,14 @@ impl TypeChecker {
 
             if name.ref_(self).kind() == SyntaxKind::PrivateIdentifier {
                 self.grammar_error_on_node(
-                    &name,
+                    name,
                     &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
                     None,
                 );
             }
 
             if let Some(prop_modifiers) = prop.ref_(self).maybe_modifiers().as_ref() {
-                for mod_ in prop_modifiers {
+                for &mod_ in prop_modifiers {
                     if mod_.ref_(self).kind() != SyntaxKind::AsyncKeyword
                         || prop.ref_(self).kind() != SyntaxKind::MethodDeclaration
                     {
@@ -955,7 +955,7 @@ impl TypeChecker {
                                 .intersects(DeclarationMeaning::PropertyAssignmentOrMethod)
                         {
                             self.grammar_error_on_node(
-                                &name,
+                                name,
                                 &Diagnostics::Duplicate_identifier_0,
                                 Some(vec![get_text_of_node(name, None, self).into_owned()]),
                             );
@@ -971,14 +971,14 @@ impl TypeChecker {
                                 );
                             } else {
                                 return self.grammar_error_on_node(
-                                    &name,
+                                    name,
                                     &Diagnostics::An_object_literal_cannot_have_multiple_get_Slashset_accessors_with_the_same_name,
                                     None,
                                 );
                             }
                         } else {
                             return self.grammar_error_on_node(
-                                &name,
+                                name,
                                 &Diagnostics::An_object_literal_cannot_have_property_and_accessor_with_the_same_name,
                                 None
                             );

@@ -86,18 +86,18 @@ impl TypeChecker {
         let type_target = type_.ref_(self).as_type_reference().target;
         let mut element_flags = type_target.ref_(self).as_tuple_type().element_flags.clone();
         for i in self.get_type_reference_arity(type_)..pattern_elements.len() {
-            let e = &pattern_elements[i];
+            let e = pattern_elements[i];
             if i < pattern_elements.len() - 1
-                || !(e.kind() == SyntaxKind::BindingElement
-                    && e.as_binding_element().dot_dot_dot_token.is_some())
+                || !(e.ref_(self).kind() == SyntaxKind::BindingElement
+                    && e.ref_(self).as_binding_element().dot_dot_dot_token.is_some())
             {
-                element_types.push(if !is_omitted_expression(e) && self.has_default_value(e) {
+                element_types.push(if !is_omitted_expression(&e.ref_(self)) && self.has_default_value(e) {
                     self.get_type_from_binding_element(e, Some(false), Some(false))?
                 } else {
                     self.any_type()
                 });
                 element_flags.push(ElementFlags::Optional);
-                if !is_omitted_expression(e) && !self.has_default_value(e) {
+                if !is_omitted_expression(&e.ref_(self)) && !self.has_default_value(e) {
                     self.report_implicit_any(e, self.any_type(), None)?;
                 }
             }
@@ -216,9 +216,9 @@ impl TypeChecker {
                 || is_spread_element(&parent.ref_(self)))
                 && self.is_const_context(parent)
             || (is_property_assignment(&parent.ref_(self))
-                || is_shorthand_property_assignment(&parent)
-                || is_template_span(&parent))
-                && self.is_const_context(&parent.parent())
+                || is_shorthand_property_assignment(&parent.ref_(self))
+                || is_template_span(&parent.ref_(self)))
+                && self.is_const_context(parent.ref_(self).parent())
     }
 
     pub(super) fn check_expression_for_mutable_location(
@@ -260,7 +260,7 @@ impl TypeChecker {
             self.check_computed_property_name(node_as_property_assignment.name())?;
         }
         self.check_expression_for_mutable_location(
-            &node_as_property_assignment.initializer,
+            node_as_property_assignment.initializer,
             check_mode,
             None,
             None,
@@ -582,7 +582,7 @@ impl TypeChecker {
         let expr_as_call_expression = expr_ref.as_call_expression();
         let func_type = self.check_expression(expr_as_call_expression.expression, None, None)?;
         let non_optional_type =
-            self.get_optional_expression_type(func_type, &expr_as_call_expression.expression)?;
+            self.get_optional_expression_type(func_type, expr_as_call_expression.expression)?;
         let return_type = self.get_return_type_of_single_non_generic_call_signature(func_type)?;
         return_type.try_map(|return_type| {
             self.propagate_optional_type_marker(return_type, expr, non_optional_type != func_type)
@@ -779,7 +779,7 @@ impl TypeChecker {
             );
         }
         self.check_expression(
-            &node_as_parenthesized_expression.expression,
+            node_as_parenthesized_expression.expression,
             check_mode,
             None,
         )

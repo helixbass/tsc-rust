@@ -168,7 +168,7 @@ impl TypeChecker {
             }
 
             self.invocation_error(
-                &node_as_tagged_template_expression.tag,
+                node_as_tagged_template_expression.tag,
                 apparent_type,
                 SignatureKind::Call,
                 None,
@@ -249,7 +249,7 @@ impl TypeChecker {
         let head_message = self.get_diagnostic_head_message_for_decorator_resolution(node);
         if call_signatures.is_empty() {
             let error_details = self.invocation_error_details(
-                &node_as_decorator.expression,
+                node_as_decorator.expression,
                 apparent_type,
                 SignatureKind::Call,
             )?;
@@ -377,7 +377,7 @@ impl TypeChecker {
             let fake_signature = self.create_signature_for_jsx_intrinsic(node, result)?;
             self.check_type_assignable_to_and_optionally_elaborate(
                 self.check_expression_with_contextual_type(
-                    &node_as_jsx_opening_like_element.attributes(),
+                    node_as_jsx_opening_like_element.attributes(),
                     self.get_effective_first_argument_for_jsx_signature(
                         fake_signature.clone(),
                         node,
@@ -408,7 +408,7 @@ impl TypeChecker {
                 )?;
                 self.diagnostics().add(Gc::new(
                     create_diagnostic_for_node_array(
-                        get_source_file_of_node(node, self),
+                        &get_source_file_of_node(node, self).ref_(self),
                         node_as_jsx_opening_like_element
                             .maybe_type_arguments()
                             .as_ref()
@@ -430,7 +430,7 @@ impl TypeChecker {
             return Ok(fake_signature);
         }
         let expr_types =
-            self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None)?;
+            self.check_expression(node_as_jsx_opening_like_element.tag_name(), None, None)?;
         let apparent_type = self.get_apparent_type(expr_types)?;
         if self.is_error_type(apparent_type) {
             return self.resolve_error_call(node);
@@ -709,31 +709,22 @@ impl TypeChecker {
                 SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
             ) {
                 if is_variable_declaration(&parent_node.ref_(self).parent().ref_(self))
-                    && matches!(
-                        parent_node.parent().as_variable_declaration().maybe_initializer().as_ref(),
-                        Some(parent_node_parent_initializer) if Gc::ptr_eq(
-                            parent_node_parent_initializer,
-                            &parent_node
-                        )
-                    )
+                    && parent_node.ref_(self).parent().ref_(self).as_variable_declaration().maybe_initializer() == Some(parent_node)
                 {
-                    name = parent_node.parent().as_variable_declaration().maybe_name();
-                    decl = Some(parent_node.parent());
+                    name = parent_node.ref_(self).parent().ref_(self).as_variable_declaration().maybe_name();
+                    decl = Some(parent_node.ref_(self).parent());
                 } else if is_binary_expression(&parent_node.ref_(self).parent().ref_(self))
                     && parent_node
-                        .parent()
-                        .as_binary_expression()
+                        .ref_(self).parent()
+                        .ref_(self).as_binary_expression()
                         .operator_token
-                        .kind()
+                        .ref_(self).kind()
                         == SyntaxKind::EqualsToken
                     && (allow_declaration
-                        || Gc::ptr_eq(
-                            &parent_node.parent().as_binary_expression().right,
-                            &parent_node,
-                        ))
+                        || parent_node.ref_(self).parent().ref_(self).as_binary_expression().right == parent_node)
                 {
-                    name = Some(parent_node.parent().as_binary_expression().left.clone());
-                    decl = name.clone();
+                    name = Some(parent_node.ref_(self).parent().ref_(self).as_binary_expression().left);
+                    decl = name;
                 }
 
                 if match name {
@@ -863,18 +854,18 @@ impl TypeChecker {
             let node_as_call_expression = node_ref.as_call_expression();
             if !is_dotted_name(node_as_call_expression.expression, self) {
                 self.error(
-                    Some(&*node_as_call_expression.expression),
+                    Some(node_as_call_expression.expression),
                     &Diagnostics::Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name,
                     None,
                 );
             } else if self.get_effects_signature(node)?.is_none() {
                 let diagnostic = self.error(
-                    Some(&*node_as_call_expression.expression),
+                    Some(node_as_call_expression.expression),
                     &Diagnostics::Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation,
                     None,
                 );
                 self.get_type_of_dotted_name(
-                    &node_as_call_expression.expression,
+                    node_as_call_expression.expression,
                     Some(&diagnostic),
                 )?;
             }
@@ -972,11 +963,10 @@ impl TypeChecker {
                 if is_qualified_name(&type_reference_as_type_reference_node.type_name.ref_(self)) {
                     type_reference_as_type_reference_node
                         .type_name
-                        .as_qualified_name()
+                        .ref_(self).as_qualified_name()
                         .right
-                        .clone()
                 } else {
-                    type_reference.clone()
+                    type_reference
                 }
             }
             _ => node,

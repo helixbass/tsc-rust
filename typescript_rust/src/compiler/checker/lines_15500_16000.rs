@@ -19,6 +19,7 @@ use crate::{
     ObjectFlagsTypeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     UnionOrIntersectionTypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -750,7 +751,7 @@ impl TypeChecker {
             let module_symbol = self
                 .resolve_external_module_symbol(Some(inner_module_symbol), Some(false))?
                 .unwrap();
-            if !node_is_missing(&node_as_import_type_node.qualifier.ref_(self)) {
+            if !node_is_missing(node_as_import_type_node.qualifier.refed(self)) {
                 let mut name_stack: Vec<Id<Node /*Identifier*/>> =
                     self.get_identifier_chain(node_as_import_type_node.qualifier.unwrap());
                 let mut current_namespace = module_symbol.clone();

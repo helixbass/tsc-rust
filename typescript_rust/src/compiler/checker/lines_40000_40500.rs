@@ -26,10 +26,10 @@ impl TypeChecker {
             Some(declarations) if declarations.len() > 1 &&
                 declarations.into_iter().all(|d| is_in_js_file(Some(&d.ref_(self))) &&
                     is_access_expression(&d.ref_(self)) && {
-                        let d._ref = d..ref_(self);
+                        let d_ref = d.ref_(self);
                         let d_as_has_expression = d_ref.as_has_expression();
                         is_exports_identifier(&d_as_has_expression.ref_(self).expression().ref_(self)) ||
-                        is_module_exports_access_expression(&d_as_has_expression.ref_(self).expression().ref_(self))
+                        is_module_exports_access_expression(d_as_has_expression.ref_(self).expression(), self)
                     }
                 )
         )
@@ -344,10 +344,7 @@ impl TypeChecker {
 
         let parent = node.ref_(self).parent();
         if is_parameter(&parent.ref_(self)) && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self)) {
-            if !Gc::ptr_eq(
-                last(&parent.parent().as_jsdoc_function_type().parameters()),
-                parent,
-            ) {
+            if *last(&parent.ref_(self).parent().ref_(self).as_jsdoc_function_type().parameters()) != parent {
                 self.error(
                     Some(node),
                     &Diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
@@ -357,7 +354,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        if !is_jsdoc_type_expression(parent) {
+        if !is_jsdoc_type_expression(&parent.ref_(self)) {
             self.error(
                 Some(node),
                 &Diagnostics::JSDoc_may_only_appear_in_the_last_parameter_of_a_signature,
@@ -436,7 +433,7 @@ impl TypeChecker {
                         matches!(
                             symbol,
                             Some(symbol) if matches!(
-                                last_param_declaration.maybe_symbol(),
+                                last_param_declaration.ref_(self).maybe_symbol(),
                                 Some(last_param_declaration_symbol) if last_param_declaration_symbol == symbol
                             )
                         ) && is_rest_parameter(last_param_declaration, self)
@@ -446,7 +443,7 @@ impl TypeChecker {
                 }
             }
         }
-        if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
+        if is_parameter(&parent.ref_(self)) && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self)) {
             return Ok(self.create_array_type(type_, None));
         }
         self.add_optionality(type_, None, None)
@@ -611,8 +608,8 @@ impl TypeChecker {
             let node_as_source_file = node_ref.as_source_file();
             try_for_each(
                 &node_as_source_file.statements(),
-                |statement, _| -> io::Result<_> {
-                    self.check_source_element(Some(&**statement))?;
+                |&statement, _| -> io::Result<_> {
+                    self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
                 },
             )?;

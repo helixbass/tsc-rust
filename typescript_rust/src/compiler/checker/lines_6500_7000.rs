@@ -31,6 +31,7 @@ use crate::{
     NodeBuilderFlags, NodeFlags, NodeInterface, StrOrRcNode, Symbol, SymbolAccessibility,
     SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker,
     TypeInterface,
+    OptionInArena,
 };
 
 impl NodeBuilder {
@@ -272,14 +273,14 @@ impl SymbolTableToDeclarationStatements {
                 .ref_(self).as_variable_declaration_list()
                 .declarations
                 .iter()
-                .map(|declaration| get_name_of_declaration(Some(declaration), self))
-                .filter(|declaration| self.is_identifier_and_not_undefined(declaration.as_deref()))
+                .map(|&declaration| get_name_of_declaration(Some(declaration), self))
+                .filter(|&declaration| self.is_identifier_and_not_undefined(declaration))
                 .map(Option::unwrap)
                 .collect();
         }
         [get_name_of_declaration(Some(statement), self)]
             .into_iter()
-            .filter(|declaration| self.is_identifier_and_not_undefined(declaration))
+            .filter(|&declaration| self.is_identifier_and_not_undefined(declaration))
             .map(Option::unwrap)
             .collect()
     }
@@ -323,11 +324,11 @@ impl SymbolTableToDeclarationStatements {
                             ns.ref_(self).as_module_declaration().name,
                             Some({
                                 body = get_factory().update_module_block(
-                                    &body,
+                                    body,
                                     get_factory().create_node_array(
                                         Some({
                                             let mut arg =
-                                                ns_body.as_module_block().statements.to_vec();
+                                                ns_body.ref_(self).as_module_block().statements.to_vec();
                                             arg.push(get_factory().create_export_declaration(
                                                 Option::<Gc<NodeArray>>::None,
                                                 Option::<Gc<NodeArray>>::None,
@@ -369,7 +370,8 @@ impl SymbolTableToDeclarationStatements {
                         .any(|&s| s != ns && node_has_name(s, name, self))
                     {
                         self.set_results(vec![]);
-                        let body_as_module_block = body.as_module_block();
+                        let body_ref = body.ref_(self);
+                        let body_as_module_block = body_ref.as_module_block();
                         let mixin_export_flag = !body_as_module_block.statements.iter().any(|s| {
                             has_syntactic_modifier(s, ModifierFlags::Export, self)
                                 || is_export_assignment(&s.ref_(self))
@@ -409,7 +411,7 @@ impl SymbolTableToDeclarationStatements {
                 let d_as_export_declaration = d_ref.as_export_declaration();
                 d_as_export_declaration.module_specifier.is_none()
                     && matches!(
-                        d_as_export_declaration.export_clause.as_ref(),
+                        d_as_export_declaration.export_clause,
                         Some(d_export_clause) if is_named_exports(d_export_clause)
                     )
             }
@@ -455,7 +457,7 @@ impl SymbolTableToDeclarationStatements {
                 let d_as_export_declaration = d_ref.as_export_declaration();
                 d_as_export_declaration.module_specifier.is_some()
                     && matches!(
-                        d_as_export_declaration.export_clause.as_ref(),
+                        d_as_export_declaration.export_clause,
                         Some(d_export_clause) if is_named_exports(d_export_clause)
                     )
             }
@@ -467,18 +469,16 @@ impl SymbolTableToDeclarationStatements {
                     let decl_ref = decl.ref_(self);
                     let decl_as_export_declaration = decl_ref.as_export_declaration();
                     if is_string_literal(
-                        decl_as_export_declaration
+                        &decl_as_export_declaration
                             .module_specifier
-                            .as_ref()
-                            .unwrap(),
+                            .unwrap().ref_(self),
                     ) {
                         format!(
                             ">{:?}",
                             &*decl_as_export_declaration
                                 .module_specifier
-                                .as_ref()
                                 .unwrap()
-                                .as_string_literal()
+                                .ref_(self).as_string_literal()
                                 .text()
                         )
                     } else {
@@ -540,8 +540,8 @@ impl SymbolTableToDeclarationStatements {
                     d_as_export_declaration.module_specifier.is_none()
                         && d_as_export_declaration.assert_clause.is_none()
                         && matches!(
-                            d_as_export_declaration.export_clause.as_ref(),
-                            Some(d_export_clause) if is_named_exports(d_export_clause)
+                            d_as_export_declaration.export_clause,
+                            Some(d_export_clause) if is_named_exports(&d_export_clause.ref_(self))
                         )
                 }
             },
@@ -557,7 +557,7 @@ impl SymbolTableToDeclarationStatements {
                         .export_clause
                         .as_ref()
                         .unwrap()
-                        .as_named_exports()
+                        .ref_(self).as_named_exports()
                         .elements,
                 ),
                 |e: &Id<Node>, _| {
@@ -594,7 +594,6 @@ impl SymbolTableToDeclarationStatements {
                         get_factory().update_named_exports(
                             export_decl_as_export_declaration
                                 .export_clause
-                                .as_ref()
                                 .unwrap(),
                             replacements,
                         ),
@@ -956,7 +955,7 @@ impl SymbolTableToDeclarationStatements {
                                         flags,
                                     )
                             ),
-                            text_range,
+                            text_range.refed(self),
                             self,
                         );
                         self.add_result(

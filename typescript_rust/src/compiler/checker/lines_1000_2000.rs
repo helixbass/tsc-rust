@@ -75,12 +75,12 @@ impl TypeChecker {
                             self.language_version,
                         );
                         maybe_visit_node(
-                            file_local_jsx_fragment_factory.as_deref(),
+                            file_local_jsx_fragment_factory.clone(),
                             Some(|node: Id<Node>| self.mark_as_synthetic(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         );
-                        if let Some(file_local_jsx_fragment_factory) =
+                        if let Some(&file_local_jsx_fragment_factory) =
                             file_local_jsx_fragment_factory.as_ref()
                         {
                             let ret = get_first_identifier(file_local_jsx_fragment_factory, self)
@@ -183,12 +183,12 @@ impl TypeChecker {
                 self.language_version,
             );
             maybe_visit_node(
-                file_local_jsx_factory.as_deref(),
+                file_local_jsx_factory.clone(),
                 Some(|node: Id<Node>| self.mark_as_synthetic(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
-            if let Some(file_local_jsx_factory) = file_local_jsx_factory {
+            if let Some(&file_local_jsx_factory) = file_local_jsx_factory.as_ref() {
                 let ret = get_first_identifier(file_local_jsx_factory, self)
                     .ref_(self).as_identifier()
                     .escaped_text
@@ -903,15 +903,21 @@ impl TypeChecker {
             module_augmentation.ref_(self).symbol().ref_(self).maybe_declarations().as_ref().and_then(|declarations| declarations.get(0)).copied(),
             Some(declaration) if declaration == module_augmentation
         ) {
-            Debug_.assert(matches!(module_augmentation.symbol().ref_(self).maybe_declarations().as_ref(), Some(declarations) if declarations.len() > 1), None);
+            Debug_.assert(
+                matches!(
+                    module_augmentation.ref_(self).symbol().ref_(self).maybe_declarations().as_ref(),
+                    Some(declarations) if declarations.len() > 1
+                ),
+                None
+            );
             return Ok(());
         }
 
-        if is_global_scope_augmentation(&module_augmentation) {
+        if is_global_scope_augmentation(&module_augmentation.ref_(self)) {
             self.merge_symbol_table(
                 self.globals_rc(),
                 &mut module_augmentation
-                    .symbol()
+                    .ref_(self).symbol()
                     .ref_(self)
                     .exports()
                     .borrow_mut(),
@@ -948,7 +954,7 @@ impl TypeChecker {
                     Some(|module: &Gc<PatternAmbientModule>| main_module == module.symbol),
                 ) {
                     let merged =
-                        self.merge_symbol(module_augmentation.symbol(), main_module, Some(true))?;
+                        self.merge_symbol(module_augmentation.ref_(self).symbol(), main_module, Some(true))?;
                     let mut pattern_ambient_module_augmentations =
                         self.maybe_pattern_ambient_module_augmentations();
                     if pattern_ambient_module_augmentations.is_none() {
@@ -971,7 +977,7 @@ impl TypeChecker {
                         })
                         .is_some()
                         && matches!(
-                            module_augmentation.symbol().ref_(self).maybe_exports().as_ref(),
+                            module_augmentation.ref_(self).symbol().ref_(self).maybe_exports().as_ref(),
                             Some(exports) if !(**exports).borrow().is_empty()
                         )
                     {
@@ -983,7 +989,7 @@ impl TypeChecker {
                         let main_module_exports = main_module.ref_(self).exports();
                         let main_module_exports = (*main_module_exports).borrow();
                         for (key, &value) in
-                            &*(*module_augmentation.symbol().ref_(self).exports()).borrow()
+                            &*(*module_augmentation.ref_(self).symbol().ref_(self).exports()).borrow()
                         {
                             if resolved_exports.contains_key(key)
                                 && !main_module_exports.contains_key(key)
@@ -996,7 +1002,7 @@ impl TypeChecker {
                             }
                         }
                     }
-                    self.merge_symbol(main_module, module_augmentation.symbol(), None)?;
+                    self.merge_symbol(main_module, module_augmentation.ref_(self).symbol(), None)?;
                 }
             } else {
                 self.error(
@@ -1107,12 +1113,12 @@ impl TypeChecker {
         let class_declaration = parameter.ref_(self).parent().ref_(self).parent();
 
         let parameter_symbol = self.get_symbol(
-            &(*constructor_declaration.locals()).borrow(),
+            &(*constructor_declaration.ref_(self).locals()).borrow(),
             parameter_name,
             SymbolFlags::Value,
         )?;
         let property_symbol = self.get_symbol(
-            &(*self.get_members_of_symbol(class_declaration.symbol())?).borrow(),
+            &(*self.get_members_of_symbol(class_declaration.ref_(self).symbol())?).borrow(),
             parameter_name,
             SymbolFlags::Value,
         )?;
@@ -1237,7 +1243,7 @@ impl TypeChecker {
             if get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
                 && self.use_define_for_class_fields
                 && get_containing_class(declaration, self).is_some()
-                && (is_property_declaration(ref_(self).declaration)
+                && (is_property_declaration(&declaration.ref_(self))
                     || is_parameter_property_declaration(declaration, declaration.ref_(self).parent(), self))
             {
                 return Ok(!self.is_property_immediately_referenced_within_declaration(
@@ -1280,7 +1286,7 @@ impl TypeChecker {
         is_for_in_or_of_statement(&grandparent.ref_(self))
             && self.is_same_scope_descendent_of(
                 usage,
-                Some(grandparent.as_has_expression().expression()),
+                Some(grandparent.ref_(self).as_has_expression().expression()),
                 decl_container,
             )
     }
@@ -1416,8 +1422,8 @@ impl TypeChecker {
                 result.ref_(self).maybe_value_declaration().as_ref(),
             ) {
                 (Some(function_location_body), Some(result_value_declaration)) => {
-                    result_value_declaration.pos() >= function_location_body.pos()
-                        && result_value_declaration.end() <= function_location_body.end()
+                    result_value_declaration.ref_(self).pos() >= function_location_body.ref_(self).pos()
+                        && result_value_declaration.ref_(self).end() <= function_location_body.ref_(self).end()
                 }
                 _ => false,
             }
@@ -1536,7 +1542,6 @@ impl TypeChecker {
             SymbolFlags,
         ) -> io::Result<Option<Id<Symbol>>>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let mut location: Option<Id<Node>> = location.map(|node| node.borrow().node_wrapper());
         let original_location = location;
         let mut result: Option<Id<Symbol>> = None;
         let mut last_location: Option<Id<Node>> = None;

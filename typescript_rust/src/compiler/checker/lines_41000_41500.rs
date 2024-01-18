@@ -95,8 +95,7 @@ impl TypeChecker {
                 self.resolve_entity_name(
                     node_as_export_specifier
                         .property_name
-                        .as_deref()
-                        .unwrap_or(&*node_as_export_specifier.name),
+                        .unwrap_or(node_as_export_specifier.name),
                     SymbolFlags::Value
                         | SymbolFlags::Type
                         | SymbolFlags::Namespace
@@ -261,7 +260,7 @@ impl TypeChecker {
                 .get_type_of_assignment_pattern_(node)?
                 .unwrap_or_else(|| self.error_type());
             let property_index = index_of_node(
-                &node.as_object_literal_expression().properties,
+                &node.ref_(self).as_object_literal_expression().properties,
                 expr.ref_(self).parent(),
                 self,
             );
@@ -277,7 +276,7 @@ impl TypeChecker {
             is_array_literal_expression(&node.ref_(self))
         });
         let type_of_array_literal = self
-            .get_type_of_assignment_pattern_(&node)?
+            .get_type_of_assignment_pattern_(node)?
             .unwrap_or_else(|| self.error_type());
         let element_type = self.check_iterated_type_or_element_type(
             IterationUse::Destructuring,
@@ -286,7 +285,7 @@ impl TypeChecker {
             expr.ref_(self).maybe_parent()
         )? /*|| errorType*/;
         self.check_array_literal_destructuring_element_assignment(
-            &node,
+            node,
             type_of_array_literal,
             {
                 let ret = node
@@ -347,9 +346,9 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let name = element.ref_(self).as_named_declaration().name();
         Ok(match name.ref_(self).kind() {
-            SyntaxKind::Identifier => self.get_string_literal_type(&id_text(name)),
+            SyntaxKind::Identifier => self.get_string_literal_type(&id_text(&name.ref_(self))),
             SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
-                self.get_string_literal_type(&name.as_literal_like_node().text())
+                self.get_string_literal_type(&name.ref_(self).as_literal_like_node().text())
             }
             SyntaxKind::ComputedPropertyName => {
                 let name_type = self.check_computed_property_name(name)?;

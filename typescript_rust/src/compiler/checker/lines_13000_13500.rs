@@ -1120,8 +1120,8 @@ impl TypeChecker {
                 let parent_as_conditional_type_node = parent_ref.as_conditional_type_node();
                 let constraint = self.get_implied_constraint(
                     type_,
-                    &parent_as_conditional_type_node.check_type,
-                    &parent_as_conditional_type_node.extends_type,
+                    parent_as_conditional_type_node.check_type,
+                    parent_as_conditional_type_node.extends_type,
                 )?;
                 if let Some(constraint) = constraint {
                     if constraints.is_none() {

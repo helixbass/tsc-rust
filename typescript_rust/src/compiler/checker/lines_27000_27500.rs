@@ -13,6 +13,7 @@ use crate::{
     HasArena, InArena, IndexInfo, JsxFlags, ModuleResolutionKind, Node, NodeArray, NodeInterface,
     ObjectFlags, OptionTry, PragmaName, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -143,17 +144,17 @@ impl TypeChecker {
         )?;
 
         if self.is_jsx_intrinsic_identifier(
-            &node_as_jsx_element
+            node_as_jsx_element
                 .closing_element
-                .as_jsx_closing_element()
+                .ref_(self).as_jsx_closing_element()
                 .tag_name,
         ) {
             self.get_intrinsic_tag_symbol(node_as_jsx_element.closing_element)?;
         } else {
             self.check_expression(
-                &node_as_jsx_element
+                node_as_jsx_element
                     .closing_element
-                    .as_jsx_closing_element()
+                    .ref_(self).as_jsx_closing_element()
                     .tag_name,
                 None,
                 None,
@@ -273,7 +274,7 @@ impl TypeChecker {
             self.get_jsx_namespace_at(Some(opening_like_element))?,
         )?;
 
-        for attribute_decl in &attributes.as_jsx_attributes().properties {
+        for attribute_decl in &attributes.ref_(self).as_jsx_attributes().properties {
             let member = attribute_decl.maybe_symbol();
             if is_jsx_attribute(attribute_decl) {
                 let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
@@ -344,10 +345,10 @@ impl TypeChecker {
                         spread,
                         self.create_jsx_attributes_type(
                             &mut object_flags,
-                            &attributes,
+                            attributes,
                             attributes_table.clone(),
                         )?,
-                        attributes.maybe_symbol(),
+                        attributes.ref_(self).maybe_symbol(),
                         object_flags,
                         false,
                     )?;
@@ -365,7 +366,7 @@ impl TypeChecker {
                     spread = self.get_spread_type(
                         spread,
                         expr_type,
-                        attributes.maybe_symbol(),
+                        attributes.ref_(self).maybe_symbol(),
                         object_flags,
                         false,
                     )?;
@@ -398,10 +399,10 @@ impl TypeChecker {
                     spread,
                     self.create_jsx_attributes_type(
                         &mut object_flags,
-                        &attributes,
+                        attributes,
                         attributes_table.clone(),
                     )?,
-                    attributes.maybe_symbol(),
+                    attributes.ref_(self).maybe_symbol(),
                     object_flags,
                     false,
                 )?;
@@ -428,7 +429,7 @@ impl TypeChecker {
                 {
                     if explicitly_specify_children_attribute {
                         self.error(
-                            Some(&*attributes),
+                            Some(attributes),
                             &Diagnostics::_0_are_specified_twice_The_attribute_named_0_will_be_overwritten,
                             Some(vec![
                                 unescape_leading_underscores(jsx_children_property_name).to_owned()
@@ -437,7 +438,7 @@ impl TypeChecker {
                     }
 
                     let contextual_type = self.get_apparent_type_of_contextual_type(
-                        &opening_like_element_as_jsx_opening_like_element.attributes(),
+                        opening_like_element_as_jsx_opening_like_element.attributes(),
                         None,
                     )?;
                     let children_contextual_type =
@@ -512,13 +513,13 @@ impl TypeChecker {
                     spread = self.get_spread_type(
                         spread,
                         self.create_anonymous_type(
-                            attributes.maybe_symbol(),
+                            attributes.ref_(self).maybe_symbol(),
                             Gc::new(GcCell::new(child_prop_map)),
                             vec![],
                             vec![],
                             vec![],
                         )?,
-                        attributes.maybe_symbol(),
+                        attributes.ref_(self).maybe_symbol(),
                         object_flags,
                         false,
                     )?;
@@ -542,7 +543,7 @@ impl TypeChecker {
             Ok(if spread == self.empty_jsx_object_type() {
                 self.create_jsx_attributes_type(
                     &mut object_flags,
-                    &attributes,
+                    attributes,
                     attributes_table.clone(),
                 )?
             } else {
@@ -580,13 +581,13 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut children_types: Vec<Id<Type>> = vec![];
-        for child in &node.ref_(self).as_has_children().children() {
-            if child.kind() == SyntaxKind::JsxText {
-                if !child.as_jsx_text().contains_only_trivia_white_spaces {
+        for &child in &node.ref_(self).as_has_children().children() {
+            if child.ref_(self).kind() == SyntaxKind::JsxText {
+                if !child.ref_(self).as_jsx_text().contains_only_trivia_white_spaces {
                     children_types.push(self.string_type());
                 }
-            } else if child.kind() == SyntaxKind::JsxExpression
-                && child.as_jsx_expression().expression.is_none()
+            } else if child.ref_(self).kind() == SyntaxKind::JsxExpression
+                && child.ref_(self).as_jsx_expression().expression.is_none()
             {
                 continue;
             } else {
@@ -670,12 +671,12 @@ impl TypeChecker {
             let intrinsic_elements_type =
                 self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?;
             if !self.is_error_type(intrinsic_elements_type) {
-                if !is_identifier(&node_as_has_tag_name.tag_name()) {
+                if !is_identifier(&node_as_has_tag_name.tag_name().ref_(self)) {
                     Debug_.fail(None);
                 }
                 let intrinsic_prop = self.get_property_of_type_(
                     intrinsic_elements_type,
-                    &node_as_has_tag_name.tag_name().as_identifier().escaped_text,
+                    &node_as_has_tag_name.tag_name().ref_(self).as_identifier().escaped_text,
                     None,
                 )?;
                 if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
@@ -697,7 +698,7 @@ impl TypeChecker {
                     Some(node),
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
-                        id_text(&node_as_has_tag_name.tag_name()).to_owned(),
+                        id_text(&node_as_has_tag_name.tag_name().ref_(self)).to_owned(),
                         format!("JSX.{}", JsxNames::IntrinsicElements),
                     ]),
                 );
@@ -746,7 +747,7 @@ impl TypeChecker {
             return Ok(Some(links_jsx_implicit_import_container));
         }
         let runtime_import_specifier = get_jsx_runtime_import(
-            get_jsx_implicit_import_base(&self.compiler_options, file.as_deref()).as_deref(),
+            get_jsx_implicit_import_base(&self.compiler_options, file.refed(self)).as_deref(),
             &self.compiler_options,
         );
         if runtime_import_specifier.is_none() {
@@ -761,10 +762,10 @@ impl TypeChecker {
             &*Diagnostics::Cannot_find_module_0_or_its_corresponding_type_declarations
         };
         let mod_ = self.resolve_external_module(
-            location.as_ref().unwrap(),
+            location.unwrap(),
             &runtime_import_specifier,
             Some(error_message),
-            location.as_ref().unwrap(),
+            location.unwrap(),
             None,
         )?;
         let result = mod_.filter(|&mod_| mod_ != self.unknown_symbol()).try_map(
@@ -801,15 +802,15 @@ impl TypeChecker {
             _ => true,
         } {
             let mut resolved_namespace =
-                self.get_jsx_namespace_container_for_implicit_import(location.as_deref())?;
+                self.get_jsx_namespace_container_for_implicit_import(location)?;
 
             if match resolved_namespace {
                 None => true,
                 Some(resolved_namespace) => resolved_namespace == self.unknown_symbol(),
             } {
-                let namespace_name = self.get_jsx_namespace_(location.as_deref());
+                let namespace_name = self.get_jsx_namespace_(location);
                 resolved_namespace = self.resolve_name_(
-                    location.as_deref(),
+                    location,
                     &namespace_name,
                     SymbolFlags::Namespace,
                     None,

@@ -257,7 +257,7 @@ impl TypeChecker {
                         None,
                     );
                 } else {
-                    let block_locals = catch_clause_as_catch_clause.block.maybe_locals().clone();
+                    let block_locals = catch_clause_as_catch_clause.block.ref_(self).maybe_locals().clone();
                     if let Some(block_locals) = block_locals {
                         let block_locals = (*block_locals).borrow();
                         for_each_key(
@@ -290,7 +290,7 @@ impl TypeChecker {
                 }
             }
 
-            self.check_block(&catch_clause_as_catch_clause.block)?;
+            self.check_block(catch_clause_as_catch_clause.block)?;
         }
 
         if let Some(node_finally_block) = node_as_try_statement.finally_block {

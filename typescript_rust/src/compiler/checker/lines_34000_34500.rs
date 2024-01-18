@@ -40,7 +40,7 @@ impl TypeChecker {
         self.get_base_constraint_of_type(type_parameter)?;
         if !self.has_non_circular_type_parameter_default(type_parameter)? {
             self.error(
-                node_as_type_parameter_declaration.default.as_deref(),
+                node_as_type_parameter_declaration.default,
                 &Diagnostics::Type_parameter_0_has_a_circular_default,
                 Some(vec![self.type_to_string_(
                     type_parameter,
@@ -63,7 +63,7 @@ impl TypeChecker {
                     Some(default_type),
                     None,
                 )?,
-                node_as_type_parameter_declaration.default.as_deref(),
+                node_as_type_parameter_declaration.default,
                 Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
                 None,
                 None,
@@ -71,7 +71,7 @@ impl TypeChecker {
         }
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
-                &node_as_type_parameter_declaration.name(),
+                node_as_type_parameter_declaration.name(),
                 &Diagnostics::Type_parameter_name_cannot_be_0,
             );
         }
@@ -100,10 +100,10 @@ impl TypeChecker {
                 );
             }
             if func.ref_(self).kind() == SyntaxKind::Constructor
-                && is_identifier(&node_as_parameter_declaration.name())
+                && is_identifier(&node_as_parameter_declaration.name().ref_(self))
                 && node_as_parameter_declaration
                     .name()
-                    .as_identifier()
+                    .ref_(self).as_identifier()
                     .escaped_text
                     == "constructor"
             {
@@ -115,7 +115,7 @@ impl TypeChecker {
             }
         }
         if node_as_parameter_declaration.question_token.is_some()
-            && is_binding_pattern(node_as_parameter_declaration.maybe_name())
+            && is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self))
             && func
                 .ref_(self).maybe_as_function_like_declaration()
                 .and_then(|func| func.maybe_body())
@@ -130,10 +130,9 @@ impl TypeChecker {
         if let Some(node_name) =
             node_as_parameter_declaration
                 .maybe_name()
-                .as_ref()
-                .filter(|node_name| {
-                    is_identifier(node_name)
-                        && matches!(&*node_name.as_identifier().escaped_text, "this" | "new")
+                .filter(|&node_name| {
+                    is_identifier(&node_name.ref_(self))
+                        && matches!(&*node_name.ref_(self).as_identifier().escaped_text, "this" | "new")
                 })
         {
             if func
@@ -146,7 +145,7 @@ impl TypeChecker {
                 self.error(
                     Some(node),
                     &Diagnostics::A_0_parameter_must_be_the_first_parameter,
-                    Some(vec![node_name.as_identifier().escaped_text.clone()]),
+                    Some(vec![node_name.ref_(self).as_identifier().escaped_text.clone()]),
                 );
             }
             if matches!(
@@ -231,7 +230,7 @@ impl TypeChecker {
                     && type_predicate_parameter_index == signature.parameters().len() - 1
                 {
                     self.error(
-                        Some(&**parameter_name),
+                        Some(parameter_name),
                         &Diagnostics::A_type_predicate_cannot_reference_a_rest_parameter,
                         None,
                     );
@@ -244,7 +243,7 @@ impl TypeChecker {
                             self.get_type_of_symbol(
                                 signature.parameters()[type_predicate_parameter_index],
                             )?,
-                            node_as_type_predicate_node.type_.as_deref(),
+                            node_as_type_predicate_node.type_,
                             None,
                             Some(leading_error),
                             None,
@@ -256,8 +255,8 @@ impl TypeChecker {
             {
                 let mut has_reported_error = false;
                 for parameter in &parent.ref_(self).as_signature_declaration().parameters() {
-                    let name = parameter.as_named_declaration().name();
-                    if is_binding_pattern(Some(&*name))
+                    let name = parameter.ref_(self).as_named_declaration().name();
+                    if is_binding_pattern(Some(&name.ref_(self)))
                         && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
                             &name,
                             parameter_name,
@@ -270,7 +269,7 @@ impl TypeChecker {
                 }
                 if !has_reported_error {
                     self.error(
-                        Some(&*node_as_type_predicate_node.parameter_name),
+                        Some(node_as_type_predicate_node.parameter_name),
                         &Diagnostics::Cannot_find_parameter_0,
                         Some(vec![type_predicate.parameter_name.clone().unwrap()]),
                     );
@@ -382,7 +381,7 @@ impl TypeChecker {
             }
         }
 
-        self.check_type_parameters(Some(get_effective_type_parameter_declarations(node, self)))?;
+        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node, self)))?;
 
         let node_ref = node.ref_(self);
         let node_as_signature_declaration = node_ref.as_signature_declaration();
@@ -494,7 +493,7 @@ impl TypeChecker {
         let mut private_identifiers: HashMap<__String, DeclarationMeaning> = HashMap::new();
         for &member in &node.ref_(self).as_class_like_declaration().members() {
             if member.ref_(self).kind() == SyntaxKind::Constructor {
-                for param in &member.ref_(self).as_constructor_declaration().parameters() {
+                for &param in &member.ref_(self).as_constructor_declaration().parameters() {
                     if is_parameter_property_declaration(param, member, self)
                         && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name().refed(self))
                     {
@@ -512,11 +511,9 @@ impl TypeChecker {
                 }
             } else {
                 let is_static_member = is_static(member, self);
-                let name = member.as_named_declaration().maybe_name();
-                if name.is_none() {
+                let Some(name) = member.ref_(self).as_named_declaration().maybe_name() {
                     continue;
-                }
-                let name = name.unwrap();
+                };
                 let is_private = is_private_identifier(&name);
                 let private_static_flags = if is_private && is_static_member {
                     DeclarationMeaning::PrivateStatic
@@ -533,7 +530,7 @@ impl TypeChecker {
 
                 let member_name = /*name &&*/ get_property_name_for_property_name_node(name, self);
                 if let Some(member_name) = member_name.as_ref() {
-                    match member.kind() {
+                    match member.ref_(self).kind() {
                         SyntaxKind::GetAccessor => {
                             self.add_name(
                                 names,
@@ -663,10 +660,10 @@ impl TypeChecker {
     ) {
         let mut names: HashMap<String, bool> = HashMap::new();
         for member in &node.ref_(self).as_has_members().members() {
-            if member.kind() == SyntaxKind::PropertySignature {
+            if member.ref_(self).kind() == SyntaxKind::PropertySignature {
                 let member_name: String;
-                let name = member.as_named_declaration().name();
-                match name.kind() {
+                let name = member.ref_(self).as_named_declaration().name();
+                match name.ref_(self).kind() {
                     SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral => {
                         member_name = name.as_literal_like_node().text().clone();
                     }
@@ -681,14 +678,14 @@ impl TypeChecker {
                 if names.get(&member_name).cloned() == Some(true) {
                     self.error(
                         get_name_of_declaration(
-                            member.symbol().ref_(self).maybe_value_declaration(),
+                            member.ref_(self).symbol().ref_(self).maybe_value_declaration(),
                             self,
                         ),
                         &Diagnostics::Duplicate_identifier_0,
                         Some(vec![member_name.clone()]),
                     );
                     self.error(
-                        member.as_named_declaration().maybe_name(),
+                        member.ref_(self).as_named_declaration().maybe_name(),
                         &Diagnostics::Duplicate_identifier_0,
                         Some(vec![member_name]),
                     );
@@ -729,9 +726,8 @@ impl TypeChecker {
                 {
                     if let Some(declaration_parameters_0_type) =
                         declaration.ref_(self).as_index_signature_declaration().parameters()[0]
-                            .as_parameter_declaration()
+                            .ref_(self).as_parameter_declaration()
                             .maybe_type()
-                            .as_ref()
                     {
                         self.for_each_type(
                             self.get_type_from_type_node_(declaration_parameters_0_type)?,
@@ -795,7 +791,7 @@ impl TypeChecker {
                     && self.compiler_options.use_define_for_class_fields != Some(true)
                 {
                     self.error(
-                        Some(&**node_initializer),
+                        Some(node_initializer),
                         &Diagnostics::Static_fields_with_private_names_can_t_have_initializers_when_the_useDefineForClassFields_flag_is_not_specified_with_a_target_of_esnext_Consider_adding_the_useDefineForClassFields_flag,
                         None,
                     );

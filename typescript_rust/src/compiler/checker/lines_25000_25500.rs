@@ -625,8 +625,8 @@ impl TypeChecker {
                                     && {
                                         let container_parent_parent_parent =
                                             container_parent_parent.ref_(self).parent();
-                                        is_call_expression(&container_parent_parent_parent) &&
-                                            container_parent_parent_parent.as_call_expression().arguments.get(2).copied() == Some(container_parent_parent)
+                                        is_call_expression(&container_parent_parent_parent.ref_(self)) &&
+                                            container_parent_parent_parent.ref_(self).as_call_expression().arguments.get(2).copied() == Some(container_parent_parent)
                                                 && get_assignment_declaration_kind(container_parent_parent_parent, self) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                                     }
                             }

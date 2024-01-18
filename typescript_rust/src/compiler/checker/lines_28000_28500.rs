@@ -169,9 +169,9 @@ impl TypeChecker {
         } else {
             self.check_property_access_expression_or_qualified_name(
                 node,
-                &node_as_property_access_expression.expression,
-                self.check_non_null_expression(&node_as_property_access_expression.expression)?,
-                &node_as_property_access_expression.name,
+                node_as_property_access_expression.expression,
+                self.check_non_null_expression(node_as_property_access_expression.expression)?,
+                node_as_property_access_expression.name,
                 check_mode,
             )?
         })
@@ -185,20 +185,20 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_property_access_expression = node_ref.as_property_access_expression();
         let left_type =
-            self.check_expression(&node_as_property_access_expression.expression, None, None)?;
+            self.check_expression(node_as_property_access_expression.expression, None, None)?;
         let non_optional_type = self.get_optional_expression_type(
             left_type,
-            &node_as_property_access_expression.expression,
+            node_as_property_access_expression.expression,
         )?;
         self.propagate_optional_type_marker(
             self.check_property_access_expression_or_qualified_name(
                 node,
-                &node_as_property_access_expression.expression,
+                node_as_property_access_expression.expression,
                 self.check_non_null_type(
                     non_optional_type,
-                    &node_as_property_access_expression.expression,
+                    node_as_property_access_expression.expression,
                 )?,
-                &node_as_property_access_expression.name,
+                node_as_property_access_expression.name,
                 check_mode,
             )?,
             node,
@@ -214,20 +214,20 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_qualified_name = node_ref.as_qualified_name();
         let left_type = if is_part_of_type_query(node, self)
-            && is_this_identifier(Some(&*node_as_qualified_name.left))
+            && is_this_identifier(Some(&node_as_qualified_name.left.ref_(self)))
         {
             self.check_non_null_type(
-                self.check_this_expression(&node_as_qualified_name.left)?,
-                &node_as_qualified_name.left,
+                self.check_this_expression(node_as_qualified_name.left)?,
+                node_as_qualified_name.left,
             )?
         } else {
-            self.check_non_null_expression(&node_as_qualified_name.left)?
+            self.check_non_null_expression(node_as_qualified_name.left)?
         };
         self.check_property_access_expression_or_qualified_name(
             node,
-            &node_as_qualified_name.left,
+            node_as_qualified_name.left,
             left_type,
-            &node_as_qualified_name.right,
+            node_as_qualified_name.right,
             check_mode,
         )
     }
@@ -237,7 +237,7 @@ impl TypeChecker {
             node = node.ref_(self).parent();
         }
         is_call_or_new_expression(&node.ref_(self).parent().ref_(self))
-            && node.ref_(self).parent().as_has_expression().expression() == node
+            && node.ref_(self).parent().ref_(self).as_has_expression().expression() == node
     }
 
     pub(super) fn lookup_symbol_for_private_identifier_declaration(
@@ -765,7 +765,7 @@ impl TypeChecker {
                     self.error(
                         Some(right),
                         &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
-                        Some(vec![id_text(ref_(self).right).to_owned()]),
+                        Some(vec![id_text(&right.ref_(self)).to_owned()]),
                     );
                     return Ok(self.error_type());
                 }
@@ -945,7 +945,7 @@ impl TypeChecker {
         if self.is_in_property_initializer_or_class_static_block(node)
             && !self.is_optional_property_declaration(value_declaration)
             && !(is_access_expression(&node.ref_(self))
-                && is_access_expression(&node.ref_(self).as_has_expression().ref_(self).expression().ref_(self)))
+                && is_access_expression(&node.ref_(self).as_has_expression().expression().ref_(self)))
             && !self.is_block_scoped_name_declared_before_use(value_declaration, right)?
             && (self.compiler_options.use_define_for_class_fields == Some(true)
                 || !self.is_property_declared_in_ancestor_class(prop)?)
@@ -1205,7 +1205,6 @@ impl TypeChecker {
                         related_info = suggestion
                             .ref_(self)
                             .maybe_value_declaration()
-                            .as_ref()
                             .map(|suggestion_value_declaration| {
                                 Gc::new(
                                     create_diagnostic_for_node(

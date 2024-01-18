@@ -40,7 +40,7 @@ impl TypeChecker {
 
         for attr in &node_as_jsx_opening_like_element
             .attributes()
-            .as_jsx_attributes()
+            .ref_(self).as_jsx_attributes()
             .properties
         {
             if attr.kind() == SyntaxKind::JsxSpreadAttribute {
@@ -83,14 +83,14 @@ impl TypeChecker {
             let mut prop_name: Id<Node /*JsxTagNameExpression*/> = node;
             while {
                 let check = self
-                    .check_grammar_jsx_nested_identifier(&prop_name.as_named_declaration().name());
+                    .check_grammar_jsx_nested_identifier(prop_name.ref_(self).as_named_declaration().name());
                 if check {
                     return check;
                 }
-                prop_name = prop_name.as_has_expression().expression();
-                is_property_access_expression(&prop_name)
+                prop_name = prop_name.ref_(self).as_has_expression().expression();
+                is_property_access_expression(&prop_name.ref_(self))
             } {}
-            let check = self.check_grammar_jsx_nested_identifier(&prop_name);
+            let check = self.check_grammar_jsx_nested_identifier(prop_name);
             if check {
                 return check;
             }
@@ -119,7 +119,7 @@ impl TypeChecker {
         if let Some(node_expression) = node
             .ref_(self).as_jsx_expression()
             .expression
-            .filter(|node_expression| is_comma_sequence(node_expression, self))
+            .filter(|&node_expression| is_comma_sequence(node_expression, self))
         {
             return self.grammar_error_on_node(
                 node_expression,
@@ -233,12 +233,12 @@ impl TypeChecker {
             if is_identifier(&for_in_or_of_statement_as_for_of_statement.initializer.ref_(self))
                 && for_in_or_of_statement_as_for_of_statement
                     .initializer
-                    .as_identifier()
+                    .ref_(self).as_identifier()
                     .escaped_text
                     == "async"
             {
                 self.grammar_error_on_node(
-                    &for_in_or_of_statement_as_for_of_statement.initializer,
+                    for_in_or_of_statement_as_for_of_statement.initializer,
                     &Diagnostics::The_left_hand_side_of_a_for_of_statement_may_not_be_async,
                     None,
                 );
@@ -273,7 +273,7 @@ impl TypeChecker {
                         &*Diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement
                     };
                     return self.grammar_error_on_first_token(
-                        &variable_list.as_variable_declaration_list().declarations[1],
+                        variable_list.ref_(self).as_variable_declaration_list().declarations[1],
                         diagnostic,
                         None,
                     );
@@ -281,7 +281,7 @@ impl TypeChecker {
                 let first_declaration = declarations[0];
 
                 if first_declaration
-                    .as_has_initializer()
+                    .ref_(self).as_has_initializer()
                     .maybe_initializer()
                     .is_some()
                 {
@@ -292,7 +292,7 @@ impl TypeChecker {
                         &*Diagnostics::The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer
                     };
                     return self.grammar_error_on_node(
-                        &first_declaration.as_named_declaration().name(),
+                        first_declaration.ref_(self).as_named_declaration().name(),
                         diagnostic,
                         None,
                     );
@@ -326,16 +326,16 @@ impl TypeChecker {
         {
             if self.language_version < ScriptTarget::ES5 {
                 return self.grammar_error_on_node(
-                    &accessor_as_function_like_declaration.name(),
+                    accessor_as_function_like_declaration.name(),
                     &Diagnostics::Accessors_are_only_available_when_targeting_ECMAScript_5_and_higher,
                     None,
                 );
             }
             if self.language_version < ScriptTarget::ES2015
-                && is_private_identifier(&accessor_as_function_like_declaration.name())
+                && is_private_identifier(&accessor_as_function_like_declaration.name().ref_(self))
             {
                 return self.grammar_error_on_node(
-                    &accessor_as_function_like_declaration.name(),
+                    accessor_as_function_like_declaration.name(),
                     &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
                     None,
                 );
@@ -352,7 +352,7 @@ impl TypeChecker {
                 );
             }
         }
-        if let Some(accessor_body) = accessor_as_function_like_declaration.maybe_body().as_ref() {
+        if let Some(accessor_body) = accessor_as_function_like_declaration.maybe_body() {
             if has_syntactic_modifier(accessor, ModifierFlags::Abstract, self) {
                 return self.grammar_error_on_node(
                     accessor,
@@ -376,14 +376,14 @@ impl TypeChecker {
             .is_some()
         {
             return self.grammar_error_on_node(
-                &accessor_as_function_like_declaration.name(),
+                accessor_as_function_like_declaration.name(),
                 &Diagnostics::An_accessor_cannot_have_type_parameters,
                 None,
             );
         }
         if !self.does_accessor_have_correct_parameter_count(accessor) {
             return self.grammar_error_on_node(
-                &accessor_as_function_like_declaration.name(),
+                accessor_as_function_like_declaration.name(),
                 if accessor.ref_(self).kind() == SyntaxKind::GetAccessor {
                     &*Diagnostics::A_get_accessor_cannot_have_parameters
                 } else {
@@ -395,7 +395,7 @@ impl TypeChecker {
         if accessor.ref_(self).kind() == SyntaxKind::SetAccessor {
             if accessor_as_function_like_declaration.maybe_type().is_some() {
                 return self.grammar_error_on_node(
-                    &accessor_as_function_like_declaration.name(),
+                    accessor_as_function_like_declaration.name(),
                     &Diagnostics::A_set_accessor_cannot_have_a_return_type_annotation,
                     None,
                 );
@@ -413,7 +413,6 @@ impl TypeChecker {
                 return self.grammar_error_on_node(
                     parameter_as_parameter_declaration
                         .dot_dot_dot_token
-                        .as_ref()
                         .unwrap(),
                     &Diagnostics::A_set_accessor_cannot_have_rest_parameter,
                     None,
@@ -423,7 +422,6 @@ impl TypeChecker {
                 return self.grammar_error_on_node(
                     parameter_as_parameter_declaration
                         .question_token
-                        .as_ref()
                         .unwrap(),
                     &Diagnostics::A_set_accessor_cannot_have_an_optional_parameter,
                     None,
@@ -434,7 +432,7 @@ impl TypeChecker {
                 .is_some()
             {
                 return self.grammar_error_on_node(
-                    &accessor_as_function_like_declaration.name(),
+                    accessor_as_function_like_declaration.name(),
                     &Diagnostics::A_set_accessor_parameter_cannot_have_an_initializer,
                     None,
                 );
@@ -479,9 +477,9 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_type_operator_node = node_ref.as_type_operator_node();
         if node_as_type_operator_node.operator == SyntaxKind::UniqueKeyword {
-            if node_as_type_operator_node.type_.kind() != SyntaxKind::SymbolKeyword {
+            if node_as_type_operator_node.type_.ref_(self).kind() != SyntaxKind::SymbolKeyword {
                 return self.grammar_error_on_node(
-                    &node_as_type_operator_node.type_,
+                    node_as_type_operator_node.type_,
                     &Diagnostics::_0_expected,
                     Some(vec![token_to_string(SyntaxKind::SymbolKeyword)
                         .unwrap()
@@ -552,7 +550,7 @@ impl TypeChecker {
             }
         } else if node_as_type_operator_node.operator == SyntaxKind::ReadonlyKeyword {
             if !matches!(
-                node_as_type_operator_node.type_.kind(),
+                node_as_type_operator_node.type_.ref_(self).kind(),
                 SyntaxKind::ArrayType | SyntaxKind::TupleType
             ) {
                 return self.grammar_error_on_first_token(
@@ -607,8 +605,7 @@ impl TypeChecker {
                     return Ok(true);
                 } else if self.check_grammar_for_invalid_exclamation_token(
                     node_as_method_declaration
-                        .maybe_exclamation_token()
-                        .as_deref(),
+                        .maybe_exclamation_token(),
                     &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
                 ) {
                     return Ok(true);
@@ -629,37 +626,37 @@ impl TypeChecker {
 
         let node_ref = node.ref_(self);
         let node_as_named_declaration = node_ref.as_named_declaration();
-        if maybe_is_class_like(node.ref_(self).maybe_parent()) {
+        if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)) {
             if self.language_version < ScriptTarget::ES2015
-                && is_private_identifier(&node_as_named_declaration.name())
+                && is_private_identifier(&node_as_named_declaration.name().ref_(self))
             {
                 return Ok(self.grammar_error_on_node(
-                    &node_as_named_declaration.name(),
+                    node_as_named_declaration.name(),
                     &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
                     None,
                 ));
             }
             if node.ref_(self).flags().intersects(NodeFlags::Ambient) {
                 return self.check_grammar_for_invalid_dynamic_name(
-                    &node_as_named_declaration.name(),
+                    node_as_named_declaration.name(),
                     &Diagnostics::A_computed_property_name_in_an_ambient_context_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
                 );
             } else if node.ref_(self).kind() == SyntaxKind::MethodDeclaration
                 && node.ref_(self).as_method_declaration().maybe_body().is_none()
             {
                 return self.check_grammar_for_invalid_dynamic_name(
-                    &node_as_named_declaration.name(),
+                    node_as_named_declaration.name(),
                     &Diagnostics::A_computed_property_name_in_a_method_overload_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
                 );
             }
         } else if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::InterfaceDeclaration {
             return self.check_grammar_for_invalid_dynamic_name(
-                &node_as_named_declaration.name(),
+                node_as_named_declaration.name(),
                 &Diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
             );
         } else if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeLiteral {
             return self.check_grammar_for_invalid_dynamic_name(
-                &node_as_named_declaration.name(),
+                node_as_named_declaration.name(),
                 &Diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
             );
         }
@@ -687,8 +684,8 @@ impl TypeChecker {
                     let current_present_ref = current_present.ref_(self);
                     let current_as_labeled_statement = current_present_ref.as_labeled_statement();
                     if matches!(
-                        node_as_has_label.maybe_label().as_ref(),
-                        Some(node_label) if current_as_labeled_statement.label.as_identifier().escaped_text == node_label.as_identifier().escaped_text
+                        node_as_has_label.maybe_label(),
+                        Some(node_label) if current_as_labeled_statement.label.ref_(self).as_identifier().escaped_text == node_label.ref_(self).as_identifier().escaped_text
                     ) {
                         let is_misplaced_continue_label = node.ref_(self).kind()
                             == SyntaxKind::ContinueStatement
@@ -754,7 +751,7 @@ impl TypeChecker {
         let node_as_binding_element = node_ref.as_binding_element();
         if node_as_binding_element.dot_dot_dot_token.is_some() {
             let node_parent = node.ref_(self).parent();
-            let elements = node_parent.as_has_elements().elements();
+            let elements = node_parent.ref_(self).as_has_elements().elements();
             if node != *last(&*elements) {
                 return self.grammar_error_on_node(
                     node,
@@ -771,7 +768,7 @@ impl TypeChecker {
 
             if node_as_binding_element.property_name.is_some() {
                 return self.grammar_error_on_node(
-                    &node_as_binding_element.name(),
+                    node_as_binding_element.name(),
                     &Diagnostics::A_rest_element_cannot_have_a_property_name,
                     None,
                 );
@@ -779,10 +776,10 @@ impl TypeChecker {
         }
 
         if node_as_binding_element.dot_dot_dot_token.is_some() {
-            if let Some(node_initializer) = node_as_binding_element.maybe_initializer().as_ref() {
+            if let Some(node_initializer) = node_as_binding_element.maybe_initializer() {
                 return self.grammar_error_at_pos(
                     node,
-                    node_initializer.pos() - 1,
+                    node_initializer.ref_(self).pos() - 1,
                     1,
                     &Diagnostics::A_rest_element_cannot_have_an_initializer,
                     None,
@@ -850,7 +847,7 @@ impl TypeChecker {
                 )
                 || self.is_big_int_literal_expression(initializer));
             let is_const_or_readonly = is_declaration_readonly(node, self)
-                || is_variable_declaration(node, self) && is_var_const(node, self);
+                || is_variable_declaration(&node.ref_(self)) && is_var_const(node, self);
             if is_const_or_readonly && node.ref_(self).as_has_type().maybe_type().is_none() {
                 if is_invalid_initializer {
                     return Ok(self.grammar_error_on_node(
@@ -891,7 +888,7 @@ impl TypeChecker {
                 self.check_ambient_initializer(node)?;
             } else if node_as_variable_declaration.maybe_initializer().is_none() {
                 if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self))
-                    && !is_binding_pattern(node.maybe_parent().refed(self))
+                    && !is_binding_pattern(node.ref_(self).maybe_parent().refed(self))
                 {
                     return Ok(self.grammar_error_on_node(
                         node,
@@ -925,7 +922,6 @@ impl TypeChecker {
             return Ok(self.grammar_error_on_node(
                 node_as_variable_declaration
                     .exclamation_token
-                    .as_ref()
                     .unwrap(),
                 message,
                 None,
@@ -952,7 +948,7 @@ impl TypeChecker {
 
         Ok(check_let_const_names
             && self.check_grammar_name_in_let_or_const_declarations(
-                &node_as_variable_declaration.name(),
+                node_as_variable_declaration.name(),
             ))
     }
 }

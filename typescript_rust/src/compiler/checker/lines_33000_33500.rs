@@ -525,12 +525,12 @@ impl TypeChecker {
             let type_ = self.check_expression(span.expression, None, None)?;
             if self.maybe_type_of_kind(type_, TypeFlags::ESSymbolLike) {
                 self.error(
-                    Some(&*span.expression),
+                    Some(span.expression),
                     &Diagnostics::Implicit_conversion_of_a_symbol_to_a_string_will_fail_at_runtime_Consider_wrapping_this_expression_in_String,
                     None,
                 );
             }
-            texts.push(span.literal.as_literal_like_node().text());
+            texts.push(span.literal.ref_(self).as_literal_like_node().text());
             types.push(
                 if self.is_type_assignable_to(type_, self.template_constraint_type())? {
                     type_

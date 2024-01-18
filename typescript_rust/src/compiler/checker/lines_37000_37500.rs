@@ -257,7 +257,7 @@ impl TypeChecker {
                 is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self))
             }) {
                 self.error(
-                    variable.as_variable_declaration().maybe_name(),
+                    variable.ref_(self).as_variable_declaration().maybe_name(),
                     &Diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern,
                     None,
                 );
@@ -832,7 +832,7 @@ impl TypeChecker {
                 error_node,
             )?;
             if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
-                if let Some(error_node) = error_node.as_ref() {
+                if let Some(error_node) = error_node {
                     self.report_type_not_iterable_error(
                         error_node,
                         type_,

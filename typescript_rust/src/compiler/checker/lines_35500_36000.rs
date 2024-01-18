@@ -410,7 +410,7 @@ impl TypeChecker {
                 SyntaxKind::ClassDeclaration => {
                     let constructor = get_first_constructor_with_body(node, self);
                     if let Some(constructor) = constructor {
-                        for parameter in &constructor.ref_(self).as_signature_declaration().parameters() {
+                        for &parameter in &constructor.ref_(self).as_signature_declaration().parameters() {
                             self.mark_decorator_medata_data_type_node_as_referenced(
                                 self.get_parameter_type_node_for_decorator_check(parameter),
                             )?;
@@ -439,7 +439,7 @@ impl TypeChecker {
                     )?;
                 }
                 SyntaxKind::MethodDeclaration => {
-                    for parameter in &node.ref_(self).as_function_like_declaration().parameters() {
+                    for &parameter in &node.ref_(self).as_function_like_declaration().parameters() {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
                         )?;
@@ -461,7 +461,7 @@ impl TypeChecker {
                         self.get_parameter_type_node_for_decorator_check(node),
                     )?;
                     let containing_signature = node.ref_(self).parent();
-                    for parameter in &containing_signature.as_signature_declaration().parameters() {
+                    for parameter in &containing_signature.ref_(self).as_signature_declaration().parameters() {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
                         )?;
@@ -513,13 +513,13 @@ impl TypeChecker {
             .is_none()
         {
             self.error(
-                node_name.as_deref(),
+                node_name,
                 &Diagnostics::JSDoc_typedef_tag_should_either_have_a_type_annotation_or_be_followed_by_property_or_member_tags,
                 None,
             );
         }
 
-        if let Some(node_name) = node_name.as_ref() {
+        if let Some(node_name) = node_name {
             self.check_type_name_is_reserved(node_name, &Diagnostics::Type_alias_name_cannot_be_0);
         }
         self.check_source_element(node_as_jsdoc_type_like_tag.maybe_type_expression())?;
@@ -574,21 +574,21 @@ impl TypeChecker {
                     return Ok(());
                 }
                 if !self.contains_arguments_reference(decl)? {
-                    if is_qualified_name(&node_as_jsdoc_property_like_tag.name) {
+                    if is_qualified_name(&node_as_jsdoc_property_like_tag.name.ref_(self)) {
                         self.error(
-                            Some(&*node_as_jsdoc_property_like_tag.name),
+                            Some(node_as_jsdoc_property_like_tag.name),
                             &Diagnostics::Qualified_name_0_is_not_allowed_without_a_leading_param_object_1,
                             Some(vec![
                                 entity_name_to_string(node_as_jsdoc_property_like_tag.name, self).into_owned(),
-                                entity_name_to_string(node_as_jsdoc_property_like_tag.name.as_qualified_name().left, self).into_owned(),
+                                entity_name_to_string(node_as_jsdoc_property_like_tag.name.ref_(self).as_qualified_name().left, self).into_owned(),
                             ])
                         );
                     } else {
                         self.error(
-                            Some(&*node_as_jsdoc_property_like_tag.name),
+                            Some(node_as_jsdoc_property_like_tag.name),
                             &Diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name,
                             Some(vec![
-                                id_text(&node_as_jsdoc_property_like_tag.name).to_owned()
+                                id_text(&node_as_jsdoc_property_like_tag.name.ref_(self)).to_owned()
                             ])
                         );
                     }
@@ -597,8 +597,8 @@ impl TypeChecker {
                 ) == Some(node)
                 && matches!(
                     node_as_jsdoc_property_like_tag.type_expression.as_ref().map(|node_type_expression| {
-                        node_type_expression.as_jsdoc_type_expression().type_.clone()
-                    }).as_ref(),
+                        node_type_expression.ref_(self).as_jsdoc_type_expression().type_
+                    }),
                     Some(node_type_expression_type) if !self.is_array_type(
                         self.get_type_from_type_node_(
                             node_type_expression_type
@@ -606,14 +606,14 @@ impl TypeChecker {
                     )
                 ) {
                     self.error(
-                        Some(&*node_as_jsdoc_property_like_tag.name),
+                        Some(node_as_jsdoc_property_like_tag.name),
                         &Diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name_It_would_match_arguments_if_it_had_an_array_type,
                         Some(vec![
                             id_text(
-                                &*if node_as_jsdoc_property_like_tag.name.kind() == SyntaxKind::QualifiedName {
-                                    node_as_jsdoc_property_like_tag.name.as_qualified_name().right.clone()
+                                &*if node_as_jsdoc_property_like_tag.name.ref_(self).kind() == SyntaxKind::QualifiedName {
+                                    node_as_jsdoc_property_like_tag.name.ref_(self).as_qualified_name().right
                                 } else {
-                                    node_as_jsdoc_property_like_tag.name.clone()
+                                    node_as_jsdoc_property_like_tag.name
                                 }
                             ).to_owned()
                         ])

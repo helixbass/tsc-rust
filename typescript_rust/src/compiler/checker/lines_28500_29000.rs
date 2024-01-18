@@ -27,6 +27,7 @@ use crate::{
     NodeFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrRcNode, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionOrIntersectionTypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -151,7 +152,7 @@ impl TypeChecker {
                 props_ = Some(Either::Right(
                     try_filter(&props.clone().collect_vec(), |&prop: &Id<Symbol>| {
                         self.is_valid_property_access_for_completions_(
-                            &parent,
+                            parent,
                             containing_type,
                             prop,
                         )
@@ -434,7 +435,7 @@ impl TypeChecker {
             return;
         }
         if matches!(
-            node_for_check_write_only.as_ref(),
+            node_for_check_write_only,
             Some(node_for_check_write_only) if is_write_only_access(node_for_check_write_only, self)
         ) && !prop.ref_(self).flags().intersects(SymbolFlags::SetAccessor)
         {
@@ -496,11 +497,11 @@ impl TypeChecker {
                 let node_as_property_access_expression = node_ref.as_property_access_expression();
                 self.is_valid_property_access_with_type(
                     node,
-                    node_as_property_access_expression.expression.kind()
+                    node_as_property_access_expression.expression.ref_(self).kind()
                         == SyntaxKind::SuperKeyword,
                     property_name,
                     self.get_widened_type(self.check_expression(
-                        &node_as_property_access_expression.expression,
+                        node_as_property_access_expression.expression,
                         None,
                         None,
                     )?)?,
@@ -611,12 +612,12 @@ impl TypeChecker {
         let initializer = node.ref_(self).as_for_in_statement().initializer;
         if initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
             let variable = initializer
-                .as_variable_declaration_list()
+                .ref_(self).as_variable_declaration_list()
                 .declarations
                 .get(0)
-                .cloned();
-            if let Some(variable) = variable.as_ref().filter(|variable| {
-                !is_binding_pattern(variable.as_variable_declaration().maybe_name())
+                .copied();
+            if let Some(variable) = variable.filter(|variable| {
+                !is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self))
             }) {
                 return self.get_symbol_of_node(variable);
             }
@@ -644,9 +645,10 @@ impl TypeChecker {
                 let mut child = expr;
                 let mut node = expr.ref_(self).maybe_parent();
                 while let Some(node_present) = node {
-                    if node_present.kind() == SyntaxKind::ForInStatement && {
-                        let node_as_for_in_statement = node_present.as_for_in_statement();
-                        Gc::ptr_eq(&child, &node_as_for_in_statement.statement)
+                    if node_present.ref_(self).kind() == SyntaxKind::ForInStatement && {
+                        let node_present_ref = node_present.ref_(self);
+                        let node_as_for_in_statement = node_present_ref.as_for_in_statement();
+                        child == node_as_for_in_statement.statement
                             && matches!(
                                 self.get_for_in_variable_symbol(node_present)?,
                                 Some(for_in_variable_symbol) if for_in_variable_symbol == symbol
@@ -657,8 +659,8 @@ impl TypeChecker {
                     } {
                         return Ok(true);
                     }
-                    child = node_present.clone();
-                    node = node_present.maybe_parent();
+                    child = node_present;
+                    node = node_present.ref_(self).maybe_parent();
                 }
             }
         }
@@ -689,17 +691,17 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_element_access_expression = node_ref.as_element_access_expression();
         let expr_type =
-            self.check_expression(&node_as_element_access_expression.expression, None, None)?;
+            self.check_expression(node_as_element_access_expression.expression, None, None)?;
         let non_optional_type = self.get_optional_expression_type(
             expr_type,
-            &node_as_element_access_expression.expression,
+            node_as_element_access_expression.expression,
         )?;
         self.propagate_optional_type_marker(
             self.check_element_access_expression(
                 node,
                 self.check_non_null_type(
                     non_optional_type,
-                    &node_as_element_access_expression.expression,
+                    node_as_element_access_expression.expression,
                 )?,
                 check_mode,
             )?,
@@ -733,7 +735,7 @@ impl TypeChecker {
         if self.is_const_enum_object_type(object_type) && !is_string_literal_like(&index_expression.ref_(self))
         {
             self.error(
-                Some(&**index_expression),
+                Some(index_expression),
                 &Diagnostics::A_const_enum_member_can_only_be_accessed_using_a_string_literal,
                 None,
             );
