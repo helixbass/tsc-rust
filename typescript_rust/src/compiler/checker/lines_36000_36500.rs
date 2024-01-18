@@ -970,7 +970,7 @@ impl TypeChecker {
         }
         let node_ref = node.ref_(self);
         let node_as_has_statements = node_ref.as_has_statements();
-        if is_function_or_module_block(node) {
+        if is_function_or_module_block(node, self) {
             let save_flow_analysis_disabled = self.flow_analysis_disabled();
             try_for_each(
                 &node_as_has_statements.statements(),
@@ -989,7 +989,7 @@ impl TypeChecker {
                 },
             )?;
         }
-        if node.maybe_locals().is_some() {
+        if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
 
@@ -1002,26 +1002,26 @@ impl TypeChecker {
     ) {
         if self.language_version >= ScriptTarget::ES2015
             || !has_rest_parameter(node, self)
-            || node.flags().intersects(NodeFlags::Ambient)
+            || node.ref_(self).flags().intersects(NodeFlags::Ambient)
             || node_is_missing(
-                node.maybe_as_function_like_declaration()
-                    .and_then(|node| node.maybe_body()),
+                &node.ref_(self).maybe_as_function_like_declaration()
+                    .and_then(|node| node.maybe_body()).ref_(self),
             )
         {
             return;
         }
 
         for_each(
-            &node.as_signature_declaration().parameters(),
-            |p: &Id<Node>, _| -> Option<()> {
+            &node.ref_(self).as_signature_declaration().parameters(),
+            |&p: &Id<Node>, _| -> Option<()> {
                 if matches!(
-                    p.as_parameter_declaration().maybe_name().as_ref(),
-                    Some(p_name) if !is_binding_pattern(Some(&**p_name)) &&
-                        &p_name.as_identifier().escaped_text == self.arguments_symbol().ref_(self).escaped_name()
+                    p.ref_(self).as_parameter_declaration().maybe_name(),
+                    Some(p_name) if !is_binding_pattern(Some(&p_name.ref_(self))) &&
+                        &p_name.ref_(self).as_identifier().escaped_text == self.arguments_symbol().ref_(self).escaped_name()
                 ) {
                     self.error_skipped_on(
                         "noEmit".to_owned(),
-                        Some(&**p),
+                        Some(p),
                         &Diagnostics::Duplicate_identifier_arguments_Compiler_uses_arguments_to_initialize_rest_parameters,
                         None,
                     );
@@ -1037,17 +1037,15 @@ impl TypeChecker {
         identifier: Option<Id<Node> /*Identifier*/>,
         name: &str,
     ) -> bool {
-        if identifier.is_none() {
+        let Some(identifier) = identifier else {
             return false;
-        }
-        let identifier = identifier.unwrap();
-        let identifier: Id<Node> = identifier.borrow();
-        if identifier.as_identifier().escaped_text != name {
+        };
+        if identifier.ref_(self).as_identifier().escaped_text != name {
             return false;
         }
 
         if matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertySignature
                 | SyntaxKind::MethodDeclaration
@@ -1059,11 +1057,11 @@ impl TypeChecker {
             return false;
         }
 
-        if node.flags().intersects(NodeFlags::Ambient) {
+        if node.ref_(self).flags().intersects(NodeFlags::Ambient) {
             return false;
         }
 
-        if is_import_clause(node) || is_import_equals_declaration(node) || is_import_specifier(node)
+        if is_import_clause(&node.ref_(self)) || is_import_equals_declaration(&node.ref_(self)) || is_import_specifier(&node.ref_(self))
         {
             if is_type_only_import_or_export_declaration(node, self) {
                 return false;
@@ -1071,8 +1069,8 @@ impl TypeChecker {
         }
 
         let root = get_root_declaration(node, self);
-        if is_parameter(&root)
-            && node_is_missing(root.parent().as_function_like_declaration().maybe_body())
+        if is_parameter(&&.ref_(selfroot)
+            && node_is_missing(&root.ref_(self).parent().ref_(self).as_function_like_declaration().maybe_body().ref_(self))
         {
             return false;
         }

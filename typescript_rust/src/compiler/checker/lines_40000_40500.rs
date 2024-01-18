@@ -16,6 +16,7 @@ use crate::{
     CancellationTokenDebuggable, Diagnostic, Diagnostics, HasStatementsInterface,
     ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
+    InArena,
 };
 
 impl TypeChecker {
@@ -23,11 +24,12 @@ impl TypeChecker {
         matches!(
             declarations,
             Some(declarations) if declarations.len() > 1 &&
-                declarations.into_iter().all(|d| is_in_js_file(Some(&**d)) &&
-                    is_access_expression(d) && {
-                        let d_as_has_expression = d.as_has_expression();
-                        is_exports_identifier(&d_as_has_expression.expression()) ||
-                        is_module_exports_access_expression(&d_as_has_expression.expression())
+                declarations.into_iter().all(|d| is_in_js_file(Some(&d.ref_(self))) &&
+                    is_access_expression(&d.ref_(self)) && {
+                        let d._ref = d..ref_(self);
+                        let d_as_has_expression = d_ref.as_has_expression();
+                        is_exports_identifier(&d_as_has_expression.ref_(self).expression().ref_(self)) ||
+                        is_module_exports_access_expression(&d_as_has_expression.ref_(self).expression().ref_(self))
                     }
                 )
         )
@@ -35,9 +37,8 @@ impl TypeChecker {
 
     pub(super) fn check_source_element(&self, node: Option<Id<Node>>) -> io::Result<()> {
         if let Some(node) = node {
-            let node = node.borrow();
             let save_current_node = self.maybe_current_node();
-            self.set_current_node(Some(node.node_wrapper()));
+            self.set_current_node(Some(node));
             self.set_instantiation_count(0);
             self.check_source_element_worker(node)?;
             self.set_current_node(save_current_node);
@@ -47,13 +48,13 @@ impl TypeChecker {
     }
 
     pub(super) fn check_source_element_worker(&self, node: Id<Node>) -> io::Result<()> {
-        if is_in_js_file(Some(node)) {
+        if is_in_js_file(Some(&node.ref_(self))) {
             try_maybe_for_each(
-                node.maybe_js_doc().as_ref(),
+                node.ref_(self).maybe_js_doc().as_ref(),
                 |jsdoc: &Id<Node>, _| -> io::Result<Option<()>> {
-                    let tags = jsdoc.as_jsdoc().tags.as_ref();
-                    try_maybe_for_each(tags, |tag: &Id<Node>, _| -> io::Result<Option<()>> {
-                        self.check_source_element(Some(&**tag))?;
+                    let tags = jsdoc.ref_(self).as_jsdoc().tags.as_ref();
+                    try_maybe_for_each(tags, |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
+                        self.check_source_element(Some(tag))?;
                         Ok(None)
                     })?;
                     Ok(None)
@@ -61,7 +62,7 @@ impl TypeChecker {
             )?;
         }
 
-        let kind = node.kind();
+        let kind = node.ref_(self).kind();
         if let Some(cancellation_token) = self.maybe_cancellation_token() {
             if matches!(
                 kind,
@@ -76,7 +77,7 @@ impl TypeChecker {
         if kind >= SyntaxKind::FirstStatement
             && kind <= SyntaxKind::LastStatement
             && matches!(
-                node.maybe_flow_node().as_ref(),
+                node.ref_(self).maybe_flow_node().as_ref(),
                 Some(node_flow_node) if !self.is_reachable_flow_node(node_flow_node.clone())?
             )
         {
@@ -142,7 +143,7 @@ impl TypeChecker {
                 self.check_union_or_intersection_type(node)?;
             }
             SyntaxKind::ParenthesizedType | SyntaxKind::OptionalType | SyntaxKind::RestType => {
-                self.check_source_element(node.as_has_type().maybe_type())?;
+                self.check_source_element(node.ref_(self).as_has_type().maybe_type())?;
             }
             SyntaxKind::ThisType => {
                 self.check_this_type(node)?;
@@ -192,7 +193,7 @@ impl TypeChecker {
                 self.check_jsdoc_function_type(node)?;
                 self.check_jsdoc_type_is_in_js_file(node);
                 try_for_each_child(
-                    node,
+                    &node.ref_(self),
                     |child| self.check_source_element(Some(child)),
                     Option::<fn(&NodeArray) -> io::Result<()>>::None,
                 )?;
@@ -204,7 +205,7 @@ impl TypeChecker {
             | SyntaxKind::JSDocTypeLiteral => {
                 self.check_jsdoc_type_is_in_js_file(node);
                 try_for_each_child(
-                    node,
+                    &node.ref_(self),
                     |child| self.check_source_element(Some(child)),
                     Option::<fn(&NodeArray) -> io::Result<()>>::None,
                 )?;
@@ -213,7 +214,7 @@ impl TypeChecker {
                 self.check_jsdoc_variadic_type(node)?;
             }
             SyntaxKind::JSDocTypeExpression => {
-                self.check_source_element(Some(&*node.as_jsdoc_type_expression().type_))?;
+                self.check_source_element(Some(node.ref_(self).as_jsdoc_type_expression().type_))?;
             }
             SyntaxKind::JSDocPublicTag
             | SyntaxKind::JSDocProtectedTag
@@ -323,7 +324,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_jsdoc_type_is_in_js_file(&self, node: Id<Node>) {
-        if !is_in_js_file(Some(node)) {
+        if !is_in_js_file(Some(&node.ref_(self))) {
             self.grammar_error_on_node(
                 node,
                 &Diagnostics::JSDoc_types_can_only_be_used_inside_documentation_comments,
@@ -337,11 +338,12 @@ impl TypeChecker {
         node: Id<Node>, /*JSDocVariadicType*/
     ) -> io::Result<()> {
         self.check_jsdoc_type_is_in_js_file(node);
-        let node_as_base_jsdoc_unary_type = node.as_base_jsdoc_unary_type();
-        self.check_source_element(node_as_base_jsdoc_unary_type.type_.as_deref())?;
+        let node_ref = node.ref_(self);
+        let node_as_base_jsdoc_unary_type = node_ref.as_base_jsdoc_unary_type();
+        self.check_source_element(node_as_base_jsdoc_unary_type.type_)?;
 
-        let ref parent = node.parent();
-        if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
+        let parent = node.ref_(self).parent();
+        if is_parameter(&parent.ref_(self)) && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self)) {
             if !Gc::ptr_eq(
                 last(&parent.parent().as_jsdoc_function_type().parameters()),
                 parent,
@@ -363,8 +365,8 @@ impl TypeChecker {
             );
         }
 
-        let ref param_tag = node.parent().parent();
-        if !is_jsdoc_parameter_tag(param_tag) {
+        let param_tag = node.ref_(self).parent().ref_(self).parent();
+        if !is_jsdoc_parameter_tag(&param_tag.ref_(self)) {
             self.error(
                 Some(node),
                 &Diagnostics::JSDoc_may_only_appear_in_the_last_parameter_of_a_signature,
@@ -373,17 +375,15 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let param = get_parameter_symbol_from_jsdoc(param_tag, self);
-        if param.is_none() {
+        let Some(param) = get_parameter_symbol_from_jsdoc(param_tag, self) else {
             return Ok(());
-        }
-        let param = param.unwrap();
+        };
 
-        let host = get_host_signature_from_jsdoc(param_tag);
-        if match host.as_ref() {
+        let host = get_host_signature_from_jsdoc(param_tag, self);
+        if match host {
             None => true,
             Some(host) => !matches!(
-                last(&host.as_signature_declaration().parameters()).maybe_symbol(),
+                last(&host.ref_(self).as_signature_declaration().parameters()).ref_(self).maybe_symbol(),
                 Some(symbol) if symbol == param
             ),
         } {
@@ -402,36 +402,35 @@ impl TypeChecker {
         node: Id<Node>, /*JSDocVariadicType*/
     ) -> io::Result<Id<Type>> {
         let type_ =
-            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
-        let ref parent = node.parent();
-        let ref param_tag = node.parent().parent();
-        if is_jsdoc_type_expression(&node.parent()) && is_jsdoc_parameter_tag(param_tag) {
-            let host = get_host_signature_from_jsdoc(param_tag);
-            let is_callback_tag = is_jsdoc_callback_tag(&param_tag.parent().parent());
+            self.get_type_from_type_node_(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap())?;
+        let parent = node.ref_(self).parent();
+        let param_tag = node.ref_(self).parent().ref_(self).parent();
+        if is_jsdoc_type_expression(&node.ref_(self).parent().ref_(self)) && is_jsdoc_parameter_tag(&param_tag.ref_(self)) {
+            let host = get_host_signature_from_jsdoc(param_tag, self);
+            let is_callback_tag = is_jsdoc_callback_tag(&param_tag.ref_(self).parent().ref_(self).parent().ref_(self));
             if host.is_some() || is_callback_tag {
                 let last_param_declaration = if is_callback_tag {
                     last_or_undefined(
                         &*param_tag
-                            .parent()
-                            .parent()
-                            .as_jsdoc_callback_tag()
+                            .ref_(self).parent()
+                            .ref_(self).parent()
+                            .ref_(self).as_jsdoc_callback_tag()
                             .type_expression
-                            .as_jsdoc_signature()
+                            .ref_(self).as_jsdoc_signature()
                             .parameters,
                     )
-                    .cloned()
+                    .copied()
                 } else {
                     last_or_undefined(
                         &**host
-                            .as_ref()
                             .unwrap()
-                            .as_signature_declaration()
+                            .ref_(self).as_signature_declaration()
                             .parameters(),
                     )
-                    .cloned()
+                    .copied()
                 };
                 let symbol = get_parameter_symbol_from_jsdoc(param_tag, self);
-                if match last_param_declaration.as_ref() {
+                if match last_param_declaration {
                     None => true,
                     Some(last_param_declaration) => {
                         matches!(
@@ -454,7 +453,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_node_deferred(&self, node: Id<Node>) {
-        let ref enclosing_file = get_source_file_of_node(node, self);
+        let enclosing_file = get_source_file_of_node(node, self);
         let links = self.get_node_links(enclosing_file);
         if !(*links)
             .borrow()
@@ -465,12 +464,12 @@ impl TypeChecker {
             if links.deferred_nodes.is_none() {
                 links.deferred_nodes = Some(IndexMap::new());
             }
-            let id = get_node_id(node);
+            let id = get_node_id(&node.ref_(self));
             links
                 .deferred_nodes
                 .as_mut()
                 .unwrap()
-                .insert(id, node.node_wrapper());
+                .insert(id, node);
         }
     }
 
@@ -489,7 +488,7 @@ impl TypeChecker {
                 let value = (*links).borrow().deferred_nodes.as_ref().unwrap().len();
                 value
             } {
-                self.check_deferred_node(&*{
+                self.check_deferred_node({
                     let value = (*links)
                         .borrow()
                         .deferred_nodes
@@ -511,9 +510,9 @@ impl TypeChecker {
     pub(super) fn check_deferred_node(&self, node: Id<Node>) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Check, "checkDeferredNode", { kind: node.kind, pos: node.pos, end: node.end });
         let save_current_node = self.maybe_current_node();
-        self.set_current_node(Some(node.node_wrapper()));
+        self.set_current_node(Some(node));
         self.set_instantiation_count(0);
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::CallExpression
             | SyntaxKind::NewExpression
             | SyntaxKind::TaggedTemplateExpression
@@ -551,7 +550,7 @@ impl TypeChecker {
         if is_logging {
             println!(
                 "checking source file: {}",
-                node.as_source_file().file_name()
+                node.ref_(self).as_source_file().file_name()
             );
         }
         // tracing?.push(tracing.Phase.Check, "checkSourceFile", { path: node.path }, /*separateBeginAndEnd*/ true);
@@ -580,7 +579,7 @@ impl TypeChecker {
         source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Id<Node /*PotentiallyUnusedIdentifier*/>> {
         self.all_potentially_unused_identifiers()
-            .get(&source_file.as_source_file().path())
+            .get(&source_file.ref_(self).as_source_file().path())
             .cloned()
             .unwrap_or_else(|| vec![])
     }
@@ -595,7 +594,7 @@ impl TypeChecker {
             .flags
             .intersects(NodeCheckFlags::TypeChecked)
         {
-            if skip_type_checking(node, &self.compiler_options, |file_name| {
+            if skip_type_checking(&node.ref_(self), &self.compiler_options, |file_name| {
                 TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
             }) {
                 return Ok(());
@@ -608,7 +607,8 @@ impl TypeChecker {
             clear(&mut self.potential_weak_map_set_collisions());
             clear(&mut self.potential_reflect_collisions());
 
-            let node_as_source_file = node.as_source_file();
+            let node_ref = node.ref_(self);
+            let node_as_source_file = node_ref.as_source_file();
             try_for_each(
                 &node_as_source_file.statements(),
                 |statement, _| -> io::Result<_> {
@@ -620,7 +620,7 @@ impl TypeChecker {
 
             self.check_deferred_nodes(node)?;
 
-            if is_external_or_common_js_module(node) {
+            if is_external_or_common_js_module(&node.ref_(self)) {
                 self.register_for_unused_identifiers_check(node);
             }
 
@@ -634,7 +634,7 @@ impl TypeChecker {
                         if !contains_parse_error(containing_node, self)
                             && self.unused_is_error(
                                 kind,
-                                containing_node.flags().intersects(NodeFlags::Ambient),
+                                containing_node.ref_(self).flags().intersects(NodeFlags::Ambient),
                             )
                         {
                             self.diagnostics().add(diag);
@@ -646,12 +646,12 @@ impl TypeChecker {
             if self.compiler_options.imports_not_used_as_values
                 == Some(ImportsNotUsedAsValues::Error)
                 && !node_as_source_file.is_declaration_file()
-                && is_external_module(node)
+                && is_external_module(&node.ref_(self))
             {
                 self.check_imports_for_type_only_conversion(node)?;
             }
 
-            if is_external_or_common_js_module(node) {
+            if is_external_or_common_js_module(&node.ref_(self)) {
                 self.check_external_module_exports(node)?;
             }
 
@@ -660,7 +660,7 @@ impl TypeChecker {
                 if !potential_this_collisions.is_empty() {
                     for_each(
                         &*potential_this_collisions,
-                        |potential_this_collision: &Id<Node>, _| -> Option<()> {
+                        |&potential_this_collision: &Id<Node>, _| -> Option<()> {
                             self.check_if_this_is_captured_in_enclosing_scope(
                                 potential_this_collision,
                             );
@@ -676,7 +676,7 @@ impl TypeChecker {
                 if !potential_new_target_collisions.is_empty() {
                     for_each(
                         &*potential_new_target_collisions,
-                        |potential_new_target_collision: &Id<Node>, _| -> Option<()> {
+                        |&potential_new_target_collision: &Id<Node>, _| -> Option<()> {
                             self.check_if_new_target_is_captured_in_enclosing_scope(
                                 potential_new_target_collision,
                             );
@@ -693,7 +693,7 @@ impl TypeChecker {
                 if !potential_weak_map_set_collisions.is_empty() {
                     for_each(
                         &*potential_weak_map_set_collisions,
-                        |potential_weak_map_set_collision: &Id<Node>, _| -> Option<()> {
+                        |&potential_weak_map_set_collision: &Id<Node>, _| -> Option<()> {
                             self.check_weak_map_set_collision(potential_weak_map_set_collision);
                             None
                         },
@@ -707,7 +707,7 @@ impl TypeChecker {
                 if !potential_reflect_collisions.is_empty() {
                     for_each(
                         &*potential_reflect_collisions,
-                        |potential_reflect_collision: &Id<Node>, _| -> Option<()> {
+                        |&potential_reflect_collision: &Id<Node>, _| -> Option<()> {
                             self.check_reflect_collision(potential_reflect_collision);
                             None
                         },
@@ -743,7 +743,6 @@ impl TypeChecker {
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
         self.throw_if_non_diagnostics_producing();
         if let Some(source_file) = source_file {
-            let source_file = source_file.borrow();
             let previous_global_diagnostics = self.diagnostics().get_global_diagnostics();
             let previous_global_diagnostics_size = previous_global_diagnostics.len();
 
@@ -751,7 +750,7 @@ impl TypeChecker {
 
             let semantic_diagnostics = self
                 .diagnostics()
-                .get_diagnostics(Some(&source_file.as_source_file().file_name()));
+                .get_diagnostics(Some(&source_file.ref_(self).as_source_file().file_name()));
             let current_global_diagnostics = self.diagnostics().get_global_diagnostics();
             if current_global_diagnostics.len() != previous_global_diagnostics.len() {
                 let deferred_global_diagnostics = relative_complement(
@@ -775,7 +774,7 @@ impl TypeChecker {
 
         try_for_each(
             &*self.host.get_source_files(),
-            |source_file: &Id<Node>, _| -> io::Result<Option<()>> {
+            |&source_file: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_file(source_file)?;
                 Ok(None)
             },
