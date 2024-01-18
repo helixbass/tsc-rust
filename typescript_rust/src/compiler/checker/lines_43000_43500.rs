@@ -64,8 +64,8 @@ impl TypeChecker {
             }
 
             if let Some(initializer) = initializer.filter(|initializer| {
-                initializer.kind() == SyntaxKind::JsxExpression
-                    && initializer.as_jsx_expression().expression.is_none()
+                initializer.ref_(self).kind() == SyntaxKind::JsxExpression
+                    && initializer.ref_(self).as_jsx_expression().expression.is_none()
             }) {
                 return self.grammar_error_on_node(
                     initializer,

@@ -1794,7 +1794,7 @@ impl TypeChecker {
                             && meaning.intersects(SymbolFlags::Class)
                         {
                             let class_name = location_unwrapped.ref_(self).as_class_expression().maybe_name();
-                            if matches!(class_name, Some(class_name) if name == &class_name.as_identifier().escaped_text)
+                            if matches!(class_name, Some(class_name) if name == &class_name.ref_(self).as_identifier().escaped_text)
                             {
                                 result = Some(location_unwrapped.ref_(self).symbol());
                                 break;
@@ -1810,14 +1810,14 @@ impl TypeChecker {
                                 .expression,
                         )
                     && matches!(
-                        location_unwrapped.ref_(self).parent().maybe_as_heritage_clause(),
+                        location_unwrapped.ref_(self).parent().ref_(self).maybe_as_heritage_clause(),
                         Some(location_parent) if location_parent.token == SyntaxKind::ExtendsKeyword
                     ) {
                         let container = location_unwrapped.ref_(self).parent().ref_(self).parent();
                         if is_class_like(&container.ref_(self)) {
                             result = lookup(
                                 &(*self
-                                    .get_symbol_of_node(&container)?
+                                    .get_symbol_of_node(container)?
                                     .unwrap()
                                     .ref_(self)
                                     .members())
@@ -1879,7 +1879,7 @@ impl TypeChecker {
                     if meaning.intersects(SymbolFlags::Function) {
                         let function_name =
                             location_unwrapped.ref_(self).as_function_expression().maybe_name();
-                        if matches!(function_name, Some(function_name) if name == &function_name.as_identifier().escaped_text)
+                        if matches!(function_name, Some(function_name) if name == &function_name.ref_(self).as_identifier().escaped_text)
                         {
                             result = Some(location_unwrapped.ref_(self).symbol());
                             break;
@@ -1953,7 +1953,7 @@ impl TypeChecker {
                             parameter_name,
                             Some(parameter_name) if name == &parameter_name.ref_(self).as_identifier().escaped_text
                         ) {
-                            result = Some(location_type_parameter.symbol());
+                            result = Some(location_type_parameter.ref_(self).symbol());
                             break;
                         }
                     }

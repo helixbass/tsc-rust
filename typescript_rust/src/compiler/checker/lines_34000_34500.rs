@@ -514,7 +514,7 @@ impl TypeChecker {
                 let Some(name) = member.ref_(self).as_named_declaration().maybe_name() else {
                     continue;
                 };
-                let is_private = is_private_identifier(&name);
+                let is_private = is_private_identifier(&name.ref_(self));
                 let private_static_flags = if is_private && is_static_member {
                     DeclarationMeaning::PrivateStatic
                 } else {
@@ -534,7 +534,7 @@ impl TypeChecker {
                         SyntaxKind::GetAccessor => {
                             self.add_name(
                                 names,
-                                &name,
+                                name,
                                 member_name,
                                 DeclarationMeaning::GetAccessor | private_static_flags,
                             );
@@ -543,7 +543,7 @@ impl TypeChecker {
                         SyntaxKind::SetAccessor => {
                             self.add_name(
                                 names,
-                                &name,
+                                name,
                                 member_name,
                                 DeclarationMeaning::SetAccessor | private_static_flags,
                             );
@@ -552,7 +552,7 @@ impl TypeChecker {
                         SyntaxKind::PropertyDeclaration => {
                             self.add_name(
                                 names,
-                                &name,
+                                name,
                                 member_name,
                                 DeclarationMeaning::GetOrSetAccessor | private_static_flags,
                             );
@@ -561,7 +561,7 @@ impl TypeChecker {
                         SyntaxKind::MethodDeclaration => {
                             self.add_name(
                                 names,
-                                &name,
+                                name,
                                 member_name,
                                 DeclarationMeaning::Method | private_static_flags,
                             );
