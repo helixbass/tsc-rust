@@ -30,7 +30,7 @@ pub struct SymbolAccessibilityDiagnostic {
     pub type_name: Option<Id<Node /*DeclarationName | QualifiedName*/>>,
 }
 
-pub fn can_produce_diagnostics(node: Id<Node>) -> bool {
+pub fn can_produce_diagnostics(node: &Node) -> bool {
     is_variable_declaration(node)
         || is_property_declaration(node)
         || is_property_signature(node)

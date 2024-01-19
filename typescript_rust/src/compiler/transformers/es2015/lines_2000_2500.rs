@@ -82,7 +82,8 @@ impl TransformES2015 {
         node: Id<Node>, /*BinaryExpression*/
         expression_result_is_unused: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_binary_expression = node.as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         if is_destructuring_assignment(node, self) {
             return try_flatten_destructuring_assignment(
                 node,

@@ -34,6 +34,7 @@ use crate::{
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
     StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback,
+    HasArena,
 };
 
 impl Program {
@@ -1631,6 +1632,12 @@ impl ResolveModuleNameResolutionHost for ProgramEmitHost {
 
     fn get_current_directory(&self) -> String {
         self.program.current_directory().clone()
+    }
+}
+
+impl HasArena for ProgramEmitHost {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

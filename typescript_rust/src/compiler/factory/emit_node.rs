@@ -100,7 +100,7 @@ pub fn add_emit_flags(node: Id<Node>, emit_flags: EmitFlags, arena: &impl HasAre
     node
 }
 
-pub fn get_source_map_range(node: Id<Node>) -> Gc<SourceMapRange> {
+pub fn get_source_map_range(node: &Node) -> Gc<SourceMapRange> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().source_map_range.clone())
         .unwrap_or_else(|| node.into())
@@ -145,7 +145,7 @@ pub(crate) fn set_starts_on_new_line(node: Id<Node>, new_line: bool, arena: &imp
     // node
 }
 
-pub fn get_comment_range(node: Id<Node>) -> BaseTextRange {
+pub fn get_comment_range(node: &Node) -> BaseTextRange {
     // TODO: these semantics wouldn't work if the return value is treated mutably?
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().comment_range.clone())

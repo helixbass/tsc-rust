@@ -39,6 +39,7 @@ use crate::{
     SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
     InArena, contains,
+    push_if_unique_eq,
 };
 
 pub fn get_declaration_diagnostics(
@@ -54,10 +55,10 @@ pub fn get_declaration_diagnostics(
         get_synthetic_factory(),
         compiler_options,
         &if let Some(file) = file {
-            vec![file.node_wrapper()]
+            vec![file]
         } else {
             filter(&host.get_source_files(), |source_file: &Id<Node>| {
-                is_source_file_not_json(source_file)
+                is_source_file_not_json(&source_file.ref_(host))
             })
         },
         &[transform_declarations()],
@@ -69,8 +70,10 @@ pub fn get_declaration_diagnostics(
 pub(super) fn has_internal_annotation(
     range: &CommentRange,
     current_source_file: Id<Node>, /*SourceFile*/
+    arena: &impl HasArena,
 ) -> bool {
-    let current_source_file_text = current_source_file.as_source_file().text();
+    let current_source_file_ref = current_source_file.ref_(arena);
+    let current_source_file_text = current_source_file_ref.as_source_file().text();
     let comment =
         &current_source_file_text[range.pos().try_into().unwrap()..range.end().try_into().unwrap()];
     string_contains(comment, "@internal")
@@ -79,31 +82,32 @@ pub(super) fn has_internal_annotation(
 pub fn is_internal_declaration(
     node: Id<Node>,
     current_source_file: Id<Node>, /*SourceFile*/
+    arena: &impl HasArena,
 ) -> bool {
-    let parse_tree_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None);
+    let parse_tree_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, arena);
     if let Some(parse_tree_node) = parse_tree_node
-        .as_ref()
-        .filter(|parse_tree_node| parse_tree_node.kind() == SyntaxKind::Parameter)
+        .filter(|parse_tree_node| parse_tree_node.ref_(arena).kind() == SyntaxKind::Parameter)
     {
         let param_idx = parse_tree_node
-            .parent()
-            .as_signature_declaration()
+            .ref_(arena).parent()
+            .ref_(arena).as_signature_declaration()
             .parameters()
             .into_iter()
-            .position(|parameter: &Id<Node>| Gc::ptr_eq(parameter, parse_tree_node));
+            .position(|&parameter: &Id<Node>| parameter == parse_tree_node);
         let previous_sibling = if let Some(param_idx) = param_idx.filter(|param_idx| *param_idx > 0)
         {
             parse_tree_node
-                .parent()
-                .as_signature_declaration()
+                .ref_(arena).parent()
+                .ref_(arena).as_signature_declaration()
                 .parameters()
                 .get(param_idx - 1)
-                .cloned()
+                .copied()
         } else {
             None
         };
-        let text = current_source_file.as_source_file().text_as_chars();
-        let comment_ranges = if let Some(previous_sibling) = previous_sibling.as_ref() {
+        let current_source_file_ref = current_source_file.ref_(arena);
+        let text = current_source_file_ref.as_source_file().text_as_chars();
+        let comment_ranges = if let Some(previous_sibling) = previous_sibling {
             maybe_concatenate(
                 get_trailing_comment_ranges(
                     &text,
@@ -115,12 +119,12 @@ pub fn is_internal_declaration(
                         None,
                     ),
                 ),
-                get_leading_comment_ranges(&text, node.pos()),
+                get_leading_comment_ranges(&text, node.ref_(arena).pos()),
             )
         } else {
             get_trailing_comment_ranges(
                 &text,
-                skip_trivia(&text, node.pos(), Some(false), Some(true), None),
+                skip_trivia(&text, node.ref_(arena).pos(), Some(false), Some(true), None),
             )
         };
         return matches!(
@@ -132,8 +136,8 @@ pub fn is_internal_declaration(
                 )
         );
     }
-    let leading_comment_ranges = parse_tree_node.and_then(|ref parse_tree_node| {
-        get_leading_comment_ranges_of_node(parse_tree_node, current_source_file)
+    let leading_comment_ranges = parse_tree_node.and_then(|parse_tree_node| {
+        get_leading_comment_ranges_of_node(&parse_tree_node.ref_(arena), &current_source_file.ref_(arena))
     });
     maybe_for_each_bool(
         leading_comment_ranges.as_ref(),
@@ -489,8 +493,8 @@ impl TransformDeclarations {
                         Some(symbol_accessibility_result_aliases_to_make_visible.clone());
                 } else {
                     let late_marked_statements = late_marked_statements.as_mut().unwrap();
-                    for ref_ in symbol_accessibility_result_aliases_to_make_visible {
-                        push_if_unique_gc(late_marked_statements, ref_);
+                    for &ref_ in symbol_accessibility_result_aliases_to_make_visible {
+                        push_if_unique_eq(late_marked_statements, &ref_);
                     }
                 }
             }
@@ -499,7 +503,7 @@ impl TransformDeclarations {
                 .get_symbol_accessibility_diagnostic()
                 .call(symbol_accessibility_result);
             if let Some(error_info) = error_info {
-                if let Some(error_info_type_name) = error_info.type_name.as_ref() {
+                if let Some(error_info_type_name) = error_info.type_name {
                     let mut args: Vec<String> =
                         vec![get_text_of_node(error_info_type_name, None, self).into_owned()];
                     if let Some(symbol_accessibility_result_error_symbol_name) =
@@ -516,10 +520,10 @@ impl TransformDeclarations {
                         create_diagnostic_for_node(
                             symbol_accessibility_result
                                 .error_node
-                                .as_deref()
-                                .unwrap_or(&*error_info.error_node),
+                                .unwrap_or(error_info.error_node),
                             error_info.diagnostic_message,
                             Some(args),
+                            self,
                         )
                         .into(),
                     );
@@ -539,10 +543,10 @@ impl TransformDeclarations {
                         create_diagnostic_for_node(
                             symbol_accessibility_result
                                 .error_node
-                                .as_deref()
-                                .unwrap_or(&*error_info.error_node),
+                                .unwrap_or(error_info.error_node),
                             error_info.diagnostic_message,
                             Some(args),
+                            self,
                         )
                         .into(),
                     );
@@ -561,7 +565,7 @@ impl TransformDeclarations {
         let old_diag = self.get_symbol_accessibility_diagnostic();
         self.set_get_symbol_accessibility_diagnostic(Gc::new(Box::new(
             TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic::new(
-                source_file.node_wrapper(),
+                source_file,
             ),
         )));
         let result = self.resolver.get_declaration_statements_for_source_file(
@@ -578,12 +582,13 @@ impl TransformDeclarations {
         &self,
         node: Id<Node>, /*SourceFile | Bundle*/
     ) -> io::Result<Id<Node>> {
-        if node.kind() == SyntaxKind::SourceFile && node.as_source_file().is_declaration_file() {
-            return Ok(node.node_wrapper());
+        if node.ref_(self).kind() == SyntaxKind::SourceFile && node.ref_(self).as_source_file().is_declaration_file() {
+            return Ok(node);
         }
 
-        if node.kind() == SyntaxKind::Bundle {
-            let node_as_bundle = node.as_bundle();
+        if node.ref_(self).kind() == SyntaxKind::Bundle {
+            let node_ref = node.ref_(self);
+            let node_as_bundle = node_ref.as_bundle();
             self.set_is_bundled_emit(true);
             self.set_refs(Some(HashMap::new()));
             self.set_libs(Some(HashMap::new()));
@@ -593,8 +598,9 @@ impl TransformDeclarations {
                     try_map(
                         &node_as_bundle.source_files,
                         |source_file: &Option<Id<Node>>, _| -> io::Result<Option<Id<Node>>> {
-                            let source_file = source_file.as_ref().unwrap();
-                            let source_file_as_source_file = source_file.as_source_file();
+                            let source_file = source_file.unwrap();
+                            let source_file_ref = source_file.ref_(self);
+                            let source_file_as_source_file = source_file_ref.as_source_file();
                             if source_file_as_source_file.is_declaration_file() {
                                 return Ok(None);
                             }
@@ -621,10 +627,10 @@ impl TransformDeclarations {
                                 source_file,
                                 &mut self.libs_mut()
                             );
-                            if is_external_or_common_js_module(source_file) || is_json_source_file(source_file) {
+                            if is_external_or_common_js_module(&source_file.ref_(self)) || is_json_source_file(&source_file.ref_(self)) {
                                 self.set_result_has_external_module_indicator(false);
                                 self.set_needs_declare(false);
-                                let statements = if is_source_file_js(source_file) {
+                                let statements = if is_source_file_js(&source_file.ref_(self)) {
                                     self.factory.create_node_array(
                                         self.transform_declarations_for_js(
                                             source_file,
@@ -655,7 +661,7 @@ impl TransformDeclarations {
                                                 self.factory.create_string_literal(
                                                     get_resolved_external_module_name(
                                                         &**self.context.get_emit_host(),
-                                                        source_file,
+                                                        &source_file.ref_(self),
                                                         Option::<Id<Node>>::None,
                                                     ),
                                                     None,
@@ -688,7 +694,7 @@ impl TransformDeclarations {
                                 return Ok(Some(new_file));
                             }
                             self.set_needs_declare(true);
-                            let updated = if is_source_file_js(source_file) {
+                            let updated = if is_source_file_js(&source_file.ref_(self)) {
                                 self.factory.create_node_array(
                                     self.transform_declarations_for_js(source_file, None)?,
                                     None,
@@ -720,23 +726,24 @@ impl TransformDeclarations {
                     Some(try_map_defined(
                         Some(&node_as_bundle.prepends),
                         |prepend: &Id<Node>, _| -> io::Result<Option<Id<Node>>> {
-                            if prepend.kind() == SyntaxKind::InputFiles {
+                            if prepend.ref_(self).kind() == SyntaxKind::InputFiles {
                                 let source_file = create_unparsed_source_file(
                                     prepend.clone(),
                                     Some("dts"),
                                     self.strip_internal,
                                 );
-                                let source_file_as_unparsed_source = source_file.as_unparsed_source();
+                                let source_file_ref = source_file.ref_(self);
+                                let source_file_as_unparsed_source = source_file_ref.as_unparsed_source();
                                 has_no_default_lib = has_no_default_lib || source_file_as_unparsed_source.has_no_default_lib == Some(true);
                                 self.collect_references(
-                                    &source_file,
+                                    source_file,
                                     &mut self.refs_mut(),
                                 )?;
                                 self.record_type_reference_directives_if_necessary(
                                     source_file_as_unparsed_source.type_reference_directives.as_deref()
                                 );
                                 self.collect_libs(
-                                    &source_file,
+                                    source_file,
                                     &mut self.libs_mut(),
                                 );
                                 return Ok(Some(source_file));
@@ -765,21 +772,22 @@ impl TransformDeclarations {
                 );
                 self.refs()
                     .values()
-                    .try_for_each(|ref_: &Id<Node>| -> io::Result<_> {
+                    .try_for_each(|&ref_: &Id<Node>| -> io::Result<_> {
                         reference_visitor(ref_)?;
 
                         Ok(())
                     })?;
             }
-            return Ok(bundle.wrap());
+            return Ok(self.alloc_node(bundle.into()));
         }
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
 
         self.set_needs_declare(true);
         self.set_needs_scope_fix_marker(false);
         self.set_result_has_scope_marker(false);
-        self.set_enclosing_declaration(Some(node.node_wrapper()));
-        self.set_current_source_file(Some(node.node_wrapper()));
+        self.set_enclosing_declaration(Some(node));
+        self.set_current_source_file(Some(node));
         self.set_get_symbol_accessibility_diagnostic(throw_diagnostic());
         self.set_is_bundled_emit(false);
         self.set_result_has_external_module_indicator(false);
@@ -790,12 +798,12 @@ impl TransformDeclarations {
         self.set_refs(Some(Default::default()));
         {
             let mut refs = self.refs_mut();
-            self.collect_references(&self.current_source_file(), &mut refs)?;
+            self.collect_references(self.current_source_file(), &mut refs)?;
         }
         self.set_libs(Some(Default::default()));
         {
             let mut libs = self.libs_mut();
-            self.collect_libs(&self.current_source_file(), &mut libs);
+            self.collect_libs(self.current_source_file(), &mut libs);
         }
         let mut references: Vec<FileReference> = vec![];
         let output_file_path = get_directory_path(&normalize_slashes(
@@ -807,20 +815,20 @@ impl TransformDeclarations {
         let mut reference_visitor =
             self.map_references_into_array(node, &mut references, &output_file_path);
         let mut combined_statements: Gc<NodeArray>/*<Statement>*/;
-        if is_source_file_js(&self.current_source_file()) {
+        if is_source_file_js(&self.current_source_file().ref_(self)) {
             combined_statements = self
                 .factory
                 .create_node_array(self.transform_declarations_for_js(node, None)?, None);
             self.refs()
                 .values()
-                .try_for_each(|ref_: &Id<Node>| -> io::Result<_> {
+                .try_for_each(|&ref_: &Id<Node>| -> io::Result<_> {
                     reference_visitor(ref_)?;
 
                     Ok(())
                 })?;
             self.set_emitted_imports(Some(filter(
                 &combined_statements,
-                |statement: &Id<Node>| is_any_import_syntax(statement),
+                |statement: &Id<Node>| is_any_import_syntax(&statement.ref_(self)),
             )));
         } else {
             let statements = try_visit_nodes(
@@ -839,16 +847,16 @@ impl TransformDeclarations {
             );
             self.refs()
                 .values()
-                .try_for_each(|ref_: &Id<Node>| -> io::Result<_> {
+                .try_for_each(|&ref_: &Id<Node>| -> io::Result<_> {
                     reference_visitor(ref_)?;
 
                     Ok(())
                 })?;
             self.set_emitted_imports(Some(filter(
                 &combined_statements,
-                |statement: &Id<Node>| is_any_import_syntax(statement),
+                |&statement: &Id<Node>| is_any_import_syntax(statement),
             )));
-            if is_external_module(node)
+            if is_external_module(&node.ref_(self))
                 && (!self.result_has_external_module_indicator()
                     || self.needs_scope_fix_marker() && !self.result_has_scope_marker())
             {
@@ -878,7 +886,7 @@ impl TransformDeclarations {
             Some(Rc::new(RefCell::new(self.get_lib_references()))),
         );
         *updated
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_exported_modules_from_declaration_emit() =
             self.maybe_exported_modules_from_declaration_emit().clone();
         Ok(updated)
@@ -907,27 +915,27 @@ impl TransformDeclarations {
     ) -> Option<FileReference> {
         if let Some(emitted_imports) = self.maybe_emitted_imports().as_ref() {
             for import_statement in emitted_imports {
-                if is_import_equals_declaration(import_statement)
+                if is_import_equals_declaration(&import_statement.ref_(self))
                     && is_external_module_reference(
                         &import_statement
-                            .as_import_equals_declaration()
-                            .module_reference,
+                            .ref_(self).as_import_equals_declaration()
+                            .module_reference.ref_(self),
                     )
                 {
-                    let expr = &import_statement
-                        .as_import_equals_declaration()
+                    let expr = import_statement
+                        .ref_(self).as_import_equals_declaration()
                         .module_reference
-                        .as_external_module_reference()
+                        .ref_(self).as_external_module_reference()
                         .expression;
-                    if is_string_literal_like(expr)
-                        && &**expr.as_literal_like_node().text() == type_name
+                    if is_string_literal_like(&expr.ref_(self))
+                        && &**expr.ref_(self).as_literal_like_node().text() == type_name
                     {
                         return None;
                     }
-                } else if is_import_declaration(import_statement) && {
-                    let import_statement_as_import_declaration =
-                        import_statement.as_import_declaration();
-                    is_string_literal(&import_statement_as_import_declaration.module_specifier)
+                } else if is_import_declaration(&import_statement.ref_(self)) && {
+                    let import_statement_ref = import_statement.ref_(self);
+                    let import_statement_as_import_declaration = import_statement_ref.as_import_declaration();
+                    is_string_literal(&import_statement_as_import_declaration.module_specifier.ref_(self))
                         && &**import_statement_as_import_declaration
                             .module_specifier
                             .as_string_literal()
@@ -1022,13 +1030,13 @@ impl TransformDeclarations {
         ret: &mut HashMap<NodeId, Id<Node /*SourceFile*/>>,
     ) -> io::Result<()> {
         if self.no_resolve == Some(true)
-            || !is_unparsed_source(source_file) && is_source_file_js(source_file)
+            || !is_unparsed_source(&source_file.ref_(self)) && is_source_file_js(&source_file.ref_(self))
         {
             return Ok(())/*ret*/;
         }
         try_maybe_for_each(
             source_file
-                .as_source_file()
+                .ref_(self).as_source_file()
                 .maybe_referenced_files()
                 .as_ref()
                 .map(|source_file_referenced_files| (**source_file_referenced_files).borrow())
@@ -1036,7 +1044,7 @@ impl TransformDeclarations {
             |f: &FileReference, _| -> io::Result<Option<()>> {
                 let elem = self.host.get_source_file_from_reference(source_file, f)?;
                 if let Some(elem) = elem {
-                    ret.insert(get_original_node_id(&elem), elem);
+                    ret.insert(get_original_node_id(elem, self), elem);
                 }
                 Ok(None)
             },
@@ -1052,11 +1060,11 @@ impl TransformDeclarations {
         ret: &mut HashMap<String, bool>,
     ) {
         // TODO: expose some trait for unifying this?
-        match source_file.kind() {
+        match source_file.ref_(self).kind() {
             SyntaxKind::SourceFile => {
                 maybe_for_each(
                     source_file
-                        .as_source_file()
+                        .ref_(self).as_source_file()
                         .maybe_lib_reference_directives()
                         .as_ref()
                         .map(|source_file_lib_reference_directives| {
@@ -1074,7 +1082,7 @@ impl TransformDeclarations {
             }
             SyntaxKind::UnparsedSource => {
                 maybe_for_each(
-                    Some(&source_file.as_unparsed_source().lib_reference_directives),
+                    Some(&source_file.ref_(self).as_unparsed_source().lib_reference_directives),
                     |ref_: &FileReference, _| -> Option<()> {
                         let lib = self.host.get_lib_file_from_reference(ref_);
                         if lib.is_some() {
@@ -1093,14 +1101,14 @@ impl TransformDeclarations {
         &self,
         name: Id<Node>, /*BindingName*/
     ) -> io::Result<Id<Node>> {
-        Ok(if name.kind() == SyntaxKind::Identifier {
-            name.node_wrapper()
+        Ok(if name.ref_(self).kind() == SyntaxKind::Identifier {
+            name
         } else {
-            if name.kind() == SyntaxKind::ArrayBindingPattern {
+            if name.ref_(self).kind() == SyntaxKind::ArrayBindingPattern {
                 self.factory.update_array_binding_pattern(
                     name,
                     try_visit_nodes(
-                        &name.as_array_binding_pattern().elements,
+                        &name.ref_(self).as_array_binding_pattern().elements,
                         Some(|node: Id<Node>| -> io::Result<_> {
                             Ok(Some(self.visit_binding_element(node)?.into()))
                         }),
@@ -1113,7 +1121,7 @@ impl TransformDeclarations {
                 self.factory.update_object_binding_pattern(
                     name,
                     try_visit_nodes(
-                        &name.as_object_binding_pattern().elements,
+                        &name.ref_(self).as_object_binding_pattern().elements,
                         Some(|node: Id<Node>| -> io::Result<_> {
                             Ok(Some(self.visit_binding_element(node)?.into()))
                         }),
@@ -1130,10 +1138,11 @@ impl TransformDeclarations {
         &self,
         elem: Id<Node>, /*ArrayBindingElement*/
     ) -> io::Result<Id<Node>> {
-        if elem.kind() == SyntaxKind::OmittedExpression {
-            return Ok(elem.node_wrapper());
+        if elem.ref_(self).kind() == SyntaxKind::OmittedExpression {
+            return Ok(elem);
         }
-        let elem_as_binding_element = elem.as_binding_element();
+        let elem_ref = elem.ref_(self);
+        let elem_as_binding_element = elem_ref.as_binding_element();
         Ok(self.factory.update_binding_element(
             elem,
             elem_as_binding_element.dot_dot_dot_token.clone(),
@@ -1153,12 +1162,13 @@ impl TransformDeclarations {
         modifier_mask: Option<ModifierFlags>,
         type_: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Id<Node /*ParameterDeclaration*/>> {
-        let p_as_parameter_declaration = p.as_parameter_declaration();
+        let p._ref = p..ref_(self);
+        let p_as_parameter_declaration = p_ref.as_parameter_declaration();
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             old_diag = Some(self.get_symbol_accessibility_diagnostic());
             self.set_get_symbol_accessibility_diagnostic(
-                create_get_symbol_accessibility_diagnostic_for_node(p),
+                create_get_symbol_accessibility_diagnostic_for_node(p, self),
             );
         }
         let new_param = self.factory.update_parameter_declaration(
@@ -1179,10 +1189,7 @@ impl TransformDeclarations {
             },
             self.ensure_type(
                 p,
-                type_
-                    .map(Node::node_wrapper)
-                    .or_else(|| p_as_parameter_declaration.maybe_type())
-                    .as_deref(),
+                type_.or_else(|| p_as_parameter_declaration.maybe_type()),
                 Some(true),
             )?,
             self.ensure_no_initializer(p)?,
@@ -1196,7 +1203,7 @@ impl TransformDeclarations {
     pub(super) fn should_print_with_initializer(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(can_have_literal_initializer(node, self)
             && self.resolver.is_literal_const_declaration(
-                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
+                get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
             )?)
     }
 
@@ -1206,7 +1213,7 @@ impl TransformDeclarations {
     ) -> io::Result<Option<Id<Node>>> {
         if self.should_print_with_initializer(node)? {
             return Ok(Some(self.resolver.create_literal_const_value(
-                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
+                get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
                 self.symbol_tracker(),
             )?));
         }
@@ -1278,9 +1285,9 @@ impl TransformDeclarationsSymbolTracker {
         } else if let Some(ref error_fallback_node) = self
             .transform_declarations
             .maybe_error_fallback_node()
-            .filter(|error_fallback_node| is_export_assignment(error_fallback_node))
+            .filter(|error_fallback_node| is_export_assignment(&error_fallback_node.ref_(self)))
         {
-            if error_fallback_node.as_export_assignment().is_export_equals == Some(true) {
+            if error_fallback_node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
                 "export=".into()
             } else {
                 "default".into()
@@ -1319,7 +1326,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                     symbol,
                     // TODO: it sort of looks like maybe the signature for .track_symbol() should take
                     // an Option<Id<Node>> instead?
-                    enclosing_declaration.as_deref(),
+                    enclosing_declaration,
                     Some(meaning),
                     true,
                 ) {
@@ -1360,10 +1367,15 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
             self.transform_declarations.context.add_diagnostic(
-                create_diagnostic_for_node(error_name_node_or_error_fallback_node, &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary, Some(vec![
-                            self.error_declaration_name_with_fallback().into_owned(),
-                            "this".to_owned()
-                        ])).into()
+                create_diagnostic_for_node(
+                    error_name_node_or_error_fallback_node,
+                    &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
+                    Some(vec![
+                        self.error_declaration_name_with_fallback().into_owned(),
+                        "this".to_owned()
+                    ]),
+                    self,
+                ).into()
             );
         }
     }
@@ -1379,10 +1391,15 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
             self.transform_declarations.context.add_diagnostic(
-                create_diagnostic_for_node(error_name_node_or_error_fallback_node, &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary, Some(vec![
-                            self.error_declaration_name_with_fallback().into_owned(),
-                            "unique symbol".to_owned(),
-                        ])).into()
+                create_diagnostic_for_node(
+                    error_name_node_or_error_fallback_node,
+                    &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
+                    Some(vec![
+                        self.error_declaration_name_with_fallback().into_owned(),
+                        "unique symbol".to_owned(),
+                    ]),
+                    self,
+                ).into()
             );
         }
     }
@@ -1398,10 +1415,15 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
             self.transform_declarations.context.add_diagnostic(
-                create_diagnostic_for_node(error_name_node_or_error_fallback_node, &Diagnostics::The_inferred_type_of_0_references_a_type_with_a_cyclic_structure_which_cannot_be_trivially_serialized_A_type_annotation_is_necessary, Some(vec![
-                            self.error_declaration_name_with_fallback().into_owned(),
-                        ])).into()
-            );
+                create_diagnostic_for_node(
+                    error_name_node_or_error_fallback_node,
+                    &Diagnostics::The_inferred_type_of_0_references_a_type_with_a_cyclic_structure_which_cannot_be_trivially_serialized_A_type_annotation_is_necessary,
+                    Some(vec![
+                        self.error_declaration_name_with_fallback().into_owned(),
+                    ]),
+                    self,
+                ).into()
+        );
         }
     }
 
@@ -1421,7 +1443,8 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                     &Diagnostics::Property_0_of_exported_class_expression_may_not_be_private_or_protected,
                     Some(vec![
                         property_name.to_owned()
-                    ])
+                    ]),
+                    self,
                 ).into()
             );
         }
@@ -1438,10 +1461,15 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
             self.transform_declarations.context.add_diagnostic(
-                create_diagnostic_for_node(error_name_node_or_error_fallback_node, &Diagnostics::The_inferred_type_of_0_cannot_be_named_without_a_reference_to_1_This_is_likely_not_portable_A_type_annotation_is_necessary, Some(vec![
-                            self.error_declaration_name_with_fallback().into_owned(),
-                            specifier.to_owned(),
-                        ])).into()
+                create_diagnostic_for_node(
+                    error_name_node_or_error_fallback_node,
+                    &Diagnostics::The_inferred_type_of_0_cannot_be_named_without_a_reference_to_1_This_is_likely_not_portable_A_type_annotation_is_necessary,
+                    Some(vec![
+                        self.error_declaration_name_with_fallback().into_owned(),
+                        specifier.to_owned(),
+                    ]),
+                    self,
+                ).into()
             );
         }
     }
@@ -1460,7 +1488,8 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_this_node_exceeds_the_maximum_length_the_compiler_will_serialize_An_explicit_type_annotation_is_needed,
-                    None
+                    None,
+                    self,
                 ).into()
             );
         }
@@ -1496,7 +1525,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         let container = get_source_file_of_node(node, self);
         self.transform_declarations
             .refs_mut()
-            .insert(get_original_node_id(&container), container);
+            .insert(get_original_node_id(container, self), container);
 
         Ok(())
     }
@@ -1520,40 +1549,40 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         parent_symbol: Id<Symbol>,
         symbol: Id<Symbol>,
     ) {
-        let primary_declaration = self
-            .host
-            .arena()
-            .symbol(parent_symbol)
+        let primary_declaration =
+            parent_symbol
+            .ref_(self)
             .maybe_declarations()
             .as_ref()
             .and_then(|parent_symbol_declarations| {
                 parent_symbol_declarations
                     .into_iter()
-                    .find(|d: &&Id<Node>| ptr::eq(&*get_source_file_of_node(d, self), containing_file))
+                    .find(|&&d: &&Id<Node>| get_source_file_of_node(d, self) == containing_file)
                     .cloned()
             });
         let augmenting_declarations = maybe_filter(
-            self.host
-                .arena()
-                .symbol(symbol)
+            symbol
+                .ref_(self)
                 .maybe_declarations()
                 .as_deref(),
-            |d: &Id<Node>| !ptr::eq(&*get_source_file_of_node(d, self), containing_file),
+            |&d: &Id<Node>| get_source_file_of_node(d, self) != containing_file,
         );
         if let Some(augmenting_declarations) = augmenting_declarations {
             for augmentations in augmenting_declarations {
                 self.transform_declarations.context.add_diagnostic(
                     add_related_info_rc(
                         create_diagnostic_for_node(
-                            &augmentations,
+                            augmentations,
                             &Diagnostics::Declaration_augments_declaration_in_another_file_This_cannot_be_serialized,
                             None,
+                            self,
                         ).into(),
                         vec![
                             create_diagnostic_for_node(
-                                primary_declaration.as_ref().unwrap(),
+                                primary_declaration.unwrap(),
                                 &Diagnostics::This_is_the_declaration_being_augmented_Consider_moving_the_augmenting_declaration_into_the_same_file,
                                 None,
+                                self,
                             ).into(),
                         ]
                     )
@@ -1578,7 +1607,8 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                     &Diagnostics::The_type_of_this_node_cannot_be_serialized_because_its_property_0_cannot_be_serialized,
                     Some(vec![
                         property_name.to_owned()
-                    ])
+                    ]),
+                    self,
                 ).into()
             );
         }
@@ -1586,6 +1616,12 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         true
+    }
+}
+
+impl HasArena for TransformDeclarationsSymbolTracker {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1606,10 +1642,9 @@ impl GetSymbolAccessibilityDiagnosticInterface
     fn call(&self, s: &SymbolAccessibilityResult) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         if let Some(s_error_node) = s
             .error_node
-            .as_ref()
-            .filter(|s_error_node| can_produce_diagnostics(s_error_node))
+            .filter(|s_error_node| can_produce_diagnostics(&s_error_node.ref_(self)))
         {
-            create_get_symbol_accessibility_diagnostic_for_node(s_error_node).call(s)
+            create_get_symbol_accessibility_diagnostic_for_node(s_error_node, self).call(s)
         } else {
             Some(Gc::new(SymbolAccessibilityDiagnostic {
                 diagnostic_message: if s.error_module_name.as_ref().non_empty().is_some() {
@@ -1624,6 +1659,12 @@ impl GetSymbolAccessibilityDiagnosticInterface
                 type_name: None,
             }))
         }
+    }
+}
+
+impl HasArena for TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

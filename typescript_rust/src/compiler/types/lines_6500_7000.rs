@@ -20,6 +20,7 @@ use crate::{
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ParseConfigHost, ParsedCommandLine,
     Path, ProgramBuildInfo, ReadonlyTextRange, ResolveModuleNameResolutionHost, SourceFileLike,
     SourceTextAsChars, StringOrNumber, SymlinkCache,
+    HasArena,
 };
 
 pub trait ModuleResolutionHost {
@@ -1111,6 +1112,7 @@ pub trait EmitHost:
     + ResolveModuleNameResolutionHost
     + Trace
     + Finalize
+    + HasArena
 {
     fn arena(&self) -> &AllArenas;
     // fn get_source_files(&self) -> &[Id<Node /*SourceFile*/>];
