@@ -21,7 +21,7 @@ use crate::{
 
 pub fn get_original_node_id(node: Id<Node>, arena: &impl HasArena) -> NodeId {
     let node = get_original_node(node, arena);
-    get_node_id(&node)
+    get_node_id(&node.ref_(self))
 }
 
 pub fn maybe_get_original_node_id(node: Option<Id<Node>>) -> NodeId {
@@ -411,14 +411,14 @@ fn collect_exported_variable_info(
     // return exportedNames;
 }
 
-pub fn is_simple_copiable_expression(expression: Id<Node> /*Expression*/) -> bool {
+pub fn is_simple_copiable_expression(expression: &Node /*Expression*/) -> bool {
     is_string_literal_like(expression)
         || expression.kind() == SyntaxKind::NumericLiteral
         || is_keyword(expression.kind())
         || is_identifier(expression)
 }
 
-pub fn is_simple_inlineable_expression(expression: Id<Node> /*Expression*/) -> bool {
+pub fn is_simple_inlineable_expression(expression: &Node /*Expression*/) -> bool {
     !is_identifier(expression) && is_simple_copiable_expression(expression)
 }
 

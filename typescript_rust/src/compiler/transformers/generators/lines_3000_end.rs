@@ -15,7 +15,7 @@ impl TransformGenerators {
         self.write_statement(
             self.factory
                 .create_throw_statement(expression)
-                .set_text_range(operation_location),
+                .set_text_range(operation_location, self),
         );
     }
 
@@ -36,8 +36,8 @@ impl TransformGenerators {
                     }),
                     None,
                 )))
-                .set_text_range(operation_location)
-                .set_emit_flags(EmitFlags::NoTokenSourceMaps),
+                .set_text_range(operation_location, self)
+                .set_emit_flags(EmitFlags::NoTokenSourceMaps, self),
         );
     }
 
@@ -56,8 +56,8 @@ impl TransformGenerators {
                     ]),
                     None,
                 )))
-                .set_text_range(operation_location)
-                .set_emit_flags(EmitFlags::NoTokenSourceMaps),
+                .set_text_range(operation_location, self)
+                .set_emit_flags(EmitFlags::NoTokenSourceMaps, self),
         );
     }
 
@@ -81,11 +81,11 @@ impl TransformGenerators {
                                 None,
                             ),
                         ))
-                        .set_text_range(operation_location)
-                        .set_emit_flags(EmitFlags::NoTokenSourceMaps),
+                        .set_text_range(operation_location, self)
+                        .set_emit_flags(EmitFlags::NoTokenSourceMaps, self),
                     None,
                 )
-                .set_emit_flags(EmitFlags::SingleLine),
+                .set_emit_flags(EmitFlags::SingleLine, self),
         );
     }
 
@@ -109,11 +109,11 @@ impl TransformGenerators {
                                 None,
                             ),
                         ))
-                        .set_text_range(operation_location)
-                        .set_emit_flags(EmitFlags::NoTokenSourceMaps),
+                        .set_text_range(operation_location, self)
+                        .set_emit_flags(EmitFlags::NoTokenSourceMaps, self),
                     None,
                 )
-                .set_emit_flags(EmitFlags::SingleLine),
+                .set_emit_flags(EmitFlags::SingleLine, self),
         );
     }
 
@@ -134,8 +134,8 @@ impl TransformGenerators {
                     // : [createInstruction(Instruction.Yield)]
                     None,
                 )))
-                .set_text_range(operation_location)
-                .set_emit_flags(EmitFlags::NoTokenSourceMaps),
+                .set_text_range(operation_location, self)
+                .set_emit_flags(EmitFlags::NoTokenSourceMaps, self),
         );
     }
 
@@ -154,8 +154,8 @@ impl TransformGenerators {
                     ]),
                     None,
                 )))
-                .set_text_range(operation_location)
-                .set_emit_flags(EmitFlags::NoTokenSourceMaps),
+                .set_text_range(operation_location, self)
+                .set_emit_flags(EmitFlags::NoTokenSourceMaps, self),
         );
     }
 

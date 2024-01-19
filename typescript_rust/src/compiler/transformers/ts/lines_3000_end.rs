@@ -8,6 +8,7 @@ use crate::{
     create_range, get_original_node_id, has_syntactic_modifier, id_text, is_static, ModifierFlags,
     NamedDeclarationInterface, Node, NodeCheckFlags, NodeExt, NodeInterface, ReadonlyTextRange,
     SyntaxKind,
+    InArena, OptionInArena,
 };
 
 impl TransformTypeScript {
@@ -52,18 +53,18 @@ impl TransformTypeScript {
             )
             .set_source_map_range(Some(
                 (&create_range(
-                    node.as_named_declaration()
+                    node.ref_(self).as_named_declaration()
                         .maybe_name()
-                        .map_or_else(|| node.pos(), |node_name| node_name.pos()),
-                    Some(node.end()),
+                        .map_or_else(|| node.ref_(self).pos(), |node_name| node_name.ref_(self).pos()),
+                    Some(node.ref_(self).end()),
                 ))
                     .into(),
-            ));
+            ), self);
 
         let statement = self
             .factory
             .create_expression_statement(expression)
-            .set_source_map_range(Some((&create_range(-1, Some(node.end()))).into()));
+            .set_source_map_range(Some((&create_range(-1, Some(node.ref_(self).end()))).into()), self);
         statements.push(statement);
     }
 
@@ -76,14 +77,14 @@ impl TransformTypeScript {
         self.factory
             .create_expression_statement(self.factory.create_assignment(
                 self.factory.get_namespace_member_name(
-                    &self.current_namespace_container_name(),
+                    self.current_namespace_container_name(),
                     export_name,
                     Some(false),
                     Some(true),
                 ),
-                export_value.node_wrapper(),
+                export_value,
             ))
-            .set_text_range(location)
+            .set_text_range(location, self)
     }
 
     pub(super) fn create_namespace_export_expression(
@@ -95,9 +96,9 @@ impl TransformTypeScript {
         self.factory
             .create_assignment(
                 self.get_namespace_member_name_with_source_maps_and_without_comments(export_name),
-                export_value.node_wrapper(),
+                export_value,
             )
-            .set_text_range(location)
+            .set_text_range(location, self)
     }
 
     pub(super) fn get_namespace_member_name_with_source_maps_and_without_comments(
@@ -105,7 +106,7 @@ impl TransformTypeScript {
         name: Id<Node>, /*Identifier*/
     ) -> Id<Node> {
         self.factory.get_namespace_member_name(
-            &self.current_namespace_container_name(),
+            self.current_namespace_container_name(),
             name,
             Some(false),
             Some(true),
@@ -119,10 +120,11 @@ impl TransformTypeScript {
         self.factory
             .get_generated_name_for_node(Some(node), None)
             .set_source_map_range(
-                node.as_named_declaration()
+                node.ref_(self).as_named_declaration()
                     .maybe_name()
-                    .as_deref()
+                    .refed(self)
                     .map(Into::into),
+                self,
             )
     }
 
@@ -144,15 +146,14 @@ impl TransformTypeScript {
         {
             self.enable_substitution_for_class_aliases();
             let class_alias = self.factory.create_unique_name(
-                node.as_class_declaration()
+                node.ref_(self).as_class_declaration()
                     .maybe_name()
-                    .as_ref()
-                    .map_or_else(|| "default", |node_name| id_text(node_name)),
+                    .map_or_else(|| "default", |node_name| id_text(&node_name.ref_(self))),
                 None,
             );
             self.class_aliases_mut()
-                .insert(get_original_node_id(node), class_alias.clone());
-            self.context.hoist_variable_declaration(&class_alias);
+                .insert(get_original_node_id(node, self), class_alias);
+            self.context.hoist_variable_declaration(class_alias);
             return Some(class_alias);
         }
         None
