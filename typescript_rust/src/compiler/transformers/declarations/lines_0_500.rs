@@ -1162,7 +1162,7 @@ impl TransformDeclarations {
         modifier_mask: Option<ModifierFlags>,
         type_: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Id<Node /*ParameterDeclaration*/>> {
-        let p._ref = p..ref_(self);
+        let p_ref = p.ref_(self);
         let p_as_parameter_declaration = p_ref.as_parameter_declaration();
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {

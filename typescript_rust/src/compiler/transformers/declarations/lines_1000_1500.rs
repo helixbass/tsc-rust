@@ -52,11 +52,8 @@ impl TransformDeclarations {
         if should_enter_suppress_new_diagnostics_context_context {
             self.set_suppress_new_diagnostic_contexts(old_within_object_literal_type);
         }
-        if matches!(
-            return_value,
-            Some(return_value) if ptr::eq(return_value, input)
-        ) {
-            return Ok(return_value.map(Node::node_wrapper).map(Into::into));
+        if return_value == Some(input) {
+            return Ok(return_value.map(Into::into));
         }
         Ok(return_value
             .map(|return_value| {
@@ -73,8 +70,8 @@ impl TransformDeclarations {
         &self,
         node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> bool {
-        node.parent().kind() == SyntaxKind::MethodDeclaration
-            && has_effective_modifier(node.parent(), ModifierFlags::Private, self)
+        node.ref_(self).parent().ref_(self).kind() == SyntaxKind::MethodDeclaration
+            && has_effective_modifier(node.ref_(self).parent(), ModifierFlags::Private, self)
     }
 
     pub(super) fn visit_declaration_statements(&self, input: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
@@ -86,10 +83,11 @@ impl TransformDeclarations {
             return Ok(None);
         }
 
-        match input.kind() {
+        match input.ref_(self).kind() {
             SyntaxKind::ExportDeclaration => {
-                let input_as_export_declaration = input.as_export_declaration();
-                if is_source_file(&input.parent()) {
+                let input_ref = input.ref_(self);
+                let input_as_export_declaration = input_ref.as_export_declaration();
+                if is_source_file(&input.ref_(self).parent().ref_(self)) {
                     self.set_result_has_external_module_indicator(true);
                 }
                 self.set_result_has_scope_marker(true);
@@ -98,7 +96,7 @@ impl TransformDeclarations {
                         .update_export_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
-                            input.maybe_modifiers(),
+                            input.ref_(self).maybe_modifiers(),
                             input_as_export_declaration.is_type_only,
                             input_as_export_declaration.export_clause.clone(),
                             self.rewrite_module_specifier(
@@ -111,13 +109,14 @@ impl TransformDeclarations {
                 ));
             }
             SyntaxKind::ExportAssignment => {
-                let input_as_export_assignment = input.as_export_assignment();
-                if is_source_file(&input.parent()) {
+                let input_ref = input.ref_(self);
+                let input_as_export_assignment = input_ref.as_export_assignment();
+                if is_source_file(&input.ref_(self).parent().ref_(self)) {
                     self.set_result_has_external_module_indicator(true);
                 }
                 self.set_result_has_scope_marker(true);
-                if input_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
-                    return Ok(Some(input.node_wrapper().into()));
+                if input_as_export_assignment.expression.ref_(self).kind() == SyntaxKind::Identifier {
+                    return Ok(Some(input.into()));
                 } else {
                     let new_id = self
                         .factory
@@ -125,7 +124,7 @@ impl TransformDeclarations {
                     self.set_get_symbol_accessibility_diagnostic(
                         VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic::new(input),
                     );
-                    self.set_error_fallback_node(Some(input.node_wrapper()));
+                    self.set_error_fallback_node(Some(input));
                     let var_decl = self.factory.create_variable_declaration(
                         Some(new_id.clone()),
                         None,
@@ -156,8 +155,8 @@ impl TransformDeclarations {
                             statement,
                             self.factory.update_export_assignment(
                                 input,
-                                input.maybe_decorators(),
-                                input.maybe_modifiers(),
+                                input.ref_(self).maybe_decorators(),
+                                input.ref_(self).maybe_modifiers(),
                                 new_id,
                             ),
                         ]
@@ -170,17 +169,17 @@ impl TransformDeclarations {
 
         let result = self.transform_top_level_declaration(input)?;
         self.late_statement_replacement_map_mut()
-            .insert(get_original_node_id(input), result);
-        Ok(Some(input.node_wrapper().into()))
+            .insert(get_original_node_id(input, self), result);
+        Ok(Some(input.into()))
     }
 
     pub(super) fn strip_export_modifiers(
         &self,
         statement: Id<Node>, /*Statement*/
     ) -> Id<Node /*Statement*/> {
-        if is_import_equals_declaration(statement)
+        if is_import_equals_declaration(&statement.ref_(self))
             || has_effective_modifier(statement, ModifierFlags::Default, self)
-            || !can_have_modifiers(statement)
+            || !can_have_modifiers(&statement.ref_(self))
         {
             return statement;
         }
@@ -198,7 +197,7 @@ impl TransformDeclarations {
         if self.should_strip_internal(input) {
             return Ok(None);
         }
-        match input.kind() {
+        match input.ref_(self).kind() {
             SyntaxKind::ImportEqualsDeclaration => {
                 return Ok(self
                     .transform_import_equals_declaration(input)?
@@ -213,7 +212,7 @@ impl TransformDeclarations {
             return Ok(None);
         }
 
-        if is_function_like(Some(input))
+        if is_function_like(Some(ref_(self).input))
             && self.resolver.is_implementation_of_overload(input)? == Some(true)
         {
             return Ok(None);
@@ -222,29 +221,30 @@ impl TransformDeclarations {
         let mut previous_enclosing_declaration: Option<Id<Node>> = None;
         if self.is_enclosing_declaration(input) {
             previous_enclosing_declaration = self.maybe_enclosing_declaration();
-            self.set_enclosing_declaration(Some(input.node_wrapper()));
+            self.set_enclosing_declaration(Some(input));
         }
 
         let can_prodice_diagnostic = can_produce_diagnostics(input);
         let old_diag = self.get_symbol_accessibility_diagnostic();
         if can_prodice_diagnostic {
             self.set_get_symbol_accessibility_diagnostic(
-                create_get_symbol_accessibility_diagnostic_for_node(input),
+                create_get_symbol_accessibility_diagnostic_for_node(input, self),
             );
         }
 
         let previous_needs_declare = self.needs_declare();
-        Ok(match input.kind() {
+        Ok(match input.ref_(self).kind() {
             SyntaxKind::TypeAliasDeclaration => {
-                let input_as_type_alias_declaration = input.as_type_alias_declaration();
+                let input_ref = input.ref_(self);
+                let input_as_type_alias_declaration = input_ref.as_type_alias_declaration();
                 self.transform_top_level_declaration_cleanup(
                     input,
-                    previous_enclosing_declaration.as_ref(),
+                    previous_enclosing_declaration,
                     can_prodice_diagnostic,
                     &old_diag,
                     previous_needs_declare,
                     Some(
-                        &self.factory.update_type_alias_declaration(
+                        self.factory.update_type_alias_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
                             self.ensure_modifiers(input),
@@ -254,7 +254,7 @@ impl TransformDeclarations {
                                     .maybe_type_parameters()
                                     .as_deref(),
                                 Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                                Some(is_type_parameter_declaration),
+                                Some(|node: Id<Node>| is_type_parameter_declaration(&node.ref_(self))),
                                 None,
                                 None,
                             )?,
@@ -264,7 +264,7 @@ impl TransformDeclarations {
                                     .as_deref()
                                     .unwrap(),
                                 Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                                Some(is_type_node),
+                                Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
                         ),
@@ -272,15 +272,16 @@ impl TransformDeclarations {
                 )
             }
             SyntaxKind::InterfaceDeclaration => {
-                let input_as_interface_declaration = input.as_interface_declaration();
+                let input_ref = input.ref_(self);
+                let input_as_interface_declaration = input_ref.as_interface_declaration();
                 self.transform_top_level_declaration_cleanup(
                     input,
-                    previous_enclosing_declaration.as_ref(),
+                    previous_enclosing_declaration,
                     can_prodice_diagnostic,
                     &old_diag,
                     previous_needs_declare,
                     Some(
-                        &self.factory.update_interface_declaration(
+                        self.factory.update_interface_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
                             self.ensure_modifiers(input),
@@ -310,15 +311,16 @@ impl TransformDeclarations {
                 )
             }
             SyntaxKind::FunctionDeclaration => {
-                let input_as_function_declaration = input.as_function_declaration();
+                let input_ref = input.ref_(self);
+                let input_as_function_declaration = input_ref.as_function_declaration();
                 let clean = self.transform_top_level_declaration_cleanup(
                     input,
-                    previous_enclosing_declaration.as_ref(),
+                    previous_enclosing_declaration,
                     can_prodice_diagnostic,
                     &old_diag,
                     previous_needs_declare,
                     Some(
-                        &self.factory.update_function_declaration(
+                        self.factory.update_function_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
                             self.ensure_modifiers(input),
@@ -350,7 +352,8 @@ impl TransformDeclarations {
                         && self.should_emit_function_properties(input))
                 })? {
                     let clean = clean.as_single_node();
-                    let clean_as_function_declaration = clean.as_function_declaration();
+                    let clean_ref = clean.ref_(self);
+                    let clean_as_function_declaration = clean_ref.as_function_declaration();
                     let props = self.resolver.get_properties_of_container_function(input)?;
                     let fakespace = get_parse_node_factory().create_module_declaration(
                         Option::<Gc<NodeArray>>::None,
@@ -361,31 +364,32 @@ impl TransformDeclarations {
                         Some(self.factory.create_module_block(Some(vec![]))),
                         Some(NodeFlags::Namespace),
                     );
-                    set_parent(&fakespace, self.maybe_enclosing_declaration());
-                    fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
+                    set_parent(&fakespace.ref_(self), self.maybe_enclosing_declaration());
+                    fakespace.ref_(self).set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
                         Some(&props),
                     )))));
-                    fakespace.set_symbol(props[0].ref_(self).maybe_parent().unwrap());
+                    fakespace.ref_(self).set_symbol(props[0].ref_(self).maybe_parent().unwrap());
                     let mut export_mappings: Vec<(Id<Node /*Identifier*/>, String)> =
                         Default::default();
                     let mut declarations = try_map_defined(
                         Some(&props),
                         |&p: &Id<Symbol>, _| -> io::Result<Option<Id<Node>>> {
-                            let ref p_value_declaration = return_ok_default_if_none!(p
+                            let p_value_declaration = return_ok_default_if_none!(p
                                 .ref_(self)
                                 .maybe_value_declaration()
                                 .filter(|p_value_declaration| {
-                                    is_property_access_expression(p_value_declaration)
+                                    is_property_access_expression(&p_value_declaration.ref_(self))
                                 }));
                             self.set_get_symbol_accessibility_diagnostic(
                                 create_get_symbol_accessibility_diagnostic_for_node(
                                     p_value_declaration,
+                                    self,
                                 ),
                             );
                             let type_ = self.resolver.create_type_of_declaration(
                                 p_value_declaration,
-                                &fakespace,
+                                fakespace,
                                 declaration_emit_node_builder_flags(),
                                 self.symbol_tracker(),
                                 None,
@@ -397,7 +401,7 @@ impl TransformDeclarations {
                                 is_string_a_non_contextual_keyword(name_str);
                             let name = if is_non_contextual_keyword_name {
                                 self.factory
-                                    .get_generated_name_for_node(Some(&**p_value_declaration), None)
+                                    .get_generated_name_for_node(Some(p_value_declaration), None)
                             } else {
                                 self.factory.create_identifier(name_str)
                             };
@@ -427,7 +431,7 @@ impl TransformDeclarations {
                     )?;
                     if export_mappings.is_empty() {
                         declarations =
-                            map_defined(Some(&declarations), |declaration: &Id<Node>, _| {
+                            map_defined(Some(&declarations), |&declaration: &Id<Node>, _| {
                                 Some(
                                     self.factory
                                         .update_modifiers(declaration, ModifierFlags::None),
@@ -476,10 +480,10 @@ impl TransformDeclarations {
                         None,
                     );
 
-                    let namespace_decl_as_module_declaration =
-                        namespace_decl.as_module_declaration();
+                    let namespace_decl_ref = namespace_decl.ref_(self);
+                    let namespace_decl_as_module_declaration = namespace_decl_ref.as_module_declaration();
                     let namespace_declaration = self.factory.update_module_declaration(
-                        &namespace_decl,
+                        namespace_decl,
                         Option::<Gc<NodeArray>>::None,
                         Some(modifiers),
                         namespace_decl_as_module_declaration.name(),
@@ -493,7 +497,7 @@ impl TransformDeclarations {
                         namespace_decl_as_module_declaration.name(),
                     );
 
-                    if is_source_file(&input.parent()) {
+                    if is_source_file(&input.ref_(self).parent().ref_(self)) {
                         self.set_result_has_external_module_indicator(true);
                     }
                     self.set_result_has_scope_marker(true);
@@ -511,10 +515,11 @@ impl TransformDeclarations {
                 }
             }
             SyntaxKind::ModuleDeclaration => {
-                let input_as_module_declaration = input.as_module_declaration();
+                let input_ref = input.ref_(self);
+                let input_as_module_declaration = input_ref.as_module_declaration();
                 self.set_needs_declare(false);
-                let inner = input_as_module_declaration.body.as_ref();
-                if let Some(inner) = inner.filter(|inner| inner.kind() == SyntaxKind::ModuleBlock) {
+                let inner = input_as_module_declaration.body;
+                if let Some(inner) = inner.filter(|inner| inner.ref_(self).kind() == SyntaxKind::ModuleBlock) {
                     let old_needs_scope_fix = self.needs_scope_fix_marker();
                     let old_has_scope_fix = self.result_has_scope_marker();
                     self.set_result_has_scope_marker(false);
@@ -528,10 +533,10 @@ impl TransformDeclarations {
                     )?;
                     let mut late_statements =
                         self.transform_and_replace_late_painted_statements(&statements)?;
-                    if input.flags().intersects(NodeFlags::Ambient) {
+                    if input.ref_(self).flags().intersects(NodeFlags::Ambient) {
                         self.set_needs_scope_fix_marker(false);
                     }
-                    if !is_global_scope_augmentation(input)
+                    if !is_global_scope_augmentation(&input.ref_(self))
                         && !self.has_scope_marker(&late_statements)
                         && !self.result_has_scope_marker()
                     {
@@ -563,11 +568,11 @@ impl TransformDeclarations {
                     let mods = self.ensure_modifiers(input);
                     self.transform_top_level_declaration_cleanup(
                         input,
-                        previous_enclosing_declaration.as_ref(),
+                        previous_enclosing_declaration,
                         can_prodice_diagnostic,
                         &old_diag,
                         previous_needs_declare,
-                        Some(&self.factory.update_module_declaration(
+                        Some(self.factory.update_module_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
                             mods,
@@ -600,11 +605,11 @@ impl TransformDeclarations {
                         .flatten();
                     self.transform_top_level_declaration_cleanup(
                         input,
-                        previous_enclosing_declaration.as_ref(),
+                        previous_enclosing_declaration,
                         can_prodice_diagnostic,
                         &old_diag,
                         previous_needs_declare,
-                        Some(&self.factory.update_module_declaration(
+                        Some(self.factory.update_module_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
                             mods,
@@ -615,9 +620,10 @@ impl TransformDeclarations {
                 }
             }
             SyntaxKind::ClassDeclaration => {
-                let input_as_class_declaration = input.as_class_declaration();
+                let input_ref = input.ref_(self);
+                let input_as_class_declaration = input_ref.as_class_declaration();
                 self.set_error_name_node(input_as_class_declaration.maybe_name());
-                self.set_error_fallback_node(Some(input.node_wrapper()));
+                self.set_error_fallback_node(Some(input));
                 let modifiers = self
                     .factory
                     .create_node_array(self.ensure_modifiers(input), None);

@@ -5,6 +5,7 @@ use super::TransformClassFields;
 use crate::{
     get_factory, is_array_literal_expression, is_expression, is_object_literal_element_like,
     visit_nodes, Node, NodeArray, VisitResult,
+    InArena,
 };
 
 impl TransformClassFields {
@@ -12,8 +13,9 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*AssignmentPattern*/
     ) -> VisitResult {
-        if is_array_literal_expression(node) {
-            let node_as_array_literal_expression = node.as_array_literal_expression();
+        if is_array_literal_expression(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_array_literal_expression = node_ref.as_array_literal_expression();
             Some(
                 self.factory
                     .update_array_literal_expression(
@@ -29,7 +31,8 @@ impl TransformClassFields {
                     .into(),
             )
         } else {
-            let node_as_object_literal_expression = node.as_object_literal_expression();
+            let node_ref = node.ref_(self);
+            let node_as_object_literal_expression = node_ref.as_object_literal_expression();
             Some(
                 self.factory
                     .update_object_literal_expression(
@@ -37,7 +40,7 @@ impl TransformClassFields {
                         visit_nodes(
                             &node_as_object_literal_expression.properties,
                             Some(|node: Id<Node>| self.visit_object_assignment_target(node)),
-                            Some(is_object_literal_element_like),
+                            Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))),
                             None,
                             None,
                         ),
@@ -90,6 +93,6 @@ pub(super) fn create_private_instance_method_initializer(
     )
 }
 
-pub(super) fn is_reserved_private_name(node: Id<Node> /*PrivateIdentifier*/) -> bool {
+pub(super) fn is_reserved_private_name(node: &Node /*PrivateIdentifier*/) -> bool {
     node.as_private_identifier().escaped_text == "#constructor"
 }

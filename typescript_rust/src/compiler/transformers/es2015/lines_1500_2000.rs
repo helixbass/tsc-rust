@@ -439,7 +439,7 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_arrow_function = node_ref.as_arrow_function();
         if node
-            .&transform_flags.ref_(self()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsLexicalThis)
             && !self
                 .maybe_hierarchy_facts()
@@ -784,7 +784,7 @@ impl TransformES2015 {
         }
 
         statements = concatenate(prologue, statements);
-        if is_block(&body.ref_(self)) && &*statements == &*body.ref_(self).as_block().statements) {
+        if is_block(&body.ref_(self)) && &*statements == &*body.ref_(self).as_block().statements {
             return Ok(body);
         }
 

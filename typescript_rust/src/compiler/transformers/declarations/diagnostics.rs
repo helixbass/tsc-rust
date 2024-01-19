@@ -11,7 +11,7 @@ use crate::{
     is_property_access_expression, is_property_declaration, is_property_signature, is_set_accessor,
     is_static, is_type_alias_declaration, is_type_parameter_declaration, is_variable_declaration,
     Debug_, DiagnosticMessage, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeInterface, NonEmpty, SymbolAccessibility, SymbolAccessibilityResult, SyntaxKind, HasArena,
+    NodeInterface, NonEmpty, SymbolAccessibility, SymbolAccessibilityResult, SyntaxKind, HasArena, AllArenas,
 };
 
 pub trait GetSymbolAccessibilityDiagnosticInterface: Trace + Finalize {
@@ -54,47 +54,48 @@ pub fn can_produce_diagnostics(node: &Node) -> bool {
 }
 
 pub fn create_get_symbol_accessibility_diagnostic_for_node(
-    node: Id<Node>, /*DeclarationDiagnosticProducing*/ arena: &impl HasArena
+    node: Id<Node> /*DeclarationDiagnosticProducing*/,
+    arena: &impl HasArena
 ) -> GetSymbolAccessibilityDiagnostic {
-    if is_variable_declaration(node)
-        || is_property_declaration(node)
-        || is_property_signature(node)
-        || is_property_access_expression(node)
-        || is_binding_element(node)
-        || is_constructor_declaration(node)
+    if is_variable_declaration(&node.ref_(arena))
+        || is_property_declaration(&node.ref_(arena))
+        || is_property_signature(&node.ref_(arena))
+        || is_property_access_expression(&node.ref_(arena))
+        || is_binding_element(&node.ref_(arena))
+        || is_constructor_declaration(&node.ref_(arena))
     {
         GetVariableDeclarationTypeVisibilityError::new(node)
-    } else if is_set_accessor(node) || is_get_accessor(node) {
+    } else if is_set_accessor(&node.ref_(arena)) || is_get_accessor(&node.ref_(arena)) {
         GetAccessorDeclarationTypeVisibilityError::new(node)
-    } else if is_construct_signature_declaration(node)
-        || is_call_signature_declaration(node)
-        || is_method_declaration(node)
-        || is_method_signature(node)
-        || is_function_declaration(node)
-        || is_index_signature_declaration(node)
+    } else if is_construct_signature_declaration(&node.ref_(arena))
+        || is_call_signature_declaration(&node.ref_(arena))
+        || is_method_declaration(&node.ref_(arena))
+        || is_method_signature(&node.ref_(arena))
+        || is_function_declaration(&node.ref_(arena))
+        || is_index_signature_declaration(&node.ref_(arena))
     {
         GetReturnTypeVisibilityError::new(node)
-    } else if is_parameter(node) {
-        if is_parameter_property_declaration(node, node.parent(), arena)
-            && has_syntactic_modifier(node.parent(), ModifierFlags::Private, arena)
+    } else if is_parameter(&node.ref_(arena)) {
+        if is_parameter_property_declaration(node, node.ref_(arena).parent(), arena)
+            && has_syntactic_modifier(node.ref_(arena).parent(), ModifierFlags::Private, arena)
         {
             return GetVariableDeclarationTypeVisibilityError::new(node);
         }
         GetParameterDeclarationTypeVisibilityError::new(node)
-    } else if is_type_parameter_declaration(node) {
+    } else if is_type_parameter_declaration(&node.ref_(arena)) {
         GetTypeParameterConstraintVisibilityError::new(node)
-    } else if is_expression_with_type_arguments(node) {
+    } else if is_expression_with_type_arguments(&node.ref_(arena)) {
         GetHeritageClauseVisibilityError::new(node)
-    } else if is_import_equals_declaration(node) {
+    } else if is_import_equals_declaration(&node.ref_(arena)) {
         GetImportEntityNameVisibilityError::new(node)
-    } else if is_type_alias_declaration(node) || is_jsdoc_type_alias(node) {
+    } else if is_type_alias_declaration(&node.ref_(arena)) || is_jsdoc_type_alias(&node.ref_(arena)) {
         GetTypeAliasDeclarationVisibilityError::new(node)
     } else {
         Debug_.assert_never(
             node,
             Some(&format!(
                 "Attempted to set a declaration diagnostic context for unhandled node kind: {:?}",
-                node.kind()
+                node.ref_(arena).kind()
             )),
         )
     }
@@ -102,10 +103,11 @@ pub fn create_get_symbol_accessibility_diagnostic_for_node(
 
 fn get_variable_declaration_type_visibility_diagnostic_message(
     node: Id<Node>,
-    symbol_accessibility_result: &SymbolAccessibilityResult, arena: &impl HasArena,
+    symbol_accessibility_result: &SymbolAccessibilityResult,
+    arena: &impl HasArena,
 ) -> Option<&'static DiagnosticMessage> {
     if matches!(
-        node.kind(),
+        node.ref_(arena).kind(),
         SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
     ) {
         return Some(
@@ -125,12 +127,12 @@ fn get_variable_declaration_type_visibility_diagnostic_message(
             },
         );
     } else if matches!(
-        node.kind(),
+        node.ref_(arena).kind(),
         SyntaxKind::PropertyDeclaration
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::PropertySignature
-    ) || node.kind() == SyntaxKind::Parameter
-        && has_syntactic_modifier(node.parent(), ModifierFlags::Private, arena)
+    ) || node.ref_(arena).kind() == SyntaxKind::Parameter
+        && has_syntactic_modifier(node.ref_(arena).parent(), ModifierFlags::Private, arena)
     {
         if is_static(node, arena) {
             return Some(
@@ -151,8 +153,8 @@ fn get_variable_declaration_type_visibility_diagnostic_message(
                     &*Diagnostics::Public_static_property_0_of_exported_class_has_or_is_using_private_name_1
                 },
             );
-        } else if node.parent().kind() == SyntaxKind::ClassDeclaration
-            || node.kind() == SyntaxKind::Parameter
+        } else if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::ClassDeclaration
+            || node.ref_(arena).kind() == SyntaxKind::Parameter
         {
             return Some(
                 if symbol_accessibility_result
@@ -198,7 +200,7 @@ struct GetVariableDeclarationTypeVisibilityError {
 impl GetVariableDeclarationTypeVisibilityError {
     fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
-            node: node.node_wrapper(),
+            node,
         }))
     }
 }
@@ -209,17 +211,23 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetVariableDeclarationTypeVis
         symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message = get_variable_declaration_type_visibility_diagnostic_message(
-            &self.node,
+            self.node,
             symbol_accessibility_result,
             self,
         );
         diagnostic_message.map(|diagnostic_message| {
             Gc::new(SymbolAccessibilityDiagnostic {
                 diagnostic_message,
-                error_node: self.node.clone(),
-                type_name: self.node.as_named_declaration().maybe_name(),
+                error_node: self.node,
+                type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
             })
         })
+    }
+}
+
+impl HasArena for GetVariableDeclarationTypeVisibilityError {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -231,7 +239,7 @@ struct GetAccessorDeclarationTypeVisibilityError {
 impl GetAccessorDeclarationTypeVisibilityError {
     fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
-            node: node.node_wrapper(),
+            node,
         }))
     }
 }
@@ -242,7 +250,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVis
         symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
-        if self.node.kind() == SyntaxKind::SetAccessor {
+        if self.node.ref_(self).kind() == SyntaxKind::SetAccessor {
             if is_static(self.node, self) {
                 diagnostic_message = if symbol_accessibility_result
                     .error_module_name
@@ -305,9 +313,15 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVis
         }
         Some(Gc::new(SymbolAccessibilityDiagnostic {
             diagnostic_message,
-            error_node: self.node.as_named_declaration().name(),
-            type_name: self.node.as_named_declaration().maybe_name(),
+            error_node: self.node.ref_(self).as_named_declaration().name(),
+            type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
         }))
+    }
+}
+
+impl HasArena for GetAccessorDeclarationTypeVisibilityError {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -319,7 +333,7 @@ struct GetReturnTypeVisibilityError {
 impl GetReturnTypeVisibilityError {
     fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
-            node: node.node_wrapper(),
+            node,
         }))
     }
 }
@@ -330,7 +344,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
         symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
-        match self.node.kind() {
+        match self.node.ref_(self).kind() {
             SyntaxKind::ConstructSignature => {
                 diagnostic_message = if symbol_accessibility_result
                     .error_module_name
@@ -385,7 +399,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
                     } else {
                         &*Diagnostics::Return_type_of_public_static_method_from_exported_class_has_or_is_using_private_name_0
                     };
-                } else if self.node.parent().kind() == SyntaxKind::ClassDeclaration {
+                } else if self.node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ClassDeclaration {
                     diagnostic_message = if symbol_accessibility_result
                         .error_module_name
                         .as_ref()
@@ -435,7 +449,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
             }
             _ => Debug_.fail(Some(&format!(
                 "This is unknown kind for signature: {:?}",
-                self.node.kind()
+                self.node.ref_(self).kind()
             ))),
         }
 
@@ -443,11 +457,17 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
             diagnostic_message,
             error_node: self
                 .node
-                .as_named_declaration()
+                .ref_(self).as_named_declaration()
                 .maybe_name()
-                .unwrap_or_else(|| self.node.clone()),
+                .unwrap_or(self.node),
             type_name: None,
         }))
+    }
+}
+
+impl HasArena for GetReturnTypeVisibilityError {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -459,7 +479,7 @@ struct GetParameterDeclarationTypeVisibilityError {
 impl GetParameterDeclarationTypeVisibilityError {
     fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
-            node: node.node_wrapper(),
+            node,
         }))
     }
 }
@@ -477,10 +497,16 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetParameterDeclarationTypeVi
         /* diagnostisMessage !== undefined ?*/
         Some(Gc::new(SymbolAccessibilityDiagnostic {
             diagnostic_message,
-            error_node: self.node.clone(),
-            type_name: self.node.as_named_declaration().maybe_name(),
+            error_node: self.node,
+            type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
         }))
         /*: undefined*/
+    }
+}
+
+impl HasArena for GetParameterDeclarationTypeVisibilityError {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -489,7 +515,7 @@ fn get_parameter_declaration_type_visibility_diagnostic_message(
     symbol_accessibility_result: &SymbolAccessibilityResult,
     arena: &impl HasArena,
 ) -> &'static DiagnosticMessage {
-    match node.parent().kind() {
+    match node.ref_(arena).parent().ref_(arena).kind() {
         SyntaxKind::Constructor => {
             if symbol_accessibility_result
                 .error_module_name
@@ -543,7 +569,7 @@ fn get_parameter_declaration_type_visibility_diagnostic_message(
             }
         }
         SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-            if is_static(node.parent(), arena) {
+            if is_static(node.ref_(arena).parent(), arena) {
                 if symbol_accessibility_result
                     .error_module_name
                     .as_ref()
@@ -560,7 +586,7 @@ fn get_parameter_declaration_type_visibility_diagnostic_message(
                 } else {
                     &*Diagnostics::Parameter_0_of_public_static_method_from_exported_class_has_or_is_using_private_name_1
                 }
-            } else if node.parent().parent().kind() == SyntaxKind::ClassDeclaration {
+            } else if node.ref_(arena).parent().ref_(arena).parent().ref_(arena).kind() == SyntaxKind::ClassDeclaration {
                 if symbol_accessibility_result
                     .error_module_name
                     .as_ref()
@@ -624,7 +650,7 @@ fn get_parameter_declaration_type_visibility_diagnostic_message(
         }
         _ => Debug_.fail(Some(&format!(
             "Unknown parent for parameter: {:?}",
-            node.parent().kind()
+            node.ref_(arena).parent().ref_(arena).kind()
         ))),
     }
 }
@@ -637,7 +663,7 @@ struct GetTypeParameterConstraintVisibilityError {
 impl GetTypeParameterConstraintVisibilityError {
     fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
-            node: node.node_wrapper(),
+            node,
         }))
     }
 }
@@ -648,7 +674,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVis
         _symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
-        match self.node.parent().kind() {
+        match self.node.ref_(self).parent().ref_(self).kind() {
             SyntaxKind::ClassDeclaration => {
                 diagnostic_message =
                     &Diagnostics::Type_parameter_0_of_exported_class_has_or_is_using_private_name_1;
@@ -666,9 +692,9 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVis
                 diagnostic_message = &Diagnostics::Type_parameter_0_of_call_signature_from_exported_interface_has_or_is_using_private_name_1;
             }
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-                if is_static(self.node.parent(), self) {
+                if is_static(self.node.ref_(self).parent(), self) {
                     diagnostic_message = &Diagnostics::Type_parameter_0_of_public_static_method_from_exported_class_has_or_is_using_private_name_1;
-                } else if self.node.parent().parent().kind() == SyntaxKind::ClassDeclaration {
+                } else if self.node.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::ClassDeclaration {
                     diagnostic_message = &Diagnostics::Type_parameter_0_of_public_method_from_exported_class_has_or_is_using_private_name_1;
                 } else {
                     diagnostic_message = &Diagnostics::Type_parameter_0_of_method_from_exported_interface_has_or_is_using_private_name_1;
@@ -682,15 +708,21 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVis
             }
             _ => Debug_.fail(Some(&format!(
                 "This is unknown parent for type parameter: {:?}",
-                self.node.parent().kind()
+                self.node.ref_(self).parent().ref_(self).kind()
             ))),
         }
 
         Some(Gc::new(SymbolAccessibilityDiagnostic {
             diagnostic_message,
-            error_node: self.node.clone(),
-            type_name: self.node.as_named_declaration().maybe_name(),
+            error_node: self.node,
+            type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
         }))
+    }
+}
+
+impl HasArena for GetTypeParameterConstraintVisibilityError {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -702,7 +734,7 @@ struct GetHeritageClauseVisibilityError {
 impl GetHeritageClauseVisibilityError {
     fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
-            node: node.node_wrapper(),
+            node,
         }))
     }
 }
@@ -713,16 +745,16 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityEr
         _symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
-        if is_class_declaration(&self.node.parent().parent()) {
-            diagnostic_message = if is_heritage_clause(&self.node.parent())
-                && self.node.parent().as_heritage_clause().token == SyntaxKind::ImplementsKeyword
+        if is_class_declaration(&self.node.ref_(self).parent().ref_(self).parent().ref_(self)) {
+            diagnostic_message = if is_heritage_clause(&self.node.ref_(self).parent().ref_(self))
+                && self.node.ref_(self).parent().ref_(self).as_heritage_clause().token == SyntaxKind::ImplementsKeyword
             {
                 &*Diagnostics::Implements_clause_of_exported_class_0_has_or_is_using_private_name_1
             } else if self
                 .node
-                .parent()
-                .parent()
-                .as_class_declaration()
+                .ref_(self).parent()
+                .ref_(self).parent()
+                .ref_(self).as_class_declaration()
                 .maybe_name()
                 .is_some()
             {
@@ -737,9 +769,15 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityEr
 
         Some(Gc::new(SymbolAccessibilityDiagnostic {
             diagnostic_message,
-            error_node: self.node.clone(),
-            type_name: get_name_of_declaration(self.node.parent().maybe_parent(), self),
+            error_node: self.node,
+            type_name: get_name_of_declaration(self.node.ref_(self).parent().ref_(self).maybe_parent(), self),
         }))
+    }
+}
+
+impl HasArena for GetHeritageClauseVisibilityError {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -751,7 +789,7 @@ struct GetImportEntityNameVisibilityError {
 impl GetImportEntityNameVisibilityError {
     fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
-            node: node.node_wrapper(),
+            node,
         }))
     }
 }
@@ -763,9 +801,15 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetImportEntityNameVisibility
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         Some(Gc::new(SymbolAccessibilityDiagnostic {
             diagnostic_message: &Diagnostics::Import_declaration_0_is_using_private_name_1,
-            error_node: self.node.clone(),
-            type_name: self.node.as_named_declaration().maybe_name(),
+            error_node: self.node,
+            type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
         }))
+    }
+}
+
+impl HasArena for GetImportEntityNameVisibilityError {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -777,7 +821,7 @@ struct GetTypeAliasDeclarationVisibilityError {
 impl GetTypeAliasDeclarationVisibilityError {
     fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
         Gc::new(Box::new(Self {
-            node: node.node_wrapper(),
+            node,
         }))
     }
 }
@@ -798,19 +842,25 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeAliasDeclarationVisibi
             } else {
                 &*Diagnostics::Exported_type_alias_0_has_or_is_using_private_name_1
             },
-            error_node: if is_jsdoc_type_alias(&self.node) {
+            error_node: if is_jsdoc_type_alias(&self.node.ref_(self)) {
                 Debug_.check_defined(
-                    self.node.as_jsdoc_type_like_tag().maybe_type_expression(),
+                    self.node.ref_(self).as_jsdoc_type_like_tag().maybe_type_expression(),
                     None,
                 )
             } else {
-                self.node.as_type_alias_declaration().type_.clone()
+                self.node.ref_(self).as_type_alias_declaration().type_
             },
-            type_name: if is_jsdoc_type_alias(&self.node) {
+            type_name: if is_jsdoc_type_alias(&self.node.ref_(self)) {
                 get_name_of_declaration(Some(self.node), self)
             } else {
-                self.node.as_type_alias_declaration().maybe_name()
+                self.node.ref_(self).as_type_alias_declaration().maybe_name()
             },
         }))
+    }
+}
+
+impl HasArena for GetTypeAliasDeclarationVisibilityError {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
