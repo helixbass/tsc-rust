@@ -9,7 +9,7 @@ use crate::{
     maybe_visit_each_child, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node,
     NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 #[derive(Trace, Finalize)]
@@ -29,24 +29,24 @@ impl TransformES2016 {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        if node.as_source_file().is_declaration_file() {
-            return node.node_wrapper();
+        if node.ref_(self).as_source_file().is_declaration_file() {
+            return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
         if !node
-            .transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsES2016)
         {
-            return Some(node.node_wrapper().into());
+            return Some(node.into());
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
             _ => maybe_visit_each_child(
-                Some(node),
+                Some(&node.ref_(self)),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )
@@ -58,12 +58,12 @@ impl TransformES2016 {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
-        match node.as_binary_expression().operator_token.kind() {
+        match node.ref_(self).as_binary_expression().operator_token.ref_(self).kind() {
             SyntaxKind::AsteriskAsteriskEqualsToken => {
                 self.visit_exponentiation_assignment_expression(node)
             }
             SyntaxKind::AsteriskAsteriskToken => self.visit_exponentiation_expression(node),
-            _ => visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context),
+            _ => visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context),
         }
     }
 
@@ -73,21 +73,23 @@ impl TransformES2016 {
     ) -> Id<Node> {
         let target: Id<Node /*Expression*/>;
         let value: Id<Node /*Expression*/>;
-        let node_as_binary_expression = node.as_binary_expression();
-        let ref left = visit_node(
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
+        let left = visit_node(
             &node_as_binary_expression.left,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
-        let ref right = visit_node(
+        let right = visit_node(
             &node_as_binary_expression.right,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
-        if is_element_access_expression(left) {
-            let left_as_element_access_expression = left.as_element_access_expression();
+        if is_element_access_expression(&left.ref_(self)) {
+            let left_ref = left.ref_(self);
+            let left_as_element_access_expression = left_ref.as_element_access_expression();
             let expression_temp = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
                 None,
@@ -103,7 +105,8 @@ impl TransformES2016 {
                             expression_temp.clone(),
                             left_as_element_access_expression.expression.clone(),
                         ),
-                        Some(&*left_as_element_access_expression.expression),
+                        Some(&*left_as_element_access_expression.expression.ref_(self)),
+                        self,
                     ),
                     set_text_range_id_node(
                         self.factory.create_assignment(
@@ -112,18 +115,22 @@ impl TransformES2016 {
                                 .argument_expression
                                 .clone(),
                         ),
-                        Some(&*left_as_element_access_expression.argument_expression),
+                        Some(&*left_as_element_access_expression.argument_expression.ref_(self)),
+                        self,
                     ),
                 ),
-                Some(&**left),
+                Some(&*left.ref_(self)),
+                self,
             );
             value = set_text_range_id_node(
                 self.factory
                     .create_element_access_expression(expression_temp, argument_expression_temp),
-                Some(&**left),
+                Some(&*left.ref_(self)),
+                self,
             );
-        } else if is_property_access_expression(left) {
-            let left_as_property_access_expression = left.as_property_access_expression();
+        } else if is_property_access_expression(&left.ref_(self)) {
+            let left_ref = left.ref_(self);
+            let left_as_property_access_expression = left_ref.as_property_access_expression();
             let expression_temp = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
                 None,
@@ -135,18 +142,21 @@ impl TransformES2016 {
                             expression_temp.clone(),
                             left_as_property_access_expression.expression.clone(),
                         ),
-                        Some(&*left_as_property_access_expression.expression),
+                        Some(&*left_as_property_access_expression.expression.ref_(self)),
+                        self,
                     ),
-                    left_as_property_access_expression.name.clone(),
+                    left_as_property_access_expression.name,
                 ),
-                Some(&**left),
+                Some(&*left.ref_(self)),
+                self,
             );
             value = set_text_range_id_node(
                 self.factory.create_property_access_expression(
                     expression_temp,
-                    left_as_property_access_expression.name.clone(),
+                    left_as_property_access_expression.name,
                 ),
-                Some(&**left),
+                Some(&*left.ref_(self)),
+                self,
             );
         } else {
             target = left.clone();
@@ -161,10 +171,12 @@ impl TransformES2016 {
                         "pow",
                         vec![value, right.clone()],
                     ),
-                    Some(node),
+                    Some(&*node.ref_(self)),
+                    self,
                 ),
             ),
-            Some(node),
+            Some(&*node.ref_(self)),
+            self,
         )
     }
 
@@ -172,15 +184,16 @@ impl TransformES2016 {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node> {
-        let node_as_binary_expression = node.as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         let left = visit_node(
-            &node_as_binary_expression.left,
+            node_as_binary_expression.left,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let right = visit_node(
-            &node_as_binary_expression.right,
+            node_as_binary_expression.right,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -188,7 +201,8 @@ impl TransformES2016 {
         set_text_range_id_node(
             self.factory
                 .create_global_method_call("Math", "pow", vec![left, right]),
-            Some(node),
+            Some(&*node.ref_(self)),
+            self,
         )
     }
 }

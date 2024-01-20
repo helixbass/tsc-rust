@@ -319,7 +319,7 @@ pub trait TransformerFactoryInterface: Trace + Finalize {
 
 pub type Transformer = Gc<Box<dyn TransformerInterface>>;
 
-pub trait TransformerInterface: Trace + Finalize + HasArena {
+pub trait TransformerInterface: Trace + Finalize {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>>;
 }
 

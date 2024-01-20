@@ -484,6 +484,7 @@ pub fn flatten_destructuring_binding(
     rval: Option<Id<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
     skip_initializer: Option<bool>,
+    arena: &impl HasArena,
 ) -> Vec<Id<Node /*VariableDeclaration*/>> {
     try_flatten_destructuring_binding(
         node,
@@ -493,6 +494,7 @@ pub fn flatten_destructuring_binding(
         rval,
         hoist_temp_variables,
         skip_initializer,
+        arena,
     )
     .unwrap()
 }

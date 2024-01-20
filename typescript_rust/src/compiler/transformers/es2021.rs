@@ -28,35 +28,35 @@ impl TransformES2021 {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        if node.as_source_file().is_declaration_file() {
-            return node.node_wrapper();
+        if node.ref_(self).as_source_file().is_declaration_file() {
+            return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
         if !node
-            .transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsES2021)
         {
-            return Some(node.node_wrapper().into());
+            return Some(node.into());
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::BinaryExpression => {
                 let binary_expression = node;
                 if is_logical_or_coalescing_assignment_expression(binary_expression, self) {
                     return self.transform_logical_assignment(binary_expression);
                 }
                 maybe_visit_each_child(
-                    Some(node),
+                    Some(&node.ref_(self)),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )
                 .map(Into::into)
             }
             _ => maybe_visit_each_child(
-                Some(node),
+                Some(&node.ref_(self)),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )
@@ -68,10 +68,11 @@ impl TransformES2021 {
         &self,
         binary_expression: Id<Node>, /*AssignmentExpression<Token<LogicalOrCoalescingAssignmentOperator>>*/
     ) -> VisitResult {
-        let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
-        let operator = &binary_expression_as_binary_expression.operator_token;
+        let binary_expression_ref = binary_expression.ref_(self);
+        let binary_expression_as_binary_expression = binary_expression_ref.as_binary_expression();
+        let operator = binary_expression_as_binary_expression.operator_token;
         let non_assignment_operator =
-            get_non_assignment_operator_for_compound_assignment(operator.kind());
+            get_non_assignment_operator_for_compound_assignment(operator.ref_(self).kind());
         let mut left = skip_parentheses(
             visit_node(
                 &binary_expression_as_binary_expression.left,
@@ -82,7 +83,7 @@ impl TransformES2021 {
             None,
             self,
         );
-        let mut assignment_target = left.clone();
+        let mut assignment_target = left;
         let right = skip_parentheses(
             visit_node(
                 &binary_expression_as_binary_expression.right,
@@ -94,12 +95,12 @@ impl TransformES2021 {
             self,
         );
 
-        if is_access_expression(&left) {
-            let ref left_expression = left.as_has_expression().expression();
+        if is_access_expression(&left.ref_(self)) {
+            let left_expression = left.ref_(self).as_has_expression().expression();
             let property_access_target_simple_copiable =
-                is_simple_copiable_expression(left_expression);
+                is_simple_copiable_expression(&left_expression.ref_(self));
             let property_access_target = if property_access_target_simple_copiable {
-                left_expression.clone()
+                left_expression
             } else {
                 self.factory.create_temp_variable(
                     Some(|node: Id<Node>| {
@@ -109,14 +110,15 @@ impl TransformES2021 {
                 )
             };
             let property_access_target_assignment = if property_access_target_simple_copiable {
-                left_expression.clone()
+                left_expression
             } else {
                 self.factory
                     .create_assignment(property_access_target.clone(), left_expression.clone())
             };
 
-            if is_property_access_expression(&left) {
-                let left_as_property_access_expression = left.as_property_access_expression();
+            if is_property_access_expression(&left.ref_(self)) {
+                let left_ref = left.ref_(self);
+                let left_as_property_access_expression = left_ref.as_property_access_expression();
                 assignment_target = self.factory.create_property_access_expression(
                     property_access_target,
                     left_as_property_access_expression.name.clone(),
@@ -126,9 +128,10 @@ impl TransformES2021 {
                     left_as_property_access_expression.name.clone(),
                 );
             } else {
-                let left_as_element_access_expression = left.as_element_access_expression();
+                let left_ref = left.ref_(self);
+                let left_as_element_access_expression = left_ref.as_element_access_expression();
                 let element_access_argument_simple_copiable = is_simple_copiable_expression(
-                    &left_as_element_access_expression.argument_expression,
+                    &left_as_element_access_expression.argument_expression.ref_(self),
                 );
                 let element_access_argument = if element_access_argument_simple_copiable {
                     left_as_element_access_expression

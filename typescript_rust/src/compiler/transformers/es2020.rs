@@ -11,7 +11,7 @@ use crate::{
     visit_node, visit_nodes, BaseNodeFactorySynthetic, Debug_, Node, NodeArray, NodeExt,
     NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 #[derive(Trace, Finalize)]
@@ -38,47 +38,47 @@ impl TransformES2020 {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        if node.as_source_file().is_declaration_file() {
-            return node.node_wrapper();
+        if node.ref_(self).as_source_file().is_declaration_file() {
+            return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         if !node
-            .transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsES2020)
         {
-            return Some(node.node_wrapper().into());
+            return Some(node.into());
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::CallExpression => {
                 let updated = self.visit_non_optional_call_expression(node, false);
-                Debug_.assert_not_node(Some(&*updated), Some(is_synthetic_reference), None);
+                Debug_.assert_not_node(Some(updated), Some(|node: Id<Node>| is_synthetic_reference(&node.ref_(self))), None);
                 Some(updated.into())
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                if is_optional_chain(node) {
+                if is_optional_chain(&node.ref_(self)) {
                     let updated = self.visit_optional_expression(node, false, false);
-                    Debug_.assert_not_node(Some(&*updated), Some(is_synthetic_reference), None);
+                    Debug_.assert_not_node(Some(updated), Some(|node: Id<Node>| is_synthetic_reference(&node.ref_(self))), None);
                     return Some(updated.into());
                 }
                 maybe_visit_each_child(
-                    Some(node),
+                    Some(&node.ref_(self)),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )
                 .map(Into::into)
             }
             SyntaxKind::BinaryExpression => {
-                if node.as_binary_expression().operator_token.kind()
+                if node.ref_(self).as_binary_expression().operator_token.ref_(self).kind()
                     == SyntaxKind::QuestionQuestionToken
                 {
                     return self.transform_nullish_coalescing_expression(node);
                 }
                 maybe_visit_each_child(
-                    Some(node),
+                    Some(&node.ref_(self)),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )
@@ -86,7 +86,7 @@ impl TransformES2020 {
             }
             SyntaxKind::DeleteExpression => self.visit_delete_expression(node),
             _ => maybe_visit_each_child(
-                Some(node),
+                Some(&node.ref_(self)),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )
@@ -94,25 +94,24 @@ impl TransformES2020 {
         }
     }
 
-    fn flatten_chain(&self, chain: Id<Node> /*OptionalChain*/) -> FlattenChainReturn {
-        Debug_.assert_not_node(Some(chain), Some(is_non_null_chain), None);
-        let mut chain = chain.node_wrapper();
-        let mut links: Vec<Id<Node /*OptionalChain*/>> = vec![chain.clone()];
+    fn flatten_chain(&self, mut chain: Id<Node> /*OptionalChain*/) -> FlattenChainReturn {
+        Debug_.assert_not_node(Some(chain), Some(|node: Id<Node>| is_non_null_chain(&node.ref_(self))), None);
+        let mut links: Vec<Id<Node /*OptionalChain*/>> = vec![chain];
         while chain
-            .as_has_question_dot_token()
+            .ref_(self).as_has_question_dot_token()
             .maybe_question_dot_token()
             .is_none()
-            && !is_tagged_template_expression(&chain)
+            && !is_tagged_template_expression(&chain.ref_(self))
         {
             chain = cast(
                 Some(skip_partially_emitted_expressions(
                     chain.as_has_expression().expression(),
                     self,
                 )),
-                |value: &Id<Node>| is_optional_chain(value),
+                |value: &Id<Node>| is_optional_chain(&value.ref_(self)),
             );
-            Debug_.assert_not_node(Some(&*chain), Some(is_non_null_chain), None);
-            links.insert(0, chain.clone());
+            Debug_.assert_not_node(Some(chain), Some(|node: Id<Node>| is_non_null_chain(&node.ref_(self))), None);
+            links.insert(0, chain);
         }
         FlattenChainReturn {
             expression: chain.as_has_expression().expression(),
@@ -127,13 +126,13 @@ impl TransformES2020 {
         is_delete: bool,
     ) -> Id<Node /*Expression*/> {
         let expression = self.visit_non_optional_expression(
-            &node.as_parenthesized_expression().expression,
+            node.ref_(self).as_parenthesized_expression().expression,
             capture_this_arg,
             is_delete,
         );
-        if is_synthetic_reference(&expression) {
-            let expression_as_synthetic_reference_expression =
-                expression.as_synthetic_reference_expression();
+        if is_synthetic_reference(&expression.ref_(self)) {
+            let expression_ref = expression.ref_(self);
+            let expression_as_synthetic_reference_expression = expression_ref.as_synthetic_reference_expression();
             return self.factory.create_synthetic_reference_expression(
                 self.factory.update_parenthesized_expression(
                     node,
@@ -156,21 +155,21 @@ impl TransformES2020 {
         capture_this_arg: bool,
         is_delete: bool,
     ) -> Id<Node /*Expression*/> {
-        if is_optional_chain(node) {
+        if is_optional_chain(&node.ref_(self)) {
             return self.visit_optional_expression(node, capture_this_arg, is_delete);
         }
 
         let mut expression = visit_node(
-            &node.as_has_expression().expression(),
+            node.ref_(self).as_has_expression().expression(),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
-        Debug_.assert_not_node(Some(&*expression), Some(is_synthetic_reference), None);
+        Debug_.assert_not_node(Some(expression), Some(|node: Id<Node>| is_synthetic_reference(&node.ref_(self))), None);
 
         let mut this_arg: Option<Id<Node /*Expression*/>> = Default::default();
         if capture_this_arg {
-            if !is_simple_copiable_expression(&expression) {
+            if !is_simple_copiable_expression(&expression.ref_(self)) {
                 this_arg = Some(self.factory.create_temp_variable(
                     Some(|node: Id<Node>| {
                         self.context.hoist_variable_declaration(node);
@@ -181,18 +180,18 @@ impl TransformES2020 {
                     .factory
                     .create_assignment(this_arg.clone().unwrap(), expression);
             } else {
-                this_arg = Some(expression.clone());
+                this_arg = Some(expression);
             }
         }
 
-        expression = if node.kind() == SyntaxKind::PropertyAccessExpression {
+        expression = if node.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
             self.factory.update_property_access_expression(
                 node,
                 expression.clone(),
                 visit_node(
-                    &node.as_property_access_expression().name,
+                    node.ref_(self).as_property_access_expression().name,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_identifier),
+                    Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             )
@@ -201,7 +200,7 @@ impl TransformES2020 {
                 node,
                 expression.clone(),
                 visit_node(
-                    &node.as_element_access_expression().argument_expression,
+                    node.ref_(self).as_element_access_expression().argument_expression,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -221,12 +220,13 @@ impl TransformES2020 {
         node: Id<Node>, /*CallExpression*/
         capture_this_arg: bool,
     ) -> Id<Node /*Expression*/> {
-        let node_as_call_expression = node.as_call_expression();
-        if is_optional_chain(node) {
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
+        if is_optional_chain(&node.ref_(self)) {
             return self.visit_optional_expression(node, capture_this_arg, false);
         }
-        if is_parenthesized_expression(&node_as_call_expression.expression)
-            && is_optional_chain(&skip_parentheses(node_as_call_expression.expression, None, self))
+        if is_parenthesized_expression(&node_as_call_expression.expression.ref_(self))
+            && is_optional_chain(&skip_parentheses(node_as_call_expression.expression, None, self).ref_(self))
         {
             let expression = self.visit_non_optional_parenthesized_expression(
                 &node_as_call_expression.expression,
@@ -240,9 +240,9 @@ impl TransformES2020 {
                 None,
                 None,
             );
-            if is_synthetic_reference(&expression) {
-                let expression_as_synthetic_reference_expression =
-                    expression.as_synthetic_reference_expression();
+            if is_synthetic_reference(&expression.ref_(self)) {
+                let expression_ref = expression.ref_(self);
+                let expression_as_synthetic_reference_expression = expression_ref.as_synthetic_reference_expression();
                 return self
                     .factory
                     .create_function_call_call(
@@ -254,7 +254,7 @@ impl TransformES2020 {
                             .clone(),
                         args,
                     )
-                    .set_text_range(Some(node));
+                    .set_text_range(Some(&*node.ref_(self)), self);
             }
             return self.factory.update_call_expression(
                 node,
@@ -263,7 +263,7 @@ impl TransformES2020 {
                 args,
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     fn visit_non_optional_expression(
@@ -272,7 +272,7 @@ impl TransformES2020 {
         capture_this_arg: bool,
         is_delete: bool,
     ) -> Id<Node /*Expression*/> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ParenthesizedExpression => {
                 self.visit_non_optional_parenthesized_expression(node, capture_this_arg, is_delete)
             }
@@ -301,15 +301,15 @@ impl TransformES2020 {
         is_delete: bool,
     ) -> Id<Node /*Expression*/> {
         let FlattenChainReturn { expression, chain } = self.flatten_chain(node);
-        let left = self.visit_non_optional_expression(&expression, is_call_chain(&chain[0]), false);
-        let left_this_arg = is_synthetic_reference(&left)
-            .then_some(&left.as_synthetic_reference_expression().this_arg);
-        let mut left_expression = if is_synthetic_reference(&left) {
-            left.as_synthetic_reference_expression().expression.clone()
+        let left = self.visit_non_optional_expression(expression, is_call_chain(&chain[0].ref_(self)), false);
+        let left_this_arg = is_synthetic_reference(&left.ref_(self))
+            .then(|| left.ref_(self).as_synthetic_reference_expression().this_arg);
+        let mut left_expression = if is_synthetic_reference(&left.ref_(self)) {
+            left.ref_(self).as_synthetic_reference_expression().expression
         } else {
-            left.clone()
+            left
         };
-        let mut captured_left/*Expression*/ = left_expression.clone();
+        let mut captured_left/*Expression*/ = left_expression;
         if !is_simple_copiable_expression(&left_expression) {
             captured_left = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
@@ -321,10 +321,11 @@ impl TransformES2020 {
                 .factory
                 .create_assignment(captured_left.clone(), left_expression.clone());
         }
-        let mut right_expression = captured_left.clone();
+        let mut right_expression = captured_left;
         let mut this_arg: Option<Id<Node /*Expression*/>> = Default::default();
         for (i, segment) in chain.iter().enumerate() {
-            match segment.kind() {
+            let segment = *segment;
+            match segment.ref_(self).kind() {
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                     if i == chain.len() - 1 && capture_this_arg {
                         if !is_simple_copiable_expression(&right_expression) {
@@ -341,13 +342,13 @@ impl TransformES2020 {
                             this_arg = Some(right_expression.clone());
                         }
                     }
-                    right_expression = if segment.kind() == SyntaxKind::PropertyAccessExpression {
+                    right_expression = if segment.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
                         self.factory.create_property_access_expression(
                             right_expression,
                             visit_node(
-                                &segment.as_property_access_expression().name,
+                                segment.as_property_access_expression().name,
                                 Some(|node: Id<Node>| self.visitor(node)),
-                                Some(is_identifier),
+                                Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         )
@@ -355,7 +356,7 @@ impl TransformES2020 {
                         self.factory.create_element_access_expression(
                             right_expression,
                             visit_node(
-                                &segment.as_element_access_expression().argument_expression,
+                                segment.as_element_access_expression().argument_expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -374,7 +375,7 @@ impl TransformES2020 {
                                 left_this_arg.clone()
                             },
                             visit_nodes(
-                                &segment.as_call_expression().arguments,
+                                &segment.ref_(self).as_call_expression().arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,
@@ -386,7 +387,7 @@ impl TransformES2020 {
                             right_expression,
                             Option::<Gc<NodeArray>>::None,
                             Some(visit_nodes(
-                                &segment.as_call_expression().arguments,
+                                &segment.ref_(self).as_call_expression().arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,
@@ -417,7 +418,7 @@ impl TransformES2020 {
                 right_expression,
             )
         }
-        .set_text_range(Some(node));
+        .set_text_range(Some(&*node.ref_(self)), self);
         if let Some(this_arg) = this_arg {
             self.factory
                 .create_synthetic_reference_expression(target, this_arg)
@@ -463,15 +464,16 @@ impl TransformES2020 {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> VisitResult {
-        let node_as_binary_expression = node.as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         let mut left = visit_node(
             &node_as_binary_expression.left,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
-        let mut right = left.clone();
-        if !is_simple_copiable_expression(&left) {
+        let mut right = left;
+        if !is_simple_copiable_expression(&left.ref_(self)) {
             right = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
                     self.context.hoist_variable_declaration(node);
@@ -494,25 +496,26 @@ impl TransformES2020 {
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                 )
-                .set_text_range(Some(node))
+                .set_text_range(Some(&*node.ref_(self)), self)
                 .into(),
         )
     }
 
     fn visit_delete_expression(&self, node: Id<Node> /*DeleteExpression*/) -> VisitResult {
-        let node_as_delete_expression = node.as_delete_expression();
+        let node_ref = node.ref_(self);
+        let node_as_delete_expression = node_ref.as_delete_expression();
         Some(
             if is_optional_chain(&skip_parentheses(
                 node_as_delete_expression.expression,
                 None,
                 self,
-            )) {
+            ).ref_(self)) {
                 self.visit_non_optional_expression(
                     &node_as_delete_expression.expression,
                     false,
                     true,
                 )
-                .set_original_node(Some(node.node_wrapper()))
+                .set_original_node(Some(node), self)
             } else {
                 self.factory.update_delete_expression(
                     node,

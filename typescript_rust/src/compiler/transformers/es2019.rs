@@ -8,7 +8,7 @@ use crate::{
     BaseNodeFactorySynthetic, Node, NodeFactory, NodeInterface, SyntaxKind, TransformFlags,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 #[derive(Trace, Finalize)]
@@ -35,24 +35,24 @@ impl TransformES2019 {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        if node.as_source_file().is_declaration_file() {
-            return node.node_wrapper();
+        if node.ref_(self).as_source_file().is_declaration_file() {
+            return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         if !node
-            .transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsES2019)
         {
-            return Some(node.node_wrapper().into());
+            return Some(node.into());
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::CatchClause => Some(self.visit_catch_clause(node).into()),
             _ => maybe_visit_each_child(
-                Some(node),
+                Some(&node.ref_(self)),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )
@@ -61,7 +61,8 @@ impl TransformES2019 {
     }
 
     fn visit_catch_clause(&self, node: Id<Node> /*CatchClause*/) -> Id<Node /*CatchClause*/> {
-        let node_as_catch_clause = node.as_catch_clause();
+        let node_ref = node.ref_(self);
+        let node_as_catch_clause = node_ref.as_catch_clause();
         if node_as_catch_clause.variable_declaration.is_none() {
             return self.factory.update_catch_clause(
                 node,
@@ -77,14 +78,14 @@ impl TransformES2019 {
                     ),
                 ),
                 visit_node(
-                    &node_as_catch_clause.block,
+                    node_as_catch_clause.block,
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_block),
+                    Some(|node: Id<Node>| is_block(&node.ref_(self))),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 }
 

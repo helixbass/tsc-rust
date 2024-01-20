@@ -326,7 +326,7 @@ impl TransformES2015 {
         self.maybe_tagged_template_string_declarations_mut()
             .get_or_insert_default_()
             .push(self.factory.create_variable_declaration(
-                Some(temp.node_wrapper()),
+                Some(temp),
                 None,
                 None,
                 None,
@@ -337,9 +337,10 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file() {
-            return Ok(node.node_wrapper());
+            return Ok(node);
         }
 
         self.set_current_source_file(Some(node.node_wrapper()));
