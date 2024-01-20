@@ -56,7 +56,7 @@ impl TransformTypeScript {
             .unwrap(),
             None,
             try_visit_function_body(
-                node_as_method_declaration.maybe_body().as_deref(),
+                node_as_method_declaration.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?,
@@ -109,7 +109,7 @@ impl TransformTypeScript {
             None,
             Some(
                 try_visit_function_body(
-                    node_as_get_accessor_declaration.maybe_body().as_deref(),
+                    node_as_get_accessor_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -155,7 +155,7 @@ impl TransformTypeScript {
             .unwrap(),
             Some(
                 try_visit_function_body(
-                    node_as_set_accessor_declaration.maybe_body().as_deref(),
+                    node_as_set_accessor_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -208,7 +208,7 @@ impl TransformTypeScript {
             None,
             Some(
                 try_visit_function_body(
-                    node_as_function_declaration.maybe_body().as_deref(),
+                    node_as_function_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -252,7 +252,7 @@ impl TransformTypeScript {
             .unwrap(),
             None,
             try_visit_function_body(
-                node_as_function_expression.maybe_body().as_deref(),
+                node_as_function_expression.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
@@ -286,7 +286,7 @@ impl TransformTypeScript {
             None,
             node_as_arrow_function.equals_greater_than_token.clone(),
             try_visit_function_body(
-                node_as_arrow_function.maybe_body().as_deref(),
+                node_as_arrow_function.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
@@ -408,7 +408,7 @@ impl TransformTypeScript {
                 .create_assignment(
                     self.get_namespace_member_name_with_source_maps_and_without_comments(name),
                     try_visit_node(
-                        &node_as_variable_declaration.maybe_initializer().unwrap(),
+                        node_as_variable_declaration.maybe_initializer().unwrap(),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -460,7 +460,7 @@ impl TransformTypeScript {
         );
         if is_assertion_expression(&inner_expression.ref_(self)) {
             let expression = try_visit_node(
-                &node_as_parenthesized_expression.expression,
+                node_as_parenthesized_expression.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -522,7 +522,7 @@ impl TransformTypeScript {
                 .update_call_expression(
                     node,
                     try_visit_node(
-                        &node_as_call_expression.expression,
+                        node_as_call_expression.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -551,7 +551,7 @@ impl TransformTypeScript {
                 .update_new_expression(
                     node,
                     try_visit_node(
-                        &node_as_new_expression.expression,
+                        node_as_new_expression.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -580,14 +580,14 @@ impl TransformTypeScript {
                 .update_tagged_template_expression(
                     node,
                     try_visit_node(
-                        &node_as_tagged_template_expression.tag,
+                        node_as_tagged_template_expression.tag,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
-                        &node_as_tagged_template_expression.template,
+                        node_as_tagged_template_expression.template,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -608,14 +608,14 @@ impl TransformTypeScript {
                 .update_jsx_self_closing_element(
                     node,
                     try_visit_node(
-                        &node_as_jsx_self_closing_element.tag_name,
+                        node_as_jsx_self_closing_element.tag_name,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_tag_name_expression(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
-                        &node_as_jsx_self_closing_element.attributes,
+                        node_as_jsx_self_closing_element.attributes,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_attributes(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -636,14 +636,14 @@ impl TransformTypeScript {
                 .update_jsx_opening_element(
                     node,
                     try_visit_node(
-                        &node_as_jsx_opening_element.tag_name,
+                        node_as_jsx_opening_element.tag_name,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_tag_name_expression(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
-                        &node_as_jsx_opening_element.attributes,
+                        node_as_jsx_opening_element.attributes,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_attributes(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -657,7 +657,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*EnumDeclaration*/
     ) -> bool {
-        !is_enum_const(&node.ref_(self)) || should_preserve_const_enums(&self.compiler_options)
+        !is_enum_const(node, self) || should_preserve_const_enums(&self.compiler_options)
     }
 
     pub(super) fn visit_enum_declaration(

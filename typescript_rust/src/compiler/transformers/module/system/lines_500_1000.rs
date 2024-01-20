@@ -296,7 +296,8 @@ impl TransformSystemModule {
             .ref_(self).as_variable_declaration_list()
             .declarations
         {
-            let variable_as_variable_declaration = variable.as_variable_declaration();
+            let variable_ref = variable.ref_(self);
+            let variable_as_variable_declaration = variable_ref.as_variable_declaration();
             if variable_as_variable_declaration
                 .maybe_initializer()
                 .is_some()
@@ -522,12 +523,12 @@ impl TransformSystemModule {
 
         let named_bindings = import_clause_as_import_clause.named_bindings;
         if let Some(named_bindings) = named_bindings {
-            match named_bindings.kind() {
+            match named_bindings.ref_(self).kind() {
                 SyntaxKind::NamespaceImport => {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }
                 SyntaxKind::NamedImports => {
-                    for import_binding in &named_bindings.as_named_imports().elements {
+                    for &import_binding in &named_bindings.ref_(self).as_named_imports().elements {
                         self.append_exports_of_declaration(statements, import_binding, None);
                     }
                 }

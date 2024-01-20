@@ -164,9 +164,9 @@ impl TransformTypeScript {
             }
         });
         let class_statement = if facts.intersects(ClassFacts::HasConstructorDecorators) {
-            self.create_class_declaration_head_with_decorators(node, name.as_deref())?
+            self.create_class_declaration_head_with_decorators(node, name)?
         } else {
-            self.create_class_declaration_head_without_decorators(node, name.as_deref(), facts)?
+            self.create_class_declaration_head_without_decorators(node, name, facts)?
         };
 
         let mut statements: Vec<Id<Node /*Stateent*/>> = vec![class_statement.clone()];
@@ -327,7 +327,7 @@ impl TransformTypeScript {
     ) -> io::Result<Id<Node>> {
         let node_ref = node.ref_(self);
         let node_as_class_declaration = node_ref.as_class_declaration();
-        let location = move_range_past_decorators(node);
+        let location = move_range_past_decorators(&node.ref_(self));
         let class_alias = self.get_class_alias_if_needed(node);
 
         let decl_name = if self.language_version <= ScriptTarget::ES2015 {
@@ -432,7 +432,7 @@ impl TransformTypeScript {
                 .filter(|&p| is_parameter_property_declaration(p, constructor, self))
         });
         if let Some(parameters_with_property_assignments) = parameters_with_property_assignments {
-            for &parameter in parameters_with_property_assignments {
+            for parameter in parameters_with_property_assignments {
                 let parameter_ref = parameter.ref_(self);
                 let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
                 if is_identifier(&parameter_as_parameter_declaration.name().ref_(self)) {
@@ -534,9 +534,9 @@ impl TransformTypeScript {
             };
             for i in 0..num_parameters {
                 let parameter = &parameters[i + first_parameter_offset];
-                if decorators.is_some() || parameter.maybe_decorators().is_some() {
+                if decorators.is_some() || parameter.ref_(self).maybe_decorators().is_some() {
                     decorators.get_or_insert_with(|| vec![None; num_parameters])[i] =
-                        parameter.maybe_decorators().map(Into::into);
+                        parameter.ref_(self).maybe_decorators().map(Into::into);
                 }
             }
         }

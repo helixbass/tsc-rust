@@ -380,15 +380,16 @@ impl TransformES2015 {
         let call_argument =
             single_or_undefined(Some(&statement_expression_as_call_expression.arguments)).cloned();
         if call_argument.is_none_or_matches(|call_argument| {
-            !node_is_synthesized(&**call_argument)
-                || call_argument.kind() != SyntaxKind::SpreadElement
+            !node_is_synthesized(&*call_argument.ref_(self))
+                || call_argument.ref_(self).kind() != SyntaxKind::SpreadElement
         }) {
             return false;
         }
         let call_argument = call_argument.unwrap();
-        let call_argument_as_spread_element = call_argument.as_spread_element();
+        let call_argument_ref = call_argument.ref_(self);
+        let call_argument_as_spread_element = call_argument_ref.as_spread_element();
 
-        let expression = &call_argument_as_spread_element.expression;
-        is_identifier(expression) && expression.as_identifier().escaped_text == "arguments"
+        let expression = call_argument_as_spread_element.expression;
+        is_identifier(&expression.ref_(self)) && expression.ref_(self).as_identifier().escaped_text == "arguments"
     }
 }

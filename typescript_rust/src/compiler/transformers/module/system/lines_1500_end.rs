@@ -38,7 +38,7 @@ impl TransformSystemModule {
                 .update_expression_statement(
                     node,
                     try_visit_node(
-                        &node_as_expression_statement.expression,
+                        node_as_expression_statement.expression,
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -60,7 +60,7 @@ impl TransformSystemModule {
                 .update_parenthesized_expression(
                     node,
                     try_visit_node(
-                        &node_as_parenthesized_expression.expression,
+                        node_as_parenthesized_expression.expression,
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -88,7 +88,7 @@ impl TransformSystemModule {
                 .update_partially_emitted_expression(
                     node,
                     try_visit_node(
-                        &node_as_partially_emitted_expression.expression,
+                        node_as_partially_emitted_expression.expression,
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -207,7 +207,7 @@ impl TransformSystemModule {
             )?
         } else if is_property_assignment(&node.ref_(self)) {
             self.has_exported_reference_in_destructuring_target(
-                node.as_property_assignment().ref_(self).maybe_initializer().unwrap(),
+                node.ref_(self).as_property_assignment().ref_(self).maybe_initializer().unwrap(),
             )?
         } else if is_identifier(&node.ref_(self)) {
             let container = self.resolver.get_referenced_export_container(node, None)?;
@@ -237,7 +237,7 @@ impl TransformSystemModule {
             if let Some(exported_names) = exported_names {
                 let mut temp: Option<Id<Node /*Identifier*/>> = _d();
                 let mut expression/*: Expression*/ = try_visit_node(
-                    &node_operand,
+                    node_operand,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

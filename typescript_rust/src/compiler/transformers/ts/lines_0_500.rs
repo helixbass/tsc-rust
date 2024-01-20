@@ -286,7 +286,7 @@ impl TransformTypeScript {
                 .iter()
                 .map(|source_file| -> io::Result<_> {
                     Ok(Some(
-                        self.transform_source_file(source_file.as_ref().unwrap())?,
+                        self.transform_source_file(source_file.unwrap())?,
                     ))
                 })
                 .collect::<Result<Vec<_>, _>>()?,
@@ -473,7 +473,7 @@ impl TransformTypeScript {
                 | SyntaxKind::ImportDeclaration
                 | SyntaxKind::ImportClause
         ) || node.ref_(self).kind() == SyntaxKind::ImportEqualsDeclaration
-            && node.ref_(self).as_import_equals_declaration().module_reference.kind()
+            && node.ref_(self).as_import_equals_declaration().module_reference.ref_(self).kind()
                 == SyntaxKind::ExternalModuleReference
         {
             return Ok(None);
@@ -755,7 +755,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
         {
             let name = node_as_shorthand_property_assignment.name();
-            let exported_name = self.try_substitute_namespace_exported_name(&name)?;
+            let exported_name = self.try_substitute_namespace_exported_name(name)?;
             if let Some(exported_name) = exported_name {
                 if let Some(node_object_assignment_initializer) =
                     node_as_shorthand_property_assignment

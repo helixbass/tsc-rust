@@ -761,7 +761,7 @@ impl TransformSystemModule {
                                     properties.push(
                                         self.factory.create_property_assignment(
                                             self.factory.create_string_literal(
-                                                id_text(&e_as_export_specifier.name).to_owned(),
+                                                id_text(&e_as_export_specifier.name.ref_(self)).to_owned(),
                                                 None,
                                                 None,
                                             ),
@@ -769,10 +769,9 @@ impl TransformSystemModule {
                                                 parameter_name.clone(),
                                                 self.factory.create_string_literal(
                                                     id_text(
-                                                        e_as_export_specifier
+                                                        &e_as_export_specifier
                                                             .property_name
-                                                            .as_ref()
-                                                            .unwrap_or(&e_as_export_specifier.name),
+                                                            .unwrap_or(e_as_export_specifier.name).ref_(self),
                                                     )
                                                     .to_owned(),
                                                     None,

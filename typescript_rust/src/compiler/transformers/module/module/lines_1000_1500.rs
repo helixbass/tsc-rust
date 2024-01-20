@@ -151,13 +151,12 @@ impl TransformModule {
                                         self.factory.create_string_literal_from_node(
                                             specifier_as_export_specifier
                                                 .property_name
-                                                .as_deref()
-                                                .unwrap_or(&specifier_as_export_specifier.name),
+                                                .unwrap_or(specifier_as_export_specifier.name),
                                         ),
-                                        specifier_as_export_specifier.property_name.as_ref().map(
+                                        specifier_as_export_specifier.property_name.map(
                                             |_| {
                                                 self.factory.create_string_literal_from_node(
-                                                    &specifier_as_export_specifier.name,
+                                                    specifier_as_export_specifier.name,
                                                 )
                                             },
                                         ),
@@ -215,7 +214,7 @@ impl TransformModule {
                             self.create_export_expression(
                                 self
                                     .factory
-                                    .clone_node(&node_export_clause_as_namespace_export.name),
+                                    .clone_node(node_export_clause_as_namespace_export.name),
                                 self.get_helper_expression_for_export(
                                     node,
                                     if self.module_kind != ModuleKind::AMD {
@@ -224,7 +223,7 @@ impl TransformModule {
                                         generated_name
                                     } else {
                                         self.factory.create_identifier(id_text(
-                                            &node_export_clause_as_namespace_export.name,
+                                            &node_export_clause_as_namespace_export.name.ref_(self),
                                         ))
                                     },
                                 ),
@@ -702,7 +701,7 @@ impl TransformModule {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }
                 SyntaxKind::NamedImports => {
-                    for import_binding in &named_bindings.as_named_imports().elements {
+                    for &import_binding in &named_bindings.ref_(self).as_named_imports().elements {
                         self.append_exports_of_declaration(statements, import_binding, Some(true));
                     }
                 }

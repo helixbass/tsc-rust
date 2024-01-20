@@ -125,12 +125,12 @@ impl TransformGenerators {
         );
 
         let name: Id<Node /*Identifier*/>;
-        let ref variable_name = variable_as_variable_declaration.name();
-        if is_generated_identifier(variable_name) {
+        let variable_name = variable_as_variable_declaration.name();
+        if is_generated_identifier(&variable_name.ref_(self)) {
             name = variable_name.clone();
             self.context.hoist_variable_declaration(variable_name);
         } else {
-            let text = id_text(variable_name);
+            let text = id_text(&variable_name.ref_(self));
             name = self.declare_local(Some(text));
             if self.maybe_renamed_catch_variables().is_none() {
                 self.set_renamed_catch_variables(Some(_d()));

@@ -77,7 +77,7 @@ impl TransformTypeScript {
         );
         node_as_named_declaration
             .name()
-            .as_identifier()
+            .ref_(self).as_identifier()
             .escaped_text
             .clone()
     }
@@ -270,8 +270,8 @@ impl TransformTypeScript {
 
         let mut statements_location: Option<ReadonlyTextRangeConcrete> = Default::default();
         let mut block_location: Option<Id<Node> /*TextRange*/> = Default::default();
-        if let Some(node_body) = node_as_module_declaration.body.as_ref() {
-            if node_body.kind() == SyntaxKind::ModuleBlock {
+        if let Some(node_body) = node_as_module_declaration.body {
+            if node_body.ref_(self).kind() == SyntaxKind::ModuleBlock {
                 self.try_save_state_and_invoke(node_body, |body: Id<Node>| {
                     add_range(
                         &mut statements,
@@ -288,7 +288,7 @@ impl TransformTypeScript {
 
                     Ok(())
                 })?;
-                statements_location = Some((&*node_body.as_module_block().statements).into());
+                statements_location = Some((&*node_body.ref_(self).as_module_block().statements).into());
                 block_location = Some(node_body.clone());
             } else {
                 let result = self.visit_module_declaration(node_body)?;
@@ -310,7 +310,7 @@ impl TransformTypeScript {
                     .body
                     .unwrap();
                 statements_location =
-                    Some(move_range_pos(&*module_block.as_module_block().statements, -1).into());
+                    Some(move_range_pos(&*module_block.ref_(self).as_module_block().statements, -1).into());
             }
         }
 
@@ -355,7 +355,6 @@ impl TransformTypeScript {
         let module_declaration_as_module_declaration = module_declaration_ref.as_module_declaration();
         let module_body = module_declaration_as_module_declaration
             .body
-            .as_ref()
             .unwrap();
         if module_body.ref_(self).kind() == SyntaxKind::ModuleDeclaration {
             let recursive_inner_module =
@@ -376,7 +375,7 @@ impl TransformTypeScript {
             return Ok(Some(node.into()));
         }
         let node_import_clause = node_as_import_declaration.import_clause.unwrap();
-        if node_import_clause.as_import_clause().is_type_only {
+        if node_import_clause.ref_(self).as_import_clause().is_type_only {
             return Ok(None);
         }
 
@@ -432,7 +431,7 @@ impl TransformTypeScript {
         Ok(if name.is_some() || named_bindings.is_some() {
             Some(
                 self.factory
-                    .update_import_clause(node, false, name.cloned(), named_bindings)
+                    .update_import_clause(node, false, name, named_bindings)
                     .into(),
             )
         } else {
@@ -508,8 +507,7 @@ impl TransformTypeScript {
 
         if !node_as_export_declaration
             .export_clause
-            .as_ref()
-            .matches(|node_export_clause| !is_namespace_export(node_export_clause))
+            .matches(|node_export_clause| !is_namespace_export(&node_export_clause.ref_(self)))
         {
             return Ok(Some(node.into()));
         }
@@ -520,7 +518,7 @@ impl TransformTypeScript {
                 Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
             );
         let export_clause = try_maybe_visit_node(
-            node_as_export_declaration.export_clause.as_deref(),
+            node_as_export_declaration.export_clause,
             Some(|bindings: Id<Node> /*NamedExportBindings*/| {
                 self.visit_named_export_bindings(bindings, allow_empty)
             }),
@@ -637,9 +635,8 @@ impl TransformTypeScript {
                             None,
                             node_as_import_equals_declaration
                                 .module_reference
-                                .as_external_module_reference()
-                                .expression
-                                .clone(),
+                                .ref_(self).as_external_module_reference()
+                                .expression,
                             None,
                         )
                         .set_text_range(Some(&*node.ref_(self)), self)
@@ -664,7 +661,7 @@ impl TransformTypeScript {
 
         let module_reference = create_expression_from_entity_name(
             &*self.factory,
-            &node_as_import_equals_declaration.module_reference,
+            node_as_import_equals_declaration.module_reference,
         )
         .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoNestedComments, self);
 
@@ -701,7 +698,7 @@ impl TransformTypeScript {
                     module_reference,
                     Some(&*node.ref_(self)),
                 )
-                .set_original_node(Some(node))
+                .set_original_node(Some(node), self)
                 .into()
             },
         ))

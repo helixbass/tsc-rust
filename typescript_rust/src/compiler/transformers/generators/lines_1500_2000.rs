@@ -136,13 +136,13 @@ impl TransformGenerators {
             let initializer_as_variable_declaration_list = initializer_ref.as_variable_declaration_list();
             for &variable in &initializer_as_variable_declaration_list.declarations {
                 self.context
-                    .hoist_variable_declaration(&variable.as_variable_declaration().name());
+                    .hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
             }
 
             node = self.factory.update_for_in_statement(
                 node,
                 initializer_as_variable_declaration_list.declarations[0]
-                    .as_variable_declaration()
+                    .ref_(self).as_variable_declaration()
                     .name(),
                 visit_node(
                     node.ref_(self).as_for_in_statement().expression,

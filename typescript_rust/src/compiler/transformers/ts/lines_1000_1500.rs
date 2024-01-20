@@ -60,7 +60,7 @@ impl TransformTypeScript {
             return None;
         }
 
-        let decorators = first_accessor_with_decorators.maybe_decorators();
+        let decorators = first_accessor_with_decorators.ref_(self).maybe_decorators();
         let parameters = self.get_decorators_of_parameters(set_accessor);
         if decorators.is_none() && parameters.is_none() {
             return None;
@@ -215,8 +215,7 @@ impl TransformTypeScript {
                 )
                 .set_text_range(Some(
                     &move_range_past_decorators(&member.ref_(self)).into_readonly_text_range(),
-                    self,
-                ))
+                ), self)
                 .set_emit_flags(EmitFlags::NoComments, self),
         ))
     }
@@ -530,10 +529,10 @@ impl TransformTypeScript {
                 let parameter_ref = parameter.ref_(self);
                 let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
                 if i == 0
-                    && is_identifier(&parameter_as_parameter_declaration.name())
+                    && is_identifier(&parameter_as_parameter_declaration.name().ref_(self))
                     && parameter_as_parameter_declaration
                         .name()
-                        .as_identifier()
+                        .ref_(self).as_identifier()
                         .escaped_text
                         == "this"
                 {

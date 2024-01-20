@@ -71,7 +71,7 @@ impl TransformTypeScript {
         let node_ref = node.ref_(self);
         let node_as_type_reference_node = node_ref.as_type_reference_node();
         let kind = self.resolver.get_type_reference_serialization_kind(
-            &node_as_type_reference_node.type_name,
+            node_as_type_reference_node.type_name,
             self.maybe_current_name_scope()
                 .or_else(|| self.maybe_current_lexical_scope()),
         )?;
@@ -93,7 +93,7 @@ impl TransformTypeScript {
                 }
 
                 let serialized = self.serialize_entity_name_as_expression_fallback(
-                    &node_as_type_reference_node.type_name,
+                    node_as_type_reference_node.type_name,
                 );
                 let temp = self.factory.create_temp_variable(
                     Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
@@ -111,7 +111,7 @@ impl TransformTypeScript {
                 )
             }
             TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue => {
-                self.serialize_entity_name_as_expression(&node_as_type_reference_node.type_name)
+                self.serialize_entity_name_as_expression(node_as_type_reference_node.type_name)
             }
             TypeReferenceSerializationKind::VoidNullableOrNeverType => {
                 self.factory.create_void_zero()
@@ -175,7 +175,7 @@ impl TransformTypeScript {
         let node_as_qualified_name = node_ref.as_qualified_name();
         if node_as_qualified_name.left.ref_(self).kind() == SyntaxKind::Identifier {
             return self.create_checked_value(
-                self.serialize_entity_name_as_expression(&node_as_qualified_name.left),
+                self.serialize_entity_name_as_expression(node_as_qualified_name.left),
                 self.serialize_entity_name_as_expression(node),
             );
         }
@@ -225,7 +225,7 @@ impl TransformTypeScript {
         let node_ref = node.ref_(self);
         let node_as_qualified_name = node_ref.as_qualified_name();
         self.factory.create_property_access_expression(
-            self.serialize_entity_name_as_expression(&node_as_qualified_name.left),
+            self.serialize_entity_name_as_expression(node_as_qualified_name.left),
             node_as_qualified_name.right.clone(),
         )
     }
@@ -267,9 +267,10 @@ impl TransformTypeScript {
         if is_private_identifier(&name.ref_(self)) {
             self.factory.create_identifier("")
         } else if is_computed_property_name(&name.ref_(self)) {
-            let name_as_computed_property_name = name.as_computed_property_name();
+            let name_ref = name.ref_(self);
+            let name_as_computed_property_name = name_ref.as_computed_property_name();
             if generate_name_for_computed_property_name
-                && !is_simple_inlineable_expression(&name_as_computed_property_name.expression)
+                && !is_simple_inlineable_expression(&name_as_computed_property_name.expression.ref_(self))
             {
                 self.factory.get_generated_name_for_node(Some(name), None)
             } else {
@@ -277,7 +278,7 @@ impl TransformTypeScript {
             }
         } else if is_identifier(&name.ref_(self)) {
             self.factory
-                .create_string_literal(id_text(&name).to_owned(), None, None)
+                .create_string_literal(id_text(&name.ref_(self)).to_owned(), None, None)
         } else {
             self.factory.clone_node(name)
         }
@@ -293,7 +294,8 @@ impl TransformTypeScript {
                 && self.maybe_current_class_has_parameter_properties() == Some(true)
                 || member.ref_(self).maybe_decorators().is_non_empty())
         {
-            let name_as_computed_property_name = name.as_computed_property_name();
+            let name_ref = name.ref_(self);
+            let name_as_computed_property_name = name_ref.as_computed_property_name();
             let expression = try_visit_node(
                 &name_as_computed_property_name.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -304,7 +306,7 @@ impl TransformTypeScript {
             if !is_simple_inlineable_expression(&inner_expression.ref_(self)) {
                 let generated_name = self
                     .factory
-                    .get_generated_name_for_node(Some(&**name), None);
+                    .get_generated_name_for_node(Some(name), None);
                 self.context.hoist_variable_declaration(generated_name);
                 return Ok(self.factory.update_computed_property_name(
                     name,
@@ -422,7 +424,7 @@ impl TransformTypeScript {
                     )?
                     .unwrap(),
                     Some(self.transform_constructor_body(
-                        &node_as_constructor_declaration.maybe_body().unwrap(),
+                        node_as_constructor_declaration.maybe_body().unwrap(),
                         node,
                     )?),
                 )
