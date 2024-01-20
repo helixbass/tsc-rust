@@ -105,7 +105,7 @@ impl TransformES2020 {
         {
             chain = cast(
                 Some(skip_partially_emitted_expressions(
-                    chain.as_has_expression().expression(),
+                    chain.ref_(arena).as_has_expression().expression(),
                     self,
                 )),
                 |value: &Id<Node>| is_optional_chain(&value.ref_(self)),
@@ -114,7 +114,7 @@ impl TransformES2020 {
             links.insert(0, chain);
         }
         FlattenChainReturn {
-            expression: chain.as_has_expression().expression(),
+            expression: chain.ref_(arena).as_has_expression().expression(),
             chain: links,
         }
     }
@@ -229,7 +229,7 @@ impl TransformES2020 {
             && is_optional_chain(&skip_parentheses(node_as_call_expression.expression, None, self).ref_(self))
         {
             let expression = self.visit_non_optional_parenthesized_expression(
-                &node_as_call_expression.expression,
+                node_as_call_expression.expression,
                 true,
                 false,
             );
@@ -310,7 +310,7 @@ impl TransformES2020 {
             left
         };
         let mut captured_left/*Expression*/ = left_expression;
-        if !is_simple_copiable_expression(&left_expression) {
+        if !is_simple_copiable_expression(&left_expression.ref_(arena)) {
             captured_left = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
                     self.context.hoist_variable_declaration(node);
@@ -328,7 +328,7 @@ impl TransformES2020 {
             match segment.ref_(self).kind() {
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                     if i == chain.len() - 1 && capture_this_arg {
-                        if !is_simple_copiable_expression(&right_expression) {
+                        if !is_simple_copiable_expression(&right_expression.ref_(arena)) {
                             this_arg = Some(self.factory.create_temp_variable(
                                 Some(|node: Id<Node>| {
                                     self.context.hoist_variable_declaration(node);
@@ -346,7 +346,7 @@ impl TransformES2020 {
                         self.factory.create_property_access_expression(
                             right_expression,
                             visit_node(
-                                segment.as_property_access_expression().name,
+                                segment.ref_(arena).as_property_access_expression().name,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -356,7 +356,7 @@ impl TransformES2020 {
                         self.factory.create_element_access_expression(
                             right_expression,
                             visit_node(
-                                segment.as_element_access_expression().argument_expression,
+                                segment.ref_(arena).as_element_access_expression().argument_expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -369,7 +369,7 @@ impl TransformES2020 {
                         let left_this_arg = left_this_arg.unwrap();
                         right_expression = self.factory.create_function_call_call(
                             right_expression,
-                            if left_this_arg.kind() == SyntaxKind::SuperKeyword {
+                            if left_this_arg.ref_(arena).kind() == SyntaxKind::SuperKeyword {
                                 self.factory.create_this()
                             } else {
                                 left_this_arg.clone()
@@ -467,7 +467,7 @@ impl TransformES2020 {
         let node_ref = node.ref_(self);
         let node_as_binary_expression = node_ref.as_binary_expression();
         let mut left = visit_node(
-            &node_as_binary_expression.left,
+            node_as_binary_expression.left,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -490,7 +490,7 @@ impl TransformES2020 {
                     right,
                     None,
                     visit_node(
-                        &node_as_binary_expression.right,
+                        node_as_binary_expression.right,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -511,7 +511,7 @@ impl TransformES2020 {
                 self,
             ).ref_(self)) {
                 self.visit_non_optional_expression(
-                    &node_as_delete_expression.expression,
+                    node_as_delete_expression.expression,
                     false,
                     true,
                 )
@@ -520,7 +520,7 @@ impl TransformES2020 {
                 self.factory.update_delete_expression(
                     node,
                     visit_node(
-                        &node_as_delete_expression.expression,
+                        node_as_delete_expression.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

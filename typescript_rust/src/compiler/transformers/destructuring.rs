@@ -329,14 +329,14 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
             >
     });
     if is_destructuring_assignment(node, arena) {
-        value = Some(node.as_binary_expression().right.clone());
-        while is_empty_array_literal(&node.as_binary_expression().left)
-            || is_empty_object_literal(&node.as_binary_expression().left)
+        value = Some(node.ref_(arena).as_binary_expression().right);
+        while is_empty_array_literal(&node.ref_(arena).as_binary_expression().left.ref_(arena))
+            || is_empty_object_literal(&node.ref_(arena).as_binary_expression().left.ref_(arena))
         {
             if is_destructuring_assignment(value.unwrap(), arena) {
-                node = value.clone().unwrap();
-                location = value.clone().unwrap();
-                value = Some(node.as_binary_expression().right.clone());
+                node = value.unwrap();
+                location = value.unwrap();
+                value = Some(node.ref_(arena).as_binary_expression().right);
             } else {
                 return try_visit_node(
                     value.unwrap(),
@@ -560,8 +560,8 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 arena,
             )?;
             node = context.factory().update_variable_declaration(
-                &node,
-                node.as_variable_declaration().maybe_name(),
+                node,
+                node.ref_(arena).as_variable_declaration().maybe_name(),
                 None,
                 None,
                 Some(initializer),
@@ -811,7 +811,7 @@ fn flatten_binding_or_assignment_element(
             flatten_context
                 .is_visitor_supported()
                 .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
-            Some(|node| is_expression(node, flatten_context)),
+            Some(|node| is_expression(node, arena)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         if let Some(initializer) = initializer {
@@ -1116,7 +1116,6 @@ fn flatten_array_binding_or_assignment_pattern(
     }
     if let Some(rest_containing_elements) = rest_containing_elements {
         for (id, element) in rest_containing_elements {
-            let element = *element;
             flatten_binding_or_assignment_element(
                 flatten_context,
                 element,
@@ -1243,7 +1242,7 @@ fn ensure_identifier(
                     .context()
                     .factory()
                     .create_assignment(temp, value)
-                    .set_text_range(Some(&*location.ref_(arena)), arena),
+                    .set_text_range(Some(location), arena),
             );
         } else {
             flatten_context.emit_binding_or_assignment(

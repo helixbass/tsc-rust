@@ -517,12 +517,12 @@ impl TransformJsx {
             .properties
             .iter()
             .find(|p| {
-                p.as_named_declaration().maybe_name().matches(|ref p_name| {
-                    is_identifier(p_name) && p_name.as_identifier().escaped_text == "key"
+                p.ref_(self).as_named_declaration().maybe_name().matches(|p_name| {
+                    is_identifier(&p_name.ref_(self)) && p_name.ref_(self).as_identifier().escaped_text == "key"
                 })
             })
             .cloned();
-        let attrs: NodeArrayOrVec = key_attr.as_ref().map_or_else(
+        let attrs: NodeArrayOrVec = key_attr.map_or_else(
             || {
                 node_as_jsx_opening_like_element
                     .attributes()
@@ -552,7 +552,7 @@ impl TransformJsx {
         };
         Some(self.visit_jsx_opening_like_element_or_fragment_jsx(
             tag_name,
-            &object_properties,
+            object_properties,
             key_attr,
             children.unwrap_or(&[]),
             is_child,

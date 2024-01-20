@@ -25,7 +25,7 @@ impl TransformDeclarations {
         if !for_each_bool(
             &input_as_variable_statement
                 .declaration_list
-                .as_variable_declaration_list()
+                .ref_(self).as_variable_declaration_list()
                 .declarations,
             |&declaration: &Id<Node>, _| self.get_binding_name_visible(declaration),
         ) {
@@ -34,7 +34,7 @@ impl TransformDeclarations {
         let nodes = return_ok_default_if_none!(Some(try_visit_nodes(
             &input_as_variable_statement
                 .declaration_list
-                .as_variable_declaration_list()
+                .ref_(self).as_variable_declaration_list()
                 .declarations,
             Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
             Option::<fn(Id<Node>) -> bool>::None,
@@ -52,7 +52,7 @@ impl TransformDeclarations {
                         .create_node_array(self.ensure_modifiers(input), None),
                 ),
                 self.factory.update_variable_declaration_list(
-                    &input_as_variable_statement.declaration_list,
+                    input_as_variable_statement.declaration_list,
                     nodes,
                 ),
             ),
@@ -76,7 +76,7 @@ impl TransformDeclarations {
         if e.ref_(self).kind() == SyntaxKind::OmittedExpression {
             return Ok(None);
         }
-        let e._ref = e..ref_(self);
+        let e_ref = e.ref_(self);
         let e_name = e_ref.as_binding_element().maybe_name();
         e_name.try_and_then(|e_name| {
             if !self.get_binding_name_visible(e) {
@@ -160,7 +160,7 @@ impl TransformDeclarations {
     pub(super) fn ensure_modifier_flags(&self, node: Id<Node>) -> ModifierFlags {
         let mut mask = ModifierFlags::All
             ^ (ModifierFlags::Public | ModifierFlags::Async | ModifierFlags::Override);
-        let mut additions = if self.needs_declare() && !is_always_type(node) {
+        let mut additions = if self.needs_declare() && !is_always_type(&node.ref_(self)) {
             ModifierFlags::Ambient
         } else {
             ModifierFlags::None
@@ -180,7 +180,7 @@ impl TransformDeclarations {
         node: Id<Node>, /*AccessorDeclaration*/
         accessors: &AllAccessorDeclarations,
     ) -> Option<Id<Node>> {
-        let mut accessor_type = get_type_annotation_from_accessor(node);
+        let mut accessor_type = get_type_annotation_from_accessor(node, self);
         if accessor_type.is_none() && node != accessors.first_accessor {
             accessor_type = get_type_annotation_from_accessor(accessors.first_accessor, self);
             self.set_get_symbol_accessibility_diagnostic(
@@ -220,8 +220,8 @@ impl TransformDeclarations {
                                         .types
                                         .iter()
                                         .filter(|t| {
-                                            let t_as_expression_with_type_arguments =
-                                                t.as_expression_with_type_arguments();
+                                            let t._ref = t..ref_(self);
+                                            let t_as_expression_with_type_arguments = t_ref.as_expression_with_type_arguments();
                                             is_entity_name_expression(
                                                 t_as_expression_with_type_arguments.expression,
                                                 self,

@@ -523,7 +523,7 @@ impl TransformDeclarations {
                                 decl_import_clause,
                                 decl_import_clause_as_import_clause.is_type_only,
                                 visible_default_binding,
-                                named_bindings.cloned(),
+                                named_bindings,
                             )),
                             self.rewrite_module_specifier(
                                 decl,
@@ -541,7 +541,7 @@ impl TransformDeclarations {
         let binding_list = map_defined(
             Some(
                 &decl_import_clause_named_bindings
-                    .as_named_imports()
+                    .ref_(self).as_named_imports()
                     .elements,
             ),
             |&b: &Id<Node>, _| {
@@ -769,7 +769,7 @@ impl TransformDeclarations {
             self.set_suppress_new_diagnostic_contexts(Some(true));
         }
 
-        if is_processed_component(input) {
+        if is_processed_component(&input.ref_(self)) {
             return Ok(match input.ref_(self).kind() {
                 SyntaxKind::ExpressionWithTypeArguments => {
                     let input_ref = input.ref_(self);

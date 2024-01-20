@@ -401,7 +401,7 @@ impl TransformClassFields {
         if self.use_define_for_class_fields {
             return self.language_version < ScriptTarget::ESNext;
         }
-        is_initialized_property(member)
+        is_initialized_property(&member.ref_(self))
             || self.should_transform_private_elements_or_class_static_blocks
                 && is_private_identifier_class_element_declaration(member, self)
     }
@@ -509,20 +509,20 @@ impl TransformClassFields {
             let constructor_as_constructor_declaration = constructor_ref.as_constructor_declaration();
             if let Some(constructor_body) = constructor_as_constructor_declaration.maybe_body() {
                 let after_parameter_properties = find_index(
-                    &constructor_body.as_block().statements,
+                    &constructor_body.ref_(self).as_block().statements,
                     |&s: &Id<Node>, _| {
                         !is_parameter_property_declaration(get_original_node(s, self), constructor, self)
                     },
                     Some(index_of_first_statement),
                 );
                 let after_parameter_properties = after_parameter_properties
-                    .unwrap_or_else(|| constructor_body.as_block().statements.len());
+                    .unwrap_or_else(|| constructor_body.ref_(self).as_block().statements.len());
                 if after_parameter_properties > index_of_first_statement {
                     if !self.use_define_for_class_fields {
                         add_range(
                             &mut statements,
                             Some(&visit_nodes(
-                                &constructor_body.as_block().statements,
+                                &constructor_body.ref_(self).as_block().statements,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_statement(node, self)),
                                 Some(index_of_first_statement),
@@ -548,7 +548,7 @@ impl TransformClassFields {
                         .ref_(self).as_constructor_declaration()
                         .maybe_body()
                         .unwrap()
-                        .as_block()
+                        .ref_(self).as_block()
                         .statements,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),

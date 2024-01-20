@@ -19,7 +19,7 @@ use crate::{
     SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 bitflags! {

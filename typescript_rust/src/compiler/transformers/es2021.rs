@@ -10,7 +10,7 @@ use crate::{
     skip_parentheses, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node, NodeFactory,
     NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 #[derive(Trace, Finalize)]

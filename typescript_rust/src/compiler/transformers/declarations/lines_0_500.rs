@@ -114,7 +114,7 @@ pub fn is_internal_declaration(
                     &text,
                     skip_trivia(
                         &text,
-                        previous_sibling.ref_(self).end() + 1,
+                        previous_sibling.ref_(arena).end() + 1,
                         Some(false),
                         Some(true),
                         None,
@@ -1176,7 +1176,7 @@ impl TransformDeclarations {
         let new_param = self.factory.update_parameter_declaration(
             p,
             Option::<Gc<NodeArray>>::None,
-            Some(mask_modifiers(p, modifier_mask, None)),
+            Some(mask_modifiers(p, modifier_mask, None, self)),
             p_as_parameter_declaration.dot_dot_dot_token,
             Some(self.filter_binding_pattern_initializers(p_as_parameter_declaration.name())?),
             if self.resolver.is_optional_parameter(p)? {

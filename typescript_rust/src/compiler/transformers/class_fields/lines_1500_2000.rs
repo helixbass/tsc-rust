@@ -146,7 +146,7 @@ impl TransformClassFields {
             .identifiers
             .get(private_name)
             .cloned();
-        let is_valid = !is_reserved_private_name(node_name) && previous_info.is_none();
+        let is_valid = !is_reserved_private_name(&node_name.ref_(self)) && previous_info.is_none();
 
         if has_static_modifier(node, self) {
             Debug_.assert(
@@ -446,7 +446,7 @@ impl TransformClassFields {
         let mut receiver = node_as_property_access_expression.expression;
         if is_this_property(node, self)
             || is_super_property(node, self)
-            || !is_simple_copiable_expression(&node_as_property_access_expression.expression)
+            || !is_simple_copiable_expression(&node_as_property_access_expression.expression.ref_(self))
         {
             receiver = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
@@ -459,7 +459,7 @@ impl TransformClassFields {
                     receiver.clone(),
                     SyntaxKind::EqualsToken,
                     visit_node(
-                        &node_as_property_access_expression.expression,
+                        node_as_property_access_expression.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -550,7 +550,7 @@ impl TransformClassFields {
                             wrapped,
                             node_as_binary_expression.operator_token.clone(),
                             visit_node(
-                                &node_as_binary_expression.right,
+                                node_as_binary_expression.right,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -650,7 +650,7 @@ impl TransformClassFields {
                         .update_property_assignment(
                             node,
                             visit_node(
-                                &node_as_property_assignment.name(),
+                                node_as_property_assignment.name(),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -671,7 +671,7 @@ impl TransformClassFields {
                                 }
                             } else {
                                 visit_node(
-                                    &node_as_property_assignment.initializer,
+                                    node_as_property_assignment.initializer,
                                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                                     Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -690,7 +690,7 @@ impl TransformClassFields {
                             node,
                             wrapped.unwrap_or_else(|| {
                                 visit_node(
-                                    &node_as_spread_assignment.expression,
+                                    node_as_spread_assignment.expression,
                                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                                     Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

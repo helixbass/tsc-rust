@@ -76,13 +76,13 @@ impl TransformES2016 {
         let node_ref = node.ref_(self);
         let node_as_binary_expression = node_ref.as_binary_expression();
         let left = visit_node(
-            &node_as_binary_expression.left,
+            node_as_binary_expression.left,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let right = visit_node(
-            &node_as_binary_expression.right,
+            node_as_binary_expression.right,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

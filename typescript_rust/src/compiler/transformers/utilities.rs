@@ -76,11 +76,11 @@ fn contains_default_reference(node: Option<Id<Node /*NamedImportBindings*/>>, ar
     node.ref_(arena).as_named_imports()
         .elements
         .iter()
-        .any(|element| is_named_default_reference(element, arena))
+        .any(|&element| is_named_default_reference(element, arena))
 }
 
 fn is_named_default_reference(e: Id<Node> /*ImportSpecifier*/, arena: &impl HasArena) -> bool {
-    let e._ref = e..ref_(arena);
+    let e_ref = e.ref_(arena);
     let e_as_import_specifier = e_ref.as_import_specifier();
     e_as_import_specifier
         .property_name
@@ -136,11 +136,10 @@ pub fn get_import_needs_import_default_helper(node: Id<Node> /*ImportDeclaration
                 .as_ref()
                 .matches(|node_import_clause| {
                     let node_import_clause_named_bindings = node_import_clause
-                        .as_import_clause()
+                        .ref_(arena).as_import_clause()
                         .named_bindings
-                        .as_ref()
                         .unwrap();
-                    is_named_imports(node_import_clause_named_bindings)
+                    is_named_imports(&node_import_clause_named_bindings.ref_(arena))
                         && contains_default_reference(Some(node_import_clause_named_bindings), arena)
                 }))
 }
@@ -179,11 +178,12 @@ pub fn collect_external_module_info(
                 }
             }
             SyntaxKind::ImportEqualsDeclaration => {
-                let node_as_import_equals_declaration = node.as_import_equals_declaration();
-                if node_as_import_equals_declaration.module_reference.kind()
+                let node_ref = node.ref_(arena);
+                let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
+                if node_as_import_equals_declaration.module_reference.ref_(arena).kind()
                     == SyntaxKind::ExternalModuleReference
                 {
-                    external_imports.push(node.clone());
+                    external_imports.push(node);
                 }
             }
             SyntaxKind::ExportDeclaration => {
@@ -205,6 +205,7 @@ pub fn collect_external_module_info(
                                     &mut exported_bindings,
                                     &mut exported_names,
                                     node,
+                                    arena,
                                 )?;
                             } else {
                                 let name = node_export_clause.ref_(arena).as_namespace_export().name;
@@ -228,21 +229,23 @@ pub fn collect_external_module_info(
                         &mut exported_bindings,
                         &mut exported_names,
                         node,
+                        arena,
                     )?;
                 }
             }
             SyntaxKind::ExportAssignment => {
-                let node_as_export_assignment = node.as_export_assignment();
+                let node_ref = node.ref_(arena);
+                let node_as_export_assignment = node_ref.as_export_assignment();
                 if node_as_export_assignment.is_export_equals == Some(true)
                     && export_equals.is_none()
                 {
-                    export_equals = Some(node.clone());
+                    export_equals = Some(node);
                 }
             }
             SyntaxKind::VariableStatement => {
                 if has_syntactic_modifier(node, ModifierFlags::Export, arena) {
                     for decl in &node
-                        .as_variable_statement()
+                        .ref_(arena).as_variable_statement()
                         .declaration_list
                         .as_variable_declaration_list()
                         .declarations
@@ -251,6 +254,7 @@ pub fn collect_external_module_info(
                             decl,
                             &mut unique_exports,
                             &mut exported_names,
+                            arena,
                         );
                     }
                 }
@@ -263,14 +267,14 @@ pub fn collect_external_module_info(
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
                                 .push(context.factory().get_declaration_name(
-                                    Some(&**node),
+                                    Some(node),
                                     None,
                                     None,
                                 ));
                             has_export_default = true;
                         }
                     } else {
-                        let name = node.as_function_declaration().name();
+                        let name = node.ref_(arena).as_function_declaration().name();
                         if unique_exports.get(id_text(&name)).copied() != Some(true) {
                             exported_bindings
                                 .entry(get_original_node_id(node, arena))
@@ -290,14 +294,14 @@ pub fn collect_external_module_info(
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
                                 .push(context.factory().get_declaration_name(
-                                    Some(&**node),
+                                    Some(node),
                                     None,
                                     None,
                                 ));
                             has_export_default = true;
                         }
                     } else {
-                        let name = node.as_class_declaration().maybe_name();
+                        let name = node.ref_(arena).as_class_declaration().maybe_name();
                         if let Some(name) = name
                             .filter(|name| unique_exports.get(id_text(name)).copied() != Some(true))
                         {
@@ -352,12 +356,12 @@ fn add_exported_names_for_export_declaration(
     let node_as_export_declaration = node.ref_(arena).as_export_declaration();
     for specifier in &cast(
         node_as_export_declaration.export_clause,
-        |node: &&Id<Node>| is_named_exports(&node.ref_(arena)),
+        |node: &Id<Node>| is_named_exports(&node.ref_(arena)),
     )
     .ref_(arena).as_named_exports()
     .elements
     {
-        let specifier_as_export_specifier = specifier.as_export_specifier();
+        let specifier_as_export_specifier = specifier.ref_(arena).as_export_specifier();
         if unique_exports
             .get(id_text(&specifier_as_export_specifier.name))
             .copied()
@@ -409,7 +413,7 @@ fn collect_exported_variable_info(
             }
         }
     } else if !is_generated_identifier(&decl_name.ref_(arena)) {
-        let text = id_text(&decl_name);
+        let text = id_text(&decl_name.ref_(arena));
         if unique_exports.get(text).copied() != Some(true) {
             unique_exports.insert(text.to_owned(), true);
             exported_names.get_or_insert_default_().push(decl_name);
@@ -479,7 +483,7 @@ pub fn try_add_prologue_directives_and_initial_super_call(
 ) -> io::Result<usize> {
     let ctor_as_constructor_declaration = ctor.ref_(arena).as_constructor_declaration();
     if let Some(ctor_body) = ctor_as_constructor_declaration.maybe_body() {
-        let statements = &ctor_body.as_block().statements;
+        let statements = &ctor_body.ref_(arena).as_block().statements;
         let index = factory.try_copy_prologue(
             statements,
             result,
@@ -502,7 +506,7 @@ pub fn try_add_prologue_directives_and_initial_super_call(
                 result.push(try_visit_node(
                     statement,
                     Some(|node: Id<Node>| visitor(node)),
-                    Some(|node: Id<Node>| is_statement(&node.ref_(arena))),
+                    Some(|node: Id<Node>| is_statement(node, arena)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?);
             }
@@ -524,7 +528,7 @@ pub fn get_properties(
     node.ref_(arena).as_class_like_declaration()
         .members()
         .iter()
-        .filter(|m| is_initialized_or_static_property(m, require_initializer, is_static, arena))
+        .filter(|&&m| is_initialized_or_static_property(m, require_initializer, is_static, arena))
         .cloned()
         .collect()
 }
@@ -541,7 +545,7 @@ pub fn get_static_properties_and_class_static_block(
     node.ref_(arena).as_class_like_declaration()
         .members()
         .iter()
-        .filter(|member| is_static_property_declaration_or_class_static_block_declaration(member, arena))
+        .filter(|&&member| is_static_property_declaration_or_class_static_block_declaration(member, arena))
         .cloned()
         .collect()
 }

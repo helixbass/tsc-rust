@@ -21,26 +21,26 @@ impl TransformESNext {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        let node_ref = node.ref_(arena);
+        let node_ref = node.ref_(self);
         let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file() {
             return node;
         }
 
-        visit_each_child(&node.ref_(arena), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         if !node
-            .ref_(arena).transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsESNext)
         {
             return Some(node.into());
         }
         #[allow(clippy::match_single_binding)]
-        match node.ref_(arena).kind() {
+        match node.ref_(self).kind() {
             _ => Some(
-                visit_each_child(&node.ref_(arena), |node: Id<Node>| self.visitor(node), &**self.context).into(),
+                visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into(),
             ),
         }
     }

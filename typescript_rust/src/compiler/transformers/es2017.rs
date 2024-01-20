@@ -318,7 +318,7 @@ impl TransformES2017 {
                             captured_super_properties.insert(
                                 node_as_property_access_expression
                                     .name
-                                    .as_member_name()
+                                    .ref_(arena).as_member_name()
                                     .escaped_text()
                                     .to_owned(),
                             );
@@ -415,7 +415,7 @@ impl TransformES2017 {
         let node_ref = node.ref_(self);
         let node_as_catch_clause = node_ref.as_catch_clause();
         self.record_declaration_name(
-            node_as_catch_clause.variable_declaration.as_ref().unwrap(),
+            node_as_catch_clause.variable_declaration.unwrap(),
             &mut catch_clause_names,
         );
 
@@ -467,7 +467,7 @@ impl TransformES2017 {
             node_as_variable_statement.declaration_list,
         )) {
             let expression = self.visit_variable_declaration_list_with_colliding_names(
-                &node_as_variable_statement.declaration_list,
+                node_as_variable_statement.declaration_list,
                 false,
             )?;
             return Ok(
@@ -490,29 +490,29 @@ impl TransformES2017 {
         Ok(self.factory.update_for_in_statement(
             node,
             if self.is_variable_declaration_list_with_colliding_name(Some(
-                &*node_as_for_in_statement.initializer,
+                node_as_for_in_statement.initializer,
             )) {
                 self.visit_variable_declaration_list_with_colliding_names(
-                    &node_as_for_in_statement.initializer,
+                    node_as_for_in_statement.initializer,
                     true,
                 )?
                 .unwrap()
             } else {
                 try_visit_node(
-                    &node_as_for_in_statement.initializer,
+                    node_as_for_in_statement.initializer,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_for_initializer(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
-                &node_as_for_in_statement.expression,
+                node_as_for_in_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                &node_as_for_in_statement.statement,
+                node_as_for_in_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
             )?,
@@ -528,35 +528,35 @@ impl TransformES2017 {
         Ok(self.factory.update_for_of_statement(
             node,
             try_maybe_visit_node(
-                node_as_for_of_statement.await_modifier.as_deref(),
+                node_as_for_of_statement.await_modifier,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_token(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             if self.is_variable_declaration_list_with_colliding_name(Some(
-                &*node_as_for_of_statement.initializer,
+                node_as_for_of_statement.initializer,
             )) {
                 self.visit_variable_declaration_list_with_colliding_names(
-                    &node_as_for_of_statement.initializer,
+                    node_as_for_of_statement.initializer,
                     true,
                 )?
                 .unwrap()
             } else {
                 try_visit_node(
-                    &node_as_for_of_statement.initializer,
+                    node_as_for_of_statement.initializer,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_for_initializer(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
-                &node_as_for_of_statement.expression,
+                node_as_for_of_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                &node_as_for_of_statement.statement,
+                node_as_for_of_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
             )?,
@@ -586,19 +586,19 @@ impl TransformES2017 {
                 )?
             },
             try_maybe_visit_node(
-                node_as_for_statement.condition.as_deref(),
+                node_as_for_statement.condition,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node_as_for_statement.incrementor.as_deref(),
+                node_as_for_statement.incrementor,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                &node_as_for_statement.statement,
+                node_as_for_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
             )?,
@@ -666,7 +666,7 @@ impl TransformES2017 {
                 Some(self.transform_async_function_body(node)?)
             } else {
                 try_visit_function_body(
-                    node_as_method_declaration.maybe_body().as_deref(),
+                    node_as_method_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -706,7 +706,7 @@ impl TransformES2017 {
                         Some(self.transform_async_function_body(node)?)
                     } else {
                         try_visit_function_body(
-                            node_as_function_declaration.maybe_body().as_deref(),
+                            node_as_function_declaration.maybe_body(),
                             |node: Id<Node>| self.visitor(node),
                             &**self.context,
                         )?
@@ -745,7 +745,7 @@ impl TransformES2017 {
                 self.transform_async_function_body(node)?
             } else {
                 try_visit_function_body(
-                    node_as_function_expression.maybe_body().as_deref(),
+                    node_as_function_expression.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -779,7 +779,7 @@ impl TransformES2017 {
                 self.transform_async_function_body(node)?
             } else {
                 try_visit_function_body(
-                    node_as_arrow_function.maybe_body().as_deref(),
+                    node_as_arrow_function.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -840,8 +840,8 @@ impl TransformES2017 {
                         self.factory
                             .converters()
                             .convert_to_assignment_element_target(
-                                &node_as_variable_declaration_list.declarations[0]
-                                    .as_variable_declaration()
+                                node_as_variable_declaration_list.declarations[0]
+                                    .ref_(arena).as_variable_declaration()
                                     .name(),
                             ),
                     ),
@@ -891,7 +891,7 @@ impl TransformES2017 {
             self.factory.create_assignment(
                 self.factory
                     .converters()
-                    .convert_to_assignment_element_target(&node_as_variable_declaration.name()),
+                    .convert_to_assignment_element_target(node_as_variable_declaration.name()),
                 node_as_variable_declaration.maybe_initializer().unwrap(),
             ),
             Some((&*node.ref_(self)).into()),
@@ -944,7 +944,7 @@ impl TransformES2017 {
         let saved_enclosing_function_parameter_names =
             self.maybe_enclosing_function_parameter_names().clone();
         self.set_enclosing_function_parameter_names(Some(HashSet::new()));
-        for parameter in &node_as_function_like_declaration.parameters() {
+        for &parameter in &node_as_function_like_declaration.parameters() {
             self.record_declaration_name(
                 parameter,
                 &mut self.enclosing_function_parameter_names_mut(),
@@ -965,7 +965,7 @@ impl TransformES2017 {
                 &node_as_function_like_declaration
                     .maybe_body()
                     .unwrap()
-                    .as_block()
+                    .ref_(arena).as_block()
                     .statements,
                 &mut statements,
                 Some(false),
@@ -980,7 +980,7 @@ impl TransformES2017 {
                             has_lexical_arguments,
                             promise_constructor.clone(),
                             self.transform_async_function_body_worker(
-                                &node_as_function_like_declaration.maybe_body().unwrap(),
+                                node_as_function_like_declaration.maybe_body().unwrap(),
                                 Some(statement_offset),
                             )?,
                         ),
@@ -1050,7 +1050,7 @@ impl TransformES2017 {
                     has_lexical_arguments,
                     promise_constructor,
                     self.transform_async_function_body_worker(
-                        &node_as_function_like_declaration.maybe_body().unwrap(),
+                        node_as_function_like_declaration.maybe_body().unwrap(),
                         None,
                     )?,
                 );
@@ -1221,7 +1221,7 @@ impl TransformES2017 {
         let node_as_element_access_expression = node_ref.as_element_access_expression();
         if node_as_element_access_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
             return self.create_super_element_access_in_async_method(
-                &node_as_element_access_expression.argument_expression,
+                node_as_element_access_expression.argument_expression,
                 &*node.ref_(self),
             );
         }
@@ -1233,7 +1233,7 @@ impl TransformES2017 {
         let node_as_call_expression = node_ref.as_call_expression();
         let expression = node_as_call_expression.expression;
         if is_super_property(expression, self) {
-            let argument_expression = if is_property_access_expression(expression) {
+            let argument_expression = if is_property_access_expression(&expression.ref_(arena)) {
                 self.substitute_property_access_expression(expression)
             } else {
                 self.substitute_element_access_expression(expression)

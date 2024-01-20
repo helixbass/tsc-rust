@@ -27,6 +27,7 @@ use crate::{
     NodeArray, NodeFlags, NodeInterface, OptionTry, SignatureDeclarationInterface,
     SingleNodeOrVecNode, StringOrNumber, Symbol, SymbolAccessibilityDiagnostic,
     SymbolAccessibilityResult, SymbolInterface, SyntaxKind, VisitResult, VisitResultInterface, AllArenas,
+    OptionInArena,
 };
 
 impl TransformDeclarations {
@@ -44,7 +45,7 @@ impl TransformDeclarations {
             self.check_name(input)?;
         }
         if self.is_enclosing_declaration(input) {
-            self.set_enclosing_declaration(previous_enclosing_declaration.cloned());
+            self.set_enclosing_declaration(previous_enclosing_declaration);
         }
         if can_produce_diagnostic && self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             self.set_get_symbol_accessibility_diagnostic(old_diag.clone());
@@ -76,7 +77,7 @@ impl TransformDeclarations {
 
     pub(super) fn visit_declaration_statements(&self, input: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
-        if !is_preserved_declaration_statement(input) {
+        if !is_preserved_declaration_statement(&input.ref_(self)) {
             return Ok(None);
         }
         if self.should_strip_internal(input) {
@@ -656,7 +657,7 @@ impl TransformDeclarations {
                             let param_ref = param.ref_(self);
                             let param_as_parameter_declaration = param_ref.as_parameter_declaration();
                             Ok(
-                                if param_as_parameter_declaration.name().kind()
+                                if param_as_parameter_declaration.name().ref_(self).kind()
                                     == SyntaxKind::Identifier
                                 {
                                     vec![self.preserve_js_doc(
@@ -668,8 +669,7 @@ impl TransformDeclarations {
                                             self.ensure_type(
                                                 param,
                                                 param_as_parameter_declaration
-                                                    .maybe_type()
-                                                    .as_deref(),
+                                                    .maybe_type(),
                                                 None,
                                             )?,
                                             self.ensure_no_initializer(param)?,
@@ -732,7 +732,7 @@ impl TransformDeclarations {
                         self,
                     ) && extends_clause_as_expression_with_type_arguments
                         .expression
-                        .kind()
+                        .ref_(self).kind()
                         != SyntaxKind::NullKeyword
                 }) {
                     let old_id = if let Some(input_name) = input_as_class_declaration.maybe_name() {
@@ -830,8 +830,8 @@ impl TransformDeclarations {
                                                     .types
                                                     .iter()
                                                     .filter(|t| {
-                                                        let t_as_expression_with_type_arguments =
-                                                            t.as_expression_with_type_arguments();
+                                                        let t._ref = t..ref_(self);
+                                                        let t_as_expression_with_type_arguments = t_ref.as_expression_with_type_arguments();
                                                         is_entity_name_expression(
                                                             t_as_expression_with_type_arguments
                                                                 .expression,
@@ -888,7 +888,7 @@ impl TransformDeclarations {
                     )?;
                     self.transform_top_level_declaration_cleanup(
                         input,
-                        previous_enclosing_declaration.as_ref(),
+                        previous_enclosing_declaration,
                         can_prodice_diagnostic,
                         &old_diag,
                         previous_needs_declare,
@@ -984,12 +984,13 @@ impl TransformDeclarations {
         pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut elems: Option<Vec<Id<Node /*PropertyDeclaration*/>>> = Default::default();
-        for elem in &pattern.ref_(self).as_has_elements().elements() {
-            let elem_as_binding_element = elem.as_binding_element();
-            if is_omitted_expression(elem) {
+        for &elem in &pattern.ref_(self).as_has_elements().elements() {
+            let elem_ref = elem.ref_(self);
+            let elem_as_binding_element = elem_ref.as_binding_element();
+            if is_omitted_expression(&elem.ref_(self)) {
                 continue;
             }
-            if is_binding_pattern(elem_as_binding_element.maybe_name()) {
+            if is_binding_pattern(elem_as_binding_element.maybe_name().refed(self)) {
                 elems = maybe_concatenate(
                     elems,
                     self.walk_binding_pattern(param, &elem_as_binding_element.name())?,
@@ -1019,7 +1020,7 @@ impl TransformDeclarations {
         node: Option<Id<Node>>,
     ) -> VisitResult {
         if self.is_enclosing_declaration(input) {
-            self.set_enclosing_declaration(previous_enclosing_declaration.cloned());
+            self.set_enclosing_declaration(previous_enclosing_declaration);
         }
         if can_prodice_diagnostic {
             self.set_get_symbol_accessibility_diagnostic(old_diag.clone());

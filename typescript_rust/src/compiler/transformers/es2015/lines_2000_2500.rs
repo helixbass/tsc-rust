@@ -228,7 +228,7 @@ impl TransformES2015 {
                 );
                 if let Some(decl_initializer) = decl_as_variable_declaration.maybe_initializer() {
                     let assignment: Id<Node /*Expression*/>;
-                    if is_binding_pattern(decl_as_variable_declaration.maybe_name()) {
+                    if is_binding_pattern(decl_as_variable_declaration.maybe_name().refed(self)) {
                         assignment = try_flatten_destructuring_assignment(
                             decl,
                             Some(|node: Id<Node>| self.visitor(node)),
@@ -454,6 +454,7 @@ impl TransformES2015 {
                             .intersects(HierarchyFacts::ExportedVariableStatement),
                     ),
                     None,
+                    self,
                 )?
                 .into(),
             );
@@ -784,6 +785,7 @@ impl TransformES2015 {
                     Some(bound_value),
                     None,
                     None,
+                    self,
                 )?;
 
                 let declaration_list = self
