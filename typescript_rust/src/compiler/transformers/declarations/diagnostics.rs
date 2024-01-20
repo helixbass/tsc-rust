@@ -12,6 +12,7 @@ use crate::{
     is_static, is_type_alias_declaration, is_type_parameter_declaration, is_variable_declaration,
     Debug_, DiagnosticMessage, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node,
     NodeInterface, NonEmpty, SymbolAccessibility, SymbolAccessibilityResult, SyntaxKind, HasArena, AllArenas,
+    InArena,
 };
 
 pub trait GetSymbolAccessibilityDiagnosticInterface: Trace + Finalize {

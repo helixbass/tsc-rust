@@ -803,13 +803,13 @@ impl TransformClassFields {
         let priv_id = node_as_binary_expression.left;
         Debug_.assert_node(Some(priv_id), Some(|node: Id<Node>| is_private_identifier(&node.ref_(self))), None);
         Debug_.assert(
-            node_as_binary_expression.operator_token.kind() == SyntaxKind::InKeyword,
+            node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::InKeyword,
             None,
         );
         let info = self.access_private_identifier(priv_id);
         if let Some(info) = info {
             let receiver = visit_node(
-                &node_as_binary_expression.right,
+                node_as_binary_expression.right,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -897,7 +897,7 @@ impl TransformClassFields {
 
         let node_name = node_as_function_like_declaration.name();
         if !self.should_transform_private_elements_or_class_static_blocks
-            || !is_private_identifier(node_name)
+            || !is_private_identifier(&node_name.ref_(self))
         {
             return Some(
                 visit_each_child(
@@ -938,7 +938,7 @@ impl TransformClassFields {
                         ),
                         None,
                         visit_function_body(
-                            Some(&node_as_function_like_declaration.maybe_body().unwrap()),
+                            Some(node_as_function_like_declaration.maybe_body().unwrap()),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &**self.context,
                         )
@@ -1022,7 +1022,7 @@ impl TransformClassFields {
                 );
             }
 
-            let info = self.access_private_identifier(&node_as_property_declaration.name());
+            let info = self.access_private_identifier(node_as_property_declaration.name());
             Debug_.assert(
                 info.is_some(),
                 Some("Undeclared private name for property declaration."),
@@ -1033,7 +1033,7 @@ impl TransformClassFields {
             }
         }
         let expr = self.get_property_name_expression_if_needed(
-            &node_as_property_declaration.name(),
+            node_as_property_declaration.name(),
             node_as_property_declaration.maybe_initializer().is_some()
                 || self.use_define_for_class_fields,
         );
@@ -1120,7 +1120,7 @@ impl TransformClassFields {
                 return Some(
                     self.create_private_identifier_access(
                         &(*private_identifier_info).borrow(),
-                        &node_as_property_access_expression.expression,
+                        node_as_property_access_expression.expression,
                     )
                     .set_original_node(Some(node), self)
                     .set_text_range(Some(&*node.ref_(self)), self)
@@ -1130,7 +1130,7 @@ impl TransformClassFields {
         }
         if self.should_transform_super_in_static_initializers
             && is_super_property(node, self)
-            && is_identifier(&node_as_property_access_expression.name())
+            && is_identifier(&node_as_property_access_expression.name().ref_(self))
             && self
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
@@ -1156,7 +1156,7 @@ impl TransformClassFields {
                                 .create_reflect_get_call(
                                     super_class_reference.clone(),
                                     self.factory.create_string_literal_from_node(
-                                        &node_as_property_access_expression.name(),
+                                        node_as_property_access_expression.name(),
                                     ),
                                     Some(class_constructor.clone()),
                                 )

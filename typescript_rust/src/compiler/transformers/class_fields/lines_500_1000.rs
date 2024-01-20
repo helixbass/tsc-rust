@@ -20,6 +20,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface, NonEmpty,
     PrivateIdentifierKind, ReadonlyTextRangeConcrete, SyntaxKind, TransformFlags, VecExt,
     VisitResult,
+    InArena,
 };
 
 impl TransformClassFields {
@@ -345,7 +346,7 @@ impl TransformClassFields {
         } else {
             self.factory.clone_node(receiver)
         };
-        if is_simple_inlineable_expression(receiver) {
+        if is_simple_inlineable_expression(&receiver.ref_(self)) {
             return CopiableReceiverExpr {
                 read_expression: clone,
                 initialize_expression: None,
@@ -662,16 +663,16 @@ impl TransformClassFields {
             let saved_pending_expressions = self.maybe_pending_expressions().clone();
             self.set_pending_expressions(None);
             node = self.factory.update_binary_expression(
-                &node,
+                node,
                 visit_node(
-                    &node.as_binary_expression().left,
+                    node.ref_(self).as_binary_expression().left,
                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
-                node.as_binary_expression().operator_token.clone(),
+                node.ref_(self).as_binary_expression().operator_token,
                 visit_node(
-                    &node.as_binary_expression().right,
+                    node.ref_(self).as_binary_expression().right,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -824,7 +825,7 @@ impl TransformClassFields {
                                             ),
                                             expression,
                                         )
-                                        .set_text_range(Some(node), self);
+                                        .set_text_range(Some(&*node.ref_(self)), self);
                                 }
 
                                 let temp = (!value_is_discarded).then(|| {
@@ -856,7 +857,7 @@ impl TransformClassFields {
                                     expression = self
                                         .factory
                                         .create_comma(expression, temp)
-                                        .set_text_range(Some(node), self);
+                                        .set_text_range(Some(&*node.ref_(self)), self);
                                 }
 
                                 return Some(expression.into());
@@ -871,7 +872,7 @@ impl TransformClassFields {
         {
             return self.visit_private_identifier_in_in_expression(node);
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context).into())
+        Some(visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into())
     }
 
     pub(super) fn create_private_identifier_assignment(

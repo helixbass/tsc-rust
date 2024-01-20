@@ -34,7 +34,7 @@ impl TransformDeclarations {
         &self,
         input: Id<Node>,
         can_produce_diagnostic: bool,
-        previous_enclosing_declaration: Option<&Id<Node>>,
+        previous_enclosing_declaration: Option<Id<Node>>,
         old_diag: &GetSymbolAccessibilityDiagnostic,
         should_enter_suppress_new_diagnostics_context_context: bool,
         old_within_object_literal_type: Option<bool>,

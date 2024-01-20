@@ -46,6 +46,7 @@ pub fn get_declaration_diagnostics(
     host: Gc<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
     file: Option<Id<Node> /*SourceFile*/>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>> {
     let compiler_options = ScriptReferenceHost::get_compiler_options(&**host);
     let result = transform_nodes(
@@ -58,7 +59,7 @@ pub fn get_declaration_diagnostics(
             vec![file]
         } else {
             filter(&host.get_source_files(), |source_file: &Id<Node>| {
-                is_source_file_not_json(&source_file.ref_(host))
+                is_source_file_not_json(&source_file.ref_(arena))
             })
         },
         &[transform_declarations()],
@@ -113,7 +114,7 @@ pub fn is_internal_declaration(
                     &text,
                     skip_trivia(
                         &text,
-                        previous_sibling.end() + 1,
+                        previous_sibling.ref_(self).end() + 1,
                         Some(false),
                         Some(true),
                         None,
@@ -132,7 +133,8 @@ pub fn is_internal_declaration(
             Some(comment_ranges) if !comment_ranges.is_empty() &&
                 has_internal_annotation(
                     last(&comment_ranges),
-                    current_source_file
+                    current_source_file,
+                    arena,
                 )
         );
     }
@@ -141,7 +143,7 @@ pub fn is_internal_declaration(
     });
     maybe_for_each_bool(
         leading_comment_ranges.as_ref(),
-        |range: &CommentRange, _| has_internal_annotation(range, current_source_file),
+        |range: &CommentRange, _| has_internal_annotation(range, current_source_file, arena),
     )
 }
 
@@ -662,7 +664,7 @@ impl TransformDeclarations {
                                                     get_resolved_external_module_name(
                                                         &**self.context.get_emit_host(),
                                                         &source_file.ref_(self),
-                                                        Option::<Id<Node>>::None,
+                                                        None,
                                                     ),
                                                     None,
                                                     None,
@@ -854,7 +856,7 @@ impl TransformDeclarations {
                 })?;
             self.set_emitted_imports(Some(filter(
                 &combined_statements,
-                |&statement: &Id<Node>| is_any_import_syntax(statement),
+                |&statement: &Id<Node>| is_any_import_syntax(&statement.ref_(self)),
             )));
             if is_external_module(&node.ref_(self))
                 && (!self.result_has_external_module_indicator()
@@ -938,7 +940,7 @@ impl TransformDeclarations {
                     is_string_literal(&import_statement_as_import_declaration.module_specifier.ref_(self))
                         && &**import_statement_as_import_declaration
                             .module_specifier
-                            .as_string_literal()
+                            .ref_(self).as_string_literal()
                             .text()
                             == type_name
                 } {
@@ -1145,9 +1147,9 @@ impl TransformDeclarations {
         let elem_as_binding_element = elem_ref.as_binding_element();
         Ok(self.factory.update_binding_element(
             elem,
-            elem_as_binding_element.dot_dot_dot_token.clone(),
-            elem_as_binding_element.property_name.clone(),
-            self.filter_binding_pattern_initializers(&elem_as_binding_element.name())?,
+            elem_as_binding_element.dot_dot_dot_token,
+            elem_as_binding_element.property_name,
+            self.filter_binding_pattern_initializers(elem_as_binding_element.name())?,
             if self.should_print_with_initializer(elem)? {
                 elem_as_binding_element.maybe_initializer()
             } else {
@@ -1175,8 +1177,8 @@ impl TransformDeclarations {
             p,
             Option::<Gc<NodeArray>>::None,
             Some(mask_modifiers(p, modifier_mask, None)),
-            p_as_parameter_declaration.dot_dot_dot_token.clone(),
-            Some(self.filter_binding_pattern_initializers(&p_as_parameter_declaration.name())?),
+            p_as_parameter_declaration.dot_dot_dot_token,
+            Some(self.filter_binding_pattern_initializers(p_as_parameter_declaration.name())?),
             if self.resolver.is_optional_parameter(p)? {
                 Some(
                     p_as_parameter_declaration
@@ -1308,10 +1310,8 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         if self.is_track_symbol_disabled.get() {
             return Some(Ok(false));
         }
-        if self
-            .host
-            .arena()
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::TypeParameter)
         {
@@ -1361,7 +1361,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn report_inaccessible_this_error(&self) {
-        if let Some(ref error_name_node_or_error_fallback_node) = self
+        if let Some(error_name_node_or_error_fallback_node) = self
             .transform_declarations
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
@@ -1385,7 +1385,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn report_inaccessible_unique_symbol_error(&self) {
-        if let Some(ref error_name_node_or_error_fallback_node) = self
+        if let Some(error_name_node_or_error_fallback_node) = self
             .transform_declarations
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
@@ -1409,7 +1409,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn report_cyclic_structure_error(&self) {
-        if let Some(ref error_name_node_or_error_fallback_node) = self
+        if let Some(error_name_node_or_error_fallback_node) = self
             .transform_declarations
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
@@ -1432,7 +1432,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn report_private_in_base_of_class_expression(&self, property_name: &str) {
-        if let Some(ref error_name_node_or_error_fallback_node) = self
+        if let Some(error_name_node_or_error_fallback_node) = self
             .transform_declarations
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
@@ -1455,7 +1455,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn report_likely_unsafe_import_required_error(&self, specifier: &str) {
-        if let Some(ref error_name_node_or_error_fallback_node) = self
+        if let Some(error_name_node_or_error_fallback_node) = self
             .transform_declarations
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
@@ -1479,7 +1479,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn report_truncation_error(&self) {
-        if let Some(ref error_name_node_or_error_fallback_node) = self
+        if let Some(error_name_node_or_error_fallback_node) = self
             .transform_declarations
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
@@ -1596,7 +1596,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn report_non_serializable_property(&self, property_name: &str) {
-        if let Some(ref error_name_node_or_error_fallback_node) = self
+        if let Some(error_name_node_or_error_fallback_node) = self
             .transform_declarations
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())

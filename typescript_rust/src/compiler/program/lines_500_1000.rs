@@ -40,7 +40,7 @@ use crate::{
     ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
     TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    VecExt, HasArena,
+    VecExt, HasArena, AllArenas,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
@@ -1774,6 +1774,12 @@ impl Program {
         &self,
     ) -> Option<Gc<Box<dyn GetProgramBuildInfo>>> {
         self.get_program_build_info.borrow().clone()
+    }
+}
+
+impl HasArena for Program {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

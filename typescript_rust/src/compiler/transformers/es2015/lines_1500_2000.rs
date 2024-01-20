@@ -230,8 +230,8 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node>> {
         let member_ref = member.ref_(self);
         let member_as_method_declaration = member_ref.as_method_declaration();
-        let comment_range: ReadonlyTextRangeConcrete = get_comment_range(member).into();
-        let source_map_range = get_source_map_range(member);
+        let comment_range: ReadonlyTextRangeConcrete = get_comment_range(&member.ref_(self)).into();
+        let source_map_range = get_source_map_range(&member.ref_(self));
         let member_function = self.transform_function_like_to_expression(
             member,
             Some(&*member.ref_(self)),
@@ -239,7 +239,7 @@ impl TransformES2015 {
             Some(container),
         )?;
         let property_name = try_visit_node(
-            &member_as_method_declaration.name(),
+            member_as_method_declaration.name(),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -279,7 +279,7 @@ impl TransformES2015 {
                 &self.factory,
                 receiver,
                 property_name,
-                member_as_method_declaration.maybe_name(),
+                member_as_method_declaration.maybe_name().refed(self),
             );
             e = self
                 .factory
@@ -365,7 +365,7 @@ impl TransformES2015 {
             let getter_function = self
                 .transform_function_like_to_expression(
                     get_accessor,
-                    Option::<Id<Node>>::None,
+                    Option::<&Node>::None,
                     Option::<Id<Node>>::None,
                     Some(container),
                 )?
@@ -384,7 +384,7 @@ impl TransformES2015 {
             let setter_function = self
                 .transform_function_like_to_expression(
                     set_accessor,
-                    Option::<Id<Node>>::None,
+                    Option::<&Node>::None,
                     Option::<Id<Node>>::None,
                     Some(container),
                 )?
@@ -608,7 +608,7 @@ impl TransformES2015 {
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let ancestor_facts =
-            if container.matches(|ref container| is_class_like(container)) && !is_static(node, self) {
+            if container.matches(|ref container| is_class_like(&container.ref_(self))) && !is_static(node, self) {
                 self.enter_subtree(
                     HierarchyFacts::FunctionExcludes,
                     HierarchyFacts::FunctionIncludes | HierarchyFacts::NonStaticClassElement,
@@ -677,8 +677,8 @@ impl TransformES2015 {
         let mut statement_offset: Option<usize> = Default::default();
 
         self.context.resume_lexical_environment();
-        if is_block(body) {
-            let body_as_block = body.as_block();
+        if is_block(&body.ref_(self)) {
+            let body_as_block = body.ref_(self).as_block();
             statement_offset = Some(self.factory.copy_standard_prologue(
                 &body_as_block.statements,
                 &mut prologue,
@@ -705,7 +705,7 @@ impl TransformES2015 {
         multi_line = self.add_rest_parameter_if_needed(&mut statements, node, false)? || multi_line;
 
         if is_block(&body.ref_(self)) {
-            let body_as_block = body.as_block();
+            let body_as_block = body.ref_(self).as_block();
             statement_offset = self.factory.try_copy_custom_prologue(
                 &body_as_block.statements,
                 &mut statements,
@@ -735,7 +735,7 @@ impl TransformES2015 {
         } else {
             Debug_.assert(node.ref_(self).kind() == SyntaxKind::ArrowFunction, None);
 
-            statements_location = Some(move_range_end(&**body, -1).into());
+            statements_location = Some(move_range_end(&*body.ref_(self), -1).into());
 
             let equals_greater_than_token = node.ref_(self).as_arrow_function().equals_greater_than_token;
             if !node_is_synthesized(&*equals_greater_than_token.ref_(self)) && !node_is_synthesized(&*body.ref_(self)) {
@@ -784,7 +784,7 @@ impl TransformES2015 {
         }
 
         statements = concatenate(prologue, statements);
-        if is_block(&body.ref_(self)) && &*statements == &*body.ref_(self).as_block().statements {
+        if is_block(&body.ref_(self)) && &*statements == &**body.ref_(self).as_block().statements {
             return Ok(body);
         }
 

@@ -131,7 +131,7 @@ impl TransformDeclarations {
                         )?
                         .try_or_else(|| {
                             self.resolver.create_type_of_expression(
-                                node.as_has_initializer().maybe_initializer().unwrap(),
+                                node.ref_(self).as_has_initializer().maybe_initializer().unwrap(),
                                 self.enclosing_declaration(),
                                 declaration_emit_node_builder_flags(),
                                 self.symbol_tracker(),
@@ -236,7 +236,7 @@ impl TransformDeclarations {
             .filter(|elem_name| is_binding_pattern(Some(&elem_name.ref_(self))))
         {
             some(
-                Some(&elem_name.as_has_elements().elements()),
+                Some(&elem_name.ref_(self).as_has_elements().elements()),
                 Some(|&element: &Id<Node>| self.get_binding_name_visible(element)),
             )
         } else {
@@ -363,7 +363,7 @@ impl TransformDeclarations {
         }
         set_comment_range(
             updated,
-            &get_comment_range(original).into_readonly_text_range(),
+            &get_comment_range(&original.ref_(self)).into_readonly_text_range(),
             self,
         )
     }
@@ -418,7 +418,7 @@ impl TransformDeclarations {
         let decl_ref = decl.ref_(self);
         let decl_as_import_equals_declaration = decl_ref.as_import_equals_declaration();
         Ok(
-            if decl_as_import_equals_declaration.module_reference.kind()
+            if decl_as_import_equals_declaration.module_reference.ref_(self).kind()
                 == SyntaxKind::ExternalModuleReference
             {
                 let specifier = get_external_module_import_equals_declaration_expression(decl, self);
@@ -430,7 +430,7 @@ impl TransformDeclarations {
                         decl_as_import_equals_declaration.is_type_only,
                         decl_as_import_equals_declaration.name(),
                         self.factory.update_external_module_reference(
-                            &decl_as_import_equals_declaration.module_reference,
+                            decl_as_import_equals_declaration.module_reference,
                             self.rewrite_module_specifier(decl, Some(specifier))?
                                 .unwrap(),
                         ),
@@ -463,18 +463,18 @@ impl TransformDeclarations {
                     decl,
                     Option::<Gc<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
-                    decl_as_import_declaration.import_clause.clone(),
+                    decl_as_import_declaration.import_clause,
                     self.rewrite_module_specifier(
                         decl,
-                        Some(&decl_as_import_declaration.module_specifier),
+                        Some(decl_as_import_declaration.module_specifier),
                     )?
                     .unwrap(),
                     None,
                 ),
             ));
         }
-        let decl_import_clause = decl_as_import_declaration.import_clause.as_ref().unwrap();
-        let decl_import_clause_as_import_clause = decl_import_clause.as_import_clause();
+        let decl_import_clause = decl_as_import_declaration.import_clause.unwrap();
+        let decl_import_clause_as_import_clause = decl_import_clause.ref_(self).as_import_clause();
         let visible_default_binding = /*decl.importClause &&*/
             decl_import_clause_as_import_clause.name.clone().filter(|_| {
                 self.resolver.is_declaration_visible(decl_import_clause)
@@ -493,7 +493,7 @@ impl TransformDeclarations {
                     )),
                     self.rewrite_module_specifier(
                         decl,
-                        Some(&decl_as_import_declaration.module_specifier),
+                        Some(decl_as_import_declaration.module_specifier),
                     )?
                     .unwrap(),
                     None,
@@ -502,9 +502,8 @@ impl TransformDeclarations {
         }
         let decl_import_clause_named_bindings = decl_import_clause_as_import_clause
             .named_bindings
-            .as_ref()
             .unwrap();
-        if decl_import_clause_named_bindings.kind() == SyntaxKind::NamespaceImport {
+        if decl_import_clause_named_bindings.ref_(self).kind() == SyntaxKind::NamespaceImport {
             let named_bindings = if self
                 .resolver
                 .is_declaration_visible(decl_import_clause_named_bindings)
@@ -528,7 +527,7 @@ impl TransformDeclarations {
                             )),
                             self.rewrite_module_specifier(
                                 decl,
-                                Some(&decl_as_import_declaration.module_specifier),
+                                Some(decl_as_import_declaration.module_specifier),
                             )?
                             .unwrap(),
                             None,
@@ -578,7 +577,7 @@ impl TransformDeclarations {
                     )),
                     self.rewrite_module_specifier(
                         decl,
-                        Some(&decl_as_import_declaration.module_specifier),
+                        Some(decl_as_import_declaration.module_specifier),
                     )?
                     .unwrap(),
                     None,
@@ -594,7 +593,7 @@ impl TransformDeclarations {
                     None,
                     self.rewrite_module_specifier(
                         decl,
-                        Some(&decl_as_import_declaration.module_specifier),
+                        Some(decl_as_import_declaration.module_specifier),
                     )?
                     .unwrap(),
                     None,
@@ -623,7 +622,7 @@ impl TransformDeclarations {
             self.set_needs_declare(matches!(
                 i.ref_(self).maybe_parent(),
                 Some(i_parent) if is_source_file(&i_parent.ref_(self)) && !(
-                    is_external_module(i_parent) &&
+                    is_external_module(&i_parent.ref_(self)) &&
                     self.is_bundled_emit()
                 )
             ));
@@ -715,7 +714,7 @@ impl TransformDeclarations {
         }
         let old_diag = self.get_symbol_accessibility_diagnostic();
 
-        let can_produce_diagnostic = can_produce_diagnostics(input);
+        let can_produce_diagnostic = can_produce_diagnostics(&input.ref_(self));
         let old_within_object_literal_type = self.maybe_suppress_new_diagnostic_contexts();
         let mut should_enter_suppress_new_diagnostics_context_context = matches!(
             input.ref_(self).kind(),
@@ -865,8 +864,7 @@ impl TransformDeclarations {
                                 self.ensure_type(
                                     input,
                                     input_as_construct_signature_declaration
-                                        .maybe_type()
-                                        .as_deref(),
+                                        .maybe_type(),
                                     None,
                                 )?,
                             ),
@@ -930,7 +928,7 @@ impl TransformDeclarations {
                         .unwrap(),
                         self.ensure_type(
                             input,
-                            input_as_method_declaration.maybe_type().as_deref(),
+                            input_as_method_declaration.maybe_type(),
                             None,
                         )?,
                         None,
@@ -1047,7 +1045,7 @@ impl TransformDeclarations {
                             input_as_property_declaration.maybe_question_token(),
                             self.ensure_type(
                                 input,
-                                input_as_property_declaration.maybe_type().as_deref(),
+                                input_as_property_declaration.maybe_type(),
                                 None,
                             )?,
                             self.ensure_no_initializer(input)?,
@@ -1082,7 +1080,7 @@ impl TransformDeclarations {
                             input_as_property_signature.maybe_question_token(),
                             self.ensure_type(
                                 input,
-                                input_as_property_signature.maybe_type().as_deref(),
+                                input_as_property_signature.maybe_type(),
                                 None,
                             )?,
                         )),
@@ -1127,7 +1125,7 @@ impl TransformDeclarations {
                                 .unwrap(),
                                 self.ensure_type(
                                     input,
-                                    input_as_method_signature.maybe_type().as_deref(),
+                                    input_as_method_signature.maybe_type(),
                                     None,
                                 )?,
                             ),
@@ -1161,7 +1159,7 @@ impl TransformDeclarations {
                                 .unwrap(),
                                 self.ensure_type(
                                     input,
-                                    input_as_call_signature_declaration.maybe_type().as_deref(),
+                                    input_as_call_signature_declaration.maybe_type(),
                                     None,
                                 )?,
                             ),
@@ -1208,7 +1206,7 @@ impl TransformDeclarations {
                     let input_as_variable_declaration = input_ref.as_variable_declaration();
                     if is_binding_pattern(input_as_variable_declaration.maybe_name().refed(self)) {
                         return Ok(Some(
-                            self.recreate_binding_pattern(&input_as_variable_declaration.name())?
+                            self.recreate_binding_pattern(input_as_variable_declaration.name())?
                                 .into(),
                         ));
                     }
@@ -1227,7 +1225,7 @@ impl TransformDeclarations {
                             None,
                             self.ensure_type(
                                 input,
-                                input_as_variable_declaration.maybe_type().as_deref(),
+                                input_as_variable_declaration.maybe_type(),
                                 None,
                             )?,
                             self.ensure_no_initializer(input)?,
@@ -1274,13 +1272,13 @@ impl TransformDeclarations {
                     let input_ref = input.ref_(self);
                     let input_as_conditional_type_node = input_ref.as_conditional_type_node();
                     let check_type = try_visit_node(
-                        &input_as_conditional_type_node.check_type,
+                        input_as_conditional_type_node.check_type,
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     let extends_type = try_visit_node(
-                        &input_as_conditional_type_node.extends_type,
+                        input_as_conditional_type_node.extends_type,
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1290,14 +1288,14 @@ impl TransformDeclarations {
                         input_as_conditional_type_node.true_type.clone(),
                     ));
                     let true_type = try_visit_node(
-                        &input_as_conditional_type_node.true_type,
+                        input_as_conditional_type_node.true_type,
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     self.set_enclosing_declaration(old_enclosing_decl);
                     let false_type = try_visit_node(
-                        &input_as_conditional_type_node.false_type,
+                        input_as_conditional_type_node.false_type,
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1420,13 +1418,13 @@ impl TransformDeclarations {
                             self.factory.update_import_type_node(
                                 input,
                                 self.factory.update_literal_type_node(
-                                    &input_as_import_type_node.argument,
+                                    input_as_import_type_node.argument,
                                     self.rewrite_module_specifier(
                                         input,
                                         Some(
-                                            &input_as_import_type_node
+                                            input_as_import_type_node
                                                 .argument
-                                                .as_literal_type_node()
+                                                .ref_(self).as_literal_type_node()
                                                 .literal,
                                         ),
                                     )?

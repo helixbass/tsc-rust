@@ -611,7 +611,7 @@ impl TransformModule {
         {
             return inner_expr;
         }
-        if get_export_needs_import_star_helper(node) {
+        if get_export_needs_import_star_helper(node, self) {
             return self.emit_helpers().create_import_star_helper(inner_expr);
         }
         inner_expr

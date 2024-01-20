@@ -21,6 +21,7 @@ use crate::{
     is_this_property, skip_partially_emitted_expressions, visit_each_child, visit_node, Debug_,
     GeneratedIdentifierFlags, GetOrInsertDefault, NodeArray, NodeCheckFlags, PrivateIdentifierKind,
     SyntaxKind, VisitResult,
+    InArena,
 };
 
 impl TransformClassFields {
@@ -129,7 +130,7 @@ impl TransformClassFields {
         let node_name = node_as_named_declaration.name();
         let node_name_ref = node_name.ref_(self);
         let node_name_as_private_identifier = node_name_ref.as_private_identifier();
-        let text = get_text_of_property_name(node_name);
+        let text = get_text_of_property_name(node_name, self);
         let lex = self.get_class_lexical_environment();
         let lex = (*lex).borrow();
         let class_constructor = lex.class_constructor;

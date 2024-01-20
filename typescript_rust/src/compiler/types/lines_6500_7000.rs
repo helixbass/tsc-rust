@@ -1112,7 +1112,6 @@ pub trait EmitHost:
     + ResolveModuleNameResolutionHost
     + Trace
     + Finalize
-    + HasArena
 {
     fn arena(&self) -> &AllArenas;
     // fn get_source_files(&self) -> &[Id<Node /*SourceFile*/>];

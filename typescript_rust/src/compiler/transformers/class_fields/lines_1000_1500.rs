@@ -26,7 +26,7 @@ use crate::{
     FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
     ModifierFlags, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt,
     PrivateIdentifierKind, PropertyDescriptorAttributesBuilder, ScriptTarget, SyntaxKind,
-    InArena,
+    InArena, OptionInArena,
 };
 
 impl TransformClassFields {
@@ -193,7 +193,7 @@ impl TransformClassFields {
                 let p_as_property_declaration = p_ref.as_property_declaration();
                 p_as_property_declaration.maybe_initializer().is_some()
                     || self.should_transform_private_elements_or_class_static_blocks
-                        && is_private_identifier(&p_as_property_declaration.name())
+                        && is_private_identifier(&p_as_property_declaration.name().ref_(self))
             }
         });
         if has_transformable_statics || self.maybe_pending_expressions().as_ref().is_non_empty() {
@@ -332,7 +332,7 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         if self.should_transform_private_elements_or_class_static_blocks {
-            for member in &node_as_class_like_declaration.members() {
+            for &member in &node_as_class_like_declaration.members() {
                 if is_private_identifier_class_element_declaration(member, self) {
                     self.add_private_identifier_to_environment(member);
                 }
@@ -422,7 +422,7 @@ impl TransformClassFields {
         let elements = node_as_class_like_declaration
             .members()
             .owned_iter()
-            .filter(|member| self.is_class_element_that_requires_constructor_statement(member))
+            .filter(|&member| self.is_class_element_that_requires_constructor_statement(member))
             .collect_vec();
         if elements.is_empty() {
             return constructor;
@@ -466,7 +466,7 @@ impl TransformClassFields {
                 property_as_property_declaration
                     .maybe_initializer()
                     .is_some()
-                    || is_private_identifier(&property_as_property_declaration.name())
+                    || is_private_identifier(&property_as_property_declaration.name().ref_(self))
             });
         }
 
@@ -505,7 +505,8 @@ impl TransformClassFields {
             );
         }
         if let Some(constructor) = constructor {
-            let constructor_as_constructor_declaration = constructor.as_constructor_declaration();
+            let constructor_ref = constructor.ref_(self);
+            let constructor_as_constructor_declaration = constructor_ref.as_constructor_declaration();
             if let Some(constructor_body) = constructor_as_constructor_declaration.maybe_body() {
                 let after_parameter_properties = find_index(
                     &constructor_body.as_block().statements,
@@ -544,7 +545,7 @@ impl TransformClassFields {
                 &mut statements,
                 Some(&visit_nodes(
                     &constructor
-                        .as_constructor_declaration()
+                        .ref_(self).as_constructor_declaration()
                         .maybe_body()
                         .unwrap()
                         .as_block()
@@ -576,10 +577,10 @@ impl TransformClassFields {
                             || node_as_class_like_declaration.members(),
                             |constructor| {
                                 constructor
-                                    .as_constructor_declaration()
+                                    .ref_(self).as_constructor_declaration()
                                     .maybe_body()
                                     .unwrap()
-                                    .as_block()
+                                    .ref_(self).as_block()
                                     .statements
                                     .clone()
                             },
@@ -588,11 +589,10 @@ impl TransformClassFields {
                 )
                 .set_text_range(
                     constructor
-                        .as_ref()
                         .and_then(|constructor| {
-                            constructor.as_constructor_declaration().maybe_body()
+                            constructor.ref_(self).as_constructor_declaration().maybe_body()
                         })
-                        .as_deref(),
+                        .refed(self),
                     self,
                 ),
         )
@@ -684,16 +684,16 @@ impl TransformClassFields {
         let property_as_property_declaration = property_ref.as_property_declaration();
         let emit_assignment = !self.use_define_for_class_fields;
         let property_name =
-            if is_computed_property_name(&property_as_property_declaration.name())
+            if is_computed_property_name(&property_as_property_declaration.name().ref_(self))
                 && !is_simple_inlineable_expression(
                     &property_as_property_declaration
                         .name()
-                        .as_computed_property_name()
-                        .expression,
+                        .ref_(self).as_computed_property_name()
+                        .expression.ref_(self),
                 )
             {
                 self.factory.update_computed_property_name(
-                    &property_as_property_declaration.name(),
+                    property_as_property_declaration.name(),
                     self.factory.get_generated_name_for_node(
                         Some(property_as_property_declaration.name()),
                         None,
@@ -710,7 +710,7 @@ impl TransformClassFields {
         }
 
         if self.should_transform_private_elements_or_class_static_blocks
-            && is_private_identifier(property_name)
+            && is_private_identifier(&property_name.ref_(self))
         {
             let private_identifier_info = self.access_private_identifier(property_name);
             if let Some(private_identifier_info) = private_identifier_info {
@@ -745,7 +745,7 @@ impl TransformClassFields {
                 Debug_.fail(Some("Undeclared private name for property declaration."));
             }
         }
-        if (is_private_identifier(property_name) || has_static_modifier(property, self))
+        if (is_private_identifier(&property_name.ref_(self)) || has_static_modifier(property, self))
             && property_as_property_declaration
                 .maybe_initializer()
                 .is_none()
@@ -786,7 +786,7 @@ impl TransformClassFields {
                 &self.factory,
                 receiver,
                 property_name,
-                Some(&**property_name),
+                Some(&*property_name.ref_(self)),
             );
             self.factory.create_assignment(member_access, initializer)
         } else {
@@ -794,7 +794,7 @@ impl TransformClassFields {
                 property_name.ref_(self).as_computed_property_name().expression
             } else if is_identifier(&property_name.ref_(self)) {
                 self.factory.create_string_literal(
-                    unescape_leading_underscores(&property_name.as_identifier().escaped_text)
+                    unescape_leading_underscores(&property_name.ref_(self).as_identifier().escaped_text)
                         .to_owned(),
                     None,
                     None,

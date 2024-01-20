@@ -101,14 +101,14 @@ impl TransformES2015 {
             return Ok(self.factory.update_binary_expression(
                 node,
                 try_visit_node(
-                    &node_as_binary_expression.left,
+                    node_as_binary_expression.left,
                     Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
-                node_as_binary_expression.operator_token.clone(),
+                node_as_binary_expression.operator_token,
                 try_visit_node(
-                    &node_as_binary_expression.right,
+                    node_as_binary_expression.right,
                     Some(|node: Id<Node>| {
                         Ok(if expression_result_is_unused {
                             self.visitor_with_unused_expression_result(node)?
@@ -140,6 +140,7 @@ impl TransformES2015 {
         }
         let mut result: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
         for (i, element) in node_as_comma_list_expression.elements.iter().enumerate() {
+            let element = *element;
             let visited = try_visit_node(
                 element,
                 Some(|node: Id<Node>| {
@@ -208,7 +209,7 @@ impl TransformES2015 {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state().filter(|_| {
             !node_as_variable_statement
                 .declaration_list
-                .flags()
+                .ref_(self).flags()
                 .intersects(NodeFlags::BlockScoped)
                 && !self.is_variable_statement_of_type_script_class_wrapper(node)
         }) {
@@ -218,7 +219,8 @@ impl TransformES2015 {
                 .ref_(self).as_variable_declaration_list()
                 .declarations
             {
-                let decl_as_variable_declaration = decl.as_variable_declaration();
+                let decl_ref = decl.ref_(self);
+                let decl_as_variable_declaration = decl_ref.as_variable_declaration();
                 self.hoist_variable_declaration_declared_in_converted_loop(
                     &mut converted_loop_state.borrow_mut(),
                     decl,
@@ -472,7 +474,7 @@ impl TransformES2015 {
             .labels
             .as_mut()
             .unwrap()
-            .insert(id_text(&node_as_labeled_statement.label).to_owned(), true);
+            .insert(id_text(&node_as_labeled_statement.label.ref_(self)).to_owned(), true);
     }
 
     pub(super) fn reset_label(&self, node: Id<Node> /*LabeledStatement*/) {
@@ -483,7 +485,7 @@ impl TransformES2015 {
             .labels
             .as_mut()
             .unwrap()
-            .insert(id_text(&node_as_labeled_statement.label).to_owned(), false);
+            .insert(id_text(&node_as_labeled_statement.label.ref_(self)).to_owned(), false);
     }
 
     pub(super) fn visit_labeled_statement(
@@ -660,25 +662,25 @@ impl TransformES2015 {
         Ok(self.factory.update_for_statement(
             node,
             try_maybe_visit_node(
-                node_as_for_statement.initializer.as_deref(),
+                node_as_for_statement.initializer,
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                 Some(|node| is_for_initializer(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node_as_for_statement.condition.as_deref(),
+                node_as_for_statement.condition,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node_as_for_statement.incrementor.as_deref(),
+                node_as_for_statement.incrementor,
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_node(
-                &node_as_for_statement.statement,
+                node_as_for_statement.statement,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
@@ -766,8 +768,9 @@ impl TransformES2015 {
                 first_original_declaration.filter(|first_original_declaration| {
                     is_binding_pattern(
                         first_original_declaration
-                            .as_variable_declaration()
-                            .maybe_name(),
+                            .ref_(self).as_variable_declaration()
+                            .maybe_name()
+                            .refed(self),
                     )
                 })
             {
@@ -806,7 +809,7 @@ impl TransformES2015 {
                                             first_original_declaration
                                         {
                                             first_original_declaration
-                                                .as_variable_declaration()
+                                                .ref_(self).as_variable_declaration()
                                                 .maybe_name()
                                         } else {
                                             Some(self.factory.create_temp_variable(
@@ -872,7 +875,7 @@ impl TransformES2015 {
                 })
             } else {
                 let statement = try_visit_node(
-                    &node_as_for_of_statement.statement,
+                    node_as_for_of_statement.statement,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
@@ -921,7 +924,7 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_for_of_statement = node_ref.as_for_of_statement();
         let expression = try_visit_node(
-            &node_as_for_of_statement.expression,
+            node_as_for_of_statement.expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
