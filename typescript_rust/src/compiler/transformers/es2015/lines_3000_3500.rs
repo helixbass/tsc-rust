@@ -16,6 +16,7 @@ use crate::{
     set_emit_flags, set_original_node, start_on_new_line, try_visit_node, Debug_,
     GetOrInsertDefault, HasInitializerInterface, Matches, NamedDeclarationInterface,
     NodeCheckFlags,
+    InArena,
 };
 
 impl TransformES2015 {
@@ -33,10 +34,11 @@ impl TransformES2015 {
         node: Id<Node>, /*ForStatementWithConvertibleInitializer*/
         current_state: Gc<GcCell<ConvertedLoopState>>,
     ) -> io::Result<IterationStatementPartFunction<Id<Node /*VariableDeclarationList*/>>> {
-        let node_as_for_statement = node.as_for_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_statement = node_ref.as_for_statement();
         let function_name = self.factory.create_unique_name("_loop_init", None);
 
-        let node_initializer = node_as_for_statement.initializer.as_ref().unwrap();
+        let node_initializer = node_as_for_statement.initializer.unwrap();
         let contains_yield = node_initializer
             .transform_flags()
             .intersects(TransformFlags::ContainsYield);
@@ -86,18 +88,18 @@ impl TransformES2015 {
                                     Option::<Gc<NodeArray>>::None,
                                     None,
                                     try_visit_node(
-                                        &self.factory.create_block(statements, Some(true)),
+                                        self.factory.create_block(statements, Some(true)),
                                         Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(is_block),
+                                        Some(|node: Id<Node>| is_block(&node.ref_(self))),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     )?,
                                 )
-                                .set_emit_flags(emit_flags),
+                                .set_emit_flags(emit_flags, self),
                         ),
                     )],
                     None,
                 )
-                .set_emit_flags(EmitFlags::NoHoisting),
+                .set_emit_flags(EmitFlags::NoHoisting, self),
         );
 
         let part = self.factory.create_variable_declaration_list(
@@ -127,7 +129,7 @@ impl TransformES2015 {
         let function_name = self.factory.create_unique_name("_loop", None);
         self.context.start_lexical_environment();
         let statement = try_visit_node(
-            &node.as_has_statement().statement(),
+            node.ref_(self).as_has_statement().statement(),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_statement(node, self)),
             Some(&|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
@@ -140,8 +142,9 @@ impl TransformES2015 {
         {
             current_state.borrow_mut().condition_variable =
                 Some(self.factory.create_unique_name("inc", None));
-            let node_as_for_statement = node.as_for_statement();
-            if let Some(node_incrementor) = node_as_for_statement.incrementor.as_ref() {
+            let node_ref = node.ref_(self);
+            let node_as_for_statement = node_ref.as_for_statement();
+            if let Some(node_incrementor) = node_as_for_statement.incrementor {
                 statements.push(
                     self.factory.create_if_statement(
                         (*current_state)
@@ -207,7 +210,7 @@ impl TransformES2015 {
                             )?,
                         ),
                         try_visit_node(
-                            &self
+                            self
                                 .factory
                                 .create_break_statement(Option::<Id<Node>>::None),
                             Some(|node: Id<Node>| self.visitor(node)),
@@ -220,15 +223,15 @@ impl TransformES2015 {
             }
         }
 
-        if is_block(&statement) {
+        if is_block(&statement.ref_(self)) {
             add_range(
                 &mut statements,
-                Some(&statement.as_block().statements),
+                Some(&statement.ref_(self).as_block().statements),
                 None,
                 None,
             );
         } else {
-            statements.push(statement.clone());
+            statements.push(statement);
         }
 
         self.copy_out_parameters(
@@ -240,14 +243,14 @@ impl TransformES2015 {
         insert_statements_after_standard_prologue(&mut statements, lexical_environment.as_deref(), self);
 
         let loop_body = self.factory.create_block(statements, Some(true));
-        if is_block(&statement) {
+        if is_block(&statement.ref_(self)) {
             set_original_node(loop_body, Some(statement), self);
         }
 
         let contains_yield = node
-            .as_has_statement()
+            .ref_(self).as_has_statement()
             .statement()
-            .transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsYield);
 
         let mut emit_flags = EmitFlags::ReuseTempVariableScope;
@@ -284,16 +287,16 @@ impl TransformES2015 {
                                     None,
                                     loop_body,
                                 )
-                                .set_emit_flags(emit_flags),
+                                .set_emit_flags(emit_flags, self),
                         ),
                     )],
                     None,
                 )
-                .set_emit_flags(EmitFlags::NoHoisting),
+                .set_emit_flags(EmitFlags::NoHoisting, self),
         );
 
         let part = self.generate_call_to_converted_loop(
-            &function_name,
+            function_name,
             current_state,
             outer_state,
             contains_yield,
@@ -348,7 +351,7 @@ impl TransformES2015 {
         contains_yield: bool,
     ) -> Id<Node /*Statement*/> {
         let call = self.factory.create_call_expression(
-            init_function_expression_name.node_wrapper(),
+            init_function_expression_name,
             Option::<Gc<NodeArray>>::None,
             Some(vec![]),
         );
@@ -380,10 +383,10 @@ impl TransformES2015 {
             && state.labeled_non_local_continues.is_none();
 
         let call = self.factory.create_call_expression(
-            loop_function_expression_name.node_wrapper(),
+            loop_function_expression_name,
             Option::<Gc<NodeArray>>::None,
             Some(map(&state.loop_parameters, |p: &Id<Node>, _| {
-                p.as_parameter_declaration().name()
+                p.ref_(self).as_parameter_declaration().name()
             })),
         );
         let call_result = if contains_yield {
@@ -480,14 +483,14 @@ impl TransformES2015 {
                 self.process_labeled_jumps(
                     state.labeled_non_local_breaks.as_ref(),
                     true,
-                    &loop_result_name,
+                    loop_result_name,
                     outer_state.clone(),
                     &mut case_clauses,
                 );
                 self.process_labeled_jumps(
                     state.labeled_non_local_continues.as_ref(),
                     false,
-                    &loop_result_name,
+                    loop_result_name,
                     outer_state,
                     &mut case_clauses,
                 );
@@ -558,7 +561,7 @@ impl TransformES2015 {
                 );
                 statements.push(
                     self.factory
-                        .create_return_statement(Some(loop_result_name.node_wrapper())),
+                        .create_return_statement(Some(loop_result_name)),
                 );
             }
             case_clauses.push(
@@ -579,10 +582,10 @@ impl TransformES2015 {
         loop_out_parameters: &mut Vec<LoopOutParameter>,
         has_captured_bindings_in_for_initializer: bool,
     ) -> io::Result<()> {
-        let ref name = decl.as_named_declaration().name();
-        if is_binding_pattern(Some(&**name)) {
-            for element in &name.as_has_elements().elements() {
-                if !is_omitted_expression(element) {
+        let name = decl.ref_(self).as_named_declaration().name();
+        if is_binding_pattern(Some(&*name.ref_(self))) {
+            for &element in &name.ref_(self).as_has_elements().elements() {
+                if !is_omitted_expression(&element.ref_(self)) {
                     self.process_loop_variable_declaration(
                         container,
                         element,
@@ -613,11 +616,10 @@ impl TransformES2015 {
                 if check_flags.intersects(NodeCheckFlags::NeedsLoopOutParameter) {
                     flags |= LoopOutParameterFlags::Body;
                 }
-                if is_for_statement(container)
+                if is_for_statement(&container.ref_(self))
                     && container
-                        .as_for_statement()
+                        .ref_(self).as_for_statement()
                         .initializer
-                        .as_ref()
                         .try_matches(|container_initializer| {
                             self.resolver
                                 .is_binding_captured_by_node(container_initializer, decl)
@@ -643,17 +645,18 @@ impl TransformES2015 {
         receiver: Id<Node>, /*Identifier*/
         start: usize,
     ) -> io::Result<()> {
-        let node_as_object_literal_expression = node.as_object_literal_expression();
+        let node_ref = node.ref_(self);
+        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         let properties = &node_as_object_literal_expression.properties;
-        for property in properties.iter().skip(start) {
-            match property.kind() {
+        for &property in properties.iter().skip(start) {
+            match property.ref_(self).kind() {
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                     let accessors = get_all_accessor_declarations(
                         &node_as_object_literal_expression.properties,
                         property,
                         self,
                     );
-                    if Gc::ptr_eq(property, &accessors.first_accessor) {
+                    if property == accessors.first_accessor {
                         expressions.push(self.transform_accessors_to_expression(
                             receiver,
                             &accessors,
@@ -686,7 +689,7 @@ impl TransformES2015 {
                         node_as_object_literal_expression.multi_line,
                     )?);
                 }
-                _ => Debug_.fail_bad_syntax_kind(node, None),
+                _ => Debug_.fail_bad_syntax_kind(&node.ref_(self), None),
             }
         }
 
@@ -699,20 +702,21 @@ impl TransformES2015 {
         receiver: Id<Node>, /*Expression*/
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
-        let property_as_property_assignment = property.as_property_assignment();
+        let property_ref = property.ref_(self);
+        let property_as_property_assignment = property_ref.as_property_assignment();
         let expression = self
             .factory
             .create_assignment(
                 create_member_access_for_property_name(
                     &self.factory,
                     receiver,
-                    &*try_visit_node(
+                    try_visit_node(
                         &property_as_property_assignment.name(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_property_name),
+                        Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<Id<Node>>::None,
+                    Option::<&Node>::None,
                 ),
                 try_visit_node(
                     &property_as_property_assignment.maybe_initializer().unwrap(),
@@ -721,7 +725,7 @@ impl TransformES2015 {
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
             )
-            .set_text_range(Some(property));
+            .set_text_range(Some(&*property.ref_(self)), self);
         if starts_on_new_line == Some(true) {
             start_on_new_line(expression, self);
         }
@@ -734,25 +738,26 @@ impl TransformES2015 {
         receiver: Id<Node>, /*Expression*/
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
-        let property_as_shorthand_property_assignment = property.as_shorthand_property_assignment();
+        let property_ref = property.ref_(self);
+        let property_as_shorthand_property_assignment = property_ref.as_shorthand_property_assignment();
         let expression = self
             .factory
             .create_assignment(
                 create_member_access_for_property_name(
                     &self.factory,
                     receiver,
-                    &*try_visit_node(
+                    try_visit_node(
                         &property_as_shorthand_property_assignment.name(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_property_name),
+                        Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<Id<Node>>::None,
+                    Option::<&Node>::None,
                 ),
                 self.factory
                     .clone_node(&property_as_shorthand_property_assignment.name()),
             )
-            .set_text_range(Some(property));
+            .set_text_range(Some(&*property.ref_(self)), self);
         if starts_on_new_line == Some(true) {
             start_on_new_line(expression, self);
         }

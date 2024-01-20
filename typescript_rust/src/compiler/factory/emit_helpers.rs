@@ -1090,15 +1090,17 @@ pub fn advanced_async_super_helper() -> Gc<EmitHelper> {
 pub fn is_call_to_helper(
     first_segment: Id<Node>, /*Expression*/
     helper_name: &str,       /*__String*/
+    arena: &impl HasArena,
 ) -> bool {
-    is_call_expression(first_segment) && {
-        let first_segment_as_call_expression = first_segment.as_call_expression();
-        is_identifier(&first_segment_as_call_expression.expression)
-            && get_emit_flags(&first_segment_as_call_expression.expression)
+    is_call_expression(&first_segment.ref_(arena)) && {
+        let first_segment_ref = first_segment.ref_(arena);
+        let first_segment_as_call_expression = first_segment_ref.as_call_expression();
+        is_identifier(&first_segment_as_call_expression.expression.ref_(arena))
+            && get_emit_flags(&first_segment_as_call_expression.expression.ref_(arena))
                 .intersects(EmitFlags::HelperName)
             && first_segment_as_call_expression
                 .expression
-                .as_identifier()
+                .ref_(arena).as_identifier()
                 .escaped_text
                 == helper_name
     }

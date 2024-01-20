@@ -1407,7 +1407,7 @@ impl NodeBuilder {
 
         Ok(Some(
             try_visit_each_child(
-                node,
+                &node.ref_(self),
                 |node: Id<Node>| {
                     self.visit_existing_node_tree_symbols(
                         context,

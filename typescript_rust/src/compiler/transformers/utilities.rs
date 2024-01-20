@@ -247,7 +247,7 @@ pub fn collect_external_module_info(
                     for decl in &node
                         .ref_(arena).as_variable_statement()
                         .declaration_list
-                        .as_variable_declaration_list()
+                        .ref_(arena).as_variable_declaration_list()
                         .declarations
                     {
                         collect_exported_variable_info(
@@ -275,12 +275,12 @@ pub fn collect_external_module_info(
                         }
                     } else {
                         let name = node.ref_(arena).as_function_declaration().name();
-                        if unique_exports.get(id_text(&name)).copied() != Some(true) {
+                        if unique_exports.get(id_text(&name.ref_(arena))).copied() != Some(true) {
                             exported_bindings
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
                                 .push(name.clone());
-                            unique_exports.insert(id_text(&name).to_owned(), true);
+                            unique_exports.insert(id_text(&name.ref_(arena)).to_owned(), true);
                             exported_names.get_or_insert_default_().push(name);
                         }
                     }
@@ -303,13 +303,13 @@ pub fn collect_external_module_info(
                     } else {
                         let name = node.ref_(arena).as_class_declaration().maybe_name();
                         if let Some(name) = name
-                            .filter(|name| unique_exports.get(id_text(name)).copied() != Some(true))
+                            .filter(|name| unique_exports.get(id_text(&name.ref_(arena))).copied() != Some(true))
                         {
                             exported_bindings
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
                                 .push(name.clone());
-                            unique_exports.insert(id_text(&name).to_owned(), true);
+                            unique_exports.insert(id_text(&name.ref_(arena)).to_owned(), true);
                             exported_names.get_or_insert_default_().push(name);
                         }
                     }
@@ -354,7 +354,7 @@ fn add_exported_names_for_export_declaration(
     arena: &impl HasArena,
 ) -> io::Result<()> {
     let node_as_export_declaration = node.ref_(arena).as_export_declaration();
-    for specifier in &cast(
+    for &specifier in &cast(
         node_as_export_declaration.export_clause,
         |node: &Id<Node>| is_named_exports(&node.ref_(arena)),
     )
@@ -363,16 +363,15 @@ fn add_exported_names_for_export_declaration(
     {
         let specifier_as_export_specifier = specifier.ref_(arena).as_export_specifier();
         if unique_exports
-            .get(id_text(&specifier_as_export_specifier.name))
+            .get(id_text(&specifier_as_export_specifier.name.ref_(arena)))
             .copied()
             != Some(true)
         {
             let name = specifier_as_export_specifier
                 .property_name
-                .as_ref()
-                .unwrap_or(&specifier_as_export_specifier.name);
+                .unwrap_or(specifier_as_export_specifier.name);
             if node_as_export_declaration.module_specifier.is_none() {
-                export_specifiers.add(id_text(name).to_owned(), specifier.clone());
+                export_specifiers.add(id_text(&name.ref_(arena)).to_owned(), specifier.clone());
             }
 
             let decl = resolver
@@ -387,7 +386,7 @@ fn add_exported_names_for_export_declaration(
             }
 
             unique_exports.insert(
-                id_text(&specifier_as_export_specifier.name).to_owned(),
+                id_text(&specifier_as_export_specifier.name.ref_(arena)).to_owned(),
                 true,
             );
             exported_names
@@ -498,11 +497,11 @@ pub fn try_add_prologue_directives_and_initial_super_call(
             .iter()
             .skip(index)
             .position(|s| {
-                is_expression_statement(s) && is_super_call(s.as_expression_statement().expression, arena)
+                is_expression_statement(&s.ref_(arena)) && is_super_call(s.ref_(arena).as_expression_statement().expression, arena)
             })
             .map(|found| found + index);
         if let Some(super_index) = super_index {
-            for statement in statements.iter().skip(index).take(super_index - index + 1) {
+            for &statement in statements.iter().skip(index).take(super_index - index + 1) {
                 result.push(try_visit_node(
                     statement,
                     Some(|node: Id<Node>| visitor(node)),

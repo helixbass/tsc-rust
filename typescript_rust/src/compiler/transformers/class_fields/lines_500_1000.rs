@@ -188,7 +188,7 @@ impl TransformClassFields {
                                 {
                                     setter_name =
                                         Some(self.factory.create_string_literal_from_node(
-                                            &node_operand_as_property_access_expression.name(),
+                                            node_operand_as_property_access_expression.name(),
                                         ));
                                     getter_name = setter_name.clone();
                                 }
@@ -215,7 +215,7 @@ impl TransformClassFields {
                                         self.factory.create_assignment(
                                             getter_name.clone().unwrap(),
                                             visit_node(
-                                                &node_operand_as_element_access_expression
+                                                node_operand_as_element_access_expression
                                                     .argument_expression,
                                                 Some(|node: Id<Node>| self.visitor(node)),
                                                 Some(|node| is_expression(node, self)),
@@ -765,10 +765,10 @@ impl TransformClassFields {
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     ))
                                 } else if is_identifier(
-                                    node_as_binary_expression
+                                    &node_as_binary_expression
                                         .left
                                         .ref_(self).as_property_access_expression()
-                                        .name,
+                                        .name.ref_(arena),
                                 ) {
                                     Some(
                                         self.factory.create_string_literal_from_node(

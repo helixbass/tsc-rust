@@ -19,7 +19,7 @@ use crate::{
     FunctionLikeDeclarationInterface, Matches, NamedDeclarationInterface, NodeArray, NodeExt,
     NodeInterface, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 pub(super) type Label = i32;
@@ -865,38 +865,40 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file()
             || !node
-                .transform_flags()
+                .ref_(self).transform_flags()
                 .intersects(TransformFlags::ContainsGenerator)
         {
-            return node.node_wrapper();
+            return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref())
+        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self)
     }
 
     pub(super) fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        let transform_flags = node.transform_flags();
+        let node_ref = node.ref_(self);
+        let transform_flags = node_ref.transform_flags();
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.visit_java_script_in_statement_containing_yield(node)
         } else if self.maybe_in_generator_function_body() == Some(true) {
             self.visit_java_script_in_generator_function_body(node)
-        } else if is_function_like_declaration(node)
+        } else if is_function_like_declaration(&node.ref_(self))
             && node
-                .as_function_like_declaration()
+                .ref_(self).as_function_like_declaration()
                 .maybe_asterisk_token()
                 .is_some()
         {
             self.visit_generator(node)
         } else if transform_flags.intersects(TransformFlags::ContainsGenerator) {
             Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context).into(),
+                visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into(),
             )
         } else {
-            Some(node.node_wrapper().into())
+            Some(node.into())
         }
     }
 
@@ -904,7 +906,7 @@ impl TransformGenerators {
         &self,
         node: Id<Node>,
     ) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::DoStatement => self.visit_do_statement(node),
             SyntaxKind::WhileStatement => self.visit_while_statement(node),
             SyntaxKind::SwitchStatement => self.visit_switch_statement(node),
@@ -917,7 +919,7 @@ impl TransformGenerators {
         &self,
         node: Id<Node>,
     ) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::FunctionDeclaration => {
                 self.visit_function_declaration(node).map(Into::into)
             }
@@ -933,24 +935,24 @@ impl TransformGenerators {
             SyntaxKind::ReturnStatement => self.visit_return_statement(node),
             _ => {
                 if node
-                    .transform_flags()
+                    .ref_(self).transform_flags()
                     .intersects(TransformFlags::ContainsYield)
                 {
                     self.visit_java_script_containing_yield(node)
-                } else if node.transform_flags().intersects(
+                } else if node.ref_(self).transform_flags().intersects(
                     TransformFlags::ContainsGenerator
                         | TransformFlags::ContainsHoistedDeclarationOrCompletion,
                 ) {
                     Some(
                         visit_each_child(
-                            node,
+                            &node.ref_(self),
                             |node: Id<Node>| self.visitor(node),
                             &**self.context,
                         )
                         .into(),
                     )
                 } else {
-                    Some(node.node_wrapper().into())
+                    Some(node.into())
                 }
             }
         }
@@ -958,7 +960,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_java_script_containing_yield(&self, node: Id<Node>) -> VisitResult /*<Node>*/
     {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
             SyntaxKind::CommaListExpression => self.visit_comma_list_expression(node),
             SyntaxKind::ConditionalExpression => {
@@ -971,28 +973,27 @@ impl TransformGenerators {
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => self.visit_new_expression(node),
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context).into(),
+                visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into(),
             ),
         }
     }
 
     pub(super) fn visit_generator(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::FunctionDeclaration => {
                 self.visit_function_declaration(node).map(Into::into)
             }
             SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node).into()),
-            _ => Debug_.fail_bad_syntax_kind(node, None),
+            _ => Debug_.fail_bad_syntax_kind(&node.ref_(self), None),
         }
     }
 
     pub(super) fn visit_function_declaration(
         &self,
-        node: Id<Node>, /*FunctionDeclaration*/
+        mut node: Id<Node>, /*FunctionDeclaration*/
     ) -> Option<Id<Node /*Statement*/>> {
-        let mut node = node.node_wrapper();
         if node
-            .as_function_declaration()
+            .ref_(self).as_function_declaration()
             .maybe_asterisk_token()
             .is_some()
         {
@@ -1015,8 +1016,8 @@ impl TransformGenerators {
                         &node.as_function_declaration().maybe_body().unwrap(),
                     )),
                 )
-                .set_text_range(Some(&*node))
-                .set_original_node(Some(node.node_wrapper()));
+                .set_text_range(Some(&*node.ref_(self)), self)
+                .set_original_node(Some(node), self);
         } else {
             let saved_in_generator_function_body = self.maybe_in_generator_function_body();
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
@@ -1037,11 +1038,10 @@ impl TransformGenerators {
 
     pub(super) fn visit_function_expression(
         &self,
-        node: Id<Node>, /*FunctionExpression*/
+        mut node: Id<Node>, /*FunctionExpression*/
     ) -> Id<Node /*Expression*/> {
-        let mut node = node.node_wrapper();
         if node
-            .as_function_expression()
+            .ref_(self).as_function_expression()
             .maybe_asterisk_token()
             .is_some()
         {
@@ -1062,8 +1062,8 @@ impl TransformGenerators {
                         &node.as_function_expression().maybe_body().unwrap(),
                     ),
                 )
-                .set_text_range(Some(&*node))
-                .set_original_node(Some(node.node_wrapper()));
+                .set_text_range(Some(&*node.ref_(self)), self)
+                .set_original_node(Some(node), self);
         } else {
             let saved_in_generator_function_body = self.maybe_in_generator_function_body();
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
@@ -1111,52 +1111,52 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        if is_identifier(node) {
+        if is_identifier(&node.ref_(self)) {
             return self.substitute_expression_identifier(node);
         }
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     fn substitute_expression_identifier(
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> {
-        if !is_generated_identifier(node)
+        if !is_generated_identifier(&node.ref_(self))
             && self
                 .transform_generators
                 .maybe_renamed_catch_variables()
                 .as_ref()
                 .matches(|renamed_catch_variables| {
-                    renamed_catch_variables.contains_key(id_text(node))
+                    renamed_catch_variables.contains_key(id_text(&node.ref_(self)))
                 })
         {
-            let ref original = get_original_node(node, self);
-            if is_identifier(original) && original.maybe_parent().is_some() {
+            let original = get_original_node(node, self);
+            if is_identifier(&original.ref_(self)) && original.ref_(self).maybe_parent().is_some() {
                 let declaration = self
                     .transform_generators
                     .resolver
                     .get_referenced_value_declaration(original)?;
-                if let Some(ref declaration) = declaration {
+                if let Some(declaration) = declaration {
                     let name = self
                         .transform_generators
                         .renamed_catch_variable_declarations()
-                        .get(&get_original_node_id(declaration))
+                        .get(&get_original_node_id(declaration, self))
                         .cloned();
-                    if let Some(ref name) = name {
+                    if let Some(name) = name {
                         return Ok(self
                             .transform_generators
                             .factory
                             .clone_node(name)
-                            .set_text_range(Some(&**name))
-                            .and_set_parent(name.maybe_parent())
-                            .set_source_map_range(Some(node.into()))
-                            .set_comment_range(node));
+                            .set_text_range(Some(&*name.ref_(self)), self)
+                            .and_set_parent(name.maybe_parent(), self)
+                            .set_source_map_range(Some((&*node.ref_(self)).into()), self)
+                            .set_comment_range((&*node.ref_(self)), self));
                     }
                 }
             }
         }
 
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 }
 
@@ -1168,9 +1168,15 @@ impl TransformationContextOnSubstituteNodeOverrider
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression {
-            return self.substitute_expression(&node);
+            return self.substitute_expression(node);
         }
         Ok(node)
+    }
+}
+
+impl HasArena for TransformGeneratorsOnSubstituteNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

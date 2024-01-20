@@ -84,7 +84,7 @@ impl TransformModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
                 .into(),
         ))
     }
@@ -169,7 +169,7 @@ impl TransformModule {
                 self,
             );
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_for_statement(
@@ -354,7 +354,7 @@ impl TransformModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
                 .into(),
         ))
     }

@@ -4,11 +4,12 @@ use id_arena::Id;
 use super::{BlockAction, CodeBlockKind, Label, OpCode, OperationArguments, TransformGenerators};
 use crate::{
     EmitFlags, GetOrInsertDefault, Node, NodeArray, NodeExt, Number, ReadonlyTextRange, _d,
+    InArena,
 };
 
 impl TransformGenerators {
     pub(super) fn emit_nop(&self) {
-        self.emit_worker(OpCode::Nop, None, Option::<Id<Node>>::None);
+        self.emit_worker(OpCode::Nop, None, Option::<&Node>::None);
     }
 
     pub(super) fn emit_statement(&self, node: Id<Node /*Statement*/>) {
@@ -16,7 +17,7 @@ impl TransformGenerators {
         self.emit_worker(
             OpCode::Statement,
             Some(node.into()),
-            Option::<Id<Node>>::None,
+            Option::<&Node>::None,
         );
         // } else {
         //     emitNop();
@@ -95,7 +96,7 @@ impl TransformGenerators {
     }
 
     pub(super) fn emit_end_finally(&self) {
-        self.emit_worker(OpCode::Endfinally, None, Option::<Id<Node>>::None);
+        self.emit_worker(OpCode::Endfinally, None, Option::<&Node>::None);
     }
 
     pub(super) fn emit_worker(
@@ -155,7 +156,7 @@ impl TransformGenerators {
                     self.factory
                         .create_block(build_result, Some(!build_result_is_empty)),
                 )
-                .set_emit_flags(EmitFlags::ReuseTempVariableScope),
+                .set_emit_flags(EmitFlags::ReuseTempVariableScope, self),
         )
     }
 
@@ -178,7 +179,7 @@ impl TransformGenerators {
                 label_expression,
                 self.factory.create_case_block(clauses.clone()),
             );
-            return vec![switch_statement.start_on_new_line()];
+            return vec![switch_statement.start_on_new_line(self)];
         }
 
         if let Some(statements) = self.maybe_statements().as_ref() {
@@ -204,7 +205,7 @@ impl TransformGenerators {
         if self.is_final_label_reachable(operation_index) {
             self.try_enter_label(operation_index);
             self.set_with_block_stack(None);
-            self.write_return(None, Option::<Id<Node>>::None);
+            self.write_return(None, Option::<&Node>::None);
         }
 
         if self.maybe_statements().is_some() && self.maybe_clauses().is_some() {
@@ -337,7 +338,7 @@ impl TransformGenerators {
                     if let Some(expressions) = expressions {
                         for expression in expressions {
                             expression
-                                .as_literal_like_node()
+                                .ref_(self).as_literal_like_node()
                                 .set_text(format!("{label_number}"));
                         }
                     }
@@ -448,7 +449,7 @@ impl TransformGenerators {
         self.write_statement(
             self.factory
                 .create_expression_statement(self.factory.create_assignment(left, right))
-                .set_text_range(operation_location),
+                .set_text_range(operation_location, self),
         );
     }
 }

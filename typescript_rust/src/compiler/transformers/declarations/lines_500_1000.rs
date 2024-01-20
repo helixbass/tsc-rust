@@ -786,7 +786,7 @@ impl TransformDeclarations {
                         )?;
                     }
                     let node = try_visit_each_child(
-                        input,
+                        &input.ref_(self),
                         |node: Id<Node>| self.visit_declaration_subtree(node),
                         &**self.context,
                     )?;
@@ -816,7 +816,7 @@ impl TransformDeclarations {
                         self.enclosing_declaration(),
                     )?;
                     let node = try_visit_each_child(
-                        input,
+                        &input.ref_(self),
                         |node: Id<Node>| self.visit_declaration_subtree(node),
                         &**self.context,
                     )?;
@@ -1262,7 +1262,7 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         try_maybe_visit_each_child(
-                            Some(input),
+                            Some(&input.ref_(self)),
                             |node: Id<Node>| self.visit_declaration_subtree(node),
                             &**self.context,
                         )?,
@@ -1476,7 +1476,7 @@ impl TransformDeclarations {
             should_enter_suppress_new_diagnostics_context_context,
             old_within_object_literal_type,
             try_maybe_visit_each_child(
-                Some(input),
+                Some(&input.ref_(self)),
                 |node: Id<Node>| self.visit_declaration_subtree(node),
                 &**self.context,
             )?,

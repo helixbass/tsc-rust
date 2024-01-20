@@ -14,6 +14,7 @@ use crate::{
     try_visit_nodes, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
     LiteralLikeNodeInterface, Matches, Node, NodeArray, NodeExt, NodeInterface, ProcessLevel,
     SignatureDeclarationInterface, SyntaxKind, TokenFlags, VisitResult,
+    InArena,
 };
 
 impl TransformES2015 {
@@ -21,7 +22,7 @@ impl TransformES2015 {
         &self,
         chunk: &[Id<Node /*Expression*/>],
     ) -> io::Result<Vec<SpreadSegment>> {
-        try_map(chunk, |node: &Id<Node>, _| {
+        try_map(chunk, |&node: &Id<Node>, _| {
             self.visit_expression_of_spread(node)
         })
     }
@@ -30,7 +31,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*SpreadElement*/
     ) -> io::Result<SpreadSegment> {
-        let node_as_spread_element = node.as_spread_element();
+        let node_ref = node.ref_(self);
+        let node_as_spread_element = node_ref.as_spread_element();
         let mut expression = try_visit_node(
             &node_as_spread_element.expression,
             Some(|node: Id<Node>| self.visitor(node)),
@@ -38,8 +40,8 @@ impl TransformES2015 {
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
 
-        let is_call_to_read_helper = is_call_to_helper(&expression, "___read");
-        let mut kind = if is_call_to_read_helper || is_packed_array_literal(&expression) {
+        let is_call_to_read_helper = is_call_to_helper(expression, "___read", self);
+        let mut kind = if is_call_to_read_helper || is_packed_array_literal(expression) {
             SpreadSegmentKind::PackedSpread
         } else {
             SpreadSegmentKind::UnpackedSpread
@@ -47,7 +49,7 @@ impl TransformES2015 {
 
         if self.compiler_options.downlevel_iteration == Some(true)
             && kind == SpreadSegmentKind::UnpackedSpread
-            && !is_array_literal_expression(&expression)
+            && !is_array_literal_expression(&expression.ref_(self))
             && !is_call_to_read_helper
         {
             expression = self
@@ -85,7 +87,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*SpreadElement*/
     ) -> io::Result<VisitResult> {
-        let node_as_spread_element = node.as_spread_element();
+        let node_ref = node.ref_(self);
+        let node_as_spread_element = node_ref.as_spread_element();
         Ok(Some(
             try_visit_node(
                 &node_as_spread_element.expression,
@@ -102,31 +105,33 @@ impl TransformES2015 {
         node: Id<Node>, /*LiteralExpression*/
     ) -> Id<Node /*LeftHandSideExpression*/> {
         self.factory
-            .create_string_literal(node.as_literal_like_node().text().clone(), None, None)
-            .set_text_range(Some(node))
+            .create_string_literal(node.ref_(self).as_literal_like_node().text().clone(), None, None)
+            .set_text_range(Some(&*node.ref_(self)), self)
     }
 
     pub(super) fn visit_string_literal(
         &self,
         node: Id<Node>, /*StringLiteral*/
     ) -> VisitResult {
-        let node_as_string_literal = node.as_string_literal();
+        let node_ref = node.ref_(self);
+        let node_as_string_literal = node_ref.as_string_literal();
         if node_as_string_literal.has_extended_unicode_escape() == Some(true) {
             return Some(
                 self.factory
                     .create_string_literal(node_as_string_literal.text().clone(), None, None)
-                    .set_text_range(Some(node))
+                    .set_text_range(Some(&*node.ref_(self)), self)
                     .into(),
             );
         }
-        Some(node.node_wrapper().into())
+        Some(node.into())
     }
 
     pub(super) fn visit_numeric_literal(
         &self,
         node: Id<Node>, /*NumericLiteral*/
     ) -> VisitResult {
-        let node_as_numeric_literal = node.as_numeric_literal();
+        let node_ref = node.ref_(self);
+        let node_as_numeric_literal = node_ref.as_numeric_literal();
         if node_as_numeric_literal
             .numeric_literal_flags
             .intersects(TokenFlags::BinaryOrOctalSpecifier)
@@ -134,11 +139,11 @@ impl TransformES2015 {
             return Some(
                 self.factory
                     .create_numeric_literal(node_as_numeric_literal.text().clone(), None)
-                    .set_text_range(Some(node))
+                    .set_text_range(Some(&*node.ref_(self)), self)
                     .into(),
             );
         }
-        Some(node.node_wrapper().into())
+        Some(node.into())
     }
 
     pub(super) fn visit_tagged_template_expression(
@@ -150,7 +155,7 @@ impl TransformES2015 {
                 &**self.context,
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &self.current_source_file(),
+                self.current_source_file(),
                 |node: Id<Node>| self.record_tagged_template_string(node),
                 ProcessLevel::All,
             )?
@@ -162,7 +167,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*TemplateExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_template_expression = node.as_template_expression();
+        let node_ref = node.ref_(self);
+        let node_as_template_expression = node_ref.as_template_expression();
         let mut expression: Id<Node /*Expression*/> = self.factory.create_string_literal(
             node_as_template_expression
                 .head
@@ -208,7 +214,7 @@ impl TransformES2015 {
             );
         }
 
-        Ok(expression.set_text_range(Some(node)))
+        Ok(expression.set_text_range(Some(&*node.ref_(self)), self))
     }
 
     pub(super) fn visit_super_keyword(
@@ -239,9 +245,10 @@ impl TransformES2015 {
     }
 
     pub(super) fn visit_meta_property(&self, node: Id<Node> /*MetaProperty*/) -> VisitResult {
-        let node_as_meta_property = node.as_meta_property();
+        let node_ref = node.ref_(self);
+        let node_as_meta_property = node_ref.as_meta_property();
         if node_as_meta_property.keyword_token == SyntaxKind::NewKeyword
-            && node_as_meta_property.name.as_identifier().escaped_text == "target"
+            && node_as_meta_property.name.ref_(self).as_identifier().escaped_text == "target"
         {
             self.set_hierarchy_facts(Some(
                 self.maybe_hierarchy_facts().unwrap_or_default() | HierarchyFacts::NewTarget,
@@ -258,7 +265,7 @@ impl TransformES2015 {
                     .into(),
             );
         }
-        Some(node.node_wrapper().into())
+        Some(node.into())
     }
 
     pub(super) fn enable_substitutions_for_block_scoped_bindings(&self) {
@@ -324,8 +331,8 @@ impl TransformES2015 {
         has_extends_clause: bool,
     ) -> bool {
         let constructor = return_default_if_none!(constructor);
-        let constructor: Id<Node> = constructor.borrow();
-        let constructor_as_constructor_declaration = constructor.as_constructor_declaration();
+        let constructor_ref = constructor.ref_(self);
+        let constructor_as_constructor_declaration = constructor_ref.as_constructor_declaration();
         if !has_extends_clause {
             return false;
         }

@@ -28,29 +28,30 @@ impl TransformES2015 {
         container: Id<Node>,
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
-        let method_as_method_declaration = method.as_method_declaration();
+        let method_ref = method.ref_(self);
+        let method_as_method_declaration = method_ref.as_method_declaration();
         let expression = self
             .factory
             .create_assignment(
                 create_member_access_for_property_name(
                     &self.factory,
                     receiver,
-                    &*try_visit_node(
+                    try_visit_node(
                         &method_as_method_declaration.name(),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_property_name),
+                        Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<Id<Node>>::None,
+                    Option::<&Node>::None,
                 ),
                 self.transform_function_like_to_expression(
                     method,
-                    Some(method),
+                    Some(&*method.ref_(self)),
                     Option::<Id<Node>>::None,
                     Some(container),
                 )?,
             )
-            .set_text_range(Some(method));
+            .set_text_range(Some(&*method.ref_(self)), self);
         if starts_on_new_line == Some(true) {
             start_on_new_line(expression, self);
         }
@@ -61,7 +62,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*CatchClause*/
     ) -> io::Result<Id<Node /*CatchClause*/>> {
-        let node_as_catch_clause = node.as_catch_clause();
+        let node_ref = node.ref_(self);
+        let node_as_catch_clause = node_ref.as_catch_clause();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::BlockScopeExcludes,
             HierarchyFacts::BlockScopeIncludes,
@@ -84,20 +86,21 @@ impl TransformES2015 {
             let new_variable_declaration = self
                 .factory
                 .create_variable_declaration(Some(temp.clone()), None, None, None)
-                .set_text_range(Some(&**node_variable_declaration));
+                .set_text_range(Some(&*node_variable_declaration.ref_(self)), self);
             let vars = try_flatten_destructuring_binding(
                 node_variable_declaration,
                 |node: Id<Node>| self.visitor(node),
                 self.context.clone(),
                 FlattenLevel::All,
-                Some(&*temp),
+                Some(temp),
                 None,
                 None,
+                self,
             )?;
             let list = self
                 .factory
                 .create_variable_declaration_list(vars, None)
-                .set_text_range(Some(&**node_variable_declaration));
+                .set_text_range(Some(&*node_variable_declaration.ref_(self)), self);
             let destructure = self
                 .factory
                 .create_variable_statement(Option::<Gc<NodeArray>>::None, list);
@@ -108,7 +111,7 @@ impl TransformES2015 {
             );
         } else {
             updated =
-                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
+                try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?;
         }
 
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
@@ -120,7 +123,8 @@ impl TransformES2015 {
         block: Id<Node>, /*Block*/
         statement: Id<Node /*Statement*/>,
     ) -> io::Result<Id<Node /*Block*/>> {
-        let block_as_block = block.as_block();
+        let block_ref = block.ref_(self);
+        let block_as_block = block_ref.as_block();
         let transformed_statements = try_visit_nodes(
             &block_as_block.statements,
             Some(|node: Id<Node>| self.visitor(node)),
@@ -138,7 +142,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*MethodDeclaration*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
-        let node_as_method_declaration = node.as_method_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_method_declaration = node_ref.as_method_declaration();
         Debug_.assert(
             !is_computed_property_name(&node_as_method_declaration.name()),
             None,
@@ -146,22 +151,22 @@ impl TransformES2015 {
         let function_expression = self
             .transform_function_like_to_expression(
                 node,
-                Some(&ReadonlyTextRangeConcrete::from(move_range_pos(node, -1))),
+                Some(&ReadonlyTextRangeConcrete::from(move_range_pos(&*node.ref_(self), -1))),
                 Option::<Id<Node>>::None,
                 Option::<Id<Node>>::None,
             )?
-            .set_additional_emit_flags(EmitFlags::NoLeadingComments);
+            .set_additional_emit_flags(EmitFlags::NoLeadingComments, self);
         Ok(self
             .factory
             .create_property_assignment(node_as_method_declaration.name(), function_expression)
-            .set_text_range(Some(node)))
+            .set_text_range(Some(&*node.ref_(self)), self))
     }
 
     pub(super) fn visit_accessor_declaration(
         &self,
         node: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<Id<Node /*AccessorDeclaration*/>> {
-        let ref node_name = node.as_named_declaration().name();
+        let node_name = node.ref_(self).as_named_declaration().name();
         Debug_.assert(!is_computed_property_name(node_name), None);
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
@@ -171,28 +176,28 @@ impl TransformES2015 {
         );
         let updated: Id<Node /*AccessorDeclaration*/>;
         let parameters = try_visit_parameter_list(
-            Some(&node.as_signature_declaration().parameters()),
+            Some(&node.ref_(self).as_signature_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
         )?
         .unwrap();
         let body = self.transform_function_body(node)?;
-        if node.kind() == SyntaxKind::GetAccessor {
+        if node.ref_(self).kind() == SyntaxKind::GetAccessor {
             updated = self.factory.update_get_accessor_declaration(
                 node,
-                node.maybe_decorators(),
-                node.maybe_modifiers(),
-                node_name.clone(),
+                node.ref_(self).maybe_decorators(),
+                node.ref_(self).maybe_modifiers(),
+                node_name,
                 parameters,
-                node.as_has_type().maybe_type(),
+                node.ref_(self).as_has_type().maybe_type(),
                 Some(body),
             );
         } else {
             updated = self.factory.update_set_accessor_declaration(
                 node,
-                node.maybe_decorators(),
-                node.maybe_modifiers(),
-                node_name.clone(),
+                node.ref_(self).maybe_decorators(),
+                node.ref_(self).maybe_modifiers(),
+                node_name,
                 parameters,
                 Some(body),
             );
@@ -210,18 +215,19 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
-        let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
+        let node_ref = node.ref_(self);
+        let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         Ok(self
             .factory
             .create_property_assignment(
                 node_as_shorthand_property_assignment.name(),
                 self.visit_identifier(
-                    &self
+                    self
                         .factory
                         .clone_node(&node_as_shorthand_property_assignment.name()),
                 )?,
             )
-            .set_text_range(Some(node)))
+            .set_text_range(Some(&*node.ref_(self)), self))
     }
 
     pub(super) fn visit_computed_property_name(
@@ -229,7 +235,7 @@ impl TransformES2015 {
         node: Id<Node>, /*ComputedPropertyName*/
     ) -> io::Result<VisitResult> {
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
                 .into(),
         ))
     }
@@ -238,17 +244,18 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_array_literal_expression(
         &self,
         node: Id<Node>, /*ArrayLiteralExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let node_ref = node.ref_(self);
+        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         if some(
             Some(&node_as_array_literal_expression.elements),
-            Some(|element: &Id<Node>| is_spread_element(element)),
+            Some(|element: &Id<Node>| is_spread_element(&element.ref_(self))),
         ) {
             return self.transform_and_spread_elements(
                 &node_as_array_literal_expression.elements,
@@ -257,24 +264,25 @@ impl TransformES2015 {
                 node_as_array_literal_expression.elements.has_trailing_comma,
             );
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_call_expression(
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<VisitResult> {
-        let node_as_call_expression = node.as_call_expression();
-        if get_emit_flags(node).intersects(EmitFlags::TypeScriptClassWrapper) {
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
+        if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::TypeScriptClassWrapper) {
             return self.visit_type_script_class_wrapper(node);
         }
 
-        let ref expression = skip_outer_expressions(node_as_call_expression.expression, None, self);
-        if expression.kind() == SyntaxKind::SuperKeyword
+        let expression = skip_outer_expressions(node_as_call_expression.expression, None, self);
+        if expression.ref_(self).kind() == SyntaxKind::SuperKeyword
             || is_super_property(expression, self)
             || some(
                 Some(&node_as_call_expression.arguments),
-                Some(|argument: &Id<Node>| is_spread_element(argument)),
+                Some(|argument: &Id<Node>| is_spread_element(&argument.ref_(self))),
             )
         {
             return Ok(Some(
@@ -310,18 +318,20 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<VisitResult> {
-        let node_as_call_expression = node.as_call_expression();
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
         let body = cast_present(
             cast_present(
                 skip_outer_expressions(node_as_call_expression.expression, None, self),
-                |node: &Id<Node>| is_arrow_function(node),
+                |node: &Id<Node>| is_arrow_function(&node.ref_(self)),
             )
-            .as_arrow_function()
+            .ref_(self).as_arrow_function()
             .maybe_body()
             .unwrap(),
-            |node: &Id<Node>| is_block(node),
+            |node: &Id<Node>| is_block(&node.ref_(self)),
         );
-        let body_as_block = body.as_block();
+        let body_ref = body.ref_(self);
+        let body_as_block = body_ref.as_block();
 
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
@@ -334,23 +344,25 @@ impl TransformES2015 {
         )?;
         self.set_converted_loop_state(saved_converted_loop_state);
 
-        let class_statements = filter(&body_statements, |statement: &Id<Node>| {
+        let class_statements = filter(&body_statements, |&statement: &Id<Node>| {
             self.is_variable_statement_with_initializer(statement)
         });
-        let remaining_statements = filter(&body_statements, |stmt: &Id<Node>| {
+        let remaining_statements = filter(&body_statements, |&stmt: &Id<Node>| {
             !self.is_variable_statement_with_initializer(stmt)
         });
         let var_statement =
             cast_present(first(&class_statements).clone(), |statement: &Id<Node>| {
-                is_variable_statement(statement)
+                is_variable_statement(&statement.ref_(self))
             });
-        let var_statement_as_variable_statement = var_statement.as_variable_statement();
+        let var_statement_ref = var_statement.ref_(self);
+        let var_statement_as_variable_statement = var_statement_ref.as_variable_statement();
 
-        let variable = &var_statement_as_variable_statement
+        let variable = var_statement_as_variable_statement
             .declaration_list
-            .as_variable_declaration_list()
+            .ref_(self).as_variable_declaration_list()
             .declarations[0];
-        let variable_as_variable_declaration = variable.as_variable_declaration();
+        let variable_ref = variable.ref_(self);
+        let variable_as_variable_declaration = variable_ref.as_variable_declaration();
         let initializer = skip_outer_expressions(
             variable_as_variable_declaration
                 .maybe_initializer()
@@ -359,50 +371,52 @@ impl TransformES2015 {
             self,
         );
 
-        let mut alias_assignment = try_cast(initializer.clone(), |initializer: &Id<Node>| {
+        let mut alias_assignment = try_cast(initializer, |&initializer: &Id<Node>| {
             is_assignment_expression(initializer, None)
         });
         if alias_assignment.is_none()
-            && is_binary_expression(initializer)
-            && initializer.as_binary_expression().operator_token.kind() == SyntaxKind::CommaToken
+            && is_binary_expression(&initializer.ref_(self))
+            && initializer.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::CommaToken
         {
             alias_assignment = try_cast(
-                initializer.as_binary_expression().left.clone(),
-                |initializer_left: &Id<Node>| is_assignment_expression(initializer_left, None),
+                initializer.ref_(self).as_binary_expression().left,
+                |&initializer_left: &Id<Node>| is_assignment_expression(initializer_left, None, self),
             );
         }
 
         let call = cast_present(
-            alias_assignment.as_ref().map_or_else(
-                || initializer.clone(),
+            alias_assignment.map_or_else(
+                || initializer,
                 |alias_assignment| {
-                    skip_outer_expressions(alias_assignment.as_binary_expression().right, None, self)
+                    skip_outer_expressions(alias_assignment.ref_(self).as_binary_expression().right, None, self)
                 },
             ),
-            |node: &Id<Node>| is_call_expression(node),
+            |node: &Id<Node>| is_call_expression(&node.ref_(self)),
         );
-        let call_as_call_expression = call.as_call_expression();
+        let call_ref = call.ref_(self);
+        let call_as_call_expression = call_ref.as_call_expression();
         let func = cast_present(
             skip_outer_expressions(call_as_call_expression.expression, None, self),
-            |node: &Id<Node>| is_function_expression(node),
+            |node: &Id<Node>| is_function_expression(&node.ref_(self)),
         );
-        let func_as_function_expression = func.as_function_expression();
+        let func_ref = func.ref_(self);
+        let func_as_function_expression = func_ref.as_function_expression();
 
         let func_statements = func_as_function_expression
             .maybe_body()
             .unwrap()
-            .as_block()
+            .ref_(self).as_block()
             .statements
             .clone();
         let mut class_body_start = 0;
         let mut class_body_end = -1;
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
-        if let Some(alias_assignment) = alias_assignment.as_ref() {
+        if let Some(alias_assignment) = alias_assignment {
             let extends_call = try_cast(
                 func_statements.get(0).cloned(),
                 |node: &Option<Id<Node>>| {
-                    node.as_ref().matches(|node| is_expression_statement(node))
+                    node.matches(|node| is_expression_statement(&node.ref_(self)))
                 },
             )
             .flatten();
@@ -416,10 +430,10 @@ impl TransformES2015 {
 
             statements.push(self.factory.create_expression_statement(
                 self.factory.create_assignment(
-                    alias_assignment.as_binary_expression().left.clone(),
+                    alias_assignment.ref_(self).as_binary_expression().left,
                     cast_present(
                         variable_as_variable_declaration.name(),
-                        |node: &Id<Node>| is_identifier(node),
+                        |node: &Id<Node>| is_identifier(&node.ref_(self)),
                     ),
                 ),
             ));
@@ -453,18 +467,18 @@ impl TransformES2015 {
             self.factory
                 .restore_outer_expressions(
                     Some(&*node_as_call_expression.expression),
-                    &self.factory.restore_outer_expressions(
+                    self.factory.restore_outer_expressions(
                         variable_as_variable_declaration.maybe_initializer(),
-                        &self.factory.restore_outer_expressions(
-                            alias_assignment.as_ref().map(|alias_assignment| {
-                                alias_assignment.as_binary_expression().right.clone()
+                        self.factory.restore_outer_expressions(
+                            alias_assignment.map(|alias_assignment| {
+                                alias_assignment.ref_(self).as_binary_expression().right
                             }),
-                            &self.factory.update_call_expression(
-                                &call,
+                            self.factory.update_call_expression(
+                                call,
                                 self.factory.restore_outer_expressions(
                                     Some(&*call_as_call_expression.expression),
-                                    &self.factory.update_function_expression(
-                                        &func,
+                                    self.factory.update_function_expression(
+                                        func,
                                         Option::<Gc<NodeArray>>::None,
                                         None,
                                         None,
@@ -495,15 +509,15 @@ impl TransformES2015 {
         &self,
         stmt: Id<Node>, /*Statement*/
     ) -> bool {
-        is_variable_statement(stmt)
+        is_variable_statement(&stmt.ref_(self))
             && first(
                 &stmt
-                    .as_variable_statement()
+                    .ref_(self).as_variable_statement()
                     .declaration_list
-                    .as_variable_declaration_list()
+                    .ref_(self).as_variable_declaration_list()
                     .declarations,
             )
-            .as_variable_declaration()
+            .ref_(self).as_variable_declaration()
             .maybe_initializer()
             .is_some()
     }
@@ -520,11 +534,12 @@ impl TransformES2015 {
         node: Id<Node>, /*CallExpression*/
         assign_to_captured_this: bool,
     ) -> io::Result<Id<Node /*CallExpression | BinaryExpression*/>> {
-        let node_as_call_expression = node.as_call_expression();
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
         if node
-            .transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsRestOrSpread)
-            || node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword
+            || node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword
             || is_super_property(skip_outer_expressions(
                 node_as_call_expression.expression,
                 None,
@@ -545,21 +560,21 @@ impl TransformES2015 {
 
             let mut resulting_call: Id<Node /*CallExpression | BinaryExpression*/>;
             if node
-                .transform_flags()
+                .ref_(self).transform_flags()
                 .intersects(TransformFlags::ContainsRestOrSpread)
             {
                 resulting_call = self.factory.create_function_apply_call(
                     try_visit_node(
-                        &target,
+                        target,
                         Some(|node: Id<Node>| self.call_expression_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+                    if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
                         this_arg
                     } else {
                         try_visit_node(
-                            &this_arg,
+                            this_arg,
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -577,7 +592,7 @@ impl TransformES2015 {
                     .factory
                     .create_function_call_call(
                         try_visit_node(
-                            &target,
+                            target,
                             Some(|node: Id<Node>| self.call_expression_visitor(node)),
                             Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -586,7 +601,7 @@ impl TransformES2015 {
                             this_arg
                         } else {
                             try_visit_node(
-                                &this_arg,
+                                this_arg,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -600,10 +615,10 @@ impl TransformES2015 {
                             None,
                         )?,
                     )
-                    .set_text_range(Some(node))
+                    .set_text_range(Some(&*node.ref_(self)), self)
             }
 
-            if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+            if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
                 let initializer = self
                     .factory
                     .create_logical_or(resulting_call, self.create_actual_this());
@@ -625,20 +640,21 @@ impl TransformES2015 {
             return Ok(set_original_node(resulting_call, Some(node), self));
         }
 
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_new_expression(
         &self,
         node: Id<Node>, /*NewExpression*/
     ) -> io::Result<Id<Node /*LeftHandSideExpression*/>> {
-        let node_as_new_expression = node.as_new_expression();
+        let node_ref = node.ref_(self);
+        let node_as_new_expression = node_ref.as_new_expression();
         if some(
             node_as_new_expression.arguments.as_double_deref(),
-            Some(|node: &Id<Node>| is_spread_element(node)),
+            Some(|node: &Id<Node>| is_spread_element(&node.ref_(self))),
         ) {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
-                &self.factory.create_property_access_expression(
+                self.factory.create_property_access_expression(
                     node_as_new_expression.expression.clone(),
                     "bind",
                 ),
@@ -651,7 +667,7 @@ impl TransformES2015 {
             return Ok(self.factory.create_new_expression(
                 self.factory.create_function_apply_call(
                     try_visit_node(
-                        &target,
+                        target,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -679,7 +695,7 @@ impl TransformES2015 {
                 Some(vec![]),
             ));
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn transform_and_spread_elements(
@@ -693,7 +709,7 @@ impl TransformES2015 {
         let segments = flatten(&try_span_map(
             elements,
             |node: &Id<Node>, _| -> Rc<dyn PartitionSpread> {
-                if is_spread_element(node) {
+                if is_spread_element(&node.ref_(self)) {
                     Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.rc_wrapper()))
                 } else {
                     Rc::new(PartitionSpreadVisitSpanOfNonSpreads::new(self.rc_wrapper()))
@@ -711,10 +727,10 @@ impl TransformES2015 {
         if segments.len() == 1 {
             let first_segment = &segments[0];
             if is_argument_list && self.compiler_options.downlevel_iteration != Some(true)
-                || is_packed_array_literal(&first_segment.expression)
-                || is_call_to_helper(&first_segment.expression, "___spreadArray")
+                || is_packed_array_literal(first_segment.expression)
+                || is_call_to_helper(&first_segment.expression, "___spreadArray", self)
             {
-                return Ok(first_segment.expression.clone());
+                return Ok(first_segment.expression);
             }
         }
 

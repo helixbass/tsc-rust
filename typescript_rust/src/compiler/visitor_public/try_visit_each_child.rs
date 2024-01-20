@@ -37,7 +37,7 @@ use crate::{
 };
 
 pub fn try_visit_each_child(
-    node: Id<Node>,
+    node: &Node,
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Id<Node>> {
@@ -45,7 +45,7 @@ pub fn try_visit_each_child(
 }
 
 pub fn try_maybe_visit_each_child(
-    node: Option<Id<Node>>,
+    node: Option<&Node>,
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Option<Id<Node>>> {
@@ -75,7 +75,7 @@ pub fn try_maybe_visit_each_child(
 }
 
 pub fn try_maybe_visit_each_child_full(
-    node: Option<Id<Node>>,
+    node: Option<&Node>,
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<

@@ -484,7 +484,7 @@ impl TransformTypeScript {
             .is_value_alias_declaration(node)?
             .try_then_and(|| -> io::Result<_> {
                 Ok(try_maybe_visit_each_child(
-                    Some(node),
+                    Some(&node.ref_(self)),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -642,7 +642,7 @@ impl TransformTypeScript {
 
             return is_referenced.try_then(|| -> io::Result<_> {
                 Ok(try_visit_each_child(
-                    node,
+                    &node.ref_(self),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?

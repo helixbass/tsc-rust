@@ -116,7 +116,9 @@ impl TransformGenerators {
     }
 
     pub(super) fn begin_catch_block(&self, variable: Id<Node> /*VariableDeclaration*/) {
-        let variable_as_variable_declaration = variable.as_variable_declaration();
+        let variable_ref = variable.ref_(self);
+        let variable_ref_ref = variable_ref.ref_(self);
+        let variable_as_variable_declaration = variable_ref_ref.as_variable_declaration();
         Debug_.assert(
             self.peek_block_kind() == Some(CodeBlockKind::Exception),
             None,
@@ -139,7 +141,7 @@ impl TransformGenerators {
             self.renamed_catch_variables_mut()
                 .insert(text.to_owned(), true);
             self.renamed_catch_variable_declarations_mut()
-                .insert(get_original_node_id(variable), name.clone());
+                .insert(get_original_node_id(variable, self), name);
         }
 
         let exception = self.peek_block().unwrap();
@@ -150,7 +152,7 @@ impl TransformGenerators {
         );
 
         let end_label = exception.as_exception_block().end_label;
-        self.emit_break(end_label, Option::<Id<Node>>::None);
+        self.emit_break(end_label, Option::<&Node>::None);
 
         let catch_label = self.define_label();
         self.mark_label(catch_label);
@@ -166,7 +168,7 @@ impl TransformGenerators {
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![]),
             ),
-            Option::<Id<Node>>::None,
+            Option::<&Node>::None,
         );
         self.emit_nop();
     }
@@ -185,7 +187,7 @@ impl TransformGenerators {
         );
 
         let end_label = exception.as_exception_block().end_label;
-        self.emit_break(end_label, Option::<Id<Node>>::None);
+        self.emit_break(end_label, Option::<&Node>::None);
 
         let finally_label = self.define_label();
         self.mark_label(finally_label);
@@ -204,7 +206,7 @@ impl TransformGenerators {
         if state < ExceptionBlockState::Finally {
             self.emit_break(
                 exception.as_exception_block().end_label,
-                Option::<Id<Node>>::None,
+                Option::<&Node>::None,
             );
         } else {
             self.emit_end_finally();
@@ -415,6 +417,7 @@ impl TransformGenerators {
                 SyntaxKind::MultiLineCommentTrivia,
                 get_instruction_name(instruction).unwrap(),
                 None,
+                self,
             )
     }
 
@@ -432,7 +435,7 @@ impl TransformGenerators {
                 ]),
                 None,
             )))
-            .set_text_range(location)
+            .set_text_range(location, self)
     }
 
     pub(super) fn create_inline_return(
@@ -449,7 +452,7 @@ impl TransformGenerators {
                 }),
                 None,
             )))
-            .set_text_range(location)
+            .set_text_range(location, self)
     }
 
     pub(super) fn create_generator_resume(
@@ -463,6 +466,6 @@ impl TransformGenerators {
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![]),
             )
-            .set_text_range(location)
+            .set_text_range(location, self)
     }
 }

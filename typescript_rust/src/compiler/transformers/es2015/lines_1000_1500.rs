@@ -10,6 +10,7 @@ use crate::{
     some, try_flatten_destructuring_binding, try_visit_node, EmitFlags, FlattenLevel,
     GeneratedIdentifierFlags, HasInitializerInterface, Matches, NamedDeclarationInterface, Node,
     NodeArray, NodeExt, NodeInterface, Number, SyntaxKind,
+    HasArena, InArena, OptionInArena,
 };
 
 impl TransformES2015 {
@@ -17,19 +18,20 @@ impl TransformES2015 {
         &self,
         statement: Id<Node>, /*Statement*/
     ) -> bool {
-        if statement.kind() == SyntaxKind::ReturnStatement {
+        if statement.ref_(self).kind() == SyntaxKind::ReturnStatement {
             return true;
-        } else if statement.kind() == SyntaxKind::IfStatement {
-            let if_statement = statement.as_if_statement();
-            if let Some(if_statement_else_statement) = if_statement.else_statement.as_ref() {
+        } else if statement.ref_(self).kind() == SyntaxKind::IfStatement {
+            let statement_ref = statement.ref_(self);
+            let if_statement = statement_ref.as_if_statement();
+            if let Some(if_statement_else_statement) = if_statement.else_statement {
                 return self
                     .is_sufficiently_covered_by_return_statements(&if_statement.then_statement)
                     && self.is_sufficiently_covered_by_return_statements(
-                        &if_statement_else_statement,
+                        if_statement_else_statement,
                     );
             }
-        } else if statement.kind() == SyntaxKind::Block {
-            let last_statement = last_or_undefined(&statement.as_block().statements);
+        } else if statement.ref_(self).kind() == SyntaxKind::Block {
+            let last_statement = last_or_undefined(&statement.ref_(self).as_block().statements).copied();
             if last_statement.matches(|last_statement| {
                 self.is_sufficiently_covered_by_return_statements(last_statement)
             }) {
@@ -43,7 +45,7 @@ impl TransformES2015 {
     pub(super) fn create_actual_this(&self) -> Id<Node> {
         self.factory
             .create_this()
-            .set_emit_flags(EmitFlags::NoSubstitution)
+            .set_emit_flags(EmitFlags::NoSubstitution, self)
     }
 
     pub(super) fn create_default_super_call_or_this(&self) -> Id<Node> {
@@ -79,7 +81,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> Option<Id<Node /*ParameterDeclaration*/>> {
-        let node_as_parameter_declaration = node.as_parameter_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if node_as_parameter_declaration.dot_dot_dot_token.is_some() {
             None
         } else if is_binding_pattern(node_as_parameter_declaration.maybe_name()) {
@@ -94,8 +97,8 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    .set_text_range(Some(node), self)
-                    .set_original_node(Some(node.node_wrapper())),
+                    .set_text_range(Some(&*node.ref_(self)), self)
+                    .set_original_node(Some(node), self),
             )
         } else if node_as_parameter_declaration.maybe_initializer().is_some() {
             Some(
@@ -109,11 +112,11 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    .set_text_range(Some(node), self)
-                    .set_original_node(Some(node.node_wrapper())),
+                    .set_text_range(Some(&*node.ref_(self)), self)
+                    .set_original_node(Some(node), self),
             )
         } else {
-            Some(node.node_wrapper())
+            Some(node)
         }
     }
 
@@ -121,9 +124,10 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> bool {
-        let node_as_parameter_declaration = node.as_parameter_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         node_as_parameter_declaration.maybe_initializer().is_some()
-            || is_binding_pattern(node_as_parameter_declaration.maybe_name())
+            || is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self))
     }
 
     pub(super) fn add_default_value_assignments_if_needed(
@@ -131,10 +135,11 @@ impl TransformES2015 {
         statements: &mut Vec<Id<Node /*Statement*/>>,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
-        let node_as_function_like_declaration = node.as_function_like_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         if !some(
             Some(&node_as_function_like_declaration.parameters()),
-            Some(|parameter: &Id<Node>| self.has_default_value_or_binding_pattern(parameter)),
+            Some(|&parameter: &Id<Node>| self.has_default_value_or_binding_pattern(parameter)),
         ) {
             return Ok(false);
         }
@@ -179,7 +184,8 @@ impl TransformES2015 {
         name: Id<Node>,                /*BindingPattern*/
         initializer: Option<Id<Node>>, /*Expression*/
     ) -> io::Result<bool> {
-        let name_as_has_elements = name.as_has_elements();
+        let name_ref = name.ref_(self);
+        let name_as_has_elements = name_ref.as_has_elements();
         if !name_as_has_elements.elements().is_empty() {
             insert_statement_after_custom_prologue(
                 statements,
@@ -199,17 +205,17 @@ impl TransformES2015 {
                                     ),
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 None,
                             ),
                         )
-                        .set_emit_flags(EmitFlags::CustomPrologue),
+                        .set_emit_flags(EmitFlags::CustomPrologue, self),
                 ),
                 self,
             );
             return Ok(true);
         } else if let Some(initializer) = initializer {
-            let initializer = initializer.borrow();
             insert_statement_after_custom_prologue(
                 statements,
                 Some(
@@ -226,7 +232,7 @@ impl TransformES2015 {
                                 )?,
                             ),
                         )
-                        .set_emit_flags(EmitFlags::CustomPrologue),
+                        .set_emit_flags(EmitFlags::CustomPrologue, self),
                 ),
                 self,
             );
@@ -260,36 +266,39 @@ impl TransformES2015 {
                                 .create_assignment(
                                     self.factory
                                         .clone_node(name)
-                                        .set_text_range(Some(name), self)
-                                        .and_set_parent(name.maybe_parent())
-                                        .set_emit_flags(EmitFlags::NoSourceMap),
-                                    initializer.clone().set_emit_flags(
+                                        .set_text_range(Some(&*name.ref_(self)), self)
+                                        .and_set_parent(name.ref_(self).maybe_parent(), self)
+                                        .set_emit_flags(EmitFlags::NoSourceMap, self),
+                                    initializer.set_emit_flags(
                                         EmitFlags::NoSourceMap
-                                            | get_emit_flags(&initializer)
+                                            | get_emit_flags(&initializer.ref_(self))
                                             | EmitFlags::NoComments,
+                                        self,
                                     ),
                                 )
-                                .set_text_range(Some(parameter), self)
-                                .set_emit_flags(EmitFlags::NoComments),
+                                .set_text_range(Some(&*parameter.ref_(self)), self)
+                                .set_emit_flags(EmitFlags::NoComments, self),
                         )],
                         None,
                     )
-                    .set_text_range(Some(parameter), self)
+                    .set_text_range(Some(&*parameter.ref_(self)), self)
                     .set_emit_flags(
                         EmitFlags::SingleLine
                             | EmitFlags::NoTrailingSourceMap
                             | EmitFlags::NoTokenSourceMaps
                             | EmitFlags::NoComments,
+                        self,
                     ),
                 None,
             )
-            .start_on_new_line()
-            .set_text_range(Some(parameter), self)
+            .start_on_new_line(self)
+            .set_text_range(Some(&*parameter.ref_(self)), self)
             .set_emit_flags(
                 EmitFlags::NoTokenSourceMaps
                     | EmitFlags::NoTrailingSourceMap
                     | EmitFlags::CustomPrologue
                     | EmitFlags::NoComments,
+                self,
             );
         insert_statement_after_custom_prologue(statements, Some(statement), self);
 
@@ -302,8 +311,7 @@ impl TransformES2015 {
         in_constructor_with_synthesized_super: bool,
     ) -> bool {
         node.matches(|node| {
-            let node: Id<Node> = node.borrow();
-            node.as_parameter_declaration().dot_dot_dot_token.is_some()
+            node.ref_(self).as_parameter_declaration().dot_dot_dot_token.is_some()
         }) && !in_constructor_with_synthesized_super
     }
 
@@ -313,33 +321,35 @@ impl TransformES2015 {
         node: Id<Node>, /*FunctionLikeDeclaration*/
         in_constructor_with_synthesized_super: bool,
     ) -> io::Result<bool> {
-        let node_as_function_like_declaration = node.as_function_like_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         let mut prologue_statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let parameter = last_or_undefined(&node_as_function_like_declaration.parameters()).cloned();
         if !self
-            .should_add_rest_parameter(parameter.as_deref(), in_constructor_with_synthesized_super)
+            .should_add_rest_parameter(parameter, in_constructor_with_synthesized_super)
         {
             return Ok(false);
         }
         let parameter = parameter.unwrap();
-        let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+        let parameter_ref = parameter.ref_(self);
+        let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
 
         let parameter_name = parameter_as_parameter_declaration.name();
-        let declaration_name = if parameter_name.kind() == SyntaxKind::Identifier {
+        let declaration_name = if parameter_name.ref_(self).kind() == SyntaxKind::Identifier {
             self.factory
-                .clone_node(&parameter_name)
-                .set_text_range(Some(&*parameter_name), self)
-                .and_set_parent(parameter_name.maybe_parent())
+                .clone_node(parameter_name)
+                .set_text_range(Some(&*parameter_name.ref_(self)), self)
+                .and_set_parent(parameter_name.ref_(self).maybe_parent(), self)
         } else {
             self.factory
                 .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
         }
-        .set_emit_flags(EmitFlags::NoSourceMap);
+        .set_emit_flags(EmitFlags::NoSourceMap, self);
 
-        let expression_name = if parameter_name.kind() == SyntaxKind::Identifier {
-            self.factory.clone_node(&parameter_name)
+        let expression_name = if parameter_name.ref_(self).kind() == SyntaxKind::Identifier {
+            self.factory.clone_node(parameter_name)
         } else {
-            declaration_name.clone()
+            declaration_name
         };
         let rest_index = node_as_function_like_declaration.parameters().len() - 1;
         let temp = self.factory.create_loop_variable(None);
@@ -361,8 +371,8 @@ impl TransformES2015 {
                         None,
                     ),
                 )
-                .set_text_range(Some(&*parameter), self)
-                .set_emit_flags(EmitFlags::CustomPrologue),
+                .set_text_range(Some(&*parameter.ref_(self)), self)
+                .set_emit_flags(EmitFlags::CustomPrologue, self),
         );
 
         let for_statement =
@@ -424,35 +434,36 @@ impl TransformES2015 {
                                 ),
                             ))
                             .set_text_range(Some(&*parameter), self)
-                            .start_on_new_line()],
+                            .start_on_new_line(self)],
                         None,
                     ),
                 )
-                .set_emit_flags(EmitFlags::CustomPrologue)
-                .start_on_new_line();
+                .set_emit_flags(EmitFlags::CustomPrologue, self)
+                .start_on_new_line(self);
 
         prologue_statements.push(for_statement);
 
-        if parameter_name.kind() != SyntaxKind::Identifier {
+        if parameter_name.ref_(self).kind() != SyntaxKind::Identifier {
             prologue_statements.push(
                 self.factory
                     .create_variable_statement(
                         Option::<Gc<NodeArray>>::None,
                         self.factory.create_variable_declaration_list(
                             try_flatten_destructuring_binding(
-                                &parameter,
+                                parameter,
                                 |node: Id<Node>| self.visitor(node),
                                 self.context.clone(),
                                 FlattenLevel::All,
                                 Some(expression_name.clone()),
                                 None,
                                 None,
+                                self,
                             )?,
                             None,
                         ),
                     )
                     .set_text_range(Some(&*parameter), self)
-                    .set_emit_flags(EmitFlags::CustomPrologue),
+                    .set_emit_flags(EmitFlags::CustomPrologue, self),
             );
         }
 

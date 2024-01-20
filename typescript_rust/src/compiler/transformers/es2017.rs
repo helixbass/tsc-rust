@@ -199,7 +199,7 @@ impl TransformES2017 {
             !is_effective_strict_mode_source_file(node, &self.compiler_options, self),
         );
         let visited =
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
+            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?;
         add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
         Ok(visited)
     }
@@ -253,7 +253,7 @@ impl TransformES2017 {
 
     fn visit_default(&self, node: Id<Node>) -> io::Result<VisitResult> {
         Ok(try_maybe_visit_each_child(
-            Some(node),
+            Some(&node.ref_(self)),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
         )?
@@ -326,7 +326,7 @@ impl TransformES2017 {
                     }
                 }
                 try_maybe_visit_each_child(
-                    Some(node),
+                    Some(&node.ref_(self)),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -341,7 +341,7 @@ impl TransformES2017 {
                     self.set_has_super_element_access(Some(true));
                 }
                 try_maybe_visit_each_child(
-                    Some(node),
+                    Some(&node.ref_(self)),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -359,7 +359,7 @@ impl TransformES2017 {
             )?,
 
             _ => try_maybe_visit_each_child(
-                Some(node),
+                Some(&node.ref_(self)),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
@@ -396,7 +396,7 @@ impl TransformES2017 {
                 | SyntaxKind::IfStatement
                 | SyntaxKind::WithStatement
                 | SyntaxKind::LabeledStatement => try_maybe_visit_each_child(
-                    Some(node),
+                    Some(&node.ref_(self)),
                     |node: Id<Node>| self.async_body_visitor(node),
                     &**self.context,
                 )?
@@ -439,7 +439,7 @@ impl TransformES2017 {
                     self.maybe_enclosing_function_parameter_names().clone();
                 self.set_enclosing_function_parameter_names(Some(catch_clause_unshadowed_names));
                 let result = try_visit_each_child(
-                    node,
+                    &node.ref_(self),
                     |node: Id<Node>| self.async_body_visitor(node),
                     &**self.context,
                 )?;
@@ -449,7 +449,7 @@ impl TransformES2017 {
                 result
             } else {
                 try_visit_each_child(
-                    node,
+                    &node.ref_(self),
                     |node: Id<Node>| self.async_body_visitor(node),
                     &**self.context,
                 )?
@@ -475,7 +475,7 @@ impl TransformES2017 {
             );
         }
         try_maybe_visit_each_child(
-            Some(node),
+            Some(&node.ref_(self)),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
         )
@@ -611,7 +611,7 @@ impl TransformES2017 {
     ) -> io::Result<Id<Node /*Expression*/>> {
         if self.in_top_level_context() {
             return try_visit_each_child(
-                node,
+                &node.ref_(self),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             );

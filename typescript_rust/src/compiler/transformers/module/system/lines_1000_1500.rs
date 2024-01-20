@@ -527,7 +527,7 @@ impl TransformSystemModule {
     ) -> io::Result<VisitResult> /*<CaseOrDefaultClause>*/ {
         Ok(Some(
             try_visit_each_child(
-                node,
+                &node.ref_(self),
                 |node: Id<Node>| self.top_level_nested_visitor(node),
                 &**self.context,
             )?
@@ -541,7 +541,7 @@ impl TransformSystemModule {
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         Ok(Some(
             try_visit_each_child(
-                node,
+                &node.ref_(self),
                 |node: Id<Node>| self.top_level_nested_visitor(node),
                 &**self.context,
             )?
@@ -580,7 +580,7 @@ impl TransformSystemModule {
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
 
         let node = try_visit_each_child(
-            node,
+            &node.ref_(self),
             |node: Id<Node>| self.top_level_nested_visitor(node),
             &**self.context,
         )?;
@@ -626,7 +626,7 @@ impl TransformSystemModule {
             _ => (),
         }
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?
+            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
                 .into(),
         ))
     }

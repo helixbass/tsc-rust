@@ -18,6 +18,7 @@ use crate::{
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     HasTypeInterface, InterfaceOrClassLikeDeclarationInterface, Matches,
     SignatureDeclarationInterface, SyntaxKind,
+    InArena, OptionInArena,
 };
 
 impl TransformModule {
@@ -333,7 +334,7 @@ impl TransformModule {
                         )?,
                         None,
                         try_maybe_visit_each_child(
-                            node_as_function_declaration.maybe_body(),
+                            node_as_function_declaration.maybe_body().refed(self),
                             |node: Id<Node>| self.visitor(node),
                             &**self.context,
                         )?,
@@ -345,7 +346,7 @@ impl TransformModule {
             statements
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
-                    node,
+                    &node.ref_(self),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?);
@@ -411,7 +412,7 @@ impl TransformModule {
             statements
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
-                    node,
+                    &node.ref_(self),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?);
@@ -533,7 +534,7 @@ impl TransformModule {
             statements
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
-                    node,
+                    &node.ref_(self),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?);

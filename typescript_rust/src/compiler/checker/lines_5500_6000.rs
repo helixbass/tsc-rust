@@ -730,7 +730,7 @@ impl NodeBuilder {
             )?;
         }
         let mut visited = try_visit_each_child(
-            node,
+            &node.ref_(self),
             |node: Id<Node>| -> io::Result<_> {
                 Ok(Some(
                     self.elide_initializer_and_set_emit_flags(context, node)?

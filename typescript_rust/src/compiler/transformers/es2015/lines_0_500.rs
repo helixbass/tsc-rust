@@ -343,12 +343,12 @@ impl TransformES2015 {
             return Ok(node);
         }
 
-        self.set_current_source_file(Some(node.node_wrapper()));
+        self.set_current_source_file(Some(node));
         self.set_current_text(Some(node_as_source_file.text_as_chars().clone()));
 
         let visited = self
             .visit_source_file(node)?
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref());
+            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self);
 
         self.set_current_source_file(None);
         self.set_current_text(None);
@@ -390,29 +390,29 @@ impl TransformES2015 {
         self.maybe_hierarchy_facts()
             .unwrap_or_default()
             .intersects(HierarchyFacts::ConstructorWithCapturedSuper)
-            && node.kind() == SyntaxKind::ReturnStatement
-            && node.as_return_statement().expression.is_none()
+            && node.ref_(self).kind() == SyntaxKind::ReturnStatement
+            && node.ref_(self).as_return_statement().expression.is_none()
     }
 
     pub(super) fn is_or_may_contain_return_completion(&self, node: Id<Node>) -> bool {
-        node.transform_flags()
+        node.ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsHoistedDeclarationOrCompletion)
-            && (is_return_statement(node)
-                || is_if_statement(node)
-                || is_with_statement(node)
-                || is_switch_statement(node)
-                || is_case_block(node)
-                || is_case_clause(node)
-                || is_default_clause(node)
-                || is_try_statement(node)
-                || is_catch_clause(node)
-                || is_labeled_statement(node)
+            && (is_return_statement(&node.ref_(self))
+                || is_if_statement(&node.ref_(self))
+                || is_with_statement(&node.ref_(self))
+                || is_switch_statement(&node.ref_(self))
+                || is_case_block(&node.ref_(self))
+                || is_case_clause(&node.ref_(self))
+                || is_default_clause(&node.ref_(self))
+                || is_try_statement(&node.ref_(self))
+                || is_catch_clause(&node.ref_(self))
+                || is_labeled_statement(&node.ref_(self))
                 || is_iteration_statement(node, false, self)
-                || is_block(node))
+                || is_block(&node.ref_(self)))
     }
 
     pub(super) fn should_visit_node(&self, node: Id<Node>) -> bool {
-        node.transform_flags()
+        node.ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsES2015)
             || self.maybe_converted_loop_state().is_some()
             || self
@@ -421,14 +421,14 @@ impl TransformES2015 {
                 .intersects(HierarchyFacts::ConstructorWithCapturedSuper)
                 && self.is_or_may_contain_return_completion(node)
             || is_iteration_statement(node, false, self) && self.should_convert_iteration_statement(node)
-            || get_emit_flags(node).intersects(EmitFlags::TypeScriptClassWrapper)
+            || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::TypeScriptClassWrapper)
     }
 
     pub(super) fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(if self.should_visit_node(node) {
             self.visitor_worker(node, false)?
         } else {
-            Some(node.node_wrapper().into())
+            Some(node.into())
         })
     }
 
@@ -439,7 +439,7 @@ impl TransformES2015 {
         Ok(if self.should_visit_node(node) {
             self.visitor_worker(node, true)?
         } else {
-            Some(node.node_wrapper().into())
+            Some(node.into())
         })
     }
 
@@ -449,7 +449,7 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> /*<Node>*/ {
         if self.should_visit_node(node) {
             let original = get_original_node(node, self);
-            if is_property_declaration(original) && has_static_modifier(original, self) {
+            if is_property_declaration(&original.ref_(self)) && has_static_modifier(original, self) {
                 let ancestor_facts = self.enter_subtree(
                     HierarchyFacts::StaticInitializerExcludes,
                     HierarchyFacts::StaticInitializerIncludes,
@@ -464,12 +464,12 @@ impl TransformES2015 {
             }
             return self.visitor_worker(node, false);
         }
-        Ok(Some(node.node_wrapper().into()))
+        Ok(Some(node.into()))
     }
 
     pub(super) fn call_expression_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
-        if node.kind() == SyntaxKind::SuperKeyword {
+        if node.ref_(self).kind() == SyntaxKind::SuperKeyword {
             return Ok(Some(self.visit_super_keyword(true).into()));
         }
         self.visitor(node)
@@ -480,7 +480,7 @@ impl TransformES2015 {
         node: Id<Node>,
         expression_result_is_unused: bool,
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::StaticKeyword => None,
             SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
             SyntaxKind::ClassExpression => Some(self.visit_class_expression(node)?.into()),
@@ -557,7 +557,7 @@ impl TransformES2015 {
             SyntaxKind::ReturnStatement => Some(self.visit_return_statement(node)?.into()),
             SyntaxKind::VoidExpression => Some(self.visit_void_expression(node)?.into()),
             _ => try_maybe_visit_each_child(
-                Some(node),
+                Some(&node.ref_(self)),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
@@ -608,11 +608,11 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::CapturedThis)
-            && is_function_like(Some(node))
+            && is_function_like(Some(&node.ref_(self)))
         {
             let ancestor_facts = self.transform_es2015.enter_subtree(
                 HierarchyFacts::FunctionExcludes,
-                if get_emit_flags(node).intersects(EmitFlags::CapturesThis) {
+                if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::CapturesThis) {
                     HierarchyFacts::FunctionIncludes | HierarchyFacts::CapturesThis
                 } else {
                     HierarchyFacts::FunctionIncludes
@@ -630,6 +630,12 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
         self.previous_on_emit_node
             .on_emit_node(hint, node, emit_callback)?;
         return Ok(());
+    }
+}
+
+impl HasArena for TransformES2015OnEmitNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -659,37 +665,37 @@ impl TransformES2015OnSubstituteNodeOverrider {
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
-            && !is_internal_name(node)
+            && !is_internal_name(&node.ref_(self))
         {
-            let original = get_parse_tree_node(Some(node), Some(is_identifier), self);
+            let original = get_parse_tree_node(Some(node), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), self);
             if let Some(original) = original
-                .try_filter(|original| self.is_name_of_declaration_with_colliding_name(original))?
+                .try_filter(|&original| self.is_name_of_declaration_with_colliding_name(original))?
             {
                 return Ok(self
                     .transform_es2015
                     .factory
                     .get_generated_name_for_node(Some(original), None)
-                    .set_text_range(Some(node), self));
+                    .set_text_range(Some(&*node.ref_(self)), self));
             }
         }
 
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     pub(super) fn is_name_of_declaration_with_colliding_name(
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<bool> {
-        Ok(match node.parent().kind() {
+        Ok(match node.ref_(self).parent().ref_(self).kind() {
             SyntaxKind::BindingElement
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::EnumDeclaration
             | SyntaxKind::VariableDeclaration => {
-                ptr::eq(&*node.parent().as_named_declaration().name(), node)
+                node.ref_(self).parent().ref_(self).as_named_declaration().name() == node
                     && self
                         .transform_es2015
                         .resolver
-                        .is_declaration_with_colliding_name(&node.parent())?
+                        .is_declaration_with_colliding_name(node.ref_(self).parent())?
             }
             _ => false,
         })
@@ -699,7 +705,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::Identifier => {
                 return self.substitute_expression_identifier(node);
             }
@@ -709,7 +715,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
             _ => (),
         }
 
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     pub(super) fn substitute_expression_identifier(
@@ -721,24 +727,24 @@ impl TransformES2015OnSubstituteNodeOverrider {
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
-            && !is_internal_name(node)
+            && !is_internal_name(&node.ref_(self))
         {
             let declaration = self
                 .transform_es2015
                 .resolver
                 .get_referenced_declaration_with_colliding_name(node)?;
-            if let Some(declaration) = declaration.filter(|declaration| {
-                !(is_class_like(declaration) && self.is_part_of_class_body(declaration, node))
+            if let Some(declaration) = declaration.filter(|&declaration| {
+                !(is_class_like(&declaration.ref_(self)) && self.is_part_of_class_body(declaration, node))
             }) {
                 return Ok(self
                     .transform_es2015
                     .factory
                     .get_generated_name_for_node(get_name_of_declaration(Some(declaration), self), None)
-                    .set_text_range(Some(node), self));
+                    .set_text_range(Some(&*node.ref_(self)), self));
             }
         }
 
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     pub(super) fn is_part_of_class_body(
@@ -748,26 +754,26 @@ impl TransformES2015OnSubstituteNodeOverrider {
     ) -> bool {
         let mut current_node =
             get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);
-        if current_node.as_ref().is_none_or_matches(|current_node| {
-            ptr::eq(&**current_node, declaration)
-                || current_node.end() <= declaration.pos()
-                || current_node.pos() >= declaration.end()
+        if current_node.is_none_or_matches(|current_node| {
+            current_node == declaration
+                || current_node.ref_(self).end() <= declaration.ref_(self).pos()
+                || current_node.ref_(self).pos() >= declaration.ref_(self).end()
         }) {
             return false;
         }
-        let ref block_scope = get_enclosing_block_scope_container(declaration, self).unwrap();
-        while let Some(current_node_present) = current_node.as_ref() {
-            if Gc::ptr_eq(current_node_present, block_scope)
-                || ptr::eq(&**current_node_present, declaration)
+        let block_scope = get_enclosing_block_scope_container(declaration, self).unwrap();
+        while let Some(current_node_present) = current_node {
+            if current_node_present == block_scope
+                || current_node_present == declaration
             {
                 return false;
             }
-            if is_class_element(current_node_present)
-                && ptr::eq(&*current_node_present.parent(), declaration)
+            if is_class_element(&current_node_present.ref_(self))
+                && current_node_present.ref_(self).parent() == declaration
             {
                 return true;
             }
-            current_node = current_node_present.maybe_parent();
+            current_node = current_node_present.ref_(self).maybe_parent();
         }
         false
     }
@@ -796,15 +802,15 @@ impl TransformES2015OnSubstituteNodeOverrider {
                         GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
                     ),
                 )
-                .set_text_range(Some(node), self);
+                .set_text_range(Some(&*node.ref_(self)), self);
         }
-        node.node_wrapper()
+        node
     }
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2015OnSubstituteNodeOverrider {
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
-        let ref node = self
+        let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
 
@@ -812,11 +818,17 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES2015OnSubstit
             return self.substitute_expression(node);
         }
 
-        if is_identifier(node) {
+        if is_identifier(&node.ref_(self)) {
             return self.substitute_identifier(node);
         }
 
-        Ok(node.node_wrapper())
+        Ok(node)
+    }
+}
+
+impl HasArena for TransformES2015OnSubstituteNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

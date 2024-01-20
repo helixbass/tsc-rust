@@ -14,6 +14,7 @@ use crate::{
     try_visit_node, BoolExt, Debug_, EmitFlags, GetOrInsertDefault, Matches,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface,
     OptionTry, SyntaxKind, TransformFlags,
+    InArena,
 };
 
 impl TransformES2015 {
@@ -24,23 +25,24 @@ impl TransformES2015 {
         converted_loop_body_statements: Option<&[Id<Node /*Statement*/>]>,
         ancestor_facts: Option<HierarchyFacts>,
     ) -> io::Result<Id<Node /*Statement*/>> {
-        let node_as_for_of_statement = node.as_for_of_statement();
-        let ref expression = try_visit_node(
+        let node_ref = node.ref_(self);
+        let node_as_for_of_statement = node_ref.as_for_of_statement();
+        let expression = try_visit_node(
             &node_as_for_of_statement.expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
-        let iterator = if is_identifier(expression) {
+        let iterator = if is_identifier(&expression.ref_(self)) {
             self.factory
-                .get_generated_name_for_node(Some(&**expression), None)
+                .get_generated_name_for_node(Some(expression), None)
         } else {
             self.factory
                 .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
         };
-        let result = if is_identifier(expression) {
+        let result = if is_identifier(&expression.ref_(self)) {
             self.factory
-                .get_generated_name_for_node(Some(&*iterator), None)
+                .get_generated_name_for_node(Some(iterator), None)
         } else {
             self.factory
                 .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
@@ -48,14 +50,14 @@ impl TransformES2015 {
         let error_record = self.factory.create_unique_name("e", None);
         let catch_variable = self
             .factory
-            .get_generated_name_for_node(Some(&*error_record), None);
+            .get_generated_name_for_node(Some(error_record), None);
         let return_method = self
             .factory
             .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
         let values = self
             .emit_helpers()
-            .create_values_helper(expression.clone())
-            .set_text_range(Some(&*node_as_for_of_statement.expression));
+            .create_values_helper(expression)
+            .set_text_range(Some(&*node_as_for_of_statement.expression.ref_(self)), self);
         let next = self.factory.create_call_expression(
             self.factory
                 .create_property_access_expression(iterator.clone(), "next"),
@@ -63,8 +65,8 @@ impl TransformES2015 {
             Some(vec![]),
         );
 
-        self.context.hoist_variable_declaration(&error_record);
-        self.context.hoist_variable_declaration(&return_method);
+        self.context.hoist_variable_declaration(error_record);
+        self.context.hoist_variable_declaration(return_method);
 
         let initializer = if ancestor_facts
             .unwrap_or_default()
@@ -93,7 +95,7 @@ impl TransformES2015 {
                                         None,
                                         Some(initializer),
                                     )
-                                    .set_text_range(Some(&*node_as_for_of_statement.expression)),
+                                    .set_text_range(Some(&*node_as_for_of_statement.expression.ref_(self)), self),
                                 self.factory.create_variable_declaration(
                                     Some(result.clone()),
                                     None,
@@ -103,8 +105,8 @@ impl TransformES2015 {
                             ],
                             None,
                         )
-                        .set_text_range(Some(&*node_as_for_of_statement.expression))
-                        .set_emit_flags(EmitFlags::NoHoisting),
+                        .set_text_range(Some(node_as_for_of_statement.expression), self)
+                        .set_emit_flags(EmitFlags::NoHoisting, self),
                 ),
                 Some(
                     self.factory.create_logical_not(
@@ -115,19 +117,19 @@ impl TransformES2015 {
                 Some(self.factory.create_assignment(result.clone(), next)),
                 self.convert_for_of_statement_head(
                     node,
-                    &self
+                    self
                         .factory
-                        .create_property_access_expression(result.clone(), "value"),
+                        .create_property_access_expression(result, "value"),
                     converted_loop_body_statements,
                 )?,
             )
-            .set_text_range(Some(node))
-            .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps);
+            .set_text_range(Some(&*node.ref_(self)), self)
+            .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps, self);
 
         Ok(self.factory.create_try_statement(
             self.factory.create_block(
                 vec![self.factory.restore_enclosing_label(
-                    &for_statement,
+                    for_statement,
                     outermost_labeled_statement,
                     self.maybe_converted_loop_state().map(|_| {
                         |node: Id<Node>| {
@@ -160,7 +162,7 @@ impl TransformES2015 {
                             )],
                             None,
                         )
-                        .set_emit_flags(EmitFlags::SingleLine),
+                        .set_emit_flags(EmitFlags::SingleLine, self),
                 ),
             ),
             Some(self.factory.create_block(
@@ -195,7 +197,7 @@ impl TransformES2015 {
                                     ),
                                     None,
                                 )
-                                .set_emit_flags(EmitFlags::SingleLine)],
+                                .set_emit_flags(EmitFlags::SingleLine, self)],
                             None,
                         ),
                         None,
@@ -214,10 +216,10 @@ impl TransformES2015 {
                                             ),
                                             None,
                                         )
-                                        .set_emit_flags(EmitFlags::SingleLine)],
+                                        .set_emit_flags(EmitFlags::SingleLine, self)],
                                     None,
                                 )
-                                .set_emit_flags(EmitFlags::SingleLine),
+                                .set_emit_flags(EmitFlags::SingleLine, self),
                         ),
                     )],
                 None,
@@ -229,7 +231,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ObjectLiteralExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_object_literal_expression = node.as_object_literal_expression();
+        let node_ref = node.ref_(self);
+        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         let properties = &node_as_object_literal_expression.properties;
 
         let mut num_initial_properties: Option<usize> = _d();
@@ -257,7 +260,7 @@ impl TransformES2015 {
 
         if num_initial_properties.is_none() {
             return try_visit_each_child(
-                node,
+                &node.ref_(self),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             );
@@ -279,7 +282,7 @@ impl TransformES2015 {
                     try_maybe_visit_nodes(
                         Some(properties),
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_object_literal_element_like),
+                        Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))),
                         Some(0),
                         Some(num_initial_properties),
                     )?,
@@ -289,7 +292,7 @@ impl TransformES2015 {
                     EmitFlags::Indented
                 } else {
                     EmitFlags::None
-                }),
+                }, self),
         );
 
         if node_as_object_literal_expression.multi_line == Some(true) {
@@ -298,15 +301,15 @@ impl TransformES2015 {
 
         expressions.push(assignment);
 
-        self.add_object_literal_members(&mut expressions, node, &temp, num_initial_properties)?;
+        self.add_object_literal_members(&mut expressions, node, temp, num_initial_properties)?;
 
         expressions.push(
             if node_as_object_literal_expression.multi_line == Some(true) {
                 self.factory
-                    .clone_node(&temp)
-                    .set_text_range(Some(&*temp))
-                    .and_set_parent(temp.maybe_parent())
-                    .start_on_new_line()
+                    .clone_node(temp)
+                    .set_text_range(Some(&*temp.ref_(self)), self)
+                    .and_set_parent(temp.ref_(self).maybe_parent(), self)
+                    .start_on_new_line(self)
             } else {
                 temp
             },
@@ -324,11 +327,10 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*IterationStatement*/
     ) -> bool {
-        is_for_statement(node)
+        is_for_statement(&node.ref_(self))
             && node
-                .as_for_statement()
+                .ref_(self).as_for_statement()
                 .initializer
-                .as_ref()
                 .matches(|node_initializer| {
                     self.should_convert_part_of_iteration_statement(node_initializer)
                 })
@@ -338,11 +340,10 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*IterationStatement*/
     ) -> bool {
-        is_for_statement(node)
+        is_for_statement(&node.ref_(self))
             && node
-                .as_for_statement()
+                .ref_(self).as_for_statement()
                 .condition
-                .as_ref()
                 .matches(|node_condition| {
                     self.should_convert_part_of_iteration_statement(node_condition)
                 })
@@ -352,11 +353,10 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*IterationStatement*/
     ) -> bool {
-        is_for_statement(node)
+        is_for_statement(&node.ref_(self))
             && node
-                .as_for_statement()
+                .ref_(self).as_for_statement()
                 .incrementor
-                .as_ref()
                 .matches(|node_incrementor| {
                     self.should_convert_part_of_iteration_statement(node_incrementor)
                 })
@@ -384,7 +384,8 @@ impl TransformES2015 {
         state: &mut ConvertedLoopState,
         node: Id<Node>, /*VariableDeclaration*/
     ) {
-        let node_as_variable_declaration = node.as_variable_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_variable_declaration = node_ref.as_variable_declaration();
         state.hoisted_local_variables.get_or_insert_default_();
 
         self.hoist_variable_declaration_declared_in_converted_loop_visit(
@@ -399,18 +400,18 @@ impl TransformES2015 {
         state: &mut ConvertedLoopState,
         node: Id<Node>, /*Identifier | BindingPattern*/
     ) {
-        if node.kind() == SyntaxKind::Identifier {
+        if node.ref_(self).kind() == SyntaxKind::Identifier {
             state
                 .hoisted_local_variables
                 .as_mut()
                 .unwrap()
-                .push(node.node_wrapper());
+                .push(node);
         } else {
-            for element in &node.as_has_elements().elements() {
+            for element in &node.ref_(self).as_has_elements().elements() {
                 if !is_omitted_expression(element) {
                     self.hoist_variable_declaration_declared_in_converted_loop_visit(
                         state,
-                        &element.as_binding_element().name(),
+                        element.ref_(self).as_binding_element().name(),
                     );
                 }
             }
@@ -468,20 +469,19 @@ impl TransformES2015 {
                 converted_loop_state.allowed_non_labeled_jumps = Some(Jump::Break | Jump::Continue);
             }
 
-            let outermost_labeled_statement = outermost_labeled_statement.node_wrappered();
             let result = convert.try_map_or_else(
                 || {
                     Ok(self.factory.restore_enclosing_label(
-                        &*if is_for_statement(node) {
+                        if is_for_statement(&node.ref_(self)) {
                             self.visit_each_child_of_for_statement(node)?
                         } else {
                             try_visit_each_child(
-                                node,
+                                &node.ref_(self),
                                 |node: Id<Node>| self.visitor(node),
                                 &**self.context,
                             )?
                         },
-                        outermost_labeled_statement.as_deref(),
+                        outermost_labeled_statement,
                         self.maybe_converted_loop_state().map(|_| {
                             |node: Id<Node>| {
                                 self.reset_label(node);
@@ -544,7 +544,7 @@ impl TransformES2015 {
 
         if let Some(initializer_function) = initializer_function.as_ref() {
             statements.push(self.generate_call_to_converted_loop_initializer(
-                &initializer_function.function_name,
+                initializer_function.function_name,
                 initializer_function.contains_yield,
             ));
         }
@@ -554,7 +554,7 @@ impl TransformES2015 {
             if let Some(mut convert) = convert {
                 loop_ = convert(
                     node,
-                    outermost_labeled_statement.node_wrappered().as_deref(),
+                    outermost_labeled_statement,
                     Some(&body_function.part),
                     ancestor_facts,
                 )?;
@@ -562,12 +562,12 @@ impl TransformES2015 {
                 let clone = self.convert_iteration_statement_core(
                     node,
                     initializer_function.as_ref(),
-                    &self
+                    self
                         .factory
                         .create_block(body_function.part.clone(), Some(true)),
                 )?;
                 loop_ = self.factory.restore_enclosing_label(
-                    &clone,
+                    clone,
                     outermost_labeled_statement,
                     self.maybe_converted_loop_state().map(|_| {
                         |node: Id<Node>| {
@@ -580,15 +580,15 @@ impl TransformES2015 {
             let clone = self.convert_iteration_statement_core(
                 node,
                 initializer_function.as_ref(),
-                &*try_visit_node(
-                    &node.as_has_statement().statement(),
+                try_visit_node(
+                    node.ref_(self).as_has_statement().statement(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(&|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                 )?,
             )?;
             loop_ = self.factory.restore_enclosing_label(
-                &clone,
+                clone,
                 outermost_labeled_statement,
                 self.maybe_converted_loop_state().map(|_| {
                     |node: Id<Node>| {
@@ -610,7 +610,7 @@ impl TransformES2015 {
         >,
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::ForStatement => {
                 self.convert_for_statement(node, initializer_function, converted_loop_body)?
             }
@@ -624,7 +624,7 @@ impl TransformES2015 {
             SyntaxKind::WhileStatement => {
                 self.convert_while_statement(node, converted_loop_body)?
             }
-            _ => Debug_.fail_bad_syntax_kind(node, Some("IterationStatement expected")),
+            _ => Debug_.fail_bad_syntax_kind(&node.ref_(self), Some("IterationStatement expected")),
         })
     }
 
@@ -636,7 +636,8 @@ impl TransformES2015 {
         >,
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        let node_as_for_statement = node.as_for_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_statement = node_ref.as_for_statement();
         let should_convert_condition =
             node_as_for_statement
                 .condition
@@ -683,7 +684,7 @@ impl TransformES2015 {
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
-            converted_loop_body.node_wrapper(),
+            converted_loop_body,
         ))
     }
 
@@ -692,7 +693,8 @@ impl TransformES2015 {
         node: Id<Node>,                /*ForOfStatement*/
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        let node_as_for_of_statement = node.as_for_of_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_of_statement = node_ref.as_for_of_statement();
         Ok(self.factory.update_for_of_statement(
             node,
             None,
@@ -708,7 +710,7 @@ impl TransformES2015 {
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
-            converted_loop_body.node_wrapper(),
+            converted_loop_body,
         ))
     }
 
@@ -717,7 +719,8 @@ impl TransformES2015 {
         node: Id<Node>,                /*ForInStatement*/
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        let node_as_for_in_statement = node.as_for_in_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_in_statement = node_ref.as_for_in_statement();
         Ok(self.factory.update_for_in_statement(
             node,
             try_visit_node(
@@ -732,7 +735,7 @@ impl TransformES2015 {
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
-            converted_loop_body.node_wrapper(),
+            converted_loop_body,
         ))
     }
 
@@ -741,10 +744,11 @@ impl TransformES2015 {
         node: Id<Node>,                /*DoStatement*/
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        let node_as_do_statement = node.as_do_statement();
+        let node_ref = node.ref_(self);
+        let node_as_do_statement = node_ref.as_do_statement();
         Ok(self.factory.update_do_statement(
             node,
-            converted_loop_body.node_wrapper(),
+            converted_loop_body,
             try_visit_node(
                 &node_as_do_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -759,7 +763,8 @@ impl TransformES2015 {
         node: Id<Node>,                /*WhileStatement*/
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        let node_as_while_statement = node.as_while_statement();
+        let node_ref = node.ref_(self);
+        let node_as_while_statement = node_ref.as_while_statement();
         Ok(self.factory.update_while_statement(
             node,
             try_visit_node(
@@ -768,7 +773,7 @@ impl TransformES2015 {
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
-            converted_loop_body.node_wrapper(),
+            converted_loop_body,
         ))
     }
 
@@ -777,11 +782,11 @@ impl TransformES2015 {
         node: Id<Node>, /*IterationStatement*/
     ) -> io::Result<Gc<GcCell<ConvertedLoopState>>> {
         let mut loop_initializer: Option<Id<Node /*VariableDeclarationList*/>> = _d();
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ForStatement | SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement => {
-                let initializer = node.as_has_initializer().maybe_initializer();
-                if initializer.as_ref().matches(|initializer| {
-                    initializer.kind() == SyntaxKind::VariableDeclarationList
+                let initializer = node.ref_(self).as_has_initializer().maybe_initializer();
+                if initializer.matches(|initializer| {
+                    initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList
                 }) {
                     loop_initializer = initializer;
                 }
@@ -792,11 +797,11 @@ impl TransformES2015 {
         let mut loop_parameters: Vec<Id<Node /*ParameterDeclaration*/>> = _d();
         let mut loop_out_parameters: Vec<LoopOutParameter> = _d();
         if let Some(loop_initializer) = loop_initializer.filter(|loop_initializer| {
-            get_combined_node_flags(loop_initializer).intersects(NodeFlags::BlockScoped)
+            get_combined_node_flags(loop_initializer, self).intersects(NodeFlags::BlockScoped)
         }) {
             let has_captured_bindings_in_for_initializer =
                 self.should_convert_initializer_of_for_statement(node);
-            for decl in &loop_initializer.as_variable_declaration_list().declarations {
+            for decl in &loop_initializer.ref_(self).as_variable_declaration_list().declarations {
                 self.process_loop_variable_declaration(
                     node,
                     decl,

@@ -11,7 +11,7 @@ use crate::{
     NodeInterface, SyntaxKind, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 #[derive(Trace, Finalize)]
@@ -77,7 +77,7 @@ impl TransformES5 {
     }
 
     fn transform_source_file(&self, node: Id<Node>) -> Id<Node> {
-        node.node_wrapper()
+        node
     }
 }
 
@@ -118,20 +118,26 @@ impl TransformationContextOnEmitNodeOverrider for TransformES5OnEmitNodeOverride
         node: Id<Node>,
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::JsxOpeningElement
             | SyntaxKind::JsxClosingElement
             | SyntaxKind::JsxSelfClosingElement => {
-                let ref tag_name = node.as_has_tag_name().tag_name();
+                let tag_name = node.ref_(self).as_has_tag_name().tag_name();
                 self.transform_es5
                     .no_substitution_mut()
-                    .insert(get_original_node_id(tag_name), true);
+                    .insert(get_original_node_id(tag_name, self), true);
             }
             _ => (),
         }
 
         self.previous_on_emit_node
             .on_emit_node(hint, node, emit_callback)
+    }
+}
+
+impl HasArena for TransformES5OnEmitNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -156,9 +162,10 @@ impl TransformES5OnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*PropertyAccessExpression*/
     ) -> Id<Node /*Expression*/> {
-        let node_as_property_access_expression = node.as_property_access_expression();
-        if is_private_identifier(&node_as_property_access_expression.name) {
-            return node.node_wrapper();
+        let node_ref = node.ref_(self);
+        let node_as_property_access_expression = node_ref.as_property_access_expression();
+        if is_private_identifier(&node_as_property_access_expression.name.ref_(self)) {
+            return node;
         }
         let literal_name =
             self.try_substitute_reserved_name(&node_as_property_access_expression.name);
@@ -170,18 +177,19 @@ impl TransformES5OnSubstituteNodeOverrider {
                     node_as_property_access_expression.expression.clone(),
                     literal_name,
                 )
-                .set_text_range(Some(node));
+                .set_text_range(Some(&*node.ref_(self)), self);
         }
-        node.node_wrapper()
+        node
     }
 
     fn substitute_property_assignment(
         &self,
         node: Id<Node>, /*PropertyAssignment*/
     ) -> Id<Node /*PropertyAssignment*/> {
-        let node_as_property_assignment = node.as_property_assignment();
-        let literal_name = is_identifier(&node_as_property_assignment.name())
-            .then_and(|| self.try_substitute_reserved_name(&node_as_property_assignment.name()));
+        let node_ref = node.ref_(self);
+        let node_as_property_assignment = node_ref.as_property_assignment();
+        let literal_name = is_identifier(&node_as_property_assignment.name().ref_(self))
+            .then_and(|| self.try_substitute_reserved_name(node_as_property_assignment.name()));
         if let Some(literal_name) = literal_name {
             return self.transform_es5.factory.update_property_assignment(
                 node,
@@ -189,14 +197,15 @@ impl TransformES5OnSubstituteNodeOverrider {
                 node_as_property_assignment.initializer.clone(),
             );
         }
-        node.node_wrapper()
+        node
     }
 
     fn try_substitute_reserved_name(&self, name: Id<Node> /*Identifier*/) -> Option<Id<Node>> {
-        let name_as_identifier = name.as_identifier();
+        let name_ref = name.ref_(self);
+        let name_as_identifier = name_ref.as_identifier();
         let token = name_as_identifier
             .original_keyword_kind
-            .or_else(|| node_is_synthesized(name).then_and(|| string_to_token(id_text(name))));
+            .or_else(|| node_is_synthesized(&*name.ref_(self)).then_and(|| string_to_token(id_text(&name.ref_(self)))));
         if token.matches(|token| {
             token >= SyntaxKind::FirstReservedWord && token <= SyntaxKind::LastReservedWord
         }) {
@@ -204,7 +213,7 @@ impl TransformES5OnSubstituteNodeOverrider {
                 self.transform_es5
                     .factory
                     .create_string_literal_from_node(name)
-                    .set_text_range(Some(name)),
+                    .set_text_range(Some(&*name.ref_(self)), self),
             );
         }
         None
@@ -214,7 +223,7 @@ impl TransformES5OnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider for TransformES5OnSubstituteNodeOverrider {
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         if matches!(
-            (node.maybe_id(), self.transform_es5.maybe_no_substitution().as_ref()),
+            (node.ref_(self).maybe_id(), self.transform_es5.maybe_no_substitution().as_ref()),
             (Some(node_id), Some(no_substitution)) if no_substitution.get(&node_id).copied() == Some(true)
         ) {
             return self
@@ -225,12 +234,18 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES5OnSubstitute
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
-        if is_property_access_expression(&node) {
-            return Ok(self.substitute_property_access_expression(&node));
-        } else if is_property_assignment(&node) {
-            return Ok(self.substitute_property_assignment(&node));
+        if is_property_access_expression(&node.ref_(self)) {
+            return Ok(self.substitute_property_access_expression(node));
+        } else if is_property_assignment(&node.ref_(self)) {
+            return Ok(self.substitute_property_assignment(node));
         }
         Ok(node)
+    }
+}
+
+impl HasArena for TransformES5OnSubstituteNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

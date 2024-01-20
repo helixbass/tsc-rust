@@ -360,7 +360,7 @@ impl TransformTypeScript {
             )
         } else {
             try_maybe_visit_each_child(
-                Some(node),
+                Some(&node.ref_(self)),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?
@@ -466,7 +466,7 @@ impl TransformTypeScript {
                 .create_partially_emitted_expression(expression, Some(node.node_wrapper())));
         }
 
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_assertion_expression(

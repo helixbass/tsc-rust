@@ -220,7 +220,7 @@ impl TransformDeclarations {
                                         .types
                                         .iter()
                                         .filter(|t| {
-                                            let t._ref = t..ref_(self);
+                                            let t_ref = t.ref_(self);
                                             let t_as_expression_with_type_arguments = t_ref.as_expression_with_type_arguments();
                                             is_entity_name_expression(
                                                 t_as_expression_with_type_arguments.expression,

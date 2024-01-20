@@ -711,7 +711,7 @@ impl TransformES2018 {
                         self.factory.create_property_assignment(
                             e_as_property_assignment.name(),
                             visit_node(
-                                &e_as_property_assignment.maybe_initializer().unwrap(),
+                                e_as_property_assignment.maybe_initializer().unwrap(),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -975,10 +975,10 @@ impl TransformES2018 {
             .filter(|node_variable_declaration| {
                 let node_variable_declaration_ref = node_variable_declaration.ref_(self);
                 let node_variable_declaration_as_variable_declaration = node_variable_declaration_ref.as_variable_declaration();
-                is_binding_pattern(node_variable_declaration_as_variable_declaration.maybe_name())
+                is_binding_pattern(node_variable_declaration_as_variable_declaration.maybe_name().refed(self))
                     && node_variable_declaration_as_variable_declaration
                         .name()
-                        .transform_flags()
+                        .ref_(self).transform_flags()
                         .intersects(TransformFlags::ContainsObjectRestOrSpread)
             })
         {

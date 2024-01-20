@@ -441,7 +441,7 @@ impl TransformTypeScript {
                 .intersects(TransformFlags::ContainsTypeScript)
             {
                 return Ok(try_maybe_visit_each_child(
-                    Some(node),
+                    Some(&node.ref_(self)),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
                 )?
@@ -624,7 +624,7 @@ impl TransformTypeScript {
             SyntaxKind::JsxSelfClosingElement => self.visit_jsx_self_closing_element(node)?,
             SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node)?,
             _ => try_maybe_visit_each_child(
-                Some(node),
+                Some(&node.ref_(self)),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
             )?

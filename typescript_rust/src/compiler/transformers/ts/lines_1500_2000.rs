@@ -326,7 +326,7 @@ impl TransformTypeScript {
             return Ok(None);
         }
         try_maybe_visit_each_child(
-            Some(node),
+            Some(&node.ref_(self)),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
         )

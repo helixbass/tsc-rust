@@ -16,6 +16,7 @@ use crate::{
     NodeArrayOrVec, NodeExt, NodeInterface, OptionTry, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind, TextRange,
     TransformFlags, VisitResult,
+    InArena,
 };
 
 impl TransformES2015 {
@@ -23,7 +24,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node /*SourceFile*/>> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::SourceFileExcludes,
             HierarchyFacts::SourceFileIncludes,
@@ -98,12 +100,12 @@ impl TransformES2015 {
                 );
             }
             let result =
-                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
+                try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?;
             converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
                 saved_allowed_non_labeled_jumps;
             return Ok(result);
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_case_block(
@@ -115,7 +117,7 @@ impl TransformES2015 {
             HierarchyFacts::BlockScopeIncludes,
         );
         let updated =
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)?;
+            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?;
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
         Ok(updated)
     }
@@ -126,14 +128,13 @@ impl TransformES2015 {
                 "_this",
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             )))
-            .set_original_node(Some(node.node_wrapper()))
+            .set_original_node(Some(node), self)
     }
 
     pub(super) fn visit_return_statement(
         &self,
-        node: Id<Node>, /*ReturnStatement*/
+        mut node: Id<Node>, /*ReturnStatement*/
     ) -> io::Result<Id<Node /*Statement*/>> {
-        let mut node = node.node_wrapper();
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             {
                 let mut converted_loop_state = converted_loop_state.borrow_mut();
@@ -168,7 +169,7 @@ impl TransformES2015 {
         } else if self.is_return_void_statement_in_constructor_with_captured_super(&node) {
             return Ok(self.return_captured_this(&node));
         }
-        try_visit_each_child(&node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_this_keyword(&self, node: Id<Node>) -> Id<Node> {
@@ -195,7 +196,7 @@ impl TransformES2015 {
                 self.converted_loop_state()
                     .borrow_mut()
                     .contains_lexical_this = Some(true);
-                return node.node_wrapper();
+                return node;
             }
             return self
                 .converted_loop_state()
@@ -204,7 +205,7 @@ impl TransformES2015 {
                 .get_or_insert_with(|| self.factory.create_unique_name("this", None))
                 .clone();
         }
-        node.node_wrapper()
+        node
     }
 
     pub(super) fn visit_void_expression(
@@ -212,7 +213,7 @@ impl TransformES2015 {
         node: Id<Node>, /*VoidExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         try_visit_each_child(
-            &node,
+            &node.ref_(self),
             |node: Id<Node>| self.visitor_with_unused_expression_result(node),
             &**self.context,
         )
@@ -223,7 +224,7 @@ impl TransformES2015 {
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Identifier*/>> {
         if self.maybe_converted_loop_state().is_none() {
-            return Ok(node.node_wrapper());
+            return Ok(node);
         }
         if self.resolver.is_arguments_local_binding(node)? {
             return Ok(self
@@ -233,16 +234,17 @@ impl TransformES2015 {
                 .get_or_insert_with(|| self.factory.create_unique_name("arguments", None))
                 .clone());
         }
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     pub(super) fn visit_break_or_continue_statement(
         &self,
         node: Id<Node>, /*BreakOrContinueStatement*/
     ) -> io::Result<Id<Node /*Statement*/>> {
-        let node_as_has_label = node.as_has_label();
+        let node_ref = node.ref_(self);
+        let node_as_has_label = node_ref.as_has_label();
         if self.maybe_converted_loop_state().is_some() {
-            let jump = if node.kind() == SyntaxKind::BreakStatement {
+            let jump = if node.ref_(self).kind() == SyntaxKind::BreakStatement {
                 Jump::Break
             } else {
                 Jump::Continue
@@ -262,9 +264,9 @@ impl TransformES2015 {
             if !can_use_break_or_continue {
                 let label_marker: String;
                 let label = node_as_has_label.maybe_label();
-                match label.as_ref() {
+                match label {
                     None => {
-                        if node.kind() == SyntaxKind::BreakStatement {
+                        if node.ref_(self).kind() == SyntaxKind::BreakStatement {
                             *self
                                 .converted_loop_state()
                                 .borrow_mut()
@@ -281,7 +283,7 @@ impl TransformES2015 {
                         }
                     }
                     Some(label) => {
-                        if node.kind() == SyntaxKind::BreakStatement {
+                        if node.ref_(self).kind() == SyntaxKind::BreakStatement {
                             label_marker = format!("break-{}", label.as_identifier().escaped_text);
                             self.set_labeled_jump(
                                 &mut self.converted_loop_state().borrow_mut(),
@@ -336,7 +338,7 @@ impl TransformES2015 {
                     .create_return_statement(Some(return_expression)));
             }
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_class_declaration(
@@ -351,7 +353,7 @@ impl TransformES2015 {
                 None,
                 Some(self.transform_class_like_declaration_to_expression(node)?),
             )
-            .set_original_node(Some(node.node_wrapper()));
+            .set_original_node(Some(node), self);
 
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let statement = self
@@ -361,10 +363,10 @@ impl TransformES2015 {
                 self.factory
                     .create_variable_declaration_list(vec![variable], None),
             )
-            .set_original_node(Some(node.node_wrapper()))
-            .set_text_range(Some(node))
-            .start_on_new_line();
-        statements.push(statement.clone());
+            .set_original_node(Some(node), self)
+            .set_text_range(Some(&*node.ref_(self)), self)
+            .start_on_new_line(self);
+        statements.push(statement);
 
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             let export_statement = if has_syntactic_modifier(node, ModifierFlags::Default, self) {
@@ -374,15 +376,15 @@ impl TransformES2015 {
                 self.factory
                     .create_external_module_export(self.factory.get_local_name(node, None, None))
             }
-            .set_original_node(Some(statement.clone()));
+            .set_original_node(Some(statement), self);
             statements.push(export_statement);
         }
 
-        let emit_flags = get_emit_flags(node);
+        let emit_flags = get_emit_flags(&node.ref_(self));
         if !emit_flags.intersects(EmitFlags::HasEndOfDeclarationMarker) {
             statements.push(
                 self.factory
-                    .create_end_of_declaration_marker(node.node_wrapper()),
+                    .create_end_of_declaration_marker(node),
             );
             set_emit_flags(
                 statement,
@@ -405,7 +407,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         if node_as_class_like_declaration.maybe_name().is_some() {
             self.enable_substitutions_for_block_scoped_bindings();
         }
@@ -436,29 +439,30 @@ impl TransformES2015 {
                     )]
                 })),
                 None,
-                self.transform_class_body(node, extends_clause_element.as_deref())?,
+                self.transform_class_body(node, extends_clause_element)?,
             )
             .set_emit_flags(
-                (get_emit_flags(node) & EmitFlags::Indented) | EmitFlags::ReuseTempVariableScope,
+                (get_emit_flags(&node.ref_(self)) & EmitFlags::Indented) | EmitFlags::ReuseTempVariableScope,
+                self,
             );
 
         let inner = self
             .factory
             .create_partially_emitted_expression(class_function, None)
-            .set_text_range_end(node.end())
-            .set_emit_flags(EmitFlags::NoComments);
+            .set_text_range_end(node.ref_(self).end(), self)
+            .set_emit_flags(EmitFlags::NoComments, self);
 
         let outer = self
             .factory
             .create_partially_emitted_expression(inner, None)
             .set_text_range_end(skip_trivia(
                 &self.current_text(),
-                node.pos(),
+                node.ref_(self).pos(),
                 None,
                 None,
                 None,
-            ))
-            .set_emit_flags(EmitFlags::NoComments);
+            ), self)
+            .set_emit_flags(EmitFlags::NoComments, self);
 
         Ok(self
             .factory
@@ -468,8 +472,8 @@ impl TransformES2015 {
                 Some(extends_clause_element.as_ref().try_map_or_default(
                     |extends_clause_element| -> io::Result<_> {
                         Ok(vec![try_visit_node(
-                            &extends_clause_element
-                                .as_expression_with_type_arguments()
+                            extends_clause_element
+                                .ref_(self).as_expression_with_type_arguments()
                                 .expression,
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
@@ -478,7 +482,7 @@ impl TransformES2015 {
                     },
                 )?),
             ))
-            .add_synthetic_leading_comment(SyntaxKind::MultiLineCommentTrivia, "* @class ", None))
+            .add_synthetic_leading_comment(SyntaxKind::MultiLineCommentTrivia, "* @class ", None, self))
     }
 
     pub(super) fn transform_class_body(
@@ -486,22 +490,22 @@ impl TransformES2015 {
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<Id<Node>>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<Id<Node /*Block*/>> {
-        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let name = self.factory.get_internal_name(node, None, None);
-        let constructor_like_name = if is_identifier_a_non_contextual_keyword(&name) {
+        let constructor_like_name = if is_identifier_a_non_contextual_keyword(&name.ref_(self)) {
             self.factory.get_generated_name_for_node(Some(name), None)
         } else {
             name
         };
         self.context.start_lexical_environment();
-        let extends_clause_element = extends_clause_element.node_wrappered();
-        self.add_extends_helper_if_needed(&mut statements, node, extends_clause_element.as_deref());
+        self.add_extends_helper_if_needed(&mut statements, node, extends_clause_element);
         self.add_constructor(
             &mut statements,
             node,
-            &constructor_like_name,
-            extends_clause_element.as_deref(),
+            constructor_like_name,
+            extends_clause_element,
         )?;
         self.add_class_members(&mut statements, node)?;
 
@@ -519,14 +523,14 @@ impl TransformES2015 {
         let outer = self
             .factory
             .create_partially_emitted_expression(constructor_like_name, None)
-            .set_text_range_end(closing_brace_location.end())
-            .set_emit_flags(EmitFlags::NoComments);
+            .set_text_range_end(closing_brace_location.end(), self)
+            .set_emit_flags(EmitFlags::NoComments, self);
 
         let statement = self
             .factory
             .create_return_statement(Some(outer))
-            .set_text_range_pos(closing_brace_location.pos())
-            .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps);
+            .set_text_range_pos(closing_brace_location.pos(), self)
+            .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps, self);
         statements.push(statement);
 
         insert_statements_after_standard_prologue(
@@ -543,7 +547,7 @@ impl TransformES2015 {
                     .set_text_range(Some(&*node_as_class_like_declaration.members())),
                 Some(true),
             )
-            .set_emit_flags(EmitFlags::NoComments))
+            .set_emit_flags(EmitFlags::NoComments, self))
     }
 
     pub(super) fn add_extends_helper_if_needed(
@@ -553,7 +557,6 @@ impl TransformES2015 {
         extends_clause_element: Option<Id<Node>>, /*ExpressionWithTypeArguments*/
     ) {
         if let Some(extends_clause_element) = extends_clause_element {
-            let extends_clause_element: Id<Node> = extends_clause_element.borrow();
             statements.push(
                 self.factory
                     .create_expression_statement(
@@ -561,7 +564,7 @@ impl TransformES2015 {
                             self.factory.get_internal_name(node, None, None),
                         ),
                     )
-                    .set_text_range(Some(extends_clause_element)),
+                    .set_text_range(Some(&*extends_clause_element.ref_(self)), self),
             );
         }
     }
@@ -581,31 +584,30 @@ impl TransformES2015 {
         );
         let constructor = get_first_constructor_with_body(node, self);
         let has_synthesized_super = self.has_synthesized_default_super_call(
-            constructor.as_deref(),
+            constructor,
             extends_clause_element.is_some(),
         );
-        let extends_clause_element = extends_clause_element.node_wrappered();
         let constructor_function = self
             .factory
             .create_function_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 None,
-                Some(name.node_wrapper()),
+                Some(name),
                 Option::<Gc<NodeArray>>::None,
                 self.transform_constructor_parameters(
-                    constructor.as_deref(),
+                    constructor,
                     has_synthesized_super,
                 )?,
                 None,
                 Some(self.transform_constructor_body(
-                    constructor.as_deref(),
+                    constructor,
                     node,
-                    extends_clause_element.as_deref(),
+                    extends_clause_element,
                     has_synthesized_super,
                 )?),
             )
-            .set_text_range(Some(constructor.as_deref().unwrap_or(node)));
+            .set_text_range(Some(&*constructor.unwrap_or(node).ref_(self)), self);
         if extends_clause_element.is_some() {
             set_emit_flags(constructor_function, EmitFlags::CapturesThis, self);
         }
@@ -626,7 +628,6 @@ impl TransformES2015 {
         constructor: Option<Id<Node>>, /*ConstructorDeclaration*/
         has_synthesized_super: bool,
     ) -> io::Result<NodeArrayOrVec> {
-        let constructor = constructor.node_wrappered();
         Ok(try_visit_parameter_list(
             constructor
                 .filter(|_| !has_synthesized_super)
@@ -663,12 +664,12 @@ impl TransformES2015 {
         let statements_array = self
             .factory
             .create_node_array(Some(statements), None)
-            .set_text_range(Some(&*node.as_class_like_declaration().members()));
+            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members()), self);
 
         self.factory
             .create_block(statements_array, Some(true))
-            .set_text_range(Some(node))
-            .set_emit_flags(EmitFlags::NoComments)
+            .set_text_range(Some(&*node.ref_(self)), self)
+            .set_emit_flags(EmitFlags::NoComments, self)
     }
 
     pub(super) fn transform_constructor_body(
@@ -678,9 +679,7 @@ impl TransformES2015 {
         extends_clause_element: Option<Id<Node>>, /*ExpressionWithTypeArguments*/
         has_synthesized_super: bool,
     ) -> io::Result<Id<Node>> {
-        let extends_clause_element = extends_clause_element.node_wrappered();
         let is_derived_class = extends_clause_element
-            .as_ref()
             .matches(|extends_clause_element| {
                 skip_outer_expressions(
                     extends_clause_element
@@ -689,7 +688,7 @@ impl TransformES2015 {
                     None,
                     self,
                 )
-                .kind()
+                .ref_(self).kind()
                     != SyntaxKind::NullKeyword
             });
 
@@ -697,10 +696,11 @@ impl TransformES2015 {
             return Ok(self.create_default_constructor_body(node, is_derived_class));
         }
         let constructor = constructor.unwrap();
-        let constructor: Id<Node> = constructor.borrow();
-        let constructor_as_constructor_declaration = constructor.as_constructor_declaration();
+        let constructor_ref = constructor.ref_(self);
+        let constructor_as_constructor_declaration = constructor_ref.as_constructor_declaration();
         let constructor_body = constructor_as_constructor_declaration.maybe_body().unwrap();
-        let constructor_body_as_block = constructor_body.as_block();
+        let constructor_body_ref = constructor_body.ref_(self);
+        let constructor_body_as_block = constructor_body_ref.as_block();
 
         let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
@@ -779,19 +779,19 @@ impl TransformES2015 {
                         .intersects(TransformFlags::ContainsLexicalThis)
             }) {
                 let super_call = cast_present(
-                    &cast_present(&super_call_expression, |node: &&Id<Node>| {
-                        is_binary_expression(node)
+                    cast_present(&super_call_expression, |node: &&Id<Node>| {
+                        is_binary_expression(&node.ref_(self))
                     })
-                    .as_binary_expression()
+                    .ref_(self).as_binary_expression()
                     .left,
-                    |node: &&Id<Node>| is_call_expression(node),
+                    |node: &Id<Node>| is_call_expression(&node.ref_(self)),
                 );
                 let return_statement = self
                     .factory
                     .create_return_statement(Some(super_call_expression.clone()))
                     .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
-                        super_call,
-                    )));
+                        &super_call.ref_(self),
+                    )), self);
                 set_emit_flags(super_call, EmitFlags::NoComments, self);
                 statements.push(return_statement);
             } else {
@@ -825,6 +825,6 @@ impl TransformES2015 {
                     .set_text_range(Some(&*constructor_body_as_block.statements)),
                 Some(true),
             )
-            .set_text_range(Some(&*constructor_body)))
+            .set_text_range(Some(&*constructor_body.ref_(self)), self))
     }
 }

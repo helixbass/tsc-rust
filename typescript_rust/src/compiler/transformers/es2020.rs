@@ -105,7 +105,7 @@ impl TransformES2020 {
         {
             chain = cast(
                 Some(skip_partially_emitted_expressions(
-                    chain.ref_(arena).as_has_expression().expression(),
+                    chain.ref_(self).as_has_expression().expression(),
                     self,
                 )),
                 |value: &Id<Node>| is_optional_chain(&value.ref_(self)),
@@ -114,7 +114,7 @@ impl TransformES2020 {
             links.insert(0, chain);
         }
         FlattenChainReturn {
-            expression: chain.ref_(arena).as_has_expression().expression(),
+            expression: chain.ref_(self).as_has_expression().expression(),
             chain: links,
         }
     }
@@ -310,7 +310,7 @@ impl TransformES2020 {
             left
         };
         let mut captured_left/*Expression*/ = left_expression;
-        if !is_simple_copiable_expression(&left_expression.ref_(arena)) {
+        if !is_simple_copiable_expression(&left_expression.ref_(self)) {
             captured_left = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
                     self.context.hoist_variable_declaration(node);
@@ -328,7 +328,7 @@ impl TransformES2020 {
             match segment.ref_(self).kind() {
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                     if i == chain.len() - 1 && capture_this_arg {
-                        if !is_simple_copiable_expression(&right_expression.ref_(arena)) {
+                        if !is_simple_copiable_expression(&right_expression.ref_(self)) {
                             this_arg = Some(self.factory.create_temp_variable(
                                 Some(|node: Id<Node>| {
                                     self.context.hoist_variable_declaration(node);
@@ -346,7 +346,7 @@ impl TransformES2020 {
                         self.factory.create_property_access_expression(
                             right_expression,
                             visit_node(
-                                segment.ref_(arena).as_property_access_expression().name,
+                                segment.ref_(self).as_property_access_expression().name,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -356,7 +356,7 @@ impl TransformES2020 {
                         self.factory.create_element_access_expression(
                             right_expression,
                             visit_node(
-                                segment.ref_(arena).as_element_access_expression().argument_expression,
+                                segment.ref_(self).as_element_access_expression().argument_expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -369,7 +369,7 @@ impl TransformES2020 {
                         let left_this_arg = left_this_arg.unwrap();
                         right_expression = self.factory.create_function_call_call(
                             right_expression,
-                            if left_this_arg.ref_(arena).kind() == SyntaxKind::SuperKeyword {
+                            if left_this_arg.ref_(self).kind() == SyntaxKind::SuperKeyword {
                                 self.factory.create_this()
                             } else {
                                 left_this_arg.clone()
