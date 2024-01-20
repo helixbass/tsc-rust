@@ -208,7 +208,7 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_class_declaration_ref = node_as_class_declaration.ref_(self);
+        let node_ref = node.ref_(self);
         let node_as_class_declaration = node_ref.as_class_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
 

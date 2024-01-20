@@ -756,7 +756,7 @@ impl TransformSystemModule {
                             if is_named_exports(&entry_export_clause.ref_(self)) {
                                 let mut properties: Vec<Id<Node /*PropertyAssignment*/>> = _d();
                                 for e in &entry_export_clause.ref_(self).as_named_exports().elements {
-                                    let e._ref = e..ref_(self);
+                                    let e_ref = e.ref_(self);
                                     let e_as_export_specifier = e_ref.as_export_specifier();
                                     properties.push(
                                         self.factory.create_property_assignment(
