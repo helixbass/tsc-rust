@@ -990,7 +990,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
                 .resolver
                 .get_referenced_import_declaration(name)?;
             if let Some(import_declaration) = import_declaration {
-                if is_import_clause(import_declaration) {
+                if is_import_clause(&import_declaration.ref_(self)) {
                     return Ok(self
                         .transform_system_module
                         .factory
@@ -1042,9 +1042,8 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
                                     self.transform_system_module.factory.clone_node(
                                         import_declaration_as_import_specifier
                                             .property_name
-                                            .as_ref()
                                             .unwrap_or(
-                                                &import_declaration_as_import_specifier.name,
+                                                import_declaration_as_import_specifier.name,
                                             ),
                                     ),
                                 ),
@@ -1092,7 +1091,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
                 .transform_system_module
                 .resolver
                 .get_referenced_import_declaration(node)?;
-            if let Some(ref import_declaration) = import_declaration {
+            if let Some(import_declaration) = import_declaration {
                 if is_import_clause(&import_declaration.ref_(self)) {
                     return Ok(self
                         .transform_system_module
@@ -1135,8 +1134,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
                             self.transform_system_module.factory.clone_node(
                                 import_declaration_as_import_specifier
                                     .property_name
-                                    .as_ref()
-                                    .unwrap_or(&import_declaration_as_import_specifier.name),
+                                    .unwrap_or(import_declaration_as_import_specifier.name),
                             ),
                         )
                         .set_text_range(Some(&*node.ref_(self)), self));
@@ -1158,7 +1156,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
             && is_identifier(&node_left.ref_(self))
             && !is_generated_identifier(&node_left.ref_(self))
             && !is_local_name(&node_left.ref_(self))
-            && !is_declaration_name_of_enum_or_namespace(&node_left.ref_(self))
+            && !is_declaration_name_of_enum_or_namespace(node_left, self)
         {
             let exported_names = self.transform_system_module.get_exports(node_left)?;
             if let Some(exported_names) = exported_names {

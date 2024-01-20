@@ -27,13 +27,13 @@ impl TransformTypeScript {
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
         let always_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
-            && !(is_external_module(node) && self.module_kind >= ModuleKind::ES2015)
-            && !is_json_source_file(node);
+            && !(is_external_module(&node.ref_(self)) && self.module_kind >= ModuleKind::ES2015)
+            && !is_json_source_file(&node.ref_(self));
 
         Ok(self.factory.update_source_file(
             node,
             try_visit_lexical_environment_full(
-                &node.as_source_file().statements(),
+                &node.ref_(self).as_source_file().statements(),
                 |node: Id<Node>| self.source_element_visitor(node),
                 &**self.context,
                 Some(0),
@@ -69,12 +69,12 @@ impl TransformTypeScript {
         if extends_clause_element.matches(|extends_clause_element| {
             skip_outer_expressions(
                 extends_clause_element
-                    .as_expression_with_type_arguments()
+                    .ref_(self).as_expression_with_type_arguments()
                     .expression,
                 None,
                 self,
             )
-            .kind()
+            .ref_(self).kind()
                 != SyntaxKind::NullKeyword
         }) {
             facts |= ClassFacts::IsDerivedClass;
@@ -101,7 +101,7 @@ impl TransformTypeScript {
     }
 
     pub(super) fn has_type_script_class_syntax(&self, node: Id<Node>) -> bool {
-        node.transform_flags()
+        node.ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsTypeScriptClassSyntax)
     }
 
@@ -109,9 +109,10 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> bool {
-        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         some(
-            node.maybe_decorators().as_double_deref(),
+            node.ref_(self).maybe_decorators().as_double_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) || some(
             node_as_class_like_declaration
@@ -122,10 +123,10 @@ impl TransformTypeScript {
             node_as_class_like_declaration
                 .maybe_heritage_clauses()
                 .as_double_deref(),
-            Some(|heritage_clause: &Id<Node>| self.has_type_script_class_syntax(heritage_clause)),
+            Some(|&heritage_clause: &Id<Node>| self.has_type_script_class_syntax(heritage_clause)),
         ) || some(
             Some(&**node_as_class_like_declaration.members()),
-            Some(|member: &Id<Node>| self.has_type_script_class_syntax(member)),
+            Some(|&member: &Id<Node>| self.has_type_script_class_syntax(member)),
         )
     }
 
@@ -133,7 +134,8 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_class_declaration = node.as_class_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_class_declaration = node_ref.as_class_declaration();
         #[allow(clippy::nonminimal_bool)]
         if !self.is_class_like_declaration_with_type_script_syntax(node)
             && !(self.maybe_current_namespace().is_some()
@@ -176,7 +178,7 @@ impl TransformTypeScript {
         if facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression) {
             let closing_brace_location = create_token_range(
                 skip_trivia(
-                    &self.current_source_file().as_source_file().text_as_chars(),
+                    &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
                     node_as_class_declaration.members().end(),
                     None,
                     None,
@@ -189,14 +191,14 @@ impl TransformTypeScript {
             let outer = self
                 .factory
                 .create_partially_emitted_expression(local_name, None)
-                .set_text_range_end(closing_brace_location.end())
-                .set_emit_flags(EmitFlags::NoComments);
+                .set_text_range_end(closing_brace_location.end(), self)
+                .set_emit_flags(EmitFlags::NoComments, self);
 
             let statement = self
                 .factory
                 .create_return_statement(Some(outer))
-                .set_text_range_pos(closing_brace_location.pos())
-                .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps);
+                .set_text_range_pos(closing_brace_location.pos(), self)
+                .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps, self);
             statements.push(statement);
 
             insert_statements_after_standard_prologue(
@@ -208,7 +210,7 @@ impl TransformTypeScript {
             let iife = self
                 .factory
                 .create_immediately_invoked_arrow_function(statements, None, None)
-                .set_emit_flags(EmitFlags::TypeScriptClassWrapper);
+                .set_emit_flags(EmitFlags::TypeScriptClassWrapper, self);
 
             let var_statement = self
                 .factory
@@ -224,10 +226,10 @@ impl TransformTypeScript {
                         None,
                     ),
                 )
-                .set_original_node(Some(node.node_wrapper()))
-                .set_comment_range(node)
-                .set_source_map_range(Some((&move_range_past_decorators(node)).into()))
-                .start_on_new_line();
+                .set_original_node(Some(node), self)
+                .set_comment_range(&*node.ref_(self), self)
+                .set_source_map_range(Some((&move_range_past_decorators(&node.ref_(self))).into()), self)
+                .start_on_new_line(self);
             statements = vec![var_statement];
         }
 
@@ -255,11 +257,11 @@ impl TransformTypeScript {
         if statements.len() > 1 {
             statements.push(
                 self.factory
-                    .create_end_of_declaration_marker(node.node_wrapper()),
+                    .create_end_of_declaration_marker(node),
             );
             set_emit_flags(
                 class_statement,
-                get_emit_flags(&class_statement) | EmitFlags::HasEndOfDeclarationMarker,
+                get_emit_flags(&class_statement.ref_(self)) | EmitFlags::HasEndOfDeclarationMarker,
                 self,
             );
         }
@@ -277,13 +279,14 @@ impl TransformTypeScript {
         name: Option<Id<Node /*Identifier*/>>,
         facts: ClassFacts,
     ) -> io::Result<Id<Node>> {
-        let node_as_class_declaration = node.as_class_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_class_declaration = node_ref.as_class_declaration();
         let modifiers = (!(facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression)))
             .then_and(|| {
                 maybe_visit_nodes(
-                    node.maybe_modifiers().as_deref(),
+                    node.ref_(self).maybe_modifiers().as_deref(),
                     Some(|node: Id<Node>| self.modifier_visitor(node)),
-                    Some(is_modifier),
+                    Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
                     None,
                 )
@@ -292,29 +295,29 @@ impl TransformTypeScript {
         let class_declaration = self.factory.create_class_declaration(
             Option::<Gc<NodeArray>>::None,
             modifiers,
-            name.node_wrappered(),
+            name,
             Option::<Gc<NodeArray>>::None,
             try_maybe_visit_nodes(
                 node_as_class_declaration
                     .maybe_heritage_clauses()
                     .as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_heritage_clause),
+                Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                 None,
                 None,
             )?,
             self.transform_class_members(node)?,
         );
 
-        let mut emit_flags = get_emit_flags(node);
+        let mut emit_flags = get_emit_flags(&node.ref_(self));
         if facts.intersects(ClassFacts::HasStaticInitializedProperties) {
             emit_flags |= EmitFlags::NoTrailingSourceMap;
         }
 
         Ok(class_declaration
-            .set_text_range(Some(node))
-            .set_original_node(Some(node.node_wrapper()))
-            .set_emit_flags(emit_flags))
+            .set_text_range(Some(&*node.ref_(self)), self)
+            .set_original_node(Some(node), self)
+            .set_emit_flags(emit_flags, self))
     }
 
     pub(super) fn create_class_declaration_head_with_decorators(
@@ -322,7 +325,8 @@ impl TransformTypeScript {
         node: Id<Node>, /*ClassDeclaration*/
         name: Option<Id<Node /*Identifier*/>>,
     ) -> io::Result<Id<Node>> {
-        let node_as_class_declaration = node.as_class_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_class_declaration = node_ref.as_class_declaration();
         let location = move_range_past_decorators(node);
         let class_alias = self.get_class_alias_if_needed(node);
 
@@ -338,7 +342,7 @@ impl TransformTypeScript {
                 .maybe_heritage_clauses()
                 .as_deref(),
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_heritage_clause),
+            Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
             None,
             None,
         )?;
@@ -348,13 +352,13 @@ impl TransformTypeScript {
             .create_class_expression(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
-                name.node_wrappered(),
+                name,
                 Option::<Gc<NodeArray>>::None,
                 heritage_clauses,
                 members,
             )
-            .set_original_node(Some(node.node_wrapper()))
-            .set_text_range(Some(&location.to_readonly_text_range()));
+            .set_original_node(Some(node), self)
+            .set_text_range(Some(&location.to_readonly_text_range()), self);
 
         Ok(self
             .factory
@@ -375,16 +379,17 @@ impl TransformTypeScript {
                     Some(NodeFlags::Let),
                 ),
             )
-            .set_original_node(Some(node.node_wrapper()))
-            .set_text_range(Some(&location.to_readonly_text_range()))
-            .set_comment_range(node))
+            .set_original_node(Some(node), self)
+            .set_text_range(Some(&location.to_readonly_text_range()), self)
+            .set_comment_range(&*node.ref_(self), self))
     }
 
     pub(super) fn visit_class_expression(
         &self,
         node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<Id<Node /*<Expression>*/>> {
-        let node_as_class_expression = node.as_class_expression();
+        let node_ref = node.ref_(self);
+        let node_as_class_expression = node_ref.as_class_expression();
         if !self.is_class_like_declaration_with_type_script_syntax(node) {
             return try_visit_each_child(
                 &node.ref_(self),
@@ -403,14 +408,14 @@ impl TransformTypeScript {
                 try_maybe_visit_nodes(
                     node_as_class_expression.maybe_heritage_clauses().as_deref(),
                     Some(|node: Id<Node>| self.visitor(node)),
-                    Some(is_heritage_clause),
+                    Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,
                     None,
                 )?,
                 self.transform_class_members(node)?,
             )
-            .set_original_node(Some(node.node_wrapper()))
-            .set_text_range(Some(node)))
+            .set_original_node(Some(node), self)
+            .set_text_range(Some(&*node.ref_(self)), self))
     }
 
     pub(super) fn transform_class_members(
@@ -419,17 +424,18 @@ impl TransformTypeScript {
     ) -> io::Result<Gc<NodeArray>> {
         let mut members: Vec<Id<Node /*ClassElement*/>> = Default::default();
         let constructor = get_first_constructor_with_body(node, self);
-        let parameters_with_property_assignments = constructor.as_ref().map(|constructor| {
+        let parameters_with_property_assignments = constructor.map(|constructor| {
             constructor
-                .as_constructor_declaration()
+                .ref_(self).as_constructor_declaration()
                 .parameters()
                 .owned_iter()
-                .filter(|p| is_parameter_property_declaration(p, constructor, self))
+                .filter(|&p| is_parameter_property_declaration(p, constructor, self))
         });
         if let Some(parameters_with_property_assignments) = parameters_with_property_assignments {
-            for parameter in parameters_with_property_assignments {
-                let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
-                if is_identifier(&parameter_as_parameter_declaration.name()) {
+            for &parameter in parameters_with_property_assignments {
+                let parameter_ref = parameter.ref_(self);
+                let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
+                if is_identifier(&parameter_as_parameter_declaration.name().ref_(self)) {
                     members.push(
                         self.factory
                             .create_property_declaration(
@@ -440,19 +446,20 @@ impl TransformTypeScript {
                                 None,
                                 None,
                             )
-                            .set_original_node(Some(parameter)),
+                            .set_original_node(Some(parameter), self),
                     );
                 }
             }
         }
 
-        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         add_range(
             &mut members,
             Some(&try_visit_nodes(
                 &node_as_class_like_declaration.members(),
                 Some(|node: Id<Node>| self.class_element_visitor(node)),
-                Some(is_class_element),
+                Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                 None,
                 None,
             )?),
@@ -514,8 +521,8 @@ impl TransformTypeScript {
     ) -> Option<Vec<Option<NodeArrayOrVec>>> {
         let mut decorators: Option<Vec<Option<NodeArrayOrVec /*Decorator*/>>> = Default::default();
         if let Some(node) = node {
-            let node: Id<Node> = node.borrow();
-            let node_as_function_like_declaration = node.as_function_like_declaration();
+            let node_ref = node.ref_(self);
+            let node_as_function_like_declaration = node_ref.as_function_like_declaration();
             let parameters = node_as_function_like_declaration.parameters();
             let first_parameter_is_this =
                 !parameters.is_empty() && parameter_is_this_keyword(parameters[0], self);
@@ -541,7 +548,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> Option<AllDecorators> {
-        let decorators = node.maybe_decorators();
+        let decorators = node.ref_(self).maybe_decorators();
         let parameters = self.get_decorators_of_parameters(get_first_constructor_with_body(node, self));
         if decorators.is_none() && parameters.is_none() {
             return None;

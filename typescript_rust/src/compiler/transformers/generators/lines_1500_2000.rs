@@ -78,12 +78,12 @@ impl TransformGenerators {
                 let initializer_as_variable_declaration_list = initializer_ref.as_variable_declaration_list();
                 for &variable in &initializer_as_variable_declaration_list.declarations {
                     self.context
-                        .hoist_variable_declaration(&variable.as_variable_declaration().name());
+                        .hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
                 }
 
                 self.factory.clone_node(
-                    &initializer_as_variable_declaration_list.declarations[0]
-                        .as_variable_declaration()
+                    initializer_as_variable_declaration_list.declarations[0]
+                        .ref_(self).as_variable_declaration()
                         .name(),
                 )
             } else {
@@ -132,9 +132,9 @@ impl TransformGenerators {
         let node_ref = node.ref_(self);
         let initializer = node_ref.as_for_in_statement().initializer;
         if is_variable_declaration_list(&initializer.ref_(self)) {
-            let initializer_as_variable_declaration_list =
-                initializer.as_variable_declaration_list();
-            for variable in &initializer_as_variable_declaration_list.declarations {
+            let initializer_ref = initializer.ref_(self);
+            let initializer_as_variable_declaration_list = initializer_ref.as_variable_declaration_list();
+            for &variable in &initializer_as_variable_declaration_list.declarations {
                 self.context
                     .hoist_variable_declaration(&variable.as_variable_declaration().name());
             }
@@ -359,14 +359,14 @@ impl TransformGenerators {
 
                         pending_clauses.push(self.factory.create_case_clause(
                             visit_node(
-                                &clause_as_case_clause.expression,
+                                clause_as_case_clause.expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             vec![self.create_inline_break(
                                 clause_labels[i],
-                                Some(&*clause_as_case_clause.expression),
+                                Some(&*clause_as_case_clause.expression.ref_(self)),
                             )],
                         ));
                     } else {
@@ -504,11 +504,10 @@ impl TransformGenerators {
                 self.begin_catch_block(
                     node_catch_clause_as_catch_clause
                         .variable_declaration
-                        .as_ref()
                         .unwrap(),
                 );
                 self.transform_and_emit_embedded_statement(
-                    &node_catch_clause_as_catch_clause.block,
+                    node_catch_clause_as_catch_clause.block,
                 );
             }
 

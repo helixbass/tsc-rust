@@ -65,7 +65,7 @@ impl TransformSystemModule {
 
         let mut exclude_name = None;
         if has_syntactic_modifier(decl, ModifierFlags::Export, self) {
-            let export_name = &if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
+            let export_name = if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
                 self.factory
                     .create_string_literal("default".to_owned(), None, None)
             } else {
@@ -77,7 +77,7 @@ impl TransformSystemModule {
                 self.factory.get_local_name(decl, None, None),
                 None,
             );
-            exclude_name = Some(get_text_of_identifier_or_literal(export_name).into_owned());
+            exclude_name = Some(get_text_of_identifier_or_literal(&export_name.ref_(self)).into_owned());
         }
 
         if decl.ref_(self).as_named_declaration().maybe_name().is_some() {
@@ -108,7 +108,7 @@ impl TransformSystemModule {
                 if Some(
                     &*export_specifier_as_export_specifier
                         .name
-                        .as_identifier()
+                        .ref_(self).as_identifier()
                         .escaped_text,
                 ) != exclude_name
                 {
@@ -214,7 +214,7 @@ impl TransformSystemModule {
         let node = self.factory.update_for_statement(
             node,
             try_maybe_visit_node(
-                node_as_for_statement.initializer.as_deref(),
+                node_as_for_statement.initializer,
                 Some(|node: Id<Node>| {
                     Ok(if is_top_level {
                         Some(self.visit_for_initializer(node)?.into())
@@ -226,19 +226,19 @@ impl TransformSystemModule {
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node_as_for_statement.condition.as_deref(),
+                node_as_for_statement.condition,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node_as_for_statement.incrementor.as_deref(),
+                node_as_for_statement.incrementor,
                 Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                &node_as_for_statement.statement,
+                node_as_for_statement.statement,
                 |node: Id<Node>| {
                     if is_top_level {
                         self.top_level_nested_visitor(node)
@@ -265,15 +265,15 @@ impl TransformSystemModule {
 
         let node = self.factory.update_for_in_statement(
             node,
-            self.visit_for_initializer(&node_as_for_in_statement.initializer)?,
+            self.visit_for_initializer(node_as_for_in_statement.initializer)?,
             try_visit_node(
-                &node_as_for_in_statement.expression,
+                node_as_for_in_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                &node_as_for_in_statement.statement,
+                node_as_for_in_statement.statement,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
                 &**self.context,
             )?,
@@ -295,15 +295,15 @@ impl TransformSystemModule {
         let node = self.factory.update_for_of_statement(
             node,
             node_as_for_of_statement.await_modifier.clone(),
-            self.visit_for_initializer(&node_as_for_of_statement.initializer)?,
+            self.visit_for_initializer(node_as_for_of_statement.initializer)?,
             try_visit_node(
-                &node_as_for_of_statement.expression,
+                node_as_for_of_statement.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                &node_as_for_of_statement.statement,
+                node_as_for_of_statement.statement,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
                 &**self.context,
             )?,
@@ -326,7 +326,7 @@ impl TransformSystemModule {
     ) -> io::Result<Id<Node /*ForInitializer*/>> {
         Ok(if self.should_hoist_for_initializer(node) {
             let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
-            for variable in &node.ref_(self).as_variable_declaration_list().declarations {
+            for &variable in &node.ref_(self).as_variable_declaration_list().declarations {
                 expressions
                     .get_or_insert_default_()
                     .push(self.transform_initialized_variable(variable, false)?);
@@ -364,12 +364,12 @@ impl TransformSystemModule {
                 .update_do_statement(
                     node,
                     try_visit_iteration_body(
-                        &node_as_do_statement.statement,
+                        node_as_do_statement.statement,
                         |node: Id<Node>| self.top_level_nested_visitor(node),
                         &**self.context,
                     )?,
                     try_visit_node(
-                        &node_as_do_statement.expression,
+                        node_as_do_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -390,13 +390,13 @@ impl TransformSystemModule {
                 .update_while_statement(
                     node,
                     try_visit_node(
-                        &node_as_while_statement.expression,
+                        node_as_while_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_iteration_body(
-                        &node_as_while_statement.statement,
+                        node_as_while_statement.statement,
                         |node: Id<Node>| self.top_level_nested_visitor(node),
                         &**self.context,
                     )?,
@@ -417,7 +417,7 @@ impl TransformSystemModule {
                     node,
                     node_as_labeled_statement.label.clone(),
                     try_visit_node(
-                        &node_as_labeled_statement.statement,
+                        node_as_labeled_statement.statement,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                         Some(|node| is_statement(node, self)),
                         Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
@@ -438,13 +438,13 @@ impl TransformSystemModule {
                 .update_with_statement(
                     node,
                     try_visit_node(
-                        &node_as_with_statement.expression,
+                        node_as_with_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_node(
-                        &node_as_with_statement.statement,
+                        node_as_with_statement.statement,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                         Some(|node| is_statement(node, self)),
                         Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
@@ -465,13 +465,13 @@ impl TransformSystemModule {
                 .update_switch_statement(
                     node,
                     try_visit_node(
-                        &node_as_switch_statement.expression,
+                        node_as_switch_statement.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_node(
-                        &node_as_switch_statement.case_block,
+                        node_as_switch_statement.case_block,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                         Some(|node: Id<Node>| is_case_block(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -516,7 +516,7 @@ impl TransformSystemModule {
                 .update_case_clause(
                     node,
                     try_visit_node(
-                        &node_as_case_clause.expression,
+                        node_as_case_clause.expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -574,7 +574,7 @@ impl TransformSystemModule {
             node,
             node_as_catch_clause.variable_declaration.clone(),
             try_visit_node(
-                &node_as_catch_clause.block,
+                node_as_catch_clause.block,
                 Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                 Some(|node: Id<Node>| is_block(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -39,9 +39,9 @@ impl TransformModule {
             return /*statements*/;
         }
 
-        for decl in &node_as_variable_statement
+        for &decl in &node_as_variable_statement
             .declaration_list
-            .as_variable_declaration_list()
+            .ref_(self).as_variable_declaration_list()
             .declarations
         {
             self.append_exports_of_binding_element(statements, decl);
@@ -68,7 +68,7 @@ impl TransformModule {
                 .ref_(self).as_has_elements()
                 .elements()
             {
-                if !is_omitted_expression(element) {
+                if !is_omitted_expression(&element.ref_(self)) {
                     self.append_exports_of_binding_element(statements, element);
                 }
             }
@@ -90,7 +90,7 @@ impl TransformModule {
         }
 
         if has_syntactic_modifier(decl, ModifierFlags::Export, self) {
-            let export_name = &if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
+            let export_name = if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
                 self.factory.create_identifier("default")
             } else {
                 self.factory.get_declaration_name(Some(decl), None, None)
@@ -98,7 +98,7 @@ impl TransformModule {
             self.append_export_statement(
                 statements,
                 export_name,
-                &self.factory.get_local_name(decl, None, None),
+                self.factory.get_local_name(decl, None, None),
                 Some(&*decl.ref_(self)),
                 None,
                 None,
@@ -128,9 +128,9 @@ impl TransformModule {
                 let export_specifier_as_export_specifier = export_specifier_ref.as_export_specifier();
                 self.append_export_statement(
                     statements,
-                    &export_specifier_as_export_specifier.name,
+                    export_specifier_as_export_specifier.name,
                     name,
-                    Some(&*export_specifier_as_export_specifier.name),
+                    Some(&*export_specifier_as_export_specifier.name.ref_(self)),
                     None,
                     live_binding,
                 );
@@ -167,7 +167,7 @@ impl TransformModule {
                 .create_expression_statement(self.create_export_expression(
                     self.factory.create_identifier("__esModule"),
                     self.factory.create_true(),
-                    Option::<Id<Node>>::None,
+                    Option::<&Node>::None,
                     None,
                 ))
         } else {
@@ -299,7 +299,7 @@ impl TransformModule {
                 .resolver
                 .get_referenced_import_declaration(name)?
                 .try_or_else(|| self.resolver.get_referenced_value_declaration(name))?;
-            if let Some(ref value_declaration) = value_declaration {
+            if let Some(value_declaration) = value_declaration {
                 return Ok(self
                     .maybe_current_module_info()
                     .and_then(|current_module_info| {

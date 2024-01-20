@@ -193,7 +193,7 @@ impl TransformEcmascriptModule {
                     .ref_(self).as_source_file()
                     .statements()
                     .iter()
-                    .any(|statement| is_external_module_indicator(statement, self))
+                    .any(|&statement| is_external_module_indicator(statement, self))
             {
                 return Ok(result);
             }
@@ -374,7 +374,7 @@ impl TransformEcmascriptModule {
             .name();
         Debug_.assert_node(Some(name), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), None);
         Ok(self.factory.create_call_expression(
-            self.factory.clone_node(&name),
+            self.factory.clone_node(name),
             Option::<Gc<NodeArray>>::None,
             Some(args),
         ))
@@ -400,7 +400,7 @@ impl TransformEcmascriptModule {
                         vec![self.factory.create_variable_declaration(
                             Some(
                                 self.factory
-                                    .clone_node(&node_as_import_equals_declaration.name()),
+                                    .clone_node(node_as_import_equals_declaration.name()),
                             ),
                             None,
                             None,
@@ -440,7 +440,7 @@ impl TransformEcmascriptModule {
                         self.factory.create_export_specifier(
                             false,
                             Option::<Id<Node>>::None,
-                            id_text(&node_as_import_equals_declaration.name()),
+                            id_text(&node_as_import_equals_declaration.name().ref_(self)),
                         ),
                     ])),
                     None,
@@ -484,7 +484,7 @@ impl TransformEcmascriptModule {
         let old_identifier = node_export_clause_as_namespace_export.name;
         let synth_name = self
             .factory
-            .get_generated_name_for_node(Some(&**old_identifier), None);
+            .get_generated_name_for_node(Some(old_identifier), None);
         let import_decl = self
             .factory
             .create_import_declaration(

@@ -165,7 +165,7 @@ impl TransformES2015 {
                     name,
                     initializer,
                 )?;
-            } else if let Some(initializer) = initializer.as_ref() {
+            } else if let Some(initializer) = initializer {
                 self.insert_default_value_assignment_for_initializer(
                     statements,
                     parameter,

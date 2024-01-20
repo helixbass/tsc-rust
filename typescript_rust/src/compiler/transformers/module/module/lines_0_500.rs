@@ -384,9 +384,8 @@ impl TransformModule {
                                                     },
                                                     |json_source_file_statements| {
                                                         json_source_file_statements[0]
-                                                            .as_expression_statement()
+                                                            .ref_(self).as_expression_statement()
                                                             .expression
-                                                            .clone()
                                                     },
                                                 )
                                         } else {
@@ -986,7 +985,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
         let node_ref = node.ref_(self);
         let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         let name = node_as_shorthand_property_assignment.name();
-        let exported_or_imported_name = self.substitute_expression_identifier(&name)?;
+        let exported_or_imported_name = self.substitute_expression_identifier(name)?;
         if exported_or_imported_name != name {
             if let Some(node_object_assignment_initializer) = node_as_shorthand_property_assignment
                 .object_assignment_initializer
@@ -1059,7 +1058,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
         let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         if is_identifier(&node_as_tagged_template_expression.tag.ref_(self)) {
             let tag =
-                self.substitute_expression_identifier(&node_as_tagged_template_expression.tag)?;
+                self.substitute_expression_identifier(node_as_tagged_template_expression.tag)?;
             self.transform_module
                 .no_substitution_mut()
                 .insert(get_node_id(&tag.ref_(self)), true);
@@ -1146,8 +1145,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                     let import_declaration_as_import_specifier = import_declaration_ref.as_import_specifier();
                     let name = import_declaration_as_import_specifier
                         .property_name
-                        .as_ref()
-                        .unwrap_or(&import_declaration_as_import_specifier.name);
+                        .unwrap_or(import_declaration_as_import_specifier.name);
                     return Ok(self
                         .transform_module
                         .factory
@@ -1189,13 +1187,13 @@ impl TransformModuleOnSubstituteNodeOverrider {
         {
             let exported_names = self
                 .transform_module
-                .get_exports(&node_as_binary_expression.left)?;
+                .get_exports(node_as_binary_expression.left)?;
             if let Some(exported_names) = exported_names {
                 let mut expression/*: Expression*/ = node;
                 for &export_name in &exported_names {
                     self.transform_module
                         .no_substitution_mut()
-                        .insert(get_node_id(&expression), true);
+                        .insert(get_node_id(&expression.ref_(self)), true);
                     expression = self.transform_module.create_export_expression(
                         export_name,
                         expression,

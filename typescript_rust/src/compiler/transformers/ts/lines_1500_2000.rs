@@ -18,6 +18,7 @@ use crate::{
     HasInitializerInterface, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, NonEmpty, PeekableExt, ScriptTarget, SignatureDeclarationInterface,
     SyntaxKind, TypeReferenceSerializationKind, VisitResult,
+    InArena, OptionInArena,
 };
 
 impl TransformTypeScript {
@@ -28,30 +29,30 @@ impl TransformTypeScript {
         let mut serialized_union: Option<Id<Node /*SerializedTypeNode*/>> = Default::default();
         for type_node in types {
             let mut type_node = type_node.clone();
-            while type_node.kind() == SyntaxKind::ParenthesizedType {
-                type_node = type_node.as_parenthesized_type_node().type_.clone();
+            while type_node.ref_(self).kind() == SyntaxKind::ParenthesizedType {
+                type_node = type_node.ref_(self).as_parenthesized_type_node().type_;
             }
-            if type_node.kind() == SyntaxKind::NeverKeyword {
+            if type_node.ref_(self).kind() == SyntaxKind::NeverKeyword {
                 continue;
             }
             if !self.strict_null_checks
-                && (type_node.kind() == SyntaxKind::LiteralType
-                    && type_node.as_literal_type_node().literal.kind() == SyntaxKind::NullKeyword
-                    || type_node.kind() == SyntaxKind::UndefinedKeyword)
+                && (type_node.ref_(self).kind() == SyntaxKind::LiteralType
+                    && type_node.ref_(self).as_literal_type_node().literal.ref_(self).kind() == SyntaxKind::NullKeyword
+                    || type_node.ref_(self).kind() == SyntaxKind::UndefinedKeyword)
             {
                 continue;
             }
-            let serialized_individual = self.serialize_type_node(Some(&*type_node))?;
+            let serialized_individual = self.serialize_type_node(Some(type_node))?;
 
-            if is_identifier(&serialized_individual)
-                && serialized_individual.as_identifier().escaped_text == "Object"
+            if is_identifier(&serialized_individual.ref_(self))
+                && serialized_individual.ref_(self).as_identifier().escaped_text == "Object"
             {
                 return Ok(serialized_individual);
-            } else if let Some(serialized_union) = serialized_union.as_ref() {
-                if !is_identifier(serialized_union)
-                    || !is_identifier(&serialized_individual)
-                    || serialized_union.as_identifier().escaped_text
-                        != serialized_individual.as_identifier().escaped_text
+            } else if let Some(serialized_union) = serialized_union {
+                if !is_identifier(&serialized_union.ref_(self))
+                    || !is_identifier(&serialized_individual.ref_(self))
+                    || serialized_union.ref_(self).as_identifier().escaped_text
+                        != serialized_individual.ref_(self).as_identifier().escaped_text
                 {
                     return Ok(self.factory.create_identifier("Object"));
                 }
@@ -67,25 +68,25 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
-        let node_as_type_reference_node = node.as_type_reference_node();
+        let node_ref = node.ref_(self);
+        let node_as_type_reference_node = node_ref.as_type_reference_node();
         let kind = self.resolver.get_type_reference_serialization_kind(
             &node_as_type_reference_node.type_name,
             self.maybe_current_name_scope()
-                .or_else(|| self.maybe_current_lexical_scope())
-                .as_deref(),
+                .or_else(|| self.maybe_current_lexical_scope()),
         )?;
         Ok(match kind {
             TypeReferenceSerializationKind::Unknown => {
                 if find_ancestor(Some(node), |n: Id<Node>| {
-                    n.maybe_parent().matches(|ref n_parent| {
-                        is_conditional_type_node(n_parent) && {
-                            let n_parent_as_conditional_type_node =
-                                n_parent.as_conditional_type_node();
-                            ptr::eq(&*n_parent_as_conditional_type_node.true_type, n)
-                                || ptr::eq(&*n_parent_as_conditional_type_node.false_type, n)
+                    n.ref_(self).maybe_parent().matches(|n_parent| {
+                        is_conditional_type_node(&n_parent.ref_(self)) && {
+                            let n_parent_ref = n_parent.ref_(self);
+                            let n_parent_as_conditional_type_node = n_parent_ref.as_conditional_type_node();
+                            n_parent_as_conditional_type_node.true_type == n
+                                || n_parent_as_conditional_type_node.false_type == n
                         }
                     })
-                })
+                }, self)
                 .is_some()
                 {
                     return Ok(self.factory.create_identifier("Object"));
@@ -166,28 +167,29 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*EntityName*/
     ) -> Id<Node /*BinaryExpression*/> {
-        if node.kind() == SyntaxKind::Identifier {
+        if node.ref_(self).kind() == SyntaxKind::Identifier {
             let copied = self.serialize_entity_name_as_expression(node);
             return self.create_checked_value(copied.clone(), copied);
         }
-        let node_as_qualified_name = node.as_qualified_name();
-        if node_as_qualified_name.left.kind() == SyntaxKind::Identifier {
+        let node_ref = node.ref_(self);
+        let node_as_qualified_name = node_ref.as_qualified_name();
+        if node_as_qualified_name.left.ref_(self).kind() == SyntaxKind::Identifier {
             return self.create_checked_value(
                 self.serialize_entity_name_as_expression(&node_as_qualified_name.left),
                 self.serialize_entity_name_as_expression(node),
             );
         }
-        let left = self.serialize_entity_name_as_expression_fallback(&node_as_qualified_name.left);
+        let left = self.serialize_entity_name_as_expression_fallback(node_as_qualified_name.left);
         let temp = self.factory.create_temp_variable(
             Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
             None,
         );
         self.factory.create_logical_and(
             self.factory.create_logical_and(
-                left.as_binary_expression().left.clone(),
+                left.ref_(self).as_binary_expression().left,
                 self.factory.create_strict_inequality(
                     self.factory
-                        .create_assignment(temp.clone(), left.as_binary_expression().right.clone()),
+                        .create_assignment(temp, left.ref_(self).as_binary_expression().right),
                     self.factory.create_void_zero(),
                 ),
             ),
@@ -200,17 +202,17 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*EntityName*/
     ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::Identifier => get_parse_node_factory()
                 .clone_node(node)
-                .set_text_range(Some(node))
-                .and_set_parent(node.maybe_parent())
-                .and_set_original(None)
+                .set_text_range(Some(&*node.ref_(self)), self)
+                .and_set_parent(node.ref_(self).maybe_parent(), self)
+                .and_set_original(None, self)
                 .and_set_parent(get_parse_tree_node(
                     self.maybe_current_lexical_scope(),
                     Option::<fn(Id<Node>) -> bool>::None,
                     self,
-                )),
+                ), self),
             SyntaxKind::QualifiedName => self.serialize_qualified_name_as_expression(node),
             _ => unreachable!(),
         }
@@ -220,7 +222,8 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*QualifiedName*/
     ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
-        let node_as_qualified_name = node.as_qualified_name();
+        let node_ref = node.ref_(self);
+        let node_as_qualified_name = node_ref.as_qualified_name();
         self.factory.create_property_access_expression(
             self.serialize_entity_name_as_expression(&node_as_qualified_name.left),
             node_as_qualified_name.right.clone(),
@@ -260,10 +263,10 @@ impl TransformTypeScript {
         member: Id<Node>, /*ClassElement | EnumMember*/
         generate_name_for_computed_property_name: bool,
     ) -> Id<Node /*Expression*/> {
-        let name = member.as_named_declaration().name();
-        if is_private_identifier(&name) {
+        let name = member.ref_(self).as_named_declaration().name();
+        if is_private_identifier(&name.ref_(self)) {
             self.factory.create_identifier("")
-        } else if is_computed_property_name(&name) {
+        } else if is_computed_property_name(&name.ref_(self)) {
             let name_as_computed_property_name = name.as_computed_property_name();
             if generate_name_for_computed_property_name
                 && !is_simple_inlineable_expression(&name_as_computed_property_name.expression)
@@ -272,11 +275,11 @@ impl TransformTypeScript {
             } else {
                 name_as_computed_property_name.expression.clone()
             }
-        } else if is_identifier(&name) {
+        } else if is_identifier(&name.ref_(self)) {
             self.factory
                 .create_string_literal(id_text(&name).to_owned(), None, None)
         } else {
-            self.factory.clone_node(&name)
+            self.factory.clone_node(name)
         }
     }
 
@@ -284,11 +287,11 @@ impl TransformTypeScript {
         &self,
         member: Id<Node>, /*ClassElement*/
     ) -> io::Result<Id<Node /*PropertyName*/>> {
-        let name = member.as_named_declaration().name();
-        if is_computed_property_name(name)
+        let name = member.ref_(self).as_named_declaration().name();
+        if is_computed_property_name(&name.ref_(self))
             && (!has_static_modifier(member, self)
                 && self.maybe_current_class_has_parameter_properties() == Some(true)
-                || member.maybe_decorators().is_non_empty())
+                || member.ref_(self).maybe_decorators().is_non_empty())
         {
             let name_as_computed_property_name = name.as_computed_property_name();
             let expression = try_visit_node(
@@ -297,12 +300,12 @@ impl TransformTypeScript {
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
-            let ref inner_expression = skip_partially_emitted_expressions(expression, self);
-            if !is_simple_inlineable_expression(inner_expression) {
+            let inner_expression = skip_partially_emitted_expressions(expression, self);
+            if !is_simple_inlineable_expression(&inner_expression.ref_(self)) {
                 let generated_name = self
                     .factory
                     .get_generated_name_for_node(Some(&**name), None);
-                self.context.hoist_variable_declaration(&generated_name);
+                self.context.hoist_variable_declaration(generated_name);
                 return Ok(self.factory.update_computed_property_name(
                     name,
                     self.factory.create_assignment(generated_name, expression),
@@ -312,7 +315,7 @@ impl TransformTypeScript {
         try_visit_node(
             name,
             Some(|node: Id<Node>| self.visitor(node)),
-            Some(is_property_name),
+            Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )
     }
@@ -321,7 +324,8 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*HeritageClause*/
     ) -> io::Result<Option<Id<Node /*HeritageClause*/>>> {
-        let node_as_heritage_clause = node.as_heritage_clause();
+        let node_ref = node.ref_(self);
+        let node_as_heritage_clause = node_ref.as_heritage_clause();
         if node_as_heritage_clause.token == SyntaxKind::ImplementsKeyword {
             return Ok(None);
         }
@@ -339,7 +343,7 @@ impl TransformTypeScript {
         Ok(self.factory.update_expression_with_type_arguments(
             node,
             try_visit_node(
-                &node.as_expression_with_type_arguments().expression,
+                node.ref_(self).as_expression_with_type_arguments().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_left_hand_side_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -352,14 +356,14 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> bool {
-        !node_is_missing(node.as_function_like_declaration().maybe_body())
+        !node_is_missing(node.ref_(self).as_function_like_declaration().maybe_body().refed(self))
     }
 
     pub(super) fn visit_property_declaration(
         &self,
         node: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        if node.flags().intersects(NodeFlags::Ambient)
+        if node.ref_(self).flags().intersects(NodeFlags::Ambient)
             || has_syntactic_modifier(node, ModifierFlags::Abstract, self)
         {
             return Ok(None);
@@ -368,9 +372,9 @@ impl TransformTypeScript {
             node,
             Option::<Gc<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.maybe_modifiers().as_deref(),
+                node.ref_(self).maybe_modifiers().as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(is_modifier),
+                Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
             )?,
@@ -378,17 +382,17 @@ impl TransformTypeScript {
             None,
             None,
             try_maybe_visit_node(
-                node.as_property_declaration().maybe_initializer(),
+                node.ref_(self).as_property_declaration().maybe_initializer(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         );
-        if !ptr::eq(&*updated, node) {
-            set_comment_range(updated, node, self);
+        if updated != node {
+            set_comment_range(updated, &*node.ref_(self), self);
             set_source_map_range(
                 updated,
-                Some((&move_range_past_decorators(node)).into()),
+                Some((&move_range_past_decorators(&node.ref_(self))).into()),
                 self,
             );
         }
@@ -399,7 +403,8 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        let node_as_constructor_declaration = node.as_constructor_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_constructor_declaration = node_ref.as_constructor_declaration();
         if !self.should_emit_function_like_declaration(node) {
             return Ok(None);
         }
@@ -430,14 +435,15 @@ impl TransformTypeScript {
         body: Id<Node>,        /*Block*/
         constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<Id<Node>> {
-        let body_as_block = body.as_block();
+        let body_ref = body.ref_(self);
+        let body_as_block = body_ref.as_block();
         let parameters_with_property_assignments =
             /*constructor &&*/
             constructor
-                .as_constructor_declaration()
+                .ref_(self).as_constructor_declaration()
                 .parameters()
                 .owned_iter()
-                .filter(|p| {
+                .filter(|&p| {
                     is_parameter_property_declaration(p, constructor, self)
                 });
         if parameters_with_property_assignments
@@ -471,7 +477,7 @@ impl TransformTypeScript {
             &mut statements,
             Some(
                 &parameters_with_property_assignments
-                    .map(|ref parameter| {
+                    .map(|parameter| {
                         self.transform_parameter_with_property_assignment(parameter)
                             .unwrap()
                     })
@@ -509,32 +515,32 @@ impl TransformTypeScript {
                     .set_text_range(Some(&*body_as_block.statements)),
                 Some(true),
             )
-            .set_text_range(Some(body))
-            .set_original_node(Some(body.node_wrapper())))
+            .set_text_range(Some(&*body.ref_(self)), self)
+            .set_original_node(Some(body), self))
     }
 
     pub(super) fn transform_parameter_with_property_assignment(
         &self,
         node: Id<Node>, /*ParameterPropertyDeclaration*/
     ) -> Option<Id<Node>> {
-        let ref name = node.as_named_declaration().name();
-        if !is_identifier(name) {
+        let name = node.ref_(self).as_named_declaration().name();
+        if !is_identifier(&name.ref_(self)) {
             return None;
         }
 
         let property_name = self
             .factory
             .clone_node(name)
-            .set_text_range(Some(&**name))
-            .and_set_parent(name.maybe_parent())
-            .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoSourceMap);
+            .set_text_range(Some(&*name.ref_(self)), self)
+            .and_set_parent(name.ref_(self).maybe_parent(), self)
+            .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoSourceMap, self);
 
         let local_name = self
             .factory
             .clone_node(name)
-            .set_text_range(Some(&**name))
-            .and_set_parent(name.maybe_parent())
-            .set_emit_flags(EmitFlags::NoComments);
+            .set_text_range(Some(&*name.ref_(self)), self)
+            .and_set_parent(name.ref_(self).maybe_parent(), self)
+            .set_emit_flags(EmitFlags::NoComments, self);
 
         Some(
             self.factory
@@ -545,14 +551,14 @@ impl TransformTypeScript {
                                 self.factory.create_this(),
                                 property_name,
                             )
-                            .set_text_range(node.as_named_declaration().maybe_name().as_deref()),
+                            .set_text_range(node.ref_(self).as_named_declaration().maybe_name().refed(self), self),
                         local_name,
                     ),
                 )
-                .set_original_node(Some(node.node_wrapper()))
-                .set_text_range(Some(&move_range_pos(node, -1).into_readonly_text_range()))
-                .remove_all_comments()
-                .start_on_new_line(),
+                .set_original_node(Some(node), self)
+                .set_text_range(Some(&move_range_pos(&*node.ref_(self), -1).into_readonly_text_range()), self)
+                .remove_all_comments(self)
+                .start_on_new_line(self),
         )
     }
 }

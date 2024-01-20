@@ -16,7 +16,7 @@ use crate::{
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeArray,
     NodeExt, NodeFlags, ReadonlyTextRange, SignatureDeclarationInterface,
-    InArena,
+    InArena, OptionInArena,
 };
 
 impl TransformSystemModule {
@@ -108,7 +108,7 @@ impl TransformSystemModule {
         }
 
         let expression = try_visit_node(
-            &node_as_export_assignment.expression,
+            node_as_export_assignment.expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -291,9 +291,9 @@ impl TransformSystemModule {
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
         let is_exported_declaration = has_syntactic_modifier(node, ModifierFlags::Export, self);
         let is_marked_declaration = self.has_associated_end_of_declaration_marker(node);
-        for variable in &node_as_variable_statement
+        for &variable in &node_as_variable_statement
             .declaration_list
-            .as_variable_declaration_list()
+            .ref_(self).as_variable_declaration_list()
             .declarations
         {
             let variable_as_variable_declaration = variable.as_variable_declaration();
@@ -343,7 +343,7 @@ impl TransformSystemModule {
         let node_as_named_declaration = node_ref.as_named_declaration();
         let node_name = node_as_named_declaration.name();
         if is_binding_pattern(Some(&*node_name.ref_(self))) {
-            for &element in &node_name.as_has_elements().elements() {
+            for &element in &node_name.ref_(self).as_has_elements().elements() {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.hoist_binding_element(element);
                 }
@@ -381,7 +381,7 @@ impl TransformSystemModule {
                 })
             };
         Ok(
-            if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
+            if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self)) {
                 try_flatten_destructuring_assignment(
                     node,
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -513,13 +513,14 @@ impl TransformSystemModule {
             return /*statements*/;
         }
 
-        let import_clause = return_if_none!(decl_as_import_declaration.import_clause.as_ref());
-        let import_clause_as_import_clause = import_clause.as_import_clause();
+        let import_clause = return_if_none!(decl_as_import_declaration.import_clause);
+        let import_clause_ref = import_clause.ref_(self);
+        let import_clause_as_import_clause = import_clause_ref.as_import_clause();
         if import_clause_as_import_clause.name.is_some() {
             self.append_exports_of_declaration(statements, import_clause, None);
         }
 
-        let named_bindings = import_clause_as_import_clause.named_bindings.as_ref();
+        let named_bindings = import_clause_as_import_clause.named_bindings;
         if let Some(named_bindings) = named_bindings {
             match named_bindings.kind() {
                 SyntaxKind::NamespaceImport => {
@@ -568,7 +569,7 @@ impl TransformSystemModule {
             .ref_(self).as_variable_declaration_list()
             .declarations
         {
-            if decl.as_variable_declaration().maybe_initializer().is_some() || export_self {
+            if decl.ref_(self).as_variable_declaration().maybe_initializer().is_some() || export_self {
                 self.append_exports_of_binding_element(statements, decl, export_self);
             }
         }

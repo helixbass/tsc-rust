@@ -14,6 +14,7 @@ use crate::{
     GetOrInsertDefault, HasTypeInterface, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayOrVec, NodeExt, NodeInterface, OptionTry, ScriptTarget, SignatureDeclarationInterface,
     SyntaxKind,
+    InArena, OptionInArena,
 };
 
 impl TransformTypeScript {
@@ -22,7 +23,7 @@ impl TransformTypeScript {
         node: Id<Node>,   /*ClassExpression | ClassDeclaration*/
         member: Id<Node>, /*ClassElement*/
     ) -> Option<AllDecorators> {
-        match member.kind() {
+        match member.ref_(self).kind() {
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                 self.get_all_decorators_of_accessors(node, member)
             }
@@ -37,31 +38,30 @@ impl TransformTypeScript {
         node: Id<Node>,     /*ClassExpression | ClassDeclaration*/
         accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> Option<AllDecorators> {
-        accessor.as_function_like_declaration().maybe_body()?;
+        accessor.ref_(self).as_function_like_declaration().maybe_body()?;
 
         let AllAccessorDeclarations {
             first_accessor,
             second_accessor,
             set_accessor,
             ..
-        } = get_all_accessor_declarations(&node.as_class_like_declaration().members(), accessor, self);
-        let first_accessor_with_decorators = if first_accessor.maybe_decorators().is_some() {
+        } = get_all_accessor_declarations(&node.ref_(self).as_class_like_declaration().members(), accessor, self);
+        let first_accessor_with_decorators = if first_accessor.ref_(self).maybe_decorators().is_some() {
             Some(first_accessor)
         } else if second_accessor
-            .as_ref()
-            .matches(|second_accessor| second_accessor.maybe_decorators().is_some())
+            .matches(|second_accessor| second_accessor.ref_(self).maybe_decorators().is_some())
         {
             second_accessor
         } else {
             None
         };
         let first_accessor_with_decorators = first_accessor_with_decorators?;
-        if !ptr::eq(accessor, &*first_accessor_with_decorators) {
+        if accessor != first_accessor_with_decorators {
             return None;
         }
 
         let decorators = first_accessor_with_decorators.maybe_decorators();
-        let parameters = self.get_decorators_of_parameters(set_accessor.as_deref());
+        let parameters = self.get_decorators_of_parameters(set_accessor);
         if decorators.is_none() && parameters.is_none() {
             return None;
         }
@@ -76,10 +76,11 @@ impl TransformTypeScript {
         &self,
         method: Id<Node>, /*MethodDeclaration*/
     ) -> Option<AllDecorators> {
-        let method_as_method_declaration = method.as_method_declaration();
+        let method_ref = method.ref_(self);
+        let method_as_method_declaration = method_ref.as_method_declaration();
         method_as_method_declaration.maybe_body()?;
 
-        let decorators = method.maybe_decorators();
+        let decorators = method.ref_(self).maybe_decorators();
         let parameters = self.get_decorators_of_parameters(Some(method));
         if decorators.is_none() && parameters.is_none() {
             return None;
@@ -95,7 +96,7 @@ impl TransformTypeScript {
         &self,
         property: Id<Node>, /*PropertyDeclaration*/
     ) -> Option<AllDecorators> {
-        let decorators = property.maybe_decorators()?;
+        let decorators = property.ref_(self).maybe_decorators()?;
 
         Some(AllDecorators {
             decorators: Some(decorators.into()),
@@ -116,7 +117,7 @@ impl TransformTypeScript {
             &mut decorator_expressions,
             try_maybe_map(
                 all_decorators.decorators.as_deref(),
-                |decorator: &Id<Node>, _| self.transform_decorator(decorator),
+                |&decorator: &Id<Node>, _| self.transform_decorator(decorator),
             )
             .transpose()?
             .as_deref(),
@@ -173,7 +174,7 @@ impl TransformTypeScript {
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let members = self.get_decorated_class_elements(node, is_static);
         let mut expressions: Option<Vec<Id<Node>>> = Default::default();
-        for ref member in members {
+        for member in members {
             let expression = self.generate_class_element_decoration_expression(node, member)?;
             if let Some(expression) = expression {
                 expressions.get_or_insert_default_().push(expression);
@@ -195,7 +196,7 @@ impl TransformTypeScript {
         let prefix = self.get_class_member_prefix(node, member);
         let member_name = self.get_expression_for_property_name(member, true);
         let descriptor = if self.language_version > ScriptTarget::ES3 {
-            if member.kind() == SyntaxKind::PropertyDeclaration {
+            if member.ref_(self).kind() == SyntaxKind::PropertyDeclaration {
                 Some(self.factory.create_void_zero())
             } else {
                 Some(self.factory.create_null())
@@ -213,9 +214,10 @@ impl TransformTypeScript {
                     descriptor,
                 )
                 .set_text_range(Some(
-                    &move_range_past_decorators(member).into_readonly_text_range(),
+                    &move_range_past_decorators(&member.ref_(self)).into_readonly_text_range(),
+                    self,
                 ))
-                .set_emit_flags(EmitFlags::NoComments),
+                .set_emit_flags(EmitFlags::NoComments, self),
         ))
     }
 
@@ -229,7 +231,7 @@ impl TransformTypeScript {
             statements.push(
                 self.factory
                     .create_expression_statement(expression)
-                    .set_original_node(Some(node.node_wrapper())),
+                    .set_original_node(Some(node), self),
             );
         }
 
@@ -248,7 +250,7 @@ impl TransformTypeScript {
         let class_alias = self
             .maybe_class_aliases()
             .as_ref()
-            .and_then(|class_aliases| class_aliases.get(&get_original_node_id(node)).cloned());
+            .and_then(|class_aliases| class_aliases.get(&get_original_node_id(node, self)).cloned());
 
         let local_name = if self.language_version <= ScriptTarget::ES2015 {
             self.factory
@@ -274,8 +276,8 @@ impl TransformTypeScript {
                         },
                     ),
                 )
-                .set_emit_flags(EmitFlags::NoComments)
-                .set_source_map_range(Some((&move_range_past_decorators(node)).into())),
+                .set_emit_flags(EmitFlags::NoComments, self)
+                .set_source_map_range(Some((&move_range_past_decorators(&node.ref_(self))).into()), self),
         ))
     }
 
@@ -284,7 +286,7 @@ impl TransformTypeScript {
         decorator: Id<Node>, /*Decorator*/
     ) -> io::Result<Id<Node>> {
         try_visit_node(
-            &decorator.as_decorator().expression,
+            decorator.ref_(self).as_decorator().expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -299,12 +301,12 @@ impl TransformTypeScript {
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
         if let Some(decorators) = decorators {
             let expressions = expressions.get_or_insert_default_();
-            for decorator in decorators {
+            for &decorator in decorators {
                 let helper = self
                     .emit_helpers()
                     .create_param_helper(self.transform_decorator(decorator)?, parameter_offset)
-                    .set_text_range(Some(&*decorator.as_decorator().expression))
-                    .set_emit_flags(EmitFlags::NoComments);
+                    .set_text_range(Some(&*decorator.ref_(self).as_decorator().expression.ref_(self)), self)
+                    .set_emit_flags(EmitFlags::NoComments, self);
                 expressions.push(helper);
             }
         }
@@ -435,7 +437,7 @@ impl TransformTypeScript {
     }
 
     pub(super) fn should_add_type_metadata(&self, node: Id<Node> /*Declaration*/) -> bool {
-        let kind = node.kind();
+        let kind = node.ref_(self).kind();
         matches!(
             kind,
             SyntaxKind::MethodDeclaration
@@ -449,14 +451,14 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> bool {
-        node.kind() == SyntaxKind::MethodDeclaration
+        node.ref_(self).kind() == SyntaxKind::MethodDeclaration
     }
 
     pub(super) fn should_add_param_types_metadata(
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> bool {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 get_first_constructor_with_body(node, self).is_some()
             }
@@ -480,9 +482,8 @@ impl TransformTypeScript {
             .or_else(|| {
                 accessors
                     .get_accessor
-                    .as_ref()
                     .and_then(|accessors_get_accessor| {
-                        get_effective_return_type_node(accessors_get_accessor)
+                        get_effective_return_type_node(accessors_get_accessor, self)
                     })
             }))
     }
@@ -491,9 +492,9 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>,
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::PropertyDeclaration | SyntaxKind::Parameter => {
-                self.serialize_type_node(node.as_has_type().maybe_type())?
+                self.serialize_type_node(node.ref_(self).as_has_type().maybe_type())?
             }
             SyntaxKind::SetAccessor | SyntaxKind::GetAccessor => {
                 self.serialize_type_node(self.get_accessor_type_node(node)?)?
@@ -510,12 +511,12 @@ impl TransformTypeScript {
         node: Id<Node>,
         container: Id<Node>, /*ClassLikeDeclaration*/
     ) -> io::Result<Id<Node /*ArrayLiteralExpression*/>> {
-        let value_declaration = if is_class_like(node) {
+        let value_declaration = if is_class_like(&node.ref_(self)) {
             get_first_constructor_with_body(node, self)
-        } else if is_function_like(Some(node))
-            && node_is_present(node.as_function_like_declaration().maybe_body())
+        } else if is_function_like(Some(&node.ref_(self)))
+            && node_is_present(node.ref_(self).as_function_like_declaration().maybe_body().refed(self))
         {
-            Some(node.node_wrapper())
+            Some(node)
         } else {
             None
         };
@@ -523,9 +524,11 @@ impl TransformTypeScript {
         let mut expressions: Vec<Id<Node /*SerializedTypeNode*/>> = Default::default();
         if let Some(value_declaration) = value_declaration {
             let parameters =
-                self.get_parameters_of_decorated_declaration(&value_declaration, container);
+                self.get_parameters_of_decorated_declaration(value_declaration, container);
             for (i, parameter) in parameters.iter().enumerate() {
-                let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+                let parameter = *parameter;
+                let parameter_ref = parameter.ref_(self);
+                let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
                 if i == 0
                     && is_identifier(&parameter_as_parameter_declaration.name())
                     && parameter_as_parameter_declaration
@@ -561,25 +564,25 @@ impl TransformTypeScript {
     ) -> Gc<NodeArray> {
         if
         /*container &&*/
-        node.kind() == SyntaxKind::GetAccessor {
+        node.ref_(self).kind() == SyntaxKind::GetAccessor {
             let AllAccessorDeclarations { set_accessor, .. } = get_all_accessor_declarations(
-                &container.as_class_like_declaration().members(),
+                &container.ref_(self).as_class_like_declaration().members(),
                 node,
                 self,
             );
             if let Some(set_accessor) = set_accessor {
-                return set_accessor.as_set_accessor_declaration().parameters();
+                return set_accessor.ref_(self).as_set_accessor_declaration().parameters();
             }
         }
-        node.as_signature_declaration().parameters()
+        node.ref_(self).as_signature_declaration().parameters()
     }
 
     pub(super) fn serialize_return_type_of_node(
         &self,
         node: Id<Node>,
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
-        if is_function_like(Some(node)) && node.as_has_type().maybe_type().is_some() {
-            return self.serialize_type_node(node.as_has_type().maybe_type());
+        if is_function_like(Some(&node.ref_(self))) && node.ref_(self).as_has_type().maybe_type().is_some() {
+            return self.serialize_type_node(node.ref_(self).as_has_type().maybe_type());
         } else if is_async_function(node, self) {
             return Ok(self.factory.create_identifier("Promise"));
         }
@@ -591,19 +594,17 @@ impl TransformTypeScript {
         &self,
         node: Option<Id<Node /*TypeNode*/>>,
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
-        if node.is_none() {
+        let Some(node) = node else {
             return Ok(self.factory.create_identifier("Object"));
-        }
-        let node = node.unwrap();
-        let node: Id<Node> = node.borrow();
+        };
 
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::VoidKeyword | SyntaxKind::UndefinedKeyword | SyntaxKind::NeverKeyword => {
                 return Ok(self.factory.create_void_zero());
             }
 
             SyntaxKind::ParenthesizedType => {
-                return self.serialize_type_node(Some(&*node.as_parenthesized_type_node().type_));
+                return self.serialize_type_node(Some(node.ref_(self).as_parenthesized_type_node().type_));
             }
 
             SyntaxKind::FunctionType | SyntaxKind::ConstructorType => {
@@ -627,7 +628,7 @@ impl TransformTypeScript {
             }
 
             SyntaxKind::LiteralType => {
-                return Ok(match node.as_literal_type_node().literal.kind() {
+                return Ok(match node.ref_(self).as_literal_type_node().literal.ref_(self).kind() {
                     SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
                         self.factory.create_identifier("String")
                     }
@@ -644,7 +645,7 @@ impl TransformTypeScript {
 
                     SyntaxKind::NullKeyword => self.factory.create_void_zero(),
 
-                    _ => Debug_.fail_bad_syntax_kind(&node.as_literal_type_node().literal, None),
+                    _ => Debug_.fail_bad_syntax_kind(&node.ref_(self).as_literal_type_node().literal.ref_(self), None),
                 })
             }
 
@@ -670,11 +671,12 @@ impl TransformTypeScript {
 
             SyntaxKind::IntersectionType | SyntaxKind::UnionType => {
                 return self
-                    .serialize_type_list(&node.as_union_or_intersection_type_node().types());
+                    .serialize_type_list(&node.ref_(self).as_union_or_intersection_type_node().types());
             }
 
             SyntaxKind::ConditionalType => {
-                let node_as_conditional_type_node = node.as_conditional_type_node();
+                let node_ref = node.ref_(self);
+                let node_as_conditional_type_node = node_ref.as_conditional_type_node();
                 return self.serialize_type_list(&[
                     node_as_conditional_type_node.true_type.clone(),
                     node_as_conditional_type_node.false_type.clone(),
@@ -682,9 +684,10 @@ impl TransformTypeScript {
             }
 
             SyntaxKind::TypeOperator => {
-                let node_as_type_operator_node = node.as_type_operator_node();
+                let node_ref = node.ref_(self);
+                let node_as_type_operator_node = node_ref.as_type_operator_node();
                 if node_as_type_operator_node.operator == SyntaxKind::ReadonlyKeyword {
-                    return self.serialize_type_node(Some(&*node_as_type_operator_node.type_));
+                    return self.serialize_type_node(Some(node_as_type_operator_node.type_));
                 }
             }
 
@@ -706,7 +709,7 @@ impl TransformTypeScript {
             SyntaxKind::JSDocNullableType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocOptionalType => {
-                return self.serialize_type_node(node.as_has_type().maybe_type());
+                return self.serialize_type_node(node.ref_(self).as_has_type().maybe_type());
             }
             _ => (),
         }

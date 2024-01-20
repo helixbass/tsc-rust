@@ -118,8 +118,7 @@ impl TransformGenerators {
 
     pub(super) fn begin_catch_block(&self, variable: Id<Node> /*VariableDeclaration*/) {
         let variable_ref = variable.ref_(self);
-        let variable_ref_ref = variable_ref.ref_(self);
-        let variable_as_variable_declaration = variable_ref_ref.as_variable_declaration();
+        let variable_as_variable_declaration = variable_ref.as_variable_declaration();
         Debug_.assert(
             self.peek_block_kind() == Some(CodeBlockKind::Exception),
             None,

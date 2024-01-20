@@ -16,6 +16,7 @@ use crate::{
     try_visit_each_child, try_visit_node, try_visit_nodes, BoolExt, Debug_, EmitFlags,
     GetOrInsertDefault, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface,
     NodeArray, NodeExt, NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
+    InArena, OptionInArena,
 };
 
 impl TransformTypeScript {
@@ -44,7 +45,7 @@ impl TransformTypeScript {
         let name = self.declared_name_in_scope(node);
         current_scope_first_declarations_of_name
             .entry(name)
-            .or_insert_with(|| node.node_wrapper());
+            .or_insert_with(|| node);
     }
 
     pub(super) fn is_first_emitted_declaration_in_scope(
@@ -58,7 +59,7 @@ impl TransformTypeScript {
             let name = self.declared_name_in_scope(node);
             return current_scope_first_declarations_of_name
                 .get(&name)
-                .matches(|value| ptr::eq(&**value, node));
+                .matches(|&value| value == node);
         }
         true
     }
@@ -67,10 +68,11 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*FunctionDeclaration | ClassDeclaration | ModuleDeclaration | EnumDeclaration*/
     ) -> __String {
-        let node_as_named_declaration = node.as_named_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_named_declaration = node_ref.as_named_declaration();
         Debug_.assert_node(
             node_as_named_declaration.maybe_name(),
-            Some(is_identifier),
+            Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
             None,
         );
         node_as_named_declaration
@@ -89,9 +91,9 @@ impl TransformTypeScript {
             .factory
             .create_variable_statement(
                 maybe_visit_nodes(
-                    node.maybe_modifiers().as_deref(),
+                    node.ref_(self).maybe_modifiers().as_deref(),
                     Some(|node: Id<Node>| self.modifier_visitor(node)),
-                    Some(is_modifier),
+                    Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
                     None,
                 ),
@@ -103,7 +105,7 @@ impl TransformTypeScript {
                         None,
                     )],
                     Some(
-                        if self.current_lexical_scope().kind() == SyntaxKind::SourceFile {
+                        if self.current_lexical_scope().ref_(self).kind() == SyntaxKind::SourceFile {
                             NodeFlags::None
                         } else {
                             NodeFlags::Let
@@ -111,21 +113,21 @@ impl TransformTypeScript {
                     ),
                 ),
             )
-            .set_original_node(Some(node.node_wrapper()));
+            .set_original_node(Some(node), self);
 
         self.record_emitted_declaration_in_scope(node);
         if self.is_first_emitted_declaration_in_scope(node) {
-            if node.kind() == SyntaxKind::EnumDeclaration {
+            if node.ref_(self).kind() == SyntaxKind::EnumDeclaration {
                 set_source_map_range(
-                    statement.as_variable_statement().declaration_list,
-                    Some(node.into()),
+                    statement.ref_(self).as_variable_statement().declaration_list,
+                    Some((&*node.ref_(self)).into()),
                     self,
                 );
             } else {
-                set_source_map_range(statement, Some(node.into()), self);
+                set_source_map_range(statement, Some((&*node.ref_(self)).into()), self);
             }
 
-            set_comment_range(statement, node, self);
+            set_comment_range(statement, &*node.ref_(self), self);
             add_emit_flags(
                 statement,
                 EmitFlags::NoTrailingComments | EmitFlags::HasEndOfDeclarationMarker,
@@ -137,7 +139,7 @@ impl TransformTypeScript {
             let merge_marker = self
                 .factory
                 .create_merge_declaration_marker(statement)
-                .set_emit_flags(EmitFlags::NoComments | EmitFlags::HasEndOfDeclarationMarker);
+                .set_emit_flags(EmitFlags::NoComments | EmitFlags::HasEndOfDeclarationMarker, self);
             statements.push(merge_marker);
             false
         }
@@ -147,18 +149,19 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ModuleDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_module_declaration = node.as_module_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_module_declaration = node_ref.as_module_declaration();
         if !self.should_emit_module_declaration(node) {
             return Ok(Some(
                 self.factory
-                    .create_not_emitted_statement(node.node_wrapper())
+                    .create_not_emitted_statement(node)
                     .into(),
             ));
         }
 
         Debug_.assert_node(
             node_as_module_declaration.maybe_name(),
-            Some(is_identifier),
+            Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
             Some("A TypeScript namespace should have an Identifier name."),
         );
         self.enable_substitution_for_namespace_exports();
@@ -170,10 +173,7 @@ impl TransformTypeScript {
         let var_added = self.add_var_for_enum_or_module_declaration(&mut statements, node);
         if var_added {
             if self.module_kind != ModuleKind::System
-                || !are_option_gcs_equal(
-                    self.maybe_current_lexical_scope().as_ref(),
-                    self.maybe_current_source_file().as_ref(),
-                )
+                || self.maybe_current_lexical_scope() != self.maybe_current_source_file()
             {
                 emit_flags |= EmitFlags::NoLeadingComments;
             }
@@ -227,24 +227,24 @@ impl TransformTypeScript {
                         None,
                     )]),
                     None,
-                    self.transform_module_body(node, &container_name)?,
+                    self.transform_module_body(node, container_name)?,
                 ),
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![module_arg]),
             ))
-            .set_original_node(Some(node.node_wrapper()));
+            .set_original_node(Some(node), self);
 
         if var_added {
             set_synthetic_leading_comments(module_statement, None, self);
             set_synthetic_trailing_comments(module_statement, None, self);
         }
-        set_text_range(&*module_statement, Some(node));
+        set_text_range(&*module_statement.ref_(self), Some(&*node.ref_(self)));
         add_emit_flags(module_statement, emit_flags, self);
         statements.push(module_statement);
 
         statements.push(
             self.factory
-                .create_end_of_declaration_marker(node.node_wrapper()),
+                .create_end_of_declaration_marker(node),
         );
         Ok(Some(statements.into()))
     }
@@ -254,14 +254,15 @@ impl TransformTypeScript {
         node: Id<Node>,                 /*ModuleDeclaration*/
         namespace_local_name: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> /*Identifier*/ {
-        let node_as_module_declaration = node.as_module_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_module_declaration = node_ref.as_module_declaration();
         let saved_current_namespace_container_name = self.maybe_current_namespace_container_name();
         let saved_current_namespace = self.maybe_current_namespace();
         let saved_current_scope_first_declarations_of_name = self
             .maybe_current_scope_first_declarations_of_name()
             .clone();
-        self.set_current_namespace_container_name(Some(namespace_local_name.node_wrapper()));
-        self.set_current_namespace(Some(node.node_wrapper()));
+        self.set_current_namespace_container_name(Some(namespace_local_name));
+        self.set_current_namespace(Some(node));
         self.set_current_scope_first_declarations_of_name(None);
 
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
@@ -275,7 +276,7 @@ impl TransformTypeScript {
                     add_range(
                         &mut statements,
                         Some(&try_visit_nodes(
-                            &body.as_module_block().statements,
+                            &body.ref_(self).as_module_block().statements,
                             Some(|node: Id<Node>| self.namespace_element_visitor(node)),
                             Some(|node| is_statement(node, self)),
                             None,
@@ -305,9 +306,8 @@ impl TransformTypeScript {
                 let module_block = self
                     .get_inner_most_module_declaration_from_dotted_module(node)
                     .unwrap()
-                    .as_module_declaration()
+                    .ref_(self).as_module_declaration()
                     .body
-                    .clone()
                     .unwrap();
                 statements_location =
                     Some(move_range_pos(&*module_block.as_module_block().statements, -1).into());
@@ -334,13 +334,13 @@ impl TransformTypeScript {
                 ),
                 Some(true),
             )
-            .set_text_range(block_location.as_deref());
+            .set_text_range(block_location.refed(self), self);
 
-        if match node_as_module_declaration.body.as_ref() {
+        if match node_as_module_declaration.body {
             None => true,
-            Some(node_body) => node_body.kind() != SyntaxKind::ModuleBlock,
+            Some(node_body) => node_body.ref_(self).kind() != SyntaxKind::ModuleBlock,
         } {
-            set_emit_flags(block, get_emit_flags(&block) | EmitFlags::NoComments, self);
+            set_emit_flags(block, get_emit_flags(&block.ref_(self)) | EmitFlags::NoComments, self);
         }
 
         Ok(block)
@@ -351,12 +351,13 @@ impl TransformTypeScript {
         &self,
         module_declaration: Id<Node>, /*ModuleDeclaration*/
     ) -> Option<Id<Node>> /*ModuleDeclaration*/ {
-        let module_declaration_as_module_declaration = module_declaration.as_module_declaration();
+        let module_declaration_ref = module_declaration.ref_(self);
+        let module_declaration_as_module_declaration = module_declaration_ref.as_module_declaration();
         let module_body = module_declaration_as_module_declaration
             .body
             .as_ref()
             .unwrap();
-        if module_body.kind() == SyntaxKind::ModuleDeclaration {
+        if module_body.ref_(self).kind() == SyntaxKind::ModuleDeclaration {
             let recursive_inner_module =
                 self.get_inner_most_module_declaration_from_dotted_module(module_body);
             return Some(recursive_inner_module.unwrap_or_else(|| module_body.clone()));
@@ -369,19 +370,20 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_import_declaration = node.as_import_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_import_declaration = node_ref.as_import_declaration();
         if node_as_import_declaration.import_clause.is_none() {
-            return Ok(Some(node.node_wrapper().into()));
+            return Ok(Some(node.into()));
         }
-        let node_import_clause = node_as_import_declaration.import_clause.as_ref().unwrap();
+        let node_import_clause = node_as_import_declaration.import_clause.unwrap();
         if node_import_clause.as_import_clause().is_type_only {
             return Ok(None);
         }
 
         let import_clause = try_maybe_visit_node(
-            Some(&**node_import_clause),
+            Some(node_import_clause),
             Some(|node: Id<Node>| self.visit_import_clause(node)),
-            Some(is_import_clause),
+            Some(|node: Id<Node>| is_import_clause(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(
@@ -413,17 +415,18 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ImportClause*/
     ) -> io::Result<VisitResult> /*<ImportClause>*/ {
-        let node_as_import_clause = node.as_import_clause();
+        let node_ref = node.ref_(self);
+        let node_as_import_clause = node_ref.as_import_clause();
         Debug_.assert(!node_as_import_clause.is_type_only, None);
         let name = if self.should_emit_alias_declaration(node)? {
-            node_as_import_clause.name.as_ref()
+            node_as_import_clause.name
         } else {
             None
         };
         let named_bindings = try_maybe_visit_node(
-            node_as_import_clause.named_bindings.as_deref(),
+            node_as_import_clause.named_bindings,
             Some(|node: Id<Node>| self.visit_named_import_bindings(node)),
-            Some(is_named_import_bindings),
+            Some(|node: Id<Node>| is_named_import_bindings(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(if name.is_some() || named_bindings.is_some() {
@@ -441,9 +444,9 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*NamedImportBindings*/
     ) -> io::Result<VisitResult> /*<NamedImportBindings>*/ {
-        Ok(if node.kind() == SyntaxKind::NamespaceImport {
+        Ok(if node.ref_(self).kind() == SyntaxKind::NamespaceImport {
             if self.should_emit_alias_declaration(node)? {
-                Some(node.node_wrapper().into())
+                Some(node.into())
             } else {
                 None
             }
@@ -454,9 +457,9 @@ impl TransformTypeScript {
                     Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
                 );
             let elements = try_visit_nodes(
-                &node.as_named_imports().elements,
+                &node.ref_(self).as_named_imports().elements,
                 Some(|node: Id<Node>| self.visit_import_specifier(node)),
-                Some(is_import_specifier),
+                Some(|node: Id<Node>| is_import_specifier(&node.ref_(self))),
                 None,
                 None,
             )?;
@@ -469,10 +472,11 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ImportSpecifier*/
     ) -> io::Result<VisitResult> /*<ImportSpecifier>*/ {
-        let node_as_import_specifier = node.as_import_specifier();
+        let node_ref = node.ref_(self);
+        let node_as_import_specifier = node_ref.as_import_specifier();
         Ok(
             (!node_as_import_specifier.is_type_only && self.should_emit_alias_declaration(node)?)
-                .then(|| node.node_wrapper().into()),
+                .then(|| node.into()),
         )
     }
 
@@ -496,7 +500,8 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ExportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_export_declaration = node.as_export_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_export_declaration = node_ref.as_export_declaration();
         if node_as_export_declaration.is_type_only {
             return Ok(None);
         }
@@ -506,7 +511,7 @@ impl TransformTypeScript {
             .as_ref()
             .matches(|node_export_clause| !is_namespace_export(node_export_clause))
         {
-            return Ok(Some(node.node_wrapper().into()));
+            return Ok(Some(node.into()));
         }
 
         let allow_empty = node_as_export_declaration.module_specifier.is_some()
@@ -519,7 +524,7 @@ impl TransformTypeScript {
             Some(|bindings: Id<Node> /*NamedExportBindings*/| {
                 self.visit_named_export_bindings(bindings, allow_empty)
             }),
-            Some(is_named_export_bindings),
+            Some(|node: Id<Node>| is_named_export_bindings(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(export_clause.map(|export_clause| {
@@ -542,11 +547,12 @@ impl TransformTypeScript {
         node: Id<Node>, /*NamedExports*/
         allow_empty: bool,
     ) -> io::Result<VisitResult> /*<NamedExports>*/ {
-        let node_as_named_exports = node.as_named_exports();
+        let node_ref = node.ref_(self);
+        let node_as_named_exports = node_ref.as_named_exports();
         let elements = try_visit_nodes(
             &node_as_named_exports.elements,
             Some(|node: Id<Node>| self.visit_export_specifier(node)),
-            Some(is_export_specifier),
+            Some(|node: Id<Node>| is_export_specifier(&node.ref_(self))),
             None,
             None,
         )?;
@@ -563,9 +569,9 @@ impl TransformTypeScript {
                 .update_namespace_export(
                     node,
                     try_visit_node(
-                        &node.as_namespace_export().name,
+                        node.ref_(self).as_namespace_export().name,
                         Some(|node: Id<Node>| self.visitor(node)),
-                        Some(is_identifier),
+                        Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -578,7 +584,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*NamedExportBindings*/
         allow_empty: bool,
     ) -> io::Result<VisitResult> /*<NamedExportBindings>*/ {
-        Ok(if is_namespace_export(node) {
+        Ok(if is_namespace_export(&node.ref_(self)) {
             self.visit_namespace_exports(node)?
         } else {
             self.visit_named_exports(node, allow_empty)?
@@ -589,10 +595,11 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ExportSpecifier*/
     ) -> io::Result<VisitResult> /*<ExportSpecifier>*/ {
-        let node_as_export_specifier = node.as_export_specifier();
+        let node_ref = node.ref_(self);
+        let node_as_export_specifier = node_ref.as_export_specifier();
         Ok((!node_as_export_specifier.is_type_only
             && self.resolver.is_value_alias_declaration(node)?)
-        .then(|| node.node_wrapper().into()))
+        .then(|| node.into()))
     }
 
     pub(super) fn should_emit_import_equals_declaration(
@@ -600,7 +607,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<bool> {
         Ok(self.should_emit_alias_declaration(node)?
-            || !is_external_module(&self.current_source_file())
+            || !is_external_module(&self.current_source_file().ref_(self))
                 && self
                     .resolver
                     .is_top_level_value_import_equals_with_entity_name(node)?)
@@ -610,12 +617,13 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
         if node_as_import_equals_declaration.is_type_only {
             return Ok(None);
         }
 
-        if is_external_module_import_equals_declaration(node) {
+        if is_external_module_import_equals_declaration(node, self) {
             let is_referenced = self.should_emit_alias_declaration(node)?;
             if !is_referenced
                 && self.compiler_options.imports_not_used_as_values
@@ -634,8 +642,8 @@ impl TransformTypeScript {
                                 .clone(),
                             None,
                         )
-                        .set_text_range(Some(node))
-                        .set_original_node(Some(node.node_wrapper()))
+                        .set_text_range(Some(&*node.ref_(self)), self)
+                        .set_original_node(Some(node), self)
                         .into(),
                 ));
             }
@@ -658,16 +666,16 @@ impl TransformTypeScript {
             &*self.factory,
             &node_as_import_equals_declaration.module_reference,
         )
-        .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoNestedComments);
+        .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoNestedComments, self);
 
         Ok(Some(
             if self.is_named_external_module_export(node) || !self.is_export_of_namespace(node) {
                 self.factory
                     .create_variable_statement(
                         maybe_visit_nodes(
-                            node.maybe_modifiers().as_deref(),
+                            node.ref_(self).maybe_modifiers().as_deref(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
-                            Some(is_modifier),
+                            Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
                             None,
                         ),
@@ -680,20 +688,20 @@ impl TransformTypeScript {
                                     None,
                                     Some(module_reference),
                                 )
-                                .set_original_node(Some(node.node_wrapper()))],
+                                .set_original_node(Some(node), self)],
                             None,
                         ),
                     )
-                    .set_text_range(Some(node))
-                    .set_original_node(Some(node.node_wrapper()))
+                    .set_text_range(Some(&*node.ref_(self)), self)
+                    .set_original_node(Some(node), self)
                     .into()
             } else {
                 self.create_namespace_export(
-                    &node_as_import_equals_declaration.name(),
-                    &module_reference,
-                    Some(node),
+                    node_as_import_equals_declaration.name(),
+                    module_reference,
+                    Some(&*node.ref_(self)),
                 )
-                .set_original_node(Some(node.node_wrapper()))
+                .set_original_node(Some(node))
                 .into()
             },
         ))

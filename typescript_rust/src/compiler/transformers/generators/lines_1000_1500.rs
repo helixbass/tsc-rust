@@ -655,7 +655,7 @@ impl TransformGenerators {
         {
             for variable in &initializer.ref_(self).as_variable_declaration_list().declarations {
                 self.context
-                    .hoist_variable_declaration(&variable.as_variable_declaration().name());
+                    .hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
             }
 
             let variables = get_initialized_variables(initializer, self);

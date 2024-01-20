@@ -105,24 +105,24 @@ impl TransformModule {
     ) -> io::Result<bool> {
         if is_object_literal_expression(&node.ref_(self)) {
             for elem in &node.ref_(self).as_object_literal_expression().properties {
-                match elem.kind() {
+                match elem.ref_(self).kind() {
                     SyntaxKind::PropertyAssignment => {
                         if self.destructuring_needs_flattening(
-                            &elem.as_property_assignment().initializer,
+                            elem.ref_(self).as_property_assignment().initializer,
                         )? {
                             return Ok(true);
                         }
                     }
                     SyntaxKind::ShorthandPropertyAssignment => {
                         if self.destructuring_needs_flattening(
-                            &elem.as_shorthand_property_assignment().name(),
+                            elem.ref_(self).as_shorthand_property_assignment().name(),
                         )? {
                             return Ok(true);
                         }
                     }
                     SyntaxKind::SpreadAssignment => {
                         if self.destructuring_needs_flattening(
-                            &elem.as_spread_assignment().expression,
+                            elem.ref_(self).as_spread_assignment().expression,
                         )? {
                             return Ok(true);
                         }
@@ -135,7 +135,7 @@ impl TransformModule {
             }
         } else if is_array_literal_expression(&node.ref_(self)) {
             for &elem in &node.ref_(self).as_array_literal_expression().elements {
-                if is_spread_element(elem) {
+                if is_spread_element(&elem.ref_(self)) {
                     if self.destructuring_needs_flattening(elem.ref_(self).as_spread_element().expression)? {
                         return Ok(true);
                     }
@@ -184,25 +184,25 @@ impl TransformModule {
                 .update_for_statement(
                     node,
                     try_maybe_visit_node(
-                        node_as_for_statement.initializer.as_deref(),
+                        node_as_for_statement.initializer,
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_for_initializer(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_maybe_visit_node(
-                        node_as_for_statement.condition.as_deref(),
+                        node_as_for_statement.condition,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_maybe_visit_node(
-                        node_as_for_statement.incrementor.as_deref(),
+                        node_as_for_statement.incrementor,
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_iteration_body(
-                        &node_as_for_statement.statement,
+                        node_as_for_statement.statement,
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
                     )?,
@@ -222,7 +222,7 @@ impl TransformModule {
                 .update_expression_statement(
                     node,
                     try_visit_node(
-                        &node_as_expression_statement.expression,
+                        node_as_expression_statement.expression,
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -244,7 +244,7 @@ impl TransformModule {
                 .update_parenthesized_expression(
                     node,
                     try_visit_node(
-                        &node_as_parenthesized_expression.expression,
+                        node_as_parenthesized_expression.expression,
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -272,7 +272,7 @@ impl TransformModule {
                 .update_partially_emitted_expression(
                     node,
                     try_visit_node(
-                        &node_as_partially_emitted_expression.expression,
+                        node_as_partially_emitted_expression.expression,
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -303,11 +303,11 @@ impl TransformModule {
             && !is_local_name(&node_as_unary_expression.operand().ref_(self))
             && !is_declaration_name_of_enum_or_namespace(node_as_unary_expression.operand(), self)
         {
-            let exported_names = self.get_exports(&node_as_unary_expression.operand())?;
+            let exported_names = self.get_exports(node_as_unary_expression.operand())?;
             if let Some(exported_names) = exported_names {
                 let mut temp: Option<Id<Node /*Identifier*/>> = _d();
                 let mut expression/*: Expression*/ = try_visit_node(
-                    &node_as_unary_expression.operand(),
+                    node_as_unary_expression.operand(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

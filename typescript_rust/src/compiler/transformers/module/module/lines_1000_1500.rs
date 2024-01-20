@@ -56,7 +56,7 @@ impl TransformModule {
                                 vec![self.factory.create_variable_declaration(
                                     Some(
                                         self.factory
-                                            .clone_node(&node_as_import_equals_declaration.name()),
+                                            .clone_node(node_as_import_equals_declaration.name()),
                                     ),
                                     None,
                                     None,
@@ -117,8 +117,7 @@ impl TransformModule {
         Ok(
             if let Some(node_export_clause) = node_as_export_declaration
                 .export_clause
-                .as_ref()
-                .filter(|node_export_clause| is_named_exports(node_export_clause))
+                .filter(|node_export_clause| is_named_exports(&node_export_clause.ref_(self)))
             {
                 let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 if self.module_kind != ModuleKind::AMD {
@@ -140,7 +139,7 @@ impl TransformModule {
                             .set_original_node(Some(node), self),
                     );
                 }
-                for &specifier in &node_export_clause.as_named_exports().elements {
+                for &specifier in &node_export_clause.ref_(self).as_named_exports().elements {
                     let specifier_ref = specifier.ref_(self);
                     let specifier_as_export_specifier = specifier_ref.as_export_specifier();
                     if self.language_version == ScriptTarget::ES3 {
@@ -205,10 +204,10 @@ impl TransformModule {
 
                 Some(single_or_many_node(statements))
             } else if let Some(node_export_clause) =
-                node_as_export_declaration.export_clause.as_ref()
+                node_as_export_declaration.export_clause
             {
-                let node_export_clause_as_namespace_export =
-                    node_export_clause.as_namespace_export();
+                let node_export_clause_ref = node_export_clause.ref_(self);
+                let node_export_clause_as_namespace_export = node_export_clause_ref.as_namespace_export();
                 let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 statements.push(
                     self.factory
@@ -229,7 +228,7 @@ impl TransformModule {
                                         ))
                                     },
                                 ),
-                                Option::<Id<Node>>::None,
+                                Option::<&Node>::None,
                                 None,
                             ),
                         )
@@ -277,7 +276,7 @@ impl TransformModule {
                 self.deferred_exports_mut().entry(id).or_default(),
                 self.factory.create_identifier("default"),
                 try_visit_node(
-                    &node_as_export_assignment.expression,
+                    node_as_export_assignment.expression,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -291,7 +290,7 @@ impl TransformModule {
                 &mut statements,
                 self.factory.create_identifier("default"),
                 try_visit_node(
-                    &node_as_export_assignment.expression,
+                    node_as_export_assignment.expression,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -451,15 +450,15 @@ impl TransformModule {
             let mut modifiers: Option<Gc<NodeArray /*Modifier*/>> = _d();
             let mut remove_comments_on_expressions = false;
 
-            for variable in &node_as_variable_statement
+            for &variable in &node_as_variable_statement
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
                 .declarations
             {
                 let variable_ref = variable.ref_(self);
                 let variable_as_variable_declaration = variable_ref.as_variable_declaration();
-                if is_identifier(&variable_as_variable_declaration.name())
-                    && is_local_name(&variable_as_variable_declaration.name())
+                if is_identifier(&variable_as_variable_declaration.name().ref_(self))
+                    && is_local_name(&variable_as_variable_declaration.name().ref_(self))
                 {
                     if modifiers.is_none() {
                         modifiers = maybe_visit_nodes(
@@ -474,9 +473,9 @@ impl TransformModule {
                 } else if let Some(variable_initializer) = variable_as_variable_declaration.maybe_initializer()
                 {
                     if !is_binding_pattern(variable_as_variable_declaration.maybe_name().refed(self))
-                        && (is_arrow_function(variable_initializer)
-                            || is_function_expression(variable_initializer)
-                            || is_class_expression(variable_initializer))
+                        && (is_arrow_function(&variable_initializer.ref_(self))
+                            || is_function_expression(&variable_initializer.ref_(self))
+                            || is_class_expression(&variable_initializer.ref_(self)))
                     {
                         let expression = self.factory.create_assignment(
                             self.factory
@@ -487,7 +486,7 @@ impl TransformModule {
                                 .set_text_range(Some(&*variable_as_variable_declaration.name().ref_(self)), self),
                             self.factory
                                 .create_identifier(&get_text_of_identifier_or_literal(
-                                    &variable_as_variable_declaration.name(),
+                                    &variable_as_variable_declaration.name().ref_(self),
                                 )),
                         );
                         let updated_variable = self.factory.create_variable_declaration(
@@ -520,7 +519,7 @@ impl TransformModule {
                         node,
                         modifiers,
                         self.factory.update_variable_declaration_list(
-                            &node_as_variable_statement.declaration_list,
+                            node_as_variable_statement.declaration_list,
                             variables,
                         ),
                     ));
@@ -594,7 +593,7 @@ impl TransformModule {
         let node_ref = node.ref_(self);
         let node_as_variable_declaration = node_ref.as_variable_declaration();
         Ok(
-            if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
+            if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self)) {
                 try_flatten_destructuring_assignment(
                     try_visit_node(
                         node,
@@ -689,15 +688,16 @@ impl TransformModule {
             return /*statements*/;
         }
 
-        let import_clause = return_if_none!(decl_as_import_declaration.import_clause.as_ref());
-        let import_clause_as_import_clause = import_clause.as_import_clause();
+        let import_clause = return_if_none!(decl_as_import_declaration.import_clause);
+        let import_clause_ref = import_clause.ref_(self);
+        let import_clause_as_import_clause = import_clause_ref.as_import_clause();
         if import_clause_as_import_clause.name.is_some() {
             self.append_exports_of_declaration(statements, import_clause, None);
         }
 
-        let named_bindings = import_clause_as_import_clause.named_bindings.as_ref();
+        let named_bindings = import_clause_as_import_clause.named_bindings;
         if let Some(named_bindings) = named_bindings {
-            match named_bindings.kind() {
+            match named_bindings.ref_(self).kind() {
                 SyntaxKind::NamespaceImport => {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }

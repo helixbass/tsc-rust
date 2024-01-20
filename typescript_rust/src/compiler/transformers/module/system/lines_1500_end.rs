@@ -14,6 +14,7 @@ use crate::{
     LiteralLikeNodeInterface, MapOrDefault, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind, VisitResult, _d, get_original_node_id,
     is_prefix_unary_expression, NonEmpty, OptionTry,
+    InArena,
 };
 
 impl TransformSystemModule {
@@ -30,7 +31,8 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<VisitResult> {
-        let node_as_expression_statement = node.as_expression_statement();
+        let node_ref = node.ref_(self);
+        let node_as_expression_statement = node_ref.as_expression_statement();
         Ok(Some(
             self.factory
                 .update_expression_statement(
@@ -51,7 +53,8 @@ impl TransformSystemModule {
         node: Id<Node>, /*ParenthesizedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_as_parenthesized_expression = node.as_parenthesized_expression();
+        let node_ref = node.ref_(self);
+        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         Ok(Some(
             self.factory
                 .update_parenthesized_expression(
@@ -78,7 +81,8 @@ impl TransformSystemModule {
         node: Id<Node>, /*PartiallyEmittedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
+        let node_ref = node.ref_(self);
+        let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();
         Ok(Some(
             self.factory
                 .update_partially_emitted_expression(
@@ -104,11 +108,12 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ImportCall*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_call_expression = node.as_call_expression();
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
         let external_module_name = get_external_module_name_literal(
             &self.factory,
             node,
-            &self.current_source_file(),
+            self.current_source_file(),
             &**self.host,
             &**self.resolver,
             &self.compiler_options,
@@ -122,9 +127,9 @@ impl TransformSystemModule {
         let argument = external_module_name
             .filter(|external_module_name| {
                 !first_argument.as_ref().matches(|first_argument| {
-                    is_string_literal(first_argument)
-                        && &*first_argument.as_string_literal().text()
-                            == &*external_module_name.as_string_literal().text()
+                    is_string_literal(&first_argument.ref_(self))
+                        && &*first_argument.ref_(self).as_string_literal().text()
+                            == &*external_module_name.ref_(self).as_string_literal().text()
                 })
             })
             .or(first_argument);
@@ -143,8 +148,9 @@ impl TransformSystemModule {
         node: Id<Node>, /*DestructuringAssignment*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> /*<Expression>*/ {
-        let node_as_binary_expression = node.as_binary_expression();
-        if self.has_exported_reference_in_destructuring_target(&node_as_binary_expression.left)? {
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
+        if self.has_exported_reference_in_destructuring_target(node_as_binary_expression.left)? {
             return Ok(Some(
                 try_flatten_destructuring_assignment(
                     node,
@@ -175,37 +181,37 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*Expression | ObjectLiteralElementLike*/
     ) -> io::Result<bool> {
-        Ok(if is_assignment_expression(node, Some(true)) {
-            self.has_exported_reference_in_destructuring_target(&node.as_binary_expression().left)?
-        } else if is_spread_element(node) {
+        Ok(if is_assignment_expression(node, Some(true), self) {
+            self.has_exported_reference_in_destructuring_target(node.ref_(self).as_binary_expression().left)?
+        } else if is_spread_element(&node.ref_(self)) {
             self.has_exported_reference_in_destructuring_target(
-                &node.as_spread_element().expression,
+                node.ref_(self).as_spread_element().expression,
             )?
-        } else if is_object_literal_expression(node) {
+        } else if is_object_literal_expression(&node.ref_(self)) {
             try_some(
-                Some(&node.as_object_literal_expression().properties),
-                Some(|property: &Id<Node>| {
+                Some(&node.ref_(self).as_object_literal_expression().properties),
+                Some(|&property: &Id<Node>| {
                     self.has_exported_reference_in_destructuring_target(property)
                 }),
             )?
-        } else if is_array_literal_expression(node) {
+        } else if is_array_literal_expression(&node.ref_(self)) {
             try_some(
-                Some(&node.as_array_literal_expression().elements),
-                Some(|element: &Id<Node>| {
+                Some(&node.ref_(self).as_array_literal_expression().elements),
+                Some(|&element: &Id<Node>| {
                     self.has_exported_reference_in_destructuring_target(element)
                 }),
             )?
-        } else if is_shorthand_property_assignment(node) {
+        } else if is_shorthand_property_assignment(&node.ref_(self)) {
             self.has_exported_reference_in_destructuring_target(
-                &node.as_shorthand_property_assignment().name(),
+                node.ref_(self).as_shorthand_property_assignment().name(),
             )?
-        } else if is_property_assignment(node) {
+        } else if is_property_assignment(&node.ref_(self)) {
             self.has_exported_reference_in_destructuring_target(
-                &node.as_property_assignment().maybe_initializer().unwrap(),
+                node.as_property_assignment().ref_(self).maybe_initializer().unwrap(),
             )?
-        } else if is_identifier(node) {
+        } else if is_identifier(&node.ref_(self)) {
             let container = self.resolver.get_referenced_export_container(node, None)?;
-            container.matches(|container| container.kind() == SyntaxKind::SourceFile)
+            container.matches(|container| container.ref_(self).kind() == SyntaxKind::SourceFile)
         } else {
             false
         })
@@ -216,15 +222,16 @@ impl TransformSystemModule {
         node: Id<Node>, /*PrefixUnaryExpression | PostfixUnaryExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_as_unary_expression = node.as_unary_expression();
-        let node_operand = &node_as_unary_expression.operand();
+        let node_ref = node.ref_(self);
+        let node_as_unary_expression = node_ref.as_unary_expression();
+        let node_operand = node_as_unary_expression.operand();
         if matches!(
             node_as_unary_expression.operator(),
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
-        ) && is_identifier(node_operand)
-            && !is_generated_identifier(node_operand)
-            && !is_local_name(node_operand)
-            && !is_declaration_name_of_enum_or_namespace(node_operand)
+        ) && is_identifier(&node_operand.ref_(self))
+            && !is_generated_identifier(&node_operand.ref_(self))
+            && !is_local_name(&node_operand.ref_(self))
+            && !is_declaration_name_of_enum_or_namespace(node_operand, self)
         {
             let exported_names = self.get_exports(node_operand)?;
             if let Some(exported_names) = exported_names {
@@ -235,7 +242,7 @@ impl TransformSystemModule {
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?;
-                if is_prefix_unary_expression(node) {
+                if is_prefix_unary_expression(&node.ref_(self)) {
                     expression = self
                         .factory
                         .update_prefix_unary_expression(node, expression);
@@ -253,18 +260,18 @@ impl TransformSystemModule {
                         expression = self
                             .factory
                             .create_assignment(temp.clone().unwrap(), expression)
-                            .set_text_range(Some(node));
+                            .set_text_range(Some(&*node.ref_(self)), self);
                     }
                     expression = self
                         .factory
                         .create_comma(expression, self.factory.clone_node(node_operand))
-                        .set_text_range(Some(node));
+                        .set_text_range(Some(&*node.ref_(self)), self);
                 }
 
-                for export_name in &exported_names {
+                for &export_name in &exported_names {
                     expression = self.create_export_expression(
                         export_name,
-                        &self.prevent_substitution(expression),
+                        self.prevent_substitution(expression),
                     );
                 }
 
@@ -272,7 +279,7 @@ impl TransformSystemModule {
                     expression = self
                         .factory
                         .create_comma(expression, temp)
-                        .set_text_range(Some(node));
+                        .set_text_range(Some(&*node.ref_(self)), self);
                 }
 
                 return Ok(Some(expression.into()));
@@ -288,11 +295,11 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword => return None,
             _ => (),
         }
-        Some(node.node_wrapper().into())
+        Some(node.into())
     }
 
     pub(super) fn get_exports(
@@ -300,7 +307,7 @@ impl TransformSystemModule {
         name: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut exported_names: Option<Vec<Id<Node /*Identifier*/>>> = _d();
-        if !is_generated_identifier(name) {
+        if !is_generated_identifier(&name.ref_(self)) {
             let value_declaration = self
                 .resolver
                 .get_referenced_import_declaration(name)?
@@ -311,11 +318,11 @@ impl TransformSystemModule {
                     .resolver
                     .get_referenced_export_container(name, Some(false))?;
                 if export_container
-                    .matches(|export_container| export_container.kind() == SyntaxKind::SourceFile)
+                    .matches(|export_container| export_container.ref_(self).kind() == SyntaxKind::SourceFile)
                 {
                     exported_names.get_or_insert_default_().push(
                         self.factory
-                            .get_declaration_name(Some(&*value_declaration), None, None),
+                            .get_declaration_name(Some(value_declaration), None, None),
                     );
                 }
 
@@ -325,7 +332,7 @@ impl TransformSystemModule {
                     .and_then(|module_info| {
                         module_info
                             .exported_bindings
-                            .get(&get_original_node_id(&value_declaration))
+                            .get(&get_original_node_id(value_declaration, self))
                     })
                     .non_empty()
                 {
@@ -342,7 +349,7 @@ impl TransformSystemModule {
     pub(super) fn prevent_substitution(&self, node: Id<Node>) -> Id<Node> {
         self.maybe_no_substitution_mut()
             .get_or_insert_default_()
-            .insert(get_node_id(&node), true);
+            .insert(get_node_id(&node.ref_(self)), true);
         node
     }
 }

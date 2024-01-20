@@ -182,7 +182,7 @@ impl TransformES2015 {
             let span_ref = span.ref_(self);
             let span_as_template_span = span_ref.as_template_span();
             let mut args = vec![try_visit_node(
-                &span_as_template_span.expression,
+                span_as_template_span.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -190,7 +190,7 @@ impl TransformES2015 {
 
             if !span_as_template_span
                 .literal
-                .as_template_literal_like_node()
+                .ref_(self).as_template_literal_like_node()
                 .text()
                 .is_empty()
             {
@@ -198,7 +198,7 @@ impl TransformES2015 {
                     self.factory.create_string_literal(
                         span_as_template_span
                             .literal
-                            .as_template_literal_like_node()
+                            .ref_(self).as_template_literal_like_node()
                             .text()
                             .clone(),
                         None,
@@ -353,31 +353,33 @@ impl TransformES2015 {
                 .statements,
         )
         .cloned();
-        if statement.as_ref().is_none_or_matches(|statement| {
-            !node_is_synthesized(&**statement)
-                || statement.kind() != SyntaxKind::ExpressionStatement
+        if statement.is_none_or_matches(|statement| {
+            !node_is_synthesized(&*statement.ref_(self))
+                || statement.ref_(self).kind() != SyntaxKind::ExpressionStatement
         }) {
             return false;
         }
         let statement = statement.unwrap();
-        let statement_as_expression_statement = statement.as_expression_statement();
+        let statement_ref = statement.ref_(self);
+        let statement_as_expression_statement = statement_ref.as_expression_statement();
 
-        let statement_expression = &statement_as_expression_statement.expression;
-        if !node_is_synthesized(&**statement_expression)
-            || statement_expression.kind() != SyntaxKind::CallExpression
+        let statement_expression = statement_as_expression_statement.expression;
+        if !node_is_synthesized(&*statement_expression.ref_(self))
+            || statement_expression.ref_(self).kind() != SyntaxKind::CallExpression
         {
             return false;
         }
-        let statement_expression_as_call_expression = statement_expression.as_call_expression();
+        let statement_expression_ref = statement_expression.ref_(self);
+        let statement_expression_as_call_expression = statement_expression_ref.as_call_expression();
 
-        let call_target = &statement_expression_as_call_expression.expression;
-        if !node_is_synthesized(&**call_target) || call_target.kind() != SyntaxKind::SuperKeyword {
+        let call_target = statement_expression_as_call_expression.expression;
+        if !node_is_synthesized(&*call_target.ref_(self)) || call_target.ref_(self).kind() != SyntaxKind::SuperKeyword {
             return false;
         }
 
         let call_argument =
             single_or_undefined(Some(&statement_expression_as_call_expression.arguments)).cloned();
-        if call_argument.as_ref().is_none_or_matches(|call_argument| {
+        if call_argument.is_none_or_matches(|call_argument| {
             !node_is_synthesized(&**call_argument)
                 || call_argument.kind() != SyntaxKind::SpreadElement
         }) {
