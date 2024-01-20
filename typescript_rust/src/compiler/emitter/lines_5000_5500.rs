@@ -22,7 +22,7 @@ impl Printer {
         node: Id<Node>,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> String {
-        let node_id = get_node_id(node);
+        let node_id = get_node_id(&node.ref_(self));
         self.node_id_to_generated_name_mut()
             .entry(node_id)
             .or_insert_with(|| self.generate_name_for_node(node, flags))
@@ -40,7 +40,6 @@ impl Printer {
 
     pub(super) fn is_file_level_unique_name(&self, name: &str) -> bool {
         self.maybe_current_source_file()
-            .as_ref()
             .map_or(true, |current_source_file| {
                 is_file_level_unique_name(
                     current_source_file,
@@ -51,7 +50,7 @@ impl Printer {
     }
 
     pub(super) fn is_unique_local_name(&self, name: &str, container: Id<Node>) -> bool {
-        let mut node = Some(container.node_wrapper());
+        let mut node = Some(container);
         while maybe_is_node_descendant_of(node, Some(container), self) {
             let node_present = node.as_ref().unwrap();
             if let Some(node_locals) = node_present.maybe_locals().as_ref() {
@@ -167,8 +166,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> String {
-        let node_name = node.as_named_declaration().name();
-        let name = self.get_text_of_node(&node_name, None);
+        let node_name = node.ref_(self).as_named_declaration().name();
+        let name = self.get_text_of_node(node_name, None);
         if self.is_unique_local_name(&name, node) {
             name.into_owned()
         } else {
@@ -180,9 +179,9 @@ impl Printer {
         &self,
         node: Id<Node>, /*ImportDeclaration | ExportDeclaration*/
     ) -> String {
-        let ref expr = get_external_module_name(node, self).unwrap();
-        let base_name = if is_string_literal(expr) {
-            make_identifier_from_module_name(&expr.as_string_literal().text())
+        let expr = get_external_module_name(node, self).unwrap();
+        let base_name = if is_string_literal(&expr.ref_(self)) {
+            make_identifier_from_module_name(&expr.ref_(self).as_string_literal().text())
         } else {
             "module".to_owned()
         };
@@ -201,8 +200,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*MethodDeclaration | AccessorDeclaration*/
     ) -> String {
-        let ref node_name = node.as_named_declaration().name();
-        if is_identifier(node_name) {
+        let node_name = node.ref_(self).as_named_declaration().name();
+        if is_identifier(&node_name.ref_(self)) {
             return self.generate_name_cached(node_name, None);
         }
         self.make_temp_variable_name(TempFlags::Auto, None)
@@ -213,7 +212,7 @@ impl Printer {
         node: Id<Node>,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> String {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::Identifier => {
                 self.make_unique_name(
                     &self.get_text_of_node(
@@ -272,7 +271,7 @@ impl Printer {
     }
 
     pub(super) fn make_name(&self, name: Id<Node> /*GeneratedIdentifier*/) -> String {
-        let name_auto_generate_flags = name.as_identifier().auto_generate_flags();
+        let name_auto_generate_flags = name.ref_(self).as_identifier().auto_generate_flags();
         match name_auto_generate_flags & GeneratedIdentifierFlags::KindMask {
             GeneratedIdentifierFlags::Auto => self.make_temp_variable_name(
                 TempFlags::Auto,
@@ -289,7 +288,7 @@ impl Printer {
                 ),
             ),
             GeneratedIdentifierFlags::Unique => self.make_unique_name(
-                &id_text(name),
+                &id_text(&name.ref_(self)),
                 Some(|name: &str| {
                     if name_auto_generate_flags.intersects(GeneratedIdentifierFlags::FileLevel) {
                         self.is_file_level_unique_name(name)
@@ -311,14 +310,14 @@ impl Printer {
         &self,
         name: Id<Node>, /*GeneratedIdentifier*/
     ) -> Id<Node> {
-        let auto_generate_id = name.as_identifier().auto_generate_id;
-        let mut node: Id<Node> = name.node_wrapper();
-        let mut original: Option<Id<Node>> = node.maybe_original();
-        while let Some(ref original_present) = original {
-            node = original_present.clone();
+        let auto_generate_id = name.ref_(self).as_identifier().auto_generate_id;
+        let mut node: Id<Node> = name;
+        let mut original: Option<Id<Node>> = node.ref_(self).maybe_original();
+        while let Some(original_present) = original {
+            node = original_present;
 
-            if is_identifier(&node) && {
-                let node_as_identifier = node.as_identifier();
+            if is_identifier(&node.ref_(self)) && {
+                let node_as_identifier = node.ref_(self).as_identifier();
                 node_as_identifier
                     .maybe_auto_generate_flags()
                     .unwrap_or_default()
@@ -356,8 +355,8 @@ impl Printer {
     }
 
     pub(super) fn emit_comments_before_node(&self, node: Id<Node>) {
-        let emit_flags = get_emit_flags(node);
-        let comment_range = get_comment_range(node);
+        let emit_flags = get_emit_flags(&node.ref_(self));
+        let comment_range = get_comment_range(&node.ref_(self));
 
         self.emit_leading_comments_of_node(
             node,
@@ -377,8 +376,8 @@ impl Printer {
         saved_container_end: isize,
         saved_declaration_list_container_end: isize,
     ) {
-        let emit_flags = get_emit_flags(node);
-        let comment_range = get_comment_range(node);
+        let emit_flags = get_emit_flags(&node.ref_(self));
+        let comment_range = get_comment_range(&node.ref_(self));
 
         if emit_flags.intersects(EmitFlags::NoNestedComments) {
             self.set_comments_disabled(false);
@@ -406,14 +405,14 @@ impl Printer {
 
         let skip_leading_comments = pos < 0
             || emit_flags.intersects(EmitFlags::NoLeadingComments)
-            || node.kind() == SyntaxKind::JsxText;
+            || node.ref_(self).kind() == SyntaxKind::JsxText;
         let skip_trailing_comments = end < 0
             || emit_flags.intersects(EmitFlags::NoTrailingComments)
-            || node.kind() == SyntaxKind::JsxText;
+            || node.ref_(self).kind() == SyntaxKind::JsxText;
 
         if (pos > 0 || end > 0) && pos != end {
             if !skip_leading_comments {
-                self.emit_leading_comments(pos, node.kind() != SyntaxKind::NotEmittedStatement);
+                self.emit_leading_comments(pos, node.ref_(self).kind() != SyntaxKind::NotEmittedStatement);
             }
 
             if !skip_leading_comments
@@ -427,13 +426,13 @@ impl Printer {
             {
                 self.set_container_end(end);
 
-                if node.kind() == SyntaxKind::VariableDeclarationList {
+                if node.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
                     self.set_declaration_list_container_end(end);
                 }
             }
         }
         maybe_for_each(
-            get_synthetic_leading_comments(node).as_ref(),
+            get_synthetic_leading_comments(&node.ref_(self)).as_ref(),
             |comment: &Rc<SynthesizedComment>, _| -> Option<()> {
                 self.emit_leading_synthesized_comment(comment);
                 None
@@ -455,7 +454,7 @@ impl Printer {
         self.enter_comment();
         let skip_trailing_comments = end < 0
             || emit_flags.intersects(EmitFlags::NoTrailingComments)
-            || node.kind() == SyntaxKind::JsxText;
+            || node.ref_(self).kind() == SyntaxKind::JsxText;
         maybe_for_each(
             get_synthetic_trailing_comments(node).as_ref(),
             |comment: &Rc<SynthesizedComment>, _| -> Option<()> {
@@ -468,7 +467,7 @@ impl Printer {
             self.set_container_end(saved_container_end);
             self.set_declaration_list_container_end(saved_declaration_list_container_end);
 
-            if !skip_trailing_comments && node.kind() != SyntaxKind::NotEmittedStatement {
+            if !skip_trailing_comments && node.ref_(self).kind() != SyntaxKind::NotEmittedStatement {
                 self.emit_trailing_comments(end);
             }
         }
@@ -547,7 +546,7 @@ impl Printer {
         self.enter_comment();
         let pos = detached_range.pos();
         let end = detached_range.end();
-        let emit_flags = get_emit_flags(node);
+        let emit_flags = get_emit_flags(&node.ref_(self));
         let skip_leading_comments = pos < 0 || emit_flags.intersects(EmitFlags::NoLeadingComments);
         let skip_trailing_comments = self.comments_disabled()
             || end < 0
@@ -584,16 +583,13 @@ impl Printer {
     ) -> bool {
         let ref node_a = get_original_node(node_a, self);
         matches!(
-            node_a.maybe_parent().as_ref(),
+            node_a.ref_(self).maybe_parent(),
             Some(node_a_parent) if matches!(
                 get_original_node(
                     node_b,
                     self,
-                ).maybe_parent().as_ref(),
-                Some(node_b_parent) if Gc::ptr_eq(
-                    node_a_parent,
-                    node_b_parent,
-                )
+                ).ref_(self).maybe_parent(),
+                Some(node_b_parent) if node_a_parent == node_b_parent
             )
         )
     }
@@ -603,21 +599,18 @@ impl Printer {
         previous_node: Id<Node>,
         next_node: Id<Node>,
     ) -> bool {
-        if next_node.pos() < previous_node.end() {
+        if next_node.ref_(self).pos() < previous_node.ref_(self).end() {
             return false;
         }
 
-        let ref previous_node = get_original_node(previous_node, self);
-        let ref next_node = get_original_node(next_node, self);
-        let parent = previous_node.maybe_parent();
-        if match parent.as_ref() {
+        let previous_node = get_original_node(previous_node, self);
+        let next_node = get_original_node(next_node, self);
+        let parent = previous_node.ref_(self).maybe_parent();
+        if match parent {
             None => true,
             Some(parent) => !matches!(
-                next_node.maybe_parent().as_ref(),
-                Some(next_node_parent) if Gc::ptr_eq(
-                    parent,
-                    next_node_parent,
-                )
+                next_node.ref_(self).maybe_parent(),
+                Some(next_node_parent) if parent == next_node_parent
             ),
         } {
             return false;
@@ -627,13 +620,13 @@ impl Printer {
         let prev_node_index = parent_node_array.as_ref().and_then(|parent_node_array| {
             parent_node_array
                 .into_iter()
-                .position(|node| Gc::ptr_eq(node, previous_node))
+                .position(|&node| node == previous_node)
         });
         matches!(
             prev_node_index,
             Some(prev_node_index) if matches!(
                 parent_node_array.as_ref().and_then(|parent_node_array| {
-                    parent_node_array.into_iter().position(|node| Gc::ptr_eq(node, next_node))
+                    parent_node_array.into_iter().position(|&node| node == next_node)
                 }),
                 Some(value) if value == prev_node_index + 1
             )
@@ -647,7 +640,7 @@ impl Printer {
             if pos == 0
                 && matches!(
                     self.maybe_current_source_file(),
-                    Some(current_source_file) if current_source_file.as_source_file().is_declaration_file()
+                    Some(current_source_file) if current_source_file.ref_(self).as_source_file().is_declaration_file()
                 )
             {
                 self.for_each_leading_comment_to_emit(
@@ -747,7 +740,7 @@ impl Printer {
         range_pos: isize,
     ) {
         if !self.should_write_comment(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             comment_pos,
         ) {
             return;
@@ -764,7 +757,7 @@ impl Printer {
 
         self.emit_pos(comment_pos);
         write_comment_range(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             &self.get_current_line_map(),
             &**self.writer(),
             comment_pos.try_into().unwrap(),

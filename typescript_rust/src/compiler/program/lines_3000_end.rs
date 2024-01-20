@@ -1082,6 +1082,7 @@ impl Program {
                 None,
                 None,
                 None,
+                self,
             );
         }
     }

@@ -761,7 +761,7 @@ impl TransformDeclarations {
             bundle.synthetic_lib_references = Some(self.get_lib_references());
             bundle.has_no_default_lib = Some(has_no_default_lib);
             let output_file_path = get_directory_path(&normalize_slashes(
-                get_output_paths_for(node, &**self.host, true)
+                get_output_paths_for(node, &**self.host, true, self)
                     .declaration_file_path
                     .as_ref()
                     .unwrap(),
@@ -809,7 +809,7 @@ impl TransformDeclarations {
         }
         let mut references: Vec<FileReference> = vec![];
         let output_file_path = get_directory_path(&normalize_slashes(
-            get_output_paths_for(node, &**self.host, true)
+            get_output_paths_for(node, &**self.host, true, self)
                 .declaration_file_path
                 .as_ref()
                 .unwrap(),
@@ -972,7 +972,7 @@ impl TransformDeclarations {
                 {
                     return Ok(());
                 }
-                let paths = get_output_paths_for(file, &**self.host, true);
+                let paths = get_output_paths_for(file, &**self.host, true, self);
                 decl_file_name = paths
                     .declaration_file_path
                     .clone()

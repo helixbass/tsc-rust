@@ -39,6 +39,7 @@ use crate::{
     SourceMapGenerator, SourceMapSource, StringOrNumber, Symbol, SymbolAccessibilityResult,
     SymbolVisibilityResult, SyntaxKind, TextRange, TransformNodesTransformationResult,
     TransformationResult, TransformerFactory, TypeReferenceSerializationKind,
+    InArena,
 };
 
 lazy_static! {
@@ -74,6 +75,7 @@ pub fn for_each_emitted_file_returns<TReturn>(
     force_dts_emit: Option<bool>,
     only_build_info: Option<bool>,
     include_build_info: Option<bool>,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     try_for_each_emitted_file_returns(
         host,
@@ -82,6 +84,7 @@ pub fn for_each_emitted_file_returns<TReturn>(
         force_dts_emit,
         only_build_info,
         include_build_info,
+        arena,
     )
     .unwrap()
 }
@@ -96,6 +99,7 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
     force_dts_emit: Option<bool>,
     only_build_info: Option<bool>,
     include_build_info: Option<bool>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<TReturn>> {
     let force_dts_emit = force_dts_emit.unwrap_or(false);
     let source_files = match source_files_or_target_source_file.map(Into::into) {
@@ -104,10 +108,11 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
         }
         Some(NodeOrVecNode::Node(source_files_or_target_source_file)) => get_source_files_to_emit(
             host,
-            Some(&*source_files_or_target_source_file),
+            Some(source_files_or_target_source_file),
             Some(force_dts_emit),
+            arena,
         ),
-        None => get_source_files_to_emit(host, Option::<Id<Node>>::None, Some(force_dts_emit)),
+        None => get_source_files_to_emit(host, Option::<Id<Node>>::None, Some(force_dts_emit), arena),
     };
     let options = ScriptReferenceHost::get_compiler_options(host);
     if out_file(&options)
@@ -121,8 +126,8 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
                 Some(prepends),
             );
             let result = action(
-                &get_output_paths_for(&bundle, host, force_dts_emit),
-                Some(&*bundle),
+                &get_output_paths_for(bundle, host, force_dts_emit, arena),
+                Some(bundle),
             )?;
             if result.is_some() {
                 return Ok(result);
@@ -130,10 +135,10 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
         }
     } else {
         if only_build_info != Some(true) {
-            for source_file in &source_files {
+            for &source_file in &source_files {
                 let result = action(
-                    &get_output_paths_for(source_file, host, force_dts_emit),
-                    Some(&**source_file),
+                    &get_output_paths_for(source_file, host, force_dts_emit, arena),
+                    Some(source_file),
                 )?;
                 if result.is_some() {
                     return Ok(result);
@@ -165,6 +170,7 @@ pub fn for_each_emitted_file(
     force_dts_emit: Option<bool>,
     only_build_info: Option<bool>,
     include_build_info: Option<bool>,
+    arena: &impl HasArena,
 ) {
     try_for_each_emitted_file(
         host,
@@ -173,6 +179,7 @@ pub fn for_each_emitted_file(
         force_dts_emit,
         only_build_info,
         include_build_info,
+        arena,
     )
     .unwrap()
 }
@@ -184,6 +191,7 @@ pub fn try_for_each_emitted_file(
     force_dts_emit: Option<bool>,
     only_build_info: Option<bool>,
     include_build_info: Option<bool>,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     try_for_each_emitted_file_returns(
         host,
@@ -195,6 +203,7 @@ pub fn try_for_each_emitted_file(
         force_dts_emit,
         only_build_info,
         include_build_info,
+        arena,
     )?;
 
     Ok(())
@@ -297,18 +306,20 @@ pub(crate) fn get_output_paths_for(
     source_file: Id<Node>, /*SourceFile | Bundle*/
     host: &dyn EmitHost,
     force_dts_paths: bool,
+    arena: &impl HasArena,
 ) -> EmitFileNames {
     let options = ScriptReferenceHost::get_compiler_options(host);
-    if source_file.kind() == SyntaxKind::Bundle {
+    if source_file.ref_(arena).kind() == SyntaxKind::Bundle {
         get_output_paths_for_bundle(&options, force_dts_paths)
     } else {
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(arena);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         let own_output_file_path = get_own_emit_output_file_path(
             &source_file_as_source_file.file_name(),
             host,
             get_output_extension(&source_file_as_source_file.file_name(), &options).to_str(),
         );
-        let is_json_file = is_json_source_file(source_file);
+        let is_json_file = is_json_source_file(&source_file.ref_(arena));
         let is_json_emitted_to_same_location = is_json_file
             && compare_paths(
                 &source_file_as_source_file.file_name(),
@@ -326,7 +337,7 @@ pub(crate) fn get_output_paths_for(
             .as_ref()
             .filter(|js_file_path| !js_file_path.is_empty())
             .is_none()
-            || is_json_source_file(source_file)
+            || is_json_source_file(&source_file.ref_(arena))
         {
             None
         } else {
@@ -510,6 +521,7 @@ pub(crate) fn emit_files(
     emit_only_dts_files: Option<bool>,
     only_build_info: Option<bool>,
     force_dts_emit: Option<bool>,
+    arena: &impl HasArena,
 ) -> io::Result<EmitResult> {
     let compiler_options = ScriptReferenceHost::get_compiler_options(&**host);
     let mut source_map_data_list: Option<Vec<SourceMapEmitResult>> = if compiler_options.source_map
@@ -559,6 +571,7 @@ pub(crate) fn emit_files(
                 &script_transformers,
                 emit_file_names,
                 source_file_or_bundle,
+                arena,
             )?;
 
             Ok(())
@@ -567,10 +580,12 @@ pub(crate) fn emit_files(
             &**host,
             target_source_file,
             force_dts_emit,
+            arena,
         )),
         force_dts_emit,
         only_build_info,
         Some(target_source_file.is_none()),
+        arena,
     )?;
     // exit();
 
@@ -602,6 +617,7 @@ fn emit_source_file_or_bundle(
     script_transformers: &[TransformerFactory],
     emit_file_names: &EmitFileNames,
     source_file_or_bundle: Option<Id<Node> /*SourceFile | Bundle*/>,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     let js_file_path = emit_file_names.js_file_path.as_deref();
     let source_map_file_path = emit_file_names.source_map_file_path.as_deref();
@@ -613,7 +629,7 @@ fn emit_source_file_or_bundle(
         build_info_path.filter(|build_info_path| !build_info_path.is_empty())
     {
         if let Some(source_file_or_bundle) =
-            source_file_or_bundle.filter(|source_file_or_bundle| is_bundle(source_file_or_bundle))
+            source_file_or_bundle.filter(|source_file_or_bundle| is_bundle(&source_file_or_bundle.ref_(arena)))
         {
             build_info_directory = Some(get_directory_path(&get_normalized_absolute_path(
                 build_info_path,
@@ -626,7 +642,7 @@ fn emit_source_file_or_bundle(
                     &ScriptReferenceHost::get_current_directory(&**host),
                 ),
                 source_files: source_file_or_bundle
-                    .as_bundle()
+                    .ref_(arena).as_bundle()
                     .source_files
                     .iter()
                     .map(|file: &Option<Id<Node>>| {
@@ -635,7 +651,7 @@ fn emit_source_file_or_bundle(
                             build_info_directory.as_ref().unwrap(),
                             &**host,
                             &get_normalized_absolute_path(
-                                &file.as_source_file().file_name(),
+                                &file.ref_(arena).as_source_file().file_name(),
                                 Some(&ScriptReferenceHost::get_current_directory(&**host)),
                             ),
                         )
@@ -691,6 +707,7 @@ fn emit_source_file_or_bundle(
             build_info_directory.clone(),
             host.clone(),
         ))),
+        arena,
     )?;
     // tracing?.pop();
 
@@ -843,7 +860,7 @@ fn emit_js_file_or_bundle(
         get_factory(),
         get_synthetic_factory(),
         compiler_options.clone(),
-        &[source_file_or_bundle.node_wrapper()],
+        &[source_file_or_bundle],
         script_transformers,
         false,
     )?;
@@ -884,9 +901,10 @@ fn emit_js_file_or_bundle(
         &compiler_options,
         js_file_path,
         source_map_file_path,
-        &transform.transformed()[0],
+        transform.transformed()[0],
         &printer,
         &(&*compiler_options).into(),
+        &*printer,
     )?;
 
     transform.dispose();
@@ -967,6 +985,7 @@ fn emit_declaration_file_or_bundle(
     declaration_file_path: Option<&str>,
     declaration_map_path: Option<&str>,
     relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     if source_file_or_bundle.is_none() {
         return Ok(());
@@ -980,11 +999,11 @@ fn emit_declaration_file_or_bundle(
         return Ok(());
     }
     let declaration_file_path = declaration_file_path.unwrap();
-    let source_files = if is_source_file(source_file_or_bundle) {
-        vec![source_file_or_bundle.node_wrapper()]
+    let source_files = if is_source_file(&source_file_or_bundle.ref_(arena)) {
+        vec![source_file_or_bundle]
     } else {
         source_file_or_bundle
-            .as_bundle()
+            .ref_(arena).as_bundle()
             .source_files
             .iter()
             .cloned()
@@ -995,14 +1014,14 @@ fn emit_declaration_file_or_bundle(
         source_files
     } else {
         filter(&source_files, |source_file: &Id<Node>| {
-            is_source_file_not_json(source_file)
+            is_source_file_not_json(&source_file.ref_(arena))
         })
     };
     let input_list_or_bundle = if out_file(&compiler_options).is_non_empty() {
         vec![get_factory().create_bundle(
             files_for_emit.iter().cloned().map(Option::Some).collect(),
-            if !is_source_file(source_file_or_bundle) {
-                Some(source_file_or_bundle.as_bundle().prepends.clone())
+            if !is_source_file(&source_file_or_bundle.ref_(arena)) {
+                Some(source_file_or_bundle.ref_(arena).as_bundle().prepends.clone())
             } else {
                 None
             },
@@ -1014,7 +1033,7 @@ fn emit_declaration_file_or_bundle(
         files_for_emit
             .iter()
             .try_for_each(|file_for_emit| -> io::Result<_> {
-                collect_linked_aliases(&**resolver, file_for_emit)?;
+                collect_linked_aliases(&**resolver, file_for_emit, arena)?;
 
                 Ok(())
             })?;
@@ -1079,7 +1098,7 @@ fn emit_declaration_file_or_bundle(
             &compiler_options,
             declaration_file_path,
             declaration_map_path,
-            &declaration_transform.transformed()[0],
+            declaration_transform.transformed()[0],
             &declaration_printer,
             &SourceMapOptions {
                 source_map: if force_dts_emit != Some(true) {
@@ -1093,13 +1112,14 @@ fn emit_declaration_file_or_bundle(
                 inline_source_map: None,
                 inline_sources: None,
             },
+            arena,
         )?;
         if force_dts_emit == Some(true)
-            && declaration_transform.transformed()[0].kind() == SyntaxKind::SourceFile
+            && declaration_transform.transformed()[0].ref_(arena).kind() == SyntaxKind::SourceFile
         {
             let source_file = declaration_transform.transformed()[0].clone();
             *exported_modules_from_declaration_emit = source_file
-                .as_source_file()
+                .ref_(arena).as_source_file()
                 .maybe_exported_modules_from_declaration_emit()
                 .clone();
         }
@@ -1167,27 +1187,28 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
     }
 }
 
-fn collect_linked_aliases(resolver: &dyn EmitResolver, node: Id<Node>) -> io::Result<()> {
-    if is_export_assignment(node) {
-        let node_as_export_assignment = node.as_export_assignment();
-        if node_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
-            resolver.collect_linked_aliases(&node_as_export_assignment.expression, Some(true))?;
+fn collect_linked_aliases(resolver: &dyn EmitResolver, node: Id<Node>, arena: &impl HasArena) -> io::Result<()> {
+    if is_export_assignment(&node.ref_(arena)) {
+        let node_ref = node.ref_(arena);
+        let node_as_export_assignment = node_ref.as_export_assignment();
+        if node_as_export_assignment.expression.ref_(arena).kind() == SyntaxKind::Identifier {
+            resolver.collect_linked_aliases(node_as_export_assignment.expression, Some(true))?;
         }
         return Ok(());
-    } else if is_export_specifier(node) {
-        let node_as_export_specifier = node.as_export_specifier();
+    } else if is_export_specifier(&node.ref_(arena)) {
+        let node_ref = node.ref_(arena);
+        let node_as_export_specifier = node_ref.as_export_specifier();
         resolver.collect_linked_aliases(
             node_as_export_specifier
                 .property_name
-                .as_deref()
-                .unwrap_or(&*node_as_export_specifier.name),
+                .unwrap_or(node_as_export_specifier.name),
             Some(true),
         )?;
         return Ok(());
     }
     try_for_each_child(
-        node,
-        |node: Id<Node>| collect_linked_aliases(resolver, node),
+        &node.ref_(arena),
+        |node: Id<Node>| collect_linked_aliases(resolver, node, arena),
         Option::<fn(&NodeArray) -> io::Result<()>>::None,
     )?;
 
@@ -1206,14 +1227,15 @@ fn print_source_file_or_bundle(
     source_file_or_bundle: Id<Node>, /*SourceFile | Bundle*/
     printer: &Printer,
     map_options: &SourceMapOptions,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
-    let bundle = if source_file_or_bundle.kind() == SyntaxKind::Bundle {
-        Some(source_file_or_bundle.node_wrapper())
+    let bundle = if source_file_or_bundle.ref_(arena).kind() == SyntaxKind::Bundle {
+        Some(source_file_or_bundle)
     } else {
         None
     };
-    let source_file = if source_file_or_bundle.kind() == SyntaxKind::SourceFile {
-        Some(source_file_or_bundle.node_wrapper())
+    let source_file = if source_file_or_bundle.ref_(arena).kind() == SyntaxKind::SourceFile {
+        Some(source_file_or_bundle)
     } else {
         None
     };
@@ -1328,7 +1350,7 @@ impl From<&CompilerOptions> for SourceMapOptions {
 
 fn should_emit_source_maps(
     map_options: &SourceMapOptions,
-    source_file_or_bundle: Id<Node>, /*SourceFile | Bundle*/
+    source_file_or_bundle: &Node, /*SourceFile | Bundle*/
 ) -> bool {
     (map_options.source_map == Some(true) || map_options.inline_source_map == Some(true))
         && (source_file_or_bundle.kind() != SyntaxKind::SourceFile
@@ -1351,7 +1373,7 @@ fn get_source_map_directory(
     host: &dyn EmitHost,
     map_options: &SourceMapOptions,
     file_path: &str,
-    source_file: Option<Id<Node> /*SourceFile*/>,
+    source_file: Option<&Node /*SourceFile*/>,
 ) -> String {
     if map_options.source_root.as_ref().is_non_empty() {
         return ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(host);
@@ -1382,7 +1404,7 @@ fn get_source_mapping_url(
     source_map_generator: &dyn SourceMapGenerator,
     file_path: &str,
     source_map_file_path: Option<&str>,
-    source_file: Option<Id<Node> /*SourceFile*/>,
+    source_file: Option<&Node /*SourceFile*/>,
 ) -> String {
     if map_options.inline_source_map == Some(true) {
         let source_map_text = source_map_generator.to_string();
@@ -2307,17 +2329,17 @@ impl Printer {
     ) -> io::Result<String> {
         match hint {
             EmitHint::SourceFile => {
-                Debug_.assert(is_source_file(node), Some("Expected a SourceFile node."));
+                Debug_.assert(is_source_file(&node.ref_(self)), Some("Expected a SourceFile node."));
             }
             EmitHint::IdentifierName => {
-                Debug_.assert(is_identifier(node), Some("Expected an Identifier node."));
+                Debug_.assert(is_identifier(&node.ref_(self)), Some("Expected an Identifier node."));
             }
             EmitHint::Expression => {
                 Debug_.assert(is_expression(node, self), Some("Expected an Expression node."));
             }
             _ => (),
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::SourceFile => {
                 return self.print_file(node);
             }

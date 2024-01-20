@@ -18,7 +18,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> io::Result<()> {
-        let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
         self.emit(
             node_as_type_parameter_declaration.maybe_name().as_deref(),
             None,
@@ -42,7 +43,7 @@ impl Printer {
         let pipeline_phase =
             self.get_next_pipeline_phase(PipelinePhase::Substitution, hint, node)?;
         Debug_.assert_is_defined(&self.maybe_last_substitution(), None);
-        let ref node = self.maybe_last_substitution().unwrap();
+        let node = self.maybe_last_substitution().unwrap();
         self.set_last_substitution(None);
         pipeline_phase(self, hint, node)?;
 
@@ -60,9 +61,9 @@ impl Printer {
             return None;
         }
         let mut bundled_helpers: HashMap<String, bool> = HashMap::new();
-        for source_file in &bundle.as_bundle().source_files {
+        for source_file in &bundle.ref_(self).as_bundle().source_files {
             let source_file = source_file.as_ref().unwrap();
-            let should_skip = get_external_helpers_module_name(source_file).is_some();
+            let should_skip = get_external_helpers_module_name(source_file, self).is_some();
             let helpers = self.get_sorted_emit_helpers(source_file);
             if helpers.is_none() {
                 continue;
@@ -86,8 +87,8 @@ impl Printer {
 
     pub(super) fn emit_helpers(&self, node: Id<Node>) -> bool {
         let mut helpers_emitted = false;
-        let bundle: Option<Id<Node>> = if node.kind() == SyntaxKind::Bundle {
-            Some(node.node_wrapper())
+        let bundle: Option<Id<Node>> = if node.ref_(self).kind() == SyntaxKind::Bundle {
+            Some(node)
         } else {
             None
         };
@@ -96,21 +97,21 @@ impl Printer {
         }
         let num_prepends = bundle
             .as_ref()
-            .map_or(0, |bundle| bundle.as_bundle().prepends.len());
+            .map_or(0, |bundle| bundle.ref_(self).as_bundle().prepends.len());
         let num_nodes = bundle.as_ref().map_or(1, |bundle| {
-            bundle.as_bundle().source_files.len() + num_prepends
+            bundle.ref_(self).as_bundle().source_files.len() + num_prepends
         });
         for i in 0..num_nodes {
             let ref current_node = if let Some(bundle) = bundle.as_ref() {
                 if i < num_prepends {
-                    bundle.as_bundle().prepends[i].clone()
+                    bundle.ref_(self).as_bundle().prepends[i].clone()
                 } else {
-                    bundle.as_bundle().source_files[i - num_prepends]
+                    bundle.ref_(self).as_bundle().source_files[i - num_prepends]
                         .clone()
                         .unwrap()
                 }
             } else {
-                node.node_wrapper()
+                node
             };
             let source_file = if is_source_file(current_node) {
                 Some(current_node.clone())
@@ -121,8 +122,8 @@ impl Printer {
             };
             let should_skip = self.printer_options.no_emit_helpers == Some(true)
                 || matches!(
-                    source_file.as_ref(),
-                    Some(source_file) if has_recorded_external_helpers(source_file)
+                    source_file,
+                    Some(source_file) if has_recorded_external_helpers(source_file, self)
                 );
             let should_bundle = (is_source_file(current_node) || is_unparsed_source(current_node))
                 && !self.is_own_file_emit();

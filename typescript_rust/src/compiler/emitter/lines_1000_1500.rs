@@ -27,13 +27,14 @@ impl Printer {
         if self.record_internal_section == Some(true)
             && self.maybe_bundle_file_info().is_some()
             && matches!(
-                self.maybe_current_source_file().as_ref(),
+                self.maybe_current_source_file(),
                 Some(current_source_file) if (
                     is_declaration(node, self) ||
-                    is_variable_statement(node)
+                    is_variable_statement(&node.ref_(self))
                 ) && is_internal_declaration(
                     node,
                     current_source_file,
+                    self,
                 )
             )
             && self.source_file_text_kind() != BundleFileSectionKind::Internal
@@ -84,7 +85,8 @@ impl Printer {
         self.emit_helpers(bundle);
         self.emit_synthetic_triple_slash_references_if_needed(bundle)?;
 
-        let bundle_as_bundle = bundle.as_bundle();
+        let bundle_ref = bundle.ref_(self);
+        let bundle_as_bundle = bundle_ref.as_bundle();
         for prepend in &bundle_as_bundle.prepends {
             self.write_line(None);
             let pos = self.writer().get_text_pos();
@@ -101,7 +103,7 @@ impl Printer {
                 let mut new_sections = bundle_file_info.sections.clone();
                 bundle_file_info.sections = saved_sections.unwrap();
                 if prepend
-                    .as_has_old_file_of_current_emit()
+                    .ref_(self).as_has_old_file_of_current_emit()
                     .maybe_old_file_of_current_emit()
                     == Some(true)
                 {
@@ -113,7 +115,7 @@ impl Printer {
                     bundle_file_info
                         .sections
                         .push(Gc::new(BundleFileSection::new_prepend(
-                            self.relative_to_build_info(&prepend.as_unparsed_source().file_name),
+                            self.relative_to_build_info(&prepend.ref_(self).as_unparsed_source().file_name),
                             new_sections,
                             pos.try_into().unwrap(),
                             self.writer().get_text_pos().try_into().unwrap(),
@@ -222,12 +224,11 @@ impl Printer {
     }
 
     pub(super) fn set_source_file(&self, source_file: Option<Id<Node> /*SourceFile*/>) {
-        *self.current_source_file.borrow_mut() =
-            source_file.map(|source_file| source_file.node_wrapper());
+        *self.current_source_file.borrow_mut() = source_file;
         self.set_current_line_map(None);
         self.set_detached_comments_info(None);
         if let Some(source_file) = source_file {
-            self.set_source_map_source(Gc::new(source_file.node_wrapper().into()));
+            self.set_source_map_source(Gc::new(source_file.into()));
         }
     }
 
@@ -264,7 +265,7 @@ impl Printer {
     pub(super) fn get_current_line_map(&self) -> Ref<Vec<usize>> {
         if self.maybe_current_line_map().is_none() {
             self.set_current_line_map(Some(
-                get_line_starts(self.current_source_file().as_source_file()).clone(),
+                get_line_starts(self.current_source_file().ref_(self).as_source_file()).clone(),
             ));
         }
         self.current_line_map()
@@ -318,7 +319,7 @@ impl Printer {
         node: Id<Node>, /*StringLiteral | JsxExpression*/
     ) -> io::Result<()> {
         self.pipeline_emit(
-            if is_string_literal(node) {
+            if is_string_literal(&node.ref_(self)) {
                 EmitHint::JsxAttributeValue
             } else {
                 EmitHint::Unspecified
@@ -332,7 +333,7 @@ impl Printer {
 
     pub(super) fn before_emit_node(&self, node: Id<Node>) {
         if self.maybe_preserve_source_newlines() == Some(true)
-            && get_emit_flags(node).intersects(EmitFlags::IgnoreSourceNewlines)
+            && get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IgnoreSourceNewlines)
         {
             self.set_preserve_source_newlines(Some(false));
         }
@@ -358,15 +359,15 @@ impl Printer {
     }
 
     pub(super) fn should_emit_comments(&self, node: Id<Node>) -> bool {
-        !self.comments_disabled() && !is_source_file(node)
+        !self.comments_disabled() && !is_source_file(&node.ref_(self))
     }
 
     pub(super) fn should_emit_source_maps(&self, node: Id<Node>) -> bool {
         !self.source_maps_disabled()
-            && !is_source_file(node)
-            && !is_in_json_file(Some(node))
-            && !is_unparsed_source(node)
-            && !is_unparsed_prepend(node)
+            && !is_source_file(&node.ref_(self))
+            && !is_in_json_file(Some(&node.ref_(self)))
+            && !is_unparsed_source(&node.ref_(self))
+            && !is_unparsed_prepend(&node.ref_(self))
     }
 
     pub(super) fn get_pipeline_phase(
@@ -390,11 +391,11 @@ impl Printer {
             PipelinePhase::Notification | PipelinePhase::Substitution
         ) {
             if !self.is_substitute_node_no_emit_substitution() {
-                let ref last_substitution = self
+                let last_substitution = self
                     .substitute_node(emit_hint, node)?
-                    .unwrap_or_else(|| node.node_wrapper());
+                    .unwrap_or(node);
                 self.set_last_substitution(Some(last_substitution.clone()));
-                if !ptr::eq(&**last_substitution, node) {
+                if last_substitution != node {
                     if let Some(current_parenthesizer_rule) =
                         self.maybe_current_parenthesizer_rule().as_ref()
                     {
@@ -480,7 +481,7 @@ impl Printer {
     pub(super) fn pipeline_emit_with_hint_worker(
         &self,
         mut hint: EmitHint,
-        node: Id<Node>,
+        mut node: Id<Node>,
         allow_snippets: Option<bool>,
     ) -> io::Result<()> {
         let allow_snippets = allow_snippets.unwrap_or(true);
@@ -492,27 +493,26 @@ impl Printer {
         }
         if hint == EmitHint::SourceFile {
             return self
-                .emit_source_file(cast_present(node, |node: &Id<Node>| is_source_file(node)));
+                .emit_source_file(cast_present(node, |node: &Id<Node>| is_source_file(&node.ref_(self))));
         }
         if hint == EmitHint::IdentifierName {
-            return self.emit_identifier(cast_present(node, |node: &Id<Node>| is_identifier(node)));
+            return self.emit_identifier(cast_present(node, |node: &Id<Node>| is_identifier(&node.ref_(self))));
         }
         if hint == EmitHint::JsxAttributeValue {
             return Ok(self.emit_literal(
-                cast_present(node, |node: &Id<Node>| is_string_literal(node)),
+                cast_present(node, |node: &Id<Node>| is_string_literal(&node.ref_(self))),
                 true,
             ));
         }
         if hint == EmitHint::MappedTypeParameter {
             return self.emit_mapped_type_parameter(cast_present(node, |node: &Id<Node>| {
-                is_type_parameter_declaration(node)
+                is_type_parameter_declaration(&node.ref_(self))
             }));
         }
         if hint == EmitHint::EmbeddedStatement {
-            Debug_.assert_node(Some(node), Some(is_empty_statement), None);
+            Debug_.assert_node(Some(node), Some(|node: Id<Node>| is_empty_statement(&node.ref_(self))), None);
             return Ok(self.emit_empty_statement(true));
         }
-        let mut node = node.node_wrapper();
         if hint == EmitHint::Unspecified {
             match node.kind() {
                 SyntaxKind::TemplateHead
@@ -731,7 +731,7 @@ impl Printer {
                     let substitute = self
                         .substitute_node(hint, &node)?
                         .unwrap_or_else(|| node.node_wrapper());
-                    if !Gc::ptr_eq(&substitute, &node) {
+                    if substitute != node {
                         node = substitute;
                         if let Some(current_parenthesizer_rule) =
                             self.maybe_current_parenthesizer_rule()
