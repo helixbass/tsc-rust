@@ -207,7 +207,7 @@ impl TransformSystemModule {
             )?
         } else if is_property_assignment(&node.ref_(self)) {
             self.has_exported_reference_in_destructuring_target(
-                node.ref_(self).as_property_assignment().ref_(self).maybe_initializer().unwrap(),
+                node.ref_(self).as_property_assignment().maybe_initializer().unwrap(),
             )?
         } else if is_identifier(&node.ref_(self)) {
             let container = self.resolver.get_referenced_export_container(node, None)?;
