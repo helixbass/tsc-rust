@@ -159,6 +159,7 @@ impl TransformSystemModule {
                             Option<&dyn ReadonlyTextRange>,
                         ) -> io::Result<Id<Node>>,
                     >::None,
+                    self,
                 )?
                 .into(),
             ));

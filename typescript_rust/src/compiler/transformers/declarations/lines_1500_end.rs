@@ -12,6 +12,7 @@ use crate::{
     try_visit_nodes, AllAccessorDeclarations, Debug_, GetSymbolAccessibilityDiagnostic, HasArena,
     HasTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
     NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind,
+    InArena,
 };
 
 impl TransformDeclarations {
@@ -19,13 +20,14 @@ impl TransformDeclarations {
         &self,
         input: Id<Node>, /*VariableStatement*/
     ) -> io::Result<Option<Id<Node>>> {
-        let input_as_variable_statement = input.as_variable_statement();
+        let input_ref = input.ref_(self);
+        let input_as_variable_statement = input_ref.as_variable_statement();
         if !for_each_bool(
             &input_as_variable_statement
                 .declaration_list
                 .as_variable_declaration_list()
                 .declarations,
-            |declaration: &Id<Node>, _| self.get_binding_name_visible(declaration),
+            |&declaration: &Id<Node>, _| self.get_binding_name_visible(declaration),
         ) {
             return Ok(None);
         }
@@ -62,8 +64,8 @@ impl TransformDeclarations {
         d: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
         Ok(flatten(&try_map_defined(
-            Some(&d.as_has_elements().elements()),
-            |e: &Id<Node>, _| self.recreate_binding_element(e),
+            Some(&d.ref_(self).as_has_elements().elements()),
+            |&e: &Id<Node>, _| self.recreate_binding_element(e),
         )?))
     }
 
@@ -71,10 +73,11 @@ impl TransformDeclarations {
         &self,
         e: Id<Node>, /*ArrayBindingElement*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
-        if e.kind() == SyntaxKind::OmittedExpression {
+        if e.ref_(self).kind() == SyntaxKind::OmittedExpression {
             return Ok(None);
         }
-        let e_name = e.as_binding_element().maybe_name();
+        let e._ref = e..ref_(self);
+        let e_name = e_ref.as_binding_element().maybe_name();
         e_name.try_and_then(|e_name| {
             if !self.get_binding_name_visible(e) {
                 return Ok(None);
@@ -100,23 +103,23 @@ impl TransformDeclarations {
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             old_diag = Some(self.get_symbol_accessibility_diagnostic());
             self.set_get_symbol_accessibility_diagnostic(
-                create_get_symbol_accessibility_diagnostic_for_node(node),
+                create_get_symbol_accessibility_diagnostic_for_node(node, self),
             );
         }
-        self.set_error_name_node(node.as_named_declaration().maybe_name());
+        self.set_error_name_node(node.ref_(self).as_named_declaration().maybe_name());
         Debug_.assert(
             self.resolver.is_late_bound(
-                &get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
+                get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
             )?,
             None,
         );
         let decl = node;
-        let ref entity_name = decl
-            .as_named_declaration()
+        let entity_name = decl
+            .ref_(self).as_named_declaration()
             .name()
-            .as_has_expression()
+            .ref_(self).as_has_expression()
             .expression();
-        self.check_entity_name_visibility(entity_name, &self.enclosing_declaration())?;
+        self.check_entity_name_visibility(entity_name, self.enclosing_declaration())?;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             self.set_get_symbol_accessibility_diagnostic(old_diag.unwrap());
         }
@@ -127,17 +130,17 @@ impl TransformDeclarations {
 
     pub(super) fn should_strip_internal(&self, node: Id<Node>) -> bool {
         self.strip_internal == Some(true) &&
-            /* !!node &&*/ is_internal_declaration(node, &self.current_source_file())
+            /* !!node &&*/ is_internal_declaration(node, self.current_source_file(), self)
     }
 
     pub(super) fn is_scope_marker(&self, node: Id<Node>) -> bool {
-        is_export_assignment(node) || is_export_declaration(node)
+        is_export_assignment(&node.ref_(self)) || is_export_declaration(&node.ref_(self))
     }
 
     pub(super) fn has_scope_marker(&self, statements: &NodeArray) -> bool {
         some(
             Some(statements),
-            Some(|statement: &Id<Node>| self.is_scope_marker(statement)),
+            Some(|&statement: &Id<Node>| self.is_scope_marker(statement)),
         )
     }
 
@@ -145,7 +148,7 @@ impl TransformDeclarations {
         let current_flags = get_effective_modifier_flags(node, self);
         let new_flags = self.ensure_modifier_flags(node);
         if current_flags == new_flags {
-            return node.maybe_modifiers().map(Into::into);
+            return node.ref_(self).maybe_modifiers().map(Into::into);
         }
         Some(
             self.factory
@@ -162,14 +165,14 @@ impl TransformDeclarations {
         } else {
             ModifierFlags::None
         };
-        let parent_is_file = node.parent().kind() == SyntaxKind::SourceFile;
+        let parent_is_file = node.ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile;
         if !parent_is_file
-            || self.is_bundled_emit() && parent_is_file && is_external_module(&node.parent())
+            || self.is_bundled_emit() && parent_is_file && is_external_module(&node.ref_(self).parent().ref_(self))
         {
             mask ^= ModifierFlags::Ambient;
             additions = ModifierFlags::None;
         }
-        mask_modifier_flags(node, Some(mask), Some(additions))
+        mask_modifier_flags(node, Some(mask), Some(additions), self)
     }
 
     pub(super) fn get_type_annotation_from_all_accessor_declarations(
@@ -178,21 +181,20 @@ impl TransformDeclarations {
         accessors: &AllAccessorDeclarations,
     ) -> Option<Id<Node>> {
         let mut accessor_type = get_type_annotation_from_accessor(node);
-        if accessor_type.is_none() && !ptr::eq(node, &*accessors.first_accessor) {
-            accessor_type = get_type_annotation_from_accessor(&accessors.first_accessor);
+        if accessor_type.is_none() && node != accessors.first_accessor {
+            accessor_type = get_type_annotation_from_accessor(accessors.first_accessor, self);
             self.set_get_symbol_accessibility_diagnostic(
-                create_get_symbol_accessibility_diagnostic_for_node(&accessors.first_accessor),
+                create_get_symbol_accessibility_diagnostic_for_node(accessors.first_accessor, self),
             );
         }
         if accessor_type.is_none() {
             if let Some(accessors_second_accessor) = accessors
                 .second_accessor
-                .as_ref()
-                .filter(|accessors_second_accessor| !ptr::eq(node, &***accessors_second_accessor))
+                .filter(|&accessors_second_accessor| node != accessors_second_accessor)
             {
-                accessor_type = get_type_annotation_from_accessor(accessors_second_accessor);
+                accessor_type = get_type_annotation_from_accessor(accessors_second_accessor, self);
                 self.set_get_symbol_accessibility_diagnostic(
-                    create_get_symbol_accessibility_diagnostic_for_node(accessors_second_accessor),
+                    create_get_symbol_accessibility_diagnostic_for_node(accessors_second_accessor, self),
                 );
             }
         }
@@ -206,8 +208,9 @@ impl TransformDeclarations {
         Ok(self.factory.create_node_array(
             nodes.try_map(|nodes| -> io::Result<_> {
                 let mut ret = vec![];
-                for clause in nodes {
-                    let clause_as_heritage_clause = clause.as_heritage_clause();
+                for &clause in nodes {
+                    let clause_ref = clause.ref_(self);
+                    let clause_as_heritage_clause = clause_ref.as_heritage_clause();
                     let clause = self.factory.update_heritage_clause(
                         clause,
                         try_visit_nodes(
@@ -242,7 +245,7 @@ impl TransformDeclarations {
                     );
                     if
                     /*clause.types &&*/
-                    !clause.as_heritage_clause().types.is_empty() {
+                    !clause.ref_(self).as_heritage_clause().types.is_empty() {
                         ret.push(clause);
                     }
                 }
@@ -253,7 +256,7 @@ impl TransformDeclarations {
     }
 }
 
-pub(super) fn is_always_type(node: Id<Node>) -> bool {
+pub(super) fn is_always_type(node: &Node) -> bool {
     if node.kind() == SyntaxKind::InterfaceDeclaration {
         return true;
     }
@@ -264,11 +267,13 @@ pub(super) fn mask_modifiers(
     node: Id<Node>,
     modifier_mask: Option<ModifierFlags>,
     modifier_additions: Option<ModifierFlags>,
+    arena: &impl HasArena,
 ) -> Vec<Id<Node /*Modifier*/>> {
     get_factory().create_modifiers_from_modifier_flags(mask_modifier_flags(
         node,
         modifier_mask,
         modifier_additions,
+        arena,
     ))
 }
 
@@ -293,15 +298,17 @@ pub(super) fn mask_modifier_flags(
 
 pub(super) fn get_type_annotation_from_accessor(
     accessor: Id<Node>, /*AccessorDeclaration*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
     // if (accessor) {
-    if accessor.kind() == SyntaxKind::GetAccessor {
-        accessor.as_get_accessor_declaration().maybe_type()
+    if accessor.ref_(arena).kind() == SyntaxKind::GetAccessor {
+        accessor.ref_(arena).as_get_accessor_declaration().maybe_type()
     } else {
-        let accessor_as_set_accessor_declaration = accessor.as_set_accessor_declaration();
+        let accessor_ref = accessor.ref_(arena);
+        let accessor_as_set_accessor_declaration = accessor_ref.as_set_accessor_declaration();
         if !accessor_as_set_accessor_declaration.parameters().is_empty() {
             accessor_as_set_accessor_declaration.parameters()[0]
-                .as_parameter_declaration()
+                .ref_(arena).as_parameter_declaration()
                 .maybe_type()
         } else {
             None
@@ -311,7 +318,7 @@ pub(super) fn get_type_annotation_from_accessor(
 }
 
 pub(super) fn can_have_literal_initializer(node: Id<Node>, arena: &impl HasArena) -> bool {
-    match node.kind() {
+    match node.ref_(arena).kind() {
         SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => {
             !has_effective_modifier(node, ModifierFlags::Private, arena)
         }
@@ -320,7 +327,7 @@ pub(super) fn can_have_literal_initializer(node: Id<Node>, arena: &impl HasArena
     }
 }
 
-pub(super) fn is_preserved_declaration_statement(node: Id<Node>) -> bool {
+pub(super) fn is_preserved_declaration_statement(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::FunctionDeclaration
@@ -337,7 +344,7 @@ pub(super) fn is_preserved_declaration_statement(node: Id<Node>) -> bool {
     )
 }
 
-pub(super) fn is_processed_component(node: Id<Node>) -> bool {
+pub(super) fn is_processed_component(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::ConstructSignature

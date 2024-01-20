@@ -883,6 +883,7 @@ impl TransformES2018 {
                 FlattenLevel::ObjectRest,
                 Some(!expression_result_is_unused),
                 Option::<fn(Id<Node>, Id<Node>, Option<&dyn ReadonlyTextRange>) -> Id<Node>>::None,
+                self,
             );
         }
         if node_as_binary_expression.operator_token.kind() == SyntaxKind::CommaToken {

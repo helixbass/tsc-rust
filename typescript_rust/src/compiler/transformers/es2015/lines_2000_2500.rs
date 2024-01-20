@@ -95,6 +95,7 @@ impl TransformES2015 {
                 Option::<
                     fn(Id<Node>, Id<Node>, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>,
                 >::None,
+                self,
             );
         }
         if node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::CommaToken {
@@ -241,6 +242,7 @@ impl TransformES2015 {
                                     Option<&dyn ReadonlyTextRange>,
                                 ) -> io::Result<Id<Node>>,
                             >::None,
+                            self,
                         )?;
                     } else {
                         assignment = self

@@ -166,6 +166,7 @@ impl TransformModule {
                         self.create_all_export_expressions(a, b.node_wrapper(), c)
                     },
                 ),
+                self,
             );
         }
         try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context)

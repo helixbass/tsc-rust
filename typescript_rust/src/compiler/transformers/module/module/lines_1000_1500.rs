@@ -587,7 +587,7 @@ impl TransformModule {
         Ok(
             if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
                 try_flatten_destructuring_assignment(
-                    &*try_visit_node(
+                    try_visit_node(
                         node,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
@@ -604,6 +604,7 @@ impl TransformModule {
                             self.create_all_export_expressions(name, value.node_wrapper(), location)
                         },
                     ),
+                    self,
                 )?
             } else {
                 self.factory.create_assignment(

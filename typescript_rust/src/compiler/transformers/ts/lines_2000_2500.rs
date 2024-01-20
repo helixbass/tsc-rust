@@ -391,6 +391,7 @@ impl TransformTypeScript {
                         ))
                     },
                 ),
+                self,
             )?
         } else {
             self.factory

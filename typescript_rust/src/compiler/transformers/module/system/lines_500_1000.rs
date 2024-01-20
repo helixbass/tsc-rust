@@ -381,6 +381,7 @@ impl TransformSystemModule {
                     FlattenLevel::All,
                     Some(false),
                     Some(create_assignment),
+                    self,
                 )?
             } else if let Some(node_initializer) = node_as_variable_declaration.maybe_initializer()
             {
