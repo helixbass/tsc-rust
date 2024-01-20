@@ -25,7 +25,7 @@ impl TransformES2015 {
             let if_statement = statement_ref.as_if_statement();
             if let Some(if_statement_else_statement) = if_statement.else_statement {
                 return self
-                    .is_sufficiently_covered_by_return_statements(&if_statement.then_statement)
+                    .is_sufficiently_covered_by_return_statements(if_statement.then_statement)
                     && self.is_sufficiently_covered_by_return_statements(
                         if_statement_else_statement,
                     );
@@ -85,7 +85,7 @@ impl TransformES2015 {
         let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if node_as_parameter_declaration.dot_dot_dot_token.is_some() {
             None
-        } else if is_binding_pattern(node_as_parameter_declaration.maybe_name()) {
+        } else if is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self)) {
             Some(
                 self.factory
                     .create_parameter_declaration(
@@ -145,9 +145,10 @@ impl TransformES2015 {
         }
 
         let mut added = false;
-        for parameter in &node_as_function_like_declaration.parameters() {
-            let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
-            let ref name = parameter_as_parameter_declaration.maybe_name().unwrap();
+        for &parameter in &node_as_function_like_declaration.parameters() {
+            let parameter_ref = parameter.ref_(self);
+            let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
+            let name = parameter_as_parameter_declaration.maybe_name().unwrap();
             let initializer = parameter_as_parameter_declaration.maybe_initializer();
             let dot_dot_dot_token = parameter_as_parameter_declaration
                 .dot_dot_dot_token
@@ -157,7 +158,7 @@ impl TransformES2015 {
                 continue;
             }
 
-            if is_binding_pattern(Some(&**name)) {
+            if is_binding_pattern(Some(&*name.ref_(self))) {
                 added = self.insert_default_value_assignment_for_binding_pattern(
                     statements,
                     parameter,
@@ -392,7 +393,7 @@ impl TransformES2015 {
                                 )],
                                 None,
                             )
-                            .set_text_range(Some(&*parameter), self),
+                            .set_text_range(Some(&*parameter.ref_(self)), self),
                     ),
                     Some(
                         self.factory
@@ -403,12 +404,12 @@ impl TransformES2015 {
                                     "length",
                                 ),
                             )
-                            .set_text_range(Some(&*parameter), self),
+                            .set_text_range(Some(&*parameter.ref_(self)), self),
                     ),
                     Some(
                         self.factory
                             .create_postfix_increment(temp.clone())
-                            .set_text_range(Some(&*parameter), self),
+                            .set_text_range(Some(&*parameter.ref_(self)), self),
                     ),
                     self.factory.create_block(
                         vec![self
@@ -433,7 +434,7 @@ impl TransformES2015 {
                                     temp.clone(),
                                 ),
                             ))
-                            .set_text_range(Some(&*parameter), self)
+                            .set_text_range(Some(&*parameter.ref_(self)), self)
                             .start_on_new_line(self)],
                         None,
                     ),
@@ -462,7 +463,7 @@ impl TransformES2015 {
                             None,
                         ),
                     )
-                    .set_text_range(Some(&*parameter), self)
+                    .set_text_range(Some(&*parameter.ref_(self)), self)
                     .set_emit_flags(EmitFlags::CustomPrologue, self),
             );
         }

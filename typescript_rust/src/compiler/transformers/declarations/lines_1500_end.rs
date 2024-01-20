@@ -82,8 +82,8 @@ impl TransformDeclarations {
             if !self.get_binding_name_visible(e) {
                 return Ok(None);
             }
-            Ok(if is_binding_pattern(Some(&*e_name)) {
-                Some(self.recreate_binding_pattern(&e_name)?)
+            Ok(if is_binding_pattern(Some(&*e_name.ref_(self))) {
+                Some(self.recreate_binding_pattern(e_name)?)
             } else {
                 Some(vec![self.factory.create_variable_declaration(
                     Some(e_name),
@@ -229,7 +229,7 @@ impl TransformDeclarations {
                                                 == SyntaxKind::ExtendsKeyword
                                                 && t_as_expression_with_type_arguments
                                                     .expression
-                                                    .kind()
+                                                    .ref_(self).kind()
                                                     == SyntaxKind::NullKeyword
                                         })
                                         .cloned()

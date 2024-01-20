@@ -10,6 +10,7 @@ use crate::{
     is_generated_identifier, is_omitted_expression, set_emit_flags, EmitFlags, EmitHelper,
     GetOrInsertDefault, ModifierFlags, Node, NodeArray, NodeExt, NodeInterface, OptionTry,
     ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, VisitResult,
+    InArena, OptionInArena,
 };
 
 impl TransformModule {
@@ -32,7 +33,8 @@ impl TransformModule {
         node: Id<Node>, /*VariableStatement*/
     ) /*: Statement[] | undefined */
     {
-        let node_as_variable_statement = node.as_variable_statement();
+        let node_ref = node.ref_(self);
+        let node_as_variable_statement = node_ref.as_variable_statement();
         if self.current_module_info().export_equals.is_some() {
             return /*statements*/;
         }
@@ -54,22 +56,23 @@ impl TransformModule {
         decl: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) /*: Statement[] | undefined */
     {
-        let decl_as_named_declaration = decl.as_named_declaration();
+        let decl_ref = decl.ref_(self);
+        let decl_as_named_declaration = decl_ref.as_named_declaration();
         if self.current_module_info().export_equals.is_some() {
             return /*statements*/;
         }
 
-        if is_binding_pattern(decl_as_named_declaration.maybe_name()) {
-            for element in &decl_as_named_declaration
+        if is_binding_pattern(decl_as_named_declaration.maybe_name().refed(self)) {
+            for &element in &decl_as_named_declaration
                 .name()
-                .as_has_elements()
+                .ref_(self).as_has_elements()
                 .elements()
             {
                 if !is_omitted_expression(element) {
                     self.append_exports_of_binding_element(statements, element);
                 }
             }
-        } else if !is_generated_identifier(&decl_as_named_declaration.name()) {
+        } else if !is_generated_identifier(&decl_as_named_declaration.name().ref_(self)) {
             self.append_exports_of_declaration(statements, decl, None);
         }
 
@@ -96,13 +99,13 @@ impl TransformModule {
                 statements,
                 export_name,
                 &self.factory.get_local_name(decl, None, None),
-                Some(decl),
+                Some(&*decl.ref_(self)),
                 None,
                 None,
             );
         }
 
-        if decl.as_named_declaration().maybe_name().is_some() {
+        if decl.ref_(self).as_named_declaration().maybe_name().is_some() {
             self.append_exports_of_declaration(statements, decl, None);
         }
 
@@ -116,12 +119,13 @@ impl TransformModule {
         live_binding: Option<bool>,
     ) /*: Statement[] | undefined */
     {
-        let name = &self.factory.get_declaration_name(Some(decl), None, None);
+        let name = self.factory.get_declaration_name(Some(decl), None, None);
         let current_module_info = self.current_module_info();
-        let export_specifiers = current_module_info.export_specifiers.get(id_text(name));
+        let export_specifiers = current_module_info.export_specifiers.get(id_text(&*name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
-                let export_specifier_as_export_specifier = export_specifier.as_export_specifier();
+                let export_specifier_ref = export_specifier.ref_(self);
+                let export_specifier_as_export_specifier = export_specifier_ref.as_export_specifier();
                 self.append_export_statement(
                     statements,
                     &export_specifier_as_export_specifier.name,
@@ -161,8 +165,8 @@ impl TransformModule {
         if self.language_version == ScriptTarget::ES3 {
             self.factory
                 .create_expression_statement(self.create_export_expression(
-                    &self.factory.create_identifier("__esModule"),
-                    &self.factory.create_true(),
+                    self.factory.create_identifier("__esModule"),
+                    self.factory.create_true(),
                     Option::<Id<Node>>::None,
                     None,
                 ))
@@ -194,7 +198,7 @@ impl TransformModule {
                             ]),
                 ))
         }
-        .set_emit_flags(EmitFlags::CustomPrologue)
+        .set_emit_flags(EmitFlags::CustomPrologue, self)
     }
 
     pub(super) fn create_export_statement(
@@ -210,11 +214,11 @@ impl TransformModule {
             .create_expression_statement(self.create_export_expression(
                 name,
                 value,
-                Option::<Id<Node>>::None,
+                Option::<&Node>::None,
                 live_binding,
             ))
-            .set_text_range(location)
-            .start_on_new_line();
+            .set_text_range(location, self)
+            .start_on_new_line(self);
         if allow_comments != Some(true) {
             set_emit_flags(statement, EmitFlags::NoComments, self);
         }
@@ -257,7 +261,7 @@ impl TransformModule {
                                     self.factory.create_block(
                                         vec![self
                                             .factory
-                                            .create_return_statement(Some(value.node_wrapper()))],
+                                            .create_return_statement(Some(value))],
                                         None,
                                     ),
                                 ),
@@ -273,16 +277,16 @@ impl TransformModule {
                     self.factory.create_identifier("exports"),
                     self.factory.clone_node(name),
                 ),
-                value.node_wrapper(),
+                value,
             )
         }
-        .set_text_range(location)
+        .set_text_range(location, self)
     }
 
     pub(super) fn modifier_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword => None,
-            _ => Some(node.node_wrapper().into()),
+            _ => Some(node.into()),
         }
     }
 
@@ -290,7 +294,7 @@ impl TransformModule {
         &self,
         name: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Vec<Id<Node /*Identifier*/>>>> {
-        if !is_generated_identifier(name) {
+        if !is_generated_identifier(&name.ref_(self)) {
             let value_declaration = self
                 .resolver
                 .get_referenced_import_declaration(name)?
@@ -301,7 +305,7 @@ impl TransformModule {
                     .and_then(|current_module_info| {
                         current_module_info
                             .exported_bindings
-                            .get(&get_original_node_id(value_declaration))
+                            .get(&get_original_node_id(value_declaration, self))
                             .cloned()
                     }));
             }

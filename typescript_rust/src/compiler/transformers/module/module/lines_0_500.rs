@@ -22,7 +22,7 @@ use crate::{
     NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty, SyntaxKind, TransformFlags,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     VecExt,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 pub(super) struct AsynchronousDependencies {
@@ -171,28 +171,30 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file()
-            || !(is_effective_external_module(node, &self.compiler_options)
+            || !(is_effective_external_module(&node.ref_(self), &self.compiler_options)
                 || node
-                    .transform_flags()
+                    .ref_(self).transform_flags()
                     .intersects(TransformFlags::ContainsDynamicImport)
-                || is_json_source_file(node)
+                || is_json_source_file(&node.ref_(self))
                     && has_json_module_emit_enabled(&self.compiler_options)
                     && out_file(&self.compiler_options).is_non_empty())
         {
-            return Ok(node.node_wrapper());
+            return Ok(node);
         }
 
-        self.set_current_source_file(Some(node.node_wrapper()));
+        self.set_current_source_file(Some(node));
         self.set_current_module_info(Some(Gc::new(collect_external_module_info(
             &**self.context,
             node,
             &**self.resolver,
             &self.compiler_options,
+            self,
         )?)));
         self.module_info_map_mut()
-            .insert(get_original_node_id(node), self.current_module_info());
+            .insert(get_original_node_id(node, self), self.current_module_info());
 
         let updated = match self.module_kind {
             ModuleKind::AMD => self.transform_amd_module(node)?,
@@ -207,7 +209,7 @@ impl TransformModule {
 
     pub(super) fn should_emit_underscore_underscore_es_module(&self) -> bool {
         if self.current_module_info().export_equals.is_none()
-            && is_external_module(&self.current_source_file())
+            && is_external_module(&self.current_source_file().ref_(self))
         {
             return true;
         }
@@ -218,17 +220,18 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         self.context.start_lexical_environment();
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let ensure_use_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
             || self.compiler_options.no_implicit_use_strict != Some(true)
-                && is_external_module(&self.current_source_file());
+                && is_external_module(&self.current_source_file().ref_(self));
         let statement_offset = self.factory.try_copy_prologue(
             &node_as_source_file.statements(),
             &mut statements,
-            Some(ensure_use_strict && !is_json_source_file(node)),
+            Some(ensure_use_strict && !is_json_source_file(&node.ref_(self))),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
         )?;
 
@@ -249,7 +252,7 @@ impl TransformModule {
                         self.factory.create_assignment(
                             self.factory.create_property_access_expression(
                                 self.factory.create_identifier("exports"),
-                                self.factory.create_identifier(id_text(next_id)),
+                                self.factory.create_identifier(id_text(&next_id.ref_(self))),
                             ),
                             prev,
                         )
@@ -266,8 +269,7 @@ impl TransformModule {
             &mut statements,
             try_maybe_visit_node(
                 current_module_info
-                    .external_helpers_import_declaration
-                    .as_deref(),
+                    .external_helpers_import_declaration,
                 Some(|node: Id<Node>| self.top_level_visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -305,14 +307,15 @@ impl TransformModule {
                 None,
                 None,
             )
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref()))
+            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self))
     }
 
     pub(super) fn transform_amd_module(
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         let define = self.factory.create_identifier("define");
         let module_name = try_get_module_name_from_file(
             &self.factory,
@@ -320,7 +323,7 @@ impl TransformModule {
             &**self.host,
             &self.compiler_options,
         );
-        let json_source_file = is_json_source_file(node).then_some(node);
+        let json_source_file = is_json_source_file(&node.ref_(self)).then_some(node);
 
         let AsynchronousDependencies {
             aliased_module_names,
@@ -368,7 +371,7 @@ impl TransformModule {
                                         ),
                                         if let Some(json_source_file) = json_source_file {
                                             json_source_file
-                                                .as_source_file()
+                                                .ref_(self).as_source_file()
                                                 .statements()
                                                 .non_empty()
                                                 .map_or_else(
@@ -432,14 +435,15 @@ impl TransformModule {
                 None,
                 None,
             )
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref()))
+            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self))
     }
 
     pub(super) fn transform_umd_module(
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         let AsynchronousDependencies {
             aliased_module_names,
             unaliased_module_names,
@@ -517,7 +521,7 @@ impl TransformModule {
                                         ),
                                         None,
                                     )
-                                    .set_emit_flags(EmitFlags::SingleLine),
+                                    .set_emit_flags(EmitFlags::SingleLine, self),
                             ],
                             None,
                         ),
@@ -580,7 +584,7 @@ impl TransformModule {
                     )],
                     Some(true),
                 )
-                .set_text_range(Option::<Id<Node>>::None),
+                .set_text_range(Option::<&Node>::None, self),
         );
 
         Ok(self
@@ -635,7 +639,7 @@ impl TransformModule {
                 None,
                 None,
             )
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref()))
+            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self))
     }
 
     pub(super) fn collect_asynchronous_dependencies(
@@ -643,7 +647,8 @@ impl TransformModule {
         node: Id<Node>, /*SourceFile*/
         include_non_amd_dependencies: bool,
     ) -> io::Result<AsynchronousDependencies> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         let mut aliased_module_names: Vec<Id<Node /*Expression*/>> = _d();
 
         let mut unaliased_module_names: Vec<Id<Node /*Expression*/>> = _d();
@@ -675,11 +680,11 @@ impl TransformModule {
             }
         }
 
-        for import_node in &self.current_module_info().external_imports {
+        for &import_node in &self.current_module_info().external_imports {
             let external_module_name = get_external_module_name_literal(
                 &self.factory,
                 import_node,
-                &self.current_source_file(),
+                self.current_source_file(),
                 &**self.host,
                 &**self.resolver,
                 &self.compiler_options,
@@ -688,7 +693,7 @@ impl TransformModule {
             let import_alias_name = get_local_name_for_external_import(
                 &self.factory,
                 import_node,
-                &self.current_source_file(),
+                self.current_source_file(),
             );
             if let Some(external_module_name) = external_module_name {
                 if let Some(import_alias_name) =
@@ -722,12 +727,12 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
     ) -> io::Result<Option<Id<Node>>> {
-        if is_import_equals_declaration(node)
-            || is_export_declaration(node)
+        if is_import_equals_declaration(&node.ref_(self))
+            || is_export_declaration(&node.ref_(self))
             || get_external_module_name_literal(
                 &self.factory,
                 node,
-                &self.current_source_file(),
+                self.current_source_file(),
                 &**self.host,
                 &**self.resolver,
                 &self.compiler_options,
@@ -737,10 +742,10 @@ impl TransformModule {
             return Ok(None);
         }
         let name =
-            get_local_name_for_external_import(&self.factory, node, &self.current_source_file())
+            get_local_name_for_external_import(&self.factory, node, self.current_source_file())
                 .unwrap();
         let expr = self.get_helper_expression_for_import(node, name.clone());
-        if Gc::ptr_eq(&expr, &name) {
+        if expr == name {
             return Ok(None);
         }
         Ok(Some(self.factory.create_expression_statement(
@@ -752,7 +757,8 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         self.context.start_lexical_environment();
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
@@ -778,7 +784,7 @@ impl TransformModule {
                     self.factory.create_assignment(
                         self.factory.create_property_access_expression(
                             self.factory.create_identifier("exports"),
-                            self.factory.create_identifier(id_text(next_id)),
+                            self.factory.create_identifier(id_text(&next_id.ref_(self))),
                         ),
                         prev,
                     )
@@ -793,8 +799,7 @@ impl TransformModule {
             &mut statements,
             try_maybe_visit_node(
                 self.current_module_info()
-                    .external_helpers_import_declaration
-                    .as_deref(),
+                    .external_helpers_import_declaration,
                 Some(|node: Id<Node>| self.top_level_visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -805,7 +810,7 @@ impl TransformModule {
                 &mut statements,
                 Some(&try_map_defined(
                     Some(&self.current_module_info().external_imports),
-                    |external_import: &Id<Node>, _| {
+                    |&external_import: &Id<Node>, _| {
                         self.get_amd_import_expression_for_import(external_import)
                     },
                 )?),
@@ -851,8 +856,8 @@ impl TransformModule {
             self.current_module_info().export_equals.as_ref()
         {
             let expression_result = try_visit_node(
-                &current_module_info_export_equals
-                    .as_export_assignment()
+                current_module_info_export_equals
+                    .ref_(self).as_export_assignment()
                     .expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
@@ -863,8 +868,8 @@ impl TransformModule {
                 let statement = self
                     .factory
                     .create_return_statement(Some(expression_result))
-                    .set_text_range(Some(&**current_module_info_export_equals))
-                    .set_emit_flags(EmitFlags::NoTokenSourceMaps | EmitFlags::NoComments);
+                    .set_text_range(Some(&*current_module_info_export_equals.ref_(self)), self)
+                    .set_emit_flags(EmitFlags::NoTokenSourceMaps | EmitFlags::NoComments, self);
                 statements.push(statement);
             } else {
                 let statement = self
@@ -876,8 +881,8 @@ impl TransformModule {
                         ),
                         expression_result,
                     ))
-                    .set_text_range(Some(&**current_module_info_export_equals))
-                    .set_emit_flags(EmitFlags::NoComments);
+                    .set_text_range(Some(&*current_module_info_export_equals.ref_(self)), self)
+                    .set_emit_flags(EmitFlags::NoComments, self);
                 statements.push(statement);
             }
             // }
@@ -924,14 +929,15 @@ impl TransformationContextOnEmitNodeOverrider for TransformModuleOnEmitNodeOverr
         node: Id<Node>,
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        if node.kind() == SyntaxKind::SourceFile {
+        if node.ref_(self).kind() == SyntaxKind::SourceFile {
             self.transform_module
-                .set_current_source_file(Some(node.node_wrapper()));
+                .set_current_source_file(Some(node));
             self.transform_module.set_current_module_info(
                 self.transform_module
                     .module_info_map()
                     .get(&get_original_node_id(
-                        &self.transform_module.current_source_file(),
+                        self.transform_module.current_source_file(),
+                        self,
                     ))
                     .cloned(),
             );
@@ -947,6 +953,12 @@ impl TransformationContextOnEmitNodeOverrider for TransformModuleOnEmitNodeOverr
         }
 
         Ok(())
+    }
+}
+
+impl HasArena for TransformModuleOnEmitNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -971,10 +983,11 @@ impl TransformModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
-        let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
+        let node_ref = node.ref_(self);
+        let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         let name = node_as_shorthand_property_assignment.name();
         let exported_or_imported_name = self.substitute_expression_identifier(&name)?;
-        if !Gc::ptr_eq(&exported_or_imported_name, &name) {
+        if exported_or_imported_name != name {
             if let Some(node_object_assignment_initializer) = node_as_shorthand_property_assignment
                 .object_assignment_initializer
                 .as_ref()
@@ -987,26 +1000,26 @@ impl TransformModuleOnSubstituteNodeOverrider {
                     .transform_module
                     .factory
                     .create_property_assignment(name, initializer)
-                    .set_text_range(Some(node)));
+                    .set_text_range(Some(&*node.ref_(self)), self));
             }
             return Ok(self
                 .transform_module
                 .factory
                 .create_property_assignment(name, exported_or_imported_name)
-                .set_text_range(Some(node)));
+                .set_text_range(Some(&*node.ref_(self)), self));
         }
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     fn substitute_expression(&self, node: Id<Node> /*Expression*/) -> io::Result<Id<Node>> {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
             SyntaxKind::CallExpression => self.substitute_call_expression(node)?,
             SyntaxKind::TaggedTemplateExpression => {
                 self.substitute_tagged_template_expression(node)?
             }
             SyntaxKind::BinaryExpression => self.substitute_binary_expression(node)?,
-            _ => node.node_wrapper(),
+            _ => node,
         })
     }
 
@@ -1014,14 +1027,15 @@ impl TransformModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<Id<Node>> {
-        let node_as_call_expression = node.as_call_expression();
-        if is_identifier(&node_as_call_expression.expression) {
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
+        if is_identifier(&node_as_call_expression.expression.ref_(self)) {
             let expression =
-                self.substitute_expression_identifier(&node_as_call_expression.expression)?;
+                self.substitute_expression_identifier(node_as_call_expression.expression)?;
             self.transform_module
                 .no_substitution_mut()
-                .insert(get_node_id(&expression), true);
-            if !is_identifier(&expression) {
+                .insert(get_node_id(&expression.ref_(self)), true);
+            if !is_identifier(&expression.ref_(self)) {
                 return Ok(self
                     .transform_module
                     .factory
@@ -1031,24 +1045,25 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         Option::<Gc<NodeArray>>::None,
                         node_as_call_expression.arguments.clone(),
                     )
-                    .add_emit_flags(EmitFlags::IndirectCall));
+                    .add_emit_flags(EmitFlags::IndirectCall, self));
             }
         }
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     fn substitute_tagged_template_expression(
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<Id<Node>> {
-        let node_as_tagged_template_expression = node.as_tagged_template_expression();
-        if is_identifier(&node_as_tagged_template_expression.tag) {
+        let node_ref = node.ref_(self);
+        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
+        if is_identifier(&node_as_tagged_template_expression.tag.ref_(self)) {
             let tag =
                 self.substitute_expression_identifier(&node_as_tagged_template_expression.tag)?;
             self.transform_module
                 .no_substitution_mut()
-                .insert(get_node_id(&tag), true);
-            if !is_identifier(&tag) {
+                .insert(get_node_id(&tag.ref_(self)), true);
+            if !is_identifier(&tag.ref_(self)) {
                 return Ok(self
                     .transform_module
                     .factory
@@ -1058,46 +1073,47 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         Option::<Gc<NodeArray>>::None,
                         node_as_tagged_template_expression.template.clone(),
                     )
-                    .add_emit_flags(EmitFlags::IndirectCall));
+                    .add_emit_flags(EmitFlags::IndirectCall, self));
             }
         }
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     fn substitute_expression_identifier(
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_identifier = node.as_identifier();
+        let node_ref = node.ref_(self);
+        let node_as_identifier = node_ref.as_identifier();
         #[allow(clippy::nonminimal_bool)]
-        if get_emit_flags(node).intersects(EmitFlags::HelperName) {
+        if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::HelperName) {
             let external_helpers_module_name =
-                get_external_helpers_module_name(&self.transform_module.current_source_file());
+                get_external_helpers_module_name(self.transform_module.current_source_file(), self);
             if let Some(external_helpers_module_name) = external_helpers_module_name {
                 return Ok(self
                     .transform_module
                     .factory
                     .create_property_access_expression(
                         external_helpers_module_name,
-                        node.node_wrapper(),
+                        node,
                     ));
             }
-            return Ok(node.node_wrapper());
-        } else if !(is_generated_identifier(node)
+            return Ok(node);
+        } else if !(is_generated_identifier(&node.ref_(self))
             && !node_as_identifier.maybe_auto_generate_flags().matches(
                 |node_auto_generate_flags| {
                     node_auto_generate_flags
                         .intersects(GeneratedIdentifierFlags::AllowNameSubstitution)
                 },
             ))
-            && !is_local_name(node)
+            && !is_local_name(&node.ref_(self))
         {
             let export_container = self
                 .transform_module
                 .resolver
-                .get_referenced_export_container(node, Some(is_export_name(node)))?;
+                .get_referenced_export_container(node, Some(is_export_name(&node.ref_(self))))?;
             if export_container
-                .matches(|export_container| export_container.kind() == SyntaxKind::SourceFile)
+                .matches(|export_container| export_container.ref_(self).kind() == SyntaxKind::SourceFile)
             {
                 return Ok(self
                     .transform_module
@@ -1106,28 +1122,28 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         self.transform_module.factory.create_identifier("exports"),
                         self.transform_module.factory.clone_node(node),
                     )
-                    .set_text_range(Some(node)));
+                    .set_text_range(Some(&*node.ref_(self)), self));
             }
             let import_declaration = self
                 .transform_module
                 .resolver
                 .get_referenced_import_declaration(node)?;
             if let Some(import_declaration) = import_declaration {
-                if is_import_clause(&import_declaration) {
+                if is_import_clause(&import_declaration.ref_(self)) {
                     return Ok(self
                         .transform_module
                         .factory
                         .create_property_access_expression(
                             self.transform_module.factory.get_generated_name_for_node(
-                                import_declaration.maybe_parent(),
+                                import_declaration.ref_(self).maybe_parent(),
                                 None,
                             ),
                             self.transform_module.factory.create_identifier("default"),
                         )
-                        .set_text_range(Some(node)));
-                } else if is_import_specifier(&import_declaration) {
-                    let import_declaration_as_import_specifier =
-                        import_declaration.as_import_specifier();
+                        .set_text_range(Some(&*node.ref_(self)), self));
+                } else if is_import_specifier(&import_declaration.ref_(self)) {
+                    let import_declaration_ref = import_declaration.ref_(self);
+                    let import_declaration_as_import_specifier = import_declaration_ref.as_import_specifier();
                     let name = import_declaration_as_import_specifier
                         .property_name
                         .as_ref()
@@ -1139,50 +1155,51 @@ impl TransformModuleOnSubstituteNodeOverrider {
                             self.transform_module.factory.get_generated_name_for_node(
                                 Some(
                                     import_declaration
-                                        .maybe_parent()
+                                        .ref_(self).maybe_parent()
                                         .and_then(|import_declaration_parent| {
-                                            import_declaration_parent.maybe_parent()
+                                            import_declaration_parent.ref_(self).maybe_parent()
                                         })
                                         .and_then(|import_declaration_parent_parent| {
-                                            import_declaration_parent_parent.maybe_parent()
+                                            import_declaration_parent_parent.ref_(self).maybe_parent()
                                         })
-                                        .unwrap_or_else(|| import_declaration.clone()),
+                                        .unwrap_or(import_declaration),
                                 ),
                                 None,
                             ),
                             self.transform_module.factory.clone_node(name),
                         )
-                        .set_text_range(Some(node)));
+                        .set_text_range(Some(&*node.ref_(self)), self));
                 }
             }
         }
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 
     fn substitute_binary_expression(
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_binary_expression = node.as_binary_expression();
-        if is_assignment_operator(node_as_binary_expression.operator_token.kind())
-            && is_identifier(&node_as_binary_expression.left)
-            && !is_generated_identifier(&node_as_binary_expression.left)
-            && !is_local_name(&node_as_binary_expression.left)
-            && !is_declaration_name_of_enum_or_namespace(&node_as_binary_expression.left)
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
+        if is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind())
+            && is_identifier(&node_as_binary_expression.left.ref_(self))
+            && !is_generated_identifier(&node_as_binary_expression.left.ref_(self))
+            && !is_local_name(&node_as_binary_expression.left.ref_(self))
+            && !is_declaration_name_of_enum_or_namespace(node_as_binary_expression.left, self)
         {
             let exported_names = self
                 .transform_module
                 .get_exports(&node_as_binary_expression.left)?;
             if let Some(exported_names) = exported_names {
-                let mut expression/*: Expression*/ = node.node_wrapper();
-                for export_name in &exported_names {
+                let mut expression/*: Expression*/ = node;
+                for &export_name in &exported_names {
                     self.transform_module
                         .no_substitution_mut()
                         .insert(get_node_id(&expression), true);
                     expression = self.transform_module.create_export_expression(
                         export_name,
-                        &expression,
-                        Some(node),
+                        expression,
+                        Some(&*node.ref_(self)),
                         None,
                     );
                 }
@@ -1191,7 +1208,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
             }
         }
 
-        Ok(node.node_wrapper())
+        Ok(node)
     }
 }
 
@@ -1200,7 +1217,7 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformModuleOnSubstit
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
-        if node.maybe_id().matches(|node_id| {
+        if node.ref_(self).maybe_id().matches(|node_id| {
             self.transform_module
                 .no_substitution()
                 .get(&node_id)
@@ -1211,12 +1228,18 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformModuleOnSubstit
         }
 
         if hint == EmitHint::Expression {
-            return self.substitute_expression(&node);
-        } else if is_shorthand_property_assignment(&node) {
-            return self.substitute_shorthand_property_assignment(&node);
+            return self.substitute_expression(node);
+        } else if is_shorthand_property_assignment(&node.ref_(self)) {
+            return self.substitute_shorthand_property_assignment(node);
         }
 
         Ok(node)
+    }
+}
+
+impl HasArena for TransformModuleOnSubstituteNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

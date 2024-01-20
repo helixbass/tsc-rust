@@ -13,6 +13,7 @@ use crate::{
     is_destructuring_assignment, is_import_call, is_statement, try_maybe_visit_node,
     try_visit_each_child, try_visit_iteration_body, try_visit_node, try_visit_nodes,
     TransformFlags,
+    InArena,
 };
 
 impl TransformSystemModule {
@@ -27,23 +28,23 @@ impl TransformSystemModule {
             return /*statements*/;
         }
 
-        let decl_name = &decl.as_named_declaration().name();
-        if is_binding_pattern(Some(&**decl_name)) {
-            for element in &decl_name.as_has_elements().elements() {
-                if !is_omitted_expression(element) {
+        let decl_name = decl.ref_(self).as_named_declaration().name();
+        if is_binding_pattern(Some(&*decl_name.ref_(self))) {
+            for &element in &decl_name.ref_(self).as_has_elements().elements() {
+                if !is_omitted_expression(&element.ref_(self)) {
                     self.append_exports_of_binding_element(statements, element, export_self);
                 }
             }
-        } else if !is_generated_identifier(decl_name) {
+        } else if !is_generated_identifier(&decl_name.ref_(self)) {
             let mut exclude_name = None;
             if export_self {
                 self.append_export_statement(
                     statements,
                     decl_name,
-                    &self.factory.get_local_name(decl, None, None),
+                    self.factory.get_local_name(decl, None, None),
                     None,
                 );
-                exclude_name = Some(id_text(decl_name));
+                exclude_name = Some(id_text(&decl_name.ref_(self)));
             }
 
             self.append_exports_of_declaration(statements, decl, exclude_name);
@@ -68,18 +69,18 @@ impl TransformSystemModule {
                 self.factory
                     .create_string_literal("default".to_owned(), None, None)
             } else {
-                decl.as_named_declaration().name()
+                decl.ref_(self).as_named_declaration().name()
             };
             self.append_export_statement(
                 statements,
                 export_name,
-                &self.factory.get_local_name(decl, None, None),
+                self.factory.get_local_name(decl, None, None),
                 None,
             );
             exclude_name = Some(get_text_of_identifier_or_literal(export_name).into_owned());
         }
 
-        if decl.as_named_declaration().maybe_name().is_some() {
+        if decl.ref_(self).as_named_declaration().maybe_name().is_some() {
             self.append_exports_of_declaration(statements, decl, exclude_name.as_deref());
         }
 
@@ -97,12 +98,13 @@ impl TransformSystemModule {
             return /*statements*/;
         }
 
-        let name = &self.factory.get_declaration_name(Some(decl), None, None);
+        let name = self.factory.get_declaration_name(Some(decl), None, None);
         let module_info = self.module_info();
-        let export_specifiers = module_info.export_specifiers.get(id_text(name));
+        let export_specifiers = module_info.export_specifiers.get(id_text(&name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
-                let export_specifier_as_export_specifier = export_specifier.as_export_specifier();
+                let export_specifier_ref = export_specifier.ref_(self);
+                let export_specifier_as_export_specifier = export_specifier_ref.as_export_specifier();
                 if Some(
                     &*export_specifier_as_export_specifier
                         .name
@@ -112,7 +114,7 @@ impl TransformSystemModule {
                 {
                     self.append_export_statement(
                         statements,
-                        &export_specifier_as_export_specifier.name,
+                        export_specifier_as_export_specifier.name,
                         name,
                         None,
                     );
@@ -145,7 +147,7 @@ impl TransformSystemModule {
         let statement = self
             .factory
             .create_expression_statement(self.create_export_expression(name, value))
-            .start_on_new_line();
+            .start_on_new_line(self);
         if allow_comments != Some(true) {
             set_emit_flags(statement, EmitFlags::NoComments, self);
         }
@@ -158,24 +160,24 @@ impl TransformSystemModule {
         name: Id<Node>,  /*Identifier | StringLiteral*/
         value: Id<Node>, /*Expression*/
     ) -> Id<Node> {
-        let export_name = if is_identifier(name) {
+        let export_name = if is_identifier(&name.ref_(self)) {
             self.factory.create_string_literal_from_node(name)
         } else {
-            name.node_wrapper()
+            name
         };
-        set_emit_flags(value, get_emit_flags(value) | EmitFlags::NoComments, self);
+        set_emit_flags(value, get_emit_flags(&value.ref_(self)) | EmitFlags::NoComments, self);
         self.factory
             .create_call_expression(
                 self.export_function(),
                 Option::<Gc<NodeArray>>::None,
-                Some(vec![export_name, value.node_wrapper()]),
+                Some(vec![export_name, value]),
             )
-            .set_comment_range(value)
+            .set_comment_range(&*value.ref_(self), self)
     }
 
     pub(super) fn top_level_nested_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::VariableStatement => self.visit_variable_statement(node)?,
             SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node)?,
             SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
@@ -204,9 +206,10 @@ impl TransformSystemModule {
         node: Id<Node>, /*ForStatement*/
         is_top_level: bool,
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_for_statement = node.as_for_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_statement = node_ref.as_for_statement();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
-        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+        self.set_enclosing_block_scoped_container(Some(node));
 
         let node = self.factory.update_for_statement(
             node,
@@ -255,9 +258,10 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ForInStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_for_in_statement = node.as_for_in_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_in_statement = node_ref.as_for_in_statement();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
-        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+        self.set_enclosing_block_scoped_container(Some(node));
 
         let node = self.factory.update_for_in_statement(
             node,
@@ -283,9 +287,10 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ForOfStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_for_of_statement = node.as_for_of_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_of_statement = node_ref.as_for_of_statement();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
-        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+        self.set_enclosing_block_scoped_container(Some(node));
 
         let node = self.factory.update_for_of_statement(
             node,
@@ -312,7 +317,7 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ForInitializer*/
     ) -> bool {
-        is_variable_declaration_list(node) && self.should_hoist_variable_declaration_list(node)
+        is_variable_declaration_list(&node.ref_(self)) && self.should_hoist_variable_declaration_list(node)
     }
 
     pub(super) fn visit_for_initializer(
@@ -321,12 +326,12 @@ impl TransformSystemModule {
     ) -> io::Result<Id<Node /*ForInitializer*/>> {
         Ok(if self.should_hoist_for_initializer(node) {
             let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
-            for variable in &node.as_variable_declaration_list().declarations {
+            for variable in &node.ref_(self).as_variable_declaration_list().declarations {
                 expressions
                     .get_or_insert_default_()
                     .push(self.transform_initialized_variable(variable, false)?);
                 if variable
-                    .as_variable_declaration()
+                    .ref_(self).as_variable_declaration()
                     .maybe_initializer()
                     .is_none()
                 {
@@ -352,7 +357,8 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*DoStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_do_statement = node.as_do_statement();
+        let node_ref = node.ref_(self);
+        let node_as_do_statement = node_ref.as_do_statement();
         Ok(Some(
             self.factory
                 .update_do_statement(
@@ -377,7 +383,8 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*WhileStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_while_statement = node.as_while_statement();
+        let node_ref = node.ref_(self);
+        let node_as_while_statement = node_ref.as_while_statement();
         Ok(Some(
             self.factory
                 .update_while_statement(
@@ -402,7 +409,8 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*LabeledStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_labeled_statement = node.as_labeled_statement();
+        let node_ref = node.ref_(self);
+        let node_as_labeled_statement = node_ref.as_labeled_statement();
         Ok(Some(
             self.factory
                 .update_labeled_statement(
@@ -423,7 +431,8 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*WithStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_with_statement = node.as_with_statement();
+        let node_ref = node.ref_(self);
+        let node_as_with_statement = node_ref.as_with_statement();
         Ok(Some(
             self.factory
                 .update_with_statement(
@@ -449,7 +458,8 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_switch_statement = node.as_switch_statement();
+        let node_ref = node.ref_(self);
+        let node_as_switch_statement = node_ref.as_switch_statement();
         Ok(Some(
             self.factory
                 .update_switch_statement(
@@ -463,7 +473,7 @@ impl TransformSystemModule {
                     try_visit_node(
                         &node_as_switch_statement.case_block,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
-                        Some(is_case_block),
+                        Some(|node: Id<Node>| is_case_block(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
@@ -475,16 +485,17 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*CaseBlock*/
     ) -> io::Result<Id<Node /*CaseBlock*/>> {
-        let node_as_case_block = node.as_case_block();
+        let node_ref = node.ref_(self);
+        let node_as_case_block = node_ref.as_case_block();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
-        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+        self.set_enclosing_block_scoped_container(Some(node));
 
         let node = self.factory.update_case_block(
             node,
             try_visit_nodes(
                 &node_as_case_block.clauses,
                 Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
-                Some(is_case_or_default_clause),
+                Some(|node: Id<Node>| is_case_or_default_clause(&node.ref_(self))),
                 None,
                 None,
             )?,
@@ -498,7 +509,8 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*CaseClause*/
     ) -> io::Result<VisitResult> /*<CaseOrDefaultClause>*/ {
-        let node_as_case_clause = node.as_case_clause();
+        let node_ref = node.ref_(self);
+        let node_as_case_clause = node_ref.as_case_clause();
         Ok(Some(
             self.factory
                 .update_case_clause(
@@ -553,9 +565,10 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*CatchClause*/
     ) -> io::Result<Id<Node /*CatchClause*/>> {
-        let node_as_catch_clause = node.as_catch_clause();
+        let node_ref = node.ref_(self);
+        let node_as_catch_clause = node_ref.as_catch_clause();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
-        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+        self.set_enclosing_block_scoped_container(Some(node));
 
         let node = self.factory.update_catch_clause(
             node,
@@ -563,7 +576,7 @@ impl TransformSystemModule {
             try_visit_node(
                 &node_as_catch_clause.block,
                 Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
-                Some(is_block),
+                Some(|node: Id<Node>| is_block(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         );
@@ -577,7 +590,7 @@ impl TransformSystemModule {
         node: Id<Node>, /*Block*/
     ) -> io::Result<Id<Node /*Block*/>> {
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
-        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+        self.set_enclosing_block_scoped_container(Some(node));
 
         let node = try_visit_each_child(
             &node.ref_(self),
@@ -594,14 +607,14 @@ impl TransformSystemModule {
         node: Id<Node>,
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        if !node.transform_flags().intersects(
+        if !node.ref_(self).transform_flags().intersects(
             TransformFlags::ContainsDestructuringAssignment
                 | TransformFlags::ContainsDynamicImport
                 | TransformFlags::ContainsUpdateExpressionForIdentifier,
         ) {
-            return Ok(Some(node.node_wrapper().into()));
+            return Ok(Some(node.into()));
         }
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ForStatement => return self.visit_for_statement(node, false),
             SyntaxKind::ExpressionStatement => return self.visit_expression_statement(node),
             SyntaxKind::ParenthesizedExpression => {

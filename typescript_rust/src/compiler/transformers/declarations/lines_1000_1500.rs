@@ -838,7 +838,7 @@ impl TransformDeclarations {
                                                             self,
                                                         ) || t_as_expression_with_type_arguments
                                                             .expression
-                                                            .kind()
+                                                            .ref_(self).kind()
                                                             == SyntaxKind::NullKeyword
                                                     })
                                                     .cloned()
@@ -993,7 +993,7 @@ impl TransformDeclarations {
             if is_binding_pattern(elem_as_binding_element.maybe_name().refed(self)) {
                 elems = maybe_concatenate(
                     elems,
-                    self.walk_binding_pattern(param, &elem_as_binding_element.name())?,
+                    self.walk_binding_pattern(param, elem_as_binding_element.name())?,
                 );
             }
             elems

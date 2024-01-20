@@ -34,7 +34,7 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_spread_element = node_ref.as_spread_element();
         let mut expression = try_visit_node(
-            &node_as_spread_element.expression,
+            node_as_spread_element.expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -91,7 +91,7 @@ impl TransformES2015 {
         let node_as_spread_element = node_ref.as_spread_element();
         Ok(Some(
             try_visit_node(
-                &node_as_spread_element.expression,
+                node_as_spread_element.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -155,7 +155,7 @@ impl TransformES2015 {
                 &**self.context,
                 node,
                 |node: Id<Node>| self.visitor(node),
-                self.current_source_file(),
+                *self.current_source_file(),
                 |node: Id<Node>| self.record_tagged_template_string(node),
                 ProcessLevel::All,
             )?
@@ -172,14 +172,15 @@ impl TransformES2015 {
         let mut expression: Id<Node /*Expression*/> = self.factory.create_string_literal(
             node_as_template_expression
                 .head
-                .as_template_literal_like_node()
+                .ref_(self).as_template_literal_like_node()
                 .text()
                 .clone(),
             None,
             None,
         );
         for span in &node_as_template_expression.template_spans {
-            let span_as_template_span = span.as_template_span();
+            let span_ref = span.ref_(self);
+            let span_as_template_span = span_ref.as_template_span();
             let mut args = vec![try_visit_node(
                 &span_as_template_span.expression,
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -348,7 +349,7 @@ impl TransformES2015 {
             &constructor_as_constructor_declaration
                 .maybe_body()
                 .unwrap()
-                .as_block()
+                .ref_(self).as_block()
                 .statements,
         )
         .cloned();

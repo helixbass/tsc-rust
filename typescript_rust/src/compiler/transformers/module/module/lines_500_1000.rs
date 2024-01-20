@@ -18,11 +18,12 @@ use crate::{
     single_or_many_node, try_flatten_destructuring_assignment, try_maybe_visit_node,
     try_visit_each_child, try_visit_iteration_body, try_visit_node, EmitFlags, GetOrInsertDefault,
     LiteralLikeNodeInterface, MapOrDefault, ModuleKind, NodeArray, NodeFlags, ScriptTarget,
+    InArena,
 };
 
 impl TransformModule {
     pub(super) fn top_level_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node)?,
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node)?,
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node)?,
@@ -41,15 +42,15 @@ impl TransformModule {
         node: Id<Node>,
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        if !node.transform_flags().intersects(
+        if !node.ref_(self).transform_flags().intersects(
             TransformFlags::ContainsDynamicImport
                 | TransformFlags::ContainsDestructuringAssignment
                 | TransformFlags::ContainsUpdateExpressionForIdentifier,
         ) {
-            return Ok(Some(node.node_wrapper().into()));
+            return Ok(Some(node.into()));
         }
 
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ForStatement => return self.visit_for_statement(node),
             SyntaxKind::ExpressionStatement => return self.visit_expression_statement(node),
             SyntaxKind::ParenthesizedExpression => {
@@ -62,7 +63,7 @@ impl TransformModule {
                 if is_import_call(node, self)
                     && self
                         .current_source_file()
-                        .as_source_file()
+                        .ref_(self).as_source_file()
                         .maybe_implied_node_format()
                         .is_none()
                 {
@@ -102,8 +103,8 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
-        if is_object_literal_expression(node) {
-            for elem in &node.as_object_literal_expression().properties {
+        if is_object_literal_expression(&node.ref_(self)) {
+            for elem in &node.ref_(self).as_object_literal_expression().properties {
                 match elem.kind() {
                     SyntaxKind::PropertyAssignment => {
                         if self.destructuring_needs_flattening(
@@ -132,19 +133,19 @@ impl TransformModule {
                     _ => Debug_.assert_never(elem, Some("Unhandled object member kind")),
                 }
             }
-        } else if is_array_literal_expression(node) {
-            for elem in &node.as_array_literal_expression().elements {
+        } else if is_array_literal_expression(&node.ref_(self)) {
+            for &elem in &node.ref_(self).as_array_literal_expression().elements {
                 if is_spread_element(elem) {
-                    if self.destructuring_needs_flattening(&elem.as_spread_element().expression)? {
+                    if self.destructuring_needs_flattening(elem.ref_(self).as_spread_element().expression)? {
                         return Ok(true);
                     }
                 } else if self.destructuring_needs_flattening(elem)? {
                     return Ok(true);
                 }
             }
-        } else if is_identifier(node) {
+        } else if is_identifier(&node.ref_(self)) {
             return Ok(length(self.get_exports(node)?.as_deref())
-                > if is_export_name(node) { 1 } else { 0 });
+                > if is_export_name(&node.ref_(self)) { 1 } else { 0 });
         }
         Ok(false)
     }
@@ -154,7 +155,7 @@ impl TransformModule {
         node: Id<Node>, /*DestructuringAssignment*/
         value_is_discarded: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
-        if self.destructuring_needs_flattening(&node.as_binary_expression().left)? {
+        if self.destructuring_needs_flattening(node.ref_(self).as_binary_expression().left)? {
             return try_flatten_destructuring_assignment(
                 node,
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -163,7 +164,7 @@ impl TransformModule {
                 Some(!value_is_discarded),
                 Some(
                     |a: Id<Node>, b: Id<Node>, c: Option<&dyn ReadonlyTextRange>| {
-                        self.create_all_export_expressions(a, b.node_wrapper(), c)
+                        self.create_all_export_expressions(a, b, c)
                     },
                 ),
                 self,
@@ -176,7 +177,8 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ForStatement*/
     ) -> io::Result<VisitResult> {
-        let node_as_for_statement = node.as_for_statement();
+        let node_ref = node.ref_(self);
+        let node_as_for_statement = node_ref.as_for_statement();
         Ok(Some(
             self.factory
                 .update_for_statement(
@@ -213,7 +215,8 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<VisitResult> {
-        let node_as_expression_statement = node.as_expression_statement();
+        let node_ref = node.ref_(self);
+        let node_as_expression_statement = node_ref.as_expression_statement();
         Ok(Some(
             self.factory
                 .update_expression_statement(
@@ -234,7 +237,8 @@ impl TransformModule {
         node: Id<Node>, /*ParenthesizedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_as_parenthesized_expression = node.as_parenthesized_expression();
+        let node_ref = node.ref_(self);
+        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         Ok(Some(
             self.factory
                 .update_parenthesized_expression(
@@ -261,7 +265,8 @@ impl TransformModule {
         node: Id<Node>, /*PartiallyEmittedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
+        let node_ref = node.ref_(self);
+        let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();
         Ok(Some(
             self.factory
                 .update_partially_emitted_expression(
@@ -288,14 +293,15 @@ impl TransformModule {
         node: Id<Node>, /*PrefixUnaryExpression | PostfixUnaryExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_as_unary_expression = node.as_unary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_unary_expression = node_ref.as_unary_expression();
         if matches!(
             node_as_unary_expression.operator(),
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
-        ) && is_identifier(&node_as_unary_expression.operand())
-            && !is_generated_identifier(&node_as_unary_expression.operand())
-            && !is_local_name(&node_as_unary_expression.operand())
-            && !is_declaration_name_of_enum_or_namespace(&node_as_unary_expression.operand())
+        ) && is_identifier(&node_as_unary_expression.operand().ref_(self))
+            && !is_generated_identifier(&node_as_unary_expression.operand().ref_(self))
+            && !is_local_name(&node_as_unary_expression.operand().ref_(self))
+            && !is_declaration_name_of_enum_or_namespace(node_as_unary_expression.operand(), self)
         {
             let exported_names = self.get_exports(&node_as_unary_expression.operand())?;
             if let Some(exported_names) = exported_names {
@@ -306,7 +312,7 @@ impl TransformModule {
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?;
-                if is_prefix_unary_expression(node) {
+                if is_prefix_unary_expression(&node.ref_(self)) {
                     expression = self
                         .factory
                         .update_prefix_unary_expression(node, expression);
@@ -324,30 +330,30 @@ impl TransformModule {
                         expression = self
                             .factory
                             .create_assignment(temp.clone().unwrap(), expression)
-                            .set_text_range(Some(node));
+                            .set_text_range(Some(&*node.ref_(self)), self);
                     }
                 }
 
-                for export_name in &exported_names {
+                for &export_name in &exported_names {
                     self.no_substitution_mut()
-                        .insert(get_node_id(&expression), true);
+                        .insert(get_node_id(&expression.ref_(self)), true);
                     expression = self
                         .create_export_expression(
                             export_name,
-                            &expression,
-                            Option::<Id<Node>>::None,
+                            expression,
+                            Option::<&Node>::None,
                             None,
                         )
-                        .set_text_range(Some(node));
+                        .set_text_range(Some(&*node.ref_(self)), self);
                 }
 
                 if let Some(temp) = temp {
                     self.no_substitution_mut()
-                        .insert(get_node_id(&expression), true);
+                        .insert(get_node_id(&expression.ref_(self)), true);
                     expression = self
                         .factory
                         .create_comma(expression, temp)
-                        .set_text_range(Some(node));
+                        .set_text_range(Some(&*node.ref_(self)), self);
                 }
                 return Ok(Some(expression.into()));
             }
@@ -363,11 +369,12 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ImportCall*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_call_expression = node.as_call_expression();
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
         let external_module_name = get_external_module_name_literal(
             &self.factory,
             node,
-            &self.current_source_file(),
+            self.current_source_file(),
             &**self.host,
             &**self.resolver,
             &self.compiler_options,
@@ -382,14 +389,14 @@ impl TransformModule {
             .filter(|external_module_name| match first_argument.as_ref() {
                 None => true,
                 Some(first_argument) => {
-                    !is_string_literal(first_argument)
-                        || *first_argument.as_string_literal().text()
-                            != *external_module_name.as_string_literal().text()
+                    !is_string_literal(&first_argument.ref_(self))
+                        || *first_argument.ref_(self).as_string_literal().text()
+                            != *external_module_name.ref_(self).as_string_literal().text()
                 }
             })
             .or(first_argument);
         let contains_lexical_this = node
-            .transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsLexicalThis);
         Ok(match self.compiler_options.module {
             Some(ModuleKind::AMD) => {
@@ -409,16 +416,16 @@ impl TransformModule {
         contains_lexical_this: bool,
     ) -> Id<Node /*Expression*/> {
         self.set_need_umd_dynamic_import_helper(true);
-        if is_simple_copiable_expression(&arg) {
-            let arg_clone = if is_generated_identifier(&arg) {
+        if is_simple_copiable_expression(&arg.ref_(self)) {
+            let arg_clone = if is_generated_identifier(&arg.ref_(self)) {
                 arg.clone()
-            } else if is_string_literal(&arg) {
-                self.factory.create_string_literal_from_node(&arg)
+            } else if is_string_literal(&arg.ref_(self)) {
+                self.factory.create_string_literal_from_node(arg)
             } else {
                 self.factory
-                    .clone_node(&arg)
-                    .set_text_range(Some(&*arg))
-                    .set_emit_flags(EmitFlags::NoComments)
+                    .clone_node(arg)
+                    .set_text_range(Some(&*arg.ref_(self)), self)
+                    .set_emit_flags(EmitFlags::NoComments, self)
             };
             self.factory.create_conditional_expression(
                 self.factory.create_identifier("__syncRequire"),
@@ -608,7 +615,7 @@ impl TransformModule {
         inner_expr: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         if get_es_module_interop(&self.compiler_options) != Some(true)
-            || get_emit_flags(node).intersects(EmitFlags::NeverApplyImportHelper)
+            || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NeverApplyImportHelper)
         {
             return inner_expr;
         }
@@ -624,7 +631,7 @@ impl TransformModule {
         inner_expr: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         if get_es_module_interop(&self.compiler_options) != Some(true)
-            || get_emit_flags(node).intersects(EmitFlags::NeverApplyImportHelper)
+            || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NeverApplyImportHelper)
         {
             return inner_expr;
         }
@@ -641,16 +648,17 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_import_declaration = node.as_import_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_import_declaration = node_ref.as_import_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
-        let namespace_declaration = get_namespace_declaration_node(node);
+        let namespace_declaration = get_namespace_declaration_node(node, self);
         if self.module_kind != ModuleKind::AMD {
             if node_as_import_declaration.import_clause.is_none() {
                 return Ok(Some(
                     self.factory
                         .create_expression_statement(self.create_require_call(node)?)
-                        .set_text_range(Some(node))
-                        .set_original_node(Some(node.node_wrapper()))
+                        .set_text_range(Some(&*node.ref_(self)), self)
+                        .set_original_node(Some(node), self)
                         .into(),
                 ));
             } else {
@@ -662,7 +670,7 @@ impl TransformModule {
                         self.factory.create_variable_declaration(
                             Some(
                                 self.factory.clone_node(
-                                    &namespace_declaration.as_named_declaration().name(),
+                                    namespace_declaration.ref_(self).as_named_declaration().name(),
                                 ),
                             ),
                             None,
@@ -690,7 +698,7 @@ impl TransformModule {
                         variables.push(self.factory.create_variable_declaration(
                             Some(
                                 self.factory.clone_node(
-                                    &namespace_declaration.as_named_declaration().name(),
+                                    namespace_declaration.ref_(self).as_named_declaration().name(),
                                 ),
                             ),
                             None,
@@ -713,8 +721,8 @@ impl TransformModule {
                                 ),
                             ),
                         )
-                        .set_text_range(Some(node))
-                        .set_original_node(Some(node.node_wrapper())),
+                        .set_text_range(Some(&*node.ref_(self)), self)
+                        .set_original_node(Some(node), self),
                 );
             }
         } else if let Some(namespace_declaration) = namespace_declaration
@@ -727,7 +735,7 @@ impl TransformModule {
                         vec![self.factory.create_variable_declaration(
                             Some(
                                 self.factory.clone_node(
-                                    &namespace_declaration.as_named_declaration().name(),
+                                    namespace_declaration.ref_(self).as_named_declaration().name(),
                                 ),
                             ),
                             None,
@@ -745,7 +753,7 @@ impl TransformModule {
         }
 
         if self.has_associated_end_of_declaration_marker(node) {
-            let id = get_original_node_id(node);
+            let id = get_original_node_id(node, self);
             self.deferred_exports_mut().insert(id, {
                 self.append_exports_of_import_declaration(&mut statements, node);
                 statements.clone()
@@ -765,7 +773,7 @@ impl TransformModule {
         let module_name = get_external_module_name_literal(
             &self.factory,
             import_node,
-            &self.current_source_file(),
+            self.current_source_file(),
             &**self.host,
             &**self.resolver,
             &self.compiler_options,

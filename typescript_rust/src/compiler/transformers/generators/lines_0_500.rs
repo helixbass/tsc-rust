@@ -1001,19 +1001,19 @@ impl TransformGenerators {
                 .factory
                 .create_function_declaration(
                     Option::<Gc<NodeArray>>::None,
-                    node.maybe_modifiers(),
+                    node.ref_(self).maybe_modifiers(),
                     None,
-                    node.as_function_declaration().maybe_name(),
+                    node.ref_(self).as_function_declaration().maybe_name(),
                     Option::<Gc<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(&node.as_function_declaration().parameters()),
+                        Some(&node.ref_(self).as_function_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
                     )
                     .unwrap(),
                     None,
                     Some(self.transform_generator_function_body(
-                        &node.as_function_declaration().maybe_body().unwrap(),
+                        node.ref_(self).as_function_declaration().maybe_body().unwrap(),
                     )),
                 )
                 .set_text_range(Some(&*node.ref_(self)), self)
@@ -1023,13 +1023,13 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(&node, |node: Id<Node>| self.visitor(node), &**self.context);
+            node = visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
 
         if self.maybe_in_generator_function_body() == Some(true) {
-            self.context.hoist_function_declaration(&node);
+            self.context.hoist_function_declaration(node);
             None
         } else {
             Some(node)
@@ -1050,16 +1050,16 @@ impl TransformGenerators {
                 .create_function_expression(
                     Option::<Gc<NodeArray>>::None,
                     None,
-                    node.as_function_expression().maybe_name(),
+                    node.ref_(self).as_function_expression().maybe_name(),
                     Option::<Gc<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(&node.as_function_expression().parameters()),
+                        Some(&node.ref_(self).as_function_expression().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
                     ),
                     None,
                     self.transform_generator_function_body(
-                        &node.as_function_expression().maybe_body().unwrap(),
+                        node.ref_(self).as_function_expression().maybe_body().unwrap(),
                     ),
                 )
                 .set_text_range(Some(&*node.ref_(self)), self)
@@ -1069,7 +1069,7 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(&node, |node: Id<Node>| self.visitor(node), &**self.context);
+            node = visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
@@ -1148,7 +1148,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                             .factory
                             .clone_node(name)
                             .set_text_range(Some(&*name.ref_(self)), self)
-                            .and_set_parent(name.maybe_parent(), self)
+                            .and_set_parent(name.ref_(self).maybe_parent(), self)
                             .set_source_map_range(Some((&*node.ref_(self)).into()), self)
                             .set_comment_range((&*node.ref_(self)), self));
                     }

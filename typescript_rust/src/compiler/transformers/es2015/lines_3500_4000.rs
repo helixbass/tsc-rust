@@ -18,6 +18,7 @@ use crate::{
     is_packed_array_literal, is_return_statement, set_emit_flags, set_original_node, try_span_map,
     AsDoubleDeref, CallBinding, GeneratedIdentifierFlags, SignatureDeclarationInterface,
     TransformFlags,
+    InArena,
 };
 
 impl TransformES2015 {
@@ -372,7 +373,7 @@ impl TransformES2015 {
         );
 
         let mut alias_assignment = try_cast(initializer, |&initializer: &Id<Node>| {
-            is_assignment_expression(initializer, None)
+            is_assignment_expression(initializer, None, self)
         });
         if alias_assignment.is_none()
             && is_binary_expression(&initializer.ref_(self))
@@ -728,7 +729,7 @@ impl TransformES2015 {
             let first_segment = &segments[0];
             if is_argument_list && self.compiler_options.downlevel_iteration != Some(true)
                 || is_packed_array_literal(first_segment.expression)
-                || is_call_to_helper(&first_segment.expression, "___spreadArray", self)
+                || is_call_to_helper(first_segment.expression, "___spreadArray", self)
             {
                 return Ok(first_segment.expression);
             }

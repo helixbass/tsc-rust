@@ -16,11 +16,12 @@ use crate::{
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeArray,
     NodeExt, NodeFlags, ReadonlyTextRange, SignatureDeclarationInterface,
+    InArena,
 };
 
 impl TransformSystemModule {
     pub(super) fn top_level_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node),
@@ -33,21 +34,22 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ImportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
-        let node_as_import_declaration = node.as_import_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_import_declaration = node_ref.as_import_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if node_as_import_declaration.import_clause.is_some() {
             self.context.hoist_variable_declaration(
-                &get_local_name_for_external_import(
+                get_local_name_for_external_import(
                     &self.factory,
                     node,
-                    &self.current_source_file(),
+                    self.current_source_file(),
                 )
                 .unwrap(),
             );
         }
 
         if self.has_associated_end_of_declaration_marker(node) {
-            let id = get_original_node_id(node);
+            let id = get_original_node_id(node, self);
             self.append_exports_of_import_declaration(
                 self.deferred_exports_mut().entry(id).or_default(),
                 node,
@@ -72,18 +74,18 @@ impl TransformSystemModule {
         node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
         Debug_.assert(
-            is_external_module_import_equals_declaration(node),
+            is_external_module_import_equals_declaration(node, self),
             Some("import= for internal module references should be handled in an earlier transformer.")
         );
 
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         self.context.hoist_variable_declaration(
-            &get_local_name_for_external_import(&self.factory, node, &self.current_source_file())
+            get_local_name_for_external_import(&self.factory, node, self.current_source_file())
                 .unwrap(),
         );
 
         if self.has_associated_end_of_declaration_marker(node) {
-            let id = get_original_node_id(node);
+            let id = get_original_node_id(node, self);
             self.append_exports_of_import_equals_declaration(
                 self.deferred_exports_mut().entry(id).or_default(),
                 node,
@@ -99,7 +101,8 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_export_assignment = node.as_export_assignment();
+        let node_ref = node.ref_(self);
+        let node_as_export_assignment = node_ref.as_export_assignment();
         if node_as_export_assignment.is_export_equals == Some(true) {
             return Ok(None);
         }
@@ -110,22 +113,22 @@ impl TransformSystemModule {
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
-        let original = node.maybe_original();
+        let original = node.ref_(self).maybe_original();
         Ok(match original {
-            Some(ref original) if self.has_associated_end_of_declaration_marker(original) => {
-                let id = get_original_node_id(node);
+            Some(original) if self.has_associated_end_of_declaration_marker(original) => {
+                let id = get_original_node_id(node, self);
                 self.append_export_statement(
                     self.deferred_exports_mut().entry(id).or_default(),
-                    &self.factory.create_identifier("default"),
-                    &expression,
+                    self.factory.create_identifier("default"),
+                    expression,
                     Some(true),
                 );
                 None
             }
             _ => Some(
                 self.create_export_statement(
-                    &self.factory.create_identifier("default"),
-                    &expression,
+                    self.factory.create_identifier("default"),
+                    expression,
                     Some(true),
                 )
                 .into(),
@@ -137,18 +140,19 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_function_declaration = node.as_function_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_function_declaration = node_ref.as_function_declaration();
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             self.maybe_hoisted_statements_mut()
                 .get_or_insert_default_()
                 .push(
                     self.factory.update_function_declaration(
                         node,
-                        node.maybe_decorators(),
+                        node.ref_(self).maybe_decorators(),
                         maybe_visit_nodes(
-                            node.maybe_modifiers().as_deref(),
+                            node.ref_(self).maybe_modifiers().as_deref(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
-                            Some(is_modifier),
+                            Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
                             None,
                         ),
@@ -169,7 +173,7 @@ impl TransformSystemModule {
                         try_maybe_visit_node(
                             node_as_function_declaration.maybe_body(),
                             Some(|node: Id<Node>| self.visitor(node)),
-                            Some(is_block),
+                            Some(|node: Id<Node>| is_block(&node.ref_(self))),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
                     ),
@@ -185,7 +189,7 @@ impl TransformSystemModule {
         }
 
         if self.has_associated_end_of_declaration_marker(node) {
-            let id = get_original_node_id(node);
+            let id = get_original_node_id(node, self);
             self.append_exports_of_hoisted_declaration(
                 self.deferred_exports_mut().entry(id).or_default(),
                 node,
@@ -204,11 +208,12 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_class_declaration = node.as_class_declaration();
+        let node_as_class_declaration_ref = node_as_class_declaration.ref_(self);
+        let node_as_class_declaration = node_ref.as_class_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
 
         let name = self.factory.get_local_name(node, None, None);
-        self.context.hoist_variable_declaration(&name);
+        self.context.hoist_variable_declaration(name);
 
         statements.get_or_insert_default_().push(
             self.factory
@@ -218,9 +223,9 @@ impl TransformSystemModule {
                         self.factory
                             .create_class_expression(
                                 try_maybe_visit_nodes(
-                                    node.maybe_decorators().as_deref(),
+                                    node.ref_(self).maybe_decorators().as_deref(),
                                     Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(is_decorator),
+                                    Some(|node: Id<Node>| is_decorator(&node.ref_(self))),
                                     None,
                                     None,
                                 )?,
@@ -232,26 +237,26 @@ impl TransformSystemModule {
                                         .maybe_heritage_clauses()
                                         .as_deref(),
                                     Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(is_heritage_clause),
+                                    Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                                     None,
                                     None,
                                 )?,
                                 try_visit_nodes(
                                     &node_as_class_declaration.members(),
                                     Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(is_class_element),
+                                    Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                                     None,
                                     None,
                                 )?,
                             )
-                            .set_text_range(Some(node)),
+                            .set_text_range(Some(&*node.ref_(self)), self),
                     ),
                 )
-                .set_text_range(Some(node)),
+                .set_text_range(Some(&*node.ref_(self)), self),
         );
 
         if self.has_associated_end_of_declaration_marker(node) {
-            let id = get_original_node_id(node);
+            let id = get_original_node_id(node, self);
             self.append_exports_of_hoisted_declaration(
                 self.deferred_exports_mut().entry(id).or_default(),
                 node,
@@ -267,9 +272,10 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_as_variable_statement = node.as_variable_statement();
+        let node_ref = node.ref_(self);
+        let node_as_variable_statement = node_ref.as_variable_statement();
         if !self
-            .should_hoist_variable_declaration_list(&node_as_variable_statement.declaration_list)
+            .should_hoist_variable_declaration_list(node_as_variable_statement.declaration_list)
         {
             return Ok(Some(
                 try_visit_node(
@@ -311,12 +317,12 @@ impl TransformSystemModule {
             statements.get_or_insert_default_().push(
                 self.factory
                     .create_expression_statement(self.factory.inline_expressions(&expressions))
-                    .set_text_range(Some(node)),
+                    .set_text_range(Some(&*node.ref_(self)), self),
             );
         }
 
         if is_marked_declaration {
-            let id = get_original_node_id(node);
+            let id = get_original_node_id(node, self);
             self.append_exports_of_variable_statement(
                 self.deferred_exports_mut().entry(id).or_default(),
                 node,
@@ -333,17 +339,18 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) {
-        let node_as_named_declaration = node.as_named_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_named_declaration = node_ref.as_named_declaration();
         let node_name = node_as_named_declaration.name();
-        if is_binding_pattern(Some(&*node_name)) {
-            for element in &node_name.as_has_elements().elements() {
-                if !is_omitted_expression(element) {
+        if is_binding_pattern(Some(&*node_name.ref_(self))) {
+            for &element in &node_name.as_has_elements().elements() {
+                if !is_omitted_expression(&element.ref_(self)) {
                     self.hoist_binding_element(element);
                 }
             }
         } else {
             self.context
-                .hoist_variable_declaration(&self.factory.clone_node(&node_name));
+                .hoist_variable_declaration(self.factory.clone_node(node_name));
         }
     }
 
@@ -351,10 +358,10 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*VariableDeclarationList*/
     ) -> bool {
-        !get_emit_flags(node).intersects(EmitFlags::NoHoisting)
-            && (self.enclosing_block_scoped_container().kind() == SyntaxKind::SourceFile
+        !get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NoHoisting)
+            && (self.enclosing_block_scoped_container().ref_(self).kind() == SyntaxKind::SourceFile
                 || !get_original_node(node, self)
-                    .flags()
+                    .ref_(self).flags()
                     .intersects(NodeFlags::BlockScoped))
     }
 
@@ -363,7 +370,8 @@ impl TransformSystemModule {
         node: Id<Node>, /*VariableDeclaration*/
         is_exported_declaration: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_as_variable_declaration = node.as_variable_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_variable_declaration = node_ref.as_variable_declaration();
         let create_assignment =
             |name: Id<Node>, value: Id<Node>, location: Option<&dyn ReadonlyTextRange>| {
                 Ok(if is_exported_declaration {
@@ -386,9 +394,9 @@ impl TransformSystemModule {
             } else if let Some(node_initializer) = node_as_variable_declaration.maybe_initializer()
             {
                 create_assignment(
-                    &node_as_variable_declaration.name(),
-                    &*try_visit_node(
-                        &node_initializer,
+                    node_as_variable_declaration.name(),
+                    try_visit_node(
+                        node_initializer,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -427,21 +435,21 @@ impl TransformSystemModule {
         is_exported_declaration: bool,
     ) -> Id<Node> {
         self.context
-            .hoist_variable_declaration(&self.factory.clone_node(name));
+            .hoist_variable_declaration(self.factory.clone_node(name));
         if is_exported_declaration {
             self.create_export_expression(
                 name,
-                &self.prevent_substitution(
+                self.prevent_substitution(
                     self.factory
-                        .create_assignment(name.node_wrapper(), value.node_wrapper())
-                        .set_text_range(location),
+                        .create_assignment(name, value)
+                        .set_text_range(location, self),
                 ),
             )
         } else {
             self.prevent_substitution(
                 self.factory
-                    .create_assignment(name.node_wrapper(), value.node_wrapper())
-                    .set_text_range(location),
+                    .create_assignment(name, value)
+                    .set_text_range(location, self),
             )
         }
     }
@@ -451,47 +459,47 @@ impl TransformSystemModule {
         node: Id<Node>, /*MergeDeclarationMarker*/
     ) -> VisitResult /*<Statement>*/ {
         if self.has_associated_end_of_declaration_marker(node)
-            && node.maybe_original().unwrap().kind() == SyntaxKind::VariableStatement
+            && node.ref_(self).maybe_original().unwrap().ref_(self).kind() == SyntaxKind::VariableStatement
         {
-            let id = get_original_node_id(node);
+            let id = get_original_node_id(node, self);
             let is_exported_declaration =
-                has_syntactic_modifier(node.maybe_original().unwrap(), ModifierFlags::Export, self);
+                has_syntactic_modifier(node.ref_(self).maybe_original().unwrap(), ModifierFlags::Export, self);
             self.append_exports_of_variable_statement(
                 self.deferred_exports_mut().entry(id).or_default(),
-                &node.maybe_original().unwrap(),
+                node.ref_(self).maybe_original().unwrap(),
                 is_exported_declaration,
             );
         }
 
-        Some(node.node_wrapper().into())
+        Some(node.into())
     }
 
     pub(super) fn has_associated_end_of_declaration_marker(&self, node: Id<Node>) -> bool {
-        get_emit_flags(node).intersects(EmitFlags::HasEndOfDeclarationMarker)
+        get_emit_flags(&node.ref_(self)).intersects(EmitFlags::HasEndOfDeclarationMarker)
     }
 
     pub(super) fn visit_end_of_declaration_marker(
         &self,
         node: Id<Node>, /*EndOfDeclarationMarker*/
     ) -> VisitResult /*<Statement>*/ {
-        let id = get_original_node_id(node);
+        let id = get_original_node_id(node, self);
         let mut statements = self.deferred_exports().get(&id).cloned().flatten();
         if let Some(mut statements) = statements {
             self.deferred_exports_mut().remove(&id);
-            statements.push(node.node_wrapper());
+            statements.push(node);
             return Some(statements.into());
         } else {
-            let original = &get_original_node(node, self);
-            if is_module_or_enum_declaration(original) {
+            let original = get_original_node(node, self);
+            if is_module_or_enum_declaration(&original.ref_(self)) {
                 self.append_exports_of_declaration(&mut statements, original, None);
                 statements
                     .get_or_insert_default_()
-                    .push(node.node_wrapper());
+                    .push(node);
                 return statements.map(Into::into);
             }
         }
 
-        Some(node.node_wrapper().into())
+        Some(node.into())
     }
 
     pub(super) fn append_exports_of_import_declaration(
@@ -499,7 +507,8 @@ impl TransformSystemModule {
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: Id<Node>, /*ImportDeclaration*/
     ) {
-        let decl_as_import_declaration = decl.as_import_declaration();
+        let decl_ref = decl.ref_(self);
+        let decl_as_import_declaration = decl_ref.as_import_declaration();
         if self.module_info().export_equals.is_some() {
             return /*statements*/;
         }
@@ -548,14 +557,15 @@ impl TransformSystemModule {
         export_self: bool,
     ) /*: Statement[] | undefined*/
     {
-        let node_as_variable_statement = node.as_variable_statement();
+        let node_ref = node.ref_(self);
+        let node_as_variable_statement = node_ref.as_variable_statement();
         if self.module_info().export_equals.is_some() {
             return /*statements*/;
         }
 
-        for decl in &node_as_variable_statement
+        for &decl in &node_as_variable_statement
             .declaration_list
-            .as_variable_declaration_list()
+            .ref_(self).as_variable_declaration_list()
             .declarations
         {
             if decl.as_variable_declaration().maybe_initializer().is_some() || export_self {

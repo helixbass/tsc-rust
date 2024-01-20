@@ -318,7 +318,7 @@ impl TransformES2017 {
                             captured_super_properties.insert(
                                 node_as_property_access_expression
                                     .name
-                                    .ref_(arena).as_member_name()
+                                    .ref_(self).as_member_name()
                                     .escaped_text()
                                     .to_owned(),
                             );
@@ -841,7 +841,7 @@ impl TransformES2017 {
                             .converters()
                             .convert_to_assignment_element_target(
                                 node_as_variable_declaration_list.declarations[0]
-                                    .ref_(arena).as_variable_declaration()
+                                    .ref_(self).as_variable_declaration()
                                     .name(),
                             ),
                     ),
@@ -965,7 +965,7 @@ impl TransformES2017 {
                 &node_as_function_like_declaration
                     .maybe_body()
                     .unwrap()
-                    .ref_(arena).as_block()
+                    .ref_(self).as_block()
                     .statements,
                 &mut statements,
                 Some(false),
@@ -1233,7 +1233,7 @@ impl TransformES2017 {
         let node_as_call_expression = node_ref.as_call_expression();
         let expression = node_as_call_expression.expression;
         if is_super_property(expression, self) {
-            let argument_expression = if is_property_access_expression(&expression.ref_(arena)) {
+            let argument_expression = if is_property_access_expression(&expression.ref_(self)) {
                 self.substitute_property_access_expression(expression)
             } else {
                 self.substitute_element_access_expression(expression)

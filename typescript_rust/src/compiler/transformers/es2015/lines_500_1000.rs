@@ -141,16 +141,15 @@ impl TransformES2015 {
                 converted_loop_state.non_local_jumps =
                     Some(converted_loop_state.non_local_jumps.unwrap_or_default() | Jump::Return);
             }
-            if self.is_return_void_statement_in_constructor_with_captured_super(&node) {
-                node = self.return_captured_this(&node);
+            if self.is_return_void_statement_in_constructor_with_captured_super(node) {
+                node = self.return_captured_this(node);
             }
             return Ok(self.factory.create_return_statement(Some(
                 self.factory.create_object_literal_expression(
                     Some(vec![self.factory.create_property_assignment(
                         self.factory.create_identifier("value"),
-                        node.as_return_statement()
+                        node.ref_(self).as_return_statement()
                             .expression
-                            .as_ref()
                             .try_map_or_else(
                                 || Ok(self.factory.create_void_zero()),
                                 |node_expression| {
@@ -166,8 +165,8 @@ impl TransformES2015 {
                     None,
                 ),
             )));
-        } else if self.is_return_void_statement_in_constructor_with_captured_super(&node) {
-            return Ok(self.return_captured_this(&node));
+        } else if self.is_return_void_statement_in_constructor_with_captured_super(node) {
+            return Ok(self.return_captured_this(node));
         }
         try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
     }
@@ -252,7 +251,7 @@ impl TransformES2015 {
             let can_use_break_or_continue = matches!(
                 (node_as_has_label.maybe_label().as_ref(), (*self.converted_loop_state()).borrow().labels.as_ref()),
                 (Some(node_label), Some(converted_loop_state_labels)) if converted_loop_state_labels.get(
-                    id_text(node_label)
+                    id_text(&node_label.ref_(self))
                 ).copied() == Some(true)
             ) || node_as_has_label.maybe_label().is_none()
                 && (*self.converted_loop_state())
@@ -284,20 +283,20 @@ impl TransformES2015 {
                     }
                     Some(label) => {
                         if node.ref_(self).kind() == SyntaxKind::BreakStatement {
-                            label_marker = format!("break-{}", label.as_identifier().escaped_text);
+                            label_marker = format!("break-{}", label.ref_(self).as_identifier().escaped_text);
                             self.set_labeled_jump(
                                 &mut self.converted_loop_state().borrow_mut(),
                                 true,
-                                id_text(label).to_owned(),
+                                id_text(&label.ref_(self)).to_owned(),
                                 label_marker.clone(),
                             );
                         } else {
                             label_marker =
-                                format!("continue-{}", label.as_identifier().escaped_text);
+                                format!("continue-{}", label.ref_(self).as_identifier().escaped_text);
                             self.set_labeled_jump(
                                 &mut self.converted_loop_state().borrow_mut(),
                                 false,
-                                id_text(label).to_owned(),
+                                id_text(&label.ref_(self)).to_owned(),
                                 label_marker.clone(),
                             );
                         }
@@ -631,7 +630,7 @@ impl TransformES2015 {
         Ok(try_visit_parameter_list(
             constructor
                 .filter(|_| !has_synthesized_super)
-                .map(|constructor| constructor.as_constructor_declaration().parameters())
+                .map(|constructor| constructor.ref_(self).as_constructor_declaration().parameters())
                 .as_deref(),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
@@ -664,7 +663,7 @@ impl TransformES2015 {
         let statements_array = self
             .factory
             .create_node_array(Some(statements), None)
-            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members()), self);
+            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members()));
 
         self.factory
             .create_block(statements_array, Some(true))
@@ -683,7 +682,7 @@ impl TransformES2015 {
             .matches(|extends_clause_element| {
                 skip_outer_expressions(
                     extends_clause_element
-                        .as_expression_with_type_arguments()
+                        .ref_(self).as_expression_with_type_arguments()
                         .expression,
                     None,
                     self,
@@ -735,11 +734,11 @@ impl TransformES2015 {
         } else if is_derived_class && statement_offset < constructor_body_as_block.statements.len()
         {
             let first_statement = &constructor_body_as_block.statements[statement_offset];
-            if is_expression_statement(first_statement)
-                && is_super_call(first_statement.as_expression_statement().expression, self)
+            if is_expression_statement(&first_statement.ref_(self))
+                && is_super_call(first_statement.ref_(self).as_expression_statement().expression, self)
             {
                 super_call_expression = Some(self.visit_immediate_super_call_in_body(
-                    &first_statement.as_expression_statement().expression,
+                    first_statement.ref_(self).as_expression_statement().expression,
                 )?);
             }
         }
@@ -775,7 +774,7 @@ impl TransformES2015 {
             if let Some(super_call_expression) = super_call_expression.clone().filter(|_| {
                 statement_offset == constructor_body_as_block.statements.len()
                     && !constructor_body
-                        .transform_flags()
+                        .ref_(self).transform_flags()
                         .intersects(TransformFlags::ContainsLexicalThis)
             }) {
                 let super_call = cast_present(
@@ -801,7 +800,7 @@ impl TransformES2015 {
                     Some(super_call_expression.unwrap_or_else(|| self.create_actual_this())),
                 );
 
-                if !self.is_sufficiently_covered_by_return_statements(&constructor_body) {
+                if !self.is_sufficiently_covered_by_return_statements(constructor_body) {
                     statements.push(self.factory.create_return_statement(Some(
                         self.factory.create_unique_name(
                             "this",

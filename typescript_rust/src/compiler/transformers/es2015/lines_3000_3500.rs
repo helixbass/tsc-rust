@@ -40,7 +40,7 @@ impl TransformES2015 {
 
         let node_initializer = node_as_for_statement.initializer.unwrap();
         let contains_yield = node_initializer
-            .transform_flags()
+            .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsYield);
         let mut emit_flags = EmitFlags::None;
         let current_state = (*current_state).borrow();
@@ -203,7 +203,7 @@ impl TransformES2015 {
                         self.factory.create_prefix_unary_expression(
                             SyntaxKind::ExclamationToken,
                             try_visit_node(
-                                node_as_for_statement.condition.as_deref().unwrap(),
+                                node_as_for_statement.condition.unwrap(),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -611,7 +611,7 @@ impl TransformES2015 {
             {
                 let out_param_name = self
                     .factory
-                    .create_unique_name(&format!("out_{}", id_text(name)), None);
+                    .create_unique_name(&format!("out_{}", id_text(&name.ref_(self))), None);
                 let mut flags = LoopOutParameterFlags::None;
                 if check_flags.intersects(NodeCheckFlags::NeedsLoopOutParameter) {
                     flags |= LoopOutParameterFlags::Body;
@@ -711,7 +711,7 @@ impl TransformES2015 {
                     &self.factory,
                     receiver,
                     try_visit_node(
-                        &property_as_property_assignment.name(),
+                        property_as_property_assignment.name(),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -719,7 +719,7 @@ impl TransformES2015 {
                     Option::<&Node>::None,
                 ),
                 try_visit_node(
-                    &property_as_property_assignment.maybe_initializer().unwrap(),
+                    property_as_property_assignment.maybe_initializer().unwrap(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -747,7 +747,7 @@ impl TransformES2015 {
                     &self.factory,
                     receiver,
                     try_visit_node(
-                        &property_as_shorthand_property_assignment.name(),
+                        property_as_shorthand_property_assignment.name(),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -755,7 +755,7 @@ impl TransformES2015 {
                     Option::<&Node>::None,
                 ),
                 self.factory
-                    .clone_node(&property_as_shorthand_property_assignment.name()),
+                    .clone_node(property_as_shorthand_property_assignment.name()),
             )
             .set_text_range(Some(&*property.ref_(self)), self);
         if starts_on_new_line == Some(true) {

@@ -768,7 +768,7 @@ impl TransformClassFields {
                                     &node_as_binary_expression
                                         .left
                                         .ref_(self).as_property_access_expression()
-                                        .name.ref_(arena),
+                                        .name.ref_(self),
                                 ) {
                                     Some(
                                         self.factory.create_string_literal_from_node(

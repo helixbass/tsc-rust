@@ -8,7 +8,7 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, is_source_file,
     transform_ecmascript_module, transform_module, try_map, Debug_, ModuleKind, SyntaxKind,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 #[derive(Trace, Finalize)]
@@ -80,7 +80,7 @@ impl TransformNodeModule {
     }
 
     fn get_module_transform_for_file(&self, file: Id<Node> /*SourceFile*/) -> Transformer {
-        if file.as_source_file().maybe_implied_node_format() == Some(ModuleKind::ESNext) {
+        if file.ref_(self).as_source_file().maybe_implied_node_format() == Some(ModuleKind::ESNext) {
             self.esm_transform.clone()
         } else {
             self.cjs_transform.clone()
@@ -88,15 +88,16 @@ impl TransformNodeModule {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<Id<Node>> {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file() {
-            return Ok(node.node_wrapper());
+            return Ok(node);
         }
 
-        self.set_current_source_file(Some(node.node_wrapper()));
+        self.set_current_source_file(Some(node));
         let result = self.get_module_transform_for_file(node).call(node)?;
         self.set_current_source_file(None);
-        Debug_.assert(is_source_file(&result), None);
+        Debug_.assert(is_source_file(&result.ref_(self)), None);
         Ok(result)
     }
 
@@ -104,20 +105,21 @@ impl TransformNodeModule {
         &self,
         node: Id<Node>, /*SourceFile | Bundle*/
     ) -> io::Result<Id<Node>> {
-        Ok(match node.kind() {
+        Ok(match node.ref_(self).kind() {
             SyntaxKind::SourceFile => self.transform_source_file(node)?,
             _ => self.transform_bundle(node)?,
         })
     }
 
     fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> io::Result<Id<Node>> {
-        let node_as_bundle = node.as_bundle();
+        let node_ref = node.ref_(self);
+        let node_as_bundle = node_ref.as_bundle();
         Ok(self.context.factory().create_bundle(
             try_map(
                 &node_as_bundle.source_files,
                 |source_file: &Option<Id<Node>>, _| -> io::Result<_> {
                     Ok(Some(
-                        self.transform_source_file(source_file.as_ref().unwrap())?,
+                        self.transform_source_file(source_file.unwrap())?,
                     ))
                 },
             )?,
@@ -163,19 +165,17 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
         node: Id<Node>,
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        if is_source_file(node) {
+        if is_source_file(&node.ref_(self)) {
             self.transform_node_module
-                .set_current_source_file(Some(node.node_wrapper()));
+                .set_current_source_file(Some(node));
         }
-        let current_source_file = self.transform_node_module.maybe_current_source_file();
-        if current_source_file.is_none() {
+        let Some(current_source_file) = self.transform_node_module.maybe_current_source_file() else {
             return self
                 .previous_on_emit_node
                 .on_emit_node(hint, node, emit_callback);
-        }
-        let current_source_file = current_source_file.unwrap();
+        };
         if current_source_file
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_implied_node_format()
             == Some(ModuleKind::ESNext)
         {
@@ -188,6 +188,12 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
         self.transform_node_module
             .cjs_on_emit_node
             .on_emit_node(hint, node, emit_callback)
+    }
+}
+
+impl HasArena for TransformNodeModuleOnEmitNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -213,9 +219,9 @@ impl TransformationContextOnSubstituteNodeOverrider
     for TransformNodeModuleOnSubstituteNodeOverrider
 {
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
-        if is_source_file(node) {
+        if is_source_file(&node.ref_(self)) {
             self.transform_node_module
-                .set_current_source_file(Some(node.node_wrapper()));
+                .set_current_source_file(Some(node));
             self.previous_on_substitute_node
                 .on_substitute_node(hint, node)
         } else {
@@ -227,7 +233,7 @@ impl TransformationContextOnSubstituteNodeOverrider
             }
             let current_source_file = current_source_file.unwrap();
             if current_source_file
-                .as_source_file()
+                .ref_(self).as_source_file()
                 .maybe_implied_node_format()
                 == Some(ModuleKind::ESNext)
             {
@@ -240,6 +246,12 @@ impl TransformationContextOnSubstituteNodeOverrider
                 .cjs_on_substitute_node
                 .on_substitute_node(hint, node)
         }
+    }
+}
+
+impl HasArena for TransformNodeModuleOnSubstituteNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

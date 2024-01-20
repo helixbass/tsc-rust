@@ -10,6 +10,7 @@ use crate::{
     Debug_, Node, ReadonlyTextRange, _d, get_original_node_id, id_text, is_generated_identifier,
     last_or_undefined, GetOrInsertDefault, NamedDeclarationInterface, NodeArray, NodeExt, NonEmpty,
     Number, SyntaxKind,
+    InArena,
 };
 
 impl TransformGenerators {

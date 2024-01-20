@@ -168,7 +168,7 @@ impl TransformES5OnSubstituteNodeOverrider {
             return node;
         }
         let literal_name =
-            self.try_substitute_reserved_name(&node_as_property_access_expression.name);
+            self.try_substitute_reserved_name(node_as_property_access_expression.name);
         if let Some(literal_name) = literal_name {
             return self
                 .transform_es5
