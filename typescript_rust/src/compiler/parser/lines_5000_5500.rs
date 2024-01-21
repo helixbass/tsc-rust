@@ -44,8 +44,8 @@ impl ParserType {
         self.finish_node(
             self.factory()
                 .create_property_access_expression_raw(
-                    expression.wrap(),
-                    self.parse_right_side_of_dot(true, true).wrap(),
+                    expression.alloc(self),
+                    self.parse_right_side_of_dot(true, true).alloc(self),
                 )
                 .into(),
             pos,
@@ -64,7 +64,7 @@ impl ParserType {
             .parse_jsx_opening_or_self_closing_element_or_opening_fragment(in_expression_context);
         let result: Node;
         if opening.kind() == SyntaxKind::JsxOpeningElement {
-            let mut children = self.parse_jsx_children(&opening);
+            let mut children = self.parse_jsx_children(opening);
             let closing_element: Id<Node /*JsxClosingElement*/>;
 
             let opening_as_jsx_opening_element = opening.as_jsx_opening_element();
@@ -73,32 +73,36 @@ impl ParserType {
             } else {
                 Some(children[children.len() - 1].clone())
             };
-            if let Some(last_child) = last_child.as_ref().filter(|last_child| {
-                if last_child.kind() != SyntaxKind::JsxElement {
+            if let Some(last_child) = last_child.filter(|last_child| {
+                if last_child.ref_(self).kind() != SyntaxKind::JsxElement {
                     return false;
                 }
-                let last_child_as_jsx_element = last_child.as_jsx_element();
+                let last_child_ref = last_child.ref_(self);
+                let last_child_as_jsx_element = last_child_ref.as_jsx_element();
                 !tag_names_are_equivalent(
-                    &last_child_as_jsx_element
+                    last_child_as_jsx_element
                         .opening_element
-                        .as_jsx_opening_element()
+                        .ref_(self).as_jsx_opening_element()
                         .tag_name,
-                    &last_child_as_jsx_element
+                    last_child_as_jsx_element
                         .closing_element
-                        .as_jsx_closing_element()
+                        .ref_(self).as_jsx_closing_element()
                         .tag_name,
+                    self,
                 ) && tag_names_are_equivalent(
-                    &opening_as_jsx_opening_element.tag_name,
-                    &last_child_as_jsx_element
+                    opening_as_jsx_opening_element.tag_name,
+                    last_child_as_jsx_element
                         .closing_element
-                        .as_jsx_closing_element()
+                        .ref_(self).as_jsx_closing_element()
                         .tag_name,
+                    self,
                 )
             }) {
-                let last_child_as_jsx_element = last_child.as_jsx_element();
+                let last_child_ref = last_child.ref_(self);
+                let last_child_as_jsx_element = last_child_ref.as_jsx_element();
                 let end = last_child_as_jsx_element.children.end();
                 let last_child_opening_element_pos =
-                    last_child_as_jsx_element.opening_element.pos();
+                    last_child_as_jsx_element.opening_element.ref_(self).pos();
                 let new_last = self.finish_node(
                     self.factory().create_jsx_element_raw(
                         last_child_as_jsx_element.opening_element.clone(),
@@ -114,12 +118,12 @@ impl ParserType {
                                     end,
                                     Some(end),
                                 )
-                                .wrap(),
+                                .alloc(self),
                             ),
                             end,
                             Some(end),
                         )
-                        .wrap(),
+                        .alloc(self),
                     ),
                     last_child_opening_element_pos,
                     Some(end),
@@ -128,32 +132,34 @@ impl ParserType {
                 let children_pos = children.pos();
                 let mut children_vec = children.to_vec();
                 let children_len = children.len();
-                children_vec[children_len - 1] = new_last.wrap();
+                children_vec[children_len - 1] = new_last.alloc(self);
                 children = self.create_node_array(children_vec, children_pos, Some(end), None);
                 closing_element = last_child_as_jsx_element.closing_element.clone();
             } else {
                 closing_element = self
                     .parse_jsx_closing_element(&opening, in_expression_context)
-                    .wrap();
-                let closing_element_as_jsx_closing_element =
-                    closing_element.as_jsx_closing_element();
+                    .alloc(self);
+                let closing_element_ref = closing_element.ref_(self);
+                let closing_element_as_jsx_closing_element = closing_element_ref.as_jsx_closing_element();
                 if !tag_names_are_equivalent(
-                    &opening_as_jsx_opening_element.tag_name,
-                    &closing_element_as_jsx_closing_element.tag_name,
+                    opening_as_jsx_opening_element.tag_name,
+                    closing_element_as_jsx_closing_element.tag_name,
+                    self,
                 ) {
                     if opening_tag.matches(|opening_tag| {
-                        is_jsx_opening_element(opening_tag)
+                        is_jsx_opening_element(&opening_tag.ref_(self))
                             && tag_names_are_equivalent(
-                                &closing_element_as_jsx_closing_element.tag_name,
-                                &opening_tag.as_jsx_opening_element().tag_name,
+                                closing_element_as_jsx_closing_element.tag_name,
+                                opening_tag.ref_(self).as_jsx_opening_element().tag_name,
+                                self,
                             )
                     }) {
                         self.parse_error_at_range(
-                            &*opening_as_jsx_opening_element.tag_name,
+                            &*opening_as_jsx_opening_element.tag_name.ref_(self),
                             &Diagnostics::JSX_element_0_has_no_corresponding_closing_tag,
                             Some(vec![get_text_of_node_from_source_text(
                                 &self.source_text_as_chars(),
-                                &opening_as_jsx_opening_element.tag_name,
+                                opening_as_jsx_opening_element.tag_name,
                                 None,
                                 self,
                             )
@@ -165,7 +171,7 @@ impl ParserType {
                             &Diagnostics::Expected_corresponding_JSX_closing_tag_for_0,
                             Some(vec![get_text_of_node_from_source_text(
                                 &self.source_text_as_chars(),
-                                &opening_as_jsx_opening_element.tag_name,
+                                opening_as_jsx_opening_element.tag_name,
                                 None,
                                 self,
                             )
@@ -176,7 +182,7 @@ impl ParserType {
             }
             result = self.finish_node(
                 self.factory()
-                    .create_jsx_element_raw(opening.wrap(), children, closing_element)
+                    .create_jsx_element_raw(opening.alloc(self), children, closing_element)
                     .into(),
                 pos,
                 None,
@@ -186,10 +192,10 @@ impl ParserType {
             result = self.finish_node(
                 self.factory()
                     .create_jsx_fragment_raw(
-                        opening.wrap(),
+                        opening.alloc(self),
                         children,
                         self.parse_jsx_closing_fragment(in_expression_context)
-                            .wrap(),
+                            .alloc(self),
                     )
                     .into(),
                 pos,
@@ -222,9 +228,9 @@ impl ParserType {
                 return self.finish_node(
                     self.factory()
                         .create_binary_expression_raw(
-                            result.wrap(),
-                            operator_token.wrap(),
-                            invalid_element.wrap(),
+                            result.alloc(self),
+                            operator_token.alloc(self),
+                            invalid_element.alloc(self),
                         )
                         .into(),
                     pos,
@@ -256,24 +262,25 @@ impl ParserType {
     ) -> Option<Node /*JsxChild*/> {
         match token {
             SyntaxKind::EndOfFileToken => {
-                if is_jsx_opening_fragment(opening_tag) {
+                if is_jsx_opening_fragment(&opening_tag.ref_(self)) {
                     self.parse_error_at_range(
-                        opening_tag,
+                        &*opening_tag.ref_(self),
                         &Diagnostics::JSX_fragment_has_no_corresponding_closing_tag,
                         None,
                     );
                 } else {
-                    let opening_tag_as_jsx_opening_element = opening_tag.as_jsx_opening_element();
-                    let tag = &opening_tag_as_jsx_opening_element.tag_name;
+                    let opening_tag_ref = opening_tag.ref_(self);
+                    let opening_tag_as_jsx_opening_element = opening_tag_ref.as_jsx_opening_element();
+                    let tag = opening_tag_as_jsx_opening_element.tag_name;
                     let start =
-                        skip_trivia(&self.source_text_as_chars(), tag.pos(), None, None, None);
+                        skip_trivia(&self.source_text_as_chars(), tag.ref_(self).pos(), None, None, None);
                     self.parse_error_at(
                         start,
                         tag.end(),
                         &Diagnostics::JSX_element_0_has_no_corresponding_closing_tag,
                         Some(vec![get_text_of_node_from_source_text(
                             &self.source_text_as_chars(),
-                            &opening_tag_as_jsx_opening_element.tag_name,
+                            opening_tag_as_jsx_opening_element.tag_name,
                             None,
                             self,
                         )
@@ -312,31 +319,33 @@ impl ParserType {
                 Some(&|message, length| self.scan_error(message, length)),
                 None,
             ));
-            let child = self.parse_jsx_child(opening_tag, self.current_token());
-            if child.is_none() {
+            let Some(child) = self.parse_jsx_child(opening_tag, self.current_token()) else {
                 break;
-            }
-            let child = child.unwrap();
-            let child = child.wrap();
-            list.push(child.clone());
-            if is_jsx_opening_element(opening_tag) && child.kind() == SyntaxKind::JsxElement {
-                let opening_tag_as_jsx_opening_element = opening_tag.as_jsx_opening_element();
-                let child_as_jsx_element = child.as_jsx_element();
+            };
+            let child = child.alloc(self);
+            list.push(child);
+            if is_jsx_opening_element(&opening_tag.ref_(self)) && child.ref_(self).kind() == SyntaxKind::JsxElement {
+                let opening_tag_ref = opening_tag.ref_(self);
+                let opening_tag_as_jsx_opening_element = opening_tag_ref.as_jsx_opening_element();
+                let child_ref = child.ref_(self);
+                let child_as_jsx_element = child_ref.as_jsx_element();
                 if !tag_names_are_equivalent(
-                    &child_as_jsx_element
+                    child_as_jsx_element
                         .opening_element
-                        .as_jsx_opening_element()
+                        .ref_(self).as_jsx_opening_element()
                         .tag_name,
-                    &child_as_jsx_element
+                    child_as_jsx_element
                         .closing_element
-                        .as_jsx_closing_element()
+                        .ref_(self).as_jsx_closing_element()
                         .tag_name,
+                    self,
                 ) && tag_names_are_equivalent(
-                    &opening_tag_as_jsx_opening_element.tag_name,
-                    &child_as_jsx_element
+                    opening_tag_as_jsx_opening_element.tag_name,
+                    child_as_jsx_element
                         .closing_element
-                        .as_jsx_closing_element()
+                        .ref_(self).as_jsx_closing_element()
                         .tag_name,
+                    self,
                 ) {
                     break;
                 }
@@ -352,7 +361,7 @@ impl ParserType {
         self.finish_node(
             self.factory().create_jsx_attributes_raw(
                 self.parse_list(ParsingContext::JsxAttributes, &mut || {
-                    self.parse_jsx_attribute().wrap()
+                    self.parse_jsx_attribute().alloc(self)
                 }),
             ),
             pos,
@@ -390,7 +399,7 @@ impl ParserType {
             self.scan_jsx_text();
             node = self
                 .factory()
-                .create_jsx_opening_element_raw(tag_name.wrap(), type_arguments, attributes.wrap())
+                .create_jsx_opening_element_raw(tag_name.alloc(self), type_arguments, attributes.alloc(self))
                 .into();
         } else {
             self.parse_expected(SyntaxKind::SlashToken, None, None);
@@ -404,9 +413,9 @@ impl ParserType {
             node = self
                 .factory()
                 .create_jsx_self_closing_element_raw(
-                    tag_name.wrap(),
+                    tag_name.alloc(self),
                     type_arguments,
-                    attributes.wrap(),
+                    attributes.alloc(self),
                 )
                 .into();
         }
@@ -426,8 +435,8 @@ impl ParserType {
             expression = self.finish_node(
                 self.factory()
                     .create_property_access_expression_raw(
-                        expression.wrap(),
-                        self.parse_right_side_of_dot(true, false).wrap(),
+                        expression.alloc(self),
+                        self.parse_right_side_of_dot(true, false).alloc(self),
                     )
                     .into(),
                 pos,
@@ -462,7 +471,7 @@ impl ParserType {
 
         Some(self.finish_node(
             self.factory().create_jsx_expression_raw(
-                dot_dot_dot_token.map(|dot_dot_dot_token| dot_dot_dot_token.wrap()),
+                dot_dot_dot_token.map(|dot_dot_dot_token| dot_dot_dot_token.alloc(self)),
                 expression,
             ),
             pos,
@@ -480,14 +489,14 @@ impl ParserType {
         self.finish_node(
             self.factory()
                 .create_jsx_attribute_raw(
-                    self.parse_identifier_name(None).wrap(),
+                    self.parse_identifier_name(None).alloc(self),
                     if self.token() != SyntaxKind::EqualsToken {
                         None
                     } else if self.scan_jsx_attribute_value() == SyntaxKind::StringLiteral {
-                        Some(self.parse_literal_node().wrap())
+                        Some(self.parse_literal_node().alloc(self))
                     } else {
                         self.parse_jsx_expression(true)
-                            .map(|jsx_expression| jsx_expression.wrap())
+                            .map(|jsx_expression| jsx_expression.alloc(self))
                     },
                 )
                 .into(),
@@ -516,11 +525,12 @@ impl ParserType {
     ) -> JsxClosingElement {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::LessThanSlashToken, None, None);
-        let tag_name = self.parse_jsx_element_name();
-        let open_as_jsx_opening_element = open.as_jsx_opening_element();
+        let tag_name = self.parse_jsx_element_name().alloc(self);
+        let open_ref = open.ref_(self);
+        let open_as_jsx_opening_element = open_ref.as_jsx_opening_element();
         if self.parse_expected(SyntaxKind::GreaterThanToken, None, Some(false)) {
             if in_expression_context
-                || !tag_names_are_equivalent(&open_as_jsx_opening_element.tag_name, &tag_name)
+                || !tag_names_are_equivalent(open_as_jsx_opening_element.tag_name, tag_name, self)
             {
                 self.next_token();
             } else {
@@ -529,7 +539,7 @@ impl ParserType {
         }
         self.finish_node(
             self.factory()
-                .create_jsx_closing_element_raw(tag_name.wrap()),
+                .create_jsx_closing_element_raw(tag_name),
             pos,
             None,
         )
@@ -593,19 +603,19 @@ impl ParserType {
         &self,
         mut node: Id<Node>, /*Expression*/
     ) -> bool {
-        if node.flags().intersects(NodeFlags::OptionalChain) {
+        if node.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
             return true;
         }
-        if is_non_null_expression(node) {
-            let mut expr = &*node.as_non_null_expression().expression;
-            while is_non_null_expression(expr) && !expr.flags().intersects(NodeFlags::OptionalChain)
+        if is_non_null_expression(&node.ref_(self)) {
+            let mut expr = node.ref_(self).as_non_null_expression().expression;
+            while is_non_null_expression(&expr.ref_(self)) && !expr.ref_(self).flags().intersects(NodeFlags::OptionalChain)
             {
-                expr = &*expr.as_non_null_expression().expression;
+                expr = expr.ref_(self).as_non_null_expression().expression;
             }
-            if expr.flags().intersects(NodeFlags::OptionalChain) {
-                while is_non_null_expression(node) {
-                    node.set_flags(node.flags() | NodeFlags::OptionalChain);
-                    node = &*node.as_non_null_expression().expression;
+            if expr.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
+                while is_non_null_expression(&node.ref_(self)) {
+                    node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::OptionalChain);
+                    node = node.ref_(self).as_non_null_expression().expression;
                 }
                 return true;
             }
@@ -621,20 +631,20 @@ impl ParserType {
     ) -> PropertyAccessExpression {
         let name = self.parse_right_side_of_dot(true, true);
         let is_optional_chain =
-            question_dot_token.is_some() || self.try_reparse_optional_chain(&expression);
+            question_dot_token.is_some() || self.try_reparse_optional_chain(expression);
         let property_access = if is_optional_chain {
             self.factory().create_property_access_chain_raw(
                 expression,
                 question_dot_token,
-                name.wrap(),
+                name.alloc(self),
             )
         } else {
             self.factory()
-                .create_property_access_expression_raw(expression, name.wrap())
+                .create_property_access_expression_raw(expression, name.alloc(self))
         };
-        if is_optional_chain && is_private_identifier(&property_access.name) {
+        if is_optional_chain && is_private_identifier(&property_access.name.ref_(self)) {
             self.parse_error_at_range(
-                &*property_access.name,
+                &*property_access.name.ref_(self),
                 &Diagnostics::An_optional_chain_cannot_contain_private_identifiers,
                 None,
             );
@@ -657,11 +667,12 @@ impl ParserType {
                     Some(&Diagnostics::An_element_access_expression_should_take_an_argument),
                     None,
                 )
-                .wrap();
+                .alloc(self);
         } else {
             let argument = self.allow_in_and(|| self.parse_expression());
-            if is_string_or_numeric_literal_like(&argument) {
-                let argument_as_literal_like_node = argument.as_literal_like_node();
+            if is_string_or_numeric_literal_like(&argument.ref_(self)) {
+                let argument_ref = argument.ref_(self);
+                let argument_as_literal_like_node = argument_ref.as_literal_like_node();
                 let text = self.intern_identifier(&argument_as_literal_like_node.text());
                 argument_as_literal_like_node.set_text(text);
             }
@@ -671,7 +682,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
 
         let indexed_access =
-            if question_dot_token.is_some() || self.try_reparse_optional_chain(&expression) {
+            if question_dot_token.is_some() || self.try_reparse_optional_chain(expression) {
                 self.factory().create_element_access_chain_raw(
                     expression,
                     question_dot_token,
@@ -707,9 +718,9 @@ impl ParserType {
                     .parse_property_access_expression_rest(
                         pos,
                         expression,
-                        question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
                     )
-                    .wrap();
+                    .alloc(self);
                 continue;
             }
 
@@ -724,7 +735,7 @@ impl ParserType {
                         pos,
                         None,
                     )
-                    .wrap();
+                    .alloc(self);
                 continue;
             }
 
@@ -735,9 +746,9 @@ impl ParserType {
                     .parse_element_access_expression_rest(
                         pos,
                         expression,
-                        question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
                     )
-                    .wrap();
+                    .alloc(self);
                 continue;
             }
 
@@ -745,7 +756,7 @@ impl ParserType {
                 expression = self.parse_tagged_template_rest(
                     pos,
                     expression,
-                    question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                    question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
                     None,
                 );
                 continue;
@@ -774,16 +785,16 @@ impl ParserType {
             type_arguments,
             if self.token() == SyntaxKind::NoSubstitutionTemplateLiteral {
                 self.re_scan_template_head_or_no_substitution_template();
-                self.parse_literal_node().wrap()
+                self.parse_literal_node().alloc(self)
             } else {
-                self.parse_template_expression(true).wrap()
+                self.parse_template_expression(true).alloc(self)
             },
         );
-        if question_dot_token.is_some() || tag.flags().intersects(NodeFlags::OptionalChain) {
-            tag_expression.set_flags(tag_expression.flags() | NodeFlags::OptionalChain);
+        if question_dot_token.is_some() || tag.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
+            tag_expression.set_flags(tag_expression.ref_(self).flags() | NodeFlags::OptionalChain);
         }
         tag_expression.question_dot_token = question_dot_token;
-        self.finish_node(tag_expression, pos, None).wrap()
+        self.finish_node(tag_expression, pos, None).alloc(self)
     }
 
     pub(super) fn parse_call_expression_rest(
@@ -806,7 +817,7 @@ impl ParserType {
                         expression = self.parse_tagged_template_rest(
                             pos,
                             expression,
-                            question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                            question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
                             Some(type_arguments),
                         );
                         continue;
@@ -814,11 +825,11 @@ impl ParserType {
 
                     let argument_list = self.parse_argument_list();
                     let call_expr = if question_dot_token.is_some()
-                        || self.try_reparse_optional_chain(&expression)
+                        || self.try_reparse_optional_chain(expression)
                     {
                         self.factory().create_call_chain_raw(
                             expression,
-                            question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                            question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
                             Some(type_arguments),
                             Some(argument_list),
                         )
@@ -829,17 +840,17 @@ impl ParserType {
                             Some(argument_list),
                         )
                     };
-                    expression = self.finish_node(call_expr, pos, None).wrap();
+                    expression = self.finish_node(call_expr, pos, None).alloc(self);
                     continue;
                 }
             } else if self.token() == SyntaxKind::OpenParenToken {
                 let argument_list = self.parse_argument_list();
                 let call_expr = if question_dot_token.is_some()
-                    || self.try_reparse_optional_chain(&expression)
+                    || self.try_reparse_optional_chain(expression)
                 {
                     self.factory().create_call_chain_raw(
                         expression,
-                        question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
                         Option::<Gc<NodeArray>>::None,
                         Some(argument_list),
                     )
@@ -850,7 +861,7 @@ impl ParserType {
                         Some(argument_list),
                     )
                 };
-                expression = self.finish_node(call_expr, pos, None).wrap();
+                expression = self.finish_node(call_expr, pos, None).alloc(self);
                 continue;
             }
             if let Some(question_dot_token) = question_dot_token {
@@ -864,13 +875,13 @@ impl ParserType {
                     .finish_node(
                         self.factory().create_property_access_chain_raw(
                             expression,
-                            Some(question_dot_token.wrap()),
-                            name.wrap(),
+                            Some(question_dot_token.alloc(self)),
+                            name.alloc(self),
                         ),
                         pos,
                         None,
                     )
-                    .wrap();
+                    .alloc(self);
             }
             break;
         }

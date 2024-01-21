@@ -173,7 +173,7 @@ pub(super) fn visit_nodes(
                 cb_nodes(nodes);
             }
             None => {
-                for node in nodes.iter() {
+                for &node in nodes.iter() {
                     cb_node(node);
                 }
             }
@@ -192,7 +192,7 @@ pub(super) fn try_visit_nodes<TError>(
                 cb_nodes(nodes)?;
             }
             None => {
-                for node in nodes.iter() {
+                for &node in nodes.iter() {
                     cb_node(node)?;
                 }
             }
@@ -202,13 +202,9 @@ pub(super) fn try_visit_nodes<TError>(
     Ok(())
 }
 
-pub(super) fn visit_nodes_returns<
-    TReturn,
-    TNodeCallback: FnMut(Id<Node>) -> Option<TReturn>,
-    TNodesCallback: FnMut(&NodeArray) -> Option<TReturn>,
->(
-    cb_node: &mut TNodeCallback,
-    cb_nodes: Option<&mut TNodesCallback>,
+pub(super) fn visit_nodes_returns<TReturn>(
+    cb_node: &mut impl FnMut(Id<Node>) -> Option<TReturn>,
+    cb_nodes: Option<&mut FnMut(&NodeArray) -> Option<TReturn>>,
     nodes: Option<&NodeArray>,
 ) -> Option<TReturn> {
     if let Some(nodes) = nodes {
@@ -217,7 +213,7 @@ pub(super) fn visit_nodes_returns<
                 return cb_nodes(nodes);
             }
             None => {
-                for node in nodes.iter() {
+                for &node in nodes.iter() {
                     let result = cb_node(node);
                     if result.is_some() {
                         return result;
@@ -229,14 +225,9 @@ pub(super) fn visit_nodes_returns<
     None
 }
 
-pub(super) fn try_visit_nodes_returns<
-    TReturn,
-    TError,
-    TNodeCallback: FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
-    TNodesCallback: FnMut(&NodeArray) -> Result<Option<TReturn>, TError>,
->(
-    cb_node: &mut TNodeCallback,
-    cb_nodes: Option<&mut TNodesCallback>,
+pub(super) fn try_visit_nodes_returns<TReturn, TError>(
+    cb_node: &mut FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
+    cb_nodes: Option<&mut FnMut(&NodeArray) -> Result<Option<TReturn>, TError>>,
     nodes: Option<&NodeArray>,
 ) -> Result<Option<TReturn>, TError> {
     if let Some(nodes) = nodes {
@@ -245,7 +236,7 @@ pub(super) fn try_visit_nodes_returns<
                 return cb_nodes(nodes);
             }
             None => {
-                for node in nodes.iter() {
+                for &node in nodes.iter() {
                     let result = cb_node(node)?;
                     if result.is_some() {
                         return Ok(result);

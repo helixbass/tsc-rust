@@ -39,8 +39,8 @@ impl ParserType {
         self.finish_node(
             self.factory()
                 .create_type_predicate_node_raw(
-                    Some(asserts_modifier.wrap()),
-                    parameter_name.wrap(),
+                    Some(asserts_modifier.alloc(self)),
+                    parameter_name.alloc(self),
                     type_,
                 )
                 .into(),
@@ -85,7 +85,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .wrap();
+                .alloc(self);
         }
         type_
     }
@@ -177,7 +177,7 @@ impl ParserType {
         while {
             operator_token = self
                 .parse_optional_token(SyntaxKind::CommaToken)
-                .map(|node| node.wrap());
+                .map(|node| node.alloc(self));
             operator_token.is_some()
         } {
             expr = self
@@ -187,7 +187,7 @@ impl ParserType {
                     self.parse_assignment_expression_or_higher(),
                     pos,
                 )
-                .wrap();
+                .alloc(self);
         }
 
         if save_decorator_context {
@@ -207,7 +207,7 @@ impl ParserType {
 
     pub(super) fn parse_assignment_expression_or_higher(&self) -> Id<Node> {
         if self.is_yield_expression() {
-            return self.parse_yield_expression().wrap();
+            return self.parse_yield_expression().alloc(self);
         }
 
         let arrow_expression = self
@@ -220,7 +220,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
 
-        if expr.kind() == SyntaxKind::Identifier
+        if expr.alloc(self) == SyntaxKind::Identifier
             && self.token() == SyntaxKind::EqualsGreaterThanToken
         {
             return self
@@ -234,11 +234,11 @@ impl ParserType {
             return self
                 .make_binary_expression(
                     expr,
-                    self.parse_token_node().wrap(),
+                    self.parse_token_node().alloc(self),
                     self.parse_assignment_expression_or_higher(),
                     pos,
                 )
-                .wrap();
+                .alloc(self);
         }
 
         self.parse_conditional_expression_rest(expr, pos)
@@ -274,7 +274,7 @@ impl ParserType {
             self.finish_node(
                 self.factory().create_yield_expression_raw(
                     self.parse_optional_token(SyntaxKind::AsteriskToken)
-                        .map(|asterisk_token| asterisk_token.wrap()),
+                        .map(|asterisk_token| asterisk_token.alloc(self)),
                     Some(self.parse_assignment_expression_or_higher()),
                 ),
                 pos,
@@ -299,7 +299,7 @@ impl ParserType {
             self.token() == SyntaxKind::EqualsGreaterThanToken,
             Some("parseSimpleArrowFunctionExpression should only have been called if we had a =>"),
         );
-        let identifier_pos = identifier.pos();
+        let identifier_pos = identifier.ref_(self).pos();
         let parameter = self.factory().create_parameter_declaration_raw(
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
@@ -314,7 +314,7 @@ impl ParserType {
         let parameter_pos = parameter.pos();
         let parameter_end = parameter.end();
         let parameters = self.create_node_array(
-            vec![parameter.wrap()],
+            vec![parameter.alloc(self)],
             parameter_pos,
             Some(parameter_end),
             None,
@@ -327,10 +327,10 @@ impl ParserType {
             Option::<Gc<NodeArray>>::None,
             parameters,
             None,
-            Some(equals_greater_than_token.wrap()),
+            Some(equals_greater_than_token.alloc(self)),
             body,
         );
-        self.add_jsdoc_comment(self.finish_node(node, pos, None).wrap())
+        self.add_jsdoc_comment(self.finish_node(node, pos, None).alloc(self))
     }
 
     pub(super) fn try_parse_parenthesized_arrow_function_expression(
@@ -532,7 +532,7 @@ impl ParserType {
             }
             let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
             if !self.scanner().has_preceding_line_break()
-                && expr.kind() == SyntaxKind::Identifier
+                && expr.ref_(self).kind() == SyntaxKind::Identifier
                 && self.token() == SyntaxKind::EqualsGreaterThanToken
             {
                 return Tristate::True;
@@ -551,7 +551,7 @@ impl ParserType {
         let modifiers = self.parse_modifiers_for_arrow_function();
         let is_async = if some(
             modifiers.as_double_deref(),
-            Some(|modifier: &Id<Node>| is_async_modifier(modifier)),
+            Some(|modifier: &Id<Node>| is_async_modifier(&modifier.ref_(self))),
         ) {
             SignatureFlags::Await
         } else {
@@ -573,14 +573,14 @@ impl ParserType {
         }
 
         let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
-        if let Some(type_) = type_.as_ref() {
-            if !allow_ambiguity && self.type_has_arrow_function_blocking_parse_error(&type_) {
+        if let Some(type_) = type_ {
+            if !allow_ambiguity && self.type_has_arrow_function_blocking_parse_error(type_) {
                 return None;
             }
         }
 
         let has_jsdoc_function_type =
-            matches!(type_.as_ref(), Some(type_) if is_jsdoc_function_type(type_));
+            matches!(type_, Some(type_) if is_jsdoc_function_type(&type_.ref_(self)));
         if !allow_ambiguity
             && self.token() != SyntaxKind::EqualsGreaterThanToken
             && (has_jsdoc_function_type || self.token() != SyntaxKind::OpenBraceToken)
@@ -597,10 +597,10 @@ impl ParserType {
         ) {
             self.parse_arrow_function_expression_body(some(
                 modifiers.as_double_deref(),
-                Some(|modifier: &Id<Node>| is_async_modifier(modifier)),
+                Some(|modifier: &Id<Node>| is_async_modifier(&modifier.ref_(self))),
             ))
         } else {
-            self.parse_identifier(None, None).wrap()
+            self.parse_identifier(None, None).alloc(self)
         };
 
         let node = self.factory().create_arrow_function_raw(
@@ -608,10 +608,10 @@ impl ParserType {
             type_parameters,
             parameters,
             type_,
-            Some(equals_greater_than_token.wrap()),
+            Some(equals_greater_than_token.alloc(self)),
             body,
         );
-        Some(self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc))
+        Some(self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc))
     }
 
     pub(super) fn parse_arrow_function_expression_body(
@@ -677,9 +677,9 @@ impl ParserType {
             .finish_node(
                 self.factory().create_conditional_expression_raw(
                     left_operand,
-                    Some(question_token.wrap()),
+                    Some(question_token.alloc(self)),
                     when_true,
-                    Some(colon_token.wrap()),
+                    Some(colon_token.alloc(self)),
                     if is_colon_token_present {
                         self.parse_assignment_expression_or_higher()
                     } else {
@@ -691,13 +691,13 @@ impl ParserType {
                                 .unwrap()
                                 .to_owned()]),
                         )
-                        .wrap()
+                        .alloc(self)
                     },
                 ),
                 pos,
                 None,
             )
-            .wrap();
+            .alloc(self);
     }
 
     pub(super) fn parse_binary_expression_or_higher(
@@ -744,17 +744,17 @@ impl ParserType {
                     self.next_token();
                     left_operand = self
                         .make_as_expression(left_operand, self.parse_type())
-                        .wrap();
+                        .alloc(self);
                 }
             } else {
                 left_operand = self
                     .make_binary_expression(
                         left_operand,
-                        self.parse_token_node().wrap(),
+                        self.parse_token_node().alloc(self),
                         self.parse_binary_expression_or_higher(new_precedence),
                         pos,
                     )
-                    .wrap();
+                    .alloc(self);
             }
         }
 
@@ -785,7 +785,7 @@ impl ParserType {
     }
 
     pub(super) fn make_as_expression(&self, left: Id<Node>, right: Id<Node>) -> AsExpression {
-        let left_pos = left.pos();
+        let left_pos = left.ref_(self).pos();
         self.finish_node(
             self.factory().create_as_expression_raw(left, right),
             left_pos,
@@ -883,13 +883,13 @@ impl ParserType {
         if self.token() == SyntaxKind::AsteriskAsteriskToken {
             let pos = skip_trivia(
                 &self.source_text_as_chars(),
-                simple_unary_expression.pos(),
+                simple_unary_expression.ref_(self).pos(),
                 None,
                 None,
                 None,
             );
-            let end = simple_unary_expression.end();
-            if simple_unary_expression.kind() == SyntaxKind::TypeAssertionExpression {
+            let end = simple_unary_expression.ref_(self).end();
+            if simple_unary_expression.ref_(self).kind() == SyntaxKind::TypeAssertionExpression {
                 self.parse_error_at(pos, end, &Diagnostics::A_type_assertion_expression_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses, None);
             } else {
                 self.parse_error_at(pos, end, &Diagnostics::An_unary_expression_with_the_0_operator_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses,
@@ -904,14 +904,14 @@ impl ParserType {
             SyntaxKind::PlusToken
             | SyntaxKind::MinusToken
             | SyntaxKind::TildeToken
-            | SyntaxKind::ExclamationToken => self.parse_prefix_unary_expression().wrap(),
-            SyntaxKind::DeleteKeyword => self.parse_delete_expression().wrap(),
-            SyntaxKind::TypeOfKeyword => self.parse_type_of_expression().wrap(),
-            SyntaxKind::VoidKeyword => self.parse_void_expression().wrap(),
-            SyntaxKind::LessThanToken => self.parse_type_assertion().wrap(),
+            | SyntaxKind::ExclamationToken => self.parse_prefix_unary_expression().alloc(self),
+            SyntaxKind::DeleteKeyword => self.parse_delete_expression().alloc(self),
+            SyntaxKind::TypeOfKeyword => self.parse_type_of_expression().alloc(self),
+            SyntaxKind::VoidKeyword => self.parse_void_expression().alloc(self),
+            SyntaxKind::LessThanToken => self.parse_type_assertion().alloc(self),
             SyntaxKind::AwaitKeyword => {
                 if self.is_await_expression() {
-                    self.parse_await_expression().wrap()
+                    self.parse_await_expression().alloc(self)
                 } else {
                     self.parse_update_expression()
                 }
@@ -956,14 +956,14 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .wrap();
+                .alloc(self);
         } else if self.language_variant() == LanguageVariant::JSX
             && self.token() == SyntaxKind::LessThanToken
             && self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword_or_greater_than())
         {
             return self
                 .parse_jsx_element_or_self_closing_element_or_fragment(true, None, None)
-                .wrap();
+                .alloc(self);
         }
 
         let expression = self.parse_left_hand_side_expression_or_higher();
@@ -976,7 +976,7 @@ impl ParserType {
         {
             let operator = self.token();
             self.next_token();
-            let expression_pos = expression.pos();
+            let expression_pos = expression.ref_(self).pos();
             return self
                 .finish_node(
                     self.factory()
@@ -984,7 +984,7 @@ impl ParserType {
                     expression_pos,
                     None,
                 )
-                .wrap();
+                .alloc(self);
         }
 
         expression
@@ -1000,7 +1000,7 @@ impl ParserType {
                 self.set_source_flags(
                     self.source_flags() | NodeFlags::PossiblyContainsDynamicImport,
                 );
-                expression = self.parse_token_node().wrap();
+                expression = self.parse_token_node().alloc(self);
             } else if self.look_ahead_bool(|| self.next_token_is_dot()) {
                 self.next_token();
                 self.next_token();
@@ -1008,18 +1008,18 @@ impl ParserType {
                     .finish_node(
                         self.factory().create_meta_property_raw(
                             SyntaxKind::ImportKeyword,
-                            self.parse_identifier_name(None).wrap(),
+                            self.parse_identifier_name(None).alloc(self),
                         ),
                         pos,
                         None,
                     )
-                    .wrap();
+                    .alloc(self);
             } else {
                 expression = self.parse_member_expression_or_higher();
             }
         } else {
             expression = if self.token() == SyntaxKind::SuperKeyword {
-                self.parse_super_expression().wrap()
+                self.parse_super_expression().alloc(self)
             } else {
                 self.parse_member_expression_or_higher()
             };

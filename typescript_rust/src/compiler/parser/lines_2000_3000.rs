@@ -12,6 +12,7 @@ use crate::{
     Node, NodeArray, NodeFlags, NodeInterface, QualifiedName, ReadonlyTextRange, SyntaxKind,
     TemplateExpression, TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan,
     ThisTypeNode, TokenFlags, TypePredicateNode,
+    OptionInArena,
 };
 
 impl ParserType {
@@ -337,26 +338,26 @@ impl ParserType {
 
         let node = syntax_cursor.current_node(self, self.scanner().get_start_pos());
 
-        if node_is_missing(node.clone()) {
+        if node_is_missing(node.refed(self)) {
             return None;
         }
         let node = node.unwrap();
 
-        if matches!(node.maybe_intersects_change(), Some(true)) || contains_parse_error(&node) {
+        if node.ref_(self).maybe_intersects_change() == Some(true) || contains_parse_error(node, self) {
             return None;
         }
 
-        let node_context_flags = node.flags() & NodeFlags::ContextFlags;
+        let node_context_flags = node.ref_(self).flags() & NodeFlags::ContextFlags;
         if node_context_flags != self.context_flags() {
             return None;
         }
 
-        if !self.can_reuse_node(&node, parsing_context) {
+        if !self.can_reuse_node(node, parsing_context) {
             return None;
         }
 
-        if node.maybe_js_doc_cache().is_some() {
-            node.set_js_doc_cache(None);
+        if node.ref_(self).maybe_js_doc_cache().is_some() {
+            node.ref_(self).set_js_doc_cache(None);
         }
 
         Some(node)
@@ -364,7 +365,7 @@ impl ParserType {
 
     pub(super) fn consume_node(&self, node: Id<Node>) -> Id<Node> {
         self.scanner_mut()
-            .set_text_pos(node.end().try_into().unwrap());
+            .set_text_pos(node.ref_(self).end().try_into().unwrap());
         self.next_token();
         node
     }
@@ -411,7 +412,7 @@ impl ParserType {
 
     pub(super) fn is_reusable_class_member(&self, node: Id<Node>) -> bool {
         // if (node) {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::Constructor
             | SyntaxKind::IndexSignature
             | SyntaxKind::GetAccessor
@@ -421,8 +422,9 @@ impl ParserType {
                 return true;
             }
             SyntaxKind::MethodDeclaration => {
-                let method_declaration = node.as_method_declaration();
-                let name_is_constructor = method_declaration.name().kind()
+                let node_ref = node.ref_(self);
+                let method_declaration = node_ref.as_method_declaration();
+                let name_is_constructor = method_declaration.name().ref_(self).kind()
                     == SyntaxKind::Identifier
                     && matches!(
                         method_declaration
@@ -443,7 +445,7 @@ impl ParserType {
 
     pub(super) fn is_reusable_switch_clause(&self, node: Id<Node>) -> bool {
         // if (node) {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
                 return true;
             }
@@ -456,7 +458,7 @@ impl ParserType {
 
     pub(super) fn is_reusable_statement(&self, node: Id<Node>) -> bool {
         // if (node) {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::FunctionDeclaration
             | SyntaxKind::VariableStatement
             | SyntaxKind::Block
@@ -496,12 +498,12 @@ impl ParserType {
     }
 
     pub(super) fn is_reusable_enum_member(&self, node: Id<Node>) -> bool {
-        node.kind() == SyntaxKind::EnumMember
+        node.ref_(self).kind() == SyntaxKind::EnumMember
     }
 
     pub(super) fn is_reusable_type_member(&self, node: Id<Node>) -> bool {
         // if (node) {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ConstructSignature
             | SyntaxKind::MethodSignature
             | SyntaxKind::IndexSignature
@@ -517,20 +519,22 @@ impl ParserType {
     }
 
     pub(super) fn is_reusable_variable_declaration(&self, node: Id<Node>) -> bool {
-        if node.kind() != SyntaxKind::VariableDeclaration {
+        if node.ref_(self).kind() != SyntaxKind::VariableDeclaration {
             return false;
         }
 
-        let variable_declarator = node.as_variable_declaration();
+        let node_ref = node.ref_(self);
+        let variable_declarator = node_ref.as_variable_declaration();
         variable_declarator.maybe_initializer().is_none()
     }
 
     pub(super) fn is_reusable_parameter(&self, node: Id<Node>) -> bool {
-        if node.kind() != SyntaxKind::Parameter {
+        if node.ref_(self).kind() != SyntaxKind::Parameter {
             return false;
         }
 
-        let parameter = node.as_parameter_declaration();
+        let node_ref = node.ref_(self);
+        let parameter = node_ref.as_parameter_declaration();
         parameter.maybe_initializer().is_none()
     }
 
@@ -788,9 +792,9 @@ impl ParserType {
             entity = self.finish_node(
                 self.factory()
                     .create_qualified_name_raw(
-                        entity.wrap(),
+                        entity.alloc(self),
                         self.parse_right_side_of_dot(allow_reserved_words, false)
-                            .wrap(),
+                            .alloc(self),
                     )
                     .into(),
                 pos,
@@ -808,7 +812,7 @@ impl ParserType {
         self.finish_node(
             self.factory()
                 .create_qualified_name_raw(entity.clone(), name),
-            entity.pos(),
+            entity.ref_(self).pos(),
             None,
         )
     }
@@ -861,8 +865,8 @@ impl ParserType {
         let mut node: TemplateSpan;
         while {
             node = self.parse_template_span(is_tagged_template);
-            let is_node_template_middle = node.literal.kind() == SyntaxKind::TemplateMiddle;
-            list.push(node.wrap());
+            let is_node_template_middle = node.literal.ref_(self).kind() == SyntaxKind::TemplateMiddle;
+            list.push(node.alloc(self));
             is_node_template_middle
         } {}
         self.create_node_array(list, pos, None, None)
@@ -872,7 +876,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.finish_node(
             self.factory().create_template_expression_raw(
-                self.parse_template_head(is_tagged_template).wrap(),
+                self.parse_template_head(is_tagged_template).alloc(self),
                 self.parse_template_spans(is_tagged_template),
             ),
             pos,
@@ -884,7 +888,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.finish_node(
             self.factory().create_template_literal_type_raw(
-                self.parse_template_head(false).wrap(),
+                self.parse_template_head(false).alloc(self),
                 self.parse_template_type_spans(),
             ),
             pos,
@@ -898,8 +902,8 @@ impl ParserType {
         let mut node: TemplateLiteralTypeSpan;
         while {
             node = self.parse_template_type_span();
-            let is_node_template_middle = node.literal.kind() == SyntaxKind::TemplateMiddle;
-            list.push(node.wrap());
+            let is_node_template_middle = node.literal.ref_(self).kind() == SyntaxKind::TemplateMiddle;
+            list.push(node.alloc(self));
             is_node_template_middle
         } {}
         self.create_node_array(list, pos, None, None)
@@ -910,7 +914,7 @@ impl ParserType {
         self.finish_node(
             self.factory().create_template_literal_type_span_raw(
                 self.parse_type(),
-                self.parse_literal_of_template_span(false).wrap(),
+                self.parse_literal_of_template_span(false).alloc(self),
             ),
             pos,
             None,
@@ -939,7 +943,7 @@ impl ParserType {
             self.factory().create_template_span_raw(
                 self.allow_in_and(|| self.parse_expression()),
                 self.parse_literal_of_template_span(is_tagged_template)
-                    .wrap(),
+                    .alloc(self),
             ),
             pos,
             None,
@@ -1070,7 +1074,7 @@ impl ParserType {
 
     pub(super) fn parse_type_reference(&self) -> Node {
         let pos = self.get_node_pos();
-        let name = self.parse_entity_name_of_type_reference().wrap();
+        let name = self.parse_entity_name_of_type_reference().alloc(self);
         let type_arguments = self.parse_type_arguments_of_type_reference();
         self.finish_node(
             self.factory()
@@ -1085,19 +1089,20 @@ impl ParserType {
         &self,
         node: Id<Node>, /*TypeNode*/
     ) -> bool {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::TypeReference => {
-                node_is_missing(Some(&*node.as_type_reference_node().type_name))
+                node_is_missing(Some(&node.ref_(self).as_type_reference_node().type_name.ref_(self)))
             }
             SyntaxKind::FunctionType | SyntaxKind::ConstructorType => {
-                let node_as_signature_declaration = node.as_signature_declaration();
+                let node_ref = node.ref_(self);
+                let node_as_signature_declaration = node_ref.as_signature_declaration();
                 let parameters = node_as_signature_declaration.parameters();
                 let type_ = node_as_signature_declaration.maybe_type().unwrap();
                 self.is_missing_list(&parameters)
-                    || self.type_has_arrow_function_blocking_parse_error(&type_)
+                    || self.type_has_arrow_function_blocking_parse_error(type_)
             }
             SyntaxKind::ParenthesizedType => self.type_has_arrow_function_blocking_parse_error(
-                &node.as_parenthesized_type_node().type_,
+                node.ref_(self).as_parenthesized_type_node().type_,
             ),
             _ => false,
         }
@@ -1114,7 +1119,7 @@ impl ParserType {
                 lhs.clone(),
                 Some(self.parse_type()),
             ),
-            lhs.pos(),
+            lhs.ref_(self).pos(),
             None,
         )
     }

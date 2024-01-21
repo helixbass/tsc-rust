@@ -6,6 +6,7 @@ use crate::{
     is_identifier, set_text_range_pos, some, token_is_identifier_or_keyword, BindingElement,
     CaseBlock, CatchClause, DefaultClause, DiagnosticMessage, Diagnostics, Node, NodeArray,
     NodeFlags, NodeInterface, SyntaxKind,
+    InArena,
 };
 
 impl ParserType {
@@ -35,7 +36,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
         let clauses = self.parse_list(ParsingContext::SwitchClauses, &mut || {
-            self.parse_case_or_default_clause().wrap()
+            self.parse_case_or_default_clause().alloc(self)
         });
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         self.finish_node(self.factory().create_case_block_raw(clauses), pos, None)
@@ -52,11 +53,11 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .create_switch_statement_raw(expression, case_block.wrap()),
+                    .create_switch_statement_raw(expression, case_block.alloc(self)),
                 pos,
                 None,
             )
-            .wrap(),
+            .alloc(self),
             has_jsdoc,
         )
     }
@@ -80,12 +81,12 @@ impl ParserType {
                     self.get_node_pos(),
                     None,
                 )
-                .wrap(),
+                .alloc(self),
             );
         }
         let expression = expression.unwrap();
         if !self.try_parse_semicolon() {
-            self.parse_error_for_missing_semicolon_after(&expression);
+            self.parse_error_for_missing_semicolon_after(expression);
         }
         self.with_jsdoc(
             self.finish_node(
@@ -93,7 +94,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .wrap(),
+            .alloc(self),
             has_jsdoc,
         )
     }
@@ -105,7 +106,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::TryKeyword, None, None);
         let try_block: Id<Node> = self.parse_block(false, None);
         let catch_clause: Option<Id<Node>> = if self.token() == SyntaxKind::CatchKeyword {
-            Some(self.parse_catch_clause().wrap())
+            Some(self.parse_catch_clause().alloc(self))
         } else {
             None
         };
@@ -123,7 +124,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .wrap(),
+            .alloc(self),
             has_jsdoc,
         )
     }
@@ -156,7 +157,7 @@ impl ParserType {
         self.parse_semicolon();
         self.with_jsdoc(
             self.finish_node(self.factory().create_debugger_statement_raw(), pos, None)
-                .wrap(),
+                .alloc(self),
             has_jsdoc,
         )
     }
@@ -169,14 +170,14 @@ impl ParserType {
         let node: Node;
         let has_paren = self.token() == SyntaxKind::OpenParenToken;
         let expression = self.allow_in_and(|| self.parse_expression());
-        if is_identifier(&expression) && self.parse_optional(SyntaxKind::ColonToken) {
+        if is_identifier(&expression.ref_(self)) && self.parse_optional(SyntaxKind::ColonToken) {
             node = self
                 .factory()
                 .create_labeled_statement_raw(expression, self.parse_statement())
                 .into();
         } else {
             if !self.try_parse_semicolon() {
-                self.parse_error_for_missing_semicolon_after(&expression);
+                self.parse_error_for_missing_semicolon_after(expression);
             }
             node = self
                 .factory()
@@ -186,7 +187,7 @@ impl ParserType {
                 has_jsdoc = false;
             }
         };
-        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
     }
 
     pub(super) fn next_token_is_identifier_or_keyword_on_same_line(&self) -> bool {
@@ -443,7 +444,7 @@ impl ParserType {
     }
 
     pub(super) fn is_declare_modifier(&self, modifier: Id<Node> /*Modifier*/) -> bool {
-        modifier.kind() == SyntaxKind::DeclareKeyword
+        modifier.ref_(self).kind() == SyntaxKind::DeclareKeyword
     }
 
     pub(super) fn parse_declaration(&self) -> Id<Node /*Statement*/> {
@@ -457,7 +458,7 @@ impl ParserType {
                 let node_array: &[Id<Node>] = node_array;
                 node_array
             }),
-            Some(|modifier: &Id<Node>| self.is_declare_modifier(modifier)),
+            Some(|&modifier: &Id<Node>| self.is_declare_modifier(modifier)),
         );
         if is_ambient {
             let node = self.try_reuse_ambient_declaration();
@@ -472,7 +473,7 @@ impl ParserType {
         let modifiers = self.parse_modifiers(None, None);
         if is_ambient {
             for m in modifiers.as_ref().unwrap() {
-                m.set_flags(m.flags() | NodeFlags::Ambient);
+                m.ref_(self).set_flags(m.ref_(self).flags() | NodeFlags::Ambient);
             }
             self.do_inside_of_context(NodeFlags::Ambient, move || {
                 self.parse_declaration_worker(pos, has_jsdoc, decorators, modifiers)
@@ -549,7 +550,7 @@ impl ParserType {
                     set_text_range_pos(&missing, pos);
                     missing.set_decorators(decorators);
                     missing.set_modifiers(modifiers);
-                    return missing.wrap();
+                    return missing.alloc(self);
                 }
                 // return undefined!;
                 panic!("Need to make this an Option?")
@@ -587,7 +588,7 @@ impl ParserType {
         }
         let dot_dot_dot_token = self
             .parse_optional_token(SyntaxKind::DotDotDotToken)
-            .map(Node::wrap);
+            .map(|node| node.alloc(self));
         let name = self.parse_identifier_or_pattern(None);
         let initializer = self.parse_initializer();
         self.finish_node(
@@ -608,9 +609,9 @@ impl ParserType {
         let pos = self.get_node_pos();
         let dot_dot_dot_token = self
             .parse_optional_token(SyntaxKind::DotDotDotToken)
-            .map(Node::wrap);
+            .map(|node| node.alloc(self));
         let token_is_identifier = self.is_binding_identifier();
-        let mut property_name: Option<Id<Node>> = Some(self.parse_property_name().wrap());
+        let mut property_name: Option<Id<Node>> = Some(self.parse_property_name().alloc(self));
         let name: Id<Node>;
         if token_is_identifier && self.token() != SyntaxKind::ColonToken {
             name = property_name.clone().unwrap();

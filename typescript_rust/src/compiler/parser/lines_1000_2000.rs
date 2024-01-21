@@ -17,6 +17,7 @@ use crate::{
     IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
     NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
     TransformFlags,
+    HasArena, InArena,
 };
 
 impl ParserType {
@@ -60,7 +61,7 @@ impl ParserType {
             self.parse_statement()
         });
         Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
-        let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node().wrap());
+        let end_of_file_token = self.add_jsdoc_comment(self.alloc_node(self.parse_token_node().into()));
 
         let source_file = self.create_source_file(
             &self.file_name(),
@@ -71,7 +72,8 @@ impl ParserType {
             end_of_file_token,
             self.source_flags(),
         );
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
 
         process_comment_pragmas(source_file_as_source_file, &self.source_text_as_chars());
         let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
@@ -87,20 +89,20 @@ impl ParserType {
         source_file_as_source_file.set_identifier_count(self.identifier_count());
         source_file_as_source_file.set_identifiers(self.identifiers_rc());
         source_file_as_source_file.set_parse_diagnostics(Gc::new(GcCell::new(
-            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file),
+            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self)),
         )));
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
             if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {
                 source_file_as_source_file.set_js_doc_diagnostics(attach_file_to_diagnostics(
                     js_doc_diagnostics,
-                    &source_file,
+                    &source_file.ref_(self),
                 ));
             }
         }
 
         if set_parent_nodes {
-            self.fixup_parent_references(&source_file);
+            self.fixup_parent_references(source_file);
         }
 
         source_file
@@ -115,23 +117,23 @@ impl ParserType {
     }
 
     pub(super) fn add_jsdoc_comment(&self, node: Id<Node>) -> Id<Node> {
-        Debug_.assert(node.maybe_js_doc().is_none(), None);
+        Debug_.assert(node.ref_(self).maybe_js_doc().is_none(), None);
         let js_doc = map_defined(
-            get_jsdoc_comment_ranges(&*node, &self.source_text_as_chars()),
+            get_jsdoc_comment_ranges(&*node.ref_(self), &self.source_text_as_chars()),
             |comment, _| {
                 self.JSDocParser_parse_jsdoc_comment(
-                    &node,
+                    node,
                     comment.pos().try_into().unwrap(),
                     (comment.end() - comment.pos()).try_into().unwrap(),
                 )
             },
         );
         if !js_doc.is_empty() {
-            node.set_js_doc(Some(js_doc));
+            node.ref_(self).set_js_doc(Some(js_doc));
         }
         if self.has_deprecated_tag() {
             self.set_has_deprecated_tag(false);
-            node.set_flags(node.flags() | NodeFlags::Deprecated);
+            node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::Deprecated);
         }
         node
     }
@@ -154,7 +156,8 @@ impl ParserType {
         *parse_diagnostics_ref = vec![];
 
         let mut pos: Option<usize> = Some(0);
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         let source_file_statements = source_file_as_source_file.statements();
         let mut start = self.find_next_statement_with_await(&source_file_statements, 0);
         while let Some(start_present) = start {
@@ -209,11 +212,11 @@ impl ParserType {
                         }
 
                         if let Some(pos_present) = pos {
-                            let non_await_statement = &source_file_statements[pos_present];
-                            if statement.end() == non_await_statement.pos() {
+                            let non_await_statement = source_file_statements[pos_present];
+                            if statement.ref_(self).end() == non_await_statement.pos() {
                                 break;
                             }
-                            if statement.end() > non_await_statement.pos() {
+                            if statement.ref_(self).end() > non_await_statement.ref_(self).pos() {
                                 pos = self.find_next_statement_without_await(
                                     &source_file_statements,
                                     pos_present + 1,
@@ -264,9 +267,9 @@ impl ParserType {
     }
 
     pub(super) fn contains_possible_top_level_await(&self, node: Id<Node>) -> bool {
-        !node.flags().intersects(NodeFlags::AwaitContext)
+        !node.ref_(self).flags().intersects(NodeFlags::AwaitContext)
             && node
-                .transform_flags()
+                .ref_(self).transform_flags()
                 .intersects(TransformFlags::ContainsPossibleTopLevelAwait)
     }
 
@@ -276,6 +279,7 @@ impl ParserType {
         start: usize,
     ) -> Option<usize> {
         for (i, statement) in statements.iter().enumerate().skip(start) {
+            let statement = *statement;
             if self.contains_possible_top_level_await(statement) {
                 return Some(i);
             }
@@ -290,6 +294,7 @@ impl ParserType {
         start: usize,
     ) -> Option<usize> {
         for (i, statement) in statements.iter().enumerate().skip(start) {
+            let statement = *statement;
             if !self.contains_possible_top_level_await(statement) {
                 return Some(i);
             }
@@ -316,22 +321,23 @@ impl ParserType {
             self.factory()
                 .create_source_file(statements, end_of_file_token, flags);
         set_text_range_pos_width(
-            &*source_file,
+            &*source_file.ref_(self),
             0,
             self.source_text_as_chars().len().try_into().unwrap(),
         );
-        self.set_external_module_indicator(&source_file);
+        self.set_external_module_indicator(source_file);
 
         if !is_declaration_file
-            && is_external_module(&source_file)
+            && is_external_module(&source_file.ref_(self))
             && source_file
-                .transform_flags()
+                .ref_(self).transform_flags()
                 .intersects(TransformFlags::ContainsPossibleTopLevelAwait)
         {
-            source_file = self.reparse_top_level_await(&source_file);
+            source_file = self.reparse_top_level_await(source_file);
         }
 
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         source_file_as_source_file.set_text(self.source_text().to_string());
         source_file_as_source_file.set_bind_diagnostics(Some(vec![]));
         source_file_as_source_file.set_bind_suggestion_diagnostics(None);
@@ -763,8 +769,9 @@ impl ParserType {
         &self,
         node: Id<Node>, /*Expression | PropertyName*/
     ) {
-        if is_tagged_template_expression(node) {
-            let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        if is_tagged_template_expression(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
             self.parse_error_at(
                 skip_trivia(
                     &self.source_text_as_chars(),
@@ -780,8 +787,8 @@ impl ParserType {
             return;
         }
 
-        let expression_text = if is_identifier(node) {
-            Some(id_text(node))
+        let expression_text = if is_identifier(&node.ref_(self)) {
+            Some(id_text(&node.ref_(self)))
         } else {
             None
         };
@@ -802,13 +809,13 @@ impl ParserType {
         }
         let expression_text = expression_text.unwrap();
 
-        let pos = skip_trivia(&self.source_text_as_chars(), node.pos(), None, None, None);
+        let pos = skip_trivia(&self.source_text_as_chars(), node.ref_(self).pos(), None, None, None);
 
         match expression_text {
             "const" | "let" | "var" => {
                 self.parse_error_at(
                     pos,
-                    node.end(),
+                    node.ref_(self).end(),
                     &Diagnostics::Variable_declaration_not_allowed_at_this_location,
                     None,
                 );
@@ -863,7 +870,7 @@ impl ParserType {
         if let Some(suggestion) = suggestion {
             self.parse_error_at(
                 pos,
-                node.end(),
+                node.ref_(self).end(),
                 &Diagnostics::Unknown_keyword_or_identifier_Did_you_mean_0,
                 Some(vec![suggestion]),
             );
@@ -876,7 +883,7 @@ impl ParserType {
 
         self.parse_error_at(
             pos,
-            node.end(),
+            node.ref_(self).end(),
             &Diagnostics::Unexpected_keyword_or_identifier,
             None,
         );
@@ -1432,9 +1439,9 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorRep
     fn current_node(&self, parser: &ParserType, position: usize) -> Option<Id<Node>> {
         let node = self.base_syntax_cursor.current_node(parser, position);
         if parser.top_level() {
-            if let Some(node) = node.as_ref() {
+            if let Some(node) = node {
                 if parser.contains_possible_top_level_await(node) {
-                    node.set_intersects_change(Some(true));
+                    node.ref_(parser).set_intersects_change(Some(true));
                 }
             }
         }

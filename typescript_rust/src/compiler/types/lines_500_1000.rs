@@ -177,6 +177,7 @@ pub type NodeId = usize;
 pub trait NodeInterface: ReadonlyTextRange {
     fn arena_id(&self) -> Id<Node>;
     fn set_arena_id(&self, id: Id<Node>);
+    fn alloc(self, arena: &impl HasArena) -> Id<Node>;
     fn kind(&self) -> SyntaxKind;
     fn modifier_flags_cache(&self) -> ModifierFlags;
     fn set_modifier_flags_cache(&self, flags: ModifierFlags);
@@ -1813,6 +1814,12 @@ impl NodeInterface for BaseNode {
 
     fn set_arena_id(&self, id: Id<Node>) {
         self._arena_id.set(Some(id));
+    }
+
+    fn alloc(self, arena: &impl HasArena) -> Id<Node> {
+        let id = arena.alloc_node(self.into());
+        arena.node(id).set_arena_id(id);
+        id
     }
 
     fn kind(&self) -> SyntaxKind {

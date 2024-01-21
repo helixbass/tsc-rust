@@ -63,9 +63,31 @@ fn get_ast_struct_interface_impl(
     interface_name: &str,
     first_field_name: &Ident,
     ast_type_name: &Ident,
+    should_impl_from: bool,
 ) -> TokenStream2 {
     match interface_name {
         "NodeInterface" => {
+            // TODO: expose .maybe_arena_id() method and do a
+            // debug_assert!(self.maybe_arena_id().is_none()
+            // (ie sanity-checking that we aren't trying to allocate
+            // something that's already been arena-allocated) here
+            // (aad in BaseNode's impl of NodeInterface::alloc())?
+            let alloc_method = if should_impl_from {
+                quote! {
+                    fn alloc(self, arena: &impl crate::HasArena) -> ::id_arena::Id<crate::Node> {
+                        let id = arena.alloc_node(crate::Node::from(self));
+                        arena.node(id).set_arena_id(id);
+                        id
+                    }
+                }
+            } else {
+                quote! {
+                    fn alloc(self, _arena: &impl crate::HasArena) -> ::id_arena::Id<crate::Node> {
+                        unreachable!()
+                    }
+                }
+            };
+
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn arena_id(&self) -> ::id_arena::Id<crate::Node> {
@@ -75,6 +97,8 @@ fn get_ast_struct_interface_impl(
                     fn set_arena_id(&self, id: ::id_arena::Id<crate::Node>) {
                         self.#first_field_name.set_arena_id(id)
                     }
+
+                    #alloc_method
 
                     fn kind(&self) -> crate::SyntaxKind {
                         self.#first_field_name.kind()
@@ -503,9 +527,26 @@ fn get_ast_enum_interface_impl(
     interface_name: &str,
     variant_names: &[&Ident],
     ast_type_name: &Ident,
+    should_impl_from: bool,
 ) -> TokenStream2 {
     match interface_name {
         "NodeInterface" => {
+            let alloc_method = if should_impl_from {
+                quote! {
+                    fn alloc(self, arena: &impl crate::HasArena) -> ::id_arena::Id<crate::Node> {
+                        let id = arena.alloc_node(crate::Node::from(self));
+                        arena.node(id).set_arena_id(id);
+                        id
+                    }
+                }
+            } else {
+                quote! {
+                    fn alloc(self, _arena: &impl crate::HasArena) -> ::id_arena::Id<crate::Node> {
+                        unreachable!()
+                    }
+                }
+            };
+
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn arena_id(&self) -> ::id_arena::Id<crate::Node> {
@@ -519,6 +560,8 @@ fn get_ast_enum_interface_impl(
                             #(#ast_type_name::#variant_names(nested) => nested.set_arena_id(id)),*
                         }
                     }
+
+                    #alloc_method
 
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
@@ -1118,6 +1161,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
                     &interface,
                     &first_field_name,
                     &ast_type_name,
+                    args.should_impl_from(),
                 );
                 interface_impls = quote! {
                     #interface_impls
@@ -1140,6 +1184,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
                     &interface,
                     &variant_names,
                     &ast_type_name,
+                    args.should_impl_from(),
                 );
                 interface_impls = quote! {
                     #interface_impls

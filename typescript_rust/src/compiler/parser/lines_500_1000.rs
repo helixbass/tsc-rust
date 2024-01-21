@@ -17,7 +17,7 @@ HasArena, InArena,    attach_file_to_diagnostics, convert_to_object_worker, crea
     JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
     NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
     ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
-    TextChangeRange,
+    TextChangeRange, AllArenas,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -37,7 +37,7 @@ pub fn for_each_child_recursively<TValue>(
     mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>>,
     arena: &impl HasArena,
 ) -> Option<TValue> {
-    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(&root_node.ref_(arena));
+    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node, arena);
     let mut parents: Vec<Id<Node>> = vec![];
     while parents.len() < queue.len() {
         parents.push(root_node);
@@ -78,7 +78,7 @@ pub fn for_each_child_recursively<TValue>(
                     }
                 }
                 if current.ref_(arena).kind() >= SyntaxKind::FirstNode {
-                    for child in gather_possible_children(&current.ref_(arena)) {
+                    for child in gather_possible_children(current, arena) {
                         queue.push(child);
                         parents.push(current);
                     }
@@ -112,7 +112,7 @@ pub fn try_for_each_child_recursively_bool<TError>(
     mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Result<bool, TError>>,
     arena: &impl HasArena,
 ) -> Result<bool, TError> {
-    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(&root_node.ref_(arena));
+    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node, arena);
     let mut parents: Vec<Id<Node>> = vec![];
     while parents.len() < queue.len() {
         parents.push(root_node);
@@ -139,7 +139,7 @@ pub fn try_for_each_child_recursively_bool<TError>(
                     return Ok(true);
                 }
                 if current.ref_(arena).kind() >= SyntaxKind::FirstNode {
-                    for child in gather_possible_children(&current.ref_(arena)) {
+                    for child in gather_possible_children(current, arena) {
                         queue.push(child);
                         parents.push(current);
                     }
@@ -246,6 +246,7 @@ pub fn update_source_file(
     new_text: String,
     text_change_range: TextChangeRange,
     aggressive_checks: Option<bool>,
+    arena: &impl HasArena,
 ) -> Id<Node /*SourceFile*/> {
     let aggressive_checks = aggressive_checks.unwrap_or(false);
     let new_source_file = IncrementalParser().update_source_file(
@@ -254,8 +255,8 @@ pub fn update_source_file(
         text_change_range,
         aggressive_checks,
     );
-    new_source_file.set_flags(
-        new_source_file.flags() | (source_file.flags() & NodeFlags::PermanentlySetIncrementalFlags),
+    new_source_file.ref_(arena).set_flags(
+        new_source_file.ref_(arena).flags() | (source_file.ref_(arena).flags() & NodeFlags::PermanentlySetIncrementalFlags),
     );
     new_source_file
 }
@@ -270,7 +271,7 @@ pub(crate) fn parse_isolated_jsdoc_comment(
     if let Some(result) = result.as_ref()
     /*&& result.jsDoc*/
     {
-        Parser().fixup_parent_references(&result.js_doc);
+        Parser().fixup_parent_references(result.js_doc);
     }
 
     result
@@ -709,9 +710,10 @@ impl ParserType {
                 syntax_cursor,
                 Some(set_parent_nodes),
             );
-            let result_as_source_file = result.as_source_file();
+            let result_ref = result.ref_(self);
+            let result_as_source_file = result_ref.as_source_file();
             convert_to_object_worker(
-                &result,
+                result,
                 result_as_source_file
                     .statements()
                     .get(0)
@@ -757,7 +759,7 @@ impl ParserType {
             self.token() == SyntaxKind::EndOfFileToken && self.parse_diagnostics().is_empty();
         self.clear_state();
         if is_invalid {
-            Some(entity_name.wrap())
+            Some(entity_name.alloc(self))
         } else {
             None
         }
@@ -788,39 +790,39 @@ impl ParserType {
         let end_of_file_token: Id<Node>;
         if self.token() == SyntaxKind::EndOfFileToken {
             statements = self.create_node_array(vec![], pos, Some(pos), None);
-            end_of_file_token = self.parse_token_node().wrap();
+            end_of_file_token = self.parse_token_node().alloc(self);
         } else {
             let mut expressions: Option<Vec<Id<Node>>> = None;
             while self.token() != SyntaxKind::EndOfFileToken {
                 let expression: Id<Node>;
                 match self.token() {
                     SyntaxKind::OpenBracketToken => {
-                        expression = self.parse_array_literal_expression().wrap();
+                        expression = self.parse_array_literal_expression().alloc(self);
                     }
                     SyntaxKind::TrueKeyword
                     | SyntaxKind::FalseKeyword
                     | SyntaxKind::NullKeyword => {
-                        expression = self.parse_token_node().wrap();
+                        expression = self.parse_token_node().alloc(self);
                     }
                     SyntaxKind::MinusToken => {
                         if self.look_ahead_bool(|| {
                             self.next_token() == SyntaxKind::NumericLiteral
                                 && self.next_token() != SyntaxKind::ColonToken
                         }) {
-                            expression = self.parse_prefix_unary_expression().wrap();
+                            expression = self.parse_prefix_unary_expression().alloc(self);
                         } else {
-                            expression = self.parse_object_literal_expression().wrap();
+                            expression = self.parse_object_literal_expression().alloc(self);
                         }
                     }
                     SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
                         if self.look_ahead_bool(|| self.next_token() != SyntaxKind::ColonToken) {
-                            expression = self.parse_literal_node().wrap();
+                            expression = self.parse_literal_node().alloc(self);
                         } else {
-                            expression = self.parse_object_literal_expression().wrap();
+                            expression = self.parse_object_literal_expression().alloc(self);
                         }
                     }
                     _ => {
-                        expression = self.parse_object_literal_expression().wrap();
+                        expression = self.parse_object_literal_expression().alloc(self);
                     }
                 }
 
@@ -845,19 +847,19 @@ impl ParserType {
                         pos,
                         None,
                     )
-                    .wrap(),
+                    .alloc(self),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
             let statement = self.factory().create_expression_statement_raw(expression);
             let statement = self.finish_node(statement, pos, None);
-            statements = self.create_node_array(vec![statement.wrap()], pos, None, None);
+            statements = self.create_node_array(vec![statement.alloc(self)], pos, None, None);
             end_of_file_token = self
                 .parse_expected_token(
                     SyntaxKind::EndOfFileToken,
                     Some(&Diagnostics::Unexpected_token),
                     None,
                 )
-                .wrap();
+                .alloc(self);
         }
 
         let source_file = self.create_source_file(
@@ -871,22 +873,23 @@ impl ParserType {
         );
 
         if set_parent_nodes {
-            self.fixup_parent_references(&source_file);
+            self.fixup_parent_references(source_file);
         }
 
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         source_file_as_source_file.set_node_count(self.node_count());
         source_file_as_source_file.set_identifier_count(self.identifier_count());
         source_file_as_source_file.set_identifiers(self.identifiers_rc());
         source_file_as_source_file.set_parse_diagnostics(Gc::new(GcCell::new(
-            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file),
+            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self)),
         )));
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
             if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {
                 source_file_as_source_file.set_js_doc_diagnostics(attach_file_to_diagnostics(
                     js_doc_diagnostics,
-                    &source_file,
+                    &source_file.ref_(self),
                 ));
             }
         }
@@ -953,5 +956,11 @@ impl ParserType {
         // })));
         scanner.set_script_target(self.language_version());
         scanner.set_language_variant(self.language_variant());
+    }
+}
+
+impl HasArena for ParserType {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

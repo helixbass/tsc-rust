@@ -17,6 +17,7 @@ use crate::{
     NodeInterface, ParserType, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
     PragmaArguments, PragmaKindFlags, PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
     ReadonlyPragmaMap, ReadonlyTextRange, ScriptTarget, SourceTextAsChars, SyntaxKind, TextRange,
+    HasArena, InArena, AllArenas,
 };
 
 impl IncrementalParserType {
@@ -24,7 +25,7 @@ impl IncrementalParserType {
         &self,
         source_file: Id<Node>, /*SourceFile*/
     ) -> IncrementalParserSyntaxCursor {
-        IncrementalParserSyntaxCursor::create(source_file.node_wrapper())
+        IncrementalParserSyntaxCursor::create(source_file)
     }
 }
 
@@ -70,7 +71,8 @@ pub struct IncrementalParserSyntaxCursorCreated {
 
 impl IncrementalParserSyntaxCursorCreated {
     pub fn new(source_file: Id<Node>) -> Self {
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         let current_array = source_file_as_source_file.statements();
         let current_array_index = 0;
 
@@ -132,7 +134,7 @@ impl IncrementalParserSyntaxCursorCreated {
     }
 
     fn visit_node(&self, position_as_isize: isize, node: Id<Node>) -> bool {
-        if position_as_isize >= node.pos() && position_as_isize < node.end() {
+        if position_as_isize >= node.ref_(self).pos() && position_as_isize < node.ref_(self).end() {
             for_each_child_bool(
                 node,
                 |node: Id<Node>| self.visit_node(position_as_isize, node),
@@ -147,14 +149,15 @@ impl IncrementalParserSyntaxCursorCreated {
     fn visit_array(&self, position_as_isize: isize, array: &NodeArray) -> bool {
         if position_as_isize >= array.pos() && position_as_isize < array.end() {
             for (i, child) in array.iter().enumerate() {
+                let child = *child;
                 // if (child) {
-                if child.pos() == position_as_isize {
+                if child.ref_(self).pos() == position_as_isize {
                     self.set_current_array(Some(array.rc_wrapper()));
                     self.set_current_array_index(Some(i));
                     self.set_current(Some(child.clone()));
                     return true;
                 } else {
-                    if child.pos() < position_as_isize && position_as_isize < child.end() {
+                    if child.ref_(self).pos() < position_as_isize && position_as_isize < child.ref_(self).end() {
                         for_each_child_bool(
                             child,
                             |node: Id<Node>| self.visit_node(position_as_isize, node),
@@ -180,7 +183,7 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCre
             Some(last_queried_position) => position != last_queried_position,
         } {
             if let Some(current) = self.maybe_current() {
-                if current.end() == position_as_isize
+                if current.ref_(self).end() == position_as_isize
                     && self.current_array_index() < (self.current_array().len() - 1)
                 {
                     self.set_current_array_index(Some(self.current_array_index() + 1));
@@ -194,7 +197,7 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCre
 
             if match self.maybe_current() {
                 None => true,
-                Some(current) => current.pos() != position_as_isize,
+                Some(current) => current.ref_(self).pos() != position_as_isize,
             } {
                 self.find_highest_list_element_that_starts_at_position(position);
             }
@@ -205,11 +208,17 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCre
         Debug_.assert(
             match self.maybe_current() {
                 None => true,
-                Some(current) => current.pos() == position_as_isize,
+                Some(current) => current.ref_(self).pos() == position_as_isize,
             },
             None,
         );
         self.maybe_current()
+    }
+}
+
+impl HasArena for IncrementalParserSyntaxCursorCreated {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -589,31 +598,35 @@ fn get_named_pragma_arguments(pragma: &PragmaSpec, text: Option<&str>) -> Option
 pub(crate) fn tag_names_are_equivalent(
     lhs: Id<Node>, /*JsxTagNameExpression*/
     rhs: Id<Node>, /*JsxTagNameExpression*/
+    arena: &impl HasArena,
 ) -> bool {
-    if lhs.kind() != rhs.kind() {
+    if lhs.ref_(arena).kind() != rhs.ref_(arena).kind() {
         return false;
     }
 
-    if lhs.kind() == SyntaxKind::Identifier {
-        return lhs.as_identifier().escaped_text == rhs.as_identifier().escaped_text;
+    if lhs.ref_(arena).kind() == SyntaxKind::Identifier {
+        return lhs.ref_(arena).as_identifier().escaped_text == rhs.ref_(arena).as_identifier().escaped_text;
     }
 
-    if lhs.kind() == SyntaxKind::ThisKeyword {
+    if lhs.ref_(arena).kind() == SyntaxKind::ThisKeyword {
         return true;
     }
 
-    let lhs_as_property_access_expression = lhs.as_property_access_expression();
-    let rhs_as_property_access_expression = rhs.as_property_access_expression();
+    let lhs_ref = lhs.ref_(arena);
+    let lhs_as_property_access_expression = lhs_ref.as_property_access_expression();
+    let rhs_ref = rhs.ref_(arena);
+    let rhs_as_property_access_expression = rhs_ref.as_property_access_expression();
     lhs_as_property_access_expression
         .name
-        .as_member_name()
+        .ref_(arena).as_member_name()
         .escaped_text()
         == rhs_as_property_access_expression
             .name
-            .as_member_name()
+            .ref_(arena).as_member_name()
             .escaped_text()
         && tag_names_are_equivalent(
-            &lhs_as_property_access_expression.expression,
-            &rhs_as_property_access_expression.expression,
+            lhs_as_property_access_expression.expression,
+            rhs_as_property_access_expression.expression,
+            arena,
         )
 }

@@ -43,11 +43,12 @@ impl ParserType {
             is_export_equals,
             expression,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
     }
 
     pub(super) fn set_external_module_indicator(&self, source_file: Id<Node> /*SourceFile*/) {
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         source_file_as_source_file.set_external_module_indicator(
             for_each(&source_file_as_source_file.statements(), |statement, _| {
                 self.is_an_external_module_indicator_node(statement)
@@ -58,15 +59,15 @@ impl ParserType {
 
     pub(super) fn is_an_external_module_indicator_node(&self, node: Id<Node>) -> Option<Id<Node>> {
         if self.has_modifier_of_kind(node, SyntaxKind::ExportKeyword)
-            || is_import_equals_declaration(node)
+            || is_import_equals_declaration(&node.ref_(self))
                 && is_external_module_reference(
-                    &node.as_import_equals_declaration().module_reference,
+                    &node.ref_(self).as_import_equals_declaration().module_reference.ref_(self),
                 )
-            || is_import_declaration(node)
-            || is_export_assignment(node)
-            || is_export_declaration(node)
+            || is_import_declaration(&node.ref_(self))
+            || is_export_assignment(&node.ref_(self))
+            || is_export_declaration(&node.ref_(self))
         {
-            Some(node.node_wrapper())
+            Some(node)
         } else {
             None
         }
@@ -77,7 +78,7 @@ impl ParserType {
         source_file: Id<Node>, /*SourceFile*/
     ) -> Option<Id<Node>> {
         if source_file
-            .flags()
+            .ref_(self).flags()
             .intersects(NodeFlags::PossiblyContainsImportMeta)
         {
             self.walk_tree_for_external_module_indicators(source_file)
@@ -91,7 +92,7 @@ impl ParserType {
         node: Id<Node>,
     ) -> Option<Id<Node>> {
         if self.is_import_meta(node) {
-            Some(node.node_wrapper())
+            Some(node)
         } else {
             for_each_child_returns(
                 node,
@@ -103,21 +104,21 @@ impl ParserType {
     }
 
     pub(super) fn has_modifier_of_kind(&self, node: Id<Node>, kind: SyntaxKind) -> bool {
-        let modifiers = node.maybe_modifiers();
+        let modifiers = node.ref_(self).maybe_modifiers();
         let modifiers: Option<&[Id<Node>]> = modifiers.as_ref().map(|node_array| {
             let slice_ref: &[Id<Node>] = node_array;
             slice_ref
         });
-        some(modifiers, Some(|m: &Id<Node>| m.kind() == kind))
+        some(modifiers, Some(|m: &Id<Node>| m.ref_(self).kind() == kind))
     }
 
     pub(super) fn is_import_meta(&self, node: Id<Node>) -> bool {
-        if !is_meta_property(node) {
+        if !is_meta_property(&node.ref_(self)) {
             return false;
         }
-        let node_as_meta_property = node.as_meta_property();
+        let node_as_meta_property = node.ref_(self).as_meta_property();
         node_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
-            && node_as_meta_property.name.as_identifier().escaped_text == "meta"
+            && node_as_meta_property.name.ref_(self).as_identifier().escaped_text == "meta"
     }
 
     pub fn JSDocParser_parse_jsdoc_type_expression_for_tests(
@@ -154,15 +155,15 @@ impl ParserType {
             self.factory().create_token(SyntaxKind::EndOfFileToken),
             NodeFlags::None,
         );
-        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file);
+        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self));
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
             if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {
                 source_file
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .set_js_doc_diagnostics(attach_file_to_diagnostics(
                         js_doc_diagnostics,
-                        &source_file,
+                        &source_file.ref_(self),
                     ));
             }
         }
@@ -193,8 +194,8 @@ impl ParserType {
         }
 
         let result = self.factory().create_jsdoc_type_expression(type_);
-        self.fixup_parent_references(&result);
-        self.finish_node_ref(&*result, pos, None);
+        self.fixup_parent_references(result);
+        self.finish_node_ref(&*result.ref_(self), pos, None);
         result
     }
 
@@ -203,7 +204,7 @@ impl ParserType {
         let has_brace = self.parse_optional(SyntaxKind::OpenBraceToken);
         let p2 = self.get_node_pos();
         let mut entity_name: Id<Node /*EntityName | JSDocMemberName*/> =
-            self.parse_entity_name(false, None).wrap();
+            self.parse_entity_name(false, None).alloc(self);
         while self.token() == SyntaxKind::PrivateIdentifier {
             self.re_scan_hash_token();
             self.next_token_jsdoc();
@@ -211,20 +212,20 @@ impl ParserType {
                 .finish_node(
                     self.factory().create_jsdoc_member_name_raw(
                         entity_name,
-                        self.parse_identifier(None, None).wrap(),
+                        self.parse_identifier(None, None).alloc(self),
                     ),
                     p2,
                     None,
                 )
-                .wrap();
+                .alloc(self);
         }
         if has_brace {
             self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
         }
 
         let result = self.factory().create_jsdoc_name_reference(entity_name);
-        self.fixup_parent_references(&result);
-        self.finish_node_ref(&*result, pos, None);
+        self.fixup_parent_references(result);
+        self.finish_node_ref(&*result.ref_(self), pos, None);
         result
     }
 
@@ -243,7 +244,7 @@ impl ParserType {
         );
         let js_doc: Option<Id<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
             self.JSDocParser_parse_jsdoc_comment_worker(start, length)
-                .map(NodeInterface::wrap)
+                .map(|node| node.alloc(self))
         });
 
         let source_file = self.create_source_file(
@@ -255,11 +256,11 @@ impl ParserType {
             self.factory().create_token(SyntaxKind::EndOfFileToken),
             NodeFlags::None,
         );
-        source_file.as_source_file().set_text(content);
+        source_file.ref_(self).as_source_file().set_text(content);
         source_file
-            .as_source_file()
+            .ref_(self).as_source_file()
             .set_language_variant(LanguageVariant::Standard);
-        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file);
+        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self));
         self.clear_state();
 
         js_doc.map(|js_doc| ParsedIsolatedJSDocComment {
@@ -281,10 +282,10 @@ impl ParserType {
 
         let comment: Option<Id<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
             self.JSDocParser_parse_jsdoc_comment_worker(Some(start), Some(length))
-                .map(NodeInterface::wrap)
+                .map(|node| node.alloc(self))
         });
-        if let Some(comment) = comment.as_ref() {
-            set_parent(comment, Some(parent.node_wrapper()));
+        if let Some(comment) = comment {
+            set_parent(&comment.ref_(self), Some(parent));
         }
 
         if self.context_flags().intersects(NodeFlags::JavaScriptFile) {
@@ -398,7 +399,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 if self.comments_pos.is_none() {
                                     self.comments_pos = Some(self.parser.get_node_pos());
                                 }
-                                let tag = self.parse_tag(indent).wrap();
+                                let tag = self.parse_tag(indent).alloc(self);
                                 self.add_tag(Some(tag));
                                 state = JSDocState::BeginningOfLine;
                                 margin = None;
@@ -480,9 +481,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                         ),
                                         self.link_end.unwrap_or(self.start).try_into().unwrap(),
                                         Some(comment_end.try_into().unwrap()),
-                                    ).wrap();
+                                    ).alloc(self);
                                 self.parts.push(part);
-                                self.parts.push(link.wrap());
+                                self.parts.push(link.alloc(self));
                                 *self.comments() = vec![];
                                 self.link_end = Some(self.parser.scanner().get_text_pos());
                             }
@@ -502,12 +503,12 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 }
                 self.remove_trailing_whitespace(&mut self.comments());
                 if !self.parts.is_empty() && !self.comments().is_empty() {
-                    let part=
+                    let part =
                         self.parser.finish_node(
                             self.parser.factory().create_jsdoc_text_raw(self.comments().join("")),
                             self.link_end.unwrap_or(self.start).try_into().unwrap(),
                             self.comments_pos,
-                        ).wrap();
+                        ).alloc(self);
                     self.parts.push(part);
                 }
                 if !self.parts.is_empty() && self.tags.is_some() {
@@ -635,11 +636,11 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let start = self.parser.scanner().get_token_pos();
         self.parser.next_token_jsdoc();
 
-        let tag_name: Id<Node> = self.parse_jsdoc_identifier_name(None).wrap();
+        let tag_name: Id<Node> = self.parse_jsdoc_identifier_name(None).alloc(self);
         let indent_text = self.skip_whitespace_or_asterisk();
 
         let tag: Option<Node>;
-        match &*tag_name.as_identifier().escaped_text {
+        match &*tag_name.ref_(self).as_identifier().escaped_text {
             "author" => {
                 tag = Some(
                     self.parse_author_tag(start, tag_name, margin, &indent_text)
@@ -929,7 +930,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     state = JSDocState::SavingComments;
                     let comment_end = self.parser.scanner().get_start_pos();
                     let link_start = self.parser.scanner().get_text_pos() - 1;
-                    let link: Option<Id<Node>> = self.parse_jsdoc_link(link_start).map(Node::wrap);
+                    let link: Option<Id<Node>> = self.parse_jsdoc_link(link_start).map(|node| node.alloc(self));
                     if let Some(link) = link {
                         parts.push(
                             self.parser
@@ -942,7 +943,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                         .unwrap_or(comments_pos),
                                     Some(comment_end.try_into().unwrap()),
                                 )
-                                .wrap(),
+                                .alloc(self),
                         );
                         parts.push(link);
                         comments = vec![];
@@ -1014,7 +1015,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 .unwrap_or(comments_pos),
                             None,
                         )
-                        .wrap(),
+                        .alloc(self),
                 );
             }
             Some(
