@@ -40,9 +40,10 @@ impl Program {
             }
             .or_else(|| {
                 for_each_child_returns(
-                    &current,
+                    current,
                     |child: Id<Node>| self.get_containing_child(position, child),
                     Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+                    self,
                 )
             });
             if child.is_none() {

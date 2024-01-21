@@ -1207,9 +1207,10 @@ fn collect_linked_aliases(resolver: &dyn EmitResolver, node: Id<Node>, arena: &i
         return Ok(());
     }
     try_for_each_child(
-        &node.ref_(arena),
+        node,
         |node: Id<Node>| collect_linked_aliases(resolver, node, arena),
         Option::<fn(&NodeArray) -> io::Result<()>>::None,
+        arena,
     )?;
 
     Ok(())

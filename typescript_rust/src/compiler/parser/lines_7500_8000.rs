@@ -97,6 +97,7 @@ impl ParserType {
                 node,
                 |child| self.walk_tree_for_external_module_indicators(child),
                 Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+                self,
             )
         }
     }

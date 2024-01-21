@@ -34,7 +34,7 @@ impl TypeChecker {
 
         let mut seen = false;
         let subsequent_node = for_each_child_returns(
-            &node.ref_(self).parent().ref_(self),
+            node.ref_(self).parent(),
             |c: Id<Node>| {
                 if seen {
                     Some(c)
@@ -44,6 +44,7 @@ impl TypeChecker {
                 }
             },
             Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+            self,
         );
         if let Some(subsequent_node) = subsequent_node
             .filter(|subsequent_node| subsequent_node.ref_(self).pos() == node.ref_(self).end())

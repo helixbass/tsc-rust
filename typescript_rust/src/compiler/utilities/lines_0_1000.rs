@@ -768,9 +768,10 @@ fn aggregate_child_data(node: Id<Node>, arena: &impl HasArena) {
         let this_node_or_any_sub_nodes_has_error =
             node.ref_(arena).flags().intersects(NodeFlags::ThisNodeHasError)
                 || for_each_child_bool(
-                    &node.ref_(arena),
+                    node,
                     |child| contains_parse_error(child, arena),
                     Option::<fn(&NodeArray) -> bool>::None,
+                    arena,
                 );
 
         if this_node_or_any_sub_nodes_has_error {

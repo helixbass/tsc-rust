@@ -9,19 +9,21 @@ use crate::{
     HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry,
     SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
+    HasArena, InArena,
 };
 
 pub fn for_each_child(
     node: &Node,
     mut cb_node: impl FnMut(Id<Node>),
     mut cb_nodes: Option<impl FnMut(&NodeArray)>,
+    arena: &impl HasArena,
 ) {
     if
     /* !node ||*/
-    node.kind() <= SyntaxKind::LastToken {
+    node.ref_(arena).kind() <= SyntaxKind::LastToken {
         return;
     }
-    match node {
+    match &*node.ref_(arena) {
         Node::QualifiedName(node) => {
             visit_node(&mut cb_node, Some(node.left));
             visit_node(&mut cb_node, Some(node.right));
@@ -1100,8 +1102,10 @@ pub fn for_each_child(
         }
         Node::JSDocTypedefTag(node) => {
             visit_node(&mut cb_node, Some(node.tag_name()));
-            if matches!(node.type_expression.as_ref(), Some(type_expression) if type_expression.kind() == SyntaxKind::JSDocTypeExpression)
-            {
+            if matches!(
+                node.type_expression,
+                Some(type_expression) if type_expression.ref_(arena).kind() == SyntaxKind::JSDocTypeExpression
+            ) {
                 visit_node(&mut cb_node, node.type_expression.clone());
                 visit_node(&mut cb_node, node.full_name.clone());
                 if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
@@ -1171,13 +1175,14 @@ pub fn try_for_each_child<TError>(
     node: &Node,
     mut cb_node: impl FnMut(Id<Node>) -> Result<(), TError>,
     mut cb_nodes: Option<impl FnMut(&NodeArray) -> Result<(), TError>>,
+    arena: &impl HasArena,
 ) -> Result<(), TError> {
     if
     /* !node ||*/
-    node.kind() <= SyntaxKind::LastToken {
+    node.ref_(arena).kind() <= SyntaxKind::LastToken {
         return Ok(());
     }
-    match node {
+    match &*node.ref_(arena) {
         Node::QualifiedName(node) => {
             try_visit_node(&mut cb_node, Some(node.left))?;
             try_visit_node(&mut cb_node, Some(node.right))?;
@@ -2258,8 +2263,10 @@ pub fn try_for_each_child<TError>(
         }
         Node::JSDocTypedefTag(node) => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
-            if matches!(node.type_expression.as_ref(), Some(type_expression) if type_expression.kind() == SyntaxKind::JSDocTypeExpression)
-            {
+            if matches!(
+                node.type_expression,
+                Some(type_expression) if type_expression.ref_(arena).kind() == SyntaxKind::JSDocTypeExpression
+            ) {
                 try_visit_node(&mut cb_node, node.type_expression.clone())?;
                 try_visit_node(&mut cb_node, node.full_name.clone())?;
                 if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
@@ -2292,14 +2299,14 @@ pub fn try_for_each_child<TError>(
             node.maybe_type_parameters()
                 .as_ref()
                 .try_map(|type_parameters| {
-                    try_for_each(type_parameters, |node: &Id<Node>, _| -> Result<_, TError> {
+                    try_for_each(type_parameters, |&node: &Id<Node>, _| -> Result<_, TError> {
                         cb_node(node)?;
                         Ok(Option::<()>::None)
                     })
                 })?;
             try_for_each(
                 &node.parameters,
-                |node: &Id<Node>, _| -> Result<_, TError> {
+                |&node: &Id<Node>, _| -> Result<_, TError> {
                     cb_node(node)?;
                     Ok(Option::<()>::None)
                 },
@@ -2318,7 +2325,7 @@ pub fn try_for_each_child<TError>(
         Node::JSDocTypeLiteral(node) => {
             try_maybe_for_each(
                 node.js_doc_property_tags.as_deref(),
-                |node: &Id<Node>, _| -> Result<_, TError> {
+                |&node: &Id<Node>, _| -> Result<_, TError> {
                     cb_node(node)?;
                     Ok(Option::<()>::None)
                 },

@@ -1494,9 +1494,10 @@ impl TypeChecker {
                     return false;
                 }
                 for_each_child_bool(
-                    &node.ref_(self),
+                    node,
                     |child| self.requires_scope_change_worker(target, child),
                     Option::<fn(&NodeArray) -> bool>::None,
+                    self,
                 ) || false
             }
         }

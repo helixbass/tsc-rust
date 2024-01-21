@@ -167,7 +167,7 @@ impl From<Gc<NodeArray>> for RcNodeOrNodeArray {
     }
 }
 
-fn gather_possible_children(node: &Node) -> Vec<RcNodeOrNodeArray> {
+fn gather_possible_children(node: Id<Node>, arena: &impl HasArena) -> Vec<RcNodeOrNodeArray> {
     let children: RefCell<Vec<RcNodeOrNodeArray>> = RefCell::new(vec![]);
     for_each_child(
         node,
@@ -179,6 +179,7 @@ fn gather_possible_children(node: &Node) -> Vec<RcNodeOrNodeArray> {
                 .borrow_mut()
                 .insert(0, node_array.rc_wrapper().into());
         }),
+        arena,
     );
     children.into_inner()
 }

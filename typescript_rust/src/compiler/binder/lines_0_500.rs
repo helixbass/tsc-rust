@@ -182,7 +182,7 @@ pub(super) fn get_module_instance_state_worker(
         SyntaxKind::ModuleBlock => {
             let mut state = ModuleInstanceState::NonInstantiated;
             for_each_child_returns(
-                &node.ref_(arena),
+                node,
                 |n| {
                     let child_state = get_module_instance_state_cached(n, Some(visited.clone()), arena);
                     match child_state {
@@ -198,6 +198,7 @@ pub(super) fn get_module_instance_state_worker(
                     }
                 },
                 Option::<fn(&NodeArray) -> Option<()>>::None,
+                arena,
             );
             return state;
         }

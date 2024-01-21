@@ -252,9 +252,10 @@ impl TypeChecker {
             None
         } else {
             for_each_child_returns(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.find_first_super_call(node),
                 Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+                self,
             )
         }
     }

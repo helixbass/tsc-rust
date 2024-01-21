@@ -908,7 +908,7 @@ impl TypeChecker {
         tested_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         try_for_each_child_bool(
-            &body.ref_(self),
+            body,
             |child_node| {
                 self.is_symbol_used_in_condition_body_check(
                     expr,
@@ -918,6 +918,7 @@ impl TypeChecker {
                 )
             },
             Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            self,
         )
     }
 
@@ -996,7 +997,7 @@ impl TypeChecker {
             }
         }
         try_for_each_child_bool(
-            &child_node.ref_(self),
+            child_node,
             |child_node| {
                 self.is_symbol_used_in_condition_body_check(
                     expr,
@@ -1006,6 +1007,7 @@ impl TypeChecker {
                 )
             },
             Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            self,
         )
     }
 }

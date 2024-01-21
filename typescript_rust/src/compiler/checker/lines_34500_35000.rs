@@ -31,9 +31,10 @@ impl TypeChecker {
         self.check_grammar_decorators_and_modifiers(node);
 
         try_for_each_child(
-            &node.ref_(self),
+            node,
             |child: Id<Node>| self.check_source_element(Some(child)),
             Option::<fn(&NodeArray) -> io::Result<()>>::None,
+            self,
         )?;
 
         Ok(())
@@ -801,9 +802,10 @@ impl TypeChecker {
         node: Id<Node>, /*ConditionalTypeNode*/
     ) -> io::Result<()> {
         try_for_each_child(
-            &node.ref_(self),
+            node,
             |child: Id<Node>| self.check_source_element(Some(child)),
             Option::<fn(&NodeArray) -> io::Result<()>>::None,
+            self,
         )?;
 
         Ok(())

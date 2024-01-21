@@ -733,9 +733,10 @@ fn try_for_each_return_statement_traverse<TError>(
         | SyntaxKind::TryStatement
         | SyntaxKind::CatchClause => {
             try_for_each_child(
-                &node.ref_(arena),
+                node,
                 |node| try_for_each_return_statement_traverse(node, visitor, arena),
                 Option::<fn(&NodeArray) -> Result<(), TError>>::None,
+                arena,
             )?;
         }
         _ => (),
@@ -774,9 +775,10 @@ fn for_each_return_statement_bool_traverse(
         | SyntaxKind::LabeledStatement
         | SyntaxKind::TryStatement
         | SyntaxKind::CatchClause => for_each_child_bool(
-            &node.ref_(arena),
+            node,
             |node| for_each_return_statement_bool_traverse(node, visitor, arena),
             Option::<fn(&NodeArray) -> bool>::None,
+            arena,
         ),
         _ => false,
     }
@@ -831,9 +833,10 @@ fn try_for_each_yield_expression_traverse<TError>(
                 }
             } else if !is_part_of_type_node(node, arena) {
                 try_for_each_child(
-                    &node.ref_(arena),
+                    node,
                     |node| try_for_each_yield_expression_traverse(node, visitor, arena),
                     Option::<fn(&NodeArray) -> Result<(), TError>>::None,
+                    arena,
                 )?;
             }
         }

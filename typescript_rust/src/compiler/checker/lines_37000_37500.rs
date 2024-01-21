@@ -28,9 +28,10 @@ impl TypeChecker {
                 == SyntaxKind::AmpersandAmpersandToken
         {
             let is_used = try_for_each_child_bool(
-                &node.ref_(self).as_binary_expression().right.ref_(self),
+                node.ref_(self).as_binary_expression().right,
                 |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
                 Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                self,
             )?;
             if is_used {
                 return Ok(true);
@@ -55,9 +56,10 @@ impl TypeChecker {
             }
         }
         try_for_each_child_bool(
-            &child.ref_(self),
+            child,
             |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
             Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            self,
         )
     }
 

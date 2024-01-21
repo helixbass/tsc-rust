@@ -11,19 +11,21 @@ use crate::{
     HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry,
     SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
+    HasArena, InArena,
 };
 
 pub fn for_each_child_returns<TReturn>(
-    node: &Node,
+    node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> Option<TReturn>,
     mut cb_nodes: Option<impl FnMut(&NodeArray) -> Option<TReturn>>,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     if
     /* !node ||*/
-    node.kind() <= SyntaxKind::LastToken {
+    node.ref_(arena).kind() <= SyntaxKind::LastToken {
         return None;
     }
-    match node {
+    match &*node.ref_(arena) {
         Node::QualifiedName(node) => visit_node_returns(&mut cb_node, Some(node.left))
             .or_else(|| visit_node_returns(&mut cb_node, Some(node.right))),
         Node::TypeParameterDeclaration(node) => visit_node_returns(&mut cb_node, Some(node.name()))
@@ -1370,8 +1372,10 @@ pub fn for_each_child_returns<TReturn>(
             }),
         Node::JSDocTypedefTag(node) => {
             visit_node_returns(&mut cb_node, Some(node.tag_name())).or_else(|| {
-                if matches!(node.type_expression.as_ref(), Some(type_expression) if type_expression.kind() == SyntaxKind::JSDocTypeExpression)
-                {
+                if matches!(
+                    node.type_expression,
+                    Some(type_expression) if type_expression.ref_(arena).kind() == SyntaxKind::JSDocTypeExpression
+                ) {
                     visit_node_returns(&mut cb_node, node.type_expression.clone()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.full_name.clone()).or_else(|| {
                             if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
@@ -1420,11 +1424,11 @@ pub fn for_each_child_returns<TReturn>(
         }
         Node::JSDocSignature(node) => {
             node.maybe_type_parameters().as_ref().and_then(|type_parameters| {
-                for_each(type_parameters, |node, _| {
+                for_each(type_parameters, |&node, _| {
                     cb_node(node)
                 })
             }).or_else(|| {
-                for_each(&node.parameters, |node, _| {
+                for_each(&node.parameters, |&node, _| {
                     cb_node(node)
                 })
             }).or_else(|| {
@@ -1441,7 +1445,7 @@ pub fn for_each_child_returns<TReturn>(
             visit_node_returns(&mut cb_node, node.name.clone())
         }
         Node::JSDocTypeLiteral(node) => {
-            maybe_for_each(node.js_doc_property_tags.as_deref(), |node, _| {
+            maybe_for_each(node.js_doc_property_tags.as_deref(), |&node, _| {
                 cb_node(node)
             })
         }
@@ -1453,16 +1457,17 @@ pub fn for_each_child_returns<TReturn>(
 }
 
 pub fn try_for_each_child_returns<TReturn, TError>(
-    node: &Node,
+    node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
     mut cb_nodes: Option<impl FnMut(&NodeArray) -> Result<Option<TReturn>, TError>>,
+    arena: &impl HasArena,
 ) -> Result<Option<TReturn>, TError> {
     if
     /* !node ||*/
-    node.kind() <= SyntaxKind::LastToken {
+    node.ref_(arena).kind() <= SyntaxKind::LastToken {
         return Ok(None);
     }
-    Ok(match node {
+    Ok(match &*node.ref_(arena) {
         Node::QualifiedName(node) => try_visit_node_returns(&mut cb_node, Some(node.left))?
             .try_or_else(|| try_visit_node_returns(&mut cb_node, Some(node.right)))?,
         Node::TypeParameterDeclaration(node) => try_visit_node_returns(&mut cb_node, Some(node.name()))?
@@ -2809,8 +2814,10 @@ pub fn try_for_each_child_returns<TReturn, TError>(
             })?,
         Node::JSDocTypedefTag(node) => {
             try_visit_node_returns(&mut cb_node, Some(node.tag_name()))?.try_or_else(|| {
-                if matches!(node.type_expression.as_ref(), Some(type_expression) if type_expression.kind() == SyntaxKind::JSDocTypeExpression)
-                {
+                if matches!(
+                    node.type_expression,
+                    Some(type_expression) if type_expression.ref_(arena).kind() == SyntaxKind::JSDocTypeExpression
+                ) {
                     try_visit_node_returns(&mut cb_node, node.type_expression.clone())?.try_or_else(|| {
                         try_visit_node_returns(&mut cb_node, node.full_name.clone())?.try_or_else(|| -> Result<_, TError> {
                             Ok(if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
@@ -2859,11 +2866,11 @@ pub fn try_for_each_child_returns<TReturn, TError>(
         }
         Node::JSDocSignature(node) => {
             node.maybe_type_parameters().as_ref().try_and_then(|type_parameters| {
-                try_for_each(type_parameters, |node: &Id<Node>, _| {
+                try_for_each(type_parameters, |&node: &Id<Node>, _| {
                     cb_node(node)
                 })
             })?.try_or_else(|| {
-                try_for_each(&node.parameters, |node: &Id<Node>, _| {
+                try_for_each(&node.parameters, |&node: &Id<Node>, _| {
                     cb_node(node)
                 })
             })?.try_or_else(|| {
@@ -2880,7 +2887,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
             try_visit_node_returns(&mut cb_node, node.name.clone())?
         }
         Node::JSDocTypeLiteral(node) => {
-            try_maybe_for_each(node.js_doc_property_tags.as_deref(), |node: &Id<Node>, _| {
+            try_maybe_for_each(node.js_doc_property_tags.as_deref(), |&node: &Id<Node>, _| {
                 cb_node(node)
             })?
         }
@@ -2892,9 +2899,10 @@ pub fn try_for_each_child_returns<TReturn, TError>(
 }
 
 pub fn for_each_child_bool(
-    node: &Node,
+    node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> bool,
     cb_nodes: Option<impl FnMut(&NodeArray) -> bool>,
+    arena: &impl HasArena,
 ) -> bool {
     // match for_each_child_returns(
     //     node,
@@ -2911,6 +2919,7 @@ pub fn for_each_child_bool(
             node,
             |node: Id<Node>| if cb_node(node) { Some(()) } else { None },
             Some(|node_array: &NodeArray| if cb_nodes(node_array) { Some(()) } else { None }),
+            arena,
         ) {
             Some(_) => true,
             None => false,
@@ -2920,6 +2929,7 @@ pub fn for_each_child_bool(
             node,
             |node: Id<Node>| if cb_node(node) { Some(()) } else { None },
             Option::<fn(&NodeArray) -> Option<()>>::None,
+            arena,
         ) {
             Some(_) => true,
             None => false,
@@ -2928,9 +2938,10 @@ pub fn for_each_child_bool(
 }
 
 pub fn try_for_each_child_bool<TError>(
-    node: &Node,
+    node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> Result<bool, TError>,
     cb_nodes: Option<impl FnMut(&NodeArray) -> Result<bool, TError>>,
+    arena: &impl HasArena,
 ) -> Result<bool, TError> {
     Ok(if let Some(mut cb_nodes) = cb_nodes {
         match try_for_each_child_returns(
@@ -2945,6 +2956,7 @@ pub fn try_for_each_child_bool<TError>(
                     None
                 })
             }),
+            arena,
         )? {
             Some(_) => true,
             None => false,
@@ -2956,6 +2968,7 @@ pub fn try_for_each_child_bool<TError>(
                 Ok(if cb_node(node)? { Some(()) } else { None })
             },
             Option::<fn(&NodeArray) -> Result<Option<()>, TError>>::None,
+            arena,
         )? {
             Some(_) => true,
             None => false,

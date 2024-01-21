@@ -124,9 +124,10 @@ impl IncrementalParserSyntaxCursorCreated {
         let position_as_isize = position.try_into().unwrap();
 
         for_each_child_bool(
-            &self.source_file,
+            self.source_file,
             |node: Id<Node>| self.visit_node(position_as_isize, node),
             Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+            self,
         );
     }
 
@@ -136,6 +137,7 @@ impl IncrementalParserSyntaxCursorCreated {
                 node,
                 |node: Id<Node>| self.visit_node(position_as_isize, node),
                 Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+                self,
             );
         }
 
@@ -157,6 +159,7 @@ impl IncrementalParserSyntaxCursorCreated {
                             child,
                             |node: Id<Node>| self.visit_node(position_as_isize, node),
                             Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+                            self,
                         );
                         return true;
                     }

@@ -349,9 +349,10 @@ impl BinderType {
 
     pub(super) fn bind_each_child(&self, node: Id<Node>) {
         for_each_child(
-            &node.ref_(self),
+            node,
             |node| self.bind(Some(node)),
             Some(|nodes: &NodeArray| self.bind_each(Some(nodes))),
+            self,
         );
     }
 

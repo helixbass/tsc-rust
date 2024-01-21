@@ -85,9 +85,10 @@ impl TypeChecker {
 
         if check_children == Some(true) {
             return try_for_each_child_bool(
-                &node.ref_(self),
+                node,
                 |node| self.is_referenced_alias_declaration(node, check_children),
                 Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                self,
             );
         }
         Ok(false)

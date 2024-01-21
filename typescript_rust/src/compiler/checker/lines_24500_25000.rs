@@ -622,9 +622,10 @@ impl TypeChecker {
             }
         } else {
             try_for_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.mark_node_assignments(node),
                 Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                self,
             )?;
         }
 

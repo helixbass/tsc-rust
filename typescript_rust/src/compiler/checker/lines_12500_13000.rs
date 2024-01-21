@@ -386,9 +386,10 @@ impl TypeChecker {
                 !node_starts_new_lexical_environment(&node.ref_(self))
                     && !is_part_of_type_node(node, self)
                     && try_for_each_child_bool(
-                        &node.ref_(self),
+                        node,
                         |child| self.contains_arguments_reference_traverse(Some(child)),
                         Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                        self,
                     )?
             }
         })

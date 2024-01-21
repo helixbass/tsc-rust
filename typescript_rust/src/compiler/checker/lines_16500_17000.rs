@@ -68,9 +68,10 @@ impl TypeChecker {
                                 n.ref_(self).kind() == SyntaxKind::Block
                                     || n.ref_(self).kind() == SyntaxKind::ConditionalType
                                         && try_for_each_child_bool(
-                                            &n.ref_(self).as_conditional_type_node().extends_type.ref_(self),
+                                            n.ref_(self).as_conditional_type_node().extends_type,
                                             |child| self.contains_reference(tp, child),
                                             Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                                            self,
                                         )?
                             }
                         } {
@@ -127,9 +128,10 @@ impl TypeChecker {
                     )
             }
             _ => try_for_each_child_bool(
-                &node.ref_(self),
+                node,
                 |child| self.contains_reference(tp, child),
                 Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                self,
             )?,
         })
     }

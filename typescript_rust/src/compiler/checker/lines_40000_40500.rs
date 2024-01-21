@@ -193,9 +193,10 @@ impl TypeChecker {
                 self.check_jsdoc_function_type(node)?;
                 self.check_jsdoc_type_is_in_js_file(node);
                 try_for_each_child(
-                    &node.ref_(self),
+                    node,
                     |child| self.check_source_element(Some(child)),
                     Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                    self,
                 )?;
             }
             SyntaxKind::JSDocNonNullableType
@@ -205,9 +206,10 @@ impl TypeChecker {
             | SyntaxKind::JSDocTypeLiteral => {
                 self.check_jsdoc_type_is_in_js_file(node);
                 try_for_each_child(
-                    &node.ref_(self),
+                    node,
                     |child| self.check_source_element(Some(child)),
                     Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                    self,
                 )?;
             }
             SyntaxKind::JSDocVariadicType => {
