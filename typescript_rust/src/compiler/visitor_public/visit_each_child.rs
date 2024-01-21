@@ -183,7 +183,7 @@ pub fn maybe_visit_each_child_full(
                     node_visitor(
                         Some(node_as_computed_property_name.expression),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -286,7 +286,7 @@ pub fn maybe_visit_each_child_full(
                     node_visitor(
                         node_as_parameter_declaration.maybe_initializer(),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     ),
                 ),
@@ -363,7 +363,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -441,7 +441,7 @@ pub fn maybe_visit_each_child_full(
                     nodes_visitor(
                         Some(&node_as_method_signature.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
                         None,
                     )
@@ -621,7 +621,7 @@ pub fn maybe_visit_each_child_full(
                     nodes_visitor(
                         node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -783,7 +783,7 @@ pub fn maybe_visit_each_child_full(
                     nodes_visitor(
                         Some(&node_as_call_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
                         None,
                     )
@@ -815,7 +815,7 @@ pub fn maybe_visit_each_child_full(
                     nodes_visitor(
                         Some(&node_as_construct_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
                         None,
                     )
@@ -853,7 +853,7 @@ pub fn maybe_visit_each_child_full(
                     nodes_visitor(
                         Some(&node_as_index_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
                         None,
                     )
@@ -938,7 +938,7 @@ pub fn maybe_visit_each_child_full(
                     nodes_visitor(
                         Some(&node_as_function_type_node.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
                         None,
                     )
@@ -977,7 +977,7 @@ pub fn maybe_visit_each_child_full(
                     nodes_visitor(
                         Some(&node_as_constructor_type_node.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
                         None,
                     )
@@ -998,7 +998,7 @@ pub fn maybe_visit_each_child_full(
                 factory.update_type_query_node(
                     node,
                     node_visitor(
-                        Some(&node_as_type_query_node.expr_name),
+                        Some(node_as_type_query_node.expr_name),
                         Some(&mut visitor),
                         Some(&|node: Id<Node>| is_entity_name(&node.ref_(arena))),
                         None,
@@ -1358,7 +1358,7 @@ pub fn maybe_visit_each_child_full(
                     node_visitor(
                         Some(node_as_literal_type_node.literal),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1480,7 +1480,7 @@ pub fn maybe_visit_each_child_full(
                     node_visitor(
                         node_as_binding_element.maybe_initializer(),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     ),
                 ),
@@ -1495,7 +1495,7 @@ pub fn maybe_visit_each_child_full(
                     nodes_visitor(
                         Some(&node_as_array_literal_expression.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                         None,
                     )
@@ -1530,7 +1530,7 @@ pub fn maybe_visit_each_child_full(
                         node_visitor(
                             Some(node_as_property_access_expression.expression),
                             Some(&mut visitor),
-                            Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
+                            Some(&|node: Id<Node>| is_expression(node, arena)),
                             None,
                         )
                         .unwrap(),
@@ -1587,7 +1587,7 @@ pub fn maybe_visit_each_child_full(
                         node_visitor(
                             Some(node_as_element_access_expression.expression),
                             Some(&mut visitor),
-                            Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
+                            Some(&|node: Id<Node>| is_expression(node, arena)),
                             None,
                         )
                         .unwrap(),
@@ -1745,7 +1745,7 @@ pub fn maybe_visit_each_child_full(
                     node_visitor(
                         Some(node_as_tagged_template_expression.tag),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1775,7 +1775,7 @@ pub fn maybe_visit_each_child_full(
                 factory.update_type_assertion(
                     node,
                     node_visitor(
-                        Some(&node_as_type_assertion.type_),
+                        Some(node_as_type_assertion.type_),
                         Some(&mut visitor),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -2228,7 +2228,7 @@ pub fn maybe_visit_each_child_full(
                     node_visitor(
                         node_as_class_expression.maybe_name(),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_identifier(node, arena)),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     ),
                     nodes_visitor(
@@ -2539,7 +2539,7 @@ pub fn maybe_visit_each_child_full(
                     node_visitor(
                         Some(node_as_for_in_statement.initializer),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_for_initializer(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| is_for_initializer(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -3554,7 +3554,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_jsx_self_closing_element.attributes),
+                        Some(node_as_jsx_self_closing_element.attributes),
                         Some(&mut visitor),
                         Some(&|node: Id<Node>| is_jsx_attributes(&node.ref_(arena))),
                         None,
@@ -3586,7 +3586,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_jsx_opening_element.attributes),
+                        Some(node_as_jsx_opening_element.attributes),
                         Some(&mut visitor),
                         Some(&|node: Id<Node>| is_jsx_attributes(&node.ref_(arena))),
                         None,
