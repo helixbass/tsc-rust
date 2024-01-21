@@ -363,7 +363,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                     ),
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,

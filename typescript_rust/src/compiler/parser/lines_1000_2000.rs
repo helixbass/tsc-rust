@@ -143,7 +143,7 @@ impl ParserType {
         source_file: Id<Node>, /*SourceFile*/
     ) -> Id<Node> {
         let saved_syntax_cursor = self.take_syntax_cursor();
-        let base_syntax_cursor = IncrementalParser().create_syntax_cursor(source_file);
+        let base_syntax_cursor = IncrementalParser().create_syntax_cursor(&source_file.ref_(self));
         self.set_syntax_cursor(Some(
             IncrementalParserSyntaxCursorReparseTopLevelAwait::new(Gc::new(base_syntax_cursor))
                 .into(),
