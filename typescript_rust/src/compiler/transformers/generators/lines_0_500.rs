@@ -875,7 +875,7 @@ impl TransformGenerators {
             return node;
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
             .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self)
     }
 
@@ -895,7 +895,7 @@ impl TransformGenerators {
             self.visit_generator(node)
         } else if transform_flags.intersects(TransformFlags::ContainsGenerator) {
             Some(
-                visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into(),
             )
         } else {
             Some(node.into())
@@ -945,9 +945,10 @@ impl TransformGenerators {
                 ) {
                     Some(
                         visit_each_child(
-                            &node.ref_(self),
+                            node,
                             |node: Id<Node>| self.visitor(node),
                             &**self.context,
+                            self,
                         )
                         .into(),
                     )
@@ -973,7 +974,7 @@ impl TransformGenerators {
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => self.visit_new_expression(node),
             _ => Some(
-                visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into(),
             ),
         }
     }
@@ -1023,7 +1024,7 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
@@ -1069,7 +1070,7 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }

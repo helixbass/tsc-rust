@@ -326,9 +326,10 @@ impl TransformES2018 {
 
     fn visit_default(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         maybe_visit_each_child(
-            Some(&node.ref_(self)),
+            Some(node),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         )
         .map(Into::into)
     }
@@ -445,9 +446,10 @@ impl TransformES2018 {
                     }
                 }
                 maybe_visit_each_child(
-                    Some(&node.ref_(self)),
+                    Some(node),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )
                 .map(Into::into)
             }
@@ -460,9 +462,10 @@ impl TransformES2018 {
                     }
                 }
                 maybe_visit_each_child(
-                    Some(&node.ref_(self)),
+                    Some(node),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )
                 .map(Into::into)
             }
@@ -474,9 +477,10 @@ impl TransformES2018 {
                     HierarchyFacts::ClassOrFunctionIncludes,
                 ),
             _ => maybe_visit_each_child(
-                Some(&node.ref_(self)),
+                Some(node),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .map(Into::into),
         }
@@ -513,7 +517,7 @@ impl TransformES2018 {
                 self,
             );
         }
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visit_yield_expression(&self, node: Id<Node> /*YieldExpression*/) -> VisitResult {
@@ -636,9 +640,10 @@ impl TransformES2018 {
         }
 
         maybe_visit_each_child(
-            Some(&node.ref_(self)),
+            Some(node),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         )
         .map(Into::into)
     }
@@ -674,9 +679,10 @@ impl TransformES2018 {
         }
 
         maybe_visit_each_child(
-            Some(&node.ref_(self)),
+            Some(node),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         )
         .map(Into::into)
     }
@@ -770,7 +776,7 @@ impl TransformES2018 {
                 return self.emit_helpers().create_assign_helper(objects);
             }
         }
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visit_expression_statement(
@@ -778,9 +784,10 @@ impl TransformES2018 {
         node: Id<Node>, /*ExpressionStatement*/
     ) -> Id<Node /*ExpressionStatement*/> {
         visit_each_child(
-            &node.ref_(self),
+            node,
             |node: Id<Node>| self.visitor_with_unused_expression_result(node),
             &**self.context,
+            self,
         )
     }
 
@@ -790,7 +797,7 @@ impl TransformES2018 {
         expression_result_is_unused: bool,
     ) -> Id<Node /*ParenthesizedExpression*/> {
         visit_each_child(
-            &node.ref_(self),
+            node,
             |node: Id<Node>| {
                 if expression_result_is_unused {
                     self.visitor_with_unused_expression_result(node)
@@ -799,6 +806,7 @@ impl TransformES2018 {
                 }
             },
             &**self.context,
+            self,
         )
     }
 
@@ -813,7 +821,7 @@ impl TransformES2018 {
         );
         self.set_exported_variable_statement(false);
         let visited =
-            visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+            visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
         let statement =
             visited
                 .ref_(self).as_source_file()
@@ -918,7 +926,7 @@ impl TransformES2018 {
                 ),
             );
         }
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visit_comma_list_expression(
@@ -930,9 +938,10 @@ impl TransformES2018 {
         let node_as_comma_list_expression = node_ref.as_comma_list_expression();
         if expression_result_is_unused {
             return visit_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.visitor_with_unused_expression_result(node),
                 &**self.context,
+                self,
             );
         }
         let mut result: Option<Vec<Id<Node /*Expression*/>>> = None;
@@ -1038,9 +1047,10 @@ impl TransformES2018 {
             );
         }
         maybe_visit_each_child(
-            Some(&node.ref_(self)),
+            Some(node),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         )
         .map(Into::into)
     }
@@ -1051,14 +1061,15 @@ impl TransformES2018 {
             let saved_exported_variable_statement = self.exported_variable_statement();
             self.set_exported_variable_statement(true);
             let visited =
-                visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
             self.set_exported_variable_statement(saved_exported_variable_statement);
             return Some(visited.into());
         }
         maybe_visit_each_child(
-            Some(&node.ref_(self)),
+            Some(node),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         )
         .map(Into::into)
     }
@@ -1105,9 +1116,10 @@ impl TransformES2018 {
             );
         }
         maybe_visit_each_child(
-            Some(&node.ref_(self)),
+            Some(node),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         )
         .map(Into::into)
     }
@@ -1149,9 +1161,10 @@ impl TransformES2018 {
 
     fn visit_void_expression(&self, node: Id<Node> /*VoidExpression*/) -> VisitResult {
         maybe_visit_each_child(
-            Some(&node.ref_(self)),
+            Some(node),
             |node: Id<Node>| self.visitor_with_unused_expression_result(node),
             &**self.context,
+            self,
         )
         .map(Into::into)
     }
@@ -1185,9 +1198,10 @@ impl TransformES2018 {
                 self.factory
                     .restore_enclosing_label(
                         visit_each_child(
-                            &node.ref_(self),
+                            node,
                             |node: Id<Node>| self.visitor(node),
                             &**self.context,
+                            self,
                         ),
                         outermost_labeled_statement,
                         Option::<fn(Id<Node>)>::None,
@@ -1570,7 +1584,7 @@ impl TransformES2018 {
                 ),
             );
         }
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visit_constructor_declaration(

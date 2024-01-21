@@ -216,7 +216,7 @@ impl TransformJsx {
                 .unwrap(),
         ));
         let mut visited =
-            visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+            visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
         add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
         let mut statements: NodeArrayOrVec = visited.ref_(self).as_source_file().statements().into();
         if let Some(current_file_state_filename_declaration) =
@@ -355,7 +355,7 @@ impl TransformJsx {
             SyntaxKind::JsxFragment => self.visit_jsx_fragment(node, false).map(Into::into),
             SyntaxKind::JsxExpression => self.visit_jsx_expression(node).map(Into::into),
             _ => Some(
-                visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into(),
             ),
         }
     }

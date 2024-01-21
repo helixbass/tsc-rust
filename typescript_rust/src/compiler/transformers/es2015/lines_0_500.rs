@@ -557,9 +557,10 @@ impl TransformES2015 {
             SyntaxKind::ReturnStatement => Some(self.visit_return_statement(node)?.into()),
             SyntaxKind::VoidExpression => Some(self.visit_void_expression(node)?.into()),
             _ => try_maybe_visit_each_child(
-                Some(&node.ref_(self)),
+                Some(node),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?
             .map(Into::into),
         })

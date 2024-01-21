@@ -26,9 +26,10 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Block*/>> {
         if is_function_body {
             return try_visit_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             );
         }
         let ancestor_facts = if self
@@ -44,7 +45,7 @@ impl TransformES2015 {
             self.enter_subtree(HierarchyFacts::BlockExcludes, HierarchyFacts::BlockIncludes)
         };
         let updated =
-            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?;
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?;
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
         Ok(updated)
     }
@@ -54,9 +55,10 @@ impl TransformES2015 {
         node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<Id<Node /*Statement*/>> {
         try_visit_each_child(
-            &node.ref_(self),
+            node,
             |node: Id<Node>| self.visitor_with_unused_expression_result(node),
             &**self.context,
+            self,
         )
     }
 
@@ -66,7 +68,7 @@ impl TransformES2015 {
         expression_result_is_unused: bool,
     ) -> io::Result<Id<Node /*ParenthesizedExpression*/>> {
         try_visit_each_child(
-            &node.ref_(self),
+            node,
             |node: Id<Node>| {
                 Ok(if expression_result_is_unused {
                     self.visitor_with_unused_expression_result(node)?
@@ -75,6 +77,7 @@ impl TransformES2015 {
                 })
             },
             &**self.context,
+            self,
         )
     }
 
@@ -122,7 +125,7 @@ impl TransformES2015 {
                 )?,
             ));
         }
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_comma_list_expression(
@@ -134,9 +137,10 @@ impl TransformES2015 {
         let node_as_comma_list_expression = node_ref.as_comma_list_expression();
         if expression_result_is_unused {
             return try_visit_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.visitor_with_unused_expression_result(node),
                 &**self.context,
+                self,
             );
         }
         let mut result: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
@@ -274,9 +278,10 @@ impl TransformES2015 {
             }
         } else {
             updated = Some(try_visit_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?);
         }
 
@@ -341,7 +346,7 @@ impl TransformES2015 {
 
             return Ok(declaration_list);
         }
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn get_range_union(
@@ -424,7 +429,7 @@ impl TransformES2015 {
         }
 
         Ok(Some(
-            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
                 .into(),
         ))
     }
@@ -460,7 +465,7 @@ impl TransformES2015 {
             );
         } else {
             updated = Some(
-                try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
                     .into(),
             );
         }

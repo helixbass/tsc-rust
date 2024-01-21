@@ -645,7 +645,7 @@ impl TransformClassFields {
         {
             return node;
         }
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
             .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self)
     }
 
@@ -721,9 +721,10 @@ impl TransformClassFields {
                         self.maybe_current_static_property_declaration_or_static_block();
                     self.set_current_static_property_declaration_or_static_block(None);
                     let result = visit_each_child(
-                        &node.ref_(self),
+                        node,
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
+                        self,
                     );
                     self.set_current_static_property_declaration_or_static_block(
                         saved_current_static_property_declaration_or_static_block,
@@ -733,7 +734,7 @@ impl TransformClassFields {
                 _ => (),
             }
         }
-        Some(visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
     }
 
     pub(super) fn discarded_value_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -749,9 +750,10 @@ impl TransformClassFields {
             SyntaxKind::HeritageClause => {
                 return Some(
                     visit_each_child(
-                        &node.ref_(self),
+                        node,
                         |node: Id<Node>| self.heritage_clause_visitor(node),
                         &**self.context,
+                        self,
                     )
                     .into(),
                 );
@@ -827,7 +829,7 @@ impl TransformClassFields {
             );
         }
 
-        Some(visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
     }
 
     pub(super) fn class_element_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -851,7 +853,7 @@ impl TransformClassFields {
         self.set_pending_statements(Some(_d()));
 
         let visited_node =
-            visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+            visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
         let statement: SingleNodeOrVecNode =
             if self.maybe_pending_statements().as_ref().is_non_empty() {
                 vec![visited_node]
@@ -871,7 +873,7 @@ impl TransformClassFields {
     ) -> VisitResult {
         let name_ref = name.ref_(self);
         let name_as_computed_property_name = name_ref.as_computed_property_name();
-        let mut node = visit_each_child(&name.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+        let mut node = visit_each_child(name, |node: Id<Node>| self.visitor(node), &**self.context, self);
         if self.maybe_pending_expressions().as_ref().is_non_empty() {
             let mut expressions = self.pending_expressions().clone();
             expressions.push(name_as_computed_property_name.expression.clone());
@@ -901,9 +903,10 @@ impl TransformClassFields {
         {
             return Some(
                 visit_each_child(
-                    &node.ref_(self),
+                    node,
                     |node: Id<Node>| self.class_element_visitor(node),
                     &**self.context,
+                    self,
                 )
                 .into(),
             );
@@ -1172,7 +1175,7 @@ impl TransformClassFields {
                 }
             }
         }
-        Some(visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
     }
 }
 

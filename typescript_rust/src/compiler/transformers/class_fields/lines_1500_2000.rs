@@ -438,11 +438,9 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_property_access_expression = node_ref.as_property_access_expression();
         let parameter = self.factory.get_generated_name_for_node(Some(node), None);
-        let info = self.access_private_identifier(node_as_property_access_expression.name());
-        if info.is_none() {
-            return visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
-        }
-        let info = info.unwrap();
+        let Some(info) = self.access_private_identifier(node_as_property_access_expression.name()) else {
+            return visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+        };
         let mut receiver = node_as_property_access_expression.expression;
         if is_this_property(node, self)
             || is_super_property(node, self)

@@ -142,9 +142,10 @@ impl TransformTypeScript {
                 && has_syntactic_modifier(node, ModifierFlags::Export, self))
         {
             return Ok(try_maybe_visit_each_child(
-                Some(&node.ref_(self)),
+                Some(node),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?
             .map(Into::into));
         }
@@ -392,9 +393,10 @@ impl TransformTypeScript {
         let node_as_class_expression = node_ref.as_class_expression();
         if !self.is_class_like_declaration_with_type_script_syntax(node) {
             return try_visit_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             );
         }
 

@@ -34,20 +34,23 @@ use crate::{
     InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, TransformationContext,
     VisitResult,
+    HasArena, InArena,
 };
 
 pub fn try_visit_each_child(
-    node: &Node,
+    node: Id<Node>,
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> io::Result<Id<Node>> {
-    Ok(try_maybe_visit_each_child(Some(node), visitor, context)?.unwrap())
+    Ok(try_maybe_visit_each_child(Some(node), visitor, context, arena)?.unwrap())
 }
 
 pub fn try_maybe_visit_each_child(
-    node: Option<&Node>,
+    node: Option<Id<Node>>,
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> io::Result<Option<Id<Node>>> {
     return try_maybe_visit_each_child_full(
         node,
@@ -71,11 +74,12 @@ pub fn try_maybe_visit_each_child(
                 Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
             ) -> io::Result<Option<Id<Node>>>,
         >::None,
+        arena,
     );
 }
 
 pub fn try_maybe_visit_each_child_full(
-    node: Option<&Node>,
+    node: Option<Id<Node>>,
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
@@ -96,6 +100,7 @@ pub fn try_maybe_visit_each_child_full(
             Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
         ) -> io::Result<Option<Id<Node>>>,
     >,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Id<Node>>> {
     let mut nodes_visitor =
         move |nodes: Option<&NodeArray>,

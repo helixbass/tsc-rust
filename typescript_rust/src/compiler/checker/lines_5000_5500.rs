@@ -452,9 +452,10 @@ impl NodeBuilder {
         }
         let ret = factory.with(|factory_| {
             factory_.clone_node(visit_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| Some(self.deep_clone_or_reuse_node(node).into()),
                 &*null_transformation_context,
+                self,
             ))
         });
         set_text_range(&*ret.ref_(self), Some(&*node.ref_(self)));

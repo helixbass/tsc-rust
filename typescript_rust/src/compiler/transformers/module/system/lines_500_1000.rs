@@ -182,9 +182,10 @@ impl TransformSystemModule {
             self.maybe_hoisted_statements_mut()
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
-                    &node.ref_(self),
+                    node,
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?);
         }
 

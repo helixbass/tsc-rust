@@ -314,9 +314,10 @@ impl TransformClassFields {
         if !self.should_transform_private_elements_or_class_static_blocks {
             return Some(
                 visit_each_child(
-                    &node.ref_(self),
+                    node,
                     |node: Id<Node>| self.class_element_visitor(node),
                     &**self.context,
+                    self,
                 )
                 .into(),
             );

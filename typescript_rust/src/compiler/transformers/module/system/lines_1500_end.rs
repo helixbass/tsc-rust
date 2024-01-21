@@ -172,7 +172,7 @@ impl TransformSystemModule {
         }
 
         Ok(Some(
-            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
                 .into(),
         ))
     }
@@ -286,7 +286,7 @@ impl TransformSystemModule {
             }
         }
         Ok(Some(
-            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
                 .into(),
         ))
     }

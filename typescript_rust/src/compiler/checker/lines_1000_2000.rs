@@ -203,9 +203,10 @@ impl TypeChecker {
     pub(super) fn mark_as_synthetic(&self, node: Id<Node>) -> VisitResult {
         set_text_range_pos_end(&*node.ref_(self), -1, -1);
         maybe_visit_each_child(
-            Some(&node.ref_(self)),
+            Some(node),
             |node: Id<Node>| self.mark_as_synthetic(node),
             &*null_transformation_context,
+            self,
         )
         .map(Into::into)
     }

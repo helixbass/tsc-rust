@@ -33,7 +33,7 @@ impl TransformES2016 {
             return node;
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
@@ -46,9 +46,10 @@ impl TransformES2016 {
         match node.ref_(self).kind() {
             SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
             _ => maybe_visit_each_child(
-                Some(&node.ref_(self)),
+                Some(node),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .map(Into::into),
         }
@@ -63,7 +64,7 @@ impl TransformES2016 {
                 self.visit_exponentiation_assignment_expression(node)
             }
             SyntaxKind::AsteriskAsteriskToken => self.visit_exponentiation_expression(node),
-            _ => visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context),
+            _ => visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self),
         }
     }
 

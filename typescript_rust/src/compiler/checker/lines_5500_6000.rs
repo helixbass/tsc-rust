@@ -730,7 +730,7 @@ impl NodeBuilder {
             )?;
         }
         let mut visited = try_visit_each_child(
-            &node.ref_(self),
+            node,
             |node: Id<Node>| -> io::Result<_> {
                 Ok(Some(
                     self.elide_initializer_and_set_emit_flags(context, node)?
@@ -738,6 +738,7 @@ impl NodeBuilder {
                 ))
             },
             &*null_transformation_context,
+            self,
         )?;
         if is_binding_element(&visited.ref_(self)) {
             let visited_ref = visited.ref_(self);

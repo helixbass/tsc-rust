@@ -158,7 +158,7 @@ impl TransformGenerators {
                 ),
             );
         } else {
-            node = visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
         }
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
@@ -203,7 +203,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn transform_and_emit_break_statement(
@@ -241,7 +241,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn transform_and_emit_return_statement(
@@ -427,7 +427,7 @@ impl TransformGenerators {
             self.begin_script_switch_block();
         }
 
-        let node = visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.end_switch_block();
@@ -466,7 +466,7 @@ impl TransformGenerators {
             self.begin_script_labeled_block(id_text(&node_as_labeled_statement.label.ref_(self)).to_owned());
         }
 
-        let node = visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.end_labeled_block();
@@ -519,9 +519,10 @@ impl TransformGenerators {
             self.end_exception_block();
         } else {
             self.emit_statement(visit_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             ));
         }
     }

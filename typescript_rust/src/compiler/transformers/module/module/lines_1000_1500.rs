@@ -337,9 +337,10 @@ impl TransformModule {
                         )?,
                         None,
                         try_maybe_visit_each_child(
-                            node_as_function_declaration.maybe_body().refed(self),
+                            node_as_function_declaration.maybe_body(),
                             |node: Id<Node>| self.visitor(node),
                             &**self.context,
+                            self,
                         )?,
                     )
                     .set_text_range(Some(&*node.ref_(self)), self)
@@ -349,9 +350,10 @@ impl TransformModule {
             statements
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
-                    &node.ref_(self),
+                    node,
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?);
         }
 
@@ -416,9 +418,10 @@ impl TransformModule {
             statements
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
-                    &node.ref_(self),
+                    node,
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?);
         }
 
@@ -539,9 +542,10 @@ impl TransformModule {
             statements
                 .get_or_insert_default_()
                 .push(try_visit_each_child(
-                    &node.ref_(self),
+                    node,
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?);
         }
 

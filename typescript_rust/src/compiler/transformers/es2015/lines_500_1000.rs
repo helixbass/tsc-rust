@@ -100,12 +100,12 @@ impl TransformES2015 {
                 );
             }
             let result =
-                try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?;
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?;
             converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
                 saved_allowed_non_labeled_jumps;
             return Ok(result);
         }
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_case_block(
@@ -117,7 +117,7 @@ impl TransformES2015 {
             HierarchyFacts::BlockScopeIncludes,
         );
         let updated =
-            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?;
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?;
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
         Ok(updated)
     }
@@ -168,7 +168,7 @@ impl TransformES2015 {
         } else if self.is_return_void_statement_in_constructor_with_captured_super(node) {
             return Ok(self.return_captured_this(node));
         }
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_this_keyword(&self, node: Id<Node>) -> Id<Node> {
@@ -212,9 +212,10 @@ impl TransformES2015 {
         node: Id<Node>, /*VoidExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         try_visit_each_child(
-            &node.ref_(self),
+            node,
             |node: Id<Node>| self.visitor_with_unused_expression_result(node),
             &**self.context,
+            self,
         )
     }
 
@@ -337,7 +338,7 @@ impl TransformES2015 {
                     .create_return_statement(Some(return_expression)));
             }
         }
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_class_declaration(

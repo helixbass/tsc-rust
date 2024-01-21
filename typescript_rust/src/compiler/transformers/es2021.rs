@@ -32,7 +32,7 @@ impl TransformES2021 {
             return node;
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
@@ -49,16 +49,18 @@ impl TransformES2021 {
                     return self.transform_logical_assignment(binary_expression);
                 }
                 maybe_visit_each_child(
-                    Some(&node.ref_(self)),
+                    Some(node),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )
                 .map(Into::into)
             }
             _ => maybe_visit_each_child(
-                Some(&node.ref_(self)),
+                Some(node),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .map(Into::into),
         }

@@ -42,7 +42,7 @@ impl TransformES2020 {
             return node;
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -65,9 +65,10 @@ impl TransformES2020 {
                     return Some(updated.into());
                 }
                 maybe_visit_each_child(
-                    Some(&node.ref_(self)),
+                    Some(node),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )
                 .map(Into::into)
             }
@@ -78,17 +79,19 @@ impl TransformES2020 {
                     return self.transform_nullish_coalescing_expression(node);
                 }
                 maybe_visit_each_child(
-                    Some(&node.ref_(self)),
+                    Some(node),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )
                 .map(Into::into)
             }
             SyntaxKind::DeleteExpression => self.visit_delete_expression(node),
             _ => maybe_visit_each_child(
-                Some(&node.ref_(self)),
+                Some(node),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .map(Into::into),
         }
@@ -263,7 +266,7 @@ impl TransformES2020 {
                 args,
             );
         }
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visit_non_optional_expression(

@@ -260,9 +260,10 @@ impl TransformES2015 {
 
         if num_initial_properties.is_none() {
             return try_visit_each_child(
-                &node.ref_(self),
+                node,
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             );
         }
         let num_initial_properties = num_initial_properties.unwrap();
@@ -476,9 +477,10 @@ impl TransformES2015 {
                             self.visit_each_child_of_for_statement(node)?
                         } else {
                             try_visit_each_child(
-                                &node.ref_(self),
+                                node,
                                 |node: Id<Node>| self.visitor(node),
                                 &**self.context,
+                                self,
                             )?
                         },
                         outermost_labeled_statement,

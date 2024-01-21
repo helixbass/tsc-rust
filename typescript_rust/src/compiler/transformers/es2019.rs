@@ -39,7 +39,7 @@ impl TransformES2019 {
             return node;
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -52,9 +52,10 @@ impl TransformES2019 {
         match node.ref_(self).kind() {
             SyntaxKind::CatchClause => Some(self.visit_catch_clause(node).into()),
             _ => maybe_visit_each_child(
-                Some(&node.ref_(self)),
+                Some(node),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .map(Into::into),
         }
@@ -85,7 +86,7 @@ impl TransformES2019 {
                 ),
             );
         }
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 }
 

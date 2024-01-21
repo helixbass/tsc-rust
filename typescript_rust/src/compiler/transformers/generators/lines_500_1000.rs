@@ -24,7 +24,7 @@ impl TransformGenerators {
         let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
         self.set_in_generator_function_body(Some(false));
         self.set_in_statement_containing_yield(Some(false));
-        let node = visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
         self.set_in_generator_function_body(saved_in_generator_function_body);
         self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         Some(node.into())
@@ -251,7 +251,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_left_associative_binary_expression(
@@ -285,7 +285,7 @@ impl TransformGenerators {
             );
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_comma_expression(
@@ -479,7 +479,7 @@ impl TransformGenerators {
             return result_local;
         }
 
-        visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_yield_expression(

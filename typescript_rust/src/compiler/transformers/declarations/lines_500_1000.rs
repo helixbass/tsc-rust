@@ -786,9 +786,10 @@ impl TransformDeclarations {
                         )?;
                     }
                     let node = try_visit_each_child(
-                        &input.ref_(self),
+                        input,
                         |node: Id<Node>| self.visit_declaration_subtree(node),
                         &**self.context,
+                        self,
                     )?;
                     let node_ref = node.ref_(self);
                     let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
@@ -816,9 +817,10 @@ impl TransformDeclarations {
                         self.enclosing_declaration(),
                     )?;
                     let node = try_visit_each_child(
-                        &input.ref_(self),
+                        input,
                         |node: Id<Node>| self.visit_declaration_subtree(node),
                         &**self.context,
+                        self,
                     )?;
                     let node_ref = node.ref_(self);
                     let node_as_type_reference_node = node_ref.as_type_reference_node();
@@ -1262,9 +1264,10 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         try_maybe_visit_each_child(
-                            Some(&input.ref_(self)),
+                            Some(input),
                             |node: Id<Node>| self.visit_declaration_subtree(node),
                             &**self.context,
+                            self,
                         )?,
                     )?
                 }
@@ -1476,9 +1479,10 @@ impl TransformDeclarations {
             should_enter_suppress_new_diagnostics_context_context,
             old_within_object_literal_type,
             try_maybe_visit_each_child(
-                Some(&input.ref_(self)),
+                Some(input),
                 |node: Id<Node>| self.visit_declaration_subtree(node),
                 &**self.context,
+                self,
             )?,
         )
     }

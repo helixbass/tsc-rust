@@ -112,7 +112,7 @@ impl TransformES2015 {
             );
         } else {
             updated =
-                try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?;
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?;
         }
 
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
@@ -236,7 +236,7 @@ impl TransformES2015 {
         node: Id<Node>, /*ComputedPropertyName*/
     ) -> io::Result<VisitResult> {
         Ok(Some(
-            try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
                 .into(),
         ))
     }
@@ -245,7 +245,7 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node, self), &**self.context)
     }
 
     pub(super) fn visit_array_literal_expression(
@@ -265,7 +265,7 @@ impl TransformES2015 {
                 node_as_array_literal_expression.elements.has_trailing_comma,
             );
         }
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_call_expression(
@@ -641,7 +641,7 @@ impl TransformES2015 {
             return Ok(set_original_node(resulting_call, Some(node), self));
         }
 
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_new_expression(
@@ -696,7 +696,7 @@ impl TransformES2015 {
                 Some(vec![]),
             ));
         }
-        try_visit_each_child(&node.ref_(self), |node: Id<Node>| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn transform_and_spread_elements(
