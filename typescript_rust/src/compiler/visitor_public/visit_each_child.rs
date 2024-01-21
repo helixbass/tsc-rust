@@ -31,22 +31,25 @@ use crate::{
     InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, TransformationContext,
     VisitResult,
+    HasArena, InArena,
 };
 
 #[inline(always)]
 pub fn visit_each_child(
-    node: &Node,
+    node: Id<Node>,
     visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    maybe_visit_each_child(Some(node), visitor, context).unwrap()
+    maybe_visit_each_child(Some(node), visitor, context, arena).unwrap()
 }
 
 #[inline(always)]
 pub fn maybe_visit_each_child(
-    node: Option<&Node>,
+    node: Option<Id<Node>>,
     visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> Option<Id<Node>> {
     maybe_visit_each_child_full(
         node,
@@ -70,11 +73,12 @@ pub fn maybe_visit_each_child(
                 Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
             ) -> Option<Id<Node>>,
         >::None,
+        arena,
     )
 }
 
 pub fn maybe_visit_each_child_full(
-    node: Option<&Node>,
+    node: Option<Id<Node>>,
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
@@ -95,6 +99,7 @@ pub fn maybe_visit_each_child_full(
             Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
         ) -> Option<Id<Node>>,
     >,
+    arena: &impl HasArena,
 ) -> Option<Id<Node>> {
     let mut nodes_visitor = move |nodes: Option<&NodeArray>,
                                   visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
@@ -121,46 +126,48 @@ pub fn maybe_visit_each_child_full(
     };
     let node = node?;
 
-    let kind = node.kind();
+    let kind = node.ref_(arena).kind();
 
     if kind > SyntaxKind::FirstToken && kind <= SyntaxKind::LastToken
         || kind == SyntaxKind::ThisType
     {
-        return Some(node.arena_id());
+        return Some(node);
     }
 
     let factory = context.factory();
 
     match kind {
         SyntaxKind::Identifier => {
-            let node_as_identifier = node.as_identifier();
+            let node_ref = node.ref_(arena);
+            let node_as_identifier = node_ref.as_identifier();
             Some(factory.update_identifier(
                 node,
                 nodes_visitor(
                     node_as_identifier.maybe_type_arguments().as_deref(),
                     Some(&mut |node: Id<Node>| visitor(node)),
-                    Some(&is_type_node_or_type_parameter_declaration),
+                    Some(&|node: Id<Node>| is_type_node_or_type_parameter_declaration(&node.ref_(arena))),
                     None,
                     None,
                 ),
             ))
         }
         SyntaxKind::QualifiedName => {
-            let node_as_qualified_name = node.as_qualified_name();
+            let node_ref = node.ref_(arena);
+            let node_as_qualified_name = node_ref.as_qualified_name();
             Some(
                 factory.update_qualified_name(
                     node,
                     node_visitor(
-                        Some(&node_as_qualified_name.left),
+                        Some(node_as_qualified_name.left),
                         Some(&mut visitor),
-                        Some(&is_entity_name),
+                        Some(&|node: Id<Node>| is_entity_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_qualified_name.right),
+                        Some(node_as_qualified_name.right),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -168,14 +175,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ComputedPropertyName => {
-            let node_as_computed_property_name = node.as_computed_property_name();
+            let node_ref = node.ref_(arena);
+            let node_as_computed_property_name = node_ref.as_computed_property_name();
             Some(
                 factory.update_computed_property_name(
                     node,
                     node_visitor(
-                        Some(&node_as_computed_property_name.expression),
+                        Some(node_as_computed_property_name.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -183,53 +191,55 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypeParameter => {
-            let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
             Some(
                 factory.update_type_parameter_declaration(
                     node,
                     node_visitor(
-                        Some(&node_as_type_parameter_declaration.name()),
+                        Some(node_as_type_parameter_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_type_parameter_declaration.constraint.as_deref(),
+                        node_as_type_parameter_declaration.constraint,
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_type_parameter_declaration.default.as_deref(),
+                        node_as_type_parameter_declaration.default,
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::Parameter => {
-            let node_as_parameter_declaration = node.as_parameter_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_parameter_declaration = node_ref.as_parameter_declaration();
             Some(
                 factory.update_parameter_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        node_as_parameter_declaration.dot_dot_dot_token.as_deref(),
+                        node_as_parameter_declaration.dot_dot_dot_token,
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
@@ -242,56 +252,56 @@ pub fn maybe_visit_each_child_full(
                                 // `token_visitor` is None but running into a lot of lifetime pain
                                 // (this applies to all uses of `token_visitor` in this function
                                 // and similarly in try_maybe_visit_each_child_full())
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_dot_dot_dot_token),
+                        Some(&|node: Id<Node>| is_dot_dot_dot_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_parameter_declaration.maybe_name().as_deref(),
+                        node_as_parameter_declaration.maybe_name(),
                         Some(&mut visitor),
-                        Some(&is_binding_name),
+                        Some(&|node: Id<Node>| is_binding_name(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
                         node_as_parameter_declaration
-                            .maybe_question_token()
-                            .as_deref(),
+                            .maybe_question_token(),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_question_token),
+                        Some(&|node: Id<Node>| is_question_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_parameter_declaration.maybe_type().as_deref(),
+                        node_as_parameter_declaration.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_parameter_declaration.maybe_initializer().as_deref(),
+                        node_as_parameter_declaration.maybe_initializer(),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::Decorator => {
-            let node_as_decorator = node.as_decorator();
+            let node_ref = node.ref_(arena);
+            let node_as_decorator = node_ref.as_decorator();
             Some(
                 factory.update_decorator(
                     node,
                     node_visitor(
-                        Some(&node_as_decorator.expression),
+                        Some(node_as_decorator.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -299,198 +309,201 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::PropertySignature => {
-            let node_as_property_signature = node.as_property_signature();
+            let node_ref = node.ref_(arena);
+            let node_as_property_signature = node_ref.as_property_signature();
             Some(
                 factory.update_property_signature(
                     node,
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_property_signature.name()),
+                        Some(node_as_property_signature.name()),
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_property_signature.maybe_question_token().as_deref(),
+                        node_as_property_signature.maybe_question_token(),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_token),
+                        Some(&|node: Id<Node>| is_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_property_signature.maybe_type().as_deref(),
+                        node_as_property_signature.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::PropertyDeclaration => {
-            let node_as_property_declaration = node.as_property_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_property_declaration = node_ref.as_property_declaration();
             Some(
                 factory.update_property_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_property_declaration.name()),
+                        Some(node_as_property_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
                         node_as_property_declaration
                             .maybe_question_token()
-                            .or_else(|| node_as_property_declaration.exclamation_token.clone())
-                            .as_deref(),
+                            .or(node_as_property_declaration.exclamation_token),
                         Some(&mut visitor),
-                        Some(&is_question_or_exclamation_token),
+                        Some(&|node: Id<Node>| is_question_or_exclamation_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_property_declaration.maybe_type().as_deref(),
+                        node_as_property_declaration.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_property_declaration.maybe_initializer().as_deref(),
+                        node_as_property_declaration.maybe_initializer(),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::MethodSignature => {
-            let node_as_method_signature = node.as_method_signature();
+            let node_ref = node.ref_(arena);
+            let node_as_method_signature = node_ref.as_method_signature();
             Some(
                 factory.update_method_signature(
                     node,
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_method_signature.name()),
+                        Some(node_as_method_signature.name()),
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_method_signature.maybe_question_token().as_deref(),
+                        node_as_method_signature.maybe_question_token(),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_question_token),
+                        Some(&|node: Id<Node>| is_question_token(&node.ref_(arena))),
                         None,
                     ),
                     nodes_visitor(
                         node_as_method_signature.maybe_type_parameters().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_method_signature.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_parameter_declaration),
+                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_method_signature.maybe_type().as_deref(),
+                        node_as_method_signature.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::MethodDeclaration => {
-            let node_as_method_declaration = node.as_method_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_method_declaration = node_ref.as_method_declaration();
             Some(
                 factory.update_method_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        node_as_method_declaration.maybe_asterisk_token().as_deref(),
+                        node_as_method_declaration.maybe_asterisk_token(),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_asterisk_token),
+                        Some(&|node: Id<Node>| is_asterisk_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_method_declaration.name()),
+                        Some(node_as_method_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_method_declaration.maybe_question_token().as_deref(),
+                        node_as_method_declaration.maybe_question_token(),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_question_token),
+                        Some(&|node: Id<Node>| is_question_token(&node.ref_(arena))),
                         None,
                     ),
                     nodes_visitor(
@@ -498,7 +511,7 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_parameters()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -519,13 +532,13 @@ pub fn maybe_visit_each_child_full(
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_method_declaration.maybe_type().as_deref(),
+                        node_as_method_declaration.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     visit_function_body_full(
-                        node_as_method_declaration.maybe_body().as_deref(),
+                        node_as_method_declaration.maybe_body(),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
@@ -542,21 +555,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::Constructor => {
-            let node_as_constructor_declaration = node.as_constructor_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_constructor_declaration = node_ref.as_constructor_declaration();
             Some(
                 factory.update_constructor_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -576,7 +590,7 @@ pub fn maybe_visit_each_child_full(
                     )
                     .unwrap(),
                     visit_function_body_full(
-                        node_as_constructor_declaration.maybe_body().as_deref(),
+                        node_as_constructor_declaration.maybe_body(),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
@@ -592,28 +606,29 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::GetAccessor => {
-            let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_get_accessor_declaration = node_ref.as_get_accessor_declaration();
             Some(
                 factory.update_get_accessor_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_get_accessor_declaration.name()),
+                        Some(node_as_get_accessor_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -633,13 +648,13 @@ pub fn maybe_visit_each_child_full(
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_get_accessor_declaration.maybe_type().as_deref(),
+                        node_as_get_accessor_declaration.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     visit_function_body_full(
-                        node_as_get_accessor_declaration.maybe_body().as_deref(),
+                        node_as_get_accessor_declaration.maybe_body(),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
@@ -655,28 +670,29 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::SetAccessor => {
-            let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_set_accessor_declaration = node_ref.as_set_accessor_declaration();
             Some(
                 factory.update_set_accessor_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_set_accessor_declaration.name()),
+                        Some(node_as_set_accessor_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -696,7 +712,7 @@ pub fn maybe_visit_each_child_full(
                     )
                     .unwrap(),
                     visit_function_body_full(
-                        node_as_set_accessor_declaration.maybe_body().as_deref(),
+                        node_as_set_accessor_declaration.maybe_body(),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
@@ -712,28 +728,29 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ClassStaticBlockDeclaration => {
-            let node_as_class_static_block_declaration = node.as_class_static_block_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_class_static_block_declaration = node_ref.as_class_static_block_declaration();
             context.start_lexical_environment();
             context.suspend_lexical_environment();
             Some(
                 factory.update_class_static_block_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     visit_function_body_full(
-                        Some(&node_as_class_static_block_declaration.body),
+                        Some(node_as_class_static_block_declaration.body),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
@@ -749,7 +766,8 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::CallSignature => {
-            let node_as_call_signature_declaration = node.as_call_signature_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_call_signature_declaration = node_ref.as_call_signature_declaration();
             Some(
                 factory.update_call_signature(
                     node,
@@ -758,29 +776,30 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_parameters()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_call_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_parameter_declaration),
+                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_call_signature_declaration.maybe_type().as_deref(),
+                        node_as_call_signature_declaration.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::ConstructSignature => {
-            let node_as_construct_signature_declaration = node.as_construct_signature_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_construct_signature_declaration = node_ref.as_construct_signature_declaration();
             Some(
                 factory.update_construct_signature(
                     node,
@@ -789,60 +808,60 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_parameters()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_construct_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_parameter_declaration),
+                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )
                     .unwrap(),
                     node_visitor(
                         node_as_construct_signature_declaration
-                            .maybe_type()
-                            .as_deref(),
+                            .maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::IndexSignature => {
-            let node_as_index_signature_declaration = node.as_index_signature_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_index_signature_declaration = node_ref.as_index_signature_declaration();
             Some(
                 factory.update_index_signature(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_index_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_parameter_declaration),
+                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_index_signature_declaration.maybe_type().unwrap()),
+                        Some(node_as_index_signature_declaration.maybe_type().unwrap()),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -850,41 +869,42 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypePredicate => {
-            let node_as_type_predicate_node = node.as_type_predicate_node();
+            let node_ref = node.ref_(arena);
+            let node_as_type_predicate_node = node_ref.as_type_predicate_node();
             Some(
                 factory.update_type_predicate_node(
                     node,
                     node_visitor(
-                        node_as_type_predicate_node.asserts_modifier.as_deref(),
+                        node_as_type_predicate_node.asserts_modifier,
                         Some(&mut visitor),
-                        Some(&is_asserts_keyword),
+                        Some(&|node: Id<Node>| is_asserts_keyword(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_type_predicate_node.parameter_name),
+                        Some(node_as_type_predicate_node.parameter_name),
                         Some(&mut visitor),
-                        Some(&is_identifier_or_this_type_node),
+                        Some(&|node: Id<Node>| is_identifier_or_this_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_type_predicate_node.maybe_type().as_deref(),
+                        node_as_type_predicate_node.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::TypeReference => {
-            let node_as_type_reference_node = node.as_type_reference_node();
+            let node_as_type_reference_node = node.ref_(arena).as_type_reference_node();
             Some(
                 factory.update_type_reference_node(
                     node,
                     node_visitor(
-                        Some(&node_as_type_reference_node.type_name),
+                        Some(node_as_type_reference_node.type_name),
                         Some(&mut visitor),
-                        Some(&is_entity_name),
+                        Some(&|node: Id<Node>| is_entity_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -893,7 +913,7 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_arguments()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -901,7 +921,8 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::FunctionType => {
-            let node_as_function_type_node = node.as_function_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_function_type_node = node_ref.as_function_type_node();
             Some(
                 factory.update_function_type_node(
                     node,
@@ -910,36 +931,37 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_parameters()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_function_type_node.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_parameter_declaration),
+                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_function_type_node.maybe_type().as_deref(),
+                        node_as_function_type_node.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::ConstructorType => {
-            let node_as_constructor_type_node = node.as_constructor_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_constructor_type_node = node_ref.as_constructor_type_node();
             Some(
                 factory.update_constructor_type_node(
                     node,
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -948,36 +970,37 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_parameters()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_constructor_type_node.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_parameter_declaration),
+                        Some(&|node: Id<Node>| is_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_constructor_type_node.maybe_type().as_deref(),
+                        node_as_constructor_type_node.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::TypeQuery => {
-            let node_as_type_query_node = node.as_type_query_node();
+            let node_ref = node.ref_(arena);
+            let node_as_type_query_node = node_ref.as_type_query_node();
             Some(
                 factory.update_type_query_node(
                     node,
                     node_visitor(
                         Some(&node_as_type_query_node.expr_name),
                         Some(&mut visitor),
-                        Some(&is_entity_name),
+                        Some(&|node: Id<Node>| is_entity_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -985,14 +1008,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypeLiteral => {
-            let node_as_type_literal_node = node.as_type_literal_node();
+            let node_ref = node.ref_(arena);
+            let node_as_type_literal_node = node_ref.as_type_literal_node();
             Some(
                 factory.update_type_literal_node(
                     node,
                     nodes_visitor(
                         Some(&node_as_type_literal_node.members),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_element),
+                        Some(&|node: Id<Node>| is_type_element(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1001,14 +1025,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ArrayType => {
-            let node_as_array_type_node = node.as_array_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_array_type_node = node_ref.as_array_type_node();
             Some(
                 factory.update_array_type_node(
                     node,
                     node_visitor(
-                        Some(&node_as_array_type_node.element_type),
+                        Some(node_as_array_type_node.element_type),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1016,14 +1041,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TupleType => {
-            let node_as_tuple_type_node = node.as_tuple_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_tuple_type_node = node_ref.as_tuple_type_node();
             Some(
                 factory.update_tuple_type_node(
                     node,
                     nodes_visitor(
                         Some(&node_as_tuple_type_node.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1032,14 +1058,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::OptionalType => {
-            let node_as_optional_type_node = node.as_optional_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_optional_type_node = node_ref.as_optional_type_node();
             Some(
                 factory.update_optional_type_node(
                     node,
                     node_visitor(
-                        Some(&node_as_optional_type_node.type_),
+                        Some(node_as_optional_type_node.type_),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1047,14 +1074,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::RestType => {
-            let node_as_rest_type_node = node.as_rest_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_rest_type_node = node_ref.as_rest_type_node();
             Some(
                 factory.update_rest_type_node(
                     node,
                     node_visitor(
-                        Some(&node_as_rest_type_node.type_),
+                        Some(node_as_rest_type_node.type_),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1062,14 +1090,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::UnionType => {
-            let node_as_union_type_node = node.as_union_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_union_type_node = node_ref.as_union_type_node();
             Some(
                 factory.update_union_type_node(
                     node,
                     nodes_visitor(
                         Some(&node_as_union_type_node.types),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1078,14 +1107,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::IntersectionType => {
-            let node_as_intersection_type_node = node.as_intersection_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_intersection_type_node = node_ref.as_intersection_type_node();
             Some(
                 factory.update_intersection_type_node(
                     node,
                     nodes_visitor(
                         Some(&node_as_intersection_type_node.types),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1094,35 +1124,36 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ConditionalType => {
-            let node_as_conditional_type_node = node.as_conditional_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_conditional_type_node = node_ref.as_conditional_type_node();
             Some(
                 factory.update_conditional_type_node(
                     node,
                     node_visitor(
-                        Some(&node_as_conditional_type_node.check_type),
+                        Some(node_as_conditional_type_node.check_type),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_conditional_type_node.extends_type),
+                        Some(node_as_conditional_type_node.extends_type),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_conditional_type_node.true_type),
+                        Some(node_as_conditional_type_node.true_type),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_conditional_type_node.false_type),
+                        Some(node_as_conditional_type_node.false_type),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1130,14 +1161,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::InferType => {
-            let node_as_infer_type_node = node.as_infer_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_infer_type_node = node_ref.as_infer_type_node();
             Some(
                 factory.update_infer_type_node(
                     node,
                     node_visitor(
-                        Some(&node_as_infer_type_node.type_parameter),
+                        Some(node_as_infer_type_node.type_parameter),
                         Some(&mut visitor),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1145,27 +1177,28 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ImportType => {
-            let node_as_import_type_node = node.as_import_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_import_type_node = node_ref.as_import_type_node();
             Some(
                 factory.update_import_type_node(
                     node,
                     node_visitor(
-                        Some(&node_as_import_type_node.argument),
+                        Some(node_as_import_type_node.argument),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_import_type_node.qualifier.as_deref(),
+                        node_as_import_type_node.qualifier,
                         Some(&mut visitor),
-                        Some(&is_entity_name),
+                        Some(&|node: Id<Node>| is_entity_name(&node.ref_(arena))),
                         None,
                     ),
                     nodes_visitor(
                         node_as_import_type_node.maybe_type_arguments().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -1174,33 +1207,34 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::NamedTupleMember => {
-            let node_as_named_tuple_member = node.as_named_tuple_member();
+            let node_ref = node.ref_(arena);
+            let node_as_named_tuple_member = node_ref.as_named_tuple_member();
             Some(
                 factory.update_named_tuple_member(
                     node,
                     node_visitor(
-                        node_as_named_tuple_member.dot_dot_dot_token.as_deref(),
+                        node_as_named_tuple_member.dot_dot_dot_token,
                         Some(&mut visitor),
-                        Some(&is_dot_dot_dot_token),
+                        Some(&|node: Id<Node>| is_dot_dot_dot_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_named_tuple_member.name),
+                        Some(node_as_named_tuple_member.name),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_named_tuple_member.question_token.as_deref(),
+                        node_as_named_tuple_member.question_token,
                         Some(&mut visitor),
-                        Some(&is_question_token),
+                        Some(&|node: Id<Node>| is_question_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_named_tuple_member.type_),
+                        Some(node_as_named_tuple_member.type_),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1208,14 +1242,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ParenthesizedType => {
-            let node_as_parenthesized_type_node = node.as_parenthesized_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_parenthesized_type_node = node_ref.as_parenthesized_type_node();
             Some(
                 factory.update_parenthesized_type(
                     node,
                     node_visitor(
-                        Some(&node_as_parenthesized_type_node.type_),
+                        Some(node_as_parenthesized_type_node.type_),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1223,14 +1258,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypeOperator => {
-            let node_as_type_operator_node = node.as_type_operator_node();
+            let node_ref = node.ref_(arena);
+            let node_as_type_operator_node = node_ref.as_type_operator_node();
             Some(
                 factory.update_type_operator_node(
                     node,
                     node_visitor(
-                        Some(&node_as_type_operator_node.type_),
+                        Some(node_as_type_operator_node.type_),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1238,21 +1274,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::IndexedAccessType => {
-            let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_indexed_access_type_node = node_ref.as_indexed_access_type_node();
             Some(
                 factory.update_indexed_access_type_node(
                     node,
                     node_visitor(
-                        Some(&node_as_indexed_access_type_node.object_type),
+                        Some(node_as_indexed_access_type_node.object_type),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_indexed_access_type_node.index_type),
+                        Some(node_as_indexed_access_type_node.index_type),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1260,51 +1297,52 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::MappedType => {
-            let node_as_mapped_type_node = node.as_mapped_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_mapped_type_node = node_ref.as_mapped_type_node();
             Some(
                 factory.update_mapped_type_node(
                     node,
                     node_visitor(
-                        node_as_mapped_type_node.readonly_token.as_deref(),
+                        node_as_mapped_type_node.readonly_token,
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_readonly_keyword_or_plus_or_minus_token),
+                        Some(&|node: Id<Node>| is_readonly_keyword_or_plus_or_minus_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_mapped_type_node.type_parameter),
+                        Some(node_as_mapped_type_node.type_parameter),
                         Some(&mut visitor),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_mapped_type_node.name_type.as_deref(),
+                        node_as_mapped_type_node.name_type,
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_mapped_type_node.question_token.as_deref(),
+                        node_as_mapped_type_node.question_token,
                         Some(&mut visitor),
-                        Some(&is_question_or_plus_or_minus_token),
+                        Some(&|node: Id<Node>| is_question_or_plus_or_minus_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_mapped_type_node.type_.as_deref(),
+                        node_as_mapped_type_node.type_,
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     nodes_visitor(
                         node_as_mapped_type_node.members.as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_element),
+                        Some(&|node: Id<Node>| is_type_element(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -1312,14 +1350,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::LiteralType => {
-            let node_as_literal_type_node = node.as_literal_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_literal_type_node = node_ref.as_literal_type_node();
             Some(
                 factory.update_literal_type_node(
                     node,
                     node_visitor(
-                        Some(&node_as_literal_type_node.literal),
+                        Some(node_as_literal_type_node.literal),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1327,21 +1366,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TemplateLiteralType => {
-            let node_as_template_literal_type_node = node.as_template_literal_type_node();
+            let node_ref = node.ref_(arena);
+            let node_as_template_literal_type_node = node_ref.as_template_literal_type_node();
             Some(
                 factory.update_template_literal_type(
                     node,
                     node_visitor(
-                        Some(&node_as_template_literal_type_node.head),
+                        Some(node_as_template_literal_type_node.head),
                         Some(&mut visitor),
-                        Some(&is_template_head),
+                        Some(&|node: Id<Node>| is_template_head(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_template_literal_type_node.template_spans),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_template_literal_type_span),
+                        Some(&|node: Id<Node>| is_template_literal_type_span(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1350,21 +1390,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TemplateLiteralTypeSpan => {
-            let node_as_template_literal_type_span = node.as_template_literal_type_span();
+            let node_ref = node.ref_(arena);
+            let node_as_template_literal_type_span = node_ref.as_template_literal_type_span();
             Some(
                 factory.update_template_literal_type_span(
                     node,
                     node_visitor(
-                        Some(&node_as_template_literal_type_span.type_),
+                        Some(node_as_template_literal_type_span.type_),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_template_literal_type_span.literal),
+                        Some(node_as_template_literal_type_span.literal),
                         Some(&mut visitor),
-                        Some(&is_template_middle_or_template_tail),
+                        Some(&|node: Id<Node>| is_template_middle_or_template_tail(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1372,14 +1413,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ObjectBindingPattern => {
-            let node_as_object_binding_pattern = node.as_object_binding_pattern();
+            let node_ref = node.ref_(arena);
+            let node_as_object_binding_pattern = node_ref.as_object_binding_pattern();
             Some(
                 factory.update_object_binding_pattern(
                     node,
                     nodes_visitor(
                         Some(&node_as_object_binding_pattern.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_binding_element),
+                        Some(&|node: Id<Node>| is_binding_element(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1388,14 +1430,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ArrayBindingPattern => {
-            let node_as_array_binding_pattern = node.as_array_binding_pattern();
+            let node_ref = node.ref_(arena);
+            let node_as_array_binding_pattern = node_ref.as_array_binding_pattern();
             Some(
                 factory.update_array_binding_pattern(
                     node,
                     nodes_visitor(
                         Some(&node_as_array_binding_pattern.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_array_binding_element),
+                        Some(&|node: Id<Node>| is_array_binding_element(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1404,53 +1447,55 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::BindingElement => {
-            let node_as_binding_element = node.as_binding_element();
+            let node_ref = node.ref_(arena);
+            let node_as_binding_element = node_ref.as_binding_element();
             Some(
                 factory.update_binding_element(
                     node,
                     node_visitor(
-                        node_as_binding_element.dot_dot_dot_token.as_deref(),
+                        node_as_binding_element.dot_dot_dot_token,
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_dot_dot_dot_token),
+                        Some(&|node: Id<Node>| is_dot_dot_dot_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_binding_element.property_name.as_deref(),
+                        node_as_binding_element.property_name,
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_binding_element.name()),
+                        Some(node_as_binding_element.name()),
                         Some(&mut visitor),
-                        Some(&is_binding_name),
+                        Some(&|node: Id<Node>| is_binding_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_binding_element.maybe_initializer().as_deref(),
+                        node_as_binding_element.maybe_initializer(),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::ArrayLiteralExpression => {
-            let node_as_array_literal_expression = node.as_array_literal_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_array_literal_expression = node_ref.as_array_literal_expression();
             Some(
                 factory.update_array_literal_expression(
                     node,
                     nodes_visitor(
                         Some(&node_as_array_literal_expression.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1459,14 +1504,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ObjectLiteralExpression => {
-            let node_as_object_literal_expression = node.as_object_literal_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_object_literal_expression = node_ref.as_object_literal_expression();
             Some(
                 factory.update_object_literal_expression(
                     node,
                     nodes_visitor(
                         Some(&node_as_object_literal_expression.properties),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_object_literal_element_like),
+                        Some(&|node: Id<Node>| is_object_literal_element_like(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -1475,36 +1521,36 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::PropertyAccessExpression => {
-            let node_as_property_access_expression = node.as_property_access_expression();
-            if node.flags().intersects(NodeFlags::OptionalChain) {
+            let node_ref = node.ref_(arena);
+            let node_as_property_access_expression = node_ref.as_property_access_expression();
+            if node.ref_(arena).flags().intersects(NodeFlags::OptionalChain) {
                 return Some(
                     factory.update_property_access_chain(
                         node,
                         node_visitor(
-                            Some(&node_as_property_access_expression.expression),
+                            Some(node_as_property_access_expression.expression),
                             Some(&mut visitor),
-                            Some(&is_expression),
+                            Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
                             None,
                         )
                         .unwrap(),
                         node_visitor(
                             node_as_property_access_expression
-                                .question_dot_token
-                                .as_deref(),
+                                .question_dot_token,
                             Some(&mut |node: Id<Node>| {
                                 if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)
                                 } else {
-                                    Some(node.node_wrapper().into())
+                                    Some(node.into())
                                 }
                             }),
-                            Some(&is_question_dot_token),
+                            Some(&|node: Id<Node>| is_question_dot_token(&node.ref_(arena))),
                             None,
                         ),
                         node_visitor(
-                            Some(&node_as_property_access_expression.name()),
+                            Some(node_as_property_access_expression.name()),
                             Some(&mut visitor),
-                            Some(&is_member_name),
+                            Some(&|node: Id<Node>| is_member_name(&node.ref_(arena))),
                             None,
                         )
                         .unwrap(),
@@ -1515,16 +1561,16 @@ pub fn maybe_visit_each_child_full(
                 factory.update_property_access_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_property_access_expression.expression),
+                        Some(node_as_property_access_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_property_access_expression.name()),
+                        Some(node_as_property_access_expression.name()),
                         Some(&mut visitor),
-                        Some(&is_member_name),
+                        Some(&|node: Id<Node>| is_member_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1532,36 +1578,36 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ElementAccessExpression => {
-            let node_as_element_access_expression = node.as_element_access_expression();
-            if node.flags().intersects(NodeFlags::OptionalChain) {
+            let node_ref = node.ref_(arena);
+            let node_as_element_access_expression = node_ref.as_element_access_expression();
+            if node.ref_(arena).flags().intersects(NodeFlags::OptionalChain) {
                 return Some(
                     factory.update_element_access_chain(
                         node,
                         node_visitor(
-                            Some(&node_as_element_access_expression.expression),
+                            Some(node_as_element_access_expression.expression),
                             Some(&mut visitor),
-                            Some(&is_expression),
+                            Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
                             None,
                         )
                         .unwrap(),
                         node_visitor(
                             node_as_element_access_expression
-                                .question_dot_token
-                                .as_deref(),
+                                .question_dot_token,
                             Some(&mut |node: Id<Node>| {
                                 if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)
                                 } else {
-                                    Some(node.node_wrapper().into())
+                                    Some(node.into())
                                 }
                             }),
-                            Some(&is_question_dot_token),
+                            Some(&|node: Id<Node>| is_question_dot_token(&node.ref_(arena))),
                             None,
                         ),
                         node_visitor(
-                            Some(&node_as_element_access_expression.argument_expression),
+                            Some(node_as_element_access_expression.argument_expression),
                             Some(&mut visitor),
-                            Some(&is_expression),
+                            Some(&|node: Id<Node>| is_expression(node, arena)),
                             None,
                         )
                         .unwrap(),
@@ -1572,16 +1618,16 @@ pub fn maybe_visit_each_child_full(
                 factory.update_element_access_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_element_access_expression.expression),
+                        Some(node_as_element_access_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_element_access_expression.argument_expression),
+                        Some(node_as_element_access_expression.argument_expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1589,41 +1635,42 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::CallExpression => {
-            let node_as_call_expression = node.as_call_expression();
-            if node.flags().intersects(NodeFlags::OptionalChain) {
+            let node_ref = node.ref_(arena);
+            let node_as_call_expression = node_ref.as_call_expression();
+            if node.ref_(arena).flags().intersects(NodeFlags::OptionalChain) {
                 return Some(
                     factory.update_call_chain(
                         node,
                         node_visitor(
-                            Some(&node_as_call_expression.expression),
+                            Some(node_as_call_expression.expression),
                             Some(&mut visitor),
-                            Some(&is_expression),
+                            Some(&|node: Id<Node>| is_expression(node, arena)),
                             None,
                         )
                         .unwrap(),
                         node_visitor(
-                            node_as_call_expression.question_dot_token.as_deref(),
+                            node_as_call_expression.question_dot_token,
                             Some(&mut |node: Id<Node>| {
                                 if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)
                                 } else {
-                                    Some(node.node_wrapper().into())
+                                    Some(node.into())
                                 }
                             }),
-                            Some(&is_question_dot_token),
+                            Some(&|node: Id<Node>| is_question_dot_token(&node.ref_(arena))),
                             None,
                         ),
                         nodes_visitor(
                             node_as_call_expression.maybe_type_arguments().as_deref(),
                             Some(&mut |node: Id<Node>| visitor(node)),
-                            Some(&is_type_node),
+                            Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                             None,
                             None,
                         ),
                         nodes_visitor(
                             Some(&node_as_call_expression.arguments),
                             Some(&mut |node: Id<Node>| visitor(node)),
-                            Some(&is_expression),
+                            Some(&|node: Id<Node>| is_expression(node, arena)),
                             None,
                             None,
                         )
@@ -1635,23 +1682,23 @@ pub fn maybe_visit_each_child_full(
                 factory.update_call_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_call_expression.expression),
+                        Some(node_as_call_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     nodes_visitor(
                         node_as_call_expression.maybe_type_arguments().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_call_expression.arguments),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                         None,
                     )
@@ -1660,28 +1707,29 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::NewExpression => {
-            let node_as_new_expression = node.as_new_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_new_expression = node_ref.as_new_expression();
             Some(
                 factory.update_new_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_new_expression.expression),
+                        Some(node_as_new_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     nodes_visitor(
                         node_as_new_expression.maybe_type_arguments().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         node_as_new_expression.arguments.as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                         None,
                     ),
@@ -1689,14 +1737,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TaggedTemplateExpression => {
-            let node_as_tagged_template_expression = node.as_tagged_template_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
             Some(
                 factory.update_tagged_template_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_tagged_template_expression.tag),
+                        Some(node_as_tagged_template_expression.tag),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1705,14 +1754,14 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_arguments()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_tagged_template_expression.template),
+                        Some(node_as_tagged_template_expression.template),
                         Some(&mut visitor),
-                        Some(&is_template_literal),
+                        Some(&|node: Id<Node>| is_template_literal(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -1720,21 +1769,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypeAssertionExpression => {
-            let node_as_type_assertion = node.as_type_assertion();
+            let node_ref = node.ref_(arena);
+            let node_as_type_assertion = node_ref.as_type_assertion();
             Some(
                 factory.update_type_assertion(
                     node,
                     node_visitor(
                         Some(&node_as_type_assertion.type_),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_type_assertion.expression),
+                        Some(node_as_type_assertion.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1742,14 +1792,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ParenthesizedExpression => {
-            let node_as_parenthesized_expression = node.as_parenthesized_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
             Some(
                 factory.update_parenthesized_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_parenthesized_expression.expression),
+                        Some(node_as_parenthesized_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1757,39 +1808,40 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::FunctionExpression => {
-            let node_as_function_expression = node.as_function_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_function_expression = node_ref.as_function_expression();
             Some(
                 factory.update_function_expression(
                     node,
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        node_as_function_expression.maybe_asterisk_token().as_deref(),
+                        node_as_function_expression.maybe_asterisk_token(),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_asterisk_token),
+                        Some(&|node: Id<Node>| is_asterisk_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_function_expression.maybe_name().as_deref(),
+                        node_as_function_expression.maybe_name(),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     ),
                     nodes_visitor(
                         node_as_function_expression.maybe_type_parameters().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -1809,13 +1861,13 @@ pub fn maybe_visit_each_child_full(
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_function_expression.maybe_type().as_deref(),
+                        node_as_function_expression.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     visit_function_body_full(
-                        Some(&node_as_function_expression.maybe_body().unwrap()),
+                        Some(node_as_function_expression.maybe_body().unwrap()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
@@ -1831,21 +1883,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ArrowFunction => {
-            let node_as_arrow_function = node.as_arrow_function();
+            let node_ref = node.ref_(arena);
+            let node_as_arrow_function = node_ref.as_arrow_function();
             Some(
                 factory.update_arrow_function(
                     node,
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         node_as_arrow_function.maybe_type_parameters().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -1865,26 +1918,26 @@ pub fn maybe_visit_each_child_full(
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_arrow_function.maybe_type().as_deref(),
+                        node_as_arrow_function.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_arrow_function.equals_greater_than_token),
+                        Some(node_as_arrow_function.equals_greater_than_token),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_equals_greater_than_token),
+                        Some(&|node: Id<Node>| is_equals_greater_than_token(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     visit_function_body_full(
-                        Some(&node_as_arrow_function.maybe_body().unwrap()),
+                        Some(node_as_arrow_function.maybe_body().unwrap()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
@@ -1900,14 +1953,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::DeleteExpression => {
-            let node_as_delete_expression = node.as_delete_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_delete_expression = node_ref.as_delete_expression();
             Some(
                 factory.update_delete_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_delete_expression.expression),
+                        Some(node_as_delete_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1915,14 +1969,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypeOfExpression => {
-            let node_as_type_of_expression = node.as_type_of_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_type_of_expression = node_ref.as_type_of_expression();
             Some(
                 factory.update_type_of_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_type_of_expression.expression),
+                        Some(node_as_type_of_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1930,14 +1985,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::VoidExpression => {
-            let node_as_void_expression = node.as_void_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_void_expression = node_ref.as_void_expression();
             Some(
                 factory.update_void_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_void_expression.expression),
+                        Some(node_as_void_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1945,14 +2001,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::AwaitExpression => {
-            let node_as_await_expression = node.as_await_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_await_expression = node_ref.as_await_expression();
             Some(
                 factory.update_await_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_await_expression.expression),
+                        Some(node_as_await_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1960,14 +2017,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::PrefixUnaryExpression => {
-            let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
             Some(
                 factory.update_prefix_unary_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_prefix_unary_expression.operand),
+                        Some(node_as_prefix_unary_expression.operand),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1975,14 +2033,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::PostfixUnaryExpression => {
-            let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_postfix_unary_expression = node_ref.as_postfix_unary_expression();
             Some(
                 factory.update_postfix_unary_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_postfix_unary_expression.operand),
+                        Some(node_as_postfix_unary_expression.operand),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -1990,34 +2049,35 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::BinaryExpression => {
-            let node_as_binary_expression = node.as_binary_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_binary_expression = node_ref.as_binary_expression();
             Some(
                 factory.update_binary_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_binary_expression.left),
+                        Some(node_as_binary_expression.left),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_binary_expression.operator_token),
+                        Some(node_as_binary_expression.operator_token),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_binary_operator_token),
+                        Some(&|node: Id<Node>| is_binary_operator_token(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_binary_expression.right),
+                        Some(node_as_binary_expression.right),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -2025,54 +2085,55 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ConditionalExpression => {
-            let node_as_conditional_expression = node.as_conditional_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_conditional_expression = node_ref.as_conditional_expression();
             Some(
                 factory.update_conditional_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_conditional_expression.condition),
+                        Some(node_as_conditional_expression.condition),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_conditional_expression.question_token),
+                        Some(node_as_conditional_expression.question_token),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_question_token),
+                        Some(&|node: Id<Node>| is_question_token(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_conditional_expression.when_true),
+                        Some(node_as_conditional_expression.when_true),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_conditional_expression.colon_token),
+                        Some(node_as_conditional_expression.colon_token),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_colon_token),
+                        Some(&|node: Id<Node>| is_colon_token(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_conditional_expression.when_false),
+                        Some(node_as_conditional_expression.when_false),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -2080,21 +2141,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TemplateExpression => {
-            let node_as_template_expression = node.as_template_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_template_expression = node_ref.as_template_expression();
             Some(
                 factory.update_template_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_template_expression.head),
+                        Some(node_as_template_expression.head),
                         Some(&mut visitor),
-                        Some(&is_template_head),
+                        Some(&|node: Id<Node>| is_template_head(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_template_expression.template_spans),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_template_span),
+                        Some(&|node: Id<Node>| is_template_span(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -2103,38 +2165,40 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::YieldExpression => {
-            let node_as_yield_expression = node.as_yield_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_yield_expression = node_ref.as_yield_expression();
             Some(factory.update_yield_expression(
                 node,
                 node_visitor(
-                    node_as_yield_expression.asterisk_token.as_deref(),
+                    node_as_yield_expression.asterisk_token,
                     Some(&mut |node: Id<Node>| {
                         if let Some(token_visitor) = token_visitor.as_ref() {
                             token_visitor(node)
                         } else {
-                            Some(node.node_wrapper().into())
+                            Some(node.into())
                         }
                     }),
-                    Some(&is_asterisk_token),
+                    Some(&|node: Id<Node>| is_asterisk_token(&node.ref_(arena))),
                     None,
                 ),
                 node_visitor(
-                    node_as_yield_expression.expression.as_deref(),
+                    node_as_yield_expression.expression,
                     Some(&mut visitor),
-                    Some(&is_expression),
+                    Some(&|node: Id<Node>| is_expression(node, arena)),
                     None,
                 ),
             ))
         }
         SyntaxKind::SpreadElement => {
-            let node_as_spread_element = node.as_spread_element();
+            let node_ref = node.ref_(arena);
+            let node_as_spread_element = node_ref.as_spread_element();
             Some(
                 factory.update_spread_element(
                     node,
                     node_visitor(
-                        Some(&node_as_spread_element.expression),
+                        Some(node_as_spread_element.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -2142,48 +2206,49 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ClassExpression => {
-            let node_as_class_expression = node.as_class_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_class_expression = node_ref.as_class_expression();
             Some(
                 factory.update_class_expression(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        node_as_class_expression.maybe_name().as_deref(),
+                        node_as_class_expression.maybe_name(),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(node, arena)),
                         None,
                     ),
                     nodes_visitor(
                         node_as_class_expression.maybe_type_parameters().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         node_as_class_expression.maybe_heritage_clauses().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_heritage_clause),
+                        Some(&|node: Id<Node>| is_heritage_clause(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_class_expression.members()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_class_element),
+                        Some(&|node: Id<Node>| is_class_element(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -2192,14 +2257,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ExpressionWithTypeArguments => {
-            let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
+            let node_ref = node.ref_(arena);
+            let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
             Some(
                 factory.update_expression_with_type_arguments(
                     node,
                     node_visitor(
-                        Some(&node_as_expression_with_type_arguments.expression),
+                        Some(node_as_expression_with_type_arguments.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -2208,7 +2274,7 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_arguments()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -2216,21 +2282,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::AsExpression => {
-            let node_as_as_expression = node.as_as_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_as_expression = node_ref.as_as_expression();
             Some(
                 factory.update_as_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_as_expression.expression),
+                        Some(node_as_as_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_as_expression.type_),
+                        Some(node_as_as_expression.type_),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -2238,15 +2305,16 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::NonNullExpression => {
-            let node_as_non_null_expression = node.as_non_null_expression();
-            if node.flags().intersects(NodeFlags::OptionalChain) {
+            let node_ref = node.ref_(arena);
+            let node_as_non_null_expression = node_ref.as_non_null_expression();
+            if node.ref_(arena).flags().intersects(NodeFlags::OptionalChain) {
                 return Some(
                     factory.update_non_null_chain(
                         node,
                         node_visitor(
-                            Some(&node_as_non_null_expression.expression),
+                            Some(node_as_non_null_expression.expression),
                             Some(&mut visitor),
-                            Some(&is_expression),
+                            Some(&|node: Id<Node>| is_expression(node, arena)),
                             None,
                         )
                         .unwrap(),
@@ -2257,9 +2325,9 @@ pub fn maybe_visit_each_child_full(
                 factory.update_non_null_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_non_null_expression.expression),
+                        Some(node_as_non_null_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -2267,14 +2335,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::MetaProperty => {
-            let node_as_meta_property = node.as_meta_property();
+            let node_ref = node.ref_(arena);
+            let node_as_meta_property = node_ref.as_meta_property();
             Some(
                 factory.update_meta_property(
                     node,
                     node_visitor(
-                        Some(&node_as_meta_property.name),
+                        Some(node_as_meta_property.name),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -2282,21 +2351,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TemplateSpan => {
-            let node_as_template_span = node.as_template_span();
+            let node_ref = node.ref_(arena);
+            let node_as_template_span = node_ref.as_template_span();
             Some(
                 factory.update_template_span(
                     node,
                     node_visitor(
-                        Some(&node_as_template_span.expression),
+                        Some(node_as_template_span.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_template_span.literal),
+                        Some(node_as_template_span.literal),
                         Some(&mut visitor),
-                        Some(&is_template_middle_or_template_tail),
+                        Some(&|node: Id<Node>| is_template_middle_or_template_tail(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -2304,14 +2374,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::Block => {
-            let node_as_block = node.as_block();
+            let node_ref = node.ref_(arena);
+            let node_as_block = node_ref.as_block();
             Some(
                 factory.update_block(
                     node,
                     nodes_visitor(
                         Some(&node_as_block.statements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_statement),
+                        Some(&|node: Id<Node>| is_statement(node, arena)),
                         None,
                         None,
                     )
@@ -2320,21 +2391,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::VariableStatement => {
-            let node_as_variable_statement = node.as_variable_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_variable_statement = node_ref.as_variable_statement();
             Some(
                 factory.update_variable_statement(
                     node,
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_variable_statement.declaration_list),
+                        Some(node_as_variable_statement.declaration_list),
                         Some(&mut visitor),
-                        Some(&is_variable_declaration_list),
+                        Some(&|node: Id<Node>| is_variable_declaration_list(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -2342,14 +2414,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ExpressionStatement => {
-            let node_as_expression_statement = node.as_expression_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_expression_statement = node_ref.as_expression_statement();
             Some(
                 factory.update_expression_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_expression_statement.expression),
+                        Some(node_as_expression_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -2357,47 +2430,49 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::IfStatement => {
-            let node_as_if_statement = node.as_if_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_if_statement = node_ref.as_if_statement();
             Some(
                 factory.update_if_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_if_statement.expression),
+                        Some(node_as_if_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_if_statement.then_statement),
+                        Some(node_as_if_statement.then_statement),
                         Some(&mut visitor),
-                        Some(&is_statement),
+                        Some(&|node: Id<Node>| is_statement(node, arena)),
                         Some(&|nodes: &[Id<Node>]| factory.lift_to_block(nodes)),
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_if_statement.else_statement.as_deref(),
+                        node_as_if_statement.else_statement,
                         Some(&mut visitor),
-                        Some(&is_statement),
+                        Some(&|node: Id<Node>| is_statement(node, arena)),
                         Some(&|nodes: &[Id<Node>]| factory.lift_to_block(nodes)),
                     ),
                 ),
             )
         }
         SyntaxKind::DoStatement => {
-            let node_as_do_statement = node.as_do_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_do_statement = node_ref.as_do_statement();
             Some(
                 factory.update_do_statement(
                     node,
                     visit_iteration_body(
-                        &node_as_do_statement.statement,
+                        node_as_do_statement.statement,
                         |node: Id<Node>| visitor(node),
                         context,
                     ),
                     node_visitor(
-                        Some(&node_as_do_statement.expression),
+                        Some(node_as_do_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -2405,19 +2480,20 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::WhileStatement => {
-            let node_as_while_statement = node.as_while_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_while_statement = node_ref.as_while_statement();
             Some(
                 factory.update_while_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_while_statement.expression),
+                        Some(node_as_while_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     visit_iteration_body(
-                        &node_as_while_statement.statement,
+                        node_as_while_statement.statement,
                         |node: Id<Node>| visitor(node),
                         context,
                     ),
@@ -2425,55 +2501,57 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ForStatement => {
-            let node_as_for_statement = node.as_for_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_for_statement = node_ref.as_for_statement();
             Some(factory.update_for_statement(
                 node,
                 node_visitor(
-                    node_as_for_statement.initializer.as_deref(),
+                    node_as_for_statement.initializer,
                     Some(&mut visitor),
-                    Some(&is_for_initializer),
+                    Some(&|node: Id<Node>| is_for_initializer(node, arena)),
                     None,
                 ),
                 node_visitor(
-                    node_as_for_statement.condition.as_deref(),
+                    node_as_for_statement.condition,
                     Some(&mut visitor),
-                    Some(&is_expression),
+                    Some(&|node: Id<Node>| is_expression(node, arena)),
                     None,
                 ),
                 node_visitor(
-                    node_as_for_statement.incrementor.as_deref(),
+                    node_as_for_statement.incrementor,
                     Some(&mut visitor),
-                    Some(&is_expression),
+                    Some(&|node: Id<Node>| is_expression(node, arena)),
                     None,
                 ),
                 visit_iteration_body(
-                    &node_as_for_statement.statement,
+                    node_as_for_statement.statement,
                     |node: Id<Node>| visitor(node),
                     context,
                 ),
             ))
         }
         SyntaxKind::ForInStatement => {
-            let node_as_for_in_statement = node.as_for_in_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_for_in_statement = node_ref.as_for_in_statement();
             Some(
                 factory.update_for_in_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_for_in_statement.initializer),
+                        Some(node_as_for_in_statement.initializer),
                         Some(&mut visitor),
-                        Some(&is_for_initializer),
+                        Some(&|node: Id<Node>| is_for_initializer(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_for_in_statement.expression),
+                        Some(node_as_for_in_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     visit_iteration_body(
-                        &node_as_for_in_statement.statement,
+                        node_as_for_in_statement.statement,
                         |node: Id<Node>| visitor(node),
                         context,
                     ),
@@ -2481,38 +2559,39 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ForOfStatement => {
-            let node_as_for_of_statement = node.as_for_of_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_for_of_statement = node_ref.as_for_of_statement();
             Some(
                 factory.update_for_of_statement(
                     node,
                     node_visitor(
-                        node_as_for_of_statement.await_modifier.as_deref(),
+                        node_as_for_of_statement.await_modifier,
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_await_keyword),
+                        Some(&|node: Id<Node>| is_await_keyword(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_for_of_statement.initializer),
+                        Some(node_as_for_of_statement.initializer),
                         Some(&mut visitor),
-                        Some(&is_for_initializer),
+                        Some(&|node: Id<Node>| is_for_initializer(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_for_of_statement.expression),
+                        Some(node_as_for_of_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     visit_iteration_body(
-                        &node_as_for_of_statement.statement,
+                        node_as_for_of_statement.statement,
                         |node: Id<Node>| visitor(node),
                         context,
                     ),
@@ -2520,57 +2599,61 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ContinueStatement => {
-            let node_as_continue_statement = node.as_continue_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_continue_statement = node_ref.as_continue_statement();
             Some(factory.update_continue_statement(
                 node,
                 node_visitor(
-                    node_as_continue_statement.label.as_deref(),
+                    node_as_continue_statement.label,
                     Some(&mut visitor),
-                    Some(&is_identifier),
+                    Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                     None,
                 ),
             ))
         }
         SyntaxKind::BreakStatement => {
-            let node_as_break_statement = node.as_break_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_break_statement = node_ref.as_break_statement();
             Some(factory.update_break_statement(
                 node,
                 node_visitor(
-                    node_as_break_statement.label.as_deref(),
+                    node_as_break_statement.label,
                     Some(&mut visitor),
-                    Some(&is_identifier),
+                    Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                     None,
                 ),
             ))
         }
         SyntaxKind::ReturnStatement => {
-            let node_as_return_statement = node.as_return_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_return_statement = node_ref.as_return_statement();
             Some(factory.update_return_statement(
                 node,
                 node_visitor(
-                    node_as_return_statement.expression.as_deref(),
+                    node_as_return_statement.expression,
                     Some(&mut visitor),
-                    Some(&is_expression),
+                    Some(&|node: Id<Node>| is_expression(node, arena)),
                     None,
                 ),
             ))
         }
         SyntaxKind::WithStatement => {
-            let node_as_with_statement = node.as_with_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_with_statement = node_ref.as_with_statement();
             Some(
                 factory.update_with_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_with_statement.expression),
+                        Some(node_as_with_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_with_statement.statement),
+                        Some(node_as_with_statement.statement),
                         Some(&mut visitor),
-                        Some(&is_statement),
+                        Some(&|node: Id<Node>| is_statement(node, arena)),
                         Some(&|nodes: &[Id<Node>]| factory.lift_to_block(nodes)),
                     )
                     .unwrap(),
@@ -2578,21 +2661,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::SwitchStatement => {
-            let node_as_switch_statement = node.as_switch_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_switch_statement = node_ref.as_switch_statement();
             Some(
                 factory.update_switch_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_switch_statement.expression),
+                        Some(node_as_switch_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_switch_statement.case_block),
+                        Some(node_as_switch_statement.case_block),
                         Some(&mut visitor),
-                        Some(&is_case_block),
+                        Some(&|node: Id<Node>| is_case_block(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -2600,21 +2684,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::LabeledStatement => {
-            let node_as_labeled_statement = node.as_labeled_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_labeled_statement = node_ref.as_labeled_statement();
             Some(
                 factory.update_labeled_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_labeled_statement.label),
+                        Some(node_as_labeled_statement.label),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_labeled_statement.statement),
+                        Some(node_as_labeled_statement.statement),
                         Some(&mut visitor),
-                        Some(&is_statement),
+                        Some(&|node: Id<Node>| is_statement(node, arena)),
                         Some(&|nodes: &[Id<Node>]| factory.lift_to_block(nodes)),
                     )
                     .unwrap(),
@@ -2622,14 +2707,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ThrowStatement => {
-            let node_as_throw_statement = node.as_throw_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_throw_statement = node_ref.as_throw_statement();
             Some(
                 factory.update_throw_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_throw_statement.expression),
+                        Some(node_as_throw_statement.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -2637,77 +2723,80 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TryStatement => {
-            let node_as_try_statement = node.as_try_statement();
+            let node_ref = node.ref_(arena);
+            let node_as_try_statement = node_ref.as_try_statement();
             Some(
                 factory.update_try_statement(
                     node,
                     node_visitor(
-                        Some(&node_as_try_statement.try_block),
+                        Some(node_as_try_statement.try_block),
                         Some(&mut visitor),
-                        Some(&is_block),
+                        Some(&|node: Id<Node>| is_block(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_try_statement.catch_clause.as_deref(),
+                        node_as_try_statement.catch_clause,
                         Some(&mut visitor),
-                        Some(&is_catch_clause),
+                        Some(&|node: Id<Node>| is_catch_clause(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_try_statement.finally_block.as_deref(),
+                        node_as_try_statement.finally_block,
                         Some(&mut visitor),
-                        Some(&is_block),
+                        Some(&|node: Id<Node>| is_block(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::VariableDeclaration => {
-            let node_as_variable_declaration = node.as_variable_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_variable_declaration = node_ref.as_variable_declaration();
             Some(factory.update_variable_declaration(
                 node,
                 node_visitor(
-                    node_as_variable_declaration.maybe_name().as_deref(),
+                    node_as_variable_declaration.maybe_name(),
                     Some(&mut visitor),
-                    Some(&is_binding_name),
+                    Some(&|node: Id<Node>| is_binding_name(&node.ref_(arena))),
                     None,
                 ),
                 node_visitor(
-                    node_as_variable_declaration.exclamation_token.as_deref(),
+                    node_as_variable_declaration.exclamation_token,
                     Some(&mut |node: Id<Node>| {
                         if let Some(token_visitor) = token_visitor.as_ref() {
                             token_visitor(node)
                         } else {
-                            Some(node.node_wrapper().into())
+                            Some(node.into())
                         }
                     }),
-                    Some(&is_exclamation_token),
+                    Some(&|node: Id<Node>| is_exclamation_token(&node.ref_(arena))),
                     None,
                 ),
                 node_visitor(
-                    node_as_variable_declaration.maybe_type().as_deref(),
+                    node_as_variable_declaration.maybe_type(),
                     Some(&mut visitor),
-                    Some(&is_type_node),
+                    Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                     None,
                 ),
                 node_visitor(
-                    node_as_variable_declaration.maybe_initializer().as_deref(),
+                    node_as_variable_declaration.maybe_initializer(),
                     Some(&mut visitor),
-                    Some(&is_expression),
+                    Some(&|node: Id<Node>| is_expression(node, arena)),
                     None,
                 ),
             ))
         }
         SyntaxKind::VariableDeclarationList => {
-            let node_as_variable_declaration_list = node.as_variable_declaration_list();
+            let node_ref = node.ref_(arena);
+            let node_as_variable_declaration_list = node_ref.as_variable_declaration_list();
             Some(
                 factory.update_variable_declaration_list(
                     node,
                     nodes_visitor(
                         Some(&node_as_variable_declaration_list.declarations),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_variable_declaration),
+                        Some(&|node: Id<Node>| is_variable_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -2716,46 +2805,47 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::FunctionDeclaration => {
-            let node_as_function_declaration = node.as_function_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_function_declaration = node_ref.as_function_declaration();
             Some(
                 factory.update_function_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        node_as_function_declaration.maybe_asterisk_token().as_deref(),
+                        node_as_function_declaration.maybe_asterisk_token(),
                         Some(&mut |node: Id<Node>| {
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                Some(node.node_wrapper().into())
+                                Some(node.into())
                             }
                         }),
-                        Some(&is_asterisk_token),
+                        Some(&|node: Id<Node>| is_asterisk_token(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        node_as_function_declaration.maybe_name().as_deref(),
+                        node_as_function_declaration.maybe_name(),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     ),
                     nodes_visitor(
                         node_as_function_declaration.maybe_type_parameters().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -2775,13 +2865,13 @@ pub fn maybe_visit_each_child_full(
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_function_declaration.maybe_type().as_deref(),
+                        node_as_function_declaration.maybe_type(),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     ),
                     visit_function_body_full(
-                        node_as_function_declaration.maybe_body().as_deref(),
+                        node_as_function_declaration.maybe_body(),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
@@ -2797,34 +2887,35 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ClassDeclaration => {
-            let node_as_class_declaration = node.as_class_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_class_declaration = node_ref.as_class_declaration();
             Some(
                 factory.update_class_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        node_as_class_declaration.maybe_name().as_deref(),
+                        node_as_class_declaration.maybe_name(),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     ),
                     nodes_visitor(
                         node_as_class_declaration.maybe_type_parameters().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -2833,14 +2924,14 @@ pub fn maybe_visit_each_child_full(
                             .maybe_heritage_clauses()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_heritage_clause),
+                        Some(&|node: Id<Node>| is_heritage_clause(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_class_declaration.members()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_class_element),
+                        Some(&|node: Id<Node>| is_class_element(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -2849,28 +2940,29 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::InterfaceDeclaration => {
-            let node_as_interface_declaration = node.as_interface_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_interface_declaration = node_ref.as_interface_declaration();
             Some(
                 factory.update_interface_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_interface_declaration.name()),
+                        Some(node_as_interface_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -2879,7 +2971,7 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_parameters()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -2888,14 +2980,14 @@ pub fn maybe_visit_each_child_full(
                             .maybe_heritage_clauses()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_heritage_clause),
+                        Some(&|node: Id<Node>| is_heritage_clause(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
                         Some(&node_as_interface_declaration.members()),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_element),
+                        Some(&|node: Id<Node>| is_type_element(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -2904,28 +2996,29 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypeAliasDeclaration => {
-            let node_as_type_alias_declaration = node.as_type_alias_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_type_alias_declaration = node_ref.as_type_alias_declaration();
             Some(
                 factory.update_type_alias_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_type_alias_declaration.name()),
+                        Some(node_as_type_alias_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -2934,14 +3027,14 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_parameters()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_parameter_declaration),
+                        Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_type_alias_declaration.maybe_type().unwrap()),
+                        Some(node_as_type_alias_declaration.maybe_type().unwrap()),
                         Some(&mut visitor),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -2949,35 +3042,36 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::EnumDeclaration => {
-            let node_as_enum_declaration = node.as_enum_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_enum_declaration = node_ref.as_enum_declaration();
             Some(
                 factory.update_enum_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_enum_declaration.name()),
+                        Some(node_as_enum_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_enum_declaration.members),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_enum_member),
+                        Some(&|node: Id<Node>| is_enum_member(&node.ref_(arena))),
                         None,
                         None,
                     ),
@@ -2985,49 +3079,51 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ModuleDeclaration => {
-            let node_as_module_declaration = node.as_module_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_module_declaration = node_ref.as_module_declaration();
             Some(
                 factory.update_module_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_module_declaration.name()),
+                        Some(node_as_module_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_module_name),
+                        Some(&|node: Id<Node>| is_module_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_module_declaration.body.as_deref(),
+                        node_as_module_declaration.body,
                         Some(&mut visitor),
-                        Some(&is_module_body),
+                        Some(&|node: Id<Node>| is_module_body(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::ModuleBlock => {
-            let node_as_module_block = node.as_module_block();
+            let node_ref = node.ref_(arena);
+            let node_as_module_block = node_ref.as_module_block();
             Some(
                 factory.update_module_block(
                     node,
                     nodes_visitor(
                         Some(&node_as_module_block.statements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_statement),
+                        Some(&|node: Id<Node>| is_statement(node, arena)),
                         None,
                         None,
                     )
@@ -3036,14 +3132,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::CaseBlock => {
-            let node_as_case_block = node.as_case_block();
+            let node_ref = node.ref_(arena);
+            let node_as_case_block = node_ref.as_case_block();
             Some(
                 factory.update_case_block(
                     node,
                     nodes_visitor(
                         Some(&node_as_case_block.clauses),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_case_or_default_clause),
+                        Some(&|node: Id<Node>| is_case_or_default_clause(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -3052,14 +3149,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::NamespaceExportDeclaration => {
-            let node_as_namespace_export_declaration = node.as_namespace_export_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_namespace_export_declaration = node_ref.as_namespace_export_declaration();
             Some(
                 factory.update_namespace_export_declaration(
                     node,
                     node_visitor(
-                        Some(&node_as_namespace_export_declaration.name()),
+                        Some(node_as_namespace_export_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3067,36 +3165,37 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ImportEqualsDeclaration => {
-            let node_as_import_equals_declaration = node.as_import_equals_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
             Some(
                 factory.update_import_equals_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_as_import_equals_declaration.is_type_only,
                     node_visitor(
-                        Some(&node_as_import_equals_declaration.name()),
+                        Some(node_as_import_equals_declaration.name()),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_import_equals_declaration.module_reference),
+                        Some(node_as_import_equals_declaration.module_reference),
                         Some(&mut visitor),
-                        Some(&is_module_reference),
+                        Some(&|node: Id<Node>| is_module_reference(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3104,55 +3203,56 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ImportDeclaration => {
-            let node_as_import_declaration = node.as_import_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_import_declaration = node_ref.as_import_declaration();
             Some(
                 factory.update_import_declaration(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        node_as_import_declaration.import_clause.as_deref(),
+                        node_as_import_declaration.import_clause,
                         Some(&mut visitor),
-                        Some(&is_import_clause),
+                        Some(&|node: Id<Node>| is_import_clause(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_import_declaration.module_specifier),
+                        Some(node_as_import_declaration.module_specifier),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_import_declaration.assert_clause.as_deref(),
+                        node_as_import_declaration.assert_clause,
                         Some(&mut visitor),
-                        Some(&is_assert_clause),
+                        Some(&|node: Id<Node>| is_assert_clause(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::AssertClause => {
-            let node_as_assert_clause = node.as_assert_clause();
+            let node_as_assert_clause = node.ref_(arena).as_assert_clause();
             Some(
                 factory.update_assert_clause(
                     node,
                     nodes_visitor(
                         Some(&node_as_assert_clause.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_assert_entry),
+                        Some(&|node: Id<Node>| is_assert_entry(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -3162,21 +3262,21 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::AssertEntry => {
-            let node_as_assert_entry = node.as_assert_entry();
+            let node_as_assert_entry = node.ref_(arena).as_assert_entry();
             Some(
                 factory.update_assert_entry(
                     node,
                     node_visitor(
-                        Some(&node_as_assert_entry.name),
+                        Some(node_as_assert_entry.name),
                         Some(&mut visitor),
-                        Some(&is_assertion_key),
+                        Some(&|node: Id<Node>| is_assertion_key(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_assert_entry.value),
+                        Some(node_as_assert_entry.value),
                         Some(&mut visitor),
-                        Some(&is_string_literal),
+                        Some(&|node: Id<Node>| is_string_literal(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3184,33 +3284,34 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ImportClause => {
-            let node_as_import_clause = node.as_import_clause();
+            let node_ref = node.ref_(arena);
+            let node_as_import_clause = node_ref.as_import_clause();
             Some(factory.update_import_clause(
                 node,
                 node_as_import_clause.is_type_only,
                 node_visitor(
-                    node_as_import_clause.name.as_deref(),
+                    node_as_import_clause.name,
                     Some(&mut visitor),
-                    Some(&is_identifier),
+                    Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                     None,
                 ),
                 node_visitor(
-                    node_as_import_clause.named_bindings.as_deref(),
+                    node_as_import_clause.named_bindings,
                     Some(&mut visitor),
-                    Some(&is_named_import_bindings),
+                    Some(&|node: Id<Node>| is_named_import_bindings(&node.ref_(arena))),
                     None,
                 ),
             ))
         }
         SyntaxKind::NamespaceImport => {
-            let node_as_namespace_import = node.as_namespace_import();
+            let node_as_namespace_import = node.ref_(arena).as_namespace_import();
             Some(
                 factory.update_namespace_import(
                     node,
                     node_visitor(
-                        Some(&node_as_namespace_import.name),
+                        Some(node_as_namespace_import.name),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3218,14 +3319,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::NamespaceExport => {
-            let node_as_namespace_export = node.as_namespace_export();
+            let node_ref = node.ref_(arena);
+            let node_as_namespace_export = node_ref.as_namespace_export();
             Some(
                 factory.update_namespace_export(
                     node,
                     node_visitor(
-                        Some(&node_as_namespace_export.name),
+                        Some(node_as_namespace_export.name),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3233,14 +3335,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::NamedImports => {
-            let node_as_named_imports = node.as_named_imports();
+            let node_ref = node.ref_(arena);
+            let node_as_named_imports = node_ref.as_named_imports();
             Some(
                 factory.update_named_imports(
                     node,
                     nodes_visitor(
                         Some(&node_as_named_imports.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_import_specifier),
+                        Some(&|node: Id<Node>| is_import_specifier(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -3249,21 +3352,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ImportSpecifier => {
-            let node_as_import_specifier = node.as_import_specifier();
+            let node_ref = node.ref_(arena);
+            let node_as_import_specifier = node_ref.as_import_specifier();
             Some(
                 factory.update_import_specifier(
                     node,
                     node_as_import_specifier.is_type_only,
                     node_visitor(
-                        node_as_import_specifier.property_name.as_deref(),
+                        node_as_import_specifier.property_name,
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_import_specifier.name),
+                        Some(node_as_import_specifier.name),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3271,28 +3375,29 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ExportAssignment => {
-            let node_as_export_assignment = node.as_export_assignment();
+            let node_ref = node.ref_(arena);
+            let node_as_export_assignment = node_ref.as_export_assignment();
             Some(
                 factory.update_export_assignment(
                     node,
                     nodes_visitor(
-                        node.maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_decorator),
+                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     nodes_visitor(
-                        node.maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers().as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_modifier),
+                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_export_assignment.expression),
+                        Some(node_as_export_assignment.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -3300,53 +3405,55 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ExportDeclaration => {
-            let node_as_export_declaration = node.as_export_declaration();
+            let node_ref = node.ref_(arena);
+            let node_as_export_declaration = node_ref.as_export_declaration();
             Some(factory.update_export_declaration(
                 node,
                 nodes_visitor(
-                    node.maybe_decorators().as_deref(),
+                    node.ref_(arena).maybe_decorators().as_deref(),
                     Some(&mut |node: Id<Node>| visitor(node)),
-                    Some(&is_decorator),
+                    Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                     None,
                     None,
                 ),
                 nodes_visitor(
-                    node.maybe_modifiers().as_deref(),
+                    node.ref_(arena).maybe_modifiers().as_deref(),
                     Some(&mut |node: Id<Node>| visitor(node)),
-                    Some(&is_modifier),
+                    Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                     None,
                     None,
                 ),
                 node_as_export_declaration.is_type_only,
                 node_visitor(
-                    node_as_export_declaration.export_clause.as_deref(),
+                    node_as_export_declaration.export_clause,
                     Some(&mut visitor),
-                    Some(&is_named_export_bindings),
+                    Some(&|node: Id<Node>| is_named_export_bindings(&node.ref_(arena))),
                     None,
                 ),
                 node_visitor(
-                    node_as_export_declaration.module_specifier.as_deref(),
+                    node_as_export_declaration.module_specifier,
                     Some(&mut visitor),
-                    Some(&is_expression),
+                    Some(&|node: Id<Node>| is_expression(node, arena)),
                     None,
                 ),
                 node_visitor(
-                    node_as_export_declaration.assert_clause.as_deref(),
+                    node_as_export_declaration.assert_clause,
                     Some(&mut visitor),
-                    Some(&is_assert_clause),
+                    Some(&|node: Id<Node>| is_assert_clause(&node.ref_(arena))),
                     None,
                 ),
             ))
         }
         SyntaxKind::NamedExports => {
-            let node_as_named_exports = node.as_named_exports();
+            let node_ref = node.ref_(arena);
+            let node_as_named_exports = node_ref.as_named_exports();
             Some(
                 factory.update_named_exports(
                     node,
                     nodes_visitor(
                         Some(&node_as_named_exports.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_export_specifier),
+                        Some(&|node: Id<Node>| is_export_specifier(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -3355,21 +3462,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ExportSpecifier => {
-            let node_as_export_specifier = node.as_export_specifier();
+            let node_ref = node.ref_(arena);
+            let node_as_export_specifier = node_ref.as_export_specifier();
             Some(
                 factory.update_export_specifier(
                     node,
                     node_as_export_specifier.is_type_only,
                     node_visitor(
-                        node_as_export_specifier.property_name.as_deref(),
+                        node_as_export_specifier.property_name,
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_export_specifier.name),
+                        Some(node_as_export_specifier.name),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3377,14 +3485,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ExternalModuleReference => {
-            let node_as_external_module_reference = node.as_external_module_reference();
+            let node_ref = node.ref_(arena);
+            let node_as_external_module_reference = node_ref.as_external_module_reference();
             Some(
                 factory.update_external_module_reference(
                     node,
                     node_visitor(
-                        Some(&node_as_external_module_reference.expression),
+                        Some(node_as_external_module_reference.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -3392,29 +3501,30 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::JsxElement => {
-            let node_as_jsx_element = node.as_jsx_element();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_element = node_ref.as_jsx_element();
             Some(
                 factory.update_jsx_element(
                     node,
                     node_visitor(
-                        Some(&node_as_jsx_element.opening_element),
+                        Some(node_as_jsx_element.opening_element),
                         Some(&mut visitor),
-                        Some(&is_jsx_opening_element),
+                        Some(&|node: Id<Node>| is_jsx_opening_element(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_jsx_element.children),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_jsx_child),
+                        Some(&|node: Id<Node>| is_jsx_child(&node.ref_(arena))),
                         None,
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_jsx_element.closing_element),
+                        Some(node_as_jsx_element.closing_element),
                         Some(&mut visitor),
-                        Some(&is_jsx_closing_element),
+                        Some(&|node: Id<Node>| is_jsx_closing_element(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3422,14 +3532,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::JsxSelfClosingElement => {
-            let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_self_closing_element = node_ref.as_jsx_self_closing_element();
             Some(
                 factory.update_jsx_self_closing_element(
                     node,
                     node_visitor(
-                        Some(&node_as_jsx_self_closing_element.tag_name),
+                        Some(node_as_jsx_self_closing_element.tag_name),
                         Some(&mut visitor),
-                        Some(&is_jsx_tag_name_expression),
+                        Some(&|node: Id<Node>| is_jsx_tag_name_expression(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3438,14 +3549,14 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_arguments()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
                         Some(&node_as_jsx_self_closing_element.attributes),
                         Some(&mut visitor),
-                        Some(&is_jsx_attributes),
+                        Some(&|node: Id<Node>| is_jsx_attributes(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3453,14 +3564,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::JsxOpeningElement => {
-            let node_as_jsx_opening_element = node.as_jsx_opening_element();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_opening_element = node_ref.as_jsx_opening_element();
             Some(
                 factory.update_jsx_opening_element(
                     node,
                     node_visitor(
-                        Some(&node_as_jsx_opening_element.tag_name),
+                        Some(node_as_jsx_opening_element.tag_name),
                         Some(&mut visitor),
-                        Some(&is_jsx_tag_name_expression),
+                        Some(&|node: Id<Node>| is_jsx_tag_name_expression(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3469,14 +3581,14 @@ pub fn maybe_visit_each_child_full(
                             .maybe_type_arguments()
                             .as_deref(),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_type_node),
+                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     ),
                     node_visitor(
                         Some(&node_as_jsx_opening_element.attributes),
                         Some(&mut visitor),
-                        Some(&is_jsx_attributes),
+                        Some(&|node: Id<Node>| is_jsx_attributes(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3484,14 +3596,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::JsxClosingElement => {
-            let node_as_jsx_closing_element = node.as_jsx_closing_element();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_closing_element = node_ref.as_jsx_closing_element();
             Some(
                 factory.update_jsx_closing_element(
                     node,
                     node_visitor(
-                        Some(&node_as_jsx_closing_element.tag_name),
+                        Some(node_as_jsx_closing_element.tag_name),
                         Some(&mut visitor),
-                        Some(&is_jsx_tag_name_expression),
+                        Some(&|node: Id<Node>| is_jsx_tag_name_expression(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3499,29 +3612,30 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::JsxFragment => {
-            let node_as_jsx_fragment = node.as_jsx_fragment();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_fragment = node_ref.as_jsx_fragment();
             Some(
                 factory.update_jsx_fragment(
                     node,
                     node_visitor(
-                        Some(&node_as_jsx_fragment.opening_fragment),
+                        Some(node_as_jsx_fragment.opening_fragment),
                         Some(&mut visitor),
-                        Some(&is_jsx_opening_fragment),
+                        Some(&|node: Id<Node>| is_jsx_opening_fragment(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_jsx_fragment.children),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_jsx_child),
+                        Some(&|node: Id<Node>| is_jsx_child(&node.ref_(arena))),
                         None,
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_jsx_fragment.closing_fragment),
+                        Some(node_as_jsx_fragment.closing_fragment),
                         Some(&mut visitor),
-                        Some(&is_jsx_closing_fragment),
+                        Some(&|node: Id<Node>| is_jsx_closing_fragment(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3529,35 +3643,37 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::JsxAttribute => {
-            let node_as_jsx_attribute = node.as_jsx_attribute();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_attribute = node_ref.as_jsx_attribute();
             Some(
                 factory.update_jsx_attribute(
                     node,
                     node_visitor(
-                        Some(&node_as_jsx_attribute.name),
+                        Some(node_as_jsx_attribute.name),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_jsx_attribute.maybe_initializer().as_deref(),
+                        node_as_jsx_attribute.maybe_initializer(),
                         Some(&mut visitor),
-                        Some(&is_string_literal_or_jsx_expression),
+                        Some(&|node: Id<Node>| is_string_literal_or_jsx_expression(&node.ref_(arena))),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::JsxAttributes => {
-            let node_as_jsx_attributes = node.as_jsx_attributes();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_attributes = node_ref.as_jsx_attributes();
             Some(
                 factory.update_jsx_attributes(
                     node,
                     nodes_visitor(
                         Some(&node_as_jsx_attributes.properties),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_jsx_attribute_like),
+                        Some(&|node: Id<Node>| is_jsx_attribute_like(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -3566,14 +3682,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::JsxSpreadAttribute => {
-            let node_as_jsx_spread_attribute = node.as_jsx_spread_attribute();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_spread_attribute = node_ref.as_jsx_spread_attribute();
             Some(
                 factory.update_jsx_spread_attribute(
                     node,
                     node_visitor(
-                        Some(&node_as_jsx_spread_attribute.expression),
+                        Some(node_as_jsx_spread_attribute.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -3581,33 +3698,35 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::JsxExpression => {
-            let node_as_jsx_expression = node.as_jsx_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_jsx_expression = node_ref.as_jsx_expression();
             Some(factory.update_jsx_expression(
                 node,
                 node_visitor(
-                    node_as_jsx_expression.expression.as_deref(),
+                    node_as_jsx_expression.expression,
                     Some(&mut visitor),
-                    Some(&is_expression),
+                    Some(&|node: Id<Node>| is_expression(node, arena)),
                     None,
                 ),
             ))
         }
         SyntaxKind::CaseClause => {
-            let node_as_case_clause = node.as_case_clause();
+            let node_ref = node.ref_(arena);
+            let node_as_case_clause = node_ref.as_case_clause();
             Some(
                 factory.update_case_clause(
                     node,
                     node_visitor(
-                        Some(&node_as_case_clause.expression),
+                        Some(node_as_case_clause.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_case_clause.statements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_statement),
+                        Some(&|node: Id<Node>| is_statement(node, arena)),
                         None,
                         None,
                     )
@@ -3616,14 +3735,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::DefaultClause => {
-            let node_as_default_clause = node.as_default_clause();
+            let node_ref = node.ref_(arena);
+            let node_as_default_clause = node_ref.as_default_clause();
             Some(
                 factory.update_default_clause(
                     node,
                     nodes_visitor(
                         Some(&node_as_default_clause.statements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_statement),
+                        Some(&|node: Id<Node>| is_statement(node, arena)),
                         None,
                         None,
                     )
@@ -3632,14 +3752,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::HeritageClause => {
-            let node_as_heritage_clause = node.as_heritage_clause();
+            let node_ref = node.ref_(arena);
+            let node_as_heritage_clause = node_ref.as_heritage_clause();
             Some(
                 factory.update_heritage_clause(
                     node,
                     nodes_visitor(
                         Some(&node_as_heritage_clause.types),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_expression_with_type_arguments),
+                        Some(&|node: Id<Node>| is_expression_with_type_arguments(&node.ref_(arena))),
                         None,
                         None,
                     )
@@ -3648,20 +3769,21 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::CatchClause => {
-            let node_as_catch_clause = node.as_catch_clause();
+            let node_ref = node.ref_(arena);
+            let node_as_catch_clause = node_ref.as_catch_clause();
             Some(
                 factory.update_catch_clause(
                     node,
                     node_visitor(
-                        node_as_catch_clause.variable_declaration.as_deref(),
+                        node_as_catch_clause.variable_declaration,
                         Some(&mut visitor),
-                        Some(&is_variable_declaration),
+                        Some(&|node: Id<Node>| is_variable_declaration(&node.ref_(arena))),
                         None,
                     ),
                     node_visitor(
-                        Some(&node_as_catch_clause.block),
+                        Some(node_as_catch_clause.block),
                         Some(&mut visitor),
-                        Some(&is_block),
+                        Some(&|node: Id<Node>| is_block(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
@@ -3669,21 +3791,22 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::PropertyAssignment => {
-            let node_as_property_assignment = node.as_property_assignment();
+            let node_ref = node.ref_(arena);
+            let node_as_property_assignment = node_ref.as_property_assignment();
             Some(
                 factory.update_property_assignment(
                     node,
                     node_visitor(
-                        Some(&node_as_property_assignment.name()),
+                        Some(node_as_property_assignment.name()),
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        Some(&node_as_property_assignment.initializer),
+                        Some(node_as_property_assignment.initializer),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -3691,37 +3814,38 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::ShorthandPropertyAssignment => {
-            let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
+            let node_ref = node.ref_(arena);
+            let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
             Some(
                 factory.update_shorthand_property_assignment(
                     node,
                     node_visitor(
-                        Some(&node_as_shorthand_property_assignment.name()),
+                        Some(node_as_shorthand_property_assignment.name()),
                         Some(&mut visitor),
-                        Some(&is_identifier),
+                        Some(&|node: Id<Node>| is_identifier(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
                         node_as_shorthand_property_assignment
-                            .object_assignment_initializer
-                            .as_deref(),
+                            .object_assignment_initializer,
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::SpreadAssignment => {
-            let node_as_spread_assignment = node.as_spread_assignment();
+            let node_ref = node.ref_(arena);
+            let node_as_spread_assignment = node_ref.as_spread_assignment();
             Some(
                 factory.update_spread_assignment(
                     node,
                     node_visitor(
-                        Some(&node_as_spread_assignment.expression),
+                        Some(node_as_spread_assignment.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -3729,28 +3853,30 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::EnumMember => {
-            let node_as_enum_member = node.as_enum_member();
+            let node_ref = node.ref_(arena);
+            let node_as_enum_member = node_ref.as_enum_member();
             Some(
                 factory.update_enum_member(
                     node,
                     node_visitor(
-                        Some(&node_as_enum_member.name()),
+                        Some(node_as_enum_member.name()),
                         Some(&mut visitor),
-                        Some(&is_property_name),
+                        Some(&|node: Id<Node>| is_property_name(&node.ref_(arena))),
                         None,
                     )
                     .unwrap(),
                     node_visitor(
-                        node_as_enum_member.maybe_initializer().as_deref(),
+                        node_as_enum_member.maybe_initializer(),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     ),
                 ),
             )
         }
         SyntaxKind::SourceFile => {
-            let node_as_source_file = node.as_source_file();
+            let node_ref = node.ref_(arena);
+            let node_as_source_file = node_ref.as_source_file();
             Some(factory.update_source_file(
                 node,
                 visit_lexical_environment(
@@ -3777,14 +3903,15 @@ pub fn maybe_visit_each_child_full(
             ))
         }
         SyntaxKind::PartiallyEmittedExpression => {
-            let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();
             Some(
                 factory.update_partially_emitted_expression(
                     node,
                     node_visitor(
-                        Some(&node_as_partially_emitted_expression.expression),
+                        Some(node_as_partially_emitted_expression.expression),
                         Some(&mut visitor),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                     )
                     .unwrap(),
@@ -3792,14 +3919,15 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::CommaListExpression => {
-            let node_as_comma_list_expression = node.as_comma_list_expression();
+            let node_ref = node.ref_(arena);
+            let node_as_comma_list_expression = node_ref.as_comma_list_expression();
             Some(
                 factory.update_comma_list_expression(
                     node,
                     nodes_visitor(
                         Some(&node_as_comma_list_expression.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&is_expression),
+                        Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
                         None,
                     )
@@ -3807,6 +3935,6 @@ pub fn maybe_visit_each_child_full(
                 ),
             )
         }
-        _ => Some(node.node_wrapper()),
+        _ => Some(node),
     }
 }
