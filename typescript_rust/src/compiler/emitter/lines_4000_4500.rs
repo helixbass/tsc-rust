@@ -78,15 +78,15 @@ impl Printer {
             let mut seen_prologue_directives: Option<HashSet<String>> = Some(HashSet::new());
             for prepend in &source_file_or_bundle_as_bundle.prepends {
                 self.emit_unparsed_prologues(
-                    &prepend.as_unparsed_source().prologues,
+                    &prepend.ref_(self).as_unparsed_source().prologues,
                     seen_prologue_directives.as_mut().unwrap(),
                 )?;
             }
             for source_file in &source_file_or_bundle_as_bundle.source_files {
-                let source_file = source_file.as_ref().unwrap();
+                let source_file = source_file.unwrap();
                 self.emit_prologue_directives(
-                    &source_file.as_source_file().statements(),
-                    Some(&**source_file),
+                    &source_file.ref_(self).as_source_file().statements(),
+                    Some(source_file),
                     &mut seen_prologue_directives,
                     Some(true),
                 )?;
@@ -107,8 +107,9 @@ impl Printer {
             let source_file = bundle_as_bundle.source_files[index].as_ref().unwrap();
             let mut directives: Option<Vec<SourceFilePrologueDirective>> = None;
             let mut end = 0;
-            let source_file_as_source_file = source_file.as_source_file();
-            for statement in &source_file_as_source_file.statements() {
+            let source_file_ref = source_file.ref_(self);
+            let source_file_as_source_file = source_file_ref.as_source_file();
+            for &statement in &source_file_as_source_file.statements() {
                 if !is_prologue_directive(statement, self) {
                     break;
                 }
@@ -117,7 +118,7 @@ impl Printer {
                 if seen_prologue_directives.contains(
                     &*statement_as_expression_statement
                         .expression
-                        .as_string_literal()
+                        .ref_(self).as_string_literal()
                         .text(),
                 ) {
                     continue;
@@ -125,7 +126,7 @@ impl Printer {
                 seen_prologue_directives.insert(
                     statement_as_expression_statement
                         .expression
-                        .as_string_literal()
+                        .ref_(self).as_string_literal()
                         .text()
                         .clone(),
                 );
@@ -135,11 +136,11 @@ impl Printer {
                         pos: statement.ref_(self).pos(),
                         end: statement.ref_(self).end(),
                         expression: SourceFilePrologueDirectiveExpression {
-                            pos: statement_as_expression_statement.expression.pos(),
-                            end: statement_as_expression_statement.expression.end(),
+                            pos: statement_as_expression_statement.expression.ref_(self).pos(),
+                            end: statement_as_expression_statement.expression.ref_(self).end(),
                             text: statement_as_expression_statement
                                 .expression
-                                .as_string_literal()
+                                .ref_(self).as_string_literal()
                                 .text()
                                 .clone(),
                         },
@@ -182,14 +183,14 @@ impl Printer {
         } else {
             let source_file_or_bundle_ref = source_file_or_bundle.ref_(self);
             let source_file_or_bundle_as_bundle = source_file_or_bundle_ref.as_bundle();
-            for prepend in &source_file_or_bundle_as_bundle.prepends {
-                Debug_.assert_node(Some(&**prepend), Some(|node: Id<Node>| is_unparsed_source(&node.ref_(self))), None);
+            for &prepend in &source_file_or_bundle_as_bundle.prepends {
+                Debug_.assert_node(Some(prepend), Some(|node: Id<Node>| is_unparsed_source(&node.ref_(self))), None);
                 if self.emit_shebang_if_needed(prepend) {
                     return true;
                 }
             }
             for source_file in &source_file_or_bundle_as_bundle.source_files {
-                if self.emit_shebang_if_needed(source_file.as_ref().unwrap()) {
+                if self.emit_shebang_if_needed(source_file.unwrap()) {
                     return true;
                 }
             }
@@ -455,7 +456,7 @@ impl Printer {
                         parameter_as_parameter_declaration.question_token.is_none() &&
                         parameter_as_parameter_declaration.maybe_type().is_none() &&
                         parameter_as_parameter_declaration.maybe_initializer().is_none() &&
-                        is_identifier(&parameter_as_parameter_declaration.name())
+                        is_identifier(&parameter_as_parameter_declaration.name().ref_(self))
                 }
         )
     }
@@ -636,7 +637,7 @@ impl Printer {
                 !format.intersects(ListFormat::NoInterveningComments);
             let mut should_emit_intervening_comments = may_emit_intervening_comments;
             let leading_line_terminator_count =
-                self.get_leading_line_terminator_count(parent_node.as_deref(), children, format);
+                self.get_leading_line_terminator_count(parent_node, children, format);
             if leading_line_terminator_count > 0 {
                 self.write_line(Some(leading_line_terminator_count));
                 should_emit_intervening_comments = false;
@@ -661,8 +662,7 @@ impl Printer {
                     if format.intersects(ListFormat::DelimitersMask)
                         && previous_sibling.ref_(self).end()
                             != parent_node
-                                .as_ref()
-                                .map_or(-1, |parent_node| parent_node.end())
+                                .map_or(-1, |parent_node| parent_node.ref_(self).end())
                     {
                         self.emit_leading_comments_of_position(previous_sibling.ref_(self).end());
                     }
@@ -725,7 +725,6 @@ impl Printer {
                 && format.intersects(ListFormat::CommaDelimited);
             if has_trailing_comma {
                 if let Some(previous_sibling) = previous_sibling
-                    .as_ref()
                     .filter(|_| !skip_trailing_comments)
                 {
                     self.emit_token_with_comment(
@@ -770,7 +769,7 @@ impl Printer {
             self.record_bundle_file_internal_section_end(previous_source_file_text_kind);
 
             let closing_line_terminator_count = self.get_closing_line_terminator_count(
-                parent_node.as_deref(),
+                parent_node,
                 children.rc_wrapper().into(),
                 format,
             );

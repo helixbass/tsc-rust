@@ -171,7 +171,7 @@ impl Printer {
                 } else {
                     1
                 };
-            }
+            };
             if Some(first_child.ref_(self).pos()) == self.maybe_next_list_element_pos() {
                 return 0;
             }
@@ -269,7 +269,7 @@ impl Printer {
             {
                 return 1;
             }
-        } else if get_starts_on_new_line(next_node) == Some(true) {
+        } else if get_starts_on_new_line(&next_node.ref_(self)) == Some(true) {
             return 1;
         }
         if format.intersects(ListFormat::MultiLine) {
@@ -409,11 +409,9 @@ impl Printer {
         format: ListFormat,
     ) -> bool {
         if node_is_synthesized(&*node.ref_(self)) {
-            let starts_on_new_line = get_starts_on_new_line(node);
-            if starts_on_new_line.is_none() {
+            let Some(starts_on_new_line) = get_starts_on_new_line(&node.ref_(self)) else {
                 return format.intersects(ListFormat::PreferNewLine);
-            }
-            let starts_on_new_line = starts_on_new_line.unwrap();
+            };
 
             return starts_on_new_line;
         }
@@ -435,7 +433,7 @@ impl Printer {
         let ref node1 = self.skip_synthesized_parentheses(node1);
         let ref node2 = self.skip_synthesized_parentheses(node2);
 
-        if get_starts_on_new_line(node2) == Some(true) {
+        if get_starts_on_new_line(&node2.ref_(self)) == Some(true) {
             return 1;
         }
 
@@ -526,9 +524,9 @@ impl Printer {
     ) -> Cow<'static, str> {
         if node.ref_(self).kind() == SyntaxKind::StringLiteral {
             if let Some(text_source_node) = node.ref_(self).as_string_literal().text_source_node {
-                if is_identifier(text_source_node) || is_numeric_literal(text_source_node) {
-                    let text = if is_numeric_literal(text_source_node) {
-                        text_source_node.as_numeric_literal().text().clone().into()
+                if is_identifier(&text_source_node.ref_(self)) || is_numeric_literal(&text_source_node.ref_(self)) {
+                    let text = if is_numeric_literal(&text_source_node.ref_(self)) {
+                        text_source_node.ref_(self).as_numeric_literal().text().clone().into()
                     } else {
                         self.get_text_of_node(text_source_node, None)
                     };
@@ -754,8 +752,7 @@ impl Printer {
                 self.generate_name_if_needed(Some(
                     node_as_import_specifier
                         .property_name
-                        .as_deref()
-                        .unwrap_or(&*node_as_import_specifier.name),
+                        .unwrap_or(node_as_import_specifier.name),
                 ));
             }
             _ => (),

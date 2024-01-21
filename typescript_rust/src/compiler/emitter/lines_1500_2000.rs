@@ -22,14 +22,14 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
         self.emit(
-            node_as_type_parameter_declaration.maybe_name().as_deref(),
+            node_as_type_parameter_declaration.maybe_name(),
             None,
         )?;
         self.write_space();
         self.write_keyword("in");
         self.write_space();
         self.emit(
-            node_as_type_parameter_declaration.constraint.as_deref(),
+            node_as_type_parameter_declaration.constraint,
             None,
         )?;
 
@@ -63,13 +63,11 @@ impl Printer {
         }
         let mut bundled_helpers: HashMap<String, bool> = HashMap::new();
         for source_file in &bundle.ref_(self).as_bundle().source_files {
-            let source_file = source_file.as_ref().unwrap();
+            let source_file = source_file.unwrap();
             let should_skip = get_external_helpers_module_name(source_file, self).is_some();
-            let helpers = self.get_sorted_emit_helpers(source_file);
-            if helpers.is_none() {
+            let Some(helpers) = self.get_sorted_emit_helpers(source_file) else {
                 continue;
-            }
-            let helpers = helpers.unwrap();
+            };
             for helper in &*helpers {
                 if !helper.scoped()
                     && !should_skip
@@ -103,7 +101,7 @@ impl Printer {
             bundle.ref_(self).as_bundle().source_files.len() + num_prepends
         });
         for i in 0..num_nodes {
-            let ref current_node = if let Some(bundle) = bundle.as_ref() {
+            let current_node = if let Some(bundle) = bundle {
                 if i < num_prepends {
                     bundle.ref_(self).as_bundle().prepends[i].clone()
                 } else {
@@ -114,9 +112,9 @@ impl Printer {
             } else {
                 node
             };
-            let source_file = if is_source_file(current_node) {
-                Some(current_node.clone())
-            } else if is_unparsed_source(current_node) {
+            let source_file = if is_source_file(&current_node.ref_(self)) {
+                Some(current_node)
+            } else if is_unparsed_source(&current_node.ref_(self)) {
                 None
             } else {
                 self.maybe_current_source_file()
@@ -126,10 +124,10 @@ impl Printer {
                     source_file,
                     Some(source_file) if has_recorded_external_helpers(source_file, self)
                 );
-            let should_bundle = (is_source_file(current_node) || is_unparsed_source(current_node))
+            let should_bundle = (is_source_file(&current_node.ref_(self)) || is_unparsed_source(&current_node.ref_(self)))
                 && !self.is_own_file_emit();
-            let helpers = if is_unparsed_source(current_node) {
-                current_node.as_unparsed_source().helpers.clone()
+            let helpers = if is_unparsed_source(&current_node.ref_(self)) {
+                current_node.ref_(self).as_unparsed_source().helpers.clone()
             } else {
                 self.get_sorted_emit_helpers(current_node).map(Into::into)
             };
@@ -222,9 +220,9 @@ impl Printer {
         &self,
         unparsed: Id<Node>, /*UnparsedSource | UnparsedPrepend*/
     ) -> io::Result<()> {
-        for text in unparsed.ref_(self).as_has_texts().texts() {
+        for &text in unparsed.ref_(self).as_has_texts().texts() {
             self.write_line(None);
-            self.emit(Some(&**text), None)?;
+            self.emit(Some(text), None)?;
         }
 
         Ok(())

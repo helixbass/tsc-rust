@@ -85,7 +85,7 @@ impl Printer {
             let node_ref = node.ref_(self);
             let node_as_jsx_opening_element = node_ref.as_jsx_opening_element();
             let indented = self.write_line_separators_and_indent_before(
-                &node_as_jsx_opening_element.tag_name,
+                node_as_jsx_opening_element.tag_name,
                 node,
             );
             self.emit_jsx_tag_name(node_as_jsx_opening_element.tag_name)?;
@@ -99,7 +99,7 @@ impl Printer {
             /*node.attributes.properties &&*/
             !node_as_jsx_opening_element
                 .attributes
-                .as_jsx_attributes()
+                .ref_(self).as_jsx_attributes()
                 .properties
                 .is_empty()
             {
@@ -125,7 +125,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.write_punctuation("</");
         if is_jsx_closing_element(&node.ref_(self)) {
-            self.emit_jsx_tag_name(node.as_jsx_closing_element().tag_name)?;
+            self.emit_jsx_tag_name(node.ref_(self).as_jsx_closing_element().tag_name)?;
         }
         self.write_punctuation(">");
 
@@ -158,7 +158,7 @@ impl Printer {
         self.try_emit_node_with_prefix(
             "=",
             |text: &str| self.write_punctuation(text),
-            node_as_jsx_attribute.initializer.as_deref(),
+            node_as_jsx_attribute.initializer,
             |node: Id<Node>| self.emit_jsx_attribute_value(node),
         )?;
 
@@ -270,8 +270,7 @@ impl Printer {
                     SyntaxKind::CloseBraceToken,
                     node_as_jsx_expression
                         .expression
-                        .as_ref()
-                        .map_or(end, |node_expression| node_expression.end()),
+                        .map_or(end, |node_expression| node_expression.ref_(self).end()),
                     |text: &str| self.write_punctuation(text),
                     node,
                     None,
@@ -306,7 +305,7 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_case_clause = node_ref.as_case_clause();
         self.emit_expression(
-            Some(&*node_as_case_clause.expression),
+            Some(node_as_case_clause.expression),
             Some(Gc::new(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -317,7 +316,7 @@ impl Printer {
         self.emit_case_or_default_clause_rest(
             node,
             &node_as_case_clause.statements,
-            node_as_case_clause.expression.end(),
+            node_as_case_clause.expression.ref_(self).end(),
         )?;
 
         Ok(())
@@ -430,10 +429,10 @@ impl Printer {
                 node,
                 None,
             );
-            self.emit(Some(&**node_variable_declaration), None)?;
+            self.emit(Some(node_variable_declaration), None)?;
             self.emit_token_with_comment(
                 SyntaxKind::CloseParenToken,
-                node_variable_declaration.end(),
+                node_variable_declaration.ref_(self).end(),
                 |text: &str| self.write_punctuation(text),
                 node,
                 None,
@@ -456,11 +455,11 @@ impl Printer {
         self.write_space();
         let initializer = node_as_property_assignment.maybe_initializer().unwrap();
         if !get_emit_flags(&initializer.ref_(self)).intersects(EmitFlags::NoLeadingComments) {
-            let comment_range = get_comment_range(initializer);
+            let comment_range = get_comment_range(&initializer.ref_(self));
             self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
         }
         self.emit_expression(
-            Some(&**initializer),
+            Some(initializer),
             Some(Gc::new(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -479,20 +478,18 @@ impl Printer {
         let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         self.emit(
             node_as_shorthand_property_assignment
-                .maybe_name()
-                .as_deref(),
+                .maybe_name(),
             None,
         )?;
         Ok(
             if let Some(node_object_assignment_initializer) = node_as_shorthand_property_assignment
                 .object_assignment_initializer
-                .as_ref()
             {
                 self.write_space();
                 self.write_punctuation("=");
                 self.write_space();
                 self.emit_expression(
-                    Some(&**node_object_assignment_initializer),
+                    Some(node_object_assignment_initializer),
                     Some(Gc::new(Box::new(
                         ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                             self.parenthesizer(),
@@ -518,7 +515,7 @@ impl Printer {
             None,
         );
         self.emit_expression(
-            Some(&*node_as_spread_assignment.expression),
+            Some(node_as_spread_assignment.expression),
             Some(Gc::new(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -535,8 +532,8 @@ impl Printer {
         let node_as_enum_member = node_ref.as_enum_member();
         self.emit(node_as_enum_member.maybe_name(), None)?;
         self.emit_initializer(
-            node_as_enum_member.initializer.as_deref(),
-            node_as_enum_member.name.end(),
+            node_as_enum_member.initializer,
+            node_as_enum_member.name.ref_(self).end(),
             node,
             Some(Gc::new(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -552,7 +549,7 @@ impl Printer {
         self.write("/**");
         let node_ref = node.ref_(self);
         let node_as_jsdoc = node_ref.as_jsdoc();
-        if let Some(node_comment) = node_as_jsdoc.comment {
+        if let Some(node_comment) = node_as_jsdoc.comment.as_ref() {
             let text = get_text_of_jsdoc_comment(Some(node_comment), self);
             if let Some(text) = text.filter(|text| !text.is_empty()) {
                 lazy_static! {
@@ -570,11 +567,11 @@ impl Printer {
         }
         if let Some(node_tags) = node_as_jsdoc.tags.as_ref() {
             if node_tags.len() == 1
-                && node_tags[0].kind() == SyntaxKind::JSDocTypeTag
+                && node_tags[0].ref_(self).kind() == SyntaxKind::JSDocTypeTag
                 && node_as_jsdoc.comment.is_none()
             {
                 self.write_space();
-                self.emit(Some(&*node_tags[0]), None)?;
+                self.emit(Some(node_tags[0]), None)?;
             } else {
                 self.emit_list(
                     Some(node),
@@ -601,8 +598,7 @@ impl Printer {
         self.emit_jsdoc_tag_name(tag_as_base_jsdoc_type_like_tag.tag_name())?;
         self.emit_jsdoc_type_expression(
             tag_as_base_jsdoc_type_like_tag
-                .maybe_type_expression()
-                .as_deref(),
+                .maybe_type_expression(),
         )?;
         self.emit_jsdoc_comment(
             tag_as_base_jsdoc_type_like_tag
@@ -681,13 +677,13 @@ impl Printer {
         let tag_as_jsdoc_typedef_tag = tag_ref.as_jsdoc_typedef_tag();
         self.emit_jsdoc_tag_name(tag_as_jsdoc_typedef_tag.tag_name())?;
         if let Some(tag_type_expression) = tag_as_jsdoc_typedef_tag.type_expression {
-            if tag_type_expression.kind() == SyntaxKind::JSDocTypeExpression {
-                self.emit_jsdoc_type_expression(Some(&**tag_type_expression))?;
+            if tag_type_expression.ref_(self).kind() == SyntaxKind::JSDocTypeExpression {
+                self.emit_jsdoc_type_expression(Some(tag_type_expression))?;
             } else {
                 self.write_space();
                 self.write_punctuation("{");
                 self.write("Object");
-                if tag_type_expression.as_jsdoc_type_literal().is_array_type {
+                if tag_type_expression.ref_(self).as_jsdoc_type_literal().is_array_type {
                     self.write_punctuation("[");
                     self.write_punctuation("]");
                 }
@@ -696,15 +692,14 @@ impl Printer {
         }
         if let Some(tag_full_name) = tag_as_jsdoc_typedef_tag.full_name {
             self.write_space();
-            self.emit(Some(&**tag_full_name), None)?;
+            self.emit(Some(tag_full_name), None)?;
         }
         self.emit_jsdoc_comment(tag_as_jsdoc_typedef_tag.maybe_comment().map(Into::into));
         Ok(
             if let Some(tag_type_expression) = tag_as_jsdoc_typedef_tag
                 .type_expression
-                .as_ref()
                 .filter(|tag_type_expression| {
-                    tag_type_expression.kind() == SyntaxKind::JSDocTypeLiteral
+                    tag_type_expression.ref_(self).kind() == SyntaxKind::JSDocTypeLiteral
                 })
             {
                 self.emit_jsdoc_type_literal(tag_type_expression)?;
@@ -721,7 +716,7 @@ impl Printer {
         self.emit_jsdoc_tag_name(tag_as_jsdoc_callback_tag.tag_name())?;
         if let Some(tag_name) = tag_as_jsdoc_callback_tag.name {
             self.write_space();
-            self.emit(Some(&**tag_name), None)?;
+            self.emit(Some(tag_name), None)?;
         }
         self.emit_jsdoc_comment(tag_as_jsdoc_callback_tag.maybe_comment().map(Into::into));
         self.emit_jsdoc_signature(tag_as_jsdoc_callback_tag.type_expression)?;
@@ -790,12 +785,12 @@ impl Printer {
         )?;
         // }
         Ok(
-            if let Some(sig_type) = sig_as_jsdoc_signature.type_.as_ref() {
+            if let Some(sig_type) = sig_as_jsdoc_signature.type_ {
                 self.write_line(None);
                 self.write_space();
                 self.write_punctuation("*");
                 self.write_space();
-                self.emit(Some(&**sig_type), None)?;
+                self.emit(Some(sig_type), None)?;
             },
         )
     }
@@ -866,7 +861,7 @@ impl Printer {
         // if (emitBodyWithDetachedComments) {
         let should_emit_detached_comment = statements.is_empty()
             || !is_prologue_directive(statements[0], self)
-            || node_is_synthesized(&*statements[0]);
+            || node_is_synthesized(&*statements[0].ref_(self));
         if should_emit_detached_comment {
             self.try_emit_body_with_detached_comments(node, &*statements, |node: Id<Node>| {
                 self.emit_source_file_worker(node)
@@ -902,7 +897,7 @@ impl Printer {
                 .unwrap_or(&default_references),
         );
         for prepend in &node_as_bundle.prepends {
-            if is_unparsed_source(prepend) {
+            if is_unparsed_source(&prepend.ref_(self)) {
                 if let Some(prepend_synthetic_references) =
                     prepend.ref_(self).as_unparsed_source().synthetic_references.as_ref()
                 {

@@ -29,21 +29,21 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
         self.emit(
-            node_as_type_parameter_declaration.maybe_name().as_deref(),
+            node_as_type_parameter_declaration.maybe_name(),
             None,
         )?;
-        if let Some(node_constraint) = node_as_type_parameter_declaration.constraint.as_ref() {
+        if let Some(node_constraint) = node_as_type_parameter_declaration.constraint {
             self.write_space();
             self.write_keyword("extends");
             self.write_space();
-            self.emit(Some(&**node_constraint), None)?;
+            self.emit(Some(node_constraint), None)?;
         }
         Ok(
-            if let Some(node_default) = node_as_type_parameter_declaration.default.as_ref() {
+            if let Some(node_default) = node_as_type_parameter_declaration.default {
                 self.write_space();
                 self.write_operator("=");
                 self.write_space();
-                self.emit(Some(&**node_default), None)?;
+                self.emit(Some(node_default), None)?;
             },
         )
     }
@@ -57,15 +57,15 @@ impl Printer {
         self.emit_decorators(node, node.ref_(self).maybe_decorators().as_deref())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers().as_deref())?;
         self.emit(
-            node_as_parameter_declaration.dot_dot_dot_token.as_deref(),
+            node_as_parameter_declaration.dot_dot_dot_token,
             None,
         )?;
         self.emit_node_with_writer(
-            node_as_parameter_declaration.maybe_name().as_deref(),
+            node_as_parameter_declaration.maybe_name(),
             Printer::write_parameter,
         )?;
         self.emit(
-            node_as_parameter_declaration.question_token.as_deref(),
+            node_as_parameter_declaration.question_token,
             None,
         )?;
         if matches!(
@@ -126,10 +126,10 @@ impl Printer {
         self.emit_decorators(node, node.ref_(self).maybe_decorators().as_deref())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers().as_deref())?;
         self.emit_node_with_writer(
-            Some(&*node_as_property_signature.name()),
+            Some(node_as_property_signature.name()),
             Printer::write_property,
         )?;
-        self.emit(node_as_property_signature.question_token.as_deref(), None)?;
+        self.emit(node_as_property_signature.question_token, None)?;
         self.emit_type_annotation(node_as_property_signature.maybe_type())?;
         self.write_trailing_semicolon();
 
@@ -147,20 +147,20 @@ impl Printer {
         self.emit(node_as_property_declaration.maybe_name(), None)?;
         self.emit(node_as_property_declaration.question_token, None)?;
         self.emit(
-            node_as_property_declaration.exclamation_token.as_deref(),
+            node_as_property_declaration.exclamation_token,
             None,
         )?;
         self.emit_type_annotation(node_as_property_declaration.maybe_type())?;
         self.emit_initializer(
             node_as_property_declaration.maybe_initializer(),
             if let Some(node_type) = node_as_property_declaration.maybe_type() {
-                node_type.end()
+                node_type.ref_(self).end()
             } else if let Some(node_question_token) =
-                node_as_property_declaration.question_token.as_ref()
+                node_as_property_declaration.question_token
             {
-                node_question_token.end()
+                node_question_token.ref_(self).end()
             } else {
-                node_as_property_declaration.name().pos()
+                node_as_property_declaration.name().ref_(self).pos()
             },
             node,
             None,
@@ -202,12 +202,12 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_method_declaration = node_ref.as_method_declaration();
         self.emit(
-            node_as_method_declaration.maybe_asterisk_token().as_deref(),
+            node_as_method_declaration.maybe_asterisk_token(),
             None,
         )?;
-        self.emit(node_as_method_declaration.maybe_name().as_deref(), None)?;
+        self.emit(node_as_method_declaration.maybe_name(), None)?;
         self.emit(
-            node_as_method_declaration.maybe_question_token().as_deref(),
+            node_as_method_declaration.maybe_question_token(),
             None,
         )?;
         self.emit_signature_and_body(node, |node: Id<Node>| self.emit_signature_head(node))?;
@@ -345,16 +345,16 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_type_predicate_node = node_ref.as_type_predicate_node();
         if let Some(node_asserts_modifier) = node_as_type_predicate_node.asserts_modifier {
-            self.emit(Some(&**node_asserts_modifier), None)?;
+            self.emit(Some(node_asserts_modifier), None)?;
             self.write_space();
         }
         self.emit(Some(node_as_type_predicate_node.parameter_name), None)?;
         Ok(
-            if let Some(node_type) = node_as_type_predicate_node.type_.as_ref() {
+            if let Some(node_type) = node_as_type_predicate_node.type_ {
                 self.write_space();
                 self.write_keyword("is");
                 self.write_space();
-                self.emit(Some(&**node_type), None)?;
+                self.emit(Some(node_type), None)?;
             },
         )
     }
@@ -574,20 +574,20 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_named_tuple_member = node_ref.as_named_tuple_member();
         self.emit(
-            node_as_named_tuple_member.dot_dot_dot_token.as_deref(),
+            node_as_named_tuple_member.dot_dot_dot_token,
             None,
         )?;
-        self.emit(Some(&*node_as_named_tuple_member.name), None)?;
-        self.emit(node_as_named_tuple_member.question_token.as_deref(), None)?;
+        self.emit(Some(node_as_named_tuple_member.name), None)?;
+        self.emit(node_as_named_tuple_member.question_token, None)?;
         self.emit_token_with_comment(
             SyntaxKind::ColonToken,
-            node_as_named_tuple_member.name.end(),
+            node_as_named_tuple_member.name.ref_(self).end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
         self.write_space();
-        self.emit(Some(&*node_as_named_tuple_member.type_), None)?;
+        self.emit(Some(node_as_named_tuple_member.type_), None)?;
 
         Ok(())
     }
@@ -649,7 +649,7 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_conditional_type_node = node_ref.as_conditional_type_node();
         self.emit(
-            Some(&*node_as_conditional_type_node.check_type),
+            Some(node_as_conditional_type_node.check_type),
             Some(Gc::new(Box::new(
                 ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -660,7 +660,7 @@ impl Printer {
         self.write_keyword("extends");
         self.write_space();
         self.emit(
-            Some(&*node_as_conditional_type_node.extends_type),
+            Some(node_as_conditional_type_node.extends_type),
             Some(Gc::new(Box::new(
                 ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -670,11 +670,11 @@ impl Printer {
         self.write_space();
         self.write_punctuation("?");
         self.write_space();
-        self.emit(Some(&*node_as_conditional_type_node.true_type), None)?;
+        self.emit(Some(node_as_conditional_type_node.true_type), None)?;
         self.write_space();
         self.write_punctuation(":");
         self.write_space();
-        self.emit(Some(&*node_as_conditional_type_node.false_type), None)?;
+        self.emit(Some(node_as_conditional_type_node.false_type), None)?;
 
         Ok(())
     }
@@ -715,7 +715,7 @@ impl Printer {
         );
         self.write_space();
         self.emit(
-            Some(&*node_as_type_operator_node.type_),
+            Some(node_as_type_operator_node.type_),
             Some(Gc::new(Box::new(
                 ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
@@ -731,13 +731,13 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_indexed_access_type_node = node_ref.as_indexed_access_type_node();
         self.emit(
-            Some(&*node_as_indexed_access_type_node.object_type),
+            Some(node_as_indexed_access_type_node.object_type),
             Some(Gc::new(Box::new(
                 ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
         self.write_punctuation("[");
-        self.emit(Some(&*node_as_indexed_access_type_node.index_type), None)?;
+        self.emit(Some(node_as_indexed_access_type_node.index_type), None)?;
         self.write_punctuation("]");
 
         Ok(())
@@ -758,8 +758,8 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_mapped_type_node = node_ref.as_mapped_type_node();
         if let Some(node_readonly_token) = node_as_mapped_type_node.readonly_token {
-            self.emit(Some(&**node_readonly_token), None)?;
-            if node_readonly_token.kind() != SyntaxKind::ReadonlyKeyword {
+            self.emit(Some(*node_readonly_token), None)?;
+            if node_readonly_token.ref_(self).kind() != SyntaxKind::ReadonlyKeyword {
                 self.write_keyword("readonly");
             }
             self.write_space();
@@ -768,20 +768,20 @@ impl Printer {
 
         self.pipeline_emit(
             EmitHint::MappedTypeParameter,
-            &node_as_mapped_type_node.type_parameter,
+            node_as_mapped_type_node.type_parameter,
             None,
         )?;
-        if let Some(node_name_type) = node_as_mapped_type_node.name_type.as_ref() {
+        if let Some(node_name_type) = node_as_mapped_type_node.name_type {
             self.write_space();
             self.write_keyword("as");
             self.write_space();
-            self.emit(Some(&**node_name_type), None)?;
+            self.emit(Some(node_name_type), None)?;
         }
 
         self.write_punctuation("]");
         if let Some(node_question_token) = node_as_mapped_type_node.question_token {
-            self.emit(Some(&**node_question_token), None)?;
-            if node_question_token.kind() != SyntaxKind::QuestionToken {
+            self.emit(Some(node_question_token), None)?;
+            if node_question_token.ref_(self).kind() != SyntaxKind::QuestionToken {
                 self.write_punctuation("?");
             }
         }
@@ -844,7 +844,7 @@ impl Printer {
         self.write_punctuation(")");
         if let Some(node_qualifier) = node_as_import_type_node.qualifier {
             self.write_punctuation(".");
-            self.emit(Some(&**node_qualifier), None)?;
+            self.emit(Some(node_qualifier), None)?;
         }
         self.emit_type_arguments(
             node,
@@ -898,14 +898,14 @@ impl Printer {
         let node_as_binding_element = node_ref.as_binding_element();
         self.emit(node_as_binding_element.dot_dot_dot_token, None)?;
         if let Some(node_property_name) = node_as_binding_element.property_name {
-            self.emit(Some(&**node_property_name), None)?;
+            self.emit(Some(node_property_name), None)?;
             self.write_punctuation(":");
             self.write_space();
         }
         self.emit(node_as_binding_element.maybe_name(), None)?;
         self.emit_initializer(
             node_as_binding_element.maybe_initializer(),
-            node_as_binding_element.name().end(),
+            node_as_binding_element.name().ref_(self).end(),
             node,
             Some(Gc::new(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -1001,7 +1001,7 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_property_access_expression = node_ref.as_property_access_expression();
         self.emit_expression(
-            Some(&*node_as_property_access_expression.expression),
+            Some(node_as_property_access_expression.expression),
             Some(Gc::new(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
@@ -1020,17 +1020,17 @@ impl Printer {
             });
         let lines_before_dot = self.get_lines_between_nodes(
             node,
-            &node_as_property_access_expression.expression,
-            &token,
+            node_as_property_access_expression.expression,
+            token,
         );
         let lines_after_dot =
-            self.get_lines_between_nodes(node, &token, &node_as_property_access_expression.name);
+            self.get_lines_between_nodes(node, token, node_as_property_access_expression.name);
 
         self.write_lines_and_indent(lines_before_dot, false);
 
-        let should_emit_dot_dot = token.kind() != SyntaxKind::QuestionDotToken
+        let should_emit_dot_dot = token.ref_(self).kind() != SyntaxKind::QuestionDotToken
             && self.may_need_dot_dot_for_property_access(
-                &node_as_property_access_expression.expression,
+                node_as_property_access_expression.expression,
             )
             && !self.writer().has_trailing_comment()
             && !self.writer().has_trailing_whitespace();
@@ -1043,18 +1043,18 @@ impl Printer {
             .question_dot_token
             .is_some()
         {
-            self.emit(Some(&*token), None)?;
+            self.emit(Some(token), None)?;
         } else {
             self.emit_token_with_comment(
-                token.kind(),
-                node_as_property_access_expression.expression.end(),
+                token.ref_(self).kind(),
+                node_as_property_access_expression.expression.ref_(self).end(),
                 |text: &str| self.write_punctuation(text),
                 node,
                 None,
             );
         }
         self.write_lines_and_indent(lines_after_dot, false);
-        self.emit(Some(&*node_as_property_access_expression.name), None)?;
+        self.emit(Some(node_as_property_access_expression.name), None)?;
         self.decrease_indent_if(lines_before_dot != 0, Some(lines_after_dot != 0));
 
         Ok(())
@@ -1087,31 +1087,30 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_element_access_expression = node_ref.as_element_access_expression();
         self.emit_expression(
-            Some(&*node_as_element_access_expression.expression),
+            Some(node_as_element_access_expression.expression),
             Some(Gc::new(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
         self.emit(
             node_as_element_access_expression
-                .question_dot_token
-                .as_deref(),
+                .question_dot_token,
             None,
         )?;
         self.emit_token_with_comment(
             SyntaxKind::OpenBracketToken,
-            node_as_element_access_expression.expression.end(),
+            node_as_element_access_expression.expression.ref_(self).end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
         self.emit_expression(
-            Some(&*node_as_element_access_expression.argument_expression),
+            Some(node_as_element_access_expression.argument_expression),
             None,
         )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseBracketToken,
-            node_as_element_access_expression.argument_expression.end(),
+            node_as_element_access_expression.argument_expression.ref_(self).end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,

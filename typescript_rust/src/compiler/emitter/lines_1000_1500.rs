@@ -88,7 +88,7 @@ impl Printer {
 
         let bundle_ref = bundle.ref_(self);
         let bundle_as_bundle = bundle_ref.as_bundle();
-        for prepend in &bundle_as_bundle.prepends {
+        for &prepend in &bundle_as_bundle.prepends {
             self.write_line(None);
             let pos = self.writer().get_text_pos();
             let bundle_file_info = self.maybe_bundle_file_info();
@@ -127,7 +127,7 @@ impl Printer {
 
         self.set_source_file_text_pos(self.get_text_pos_with_write_line());
         for source_file in &bundle_as_bundle.source_files {
-            let source_file = source_file.as_ref().unwrap();
+            let source_file = source_file.unwrap();
             self.print(EmitHint::SourceFile, source_file, Some(source_file))?;
         }
         let bundle_file_info = self.maybe_bundle_file_info();

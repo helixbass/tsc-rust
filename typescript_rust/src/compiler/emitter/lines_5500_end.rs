@@ -358,7 +358,8 @@ impl Printer {
             if let (Some(parsed), Some(source_map_generator)) =
                 (parsed, self.maybe_source_map_generator())
             {
-                let node_parent_as_unparsed_source = node_parent.as_unparsed_source();
+                let node_parent_ref = node_parent.ref_(self);
+                let node_parent_as_unparsed_source = node_parent_ref.as_unparsed_source();
                 source_map_generator.append_source_map(
                     self.writer().get_line(),
                     self.writer().get_column(),
