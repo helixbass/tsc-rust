@@ -1032,7 +1032,7 @@ fn emit_declaration_file_or_bundle(
     if emit_only_dts_files == Some(true) && !get_emit_declarations(&compiler_options) {
         files_for_emit
             .iter()
-            .try_for_each(|file_for_emit| -> io::Result<_> {
+            .try_for_each(|&file_for_emit| -> io::Result<_> {
                 collect_linked_aliases(&**resolver, file_for_emit, arena)?;
 
                 Ok(())
@@ -1241,7 +1241,7 @@ fn print_source_file_or_bundle(
     };
     let source_files = if let Some(bundle) = bundle.as_ref() {
         bundle
-            .as_bundle()
+            .ref_(arena).as_bundle()
             .source_files
             .iter()
             .cloned()
@@ -1252,21 +1252,21 @@ fn print_source_file_or_bundle(
     };
 
     let mut source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>> = None;
-    if should_emit_source_maps(map_options, source_file_or_bundle) {
+    if should_emit_source_maps(map_options, &source_file_or_bundle.ref_(arena)) {
         source_map_generator = Some(create_source_map_generator(
             host.clone(),
             get_base_file_name(&normalize_slashes(js_file_path), None, None),
             get_source_root(map_options),
-            get_source_map_directory(&**host, map_options, js_file_path, source_file.as_deref()),
+            get_source_map_directory(&**host, map_options, js_file_path, source_file),
             &map_options.into(),
         ));
     }
 
-    if let Some(bundle) = bundle.as_ref() {
+    if let Some(bundle) = bundle {
         printer.write_bundle(bundle, writer.clone(), source_map_generator.clone())?;
     } else {
         printer.write_file(
-            source_file.as_ref().unwrap(),
+            source_file.unwrap(),
             writer.clone(),
             source_map_generator.clone(),
         )?;
@@ -1286,7 +1286,7 @@ fn print_source_file_or_bundle(
             &**source_map_generator,
             js_file_path,
             source_map_file_path,
-            source_file.as_deref(),
+            source_file,
         );
 
         if !source_mapping_url.is_empty() {

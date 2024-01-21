@@ -11,6 +11,7 @@ use crate::{
     EmitHelperText, EmitHint, GetOrInsertDefault, HasTypeArgumentsInterface, ListFormat,
     ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
     SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
+    InArena,
 };
 
 impl Printer {
@@ -209,7 +210,7 @@ impl Printer {
         );
         if (self.printer_options.source_map == Some(true)
             || self.printer_options.inline_source_map == Some(true))
-            && (node.kind() == SyntaxKind::StringLiteral || is_template_literal_kind(node.kind()))
+            && (node.ref_(self).kind() == SyntaxKind::StringLiteral || is_template_literal_kind(node.ref_(self).kind()))
         {
             self.write_literal(text);
         } else {
@@ -221,7 +222,7 @@ impl Printer {
         &self,
         unparsed: Id<Node>, /*UnparsedSource | UnparsedPrepend*/
     ) -> io::Result<()> {
-        for text in unparsed.as_has_texts().texts() {
+        for text in unparsed.ref_(self).as_has_texts().texts() {
             self.write_line(None);
             self.emit(Some(&**text), None)?;
         }
@@ -231,11 +232,11 @@ impl Printer {
 
     pub(super) fn write_unparsed_node(&self, unparsed: Id<Node> /*UnparsedNode*/) {
         self.writer().raw_write(
-            &(*unparsed.parent().as_unparsed_source().text())[TryInto::<usize>::try_into(
-                unparsed.pos(),
+            &(*unparsed.ref_(self).parent().ref_(self).as_unparsed_source().text())[TryInto::<usize>::try_into(
+                unparsed.ref_(self).pos(),
             )
             .unwrap()
-                ..TryInto::<usize>::try_into(unparsed.end()).unwrap()],
+                ..TryInto::<usize>::try_into(unparsed.ref_(self).end()).unwrap()],
         );
     }
 
@@ -246,7 +247,7 @@ impl Printer {
             self.update_or_push_bundle_file_text_like(
                 pos.try_into().unwrap(),
                 self.writer().get_text_pos().try_into().unwrap(),
-                if unparsed.kind() == SyntaxKind::UnparsedText {
+                if unparsed.ref_(self).kind() == SyntaxKind::UnparsedText {
                     BundleFileSectionKind::Text
                 } else {
                     BundleFileSectionKind::Internal
@@ -262,7 +263,7 @@ impl Printer {
         let pos = self.get_text_pos_with_write_line();
         self.write_unparsed_node(unparsed);
         if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-            let section = (*unparsed.as_unparsed_synthetic_reference().section).clone();
+            let section = (*unparsed.ref_(self).as_unparsed_synthetic_reference().section).clone();
             section.set_pos(pos.try_into().unwrap());
             section.set_end(self.writer().get_text_pos().try_into().unwrap());
             bundle_file_info
@@ -308,14 +309,14 @@ impl Printer {
 
     pub(super) fn emit_identifier(&self, node: Id<Node> /*Identifier*/) -> io::Result<()> {
         let text_of_node = self.get_text_of_node(node, Some(false));
-        if let Some(symbol) = node.maybe_symbol() {
+        if let Some(symbol) = node.ref_(self).maybe_symbol() {
             self.write_symbol(&text_of_node, symbol);
         } else {
             self.write(&text_of_node);
         }
         self.emit_list(
             Some(node),
-            node.as_identifier().maybe_type_arguments().as_deref(),
+            node.ref_(self).as_identifier().maybe_type_arguments().as_deref(),
             ListFormat::TypeParameters,
             None,
             None,
@@ -327,7 +328,7 @@ impl Printer {
 
     pub(super) fn emit_private_identifier(&self, node: Id<Node> /*PrivateIdentifier*/) {
         let text_of_node = self.get_text_of_node(node, Some(false));
-        if let Some(symbol) = node.maybe_symbol() {
+        if let Some(symbol) = node.ref_(self).maybe_symbol() {
             self.write_symbol(&text_of_node, symbol);
         } else {
             self.write(&text_of_node);
@@ -338,16 +339,17 @@ impl Printer {
         &self,
         node: Id<Node>, /*QualifiedName*/
     ) -> io::Result<()> {
-        let node_as_qualified_name = node.as_qualified_name();
-        self.emit_entity_name(&node_as_qualified_name.left)?;
+        let node_ref = node.ref_(self);
+        let node_as_qualified_name = node_ref.as_qualified_name();
+        self.emit_entity_name(node_as_qualified_name.left)?;
         self.write_punctuation(".");
-        self.emit(Some(&*node_as_qualified_name.right), None)?;
+        self.emit(Some(node_as_qualified_name.right), None)?;
 
         Ok(())
     }
 
     pub(super) fn emit_entity_name(&self, node: Id<Node> /*EntityName*/) -> io::Result<()> {
-        Ok(if node.kind() == SyntaxKind::Identifier {
+        Ok(if node.ref_(self).kind() == SyntaxKind::Identifier {
             self.emit_expression(Some(node), None)?;
         } else {
             self.emit(Some(node), None)?;
@@ -360,7 +362,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.write_punctuation("[");
         self.emit_expression(
-            Some(&*node.as_computed_property_name().expression),
+            Some(node.ref_(self).as_computed_property_name().expression),
             Some(Gc::new(Box::new(
                 ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule::new(
                     self.parenthesizer(),

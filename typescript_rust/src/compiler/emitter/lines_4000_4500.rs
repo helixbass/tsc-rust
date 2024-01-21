@@ -17,6 +17,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
     SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
     SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
+    InArena,
 };
 
 impl Printer {
@@ -25,14 +26,15 @@ impl Printer {
         prologues: &[Id<Node /*UnparsedPrologue*/>],
         seen_prologue_directives: &mut HashSet<String>,
     ) -> io::Result<()> {
-        for prologue in prologues {
-            let prologue_as_unparsed_prologue = prologue.as_unparsed_prologue();
+        for &prologue in prologues {
+            let prologue_ref = prologue.ref_(self);
+            let prologue_as_unparsed_prologue = prologue_ref.as_unparsed_prologue();
             if !seen_prologue_directives
                 .contains(prologue_as_unparsed_prologue.maybe_data().unwrap())
             {
                 self.write_line(None);
                 let pos = self.writer().get_text_pos();
-                self.emit(Some(&**prologue), None)?;
+                self.emit(Some(prologue), None)?;
                 if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
                     bundle_file_info.borrow_mut().sections.push(Gc::new(
                         BundleFileSection::new_prologue(
@@ -63,15 +65,16 @@ impl Printer {
         &self,
         source_file_or_bundle: Id<Node>, /*Bundle | SourceFile*/
     ) -> io::Result<()> {
-        Ok(if is_source_file(source_file_or_bundle) {
+        Ok(if is_source_file(&source_file_or_bundle.ref_(self)) {
             self.emit_prologue_directives(
-                &source_file_or_bundle.as_source_file().statements(),
+                &source_file_or_bundle.ref_(self).as_source_file().statements(),
                 Some(source_file_or_bundle),
                 &mut None,
                 None,
             )?;
         } else {
-            let source_file_or_bundle_as_bundle = source_file_or_bundle.as_bundle();
+            let source_file_or_bundle_ref = source_file_or_bundle.ref_(self);
+            let source_file_or_bundle_as_bundle = source_file_or_bundle_ref.as_bundle();
             let mut seen_prologue_directives: Option<HashSet<String>> = Some(HashSet::new());
             for prepend in &source_file_or_bundle_as_bundle.prepends {
                 self.emit_unparsed_prologues(
@@ -98,7 +101,8 @@ impl Printer {
     ) -> Option<Vec<SourceFilePrologueInfo>> {
         let mut seen_prologue_directives: HashSet<String> = HashSet::new();
         let mut prologues: Option<Vec<SourceFilePrologueInfo>> = None;
-        let bundle_as_bundle = bundle.as_bundle();
+        let bundle_ref = bundle.ref_(self);
+        let bundle_as_bundle = bundle_ref.as_bundle();
         for index in 0..bundle_as_bundle.source_files.len() {
             let source_file = bundle_as_bundle.source_files[index].as_ref().unwrap();
             let mut directives: Option<Vec<SourceFilePrologueDirective>> = None;
@@ -108,7 +112,8 @@ impl Printer {
                 if !is_prologue_directive(statement, self) {
                     break;
                 }
-                let statement_as_expression_statement = statement.as_expression_statement();
+                let statement_ref = statement.ref_(self);
+                let statement_as_expression_statement = statement_ref.as_expression_statement();
                 if seen_prologue_directives.contains(
                     &*statement_as_expression_statement
                         .expression
@@ -127,8 +132,8 @@ impl Printer {
                 directives
                     .get_or_insert_default_()
                     .push(SourceFilePrologueDirective {
-                        pos: statement.pos(),
-                        end: statement.end(),
+                        pos: statement.ref_(self).pos(),
+                        end: statement.ref_(self).end(),
                         expression: SourceFilePrologueDirectiveExpression {
                             pos: statement_as_expression_statement.expression.pos(),
                             end: statement_as_expression_statement.expression.end(),
@@ -139,8 +144,8 @@ impl Printer {
                                 .clone(),
                         },
                     });
-                end = if end < statement.end() {
-                    statement.end()
+                end = if end < statement.ref_(self).end() {
+                    statement.ref_(self).end()
                 } else {
                     end
                 };
@@ -165,9 +170,9 @@ impl Printer {
         &self,
         source_file_or_bundle: Id<Node>, /*Bundle | SourceFile | UnparsedSource*/
     ) -> bool {
-        if is_source_file(source_file_or_bundle) || is_unparsed_source(source_file_or_bundle) {
-            let source_file_or_bundle_as_source_file_like =
-                source_file_or_bundle.as_source_file_like();
+        if is_source_file(&source_file_or_bundle.ref_(self)) || is_unparsed_source(&source_file_or_bundle.ref_(self)) {
+            let source_file_or_bundle_ref = source_file_or_bundle.ref_(self);
+            let source_file_or_bundle_as_source_file_like = source_file_or_bundle_ref.as_source_file_like();
             let shebang = get_shebang(&source_file_or_bundle_as_source_file_like.text_as_chars());
             if let Some(shebang) = shebang {
                 self.write_comment(&shebang.into_iter().collect::<String>());
@@ -175,9 +180,10 @@ impl Printer {
                 return true;
             }
         } else {
-            let source_file_or_bundle_as_bundle = source_file_or_bundle.as_bundle();
+            let source_file_or_bundle_ref = source_file_or_bundle.ref_(self);
+            let source_file_or_bundle_as_bundle = source_file_or_bundle_ref.as_bundle();
             for prepend in &source_file_or_bundle_as_bundle.prepends {
-                Debug_.assert_node(Some(&**prepend), Some(is_unparsed_source), None);
+                Debug_.assert_node(Some(&**prepend), Some(|node: Id<Node>| is_unparsed_source(&node.ref_(self))), None);
                 if self.emit_shebang_if_needed(prepend) {
                     return true;
                 }
@@ -233,7 +239,6 @@ impl Printer {
         node: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
-            let node = node.borrow();
             self.write_punctuation(":");
             self.write_space();
             self.emit(Some(node), None)?;
@@ -248,7 +253,6 @@ impl Printer {
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
-            let node = node.borrow();
             self.write_space();
             self.emit_token_with_comment(
                 SyntaxKind::EqualsToken,
@@ -320,13 +324,13 @@ impl Printer {
         node: Id<Node>, /*Statement*/
     ) -> io::Result<()> {
         Ok(
-            if is_block(node) || get_emit_flags(parent).intersects(EmitFlags::SingleLine) {
+            if is_block(&node.ref_(self)) || get_emit_flags(&parent.ref_(self)).intersects(EmitFlags::SingleLine) {
                 self.write_space();
                 self.emit(Some(node), None)?;
             } else {
                 self.write_line(None);
                 self.increase_indent();
-                if is_empty_statement(node) {
+                if is_empty_statement(&node.ref_(self)) {
                     self.pipeline_emit(EmitHint::EmbeddedStatement, node, None)?;
                 } else {
                     self.emit(Some(node), None)?;
@@ -377,7 +381,7 @@ impl Printer {
         parent_node: Id<Node>, /*SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration | ClassDeclaration | ClassExpression*/
         type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
     ) -> io::Result<()> {
-        if is_function_like(Some(parent_node)) {
+        if is_function_like(Some(&parent_node.ref_(self))) {
             // TODO
             // && parentNode.typeArguments {
             //     return emitTypeArguments(parentNode, parentNode.typeArguments);
@@ -420,17 +424,19 @@ impl Printer {
         let parameter = single_or_undefined(Some(parameters));
         matches!(
             parameter,
-            Some(parameter) if parameter.pos() == parent_node.pos() &&
-                is_arrow_function(parent_node) && {
-                    let parent_node_as_arrow_function = parent_node.as_arrow_function();
-                    let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+            Some(parameter) if parameter.ref_(self).pos() == parent_node.ref_(self).pos() &&
+                is_arrow_function(&parent_node.ref_(self)) && {
+                    let parent_node_ref = parent_node.ref_(self);
+                    let parent_node_as_arrow_function = parent_node_ref.as_arrow_function();
+                    let parameter_ref = parameter.ref_(self);
+                    let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
                     parent_node_as_arrow_function.maybe_type().is_none() &&
                         !some(
-                            parent_node.maybe_decorators().as_double_deref(),
+                            parent_node.ref_(self).maybe_decorators().as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parent_node.maybe_modifiers().as_double_deref(),
+                            parent_node.ref_(self).maybe_modifiers().as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
@@ -438,11 +444,11 @@ impl Printer {
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parameter.maybe_decorators().as_double_deref(),
+                            parameter.ref_(self).maybe_decorators().as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parameter.maybe_modifiers().as_double_deref(),
+                            parameter.ref_(self).maybe_modifiers().as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         parameter_as_parameter_declaration.dot_dot_dot_token.is_none() &&
@@ -607,14 +613,13 @@ impl Printer {
 
         self.on_before_emit_node_array(children);
 
-        let parent_node = parent_node.map(|parent_node| parent_node.borrow().node_wrapper());
         if is_empty {
             if format.intersects(ListFormat::MultiLine)
                 && !(self.maybe_preserve_source_newlines() == Some(true)
-                    && match parent_node.as_ref() {
+                    && match parent_node {
                         None => true,
                         Some(parent_node) => {
-                            range_is_on_single_line(&**parent_node, &self.current_source_file())
+                            range_is_on_single_line(&*parent_node.ref_(self), &self.current_source_file().ref_(self))
                         }
                     })
             {
@@ -647,19 +652,19 @@ impl Printer {
             let mut previous_source_file_text_kind: Option<BundleFileSectionKind> = None;
             let mut should_decrease_indent_after_emit = false;
             for i in 0..count {
-                let child = &children[start + i];
+                let child = children[start + i];
 
                 if format.intersects(ListFormat::AsteriskDelimited) {
                     self.write_line(None);
                     self.write_delimiter(format);
-                } else if let Some(previous_sibling) = previous_sibling.as_ref() {
+                } else if let Some(previous_sibling) = previous_sibling {
                     if format.intersects(ListFormat::DelimitersMask)
-                        && previous_sibling.end()
+                        && previous_sibling.ref_(self).end()
                             != parent_node
                                 .as_ref()
                                 .map_or(-1, |parent_node| parent_node.end())
                     {
-                        self.emit_leading_comments_of_position(previous_sibling.end());
+                        self.emit_leading_comments_of_position(previous_sibling.ref_(self).end());
                     }
                     self.write_delimiter(format);
                     self.record_bundle_file_internal_section_end(previous_source_file_text_kind);
@@ -691,15 +696,15 @@ impl Printer {
                     self.record_bundle_file_internal_section_start(child);
                 if should_emit_intervening_comments {
                     // if (emitTrailingCommentsOfPosition) {
-                    let comment_range = get_comment_range(child);
+                    let comment_range = get_comment_range(&child.ref_(self));
                     self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
                     // }
                 } else {
                     should_emit_intervening_comments = may_emit_intervening_comments;
                 }
 
-                self.set_next_list_element_pos(Some(child.pos()));
-                emit(self, Some(&**child), parenthesizer_rule.clone())?;
+                self.set_next_list_element_pos(Some(child.ref_(self).pos()));
+                emit(self, Some(child), parenthesizer_rule.clone())?;
 
                 if should_decrease_indent_after_emit {
                     self.decrease_indent();
@@ -710,9 +715,8 @@ impl Printer {
             }
 
             let emit_flags = previous_sibling
-                .as_ref()
                 .map_or(EmitFlags::None, |previous_sibling| {
-                    get_emit_flags(previous_sibling)
+                    get_emit_flags(&previous_sibling.ref_(self))
                 });
             let skip_trailing_comments =
                 self.comments_disabled() || emit_flags.intersects(EmitFlags::NoTrailingComments);
@@ -726,7 +730,7 @@ impl Printer {
                 {
                     self.emit_token_with_comment(
                         SyntaxKind::CommaToken,
-                        previous_sibling.end(),
+                        previous_sibling.ref_(self).end(),
                         |text: &str| self.write_punctuation(text),
                         previous_sibling,
                         None,
@@ -736,11 +740,10 @@ impl Printer {
                 }
             }
 
-            if let Some(previous_sibling) = previous_sibling.as_ref() {
+            if let Some(previous_sibling) = previous_sibling {
                 if parent_node
-                    .as_ref()
-                    .map_or(-1, |parent_node| parent_node.end())
-                    != previous_sibling.end()
+                    .map_or(-1, |parent_node| parent_node.ref_(self).end())
+                    != previous_sibling.ref_(self).end()
                     && format.intersects(ListFormat::DelimitersMask)
                     && !skip_trailing_comments
                 {
@@ -755,7 +758,7 @@ impl Printer {
                         } else {
                             None
                         }
-                        .unwrap_or_else(|| previous_sibling.end()),
+                        .unwrap_or_else(|| previous_sibling.ref_(self).end()),
                     );
                 }
             }

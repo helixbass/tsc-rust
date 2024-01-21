@@ -19,6 +19,7 @@ use crate::{
     FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetLiteralTextFlags, ListFormat,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
+    InArena,
 };
 
 impl Printer {
@@ -59,7 +60,7 @@ impl Printer {
 
     pub(super) fn write_token_node(&self, node: Id<Node>, writer: fn(&Printer, &str)) {
         self.on_before_emit_token(Some(node));
-        writer(self, token_to_string(node.kind()).unwrap());
+        writer(self, token_to_string(node.ref_(self).kind()).unwrap());
         self.on_after_emit_token(Some(node));
     }
 
@@ -86,7 +87,7 @@ impl Printer {
         prev_child_node: Id<Node>,
         next_child_node: Id<Node>,
     ) {
-        if get_emit_flags(parent_node).intersects(EmitFlags::SingleLine) {
+        if get_emit_flags(&parent_node.ref_(self)).intersects(EmitFlags::SingleLine) {
             self.write_space();
         } else if self.maybe_preserve_source_newlines() == Some(true) {
             let lines = self.get_lines_between_nodes(parent_node, prev_child_node, next_child_node);
@@ -159,12 +160,11 @@ impl Printer {
                 return 1;
             }
 
-            let first_child = children.get(0);
-            if first_child.is_none() {
+            let Some(first_child) = children.get(0).copied() else {
                 return if match parent_node {
                     None => true,
                     Some(parent_node) => {
-                        range_is_on_single_line(parent_node, &self.current_source_file())
+                        range_is_on_single_line(&*parent_node.ref_(self), &self.current_source_file().ref_(self))
                     }
                 } {
                     0
@@ -172,38 +172,34 @@ impl Printer {
                     1
                 };
             }
-            let first_child = first_child.unwrap();
-            if Some(first_child.pos()) == self.maybe_next_list_element_pos() {
+            if Some(first_child.ref_(self).pos()) == self.maybe_next_list_element_pos() {
                 return 0;
             }
-            if first_child.kind() == SyntaxKind::JsxText {
+            if first_child.ref_(self).kind() == SyntaxKind::JsxText {
                 return 0;
             }
             if let Some(parent_node) = parent_node.filter(|&parent_node| {
-                !position_is_synthesized(parent_node.pos())
-                    && !node_is_synthesized(&**first_child)
-                    && match first_child.maybe_parent().as_ref() {
+                !position_is_synthesized(parent_node.ref_(self).pos())
+                    && !node_is_synthesized(&*first_child.ref_(self))
+                    && match first_child.ref_(self).maybe_parent() {
                         None => true,
-                        Some(first_child_parent) => Gc::ptr_eq(
-                            &get_original_node(first_child_parent, self),
-                            &get_original_node(parent_node, self),
-                        ),
+                        Some(first_child_parent) => get_original_node(first_child_parent, self) == get_original_node(parent_node, self),
                     }
             }) {
                 if self.maybe_preserve_source_newlines() == Some(true) {
                     return self.get_effective_lines(|include_comments| {
                         get_lines_between_position_and_preceding_non_whitespace_character(
-                            first_child.pos(),
-                            parent_node.pos(),
-                            &self.current_source_file(),
+                            first_child.ref_(self).pos(),
+                            parent_node.ref_(self).pos(),
+                            self.current_source_file(),
                             Some(include_comments),
                         )
                     });
                 }
                 return if range_start_positions_are_on_same_line(
-                    parent_node,
-                    &**first_child,
-                    &self.current_source_file(),
+                    &*parent_node.ref_(self),
+                    &*first_child.ref_(self),
+                    &self.current_source_file().ref_(self),
                 ) {
                     0
                 } else {
@@ -236,17 +232,17 @@ impl Printer {
                 return 0;
             }
             let previous_node = previous_node.unwrap();
-            if next_node.kind() == SyntaxKind::JsxText {
+            if next_node.ref_(self).kind() == SyntaxKind::JsxText {
                 return 0;
-            } else if !node_is_synthesized(previous_node) && !node_is_synthesized(next_node) {
+            } else if !node_is_synthesized(&*previous_node.ref_(self)) && !node_is_synthesized(&*next_node.ref_(self)) {
                 if self.maybe_preserve_source_newlines() == Some(true)
                     && self.sibling_node_positions_are_comparable(previous_node, next_node)
                 {
                     return self.get_effective_lines(|include_comments| {
                         get_lines_between_range_end_and_range_start(
-                            previous_node,
-                            next_node,
-                            &self.current_source_file(),
+                            &*previous_node.ref_(self),
+                            &*next_node.ref_(self),
+                            self.current_source_file(),
                             include_comments,
                         )
                     });
@@ -254,9 +250,9 @@ impl Printer {
                     && self.original_nodes_have_same_parent(previous_node, next_node)
                 {
                     return if range_end_is_on_same_line_as_range_start(
-                        previous_node,
-                        next_node,
-                        &self.current_source_file(),
+                        &*previous_node.ref_(self),
+                        &*next_node.ref_(self),
+                        &self.current_source_file().ref_(self),
                     ) {
                         0
                     } else {
@@ -296,12 +292,12 @@ impl Printer {
                 return 1;
             }
 
-            let last_child = last_or_undefined(children.as_slice());
+            let last_child = last_or_undefined(children.as_slice()).copied();
             if last_child.is_none() {
                 return if match parent_node {
                     None => true,
                     Some(parent_node) => {
-                        range_is_on_single_line(parent_node, &self.current_source_file())
+                        range_is_on_single_line(&*parent_node.ref_(self), &self.current_source_file().ref_(self))
                     }
                 } {
                     0
@@ -311,11 +307,11 @@ impl Printer {
             }
             let last_child = last_child.unwrap();
             if let Some(parent_node) = parent_node.filter(|&parent_node| {
-                !position_is_synthesized(parent_node.pos())
-                    && !node_is_synthesized(&**last_child)
-                    && match last_child.maybe_parent().as_ref() {
+                !position_is_synthesized(parent_node.ref_(self).pos())
+                    && !node_is_synthesized(&*last_child.ref_(self))
+                    && match last_child.ref_(self).maybe_parent() {
                         None => true,
-                        Some(last_child_parent) => ptr::eq(&**last_child_parent, parent_node),
+                        Some(last_child_parent) => last_child_parent == parent_node,
                     }
             }) {
                 if self.maybe_preserve_source_newlines() == Some(true) {
@@ -323,24 +319,24 @@ impl Printer {
                         if !position_is_synthesized(children.end()) {
                             children.end()
                         } else {
-                            last_child.end()
+                            last_child.ref_(self).end()
                         }
                     } else {
-                        last_child.end()
+                        last_child.ref_(self).end()
                     };
                     return self.get_effective_lines(|include_comments| {
                         get_lines_between_position_and_next_non_whitespace_character(
                             end,
-                            parent_node.end(),
-                            &self.current_source_file(),
+                            parent_node.ref_(self).end(),
+                            self.current_source_file(),
                             Some(include_comments),
                         )
                     });
                 }
                 return if range_end_positions_are_on_same_line(
-                    parent_node,
-                    &**last_child,
-                    &self.current_source_file(),
+                    &*parent_node.ref_(self),
+                    &*last_child.ref_(self),
+                    &self.current_source_file().ref_(self),
                 ) {
                     0
                 } else {
@@ -379,7 +375,7 @@ impl Printer {
         let leading_newlines = if self.maybe_preserve_source_newlines() == Some(true) {
             self.get_leading_line_terminator_count(
                 Some(parent),
-                &[node.node_wrapper()],
+                &[node],
                 ListFormat::None,
             )
         } else {
@@ -396,7 +392,7 @@ impl Printer {
             self.get_closing_line_terminator_count(
                 Some(parent),
                 // (&[node.node_wrapper()]).into(),
-                NodeArrayOrSlice::Slice(&[node.node_wrapper()]),
+                NodeArrayOrSlice::Slice(&[node]),
                 ListFormat::None,
             )
         } else {
@@ -412,7 +408,7 @@ impl Printer {
         node: Id<Node>,
         format: ListFormat,
     ) -> bool {
-        if node_is_synthesized(node) {
+        if node_is_synthesized(&*node.ref_(self)) {
             let starts_on_new_line = get_starts_on_new_line(node);
             if starts_on_new_line.is_none() {
                 return format.intersects(ListFormat::PreferNewLine);
@@ -431,7 +427,7 @@ impl Printer {
         node1: Id<Node>,
         node2: Id<Node>,
     ) -> usize {
-        if get_emit_flags(parent).intersects(EmitFlags::NoIndentation) {
+        if get_emit_flags(&parent.ref_(self)).intersects(EmitFlags::NoIndentation) {
             return 0;
         }
 
@@ -443,24 +439,24 @@ impl Printer {
             return 1;
         }
 
-        if !node_is_synthesized(&**parent)
-            && !node_is_synthesized(&**node1)
-            && !node_is_synthesized(&**node2)
+        if !node_is_synthesized(&*parent.ref_(self))
+            && !node_is_synthesized(&*node1.ref_(self))
+            && !node_is_synthesized(&*node2.ref_(self))
         {
             if self.maybe_preserve_source_newlines() == Some(true) {
                 return self.get_effective_lines(|include_comments| {
                     get_lines_between_range_end_and_range_start(
-                        &**node1,
-                        &**node2,
-                        &self.current_source_file(),
+                        &*node1.ref_(self),
+                        &*node2.ref_(self),
+                        self.current_source_file(),
                         include_comments,
                     )
                 });
             }
             return if range_end_is_on_same_line_as_range_start(
-                &**node1,
-                &**node2,
-                &self.current_source_file(),
+                &*node1.ref_(self),
+                &*node2.ref_(self),
+                &self.current_source_file().ref_(self),
             ) {
                 0
             } else {
@@ -472,14 +468,13 @@ impl Printer {
     }
 
     pub(super) fn is_empty_block(&self, block: Id<Node> /*BlockLike*/) -> bool {
-        block.as_has_statements().statements().is_empty()
-            && range_end_is_on_same_line_as_range_start(block, block, &self.current_source_file())
+        block.ref_(self).as_has_statements().statements().is_empty()
+            && range_end_is_on_same_line_as_range_start(&*block.ref_(self), &*block.ref_(self), &self.current_source_file().ref_(self))
     }
 
-    pub(super) fn skip_synthesized_parentheses(&self, node: Id<Node>) -> Id<Node> {
-        let mut node = node.node_wrapper();
-        while node.kind() == SyntaxKind::ParenthesizedExpression && node_is_synthesized(&*node) {
-            node = node.as_parenthesized_expression().expression.clone();
+    pub(super) fn skip_synthesized_parentheses(&self, mut node: Id<Node>) -> Id<Node> {
+        while node.ref_(self).kind() == SyntaxKind::ParenthesizedExpression && node_is_synthesized(&*node.ref_(self)) {
+            node = node.ref_(self).as_parenthesized_expression().expression;
         }
 
         node
@@ -490,36 +485,34 @@ impl Printer {
         node: Id<Node>,
         include_trivia: Option<bool>,
     ) -> Cow<'node, str> {
-        if is_generated_identifier(node) {
+        if is_generated_identifier(&node.ref_(self)) {
             return self.generate_name(node).into();
-        } else if (is_identifier(node) || is_private_identifier(node))
-            && (node_is_synthesized(node)
-                || node.maybe_parent().is_none()
+        } else if (is_identifier(&node.ref_(self)) || is_private_identifier(&node.ref_(self)))
+            && (node_is_synthesized(&*node.ref_(self))
+                || node.ref_(self).maybe_parent().is_none()
                 || self.maybe_current_source_file().is_none()
-                || node.maybe_parent().is_some()
+                || node.ref_(self).maybe_parent().is_some()
                     && matches!(
-                        self.maybe_current_source_file().as_ref(),
-                        Some(current_source_file) if !Gc::ptr_eq(
-                            &get_source_file_of_node(node, self),
-                            &get_original_node(
+                        self.maybe_current_source_file(),
+                        Some(current_source_file) if get_source_file_of_node(node, self) !=
+                            get_original_node(
                                 current_source_file,
                                 self,
                             )
-                        )
                     ))
         {
-            return id_text(node).into();
-        } else if node.kind() == SyntaxKind::StringLiteral
-            && node.as_string_literal().text_source_node.is_some()
+            return id_text(&*node.ref_(self)).into();
+        } else if node.ref_(self).kind() == SyntaxKind::StringLiteral
+            && node.ref_(self).as_string_literal().text_source_node.is_some()
         {
             return self.get_text_of_node(
-                node.as_string_literal().text_source_node.as_ref().unwrap(),
+                node.ref_(self).as_string_literal().text_source_node.unwrap(),
                 include_trivia,
             );
-        } else if is_literal_expression(node)
-            && (node_is_synthesized(node) || node.maybe_parent().is_none())
+        } else if is_literal_expression(&node.ref_(self))
+            && (node_is_synthesized(&*node.ref_(self)) || node.ref_(self).maybe_parent().is_none())
         {
-            return node.as_literal_like_node().text().clone().into();
+            return node.ref_(self).as_literal_like_node().text().clone().into();
         }
 
         get_source_text_of_node_from_source_file(self.current_source_file(), node, include_trivia, self)
@@ -531,8 +524,8 @@ impl Printer {
         never_ascii_escape: Option<bool>,
         jsx_attribute_escape: bool,
     ) -> Cow<'static, str> {
-        if node.kind() == SyntaxKind::StringLiteral {
-            if let Some(text_source_node) = node.as_string_literal().text_source_node.as_ref() {
+        if node.ref_(self).kind() == SyntaxKind::StringLiteral {
+            if let Some(text_source_node) = node.ref_(self).as_string_literal().text_source_node {
                 if is_identifier(text_source_node) || is_numeric_literal(text_source_node) {
                     let text = if is_numeric_literal(text_source_node) {
                         text_source_node.as_numeric_literal().text().clone().into()
@@ -542,7 +535,7 @@ impl Printer {
                     return if jsx_attribute_escape {
                         escape_jsx_attribute_string(&text, None).into_owned().into()
                     } else if never_ascii_escape == Some(true)
-                        || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
+                        || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NoAsciiEscaping)
                     {
                         format!("\"{}\"", escape_string(&text, None,)).into()
                     } else {
@@ -579,13 +572,13 @@ impl Printer {
             GetLiteralTextFlags::None
         };
 
-        get_literal_text(node, self.maybe_current_source_file(), flags)
+        get_literal_text(node, self.maybe_current_source_file(), flags, self)
     }
 
     pub(super) fn push_name_generation_scope(&self, node: Option<Id<Node>>) {
         if matches!(
             node,
-            Some(node) if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope)
+            Some(node) if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::ReuseTempVariableScope)
         ) {
             return;
         }
@@ -598,7 +591,7 @@ impl Printer {
     pub(super) fn pop_name_generation_scope(&self, node: Option<Id<Node>>) {
         if matches!(
             node,
-            Some(node) if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope)
+            Some(node) if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::ReuseTempVariableScope)
         ) {
             return;
         }
@@ -626,15 +619,14 @@ impl Printer {
     }
 
     pub(super) fn generate_names(&self, node: Option<Id<Node>>) {
-        if node.is_none() {
+        let Some(node) = node else {
             return;
-        }
-        let node = node.unwrap();
-        match node.kind() {
+        };
+        match node.ref_(self).kind() {
             SyntaxKind::Block => {
                 for_each(
-                    &node.as_block().statements,
-                    |statement: &Id<Node>, _| -> Option<()> {
+                    &node.ref_(self).as_block().statements,
+                    |&statement: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
                     },
@@ -644,24 +636,25 @@ impl Printer {
             | SyntaxKind::WithStatement
             | SyntaxKind::DoStatement
             | SyntaxKind::WhileStatement => {
-                self.generate_names(Some(&node.as_has_statement().statement()));
+                self.generate_names(Some(node.ref_(self).as_has_statement().statement()));
             }
             SyntaxKind::IfStatement => {
-                let node_as_if_statement = node.as_if_statement();
-                self.generate_names(Some(&node_as_if_statement.then_statement));
-                self.generate_names(node_as_if_statement.else_statement.as_deref());
+                let node_ref = node.ref_(self);
+                let node_as_if_statement = node_ref.as_if_statement();
+                self.generate_names(Some(node_as_if_statement.then_statement));
+                self.generate_names(node_as_if_statement.else_statement);
             }
             SyntaxKind::ForStatement | SyntaxKind::ForOfStatement | SyntaxKind::ForInStatement => {
-                self.generate_names(node.as_has_initializer().maybe_initializer().as_deref());
-                self.generate_names(Some(&node.as_has_statement().statement()));
+                self.generate_names(node.ref_(self).as_has_initializer().maybe_initializer());
+                self.generate_names(Some(node.ref_(self).as_has_statement().statement()));
             }
             SyntaxKind::SwitchStatement => {
-                self.generate_names(Some(&node.as_switch_statement().case_block));
+                self.generate_names(Some(node.ref_(self).as_switch_statement().case_block));
             }
             SyntaxKind::CaseBlock => {
                 for_each(
-                    &node.as_case_block().clauses,
-                    |clause: &Id<Node>, _| -> Option<()> {
+                    &node.ref_(self).as_case_block().clauses,
+                    |&clause: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(clause));
                         None
                     },
@@ -669,31 +662,33 @@ impl Printer {
             }
             SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
                 for_each(
-                    &node.as_has_statements().statements(),
-                    |statement: &Id<Node>, _| -> Option<()> {
+                    &node.ref_(self).as_has_statements().statements(),
+                    |&statement: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
                     },
                 );
             }
             SyntaxKind::TryStatement => {
-                let node_as_try_statement = node.as_try_statement();
-                self.generate_names(Some(&node_as_try_statement.try_block));
-                self.generate_names(node_as_try_statement.catch_clause.as_deref());
-                self.generate_names(node_as_try_statement.finally_block.as_deref());
+                let node_ref = node.ref_(self);
+                let node_as_try_statement = node_ref.as_try_statement();
+                self.generate_names(Some(node_as_try_statement.try_block));
+                self.generate_names(node_as_try_statement.catch_clause);
+                self.generate_names(node_as_try_statement.finally_block);
             }
             SyntaxKind::CatchClause => {
-                let node_as_catch_clause = node.as_catch_clause();
-                self.generate_names(node_as_catch_clause.variable_declaration.as_deref());
-                self.generate_names(Some(&node_as_catch_clause.block));
+                let node_ref = node.ref_(self);
+                let node_as_catch_clause = node_ref.as_catch_clause();
+                self.generate_names(node_as_catch_clause.variable_declaration);
+                self.generate_names(Some(node_as_catch_clause.block));
             }
             SyntaxKind::VariableStatement => {
-                self.generate_names(Some(&node.as_variable_statement().declaration_list));
+                self.generate_names(Some(node.ref_(self).as_variable_statement().declaration_list));
             }
             SyntaxKind::VariableDeclarationList => {
                 for_each(
-                    &node.as_variable_declaration_list().declarations,
-                    |declaration: &Id<Node>, _| -> Option<()> {
+                    &node.ref_(self).as_variable_declaration_list().declarations,
+                    |&declaration: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(declaration));
                         None
                     },
@@ -703,56 +698,59 @@ impl Printer {
             | SyntaxKind::Parameter
             | SyntaxKind::BindingElement
             | SyntaxKind::ClassDeclaration => {
-                self.generate_name_if_needed(node.as_named_declaration().maybe_name().as_deref());
+                self.generate_name_if_needed(node.ref_(self).as_named_declaration().maybe_name());
             }
             SyntaxKind::FunctionDeclaration => {
-                let node_as_function_declaration = node.as_function_declaration();
-                self.generate_name_if_needed(node_as_function_declaration.maybe_name().as_deref());
-                if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope) {
+                let node_ref = node.ref_(self);
+                let node_as_function_declaration = node_ref.as_function_declaration();
+                self.generate_name_if_needed(node_as_function_declaration.maybe_name());
+                if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::ReuseTempVariableScope) {
                     for_each(
                         &node_as_function_declaration.parameters(),
-                        |parameter: &Id<Node>, _| -> Option<()> {
+                        |&parameter: &Id<Node>, _| -> Option<()> {
                             self.generate_names(Some(parameter));
                             None
                         },
                     );
-                    self.generate_names(node_as_function_declaration.maybe_body().as_deref());
+                    self.generate_names(node_as_function_declaration.maybe_body());
                 }
             }
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
                 for_each(
-                    &node.as_has_elements().elements(),
-                    |element: &Id<Node>, _| -> Option<()> {
+                    &node.ref_(self).as_has_elements().elements(),
+                    |&element: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
                     },
                 );
             }
             SyntaxKind::ImportDeclaration => {
-                self.generate_names(node.as_import_declaration().import_clause.as_deref());
+                self.generate_names(node.ref_(self).as_import_declaration().import_clause);
             }
             SyntaxKind::ImportClause => {
-                let node_as_import_clause = node.as_import_clause();
-                self.generate_name_if_needed(node_as_import_clause.name.as_deref());
-                self.generate_names(node_as_import_clause.named_bindings.as_deref());
+                let node_ref = node.ref_(self);
+                let node_as_import_clause = node_ref.as_import_clause();
+                self.generate_name_if_needed(node_as_import_clause.name);
+                self.generate_names(node_as_import_clause.named_bindings);
             }
             SyntaxKind::NamespaceImport => {
-                self.generate_name_if_needed(Some(&node.as_namespace_import().name));
+                self.generate_name_if_needed(Some(node.ref_(self).as_namespace_import().name));
             }
             SyntaxKind::NamespaceExport => {
-                self.generate_name_if_needed(Some(&node.as_namespace_export().name));
+                self.generate_name_if_needed(Some(node.ref_(self).as_namespace_export().name));
             }
             SyntaxKind::NamedImports => {
                 for_each(
-                    &node.as_named_imports().elements,
-                    |element: &Id<Node>, _| -> Option<()> {
+                    &node.ref_(self).as_named_imports().elements,
+                    |&element: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
                     },
                 );
             }
             SyntaxKind::ImportSpecifier => {
-                let node_as_import_specifier = node.as_import_specifier();
+                let node_ref = node.ref_(self);
+                let node_as_import_specifier = node_ref.as_import_specifier();
                 self.generate_name_if_needed(Some(
                     node_as_import_specifier
                         .property_name
@@ -765,12 +763,11 @@ impl Printer {
     }
 
     pub(super) fn generate_member_names(&self, node: Option<Id<Node>>) {
-        if node.is_none() {
+        let Some(node) = node else {
             return;
-        }
-        let node = node.unwrap();
+        };
         if matches!(
-            node.kind(),
+            node.ref_(self).kind(),
             SyntaxKind::PropertyAssignment
                 | SyntaxKind::ShorthandPropertyAssignment
                 | SyntaxKind::PropertyDeclaration
@@ -778,22 +775,23 @@ impl Printer {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
         ) {
-            self.generate_name_if_needed(node.as_named_declaration().maybe_name().as_deref())
+            self.generate_name_if_needed(node.ref_(self).as_named_declaration().maybe_name())
         }
     }
 
     pub(super) fn generate_name_if_needed(&self, name: Option<Id<Node> /*DeclarationName*/>) {
         if let Some(name) = name {
-            if is_generated_identifier(name) {
+            if is_generated_identifier(&name.ref_(self)) {
                 self.generate_name(name);
-            } else if is_binding_pattern(Some(name)) {
+            } else if is_binding_pattern(Some(&name.ref_(self))) {
                 self.generate_names(Some(name));
             }
         }
     }
 
     pub(super) fn generate_name(&self, name: Id<Node> /*GeneratedIdentifier*/) -> String {
-        let name_as_identifier = name.as_identifier();
+        let name_ref = name.ref_(self);
+        let name_as_identifier = name_ref.as_identifier();
         if name_as_identifier
             .maybe_auto_generate_flags()
             .unwrap_or_default()
@@ -801,7 +799,7 @@ impl Printer {
             == GeneratedIdentifierFlags::Node
         {
             self.generate_name_cached(
-                &self.get_node_for_generated_name(name),
+                self.get_node_for_generated_name(name),
                 name_as_identifier.maybe_auto_generate_flags(),
             )
         } else {

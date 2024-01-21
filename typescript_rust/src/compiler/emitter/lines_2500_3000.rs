@@ -12,7 +12,7 @@ use crate::{
     EmitFlags, EmitHint, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     LeftOrRight, ListFormat, NamedDeclarationInterface, Node, NodeInterface, ParenthesizerRules,
     Printer, ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 impl Printer {
@@ -20,14 +20,15 @@ impl Printer {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<()> {
-        let indirect_call = get_emit_flags(node).intersects(EmitFlags::IndirectCall);
+        let indirect_call = get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IndirectCall);
         if indirect_call {
             self.write_punctuation("(");
             self.write_literal("0");
             self.write_punctuation(",");
             self.write_space();
         }
-        let node_as_call_expression = node.as_call_expression();
+        let node_ref = node.ref_(self);
+        let node_as_call_expression = node_ref.as_call_expression();
         self.emit_expression(
             Some(&*node_as_call_expression.expression),
             Some(Gc::new(Box::new(
@@ -37,7 +38,7 @@ impl Printer {
         if indirect_call {
             self.write_punctuation(")");
         }
-        self.emit(node_as_call_expression.question_dot_token.as_deref(), None)?;
+        self.emit(node_as_call_expression.question_dot_token, None)?;
         self.emit_type_arguments(
             node,
             node_as_call_expression.maybe_type_arguments().as_deref(),
@@ -64,13 +65,14 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::NewKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
-        let node_as_new_expression = node.as_new_expression();
+        let node_ref = node.ref_(self);
+        let node_as_new_expression = node_ref.as_new_expression();
         self.emit_expression(
             Some(&*node_as_new_expression.expression),
             Some(Gc::new(Box::new(
@@ -101,14 +103,15 @@ impl Printer {
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<()> {
-        let indirect_call = get_emit_flags(node).intersects(EmitFlags::IndirectCall);
+        let indirect_call = get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IndirectCall);
         if indirect_call {
             self.write_punctuation("(");
             self.write_literal("0");
             self.write_punctuation(",");
             self.write_space();
         }
-        let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        let node_ref = node.ref_(self);
+        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         self.emit_expression(
             Some(&*node_as_tagged_template_expression.tag),
             Some(Gc::new(Box::new(
@@ -135,8 +138,9 @@ impl Printer {
         node: Id<Node>, /*TypeAssertion*/
     ) -> io::Result<()> {
         self.write_punctuation("<");
-        let node_as_type_assertion = node.as_type_assertion();
-        self.emit(Some(&*node_as_type_assertion.type_), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_type_assertion = node_ref.as_type_assertion();
+        self.emit(Some(node_as_type_assertion.type_), None)?;
         self.write_punctuation(">");
         self.emit_expression(
             Some(&*node_as_type_assertion.expression),
@@ -154,18 +158,19 @@ impl Printer {
     ) -> io::Result<()> {
         let _open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::OpenParenToken,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
-        let node_as_parenthesized_expression = node.as_parenthesized_expression();
+        let node_ref = node.ref_(self);
+        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         let indented = self.write_line_separators_and_indent_before(
             &node_as_parenthesized_expression.expression,
             node,
         );
-        self.emit_expression(Some(&*node_as_parenthesized_expression.expression), None)?;
-        self.write_line_separators_after(&node_as_parenthesized_expression.expression, node);
+        self.emit_expression(Some(node_as_parenthesized_expression.expression), None)?;
+        self.write_line_separators_after(node_as_parenthesized_expression.expression, node);
         self.decrease_indent_if(indented, None);
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
@@ -183,7 +188,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*FunctionExpression*/
     ) -> io::Result<()> {
-        self.generate_name_if_needed(node.as_function_expression().maybe_name().as_deref());
+        self.generate_name_if_needed(node.ref_(self).as_function_expression().maybe_name());
         self.emit_function_declaration_or_expression(node)?;
 
         Ok(())
@@ -193,8 +198,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ArrowFunction*/
     ) -> io::Result<()> {
-        self.emit_decorators(node, node.maybe_decorators().as_deref())?;
-        self.emit_modifiers(node, node.maybe_modifiers().as_deref())?;
+        self.emit_decorators(node, node.ref_(self).maybe_decorators().as_deref())?;
+        self.emit_modifiers(node, node.ref_(self).maybe_modifiers().as_deref())?;
         self.emit_signature_and_body(node, |node: Id<Node>| self.emit_arrow_function_head(node))?;
 
         Ok(())
@@ -204,7 +209,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ArrowFunction*/
     ) -> io::Result<()> {
-        let node_as_arrow_function = node.as_arrow_function();
+        let node_ref = node.ref_(self);
+        let node_as_arrow_function = node_ref.as_arrow_function();
         self.emit_type_parameters(
             node,
             node_as_arrow_function.maybe_type_parameters().as_deref(),
@@ -226,14 +232,14 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::DeleteKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
         self.emit_expression(
-            Some(&*node.as_delete_expression().expression),
+            Some(node.ref_(self).as_delete_expression().expression),
             Some(Gc::new(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
@@ -248,14 +254,14 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::TypeOfKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
         self.emit_expression(
-            Some(&*node.as_type_of_expression().expression),
+            Some(node.ref_(self).as_type_of_expression().expression),
             Some(Gc::new(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
@@ -270,14 +276,14 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::VoidKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
         self.emit_expression(
-            Some(&*node.as_void_expression().expression),
+            Some(node.ref_(self).as_void_expression().expression),
             Some(Gc::new(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
@@ -292,14 +298,14 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::AwaitKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
         self.emit_expression(
-            Some(&*node.as_await_expression().expression),
+            Some(node.ref_(self).as_await_expression().expression),
             Some(Gc::new(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
@@ -312,7 +318,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*PrefixUnaryExpression*/
     ) -> io::Result<()> {
-        let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
         self.write_token_text(
             node_as_prefix_unary_expression.operator,
             |text: &str| self.write_operator(text),
@@ -335,9 +342,10 @@ impl Printer {
         &self,
         node: Id<Node>, /*PrefixUnaryExpression*/
     ) -> bool {
-        let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
-        let operand = &node_as_prefix_unary_expression.operand;
-        operand.kind() == SyntaxKind::PrefixUnaryExpression
+        let node_ref = node.ref_(self);
+        let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
+        let operand = node_as_prefix_unary_expression.operand;
+        operand.ref_(self).kind() == SyntaxKind::PrefixUnaryExpression
             && (node_as_prefix_unary_expression.operator == SyntaxKind::PlusToken
                 && matches!(
                     operand.as_prefix_unary_expression().operator,
@@ -354,7 +362,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*PostfixUnaryExpression*/
     ) -> io::Result<()> {
-        let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_postfix_unary_expression = node_ref.as_postfix_unary_expression();
         self.emit_expression(
             Some(&*node_as_postfix_unary_expression.operand),
             Some(Gc::new(Box::new(
@@ -383,7 +392,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ConditionalExpression*/
     ) -> io::Result<()> {
-        let node_as_conditional_expression = node.as_conditional_expression();
+        let node_ref = node.ref_(self);
+        let node_as_conditional_expression = node_ref.as_conditional_expression();
         let lines_before_question = self.get_lines_between_nodes(
             node,
             &node_as_conditional_expression.condition,
@@ -446,8 +456,9 @@ impl Printer {
         &self,
         node: Id<Node>, /*TemplateExpression*/
     ) -> io::Result<()> {
-        let node_as_template_expression = node.as_template_expression();
-        self.emit(Some(&*node_as_template_expression.head), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_template_expression = node_ref.as_template_expression();
+        self.emit(Some(node_as_template_expression.head), None)?;
         self.emit_list(
             Some(node),
             Some(&node_as_template_expression.template_spans),
@@ -466,13 +477,14 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::YieldKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
-        let node_as_yield_expression = node.as_yield_expression();
-        self.emit(node_as_yield_expression.asterisk_token.as_deref(), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_yield_expression = node_ref.as_yield_expression();
+        self.emit(node_as_yield_expression.asterisk_token, None)?;
         self.emit_expression_with_leading_space(
             node_as_yield_expression.expression.as_deref(),
             Some(Gc::new(Box::new(
@@ -491,13 +503,13 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::DotDotDotToken,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
         self.emit_expression(
-            Some(&*node.as_spread_element().expression),
+            Some(node.ref_(self).as_spread_element().expression),
             Some(Gc::new(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -512,8 +524,9 @@ impl Printer {
         &self,
         node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<()> {
-        let node_as_class_expression = node.as_class_expression();
-        self.generate_name_if_needed(node_as_class_expression.maybe_name().as_deref());
+        let node_ref = node.ref_(self);
+        let node_as_class_expression = node_ref.as_class_expression();
+        self.generate_name_if_needed(node_as_class_expression.maybe_name());
         self.emit_class_declaration_or_expression(node)?;
 
         Ok(())
@@ -523,7 +536,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
-        let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
+        let node_ref = node.ref_(self);
+        let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
         self.emit_expression(
             Some(&*node_as_expression_with_type_arguments.expression),
             Some(Gc::new(Box::new(
@@ -544,8 +558,9 @@ impl Printer {
         &self,
         node: Id<Node>, /*AsExpression*/
     ) -> io::Result<()> {
-        let node_as_as_expression = node.as_as_expression();
-        self.emit_expression(Some(&*node_as_as_expression.expression), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_as_expression = node_ref.as_as_expression();
+        self.emit_expression(Some(node_as_as_expression.expression), None)?;
         Ok(
             if let Some(node_type) = node_as_as_expression.maybe_type().as_ref() {
                 self.write_space();
@@ -560,7 +575,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*NonNullExpression*/
     ) -> io::Result<()> {
-        let node_as_non_null_expression = node.as_non_null_expression();
+        let node_ref = node.ref_(self);
+        let node_as_non_null_expression = node_ref.as_non_null_expression();
         self.emit_expression(
             Some(&*node_as_non_null_expression.expression),
             Some(Gc::new(Box::new(
@@ -576,15 +592,16 @@ impl Printer {
         &self,
         node: Id<Node>, /*MetaProperty*/
     ) -> io::Result<()> {
-        let node_as_meta_property = node.as_meta_property();
+        let node_ref = node.ref_(self);
+        let node_as_meta_property = node_ref.as_meta_property();
         self.write_token(
             node_as_meta_property.keyword_token,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_punctuation(text),
             None,
         );
         self.write_punctuation(".");
-        self.emit(Some(&*node_as_meta_property.name), None)?;
+        self.emit(Some(node_as_meta_property.name), None)?;
 
         Ok(())
     }
@@ -593,9 +610,10 @@ impl Printer {
         &self,
         node: Id<Node>, /*TemplateSpan*/
     ) -> io::Result<()> {
-        let node_as_template_span = node.as_template_span();
-        self.emit_expression(Some(&*node_as_template_span.expression), None)?;
-        self.emit(Some(&*node_as_template_span.literal), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_template_span = node_ref.as_template_span();
+        self.emit_expression(Some(node_as_template_span.expression), None)?;
+        self.emit(Some(node_as_template_span.literal), None)?;
 
         Ok(())
     }
@@ -603,7 +621,7 @@ impl Printer {
     pub(super) fn emit_block(&self, node: Id<Node> /*Block*/) -> io::Result<()> {
         self.emit_block_statements(
             node,
-            node.as_block().multi_line != Some(true) && self.is_empty_block(node),
+            node.ref_(self).as_block().multi_line != Some(true) && self.is_empty_block(node),
         )?;
 
         Ok(())
@@ -616,12 +634,12 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::OpenBraceToken,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
-        let format = if force_single_line || get_emit_flags(node).intersects(EmitFlags::SingleLine)
+        let format = if force_single_line || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::SingleLine)
         {
             ListFormat::SingleLineBlockStatements
         } else {
@@ -629,7 +647,7 @@ impl Printer {
         };
         self.emit_list(
             Some(node),
-            Some(&node.as_has_statements().statements()),
+            Some(&node.ref_(self).as_has_statements().statements()),
             format,
             None,
             None,
@@ -637,7 +655,7 @@ impl Printer {
         )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseBraceToken,
-            node.as_has_statements().statements().end(),
+            node.ref_(self).as_has_statements().statements().end(),
             |text: &str| self.write_punctuation(text),
             node,
             Some(format.intersects(ListFormat::MultiLine)),
@@ -650,8 +668,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<()> {
-        self.emit_modifiers(node, node.maybe_modifiers().as_deref())?;
-        self.emit(Some(&*node.as_variable_statement().declaration_list), None)?;
+        self.emit_modifiers(node, node.ref_(self).maybe_modifiers().as_deref())?;
+        self.emit(Some(node.ref_(self).as_variable_statement().declaration_list), None)?;
         self.write_trailing_semicolon();
 
         Ok(())
@@ -669,7 +687,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<()> {
-        let node_as_expression_statement = node.as_expression_statement();
+        let node_ref = node.ref_(self);
+        let node_as_expression_statement = node_ref.as_expression_statement();
         self.emit_expression(
             Some(&*node_as_expression_statement.expression),
             Some(Gc::new(Box::new(
@@ -679,8 +698,8 @@ impl Printer {
             ))),
         )?;
         Ok(
-            if !is_json_source_file(&self.current_source_file())
-                || node_is_synthesized(&*node_as_expression_statement.expression)
+            if !is_json_source_file(&self.current_source_file().ref_(self))
+                || node_is_synthesized(&*node_as_expression_statement.expression.ref_(self))
             {
                 self.write_trailing_semicolon();
             },
@@ -690,7 +709,7 @@ impl Printer {
     pub(super) fn emit_if_statement(&self, node: Id<Node> /*IfStatement*/) -> io::Result<()> {
         let open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::IfKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
@@ -703,8 +722,9 @@ impl Printer {
             node,
             None,
         );
-        let node_as_if_statement = node.as_if_statement();
-        self.emit_expression(Some(&*node_as_if_statement.expression), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_if_statement = node_ref.as_if_statement();
+        self.emit_expression(Some(node_as_if_statement.expression), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node_as_if_statement.expression.end(),
@@ -712,9 +732,9 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, &node_as_if_statement.then_statement)?;
+        self.emit_embedded_statement(node, node_as_if_statement.then_statement)?;
         Ok(
-            if let Some(node_else_statement) = node_as_if_statement.else_statement.as_ref() {
+            if let Some(node_else_statement) = node_as_if_statement.else_statement {
                 self.write_line_or_space(
                     node,
                     &node_as_if_statement.then_statement,
@@ -727,9 +747,9 @@ impl Printer {
                     node,
                     None,
                 );
-                if node_else_statement.kind() == SyntaxKind::IfStatement {
+                if node_else_statement.ref_(self).kind() == SyntaxKind::IfStatement {
                     self.write_space();
-                    self.emit(Some(&**node_else_statement), None)?;
+                    self.emit(Some(node_else_statement), None)?;
                 } else {
                     self.emit_embedded_statement(node, node_else_statement)?;
                 }
@@ -757,10 +777,10 @@ impl Printer {
             node,
             None,
         );
-        self.emit_expression(node.as_has_expression().maybe_expression().as_deref(), None)?;
+        self.emit_expression(node.ref_(self).as_has_expression().maybe_expression(), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
-            node.as_has_expression().expression().end(),
+            node.ref_(self).as_has_expression().expression().ref_(self).end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
@@ -772,14 +792,15 @@ impl Printer {
     pub(super) fn emit_do_statement(&self, node: Id<Node> /*DoStatement*/) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::DoKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
-        let node_as_do_statement = node.as_do_statement();
-        self.emit_embedded_statement(node, &node_as_do_statement.statement)?;
-        if is_block(&node_as_do_statement.statement)
+        let node_ref = node.ref_(self);
+        let node_as_do_statement = node_ref.as_do_statement();
+        self.emit_embedded_statement(node, node_as_do_statement.statement)?;
+        if is_block(&node_as_do_statement.statement.ref_(self))
             && self.maybe_preserve_source_newlines() != Some(true)
         {
             self.write_space();
@@ -791,7 +812,7 @@ impl Printer {
             );
         }
 
-        self.emit_while_clause(node, node_as_do_statement.statement.end())?;
+        self.emit_while_clause(node, node_as_do_statement.statement.ref_(self).end())?;
         self.write_trailing_semicolon();
 
         Ok(())
@@ -801,8 +822,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*WhileStatement*/
     ) -> io::Result<()> {
-        self.emit_while_clause(node, node.pos())?;
-        self.emit_embedded_statement(node, &node.as_while_statement().statement)?;
+        self.emit_while_clause(node, node.ref_(self).pos())?;
+        self.emit_embedded_statement(node, node.ref_(self).as_while_statement().statement)?;
 
         Ok(())
     }
@@ -813,7 +834,7 @@ impl Printer {
     ) -> io::Result<()> {
         let open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::ForKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
@@ -826,8 +847,9 @@ impl Printer {
             node,
             None,
         );
-        let node_as_for_statement = node.as_for_statement();
-        self.emit_for_binding(node_as_for_statement.initializer.as_deref())?;
+        let node_ref = node.ref_(self);
+        let node_as_for_statement = node_ref.as_for_statement();
+        self.emit_for_binding(node_as_for_statement.initializer)?;
         pos = self.emit_token_with_comment(
             SyntaxKind::SemicolonToken,
             node_as_for_statement
@@ -838,7 +860,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_expression_with_leading_space(node_as_for_statement.condition.as_deref(), None)?;
+        self.emit_expression_with_leading_space(node_as_for_statement.condition, None)?;
         pos = self.emit_token_with_comment(
             SyntaxKind::SemicolonToken,
             node_as_for_statement
@@ -863,7 +885,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, &node_as_for_statement.statement)?;
+        self.emit_embedded_statement(node, node_as_for_statement.statement)?;
 
         Ok(())
     }
@@ -874,7 +896,7 @@ impl Printer {
     ) -> io::Result<()> {
         let open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::ForKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
@@ -887,8 +909,9 @@ impl Printer {
             node,
             None,
         );
-        let node_as_for_in_statement = node.as_for_in_statement();
-        self.emit_for_binding(Some(&*node_as_for_in_statement.initializer))?;
+        let node_ref = node.ref_(self);
+        let node_as_for_in_statement = node_ref.as_for_in_statement();
+        self.emit_for_binding(Some(node_as_for_in_statement.initializer))?;
         self.write_space();
         self.emit_token_with_comment(
             SyntaxKind::InKeyword,
@@ -898,7 +921,7 @@ impl Printer {
             None,
         );
         self.write_space();
-        self.emit_expression(Some(&*node_as_for_in_statement.expression), None)?;
+        self.emit_expression(Some(node_as_for_in_statement.expression), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node_as_for_in_statement.expression.end(),
@@ -906,7 +929,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, &node_as_for_in_statement.statement)?;
+        self.emit_embedded_statement(node, node_as_for_in_statement.statement)?;
 
         Ok(())
     }
@@ -917,14 +940,15 @@ impl Printer {
     ) -> io::Result<()> {
         let open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::ForKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
-        let node_as_for_of_statement = node.as_for_of_statement();
-        self.emit_with_trailing_space(node_as_for_of_statement.await_modifier.as_deref())?;
+        let node_ref = node.ref_(self);
+        let node_as_for_of_statement = node_ref.as_for_of_statement();
+        self.emit_with_trailing_space(node_as_for_of_statement.await_modifier)?;
         self.emit_token_with_comment(
             SyntaxKind::OpenParenToken,
             open_paren_pos,
@@ -942,7 +966,7 @@ impl Printer {
             None,
         );
         self.write_space();
-        self.emit_expression(Some(&*node_as_for_of_statement.expression), None)?;
+        self.emit_expression(Some(node_as_for_of_statement.expression), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node_as_for_of_statement.expression.end(),
@@ -950,7 +974,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, &node_as_for_of_statement.statement)?;
+        self.emit_embedded_statement(node, node_as_for_of_statement.statement)?;
 
         Ok(())
     }
@@ -960,7 +984,7 @@ impl Printer {
         node: Option<Id<Node> /*VariableDeclarationList | Expression*/>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
-            if node.kind() == SyntaxKind::VariableDeclarationList {
+            if node.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
                 self.emit(Some(node), None)?;
             } else {
                 self.emit_expression(Some(node), None)?;
@@ -974,12 +998,12 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::ContinueKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
-        self.emit_with_leading_space(node.as_continue_statement().label.as_deref())?;
+        self.emit_with_leading_space(node.ref_(self).as_continue_statement().label)?;
         self.write_trailing_semicolon();
 
         Ok(())
@@ -991,12 +1015,12 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::BreakKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
-        self.emit_with_leading_space(node.as_break_statement().label.as_deref())?;
+        self.emit_with_leading_space(node.ref_(self).as_break_statement().label)?;
         self.write_trailing_semicolon();
 
         Ok(())
@@ -1012,14 +1036,14 @@ impl Printer {
     ) -> isize {
         let node = get_parse_tree_node(Some(context_node), Option::<fn(Id<Node>) -> bool>::None, self);
         let is_similar_node = matches!(
-            node.as_ref(),
-            Some(node) if node.kind() == context_node.kind()
+            node,
+            Some(node) if node.ref_(self).kind() == context_node.ref_(self).kind()
         );
         let start_pos = pos;
         if is_similar_node {
-            if let Some(current_source_file) = self.maybe_current_source_file().as_ref() {
+            if let Some(current_source_file) = self.maybe_current_source_file() {
                 pos = skip_trivia(
-                    &current_source_file.as_source_file().text_as_chars(),
+                    &current_source_file.ref_(self).as_source_file().text_as_chars(),
                     pos,
                     None,
                     None,
@@ -1027,14 +1051,14 @@ impl Printer {
                 );
             }
         }
-        if is_similar_node && context_node.pos() != start_pos {
+        if is_similar_node && context_node.ref_(self).pos() != start_pos {
             let needs_indent = indent_leading == Some(true)
                 && matches!(
-                    self.maybe_current_source_file().as_ref(),
+                    self.maybe_current_source_file(),
                     Some(current_source_file) if !positions_are_on_same_line(
                         start_pos,
                         pos,
-                        current_source_file,
+                        &current_source_file.ref_(self),
                     )
                 );
             if needs_indent {
@@ -1046,8 +1070,8 @@ impl Printer {
             }
         }
         pos = self.write_token_text(token, writer, Some(pos)).unwrap();
-        if is_similar_node && context_node.end() != pos {
-            let is_jsx_expr_context = context_node.kind() == SyntaxKind::JsxExpression;
+        if is_similar_node && context_node.ref_(self).end() != pos {
+            let is_jsx_expr_context = context_node.ref_(self).kind() == SyntaxKind::JsxExpression;
             self.emit_trailing_comments_of_position(
                 pos,
                 Some(!is_jsx_expr_context),
@@ -1063,13 +1087,13 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::ReturnKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.emit_expression_with_leading_space(
-            node.as_return_statement().expression.as_deref(),
+            node.ref_(self).as_return_statement().expression,
             None,
         )?;
         self.write_trailing_semicolon();
@@ -1083,7 +1107,7 @@ impl Printer {
     ) -> io::Result<()> {
         let open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::WithKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
@@ -1096,8 +1120,9 @@ impl Printer {
             node,
             None,
         );
-        let node_as_with_statement = node.as_with_statement();
-        self.emit_expression(Some(&*node_as_with_statement.expression), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_with_statement = node_ref.as_with_statement();
+        self.emit_expression(Some(node_as_with_statement.expression), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node_as_with_statement.expression.end(),
@@ -1105,7 +1130,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, &node_as_with_statement.statement)?;
+        self.emit_embedded_statement(node, node_as_with_statement.statement)?;
 
         Ok(())
     }
@@ -1150,7 +1175,7 @@ impl EmitBinaryExpressionStateMachine {
 
     fn maybe_emit_expression(
         &self,
-        next: Id<Node>,   /*Expression*/
+        mut next: Id<Node>,   /*Expression*/
         parent: Id<Node>, /*BinaryExpression*/
         side: LeftOrRight,
     ) -> io::Result<Option<Id<Node>>> {
@@ -1158,7 +1183,7 @@ impl EmitBinaryExpressionStateMachine {
             Gc::new(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
                 side,
                 self.printer.parenthesizer(),
-                parent.as_binary_expression().operator_token.kind(),
+                parent.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
             )));
 
         let mut pipeline_phase = self.printer.get_pipeline_phase(
@@ -1166,11 +1191,10 @@ impl EmitBinaryExpressionStateMachine {
             EmitHint::Expression,
             next,
         )?;
-        let mut next = next.node_wrapper();
         // per https://users.rust-lang.org/t/compare-function-pointers-for-equality/52339/3
         if pipeline_phase as usize == Printer::pipeline_emit_with_substitution as usize {
             Debug_.assert_is_defined(&self.printer.maybe_last_substitution(), None);
-            next = parenthesizer_rule.call(&*cast(
+            next = parenthesizer_rule.call(cast(
                 self.printer.maybe_last_substitution(),
                 |&node: &Id<Node>| is_expression(node, self),
             ));
@@ -1262,8 +1286,9 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         _state: Rc<RefCell<WorkArea>>,
         node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<()> {
-        let is_comma_operator = operator_token.kind() != SyntaxKind::CommaToken;
-        let node_as_binary_expression = node.as_binary_expression();
+        let is_comma_operator = operator_token.ref_(self).kind() != SyntaxKind::CommaToken;
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         let lines_before_operator = self.printer.get_lines_between_nodes(
             node,
             &node_as_binary_expression.left,
@@ -1277,17 +1302,17 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         self.printer
             .write_lines_and_indent(lines_before_operator, is_comma_operator);
         self.printer
-            .emit_leading_comments_of_position(operator_token.pos());
+            .emit_leading_comments_of_position(operator_token.ref_(self).pos());
         self.printer.write_token_node(
             operator_token,
-            if operator_token.kind() == SyntaxKind::InKeyword {
+            if operator_token.ref_(self).kind() == SyntaxKind::InKeyword {
                 Printer::write_keyword
             } else {
                 Printer::write_operator
             },
         );
         self.printer
-            .emit_trailing_comments_of_position(operator_token.end(), Some(true), None);
+            .emit_trailing_comments_of_position(operator_token.ref_(self).end(), Some(true), None);
         self.printer
             .write_lines_and_indent(lines_after_operator, true);
 
@@ -1308,7 +1333,8 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         node: Id<Node>, /*BinaryExpression*/
         state: Rc<RefCell<WorkArea>>,
     ) -> io::Result<()> {
-        let node_as_binary_expression = node.as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         let lines_before_operator = self.printer.get_lines_between_nodes(
             node,
             &node_as_binary_expression.left,

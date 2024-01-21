@@ -1724,7 +1724,7 @@ fn binary_expression_state_check_circularity(
     }
 }
 
-pub trait BinaryExpressionStateMachine: Trace + Finalize + HasArena {
+pub trait BinaryExpressionStateMachine: Trace + Finalize {
     type TResult: Clone;
     type TOuterState: Clone;
     type TState: Clone;

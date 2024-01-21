@@ -13,6 +13,7 @@ use crate::{
     Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension, GetOrInsertDefault, LineAndCharacter,
     ListFormat, Node, NodeInterface, Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike,
     SourceMapSource, SourceTextAsChars, SyntaxKind, TextRange,
+    InArena,
 };
 
 impl Printer {
@@ -24,7 +25,7 @@ impl Printer {
         has_trailing_new_line: bool,
     ) {
         if !self.should_write_comment(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             comment_pos,
         ) {
             return;
@@ -35,7 +36,7 @@ impl Printer {
 
         self.emit_pos(comment_pos);
         write_comment_range(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             &self.get_current_line_map(),
             &**self.writer(),
             comment_pos.try_into().unwrap(),
@@ -96,7 +97,7 @@ impl Printer {
     ) {
         self.emit_pos(comment_pos);
         write_comment_range(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             &self.get_current_line_map(),
             &**self.writer(),
             comment_pos.try_into().unwrap(),
@@ -119,7 +120,7 @@ impl Printer {
     ) {
         self.emit_pos(comment_pos);
         write_comment_range(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             &self.get_current_line_map(),
             &**self.writer(),
             comment_pos.try_into().unwrap(),
@@ -148,7 +149,7 @@ impl Printer {
                     self.for_each_leading_comment_without_detached_comments(cb);
                 } else {
                     for_each_leading_comment_range(
-                        &current_source_file.as_source_file().text_as_chars(),
+                        &current_source_file.ref_(self).as_source_file().text_as_chars(),
                         pos.try_into().unwrap(),
                         |pos: usize,
                          end: usize,
@@ -184,7 +185,7 @@ impl Printer {
                 || end != self.container_end() && end != self.declaration_list_container_end()
             {
                 for_each_trailing_comment_range(
-                    &current_source_file.as_source_file().text_as_chars(),
+                    &current_source_file.ref_(self).as_source_file().text_as_chars(),
                     end,
                     |pos: usize,
                      end: usize,
@@ -227,7 +228,7 @@ impl Printer {
         }
 
         for_each_leading_comment_range(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             pos.try_into().unwrap(),
             |pos: usize,
              end: usize,
@@ -253,7 +254,7 @@ impl Printer {
         range: &impl ReadonlyTextRange,
     ) {
         let current_detached_comment_info = emit_detached_comments(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             &*self.get_current_line_map(),
             &**self.writer(),
             |text: &SourceTextAsChars,
@@ -285,7 +286,7 @@ impl Printer {
         new_line: &str,
     ) {
         if !self.should_write_comment(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             comment_pos,
         ) {
             return;
@@ -304,7 +305,7 @@ impl Printer {
 
     pub(super) fn is_triple_slash_comment(&self, comment_pos: isize, comment_end: isize) -> bool {
         is_recognized_triple_slash_comment(
-            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
         )
@@ -314,7 +315,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*UnparsedSource*/
     ) -> Option<Rc<RawSourceMap>> {
-        let node_as_unparsed_source = node.as_unparsed_source();
+        let node_ref = node.ref_(self);
+        let node_as_unparsed_source = node_ref.as_unparsed_source();
         if node_as_unparsed_source.parsed_source_map.borrow().is_none() {
             if let Some(node_source_map_text) = node_as_unparsed_source.source_map_text.as_ref() {
                 *node_as_unparsed_source.parsed_source_map.borrow_mut() =
@@ -343,15 +345,15 @@ impl Printer {
     }
 
     pub(super) fn emit_source_maps_before_node(&self, node: Id<Node>) {
-        let emit_flags = get_emit_flags(node);
-        let source_map_range = get_source_map_range(node);
+        let emit_flags = get_emit_flags(&node.ref_(self));
+        let source_map_range = get_source_map_range(&node.ref_(self));
 
-        if is_unparsed_source(node) {
+        if is_unparsed_source(&node.ref_(self)) {
             Debug_.assert_is_defined(
-                &node.maybe_parent(),
+                &node.ref_(self).maybe_parent(),
                 Some("UnparsedNodes must have parent pointers"),
             );
-            let ref node_parent = node.parent();
+            let node_parent = node.ref_(self).parent();
             let parsed = self.get_parsed_source_map(node_parent);
             if let (Some(parsed), Some(source_map_generator)) =
                 (parsed, self.maybe_source_map_generator())
@@ -367,11 +369,11 @@ impl Printer {
                         .unwrap(),
                     Some(
                         node_parent_as_unparsed_source
-                            .get_line_and_character_of_position(node.pos().try_into().unwrap()),
+                            .get_line_and_character_of_position(node.ref_(self).pos().try_into().unwrap()),
                     ),
                     Some(
                         node_parent_as_unparsed_source
-                            .get_line_and_character_of_position(node.end().try_into().unwrap()),
+                            .get_line_and_character_of_position(node.ref_(self).end().try_into().unwrap()),
                     ),
                 );
             }
@@ -380,7 +382,7 @@ impl Printer {
                 .source
                 .clone()
                 .unwrap_or_else(|| self.source_map_source());
-            if node.kind() != SyntaxKind::NotEmittedStatement
+            if node.ref_(self).kind() != SyntaxKind::NotEmittedStatement
                 && !emit_flags.intersects(EmitFlags::NoLeadingSourceMap)
                 && source_map_range.pos() >= 0
             {
@@ -399,14 +401,14 @@ impl Printer {
     }
 
     pub(super) fn emit_source_maps_after_node(&self, node: Id<Node>) {
-        let emit_flags = get_emit_flags(node);
-        let source_map_range = get_source_map_range(node);
+        let emit_flags = get_emit_flags(&node.ref_(self));
+        let source_map_range = get_source_map_range(&node.ref_(self));
 
-        if !is_unparsed_source(node) {
+        if !is_unparsed_source(&node.ref_(self)) {
             if emit_flags.intersects(EmitFlags::NoNestedSourceMaps) {
                 self.set_source_maps_disabled(false);
             }
-            if node.kind() != SyntaxKind::NotEmittedStatement
+            if node.ref_(self).kind() != SyntaxKind::NotEmittedStatement
                 && !emit_flags.intersects(EmitFlags::NoTrailingSourceMap)
                 && source_map_range.end() >= 0
             {
@@ -440,13 +442,13 @@ impl Printer {
         if self.source_maps_disabled()
             || matches!(
                 node,
-                Some(node) if is_in_json_file(Some(node))
+                Some(node) if is_in_json_file(Some(&node.ref_(self)))
             )
         {
             return emit_callback(token, writer, token_pos);
         }
 
-        let emit_node = node.and_then(|node| node.maybe_emit_node());
+        let emit_node = node.and_then(|node| node.ref_(self).maybe_emit_node());
         let emit_flags = emit_node
             .as_ref()
             .and_then(|emit_node| (**emit_node).borrow().flags)

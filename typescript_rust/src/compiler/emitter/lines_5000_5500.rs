@@ -42,7 +42,7 @@ impl Printer {
         self.maybe_current_source_file()
             .map_or(true, |current_source_file| {
                 is_file_level_unique_name(
-                    current_source_file,
+                    &current_source_file.ref_(self),
                     name,
                     Some(|name: &str| self.has_global_name(name) == Some(true)),
                 )
@@ -53,7 +53,7 @@ impl Printer {
         let mut node = Some(container);
         while maybe_is_node_descendant_of(node, Some(container), self) {
             let node_present = node.as_ref().unwrap();
-            if let Some(node_locals) = node_present.maybe_locals().as_ref() {
+            if let Some(node_locals) = node_present.ref_(self).maybe_locals().as_ref() {
                 let local = (**node_locals)
                     .borrow()
                     .get(&*escape_leading_underscores(name))
@@ -67,7 +67,7 @@ impl Printer {
                     return false;
                 }
             }
-            node = node_present.maybe_next_container();
+            node = node_present.ref_(self).maybe_next_container();
         }
         true
     }
@@ -327,7 +327,7 @@ impl Printer {
                 break;
             }
 
-            original = node.maybe_original();
+            original = node.ref_(self).maybe_original();
         }
 
         node

@@ -16,12 +16,14 @@ use crate::{
     JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
     Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, StrOrNodeArray,
     SyntaxKind, TextRange,
+    InArena,
 };
 
 impl Printer {
     pub(super) fn emit_jsx_element(&self, node: Id<Node> /*JsxElement*/) -> io::Result<()> {
-        let node_as_jsx_element = node.as_jsx_element();
-        self.emit(Some(&*node_as_jsx_element.opening_element), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_jsx_element = node_ref.as_jsx_element();
+        self.emit(Some(node_as_jsx_element.opening_element), None)?;
         self.emit_list(
             Some(node),
             Some(&node_as_jsx_element.children),
@@ -30,7 +32,7 @@ impl Printer {
             None,
             None,
         )?;
-        self.emit(Some(&*node_as_jsx_element.closing_element), None)?;
+        self.emit(Some(node_as_jsx_element.closing_element), None)?;
 
         Ok(())
     }
@@ -40,8 +42,9 @@ impl Printer {
         node: Id<Node>, /*JsxSelfClosingElement*/
     ) -> io::Result<()> {
         self.write_punctuation("<");
-        let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
-        self.emit_jsx_tag_name(&node_as_jsx_self_closing_element.tag_name)?;
+        let node_ref = node.ref_(self);
+        let node_as_jsx_self_closing_element = node_ref.as_jsx_self_closing_element();
+        self.emit_jsx_tag_name(node_as_jsx_self_closing_element.tag_name)?;
         self.emit_type_arguments(
             node,
             node_as_jsx_self_closing_element
@@ -49,15 +52,16 @@ impl Printer {
                 .as_deref(),
         )?;
         self.write_space();
-        self.emit(Some(&*node_as_jsx_self_closing_element.attributes), None)?;
+        self.emit(Some(node_as_jsx_self_closing_element.attributes), None)?;
         self.write_punctuation("/>");
 
         Ok(())
     }
 
     pub(super) fn emit_jsx_fragment(&self, node: Id<Node> /*JsxFragment*/) -> io::Result<()> {
-        let node_as_jsx_fragment = node.as_jsx_fragment();
-        self.emit(Some(&*node_as_jsx_fragment.opening_fragment), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_jsx_fragment = node_ref.as_jsx_fragment();
+        self.emit(Some(node_as_jsx_fragment.opening_fragment), None)?;
         self.emit_list(
             Some(node),
             Some(&node_as_jsx_fragment.children),
@@ -66,7 +70,7 @@ impl Printer {
             None,
             None,
         )?;
-        self.emit(Some(&*node_as_jsx_fragment.closing_fragment), None)?;
+        self.emit(Some(node_as_jsx_fragment.closing_fragment), None)?;
 
         Ok(())
     }
@@ -77,13 +81,14 @@ impl Printer {
     ) -> io::Result<()> {
         self.write_punctuation("<");
 
-        if is_jsx_opening_element(node) {
-            let node_as_jsx_opening_element = node.as_jsx_opening_element();
+        if is_jsx_opening_element(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_jsx_opening_element = node_ref.as_jsx_opening_element();
             let indented = self.write_line_separators_and_indent_before(
                 &node_as_jsx_opening_element.tag_name,
                 node,
             );
-            self.emit_jsx_tag_name(&node_as_jsx_opening_element.tag_name)?;
+            self.emit_jsx_tag_name(node_as_jsx_opening_element.tag_name)?;
             self.emit_type_arguments(
                 node,
                 node_as_jsx_opening_element
@@ -100,8 +105,8 @@ impl Printer {
             {
                 self.write_space();
             }
-            self.emit(Some(&*node_as_jsx_opening_element.attributes), None)?;
-            self.write_line_separators_after(&node_as_jsx_opening_element.attributes, node);
+            self.emit(Some(node_as_jsx_opening_element.attributes), None)?;
+            self.write_line_separators_after(node_as_jsx_opening_element.attributes, node);
             self.decrease_indent_if(indented, None);
         }
 
@@ -111,7 +116,7 @@ impl Printer {
     }
 
     pub(super) fn emit_jsx_text(&self, node: Id<Node> /*JsxText*/) {
-        self.writer().write_literal(&node.as_jsx_text().text());
+        self.writer().write_literal(&node.ref_(self).as_jsx_text().text());
     }
 
     pub(super) fn emit_jsx_closing_element_or_fragment(
@@ -119,8 +124,8 @@ impl Printer {
         node: Id<Node>, /*JsxClosingElement | JsxClosingFragment*/
     ) -> io::Result<()> {
         self.write_punctuation("</");
-        if is_jsx_closing_element(node) {
-            self.emit_jsx_tag_name(&node.as_jsx_closing_element().tag_name)?;
+        if is_jsx_closing_element(&node.ref_(self)) {
+            self.emit_jsx_tag_name(node.as_jsx_closing_element().tag_name)?;
         }
         self.write_punctuation(">");
 
@@ -133,7 +138,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_list(
             Some(node),
-            Some(&node.as_jsx_attributes().properties),
+            Some(&node.ref_(self).as_jsx_attributes().properties),
             ListFormat::JsxElementAttributes,
             None,
             None,
@@ -147,8 +152,9 @@ impl Printer {
         &self,
         node: Id<Node>, /*JsxAttribute*/
     ) -> io::Result<()> {
-        let node_as_jsx_attribute = node.as_jsx_attribute();
-        self.emit(Some(&*node_as_jsx_attribute.name), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_jsx_attribute = node_ref.as_jsx_attribute();
+        self.emit(Some(node_as_jsx_attribute.name), None)?;
         self.try_emit_node_with_prefix(
             "=",
             |text: &str| self.write_punctuation(text),
@@ -164,7 +170,7 @@ impl Printer {
         node: Id<Node>, /*JsxSpreadAttribute*/
     ) -> io::Result<()> {
         self.write_punctuation("{...");
-        self.emit_expression(Some(&*node.as_jsx_spread_attribute().expression), None)?;
+        self.emit_expression(Some(node.ref_(self).as_jsx_spread_attribute().expression), None)?;
         self.write_punctuation("}");
 
         Ok(())
@@ -182,8 +188,7 @@ impl Printer {
         #[allow(clippy::unused_unit)]
         for_each_trailing_comment_range(
             current_source_file
-                .as_ref()
-                .map(|current_source_file| current_source_file.as_source_file().text_as_chars())
+                .map(|current_source_file| current_source_file.ref_(self).as_source_file().text_as_chars())
                 .as_deref()
                 .unwrap_or_else(|| default_text.as_ref().unwrap()),
             (pos + 1).try_into().unwrap(),
@@ -208,8 +213,7 @@ impl Printer {
         #[allow(clippy::unused_unit)]
         for_each_leading_comment_range(
             current_source_file
-                .as_ref()
-                .map(|current_source_file| current_source_file.as_source_file().text_as_chars())
+                .map(|current_source_file| current_source_file.ref_(self).as_source_file().text_as_chars())
                 .as_deref()
                 .unwrap_or_else(|| default_text.as_ref().unwrap()),
             (pos + 1).try_into().unwrap(),
@@ -230,23 +234,24 @@ impl Printer {
         &self,
         node: Id<Node>, /*JsxExpression*/
     ) -> io::Result<()> {
-        let node_as_jsx_expression = node.as_jsx_expression();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_expression = node_ref.as_jsx_expression();
         Ok(
             if node_as_jsx_expression.expression.is_some()
                 || !self.comments_disabled()
-                    && !node_is_synthesized(node)
-                    && self.has_comments_at_position(node.pos())
+                    && !node_is_synthesized(&*node.ref_(self))
+                    && self.has_comments_at_position(node.ref_(self).pos())
             {
                 let is_multiline = matches!(
-                    self.maybe_current_source_file().as_ref(),
-                    Some(current_source_file) if !node_is_synthesized(node) &&
+                    self.maybe_current_source_file(),
+                    Some(current_source_file) if !node_is_synthesized(&*node.ref_(self)) &&
                         get_line_and_character_of_position(
-                            current_source_file.as_source_file(),
-                            node.pos().try_into().unwrap(),
+                            current_source_file.ref_(self).as_source_file(),
+                            node.ref_(self).pos().try_into().unwrap(),
                         ).line !=
                         get_line_and_character_of_position(
-                            current_source_file.as_source_file(),
-                            node.end().try_into().unwrap(),
+                            current_source_file.ref_(self).as_source_file(),
+                            node.ref_(self).end().try_into().unwrap(),
                         ).line
                 );
                 if is_multiline {
@@ -254,13 +259,13 @@ impl Printer {
                 }
                 let end = self.emit_token_with_comment(
                     SyntaxKind::OpenBraceToken,
-                    node.pos(),
+                    node.ref_(self).pos(),
                     |text: &str| self.write_punctuation(text),
                     node,
                     None,
                 );
-                self.emit(node_as_jsx_expression.dot_dot_dot_token.as_deref(), None)?;
-                self.emit_expression(node_as_jsx_expression.expression.as_deref(), None)?;
+                self.emit(node_as_jsx_expression.dot_dot_dot_token, None)?;
+                self.emit_expression(node_as_jsx_expression.expression, None)?;
                 self.emit_token_with_comment(
                     SyntaxKind::CloseBraceToken,
                     node_as_jsx_expression
@@ -282,7 +287,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*JsxTagNameExpression*/
     ) -> io::Result<()> {
-        Ok(if node.kind() == SyntaxKind::Identifier {
+        Ok(if node.ref_(self).kind() == SyntaxKind::Identifier {
             self.emit_expression(Some(node), None)?;
         } else {
             self.emit(Some(node), None)?;
@@ -292,13 +297,14 @@ impl Printer {
     pub(super) fn emit_case_clause(&self, node: Id<Node> /*CaseClause*/) -> io::Result<()> {
         self.emit_token_with_comment(
             SyntaxKind::CaseKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
-        let node_as_case_clause = node.as_case_clause();
+        let node_ref = node.ref_(self);
+        let node_as_case_clause = node_ref.as_case_clause();
         self.emit_expression(
             Some(&*node_as_case_clause.expression),
             Some(Gc::new(Box::new(
@@ -323,12 +329,12 @@ impl Printer {
     ) -> io::Result<()> {
         let pos = self.emit_token_with_comment(
             SyntaxKind::DefaultKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
-        self.emit_case_or_default_clause_rest(node, &node.as_default_clause().statements, pos)?;
+        self.emit_case_or_default_clause_rest(node, &node.ref_(self).as_default_clause().statements, pos)?;
 
         Ok(())
     }
@@ -340,12 +346,12 @@ impl Printer {
         colon_pos: isize,
     ) -> io::Result<()> {
         let emit_as_single_statement = statements.len() == 1
-            && (node_is_synthesized(parent_node)
-                || node_is_synthesized(&*statements[0])
+            && (node_is_synthesized(&*parent_node.ref_(self))
+                || node_is_synthesized(&*statements[0].ref_(self))
                 || range_start_positions_are_on_same_line(
-                    parent_node,
-                    &*statements[0],
-                    &self.current_source_file(),
+                    &*parent_node.ref_(self),
+                    &*statements[0].ref_(self),
+                    &self.current_source_file().ref_(self),
                 ));
 
         let mut format = ListFormat::CaseOrDefaultClauseStatements;
@@ -384,7 +390,8 @@ impl Printer {
         node: Id<Node>, /*HeritageClause*/
     ) -> io::Result<()> {
         self.write_space();
-        let node_as_heritage_clause = node.as_heritage_clause();
+        let node_ref = node.ref_(self);
+        let node_as_heritage_clause = node_ref.as_heritage_clause();
         self.write_token_text(
             node_as_heritage_clause.token,
             |text: &str| self.write_keyword(text),
@@ -406,14 +413,15 @@ impl Printer {
     pub(super) fn emit_catch_clause(&self, node: Id<Node> /*CatchClause*/) -> io::Result<()> {
         let open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::CatchKeyword,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
-        let node_as_catch_clause = node.as_catch_clause();
-        if let Some(node_variable_declaration) = node_as_catch_clause.variable_declaration.as_ref()
+        let node_ref = node.ref_(self);
+        let node_as_catch_clause = node_ref.as_catch_clause();
+        if let Some(node_variable_declaration) = node_as_catch_clause.variable_declaration
         {
             self.emit_token_with_comment(
                 SyntaxKind::OpenParenToken,
@@ -432,7 +440,7 @@ impl Printer {
             );
             self.write_space();
         }
-        self.emit(Some(&*node_as_catch_clause.block), None)?;
+        self.emit(Some(node_as_catch_clause.block), None)?;
 
         Ok(())
     }
@@ -441,12 +449,13 @@ impl Printer {
         &self,
         node: Id<Node>, /*PropertyAssignment*/
     ) -> io::Result<()> {
-        let node_as_property_assignment = node.as_property_assignment();
-        self.emit(node_as_property_assignment.maybe_name().as_deref(), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_property_assignment = node_ref.as_property_assignment();
+        self.emit(node_as_property_assignment.maybe_name(), None)?;
         self.write_punctuation(":");
         self.write_space();
-        let ref initializer = node_as_property_assignment.maybe_initializer().unwrap();
-        if !get_emit_flags(initializer).intersects(EmitFlags::NoLeadingComments) {
+        let initializer = node_as_property_assignment.maybe_initializer().unwrap();
+        if !get_emit_flags(&initializer.ref_(self)).intersects(EmitFlags::NoLeadingComments) {
             let comment_range = get_comment_range(initializer);
             self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
         }
@@ -466,7 +475,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<()> {
-        let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
+        let node_ref = node.ref_(self);
+        let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         self.emit(
             node_as_shorthand_property_assignment
                 .maybe_name()
@@ -497,11 +507,12 @@ impl Printer {
         &self,
         node: Id<Node>, /*SpreadAssignment*/
     ) -> io::Result<()> {
-        let node_as_spread_assignment = node.as_spread_assignment();
+        let node_ref = node.ref_(self);
+        let node_as_spread_assignment = node_ref.as_spread_assignment();
         // if (node.expression) {
         self.emit_token_with_comment(
             SyntaxKind::DotDotDotToken,
-            node.pos(),
+            node.ref_(self).pos(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
@@ -520,8 +531,9 @@ impl Printer {
     }
 
     pub(super) fn emit_enum_member(&self, node: Id<Node> /*EnumMember*/) -> io::Result<()> {
-        let node_as_enum_member = node.as_enum_member();
-        self.emit(node_as_enum_member.maybe_name().as_deref(), None)?;
+        let node_ref = node.ref_(self);
+        let node_as_enum_member = node_ref.as_enum_member();
+        self.emit(node_as_enum_member.maybe_name(), None)?;
         self.emit_initializer(
             node_as_enum_member.initializer.as_deref(),
             node_as_enum_member.name.end(),
@@ -538,7 +550,8 @@ impl Printer {
 
     pub(super) fn emit_jsdoc(&self, node: Id<Node> /*JSDoc*/) -> io::Result<()> {
         self.write("/**");
-        let node_as_jsdoc = node.as_jsdoc();
+        let node_ref = node.ref_(self);
+        let node_as_jsdoc = node_ref.as_jsdoc();
         if let Some(node_comment) = node_as_jsdoc.comment {
             let text = get_text_of_jsdoc_comment(Some(node_comment), self);
             if let Some(text) = text.filter(|text| !text.is_empty()) {
@@ -583,8 +596,9 @@ impl Printer {
         &self,
         tag: Id<Node>, /*JSDocTypeTag | JSDocThisTag | JSDocEnumTag | JSDocReturnTag*/
     ) -> io::Result<()> {
-        let tag_as_base_jsdoc_type_like_tag = tag.as_base_jsdoc_type_like_tag();
-        self.emit_jsdoc_tag_name(&tag_as_base_jsdoc_type_like_tag.tag_name())?;
+        let tag_ref = tag.ref_(self);
+        let tag_as_base_jsdoc_type_like_tag = tag_ref.as_base_jsdoc_type_like_tag();
+        self.emit_jsdoc_tag_name(tag_as_base_jsdoc_type_like_tag.tag_name())?;
         self.emit_jsdoc_type_expression(
             tag_as_base_jsdoc_type_like_tag
                 .maybe_type_expression()
@@ -600,9 +614,10 @@ impl Printer {
     }
 
     pub(super) fn emit_jsdoc_see_tag(&self, tag: Id<Node> /*JSDocSeeTag*/) -> io::Result<()> {
-        let tag_as_jsdoc_see_tag = tag.as_jsdoc_see_tag();
-        self.emit_jsdoc_tag_name(&tag_as_jsdoc_see_tag.tag_name())?;
-        self.emit(tag_as_jsdoc_see_tag.name.as_deref(), None)?;
+        let tag_ref = tag.ref_(self);
+        let tag_as_jsdoc_see_tag = tag_ref.as_jsdoc_see_tag();
+        self.emit_jsdoc_tag_name(tag_as_jsdoc_see_tag.tag_name())?;
+        self.emit(tag_as_jsdoc_see_tag.name, None)?;
         self.emit_jsdoc_comment(tag_as_jsdoc_see_tag.maybe_comment().map(Into::into));
 
         Ok(())
@@ -614,7 +629,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.write_space();
         self.write_punctuation("{");
-        self.emit(Some(&*node.as_jsdoc_name_reference().name), None)?;
+        self.emit(Some(node.ref_(self).as_jsdoc_name_reference().name), None)?;
         self.write_punctuation("}");
 
         Ok(())
@@ -624,11 +639,12 @@ impl Printer {
         &self,
         tag: Id<Node>, /*JSDocImplementsTag | JSDocAugmentsTag*/
     ) -> io::Result<()> {
-        let tag_as_jsdoc_heritage_tag = tag.as_jsdoc_heritage_tag();
-        self.emit_jsdoc_tag_name(&tag_as_jsdoc_heritage_tag.tag_name())?;
+        let tag_ref = tag.ref_(self);
+        let tag_as_jsdoc_heritage_tag = tag_ref.as_jsdoc_heritage_tag();
+        self.emit_jsdoc_tag_name(tag_as_jsdoc_heritage_tag.tag_name())?;
         self.write_space();
         self.write_punctuation("{");
-        self.emit(Some(&*tag_as_jsdoc_heritage_tag.class()), None)?;
+        self.emit(Some(tag_as_jsdoc_heritage_tag.class()), None)?;
         self.write_punctuation("}");
         self.emit_jsdoc_comment(tag_as_jsdoc_heritage_tag.maybe_comment().map(Into::into));
 
@@ -639,9 +655,10 @@ impl Printer {
         &self,
         tag: Id<Node>, /*JSDocTemplateTag*/
     ) -> io::Result<()> {
-        let tag_as_jsdoc_template_tag = tag.as_jsdoc_template_tag();
-        self.emit_jsdoc_tag_name(&tag_as_jsdoc_template_tag.tag_name())?;
-        self.emit_jsdoc_type_expression(tag_as_jsdoc_template_tag.constraint.as_deref())?;
+        let tag_ref = tag.ref_(self);
+        let tag_as_jsdoc_template_tag = tag_ref.as_jsdoc_template_tag();
+        self.emit_jsdoc_tag_name(tag_as_jsdoc_template_tag.tag_name())?;
+        self.emit_jsdoc_type_expression(tag_as_jsdoc_template_tag.constraint)?;
         self.write_space();
         self.emit_list(
             Some(tag),
@@ -660,9 +677,10 @@ impl Printer {
         &self,
         tag: Id<Node>, /*JSDocTypedefTag*/
     ) -> io::Result<()> {
-        let tag_as_jsdoc_typedef_tag = tag.as_jsdoc_typedef_tag();
-        self.emit_jsdoc_tag_name(&tag_as_jsdoc_typedef_tag.tag_name())?;
-        if let Some(tag_type_expression) = tag_as_jsdoc_typedef_tag.type_expression.as_ref() {
+        let tag_ref = tag.ref_(self);
+        let tag_as_jsdoc_typedef_tag = tag_ref.as_jsdoc_typedef_tag();
+        self.emit_jsdoc_tag_name(tag_as_jsdoc_typedef_tag.tag_name())?;
+        if let Some(tag_type_expression) = tag_as_jsdoc_typedef_tag.type_expression {
             if tag_type_expression.kind() == SyntaxKind::JSDocTypeExpression {
                 self.emit_jsdoc_type_expression(Some(&**tag_type_expression))?;
             } else {
@@ -676,7 +694,7 @@ impl Printer {
                 self.write_punctuation("}");
             }
         }
-        if let Some(tag_full_name) = tag_as_jsdoc_typedef_tag.full_name.as_ref() {
+        if let Some(tag_full_name) = tag_as_jsdoc_typedef_tag.full_name {
             self.write_space();
             self.emit(Some(&**tag_full_name), None)?;
         }
@@ -698,21 +716,23 @@ impl Printer {
         &self,
         tag: Id<Node>, /*JSDocCallbackTag*/
     ) -> io::Result<()> {
-        let tag_as_jsdoc_callback_tag = tag.as_jsdoc_callback_tag();
-        self.emit_jsdoc_tag_name(&tag_as_jsdoc_callback_tag.tag_name())?;
-        if let Some(tag_name) = tag_as_jsdoc_callback_tag.name.as_ref() {
+        let tag_ref = tag.ref_(self);
+        let tag_as_jsdoc_callback_tag = tag_ref.as_jsdoc_callback_tag();
+        self.emit_jsdoc_tag_name(tag_as_jsdoc_callback_tag.tag_name())?;
+        if let Some(tag_name) = tag_as_jsdoc_callback_tag.name {
             self.write_space();
             self.emit(Some(&**tag_name), None)?;
         }
         self.emit_jsdoc_comment(tag_as_jsdoc_callback_tag.maybe_comment().map(Into::into));
-        self.emit_jsdoc_signature(&tag_as_jsdoc_callback_tag.type_expression)?;
+        self.emit_jsdoc_signature(tag_as_jsdoc_callback_tag.type_expression)?;
 
         Ok(())
     }
 
     pub(super) fn emit_jsdoc_simple_tag(&self, tag: Id<Node> /*JSDocTag*/) -> io::Result<()> {
-        let tag_as_jsdoc_tag = tag.as_jsdoc_tag();
-        self.emit_jsdoc_tag_name(&tag_as_jsdoc_tag.tag_name())?;
+        let tag_ref = tag.ref_(self);
+        let tag_as_jsdoc_tag = tag_ref.as_jsdoc_tag();
+        self.emit_jsdoc_tag_name(tag_as_jsdoc_tag.tag_name())?;
         self.emit_jsdoc_comment(tag_as_jsdoc_tag.maybe_comment().map(Into::into));
 
         Ok(())
@@ -726,7 +746,7 @@ impl Printer {
             Some(lit),
             Some(&with_factory(|factory| {
                 factory.create_node_array(
-                    lit.as_jsdoc_type_literal().js_doc_property_tags.clone(),
+                    lit.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.clone(),
                     None,
                 )
             })),
@@ -743,7 +763,8 @@ impl Printer {
         &self,
         sig: Id<Node>, /*JSDocSignature*/
     ) -> io::Result<()> {
-        let sig_as_jsdoc_signature = sig.as_jsdoc_signature();
+        let sig_ref = sig.ref_(self);
+        let sig_as_jsdoc_signature = sig_ref.as_jsdoc_signature();
         if let Some(sig_type_parameters) = sig_as_jsdoc_signature.maybe_type_parameters().as_ref() {
             self.emit_list(
                 Some(sig),
@@ -783,16 +804,17 @@ impl Printer {
         &self,
         param: Id<Node>, /*JSDocPropertyLikeTag*/
     ) -> io::Result<()> {
-        let param_as_jsdoc_property_like_tag = param.as_jsdoc_property_like_tag();
-        self.emit_jsdoc_tag_name(&param_as_jsdoc_property_like_tag.tag_name())?;
+        let param_ref = param.ref_(self);
+        let param_as_jsdoc_property_like_tag = param_ref.as_jsdoc_property_like_tag();
+        self.emit_jsdoc_tag_name(param_as_jsdoc_property_like_tag.tag_name())?;
         self.emit_jsdoc_type_expression(
-            param_as_jsdoc_property_like_tag.type_expression.as_deref(),
+            param_as_jsdoc_property_like_tag.type_expression,
         )?;
         self.write_space();
         if param_as_jsdoc_property_like_tag.is_bracketed {
             self.write_punctuation("[");
         }
-        self.emit(Some(&*param_as_jsdoc_property_like_tag.name), None)?;
+        self.emit(Some(param_as_jsdoc_property_like_tag.name), None)?;
         if param_as_jsdoc_property_like_tag.is_bracketed {
             self.write_punctuation("]");
         }
@@ -831,7 +853,7 @@ impl Printer {
             self.write_space();
             self.write_punctuation("{");
             self.emit(
-                Some(&*type_expression.as_jsdoc_type_expression().type_),
+                Some(type_expression.ref_(self).as_jsdoc_type_expression().type_),
                 None,
             )?;
             self.write_punctuation("}");
@@ -840,7 +862,7 @@ impl Printer {
 
     pub(super) fn emit_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<()> {
         self.write_line(None);
-        let statements = node.as_source_file().statements();
+        let statements = node.ref_(self).as_source_file().statements();
         // if (emitBodyWithDetachedComments) {
         let should_emit_detached_comment = statements.is_empty()
             || !is_prologue_directive(statements[0], self)
@@ -861,7 +883,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*Bundle*/
     ) -> io::Result<()> {
-        let node_as_bundle = node.as_bundle();
+        let node_ref = node.ref_(self);
+        let node_as_bundle = node_ref.as_bundle();
         let default_references: Vec<FileReference> = vec![];
         self.emit_triple_slash_directives(
             node_as_bundle.has_no_default_lib == Some(true),
@@ -881,10 +904,10 @@ impl Printer {
         for prepend in &node_as_bundle.prepends {
             if is_unparsed_source(prepend) {
                 if let Some(prepend_synthetic_references) =
-                    prepend.as_unparsed_source().synthetic_references.as_ref()
+                    prepend.ref_(self).as_unparsed_source().synthetic_references.as_ref()
                 {
-                    for ref_ in prepend_synthetic_references {
-                        self.emit(Some(&**ref_), None)?;
+                    for &ref_ in prepend_synthetic_references {
+                        self.emit(Some(ref_), None)?;
                         self.write_line(None);
                     }
                 }
@@ -898,7 +921,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) {
-        let node_as_source_file = node.as_source_file();
+        let node_ref = node.ref_(self);
+        let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file() {
             self.emit_triple_slash_directives(
                 node_as_source_file.has_no_default_lib(),
@@ -932,7 +956,7 @@ impl Printer {
         }
         if let Some(current_source_file) = self.maybe_current_source_file().as_ref() {
             if let Some(current_source_file_module_name) = current_source_file
-                .as_source_file()
+                .ref_(self).as_source_file()
                 .maybe_module_name()
                 .as_ref()
                 .filter(|current_source_file_module_name| {
@@ -946,9 +970,9 @@ impl Printer {
                 self.write_line(None);
             }
         }
-        if let Some(current_source_file) = self.maybe_current_source_file().as_ref() {
+        if let Some(current_source_file) = self.maybe_current_source_file() {
             if let Some(current_source_file_amd_dependencies) = current_source_file
-                .as_source_file()
+                .ref_(self).as_source_file()
                 .maybe_amd_dependencies()
                 .as_ref()
             {
@@ -1030,10 +1054,10 @@ impl Printer {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
-        let statements = node.as_source_file().statements();
+        let statements = node.ref_(self).as_source_file().statements();
         self.push_name_generation_scope(Some(node));
-        for_each(&statements, |statement: &Id<Node>, _| -> Option<()> {
-            self.generate_names(Some(&**statement));
+        for_each(&statements, |&statement: &Id<Node>, _| -> Option<()> {
+            self.generate_names(Some(statement));
             None
         });
         self.emit_helpers(node);
@@ -1061,7 +1085,7 @@ impl Printer {
         node: Id<Node>, /*PartiallyEmittedExpression*/
     ) -> io::Result<()> {
         self.emit_expression(
-            Some(&*node.as_partially_emitted_expression().expression),
+            Some(node.ref_(self).as_partially_emitted_expression().expression),
             None,
         )?;
 
@@ -1074,7 +1098,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_expression_list(
             Some(node),
-            Some(&node.as_comma_list_expression().elements),
+            Some(&node.ref_(self).as_comma_list_expression().elements),
             ListFormat::CommaListElements,
             None,
             None,
@@ -1101,9 +1125,9 @@ impl Printer {
                         .map_or(true, |seen_prologue_directives| {
                             !seen_prologue_directives.contains(
                                 &*statement
-                                    .as_expression_statement()
+                                    .ref_(self).as_expression_statement()
                                     .expression
-                                    .as_string_literal()
+                                    .ref_(self).as_string_literal()
                                     .text(),
                             )
                         });
@@ -1114,15 +1138,15 @@ impl Printer {
                     }
                     self.write_line(None);
                     let pos = self.writer().get_text_pos();
-                    self.emit(Some(&**statement), None)?;
+                    self.emit(Some(statement), None)?;
                     if record_bundle_file_section == Some(true) {
                         if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
                             bundle_file_info.borrow_mut().sections.push(Gc::new(
                                 BundleFileSection::new_prologue(
                                     statement
-                                        .as_expression_statement()
+                                        .ref_(self).as_expression_statement()
                                         .expression
-                                        .as_string_literal()
+                                        .ref_(self).as_string_literal()
                                         .text()
                                         .clone(),
                                     pos.try_into().unwrap(),
@@ -1134,9 +1158,9 @@ impl Printer {
                     if let Some(seen_prologue_directives) = seen_prologue_directives.as_mut() {
                         seen_prologue_directives.insert(
                             statement
-                                .as_expression_statement()
+                                .ref_(self).as_expression_statement()
                                 .expression
-                                .as_string_literal()
+                                .ref_(self).as_string_literal()
                                 .text()
                                 .clone(),
                         );

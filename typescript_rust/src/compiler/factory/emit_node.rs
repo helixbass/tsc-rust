@@ -132,7 +132,7 @@ pub fn set_token_source_map_range(
     node
 }
 
-pub(crate) fn get_starts_on_new_line(node: Id<Node>) -> Option<bool> {
+pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
     node.maybe_emit_node()
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
 }
