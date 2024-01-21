@@ -717,7 +717,7 @@ impl ParserType {
                 result_as_source_file
                     .statements()
                     .get(0)
-                    .map(|statement| statement.as_expression_statement().expression.clone()),
+                    .map(|statement| statement.ref_(self).as_expression_statement().expression),
                 result_as_source_file.parse_diagnostics(),
                 false,
                 None,

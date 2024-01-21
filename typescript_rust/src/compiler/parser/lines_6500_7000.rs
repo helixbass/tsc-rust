@@ -8,7 +8,7 @@ use crate::{
     Debug_, Decorator, DiagnosticMessage, Diagnostics, FunctionLikeDeclarationInterface,
     HasTypeInterface, HasTypeParametersInterface, ModifierFlags, Node, NodeArray, NodeFlags,
     NodeInterface, ObjectBindingPattern, SyntaxKind, VariableDeclarationList,
-    InArena,
+    HasArena, InArena,
 };
 
 impl ParserType {

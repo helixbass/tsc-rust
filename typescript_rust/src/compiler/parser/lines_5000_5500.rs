@@ -10,6 +10,7 @@ use crate::{
     JsxClosingElement, JsxClosingFragment, JsxExpression, JsxSpreadAttribute, JsxText, Matches,
     Node, NodeArray, NodeFlags, NodeInterface, PropertyAccessExpression, ReadonlyTextRange,
     SyntaxKind, TypeAssertion,
+    HasArena, InArena,
 };
 
 impl ParserType {

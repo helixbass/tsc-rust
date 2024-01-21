@@ -173,13 +173,13 @@ impl ParserType {
 
             let diagnostic_start = find_index(
                 &saved_parse_diagnostics,
-                |diagnostic, _| diagnostic.start() >= prev_statement.pos(),
+                |diagnostic, _| diagnostic.start() >= prev_statement.ref_(self).pos(),
                 None,
             );
             let diagnostic_end = diagnostic_start.and_then(|diagnostic_start| {
                 find_index(
                     &saved_parse_diagnostics,
-                    |diagnostic, _| diagnostic.start() >= next_statement.pos(),
+                    |diagnostic, _| diagnostic.start() >= next_statement.ref_(self).pos(),
                     Some(diagnostic_start),
                 )
             });
@@ -197,7 +197,7 @@ impl ParserType {
                     let saved_context_flags = self.context_flags();
                     self.set_context_flags(self.context_flags() | NodeFlags::AwaitContext);
                     self.scanner_mut()
-                        .set_text_pos(next_statement.pos().try_into().unwrap());
+                        .set_text_pos(next_statement.ref_(self).pos().try_into().unwrap());
                     self.next_token();
 
                     while self.token() != SyntaxKind::EndOfFileToken {
@@ -213,7 +213,7 @@ impl ParserType {
 
                         if let Some(pos_present) = pos {
                             let non_await_statement = source_file_statements[pos_present];
-                            if statement.ref_(self).end() == non_await_statement.pos() {
+                            if statement.ref_(self).end() == non_await_statement.ref_(self).pos() {
                                 break;
                             }
                             if statement.ref_(self).end() > non_await_statement.ref_(self).pos() {
@@ -246,7 +246,7 @@ impl ParserType {
 
             let diagnostic_start = find_index(
                 &saved_parse_diagnostics,
-                |diagnostic, _| diagnostic.start() >= prev_statement.pos(),
+                |diagnostic, _| diagnostic.start() >= prev_statement.ref_(self).pos(),
                 None,
             );
             if let Some(diagnostic_start) = diagnostic_start {
@@ -775,7 +775,7 @@ impl ParserType {
             self.parse_error_at(
                 skip_trivia(
                     &self.source_text_as_chars(),
-                    node_as_tagged_template_expression.template.pos(),
+                    node_as_tagged_template_expression.template.ref_(self).pos(),
                     None,
                     None,
                     None,

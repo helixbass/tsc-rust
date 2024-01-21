@@ -6,7 +6,7 @@ use crate::{
     is_identifier, set_text_range_pos, some, token_is_identifier_or_keyword, BindingElement,
     CaseBlock, CatchClause, DefaultClause, DiagnosticMessage, Diagnostics, Node, NodeArray,
     NodeFlags, NodeInterface, SyntaxKind,
-    InArena,
+    HasArena, InArena,
 };
 
 impl ParserType {

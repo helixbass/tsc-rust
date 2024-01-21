@@ -10,7 +10,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, Diagnostics, ExpressionWithTypeArguments,
     ExternalModuleReference, HeritageClause, ImportClause, ModuleBlock, NamespaceExport,
     NamespaceImport, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
-    InArena,
+    HasArena, InArena,
 };
 
 impl ParserType {

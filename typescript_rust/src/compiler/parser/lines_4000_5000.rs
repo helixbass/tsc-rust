@@ -11,7 +11,7 @@ use crate::{
     BinaryExpression, Debug_, DeleteExpression, Diagnostics, LanguageVariant, Node, NodeArray,
     NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression, ReadonlyTextRange,
     SyntaxKind, TypeOfExpression, VoidExpression, YieldExpression,
-    HasArena,
+    HasArena, InArena,
 };
 
 impl ParserType {
@@ -221,7 +221,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
 
-        if expr.alloc(self.arena()) == SyntaxKind::Identifier
+        if expr.ref_(self).kind() == SyntaxKind::Identifier
             && self.token() == SyntaxKind::EqualsGreaterThanToken
         {
             return self

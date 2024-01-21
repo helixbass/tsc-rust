@@ -12,7 +12,7 @@ use crate::{
     Node, NodeArray, NodeFlags, NodeInterface, QualifiedName, ReadonlyTextRange, SyntaxKind,
     TemplateExpression, TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan,
     ThisTypeNode, TokenFlags, TypePredicateNode,
-    OptionInArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl ParserType {
@@ -792,7 +792,7 @@ impl ParserType {
             entity = self.finish_node(
                 self.factory()
                     .create_qualified_name_raw(
-                        entity.alloc(self.arena())),
+                        entity.alloc(self.arena()),
                         self.parse_right_side_of_dot(allow_reserved_words, false)
                             .alloc(self.arena()),
                     )

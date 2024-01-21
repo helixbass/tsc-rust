@@ -40,7 +40,7 @@ pub enum IncrementalParserSyntaxCursor {
 }
 
 impl IncrementalParserSyntaxCursor {
-    pub fn create(source_file: Id<Node>) -> Self {
+    pub fn create(source_file: &Node) -> Self {
         Self::Created(IncrementalParserSyntaxCursorCreated::new(source_file))
     }
 }

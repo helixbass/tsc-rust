@@ -9,6 +9,7 @@ use crate::{
     ArrayLiteralExpression, AsDoubleDeref, CaseClause, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, Node, NodeArray, NodeFlags, NodeInterface,
     ObjectLiteralExpression, SyntaxKind,
+    HasArena, InArena,
 };
 
 impl ParserType {

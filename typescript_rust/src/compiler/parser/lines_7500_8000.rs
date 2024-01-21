@@ -16,6 +16,7 @@ use crate::{
     last_index_of_returns_isize, set_parent, some, BaseNode, BaseNodeFactory, Debug_, Diagnostic,
     HasStatementsInterface, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
     ScriptKind, ScriptTarget, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
+    HasArena, InArena, AllArenas,
 };
 
 impl ParserType {
@@ -1033,6 +1034,12 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         } else {
             None
         }
+    }
+}
+
+impl HasArena for ParseJSDocCommentWorker<'_> {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

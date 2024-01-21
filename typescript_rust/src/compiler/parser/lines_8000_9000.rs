@@ -13,7 +13,7 @@ use crate::{
     JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node, NodeArray, NodeFlags,
     NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind, TextChangeRange,
     TypeParameterDeclaration,
-    InArena,
+    HasArena, InArena,
 };
 
 impl<'parser> ParseJSDocCommentWorker<'parser> {
