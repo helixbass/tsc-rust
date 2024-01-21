@@ -1257,7 +1257,7 @@ fn print_source_file_or_bundle(
             host.clone(),
             get_base_file_name(&normalize_slashes(js_file_path), None, None),
             get_source_root(map_options),
-            get_source_map_directory(&**host, map_options, js_file_path, source_file.refed(self)),
+            get_source_map_directory(&**host, map_options, js_file_path, source_file.refed(arena)),
             &map_options.into(),
         ));
     }
@@ -1286,7 +1286,7 @@ fn print_source_file_or_bundle(
             &**source_map_generator,
             js_file_path,
             source_map_file_path,
-            source_file.refed(self),
+            source_file.refed(arena),
         );
 
         if !source_mapping_url.is_empty() {

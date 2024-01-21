@@ -758,7 +758,7 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_mapped_type_node = node_ref.as_mapped_type_node();
         if let Some(node_readonly_token) = node_as_mapped_type_node.readonly_token {
-            self.emit(Some(*node_readonly_token), None)?;
+            self.emit(Some(node_readonly_token), None)?;
             if node_readonly_token.ref_(self).kind() != SyntaxKind::ReadonlyKeyword {
                 self.write_keyword("readonly");
             }
