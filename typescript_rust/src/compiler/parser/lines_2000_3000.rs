@@ -792,9 +792,9 @@ impl ParserType {
             entity = self.finish_node(
                 self.factory()
                     .create_qualified_name_raw(
-                        entity.alloc(self),
+                        entity.alloc(self.arena())),
                         self.parse_right_side_of_dot(allow_reserved_words, false)
-                            .alloc(self),
+                            .alloc(self.arena()),
                     )
                     .into(),
                 pos,
@@ -866,7 +866,7 @@ impl ParserType {
         while {
             node = self.parse_template_span(is_tagged_template);
             let is_node_template_middle = node.literal.ref_(self).kind() == SyntaxKind::TemplateMiddle;
-            list.push(node.alloc(self));
+            list.push(node.alloc(self.arena()));
             is_node_template_middle
         } {}
         self.create_node_array(list, pos, None, None)
@@ -876,7 +876,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.finish_node(
             self.factory().create_template_expression_raw(
-                self.parse_template_head(is_tagged_template).alloc(self),
+                self.parse_template_head(is_tagged_template).alloc(self.arena()),
                 self.parse_template_spans(is_tagged_template),
             ),
             pos,
@@ -888,7 +888,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.finish_node(
             self.factory().create_template_literal_type_raw(
-                self.parse_template_head(false).alloc(self),
+                self.parse_template_head(false).alloc(self.arena()),
                 self.parse_template_type_spans(),
             ),
             pos,
@@ -903,7 +903,7 @@ impl ParserType {
         while {
             node = self.parse_template_type_span();
             let is_node_template_middle = node.literal.ref_(self).kind() == SyntaxKind::TemplateMiddle;
-            list.push(node.alloc(self));
+            list.push(node.alloc(self.arena()));
             is_node_template_middle
         } {}
         self.create_node_array(list, pos, None, None)
@@ -914,7 +914,7 @@ impl ParserType {
         self.finish_node(
             self.factory().create_template_literal_type_span_raw(
                 self.parse_type(),
-                self.parse_literal_of_template_span(false).alloc(self),
+                self.parse_literal_of_template_span(false).alloc(self.arena()),
             ),
             pos,
             None,
@@ -943,7 +943,7 @@ impl ParserType {
             self.factory().create_template_span_raw(
                 self.allow_in_and(|| self.parse_expression()),
                 self.parse_literal_of_template_span(is_tagged_template)
-                    .alloc(self),
+                    .alloc(self.arena()),
             ),
             pos,
             None,
@@ -1074,7 +1074,7 @@ impl ParserType {
 
     pub(super) fn parse_type_reference(&self) -> Node {
         let pos = self.get_node_pos();
-        let name = self.parse_entity_name_of_type_reference().alloc(self);
+        let name = self.parse_entity_name_of_type_reference().alloc(self.arena());
         let type_arguments = self.parse_type_arguments_of_type_reference();
         self.finish_node(
             self.factory()

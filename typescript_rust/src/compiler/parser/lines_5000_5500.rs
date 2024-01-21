@@ -44,8 +44,8 @@ impl ParserType {
         self.finish_node(
             self.factory()
                 .create_property_access_expression_raw(
-                    expression.alloc(self),
-                    self.parse_right_side_of_dot(true, true).alloc(self),
+                    expression.alloc(self.arena()),
+                    self.parse_right_side_of_dot(true, true).alloc(self.arena()),
                 )
                 .into(),
             pos,
@@ -118,12 +118,12 @@ impl ParserType {
                                     end,
                                     Some(end),
                                 )
-                                .alloc(self),
+                                .alloc(self.arena()),
                             ),
                             end,
                             Some(end),
                         )
-                        .alloc(self),
+                        .alloc(self.arena()),
                     ),
                     last_child_opening_element_pos,
                     Some(end),
@@ -132,13 +132,13 @@ impl ParserType {
                 let children_pos = children.pos();
                 let mut children_vec = children.to_vec();
                 let children_len = children.len();
-                children_vec[children_len - 1] = new_last.alloc(self);
+                children_vec[children_len - 1] = new_last.alloc(self.arena());
                 children = self.create_node_array(children_vec, children_pos, Some(end), None);
                 closing_element = last_child_as_jsx_element.closing_element.clone();
             } else {
                 closing_element = self
                     .parse_jsx_closing_element(&opening, in_expression_context)
-                    .alloc(self);
+                    .alloc(self.arena());
                 let closing_element_ref = closing_element.ref_(self);
                 let closing_element_as_jsx_closing_element = closing_element_ref.as_jsx_closing_element();
                 if !tag_names_are_equivalent(
@@ -182,7 +182,7 @@ impl ParserType {
             }
             result = self.finish_node(
                 self.factory()
-                    .create_jsx_element_raw(opening.alloc(self), children, closing_element)
+                    .create_jsx_element_raw(opening.alloc(self.arena()), children, closing_element)
                     .into(),
                 pos,
                 None,
@@ -192,10 +192,10 @@ impl ParserType {
             result = self.finish_node(
                 self.factory()
                     .create_jsx_fragment_raw(
-                        opening.alloc(self),
+                        opening.alloc(self.arena()),
                         children,
                         self.parse_jsx_closing_fragment(in_expression_context)
-                            .alloc(self),
+                            .alloc(self.arena()),
                     )
                     .into(),
                 pos,
@@ -228,9 +228,9 @@ impl ParserType {
                 return self.finish_node(
                     self.factory()
                         .create_binary_expression_raw(
-                            result.alloc(self),
-                            operator_token.alloc(self),
-                            invalid_element.alloc(self),
+                            result.alloc(self.arena()),
+                            operator_token.alloc(self.arena()),
+                            invalid_element.alloc(self.arena()),
                         )
                         .into(),
                     pos,
@@ -322,7 +322,7 @@ impl ParserType {
             let Some(child) = self.parse_jsx_child(opening_tag, self.current_token()) else {
                 break;
             };
-            let child = child.alloc(self);
+            let child = child.alloc(self.arena());
             list.push(child);
             if is_jsx_opening_element(&opening_tag.ref_(self)) && child.ref_(self).kind() == SyntaxKind::JsxElement {
                 let opening_tag_ref = opening_tag.ref_(self);
@@ -361,7 +361,7 @@ impl ParserType {
         self.finish_node(
             self.factory().create_jsx_attributes_raw(
                 self.parse_list(ParsingContext::JsxAttributes, &mut || {
-                    self.parse_jsx_attribute().alloc(self)
+                    self.parse_jsx_attribute().alloc(self.arena())
                 }),
             ),
             pos,
@@ -399,7 +399,7 @@ impl ParserType {
             self.scan_jsx_text();
             node = self
                 .factory()
-                .create_jsx_opening_element_raw(tag_name.alloc(self), type_arguments, attributes.alloc(self))
+                .create_jsx_opening_element_raw(tag_name.alloc(self.arena()), type_arguments, attributes.alloc(self.arena()))
                 .into();
         } else {
             self.parse_expected(SyntaxKind::SlashToken, None, None);
@@ -413,9 +413,9 @@ impl ParserType {
             node = self
                 .factory()
                 .create_jsx_self_closing_element_raw(
-                    tag_name.alloc(self),
+                    tag_name.alloc(self.arena()),
                     type_arguments,
-                    attributes.alloc(self),
+                    attributes.alloc(self.arena()),
                 )
                 .into();
         }
@@ -435,8 +435,8 @@ impl ParserType {
             expression = self.finish_node(
                 self.factory()
                     .create_property_access_expression_raw(
-                        expression.alloc(self),
-                        self.parse_right_side_of_dot(true, false).alloc(self),
+                        expression.alloc(self.arena()),
+                        self.parse_right_side_of_dot(true, false).alloc(self.arena()),
                     )
                     .into(),
                 pos,
@@ -471,7 +471,7 @@ impl ParserType {
 
         Some(self.finish_node(
             self.factory().create_jsx_expression_raw(
-                dot_dot_dot_token.map(|dot_dot_dot_token| dot_dot_dot_token.alloc(self)),
+                dot_dot_dot_token.map(|dot_dot_dot_token| dot_dot_dot_token.alloc(self.arena())),
                 expression,
             ),
             pos,
@@ -489,14 +489,14 @@ impl ParserType {
         self.finish_node(
             self.factory()
                 .create_jsx_attribute_raw(
-                    self.parse_identifier_name(None).alloc(self),
+                    self.parse_identifier_name(None).alloc(self.arena()),
                     if self.token() != SyntaxKind::EqualsToken {
                         None
                     } else if self.scan_jsx_attribute_value() == SyntaxKind::StringLiteral {
-                        Some(self.parse_literal_node().alloc(self))
+                        Some(self.parse_literal_node().alloc(self.arena()))
                     } else {
                         self.parse_jsx_expression(true)
-                            .map(|jsx_expression| jsx_expression.alloc(self))
+                            .map(|jsx_expression| jsx_expression.alloc(self.arena()))
                     },
                 )
                 .into(),
@@ -525,7 +525,7 @@ impl ParserType {
     ) -> JsxClosingElement {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::LessThanSlashToken, None, None);
-        let tag_name = self.parse_jsx_element_name().alloc(self);
+        let tag_name = self.parse_jsx_element_name().alloc(self.arena());
         let open_ref = open.ref_(self);
         let open_as_jsx_opening_element = open_ref.as_jsx_opening_element();
         if self.parse_expected(SyntaxKind::GreaterThanToken, None, Some(false)) {
@@ -636,11 +636,11 @@ impl ParserType {
             self.factory().create_property_access_chain_raw(
                 expression,
                 question_dot_token,
-                name.alloc(self),
+                name.alloc(self.arena()),
             )
         } else {
             self.factory()
-                .create_property_access_expression_raw(expression, name.alloc(self))
+                .create_property_access_expression_raw(expression, name.alloc(self.arena()))
         };
         if is_optional_chain && is_private_identifier(&property_access.name.ref_(self)) {
             self.parse_error_at_range(
@@ -667,7 +667,7 @@ impl ParserType {
                     Some(&Diagnostics::An_element_access_expression_should_take_an_argument),
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
         } else {
             let argument = self.allow_in_and(|| self.parse_expression());
             if is_string_or_numeric_literal_like(&argument.ref_(self)) {
@@ -718,9 +718,9 @@ impl ParserType {
                     .parse_property_access_expression_rest(
                         pos,
                         expression,
-                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
+                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self.arena())),
                     )
-                    .alloc(self);
+                    .alloc(self.arena());
                 continue;
             }
 
@@ -735,7 +735,7 @@ impl ParserType {
                         pos,
                         None,
                     )
-                    .alloc(self);
+                    .alloc(self.arena());
                 continue;
             }
 
@@ -746,9 +746,9 @@ impl ParserType {
                     .parse_element_access_expression_rest(
                         pos,
                         expression,
-                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
+                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self.arena())),
                     )
-                    .alloc(self);
+                    .alloc(self.arena());
                 continue;
             }
 
@@ -756,7 +756,7 @@ impl ParserType {
                 expression = self.parse_tagged_template_rest(
                     pos,
                     expression,
-                    question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
+                    question_dot_token.map(|question_dot_token| question_dot_token.alloc(self.arena())),
                     None,
                 );
                 continue;
@@ -785,16 +785,16 @@ impl ParserType {
             type_arguments,
             if self.token() == SyntaxKind::NoSubstitutionTemplateLiteral {
                 self.re_scan_template_head_or_no_substitution_template();
-                self.parse_literal_node().alloc(self)
+                self.parse_literal_node().alloc(self.arena())
             } else {
-                self.parse_template_expression(true).alloc(self)
+                self.parse_template_expression(true).alloc(self.arena())
             },
         );
         if question_dot_token.is_some() || tag.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
             tag_expression.set_flags(tag_expression.ref_(self).flags() | NodeFlags::OptionalChain);
         }
         tag_expression.question_dot_token = question_dot_token;
-        self.finish_node(tag_expression, pos, None).alloc(self)
+        self.finish_node(tag_expression, pos, None).alloc(self.arena())
     }
 
     pub(super) fn parse_call_expression_rest(
@@ -817,7 +817,7 @@ impl ParserType {
                         expression = self.parse_tagged_template_rest(
                             pos,
                             expression,
-                            question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
+                            question_dot_token.map(|question_dot_token| question_dot_token.alloc(self.arena())),
                             Some(type_arguments),
                         );
                         continue;
@@ -829,7 +829,7 @@ impl ParserType {
                     {
                         self.factory().create_call_chain_raw(
                             expression,
-                            question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
+                            question_dot_token.map(|question_dot_token| question_dot_token.alloc(self.arena())),
                             Some(type_arguments),
                             Some(argument_list),
                         )
@@ -840,7 +840,7 @@ impl ParserType {
                             Some(argument_list),
                         )
                     };
-                    expression = self.finish_node(call_expr, pos, None).alloc(self);
+                    expression = self.finish_node(call_expr, pos, None).alloc(self.arena());
                     continue;
                 }
             } else if self.token() == SyntaxKind::OpenParenToken {
@@ -850,7 +850,7 @@ impl ParserType {
                 {
                     self.factory().create_call_chain_raw(
                         expression,
-                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self)),
+                        question_dot_token.map(|question_dot_token| question_dot_token.alloc(self.arena())),
                         Option::<Gc<NodeArray>>::None,
                         Some(argument_list),
                     )
@@ -861,7 +861,7 @@ impl ParserType {
                         Some(argument_list),
                     )
                 };
-                expression = self.finish_node(call_expr, pos, None).alloc(self);
+                expression = self.finish_node(call_expr, pos, None).alloc(self.arena());
                 continue;
             }
             if let Some(question_dot_token) = question_dot_token {
@@ -875,13 +875,13 @@ impl ParserType {
                     .finish_node(
                         self.factory().create_property_access_chain_raw(
                             expression,
-                            Some(question_dot_token.alloc(self)),
-                            name.alloc(self),
+                            Some(question_dot_token.alloc(self.arena())),
+                            name.alloc(self.arena()),
                         ),
                         pos,
                         None,
                     )
-                    .alloc(self);
+                    .alloc(self.arena());
             }
             break;
         }

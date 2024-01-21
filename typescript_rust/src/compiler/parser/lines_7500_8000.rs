@@ -43,7 +43,7 @@ impl ParserType {
             is_export_equals,
             expression,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn set_external_module_indicator(&self, source_file: Id<Node> /*SourceFile*/) {
@@ -204,7 +204,7 @@ impl ParserType {
         let has_brace = self.parse_optional(SyntaxKind::OpenBraceToken);
         let p2 = self.get_node_pos();
         let mut entity_name: Id<Node /*EntityName | JSDocMemberName*/> =
-            self.parse_entity_name(false, None).alloc(self);
+            self.parse_entity_name(false, None).alloc(self.arena());
         while self.token() == SyntaxKind::PrivateIdentifier {
             self.re_scan_hash_token();
             self.next_token_jsdoc();
@@ -212,12 +212,12 @@ impl ParserType {
                 .finish_node(
                     self.factory().create_jsdoc_member_name_raw(
                         entity_name,
-                        self.parse_identifier(None, None).alloc(self),
+                        self.parse_identifier(None, None).alloc(self.arena()),
                     ),
                     p2,
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
         }
         if has_brace {
             self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
@@ -244,7 +244,7 @@ impl ParserType {
         );
         let js_doc: Option<Id<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
             self.JSDocParser_parse_jsdoc_comment_worker(start, length)
-                .map(|node| node.alloc(self))
+                .map(|node| node.alloc(self.arena()))
         });
 
         let source_file = self.create_source_file(
@@ -282,7 +282,7 @@ impl ParserType {
 
         let comment: Option<Id<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
             self.JSDocParser_parse_jsdoc_comment_worker(Some(start), Some(length))
-                .map(|node| node.alloc(self))
+                .map(|node| node.alloc(self.arena()))
         });
         if let Some(comment) = comment {
             set_parent(&comment.ref_(self), Some(parent));
@@ -399,7 +399,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 if self.comments_pos.is_none() {
                                     self.comments_pos = Some(self.parser.get_node_pos());
                                 }
-                                let tag = self.parse_tag(indent).alloc(self);
+                                let tag = self.parse_tag(indent).alloc(self.arena());
                                 self.add_tag(Some(tag));
                                 state = JSDocState::BeginningOfLine;
                                 margin = None;
@@ -481,9 +481,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                         ),
                                         self.link_end.unwrap_or(self.start).try_into().unwrap(),
                                         Some(comment_end.try_into().unwrap()),
-                                    ).alloc(self);
+                                    ).alloc(self.arena());
                                 self.parts.push(part);
-                                self.parts.push(link.alloc(self));
+                                self.parts.push(link.alloc(self.arena()));
                                 *self.comments() = vec![];
                                 self.link_end = Some(self.parser.scanner().get_text_pos());
                             }
@@ -508,7 +508,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                             self.parser.factory().create_jsdoc_text_raw(self.comments().join("")),
                             self.link_end.unwrap_or(self.start).try_into().unwrap(),
                             self.comments_pos,
-                        ).alloc(self);
+                        ).alloc(self.arena());
                     self.parts.push(part);
                 }
                 if !self.parts.is_empty() && self.tags.is_some() {
@@ -636,7 +636,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let start = self.parser.scanner().get_token_pos();
         self.parser.next_token_jsdoc();
 
-        let tag_name: Id<Node> = self.parse_jsdoc_identifier_name(None).alloc(self);
+        let tag_name: Id<Node> = self.parse_jsdoc_identifier_name(None).alloc(self.arena());
         let indent_text = self.skip_whitespace_or_asterisk();
 
         let tag: Option<Node>;
@@ -930,7 +930,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     state = JSDocState::SavingComments;
                     let comment_end = self.parser.scanner().get_start_pos();
                     let link_start = self.parser.scanner().get_text_pos() - 1;
-                    let link: Option<Id<Node>> = self.parse_jsdoc_link(link_start).map(|node| node.alloc(self));
+                    let link: Option<Id<Node>> = self.parse_jsdoc_link(link_start).map(|node| node.alloc(self.arena()));
                     if let Some(link) = link {
                         parts.push(
                             self.parser
@@ -943,7 +943,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                         .unwrap_or(comments_pos),
                                     Some(comment_end.try_into().unwrap()),
                                 )
-                                .alloc(self),
+                                .alloc(self.arena()),
                         );
                         parts.push(link);
                         comments = vec![];
@@ -1015,7 +1015,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 .unwrap_or(comments_pos),
                             None,
                         )
-                        .alloc(self),
+                        .alloc(self.arena()),
                 );
             }
             Some(

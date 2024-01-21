@@ -74,7 +74,7 @@ fn get_ast_struct_interface_impl(
             // (aad in BaseNode's impl of NodeInterface::alloc())?
             let alloc_method = if should_impl_from {
                 quote! {
-                    fn alloc(self, arena: &impl crate::HasArena) -> ::id_arena::Id<crate::Node> {
+                    fn alloc(self, arena: &crate::AllArenas) -> ::id_arena::Id<crate::Node> {
                         let id = arena.alloc_node(crate::Node::from(self));
                         arena.node(id).set_arena_id(id);
                         id
@@ -82,7 +82,7 @@ fn get_ast_struct_interface_impl(
                 }
             } else {
                 quote! {
-                    fn alloc(self, _arena: &impl crate::HasArena) -> ::id_arena::Id<crate::Node> {
+                    fn alloc(self, _arena: &crate::AllArenas) -> ::id_arena::Id<crate::Node> {
                         unreachable!()
                     }
                 }
@@ -533,7 +533,7 @@ fn get_ast_enum_interface_impl(
         "NodeInterface" => {
             let alloc_method = if should_impl_from {
                 quote! {
-                    fn alloc(self, arena: &impl crate::HasArena) -> ::id_arena::Id<crate::Node> {
+                    fn alloc(self, arena: &crate::AllArenas) -> ::id_arena::Id<crate::Node> {
                         let id = arena.alloc_node(crate::Node::from(self));
                         arena.node(id).set_arena_id(id);
                         id
@@ -541,7 +541,7 @@ fn get_ast_enum_interface_impl(
                 }
             } else {
                 quote! {
-                    fn alloc(self, _arena: &impl crate::HasArena) -> ::id_arena::Id<crate::Node> {
+                    fn alloc(self, _arena: &crate::AllArenas) -> ::id_arena::Id<crate::Node> {
                         unreachable!()
                     }
                 }

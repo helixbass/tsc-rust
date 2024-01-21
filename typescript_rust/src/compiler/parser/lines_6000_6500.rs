@@ -36,7 +36,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
         let clauses = self.parse_list(ParsingContext::SwitchClauses, &mut || {
-            self.parse_case_or_default_clause().alloc(self)
+            self.parse_case_or_default_clause().alloc(self.arena())
         });
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         self.finish_node(self.factory().create_case_block_raw(clauses), pos, None)
@@ -53,11 +53,11 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .create_switch_statement_raw(expression, case_block.alloc(self)),
+                    .create_switch_statement_raw(expression, case_block.alloc(self.arena())),
                 pos,
                 None,
             )
-            .alloc(self),
+            .alloc(self.arena()),
             has_jsdoc,
         )
     }
@@ -81,7 +81,7 @@ impl ParserType {
                     self.get_node_pos(),
                     None,
                 )
-                .alloc(self),
+                .alloc(self.arena()),
             );
         }
         let expression = expression.unwrap();
@@ -94,7 +94,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .alloc(self),
+            .alloc(self.arena()),
             has_jsdoc,
         )
     }
@@ -106,7 +106,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::TryKeyword, None, None);
         let try_block: Id<Node> = self.parse_block(false, None);
         let catch_clause: Option<Id<Node>> = if self.token() == SyntaxKind::CatchKeyword {
-            Some(self.parse_catch_clause().alloc(self))
+            Some(self.parse_catch_clause().alloc(self.arena()))
         } else {
             None
         };
@@ -124,7 +124,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .alloc(self),
+            .alloc(self.arena()),
             has_jsdoc,
         )
     }
@@ -157,7 +157,7 @@ impl ParserType {
         self.parse_semicolon();
         self.with_jsdoc(
             self.finish_node(self.factory().create_debugger_statement_raw(), pos, None)
-                .alloc(self),
+                .alloc(self.arena()),
             has_jsdoc,
         )
     }
@@ -187,7 +187,7 @@ impl ParserType {
                 has_jsdoc = false;
             }
         };
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn next_token_is_identifier_or_keyword_on_same_line(&self) -> bool {
@@ -550,7 +550,7 @@ impl ParserType {
                     set_text_range_pos(&missing, pos);
                     missing.set_decorators(decorators);
                     missing.set_modifiers(modifiers);
-                    return missing.alloc(self);
+                    return missing.alloc(self.arena());
                 }
                 // return undefined!;
                 panic!("Need to make this an Option?")
@@ -588,7 +588,7 @@ impl ParserType {
         }
         let dot_dot_dot_token = self
             .parse_optional_token(SyntaxKind::DotDotDotToken)
-            .map(|node| node.alloc(self));
+            .map(|node| node.alloc(self.arena()));
         let name = self.parse_identifier_or_pattern(None);
         let initializer = self.parse_initializer();
         self.finish_node(
@@ -609,9 +609,9 @@ impl ParserType {
         let pos = self.get_node_pos();
         let dot_dot_dot_token = self
             .parse_optional_token(SyntaxKind::DotDotDotToken)
-            .map(|node| node.alloc(self));
+            .map(|node| node.alloc(self.arena()));
         let token_is_identifier = self.is_binding_identifier();
-        let mut property_name: Option<Id<Node>> = Some(self.parse_property_name().alloc(self));
+        let mut property_name: Option<Id<Node>> = Some(self.parse_property_name().alloc(self.arena()));
         let name: Id<Node>;
         if token_is_identifier && self.token() != SyntaxKind::ColonToken {
             name = property_name.clone().unwrap();

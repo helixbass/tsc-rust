@@ -17,7 +17,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
         let elements = self.parse_delimited_list(
             ParsingContext::ObjectBindingElements,
-            || self.parse_object_binding_element().alloc(self),
+            || self.parse_object_binding_element().alloc(self.arena()),
             None,
         );
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
@@ -33,7 +33,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayBindingElements,
-            || self.parse_array_binding_element().alloc(self),
+            || self.parse_array_binding_element().alloc(self.arena()),
             None,
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
@@ -58,13 +58,13 @@ impl ParserType {
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Id<Node /*Identifier | BindingPattern*/> {
         if self.token() == SyntaxKind::OpenBracketToken {
-            return self.parse_array_binding_pattern().alloc(self);
+            return self.parse_array_binding_pattern().alloc(self.arena());
         }
         if self.token() == SyntaxKind::OpenBraceToken {
-            return self.parse_object_binding_pattern().alloc(self);
+            return self.parse_object_binding_pattern().alloc(self.arena());
         }
         self.parse_binding_identifier(private_identifier_diagnostic_message)
-            .alloc(self)
+            .alloc(self.arena())
     }
 
     pub(super) fn parse_variable_declaration_allow_exclamation(
@@ -89,7 +89,7 @@ impl ParserType {
             && self.token() == SyntaxKind::ExclamationToken
             && !self.scanner().has_preceding_line_break()
         {
-            exclamation_token = Some(self.parse_token_node().alloc(self));
+            exclamation_token = Some(self.parse_token_node().alloc(self.arena()));
         }
         let type_ = self.parse_type_annotation();
         let initializer = if self.is_in_or_of_keyword(self.token()) {
@@ -103,7 +103,7 @@ impl ParserType {
             type_,
             initializer,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn parse_variable_declaration_list(
@@ -173,9 +173,9 @@ impl ParserType {
         self.parse_semicolon();
         let node = self
             .factory()
-            .create_variable_statement_raw(modifiers, declaration_list.alloc(self));
+            .create_variable_statement_raw(modifiers, declaration_list.alloc(self.arena()));
         node.set_decorators(decorators);
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn parse_function_declaration(
@@ -219,14 +219,14 @@ impl ParserType {
         let node = self.factory().create_function_declaration_raw(
             decorators,
             modifiers,
-            asterisk_token.map(|node| node.alloc(self)),
-            name.map(|node| node.alloc(self)),
+            asterisk_token.map(|node| node.alloc(self.arena())),
+            name.map(|node| node.alloc(self.arena())),
             type_parameters,
             parameters,
             type_,
             body,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn parse_constructor_name(&self) -> bool {
@@ -269,7 +269,7 @@ impl ParserType {
                 );
                 *node.maybe_type_parameters_mut() = type_parameters;
                 node.set_type(type_);
-                return Some(self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc));
+                return Some(self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc));
             }
             None
         })
@@ -317,7 +317,7 @@ impl ParserType {
             body,
         );
         *node.maybe_exclamation_token() = exclamation_token;
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn parse_property_declaration(
@@ -332,7 +332,7 @@ impl ParserType {
         let exclamation_token: Option<Id<Node>> =
             if question_token.is_none() && !self.scanner().has_preceding_line_break() {
                 self.parse_optional_token(SyntaxKind::ExclamationToken)
-                    .map(|node| node.alloc(self))
+                    .map(|node| node.alloc(self.arena()))
             } else {
                 None
             };
@@ -363,11 +363,11 @@ impl ParserType {
     ) -> Id<Node /*PropertyDeclaration | MethodDeclaration*/> {
         let asterisk_token: Option<Id<Node>> = self
             .parse_optional_token(SyntaxKind::AsteriskToken)
-            .map(|node| node.alloc(self));
-        let name = self.parse_property_name().alloc(self);
+            .map(|node| node.alloc(self.arena()));
+        let name = self.parse_property_name().alloc(self.arena());
         let question_token: Option<Id<Node>> = self
             .parse_optional_token(SyntaxKind::QuestionToken)
-            .map(|node| node.alloc(self));
+            .map(|node| node.alloc(self.arena()));
         if asterisk_token.is_some()
             || matches!(
                 self.token(),
@@ -397,7 +397,7 @@ impl ParserType {
         modifiers: Option<Gc<NodeArray>>,
         kind: SyntaxKind, /*AccessorDeclaration["kind"]*/
     ) -> Id<Node /*AccessorDeclaration*/> {
-        let name = self.parse_property_name().alloc(self);
+        let name = self.parse_property_name().alloc(self.arena());
         let type_parameters = self.parse_type_parameters();
         let parameters = self.parse_parameters(SignatureFlags::None);
         let type_: Option<Id<Node>> = self.parse_return_type(SyntaxKind::ColonToken, false);
@@ -419,7 +419,7 @@ impl ParserType {
             node_as_set_accessor_declaration.into()
         };
         *node.as_has_type_parameters().maybe_type_parameters_mut() = type_parameters;
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn is_class_member_start(&self) -> bool {
@@ -492,7 +492,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .alloc(self),
+            .alloc(self.arena()),
             has_jsdoc,
         )
     }
@@ -517,7 +517,7 @@ impl ParserType {
             let pos = self.get_node_pos();
             let await_expression: Id<Node> = self
                 .parse_identifier(Some(&Diagnostics::Expression_expected), None)
-                .alloc(self);
+                .alloc(self.arena());
             self.next_token();
             let member_expression = self.parse_member_expression_rest(pos, await_expression, true);
             return self.parse_call_expression_rest(pos, member_expression);
@@ -547,7 +547,7 @@ impl ParserType {
                 list = Some(vec![]);
             }
             let list = list.as_mut().unwrap();
-            append(list, Some(decorator.alloc(self)));
+            append(list, Some(decorator.alloc(self.arena())));
         }
         list.map(|list| self.create_node_array(list, pos, None, None))
     }
@@ -613,7 +613,7 @@ impl ParserType {
                 list = Some(vec![]);
             }
             let list = list.as_mut().unwrap();
-            append(list, Some(modifier.alloc(self)));
+            append(list, Some(modifier.alloc(self.arena())));
         }
         list.map(|list| self.create_node_array(list, pos, None, None))
     }
@@ -631,7 +631,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
             modifiers = Some(self.create_node_array(vec![modifier], pos, None, None));
         }
         modifiers
@@ -647,7 +647,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
         }
 
         let has_jsdoc = self.has_preceding_jsdoc_comment();
@@ -736,7 +736,7 @@ impl ParserType {
                     Some(&Diagnostics::Declaration_expected),
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
             return self
                 .parse_property_declaration(pos, has_jsdoc, decorators, modifiers, name, None);
         }

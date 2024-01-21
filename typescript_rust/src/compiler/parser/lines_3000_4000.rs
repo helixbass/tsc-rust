@@ -25,19 +25,19 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .alloc(self),
+                .alloc(self.arena()),
                 has_jsdoc,
             );
         }
         self.finish_node(
             self.factory().create_type_reference_node_raw(
-                self.parse_identifier_name(None).alloc(self),
+                self.parse_identifier_name(None).alloc(self.arena()),
                 Option::<Gc<NodeArray>>::None,
             ),
             pos,
             None,
         )
-        .alloc(self)
+        .alloc(self.arena())
     }
 
     pub(super) fn parse_jsdoc_parameter(&self) -> ParameterDeclaration {
@@ -55,7 +55,7 @@ impl ParserType {
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 None,
-                name.map(|name| name.alloc(self)),
+                name.map(|name| name.alloc(self.arena())),
                 None,
                 Some(self.parse_jsdoc_type()),
                 None,
@@ -85,7 +85,7 @@ impl ParserType {
             }
 
             self.scanner_mut().set_in_jsdoc_type(false);
-            return self.finish_node(module_tag, pos, None).alloc(self);
+            return self.finish_node(module_tag, pos, None).alloc(self.arena());
         }
 
         let has_dot_dot_dot = self.parse_optional(SyntaxKind::DotDotDotToken);
@@ -98,7 +98,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
         }
         if self.token() == SyntaxKind::EqualsToken {
             self.next_token();
@@ -108,7 +108,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
         }
         type_
     }
@@ -118,7 +118,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::TypeOfKeyword, None, None);
         self.finish_node(
             self.factory()
-                .create_type_query_node_raw(self.parse_entity_name(true, None).alloc(self)),
+                .create_type_query_node_raw(self.parse_entity_name(true, None).alloc(self.arena())),
             pos,
             None,
         )
@@ -143,7 +143,7 @@ impl ParserType {
             None
         };
         let mut node = self.factory().create_type_parameter_declaration_raw(
-            name.alloc(self),
+            name.alloc(self.arena()),
             constraint,
             default_type,
         );
@@ -157,7 +157,7 @@ impl ParserType {
         if self.token() == SyntaxKind::LessThanToken {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeParameters,
-                || self.parse_type_parameter().alloc(self),
+                || self.parse_type_parameter().alloc(self.arena()),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ));
@@ -220,7 +220,7 @@ impl ParserType {
                 decorators.clone(),
                 Option::<Gc<NodeArray>>::None,
                 None,
-                Some(self.create_identifier(true, None, None).alloc(self)),
+                Some(self.create_identifier(true, None, None).alloc(self.arena())),
                 None,
                 self.parse_type_annotation(),
                 None,
@@ -234,7 +234,7 @@ impl ParserType {
                 );
             }
 
-            return self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc);
+            return self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc);
         }
 
         let saved_top_level = self.top_level();
@@ -250,16 +250,16 @@ impl ParserType {
                 self.factory().create_parameter_declaration_raw(
                     decorators,
                     modifiers,
-                    dot_dot_dot_token.map(|node| node.alloc(self)),
+                    dot_dot_dot_token.map(|node| node.alloc(self.arena())),
                     Some(name),
-                    question_token.map(|node| node.alloc(self)),
+                    question_token.map(|node| node.alloc(self.arena())),
                     type_annotation,
                     initializer,
                 ),
                 pos,
                 None,
             )
-            .alloc(self),
+            .alloc(self.arena()),
             has_jsdoc,
         );
         self.set_top_level(saved_top_level);
@@ -311,7 +311,7 @@ impl ParserType {
         let parameters = if flags.intersects(SignatureFlags::JSDoc) {
             self.parse_delimited_list(
                 ParsingContext::JSDocParameters,
-                || self.parse_jsdoc_parameter().alloc(self),
+                || self.parse_jsdoc_parameter().alloc(self.arena()),
                 None,
             )
         } else {
@@ -376,7 +376,7 @@ impl ParserType {
                 .create_construct_signature_raw(type_parameters, parameters, type_)
                 .into()
         };
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn is_index_signature(&self) -> bool {
@@ -440,7 +440,7 @@ impl ParserType {
         let node = self
             .factory()
             .create_index_signature_raw(decorators, modifiers, parameters, type_);
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn parse_property_or_method_signature(
@@ -463,8 +463,8 @@ impl ParserType {
                 .factory()
                 .create_method_signature_raw(
                     modifiers,
-                    Some(name.alloc(self)),
-                    question_token.map(|question_token| question_token.alloc(self)),
+                    Some(name.alloc(self.arena())),
+                    question_token.map(|question_token| question_token.alloc(self.arena())),
                     type_parameters,
                     Some(parameters),
                     type_,
@@ -474,8 +474,8 @@ impl ParserType {
             let type_ = self.parse_type_annotation();
             let mut node_as_property_signature = self.factory().create_property_signature_raw(
                 modifiers,
-                name.alloc(self),
-                question_token.map(|question_token| question_token.alloc(self)),
+                name.alloc(self.arena()),
+                question_token.map(|question_token| question_token.alloc(self.arena())),
                 type_,
             );
             if self.token() == SyntaxKind::EqualsToken {
@@ -484,7 +484,7 @@ impl ParserType {
             node = node_as_property_signature.into();
         }
         self.parse_type_member_semicolon();
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn is_type_member_start(&self) -> bool {
@@ -626,7 +626,7 @@ impl ParserType {
         let type_ = self.parse_type();
         self.finish_node(
             self.factory()
-                .create_type_parameter_declaration_raw(name.alloc(self), Some(type_), None),
+                .create_type_parameter_declaration_raw(name.alloc(self.arena()), Some(type_), None),
             pos,
             None,
         )
@@ -671,10 +671,10 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         self.finish_node(
             self.factory().create_mapped_type_node_raw(
-                readonly_token.map(|readonly_token| readonly_token.alloc(self)),
-                type_parameter.alloc(self),
+                readonly_token.map(|readonly_token| readonly_token.alloc(self.arena())),
+                type_parameter.alloc(self.arena()),
                 name_type,
-                question_token.map(|question_token| question_token.alloc(self)),
+                question_token.map(|question_token| question_token.alloc(self.arena())),
                 type_,
                 Some(members),
             ),
@@ -692,7 +692,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
         }
         let type_ = self.parse_type();
         if is_jsdoc_nullable_type(&type_.ref_(self)) {
@@ -704,7 +704,7 @@ impl ParserType {
                     .into();
                 set_text_range(&node, Some(&*type_.ref_(self)));
                 node.set_flags(type_.ref_(self).flags());
-                return node.alloc(self);
+                return node.alloc(self.arena());
             }
         }
         return type_;
@@ -734,12 +734,12 @@ impl ParserType {
             self.parse_expected(SyntaxKind::ColonToken, None, None);
             let type_ = self.parse_tuple_element_type();
             let node = self.factory().create_named_tuple_member_raw(
-                dot_dot_dot_token.map(|dot_dot_dot_token| dot_dot_dot_token.alloc(self)),
-                name.alloc(self),
-                question_token.map(|question_token| question_token.alloc(self)),
+                dot_dot_dot_token.map(|dot_dot_dot_token| dot_dot_dot_token.alloc(self.arena())),
+                name.alloc(self.arena()),
+                question_token.map(|question_token| question_token.alloc(self.arena())),
                 type_,
             );
-            return self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc);
+            return self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc);
         }
         self.parse_tuple_element_type()
     }
@@ -783,7 +783,7 @@ impl ParserType {
                 pos,
                 None,
             );
-            modifiers = Some(self.create_node_array(vec![modifier.alloc(self)], pos, None, None));
+            modifiers = Some(self.create_node_array(vec![modifier.alloc(self.arena())], pos, None, None));
         }
         modifiers
     }
@@ -810,7 +810,7 @@ impl ParserType {
             // }
             function_type_node
         };
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 
     pub(super) fn parse_keyword_and_no_dot(&self) -> Option<Node /*TypeNode*/> {
@@ -837,7 +837,7 @@ impl ParserType {
         if negative {
             expression = self.finish_node(
                 self.factory()
-                    .create_prefix_unary_expression_raw(SyntaxKind::MinusToken, expression.alloc(self))
+                    .create_prefix_unary_expression_raw(SyntaxKind::MinusToken, expression.alloc(self.arena()))
                     .into(),
                 pos,
                 None,
@@ -845,7 +845,7 @@ impl ParserType {
         }
         self.finish_node(
             self.factory()
-                .create_literal_type_node_raw(expression.alloc(self)),
+                .create_literal_type_node_raw(expression.alloc(self.arena())),
             pos,
             None,
         )
@@ -873,7 +873,7 @@ impl ParserType {
         self.finish_node(
             self.factory().create_import_type_node_raw(
                 type_,
-                qualifier.map(|qualifier| qualifier.alloc(self)),
+                qualifier.map(|qualifier| qualifier.alloc(self.arena())),
                 type_arguments,
                 Some(is_type_of),
             ),
@@ -902,72 +902,72 @@ impl ParserType {
             | SyntaxKind::UndefinedKeyword
             | SyntaxKind::NeverKeyword
             | SyntaxKind::ObjectKeyword => self
-                .try_parse(|| self.parse_keyword_and_no_dot().map(|node| node.alloc(self)))
-                .unwrap_or_else(|| self.parse_type_reference().alloc(self)),
+                .try_parse(|| self.parse_keyword_and_no_dot().map(|node| node.alloc(self.arena())))
+                .unwrap_or_else(|| self.parse_type_reference().alloc(self.arena())),
             SyntaxKind::AsteriskEqualsToken => {
                 self.scanner().re_scan_asterisk_equals_token();
-                self.parse_jsdoc_all_type().alloc(self)
+                self.parse_jsdoc_all_type().alloc(self.arena())
             }
-            SyntaxKind::AsteriskToken => self.parse_jsdoc_all_type().alloc(self),
+            SyntaxKind::AsteriskToken => self.parse_jsdoc_all_type().alloc(self.arena()),
             SyntaxKind::QuestionQuestionToken => {
                 self.scanner().re_scan_question_token();
-                self.parse_jsdoc_unknown_or_nullable_type().alloc(self)
+                self.parse_jsdoc_unknown_or_nullable_type().alloc(self.arena())
             }
-            SyntaxKind::QuestionToken => self.parse_jsdoc_unknown_or_nullable_type().alloc(self),
+            SyntaxKind::QuestionToken => self.parse_jsdoc_unknown_or_nullable_type().alloc(self.arena()),
             SyntaxKind::FunctionKeyword => self.parse_jsdoc_function_type(),
-            SyntaxKind::ExclamationToken => self.parse_jsdoc_non_nullable_type().alloc(self),
+            SyntaxKind::ExclamationToken => self.parse_jsdoc_non_nullable_type().alloc(self.arena()),
             SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::StringLiteral
             | SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
             | SyntaxKind::TrueKeyword
             | SyntaxKind::FalseKeyword
-            | SyntaxKind::NullKeyword => self.parse_literal_type_node(None).alloc(self),
+            | SyntaxKind::NullKeyword => self.parse_literal_type_node(None).alloc(self.arena()),
             SyntaxKind::MinusToken => {
                 if self.look_ahead_bool(|| self.next_token_is_numeric_or_big_int_literal()) {
-                    self.parse_literal_type_node(Some(true)).alloc(self)
+                    self.parse_literal_type_node(Some(true)).alloc(self.arena())
                 } else {
-                    self.parse_type_reference().alloc(self)
+                    self.parse_type_reference().alloc(self.arena())
                 }
             }
-            SyntaxKind::VoidKeyword => self.parse_token_node().alloc(self),
+            SyntaxKind::VoidKeyword => self.parse_token_node().alloc(self.arena()),
             SyntaxKind::ThisKeyword => {
                 let this_keyword = self.parse_this_type_node();
                 if self.token() == SyntaxKind::IsKeyword
                     && !self.scanner().has_preceding_line_break()
                 {
-                    self.parse_this_type_predicate(this_keyword.alloc(self)).alloc(self)
+                    self.parse_this_type_predicate(this_keyword.alloc(self.arena())).alloc(self.arena())
                 } else {
-                    this_keyword.alloc(self)
+                    this_keyword.alloc(self.arena())
                 }
             }
             SyntaxKind::TypeOfKeyword => {
                 if self.look_ahead_bool(|| self.is_start_of_type_of_import_type()) {
-                    self.parse_import_type().alloc(self)
+                    self.parse_import_type().alloc(self.arena())
                 } else {
-                    self.parse_type_query().alloc(self)
+                    self.parse_type_query().alloc(self.arena())
                 }
             }
             SyntaxKind::OpenBraceToken => {
                 if self.look_ahead_bool(|| self.is_start_of_mapped_type()) {
-                    self.parse_mapped_type().alloc(self)
+                    self.parse_mapped_type().alloc(self.arena())
                 } else {
-                    self.parse_type_literal().alloc(self)
+                    self.parse_type_literal().alloc(self.arena())
                 }
             }
-            SyntaxKind::OpenBracketToken => self.parse_tuple_type().alloc(self),
-            SyntaxKind::OpenParenToken => self.parse_parenthesized_type().alloc(self),
-            SyntaxKind::ImportKeyword => self.parse_import_type().alloc(self),
+            SyntaxKind::OpenBracketToken => self.parse_tuple_type().alloc(self.arena()),
+            SyntaxKind::OpenParenToken => self.parse_parenthesized_type().alloc(self.arena()),
+            SyntaxKind::ImportKeyword => self.parse_import_type().alloc(self.arena()),
             SyntaxKind::AssertsKeyword => {
                 if self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword_on_same_line())
                 {
-                    self.parse_asserts_type_predicate().alloc(self)
+                    self.parse_asserts_type_predicate().alloc(self.arena())
                 } else {
-                    self.parse_type_reference().alloc(self)
+                    self.parse_type_reference().alloc(self.arena())
                 }
             }
-            SyntaxKind::TemplateHead => self.parse_template_type().alloc(self),
-            _ => self.parse_type_reference().alloc(self),
+            SyntaxKind::TemplateHead => self.parse_template_type().alloc(self.arena()),
+            _ => self.parse_type_reference().alloc(self.arena()),
         }
     }
 
@@ -1044,7 +1044,7 @@ impl ParserType {
                             pos,
                             None,
                         )
-                        .alloc(self);
+                        .alloc(self.arena());
                 }
                 SyntaxKind::QuestionToken => {
                     if self.look_ahead_bool(|| self.next_token_is_start_of_type()) {
@@ -1057,7 +1057,7 @@ impl ParserType {
                             pos,
                             None,
                         )
-                        .alloc(self);
+                        .alloc(self.arena());
                 }
                 SyntaxKind::OpenBracketToken => {
                     self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
@@ -1071,7 +1071,7 @@ impl ParserType {
                                 pos,
                                 None,
                             )
-                            .alloc(self);
+                            .alloc(self.arena());
                     } else {
                         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
                         type_ = self
@@ -1080,7 +1080,7 @@ impl ParserType {
                                 pos,
                                 None,
                             )
-                            .alloc(self);
+                            .alloc(self.arena());
                     }
                 }
                 _ => {
@@ -1109,7 +1109,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.finish_node(
             self.factory().create_type_parameter_declaration_raw(
-                self.parse_identifier(None, None).alloc(self),
+                self.parse_identifier(None, None).alloc(self.arena()),
                 None,
                 None,
             ),
@@ -1123,7 +1123,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::InferKeyword, None, None);
         self.finish_node(
             self.factory()
-                .create_infer_type_node_raw(self.parse_type_parameter_of_infer_type().alloc(self)),
+                .create_infer_type_node_raw(self.parse_type_parameter_of_infer_type().alloc(self.arena())),
             pos,
             None,
         )
@@ -1133,9 +1133,9 @@ impl ParserType {
         let operator = self.token();
         match operator {
             SyntaxKind::KeyOfKeyword | SyntaxKind::UniqueKeyword | SyntaxKind::ReadonlyKeyword => {
-                self.parse_type_operator(operator).alloc(self)
+                self.parse_type_operator(operator).alloc(self.arena())
             }
-            SyntaxKind::InferKeyword => self.parse_infer_type().alloc(self),
+            SyntaxKind::InferKeyword => self.parse_infer_type().alloc(self.arena()),
             _ => self.parse_postfix_type_or_higher(),
         }
     }
@@ -1195,7 +1195,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .alloc(self),
+                .alloc(self.arena()),
             );
         }
         type_.unwrap()
@@ -1295,13 +1295,13 @@ impl ParserType {
             self.finish_node(
                 self.factory().create_type_predicate_node_raw(
                     None,
-                    type_predicate_variable.alloc(self),
+                    type_predicate_variable.alloc(self.arena()),
                     Some(type_),
                 ),
                 pos,
                 None,
             )
-            .alloc(self)
+            .alloc(self.arena())
         } else {
             type_
         }

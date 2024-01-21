@@ -204,7 +204,7 @@ pub(super) fn try_visit_nodes<TError>(
 
 pub(super) fn visit_nodes_returns<TReturn>(
     cb_node: &mut impl FnMut(Id<Node>) -> Option<TReturn>,
-    cb_nodes: Option<&mut FnMut(&NodeArray) -> Option<TReturn>>,
+    cb_nodes: Option<&mut impl FnMut(&NodeArray) -> Option<TReturn>>,
     nodes: Option<&NodeArray>,
 ) -> Option<TReturn> {
     if let Some(nodes) = nodes {
@@ -226,8 +226,8 @@ pub(super) fn visit_nodes_returns<TReturn>(
 }
 
 pub(super) fn try_visit_nodes_returns<TReturn, TError>(
-    cb_node: &mut FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
-    cb_nodes: Option<&mut FnMut(&NodeArray) -> Result<Option<TReturn>, TError>>,
+    cb_node: &mut impl FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
+    cb_nodes: Option<&mut impl FnMut(&NodeArray) -> Result<Option<TReturn>, TError>>,
     nodes: Option<&NodeArray>,
 ) -> Result<Option<TReturn>, TError> {
     if let Some(nodes) = nodes {

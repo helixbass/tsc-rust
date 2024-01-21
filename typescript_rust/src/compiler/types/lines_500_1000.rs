@@ -68,7 +68,7 @@ use crate::{
     HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
     JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange, SyntheticExpression,
     SyntheticReferenceExpression, UnparsedSyntheticReference,
-    HasArena, InArena,
+    HasArena, InArena, AllArenas,
 };
 
 bitflags! {
@@ -177,7 +177,7 @@ pub type NodeId = usize;
 pub trait NodeInterface: ReadonlyTextRange {
     fn arena_id(&self) -> Id<Node>;
     fn set_arena_id(&self, id: Id<Node>);
-    fn alloc(self, arena: &impl HasArena) -> Id<Node>;
+    fn alloc(self, arena: &AllArenas) -> Id<Node>;
     fn kind(&self) -> SyntaxKind;
     fn modifier_flags_cache(&self) -> ModifierFlags;
     fn set_modifier_flags_cache(&self, flags: ModifierFlags);
@@ -1816,7 +1816,7 @@ impl NodeInterface for BaseNode {
         self._arena_id.set(Some(id));
     }
 
-    fn alloc(self, arena: &impl HasArena) -> Id<Node> {
+    fn alloc(self, arena: &AllArenas) -> Id<Node> {
         let id = arena.alloc_node(self.into());
         arena.node(id).set_arena_id(id);
         id

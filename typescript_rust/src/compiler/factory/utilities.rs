@@ -1079,7 +1079,8 @@ pub fn get_target_of_binding_or_assignment_element(
 
 pub fn get_elements_of_binding_or_assignment_pattern(
     name: &Node, /*BindingOrAssignmentPattern*/
-) -> impl Iterator<Item = Id<Node /*BindingOrAssignmentElement*/>> {
+// ) -> impl Iterator<Item = Id<Node /*BindingOrAssignmentElement*/>> {
+) -> Vec<Id<Node>> {
     match name.kind() {
         SyntaxKind::ObjectBindingPattern
         | SyntaxKind::ArrayBindingPattern

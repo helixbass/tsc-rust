@@ -70,15 +70,14 @@ pub struct IncrementalParserSyntaxCursorCreated {
 }
 
 impl IncrementalParserSyntaxCursorCreated {
-    pub fn new(source_file: Id<Node>) -> Self {
-        let source_file_ref = source_file.ref_(self);
-        let source_file_as_source_file = source_file_ref.as_source_file();
+    pub fn new(source_file: &Node) -> Self {
+        let source_file_as_source_file = source_file.as_source_file();
         let current_array = source_file_as_source_file.statements();
         let current_array_index = 0;
 
         Debug_.assert(current_array_index < current_array.len(), None);
         Self {
-            source_file: source_file.clone(),
+            source_file: source_file.arena_id(),
             current_array: GcCell::new(Some(current_array.clone())),
             current_array_index: Cell::new(Some(current_array_index)),
             current: GcCell::new(Some(current_array[current_array_index].clone())),

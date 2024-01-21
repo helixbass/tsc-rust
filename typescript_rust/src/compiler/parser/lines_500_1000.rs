@@ -759,7 +759,7 @@ impl ParserType {
             self.token() == SyntaxKind::EndOfFileToken && self.parse_diagnostics().is_empty();
         self.clear_state();
         if is_invalid {
-            Some(entity_name.alloc(self))
+            Some(entity_name.alloc(self.arena()))
         } else {
             None
         }
@@ -790,39 +790,39 @@ impl ParserType {
         let end_of_file_token: Id<Node>;
         if self.token() == SyntaxKind::EndOfFileToken {
             statements = self.create_node_array(vec![], pos, Some(pos), None);
-            end_of_file_token = self.parse_token_node().alloc(self);
+            end_of_file_token = self.parse_token_node().alloc(self.arena());
         } else {
             let mut expressions: Option<Vec<Id<Node>>> = None;
             while self.token() != SyntaxKind::EndOfFileToken {
                 let expression: Id<Node>;
                 match self.token() {
                     SyntaxKind::OpenBracketToken => {
-                        expression = self.parse_array_literal_expression().alloc(self);
+                        expression = self.parse_array_literal_expression().alloc(self.arena());
                     }
                     SyntaxKind::TrueKeyword
                     | SyntaxKind::FalseKeyword
                     | SyntaxKind::NullKeyword => {
-                        expression = self.parse_token_node().alloc(self);
+                        expression = self.parse_token_node().alloc(self.arena());
                     }
                     SyntaxKind::MinusToken => {
                         if self.look_ahead_bool(|| {
                             self.next_token() == SyntaxKind::NumericLiteral
                                 && self.next_token() != SyntaxKind::ColonToken
                         }) {
-                            expression = self.parse_prefix_unary_expression().alloc(self);
+                            expression = self.parse_prefix_unary_expression().alloc(self.arena());
                         } else {
-                            expression = self.parse_object_literal_expression().alloc(self);
+                            expression = self.parse_object_literal_expression().alloc(self.arena());
                         }
                     }
                     SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
                         if self.look_ahead_bool(|| self.next_token() != SyntaxKind::ColonToken) {
-                            expression = self.parse_literal_node().alloc(self);
+                            expression = self.parse_literal_node().alloc(self.arena());
                         } else {
-                            expression = self.parse_object_literal_expression().alloc(self);
+                            expression = self.parse_object_literal_expression().alloc(self.arena());
                         }
                     }
                     _ => {
-                        expression = self.parse_object_literal_expression().alloc(self);
+                        expression = self.parse_object_literal_expression().alloc(self.arena());
                     }
                 }
 
@@ -847,19 +847,19 @@ impl ParserType {
                         pos,
                         None,
                     )
-                    .alloc(self),
+                    .alloc(self.arena()),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
             let statement = self.factory().create_expression_statement_raw(expression);
             let statement = self.finish_node(statement, pos, None);
-            statements = self.create_node_array(vec![statement.alloc(self)], pos, None, None);
+            statements = self.create_node_array(vec![statement.alloc(self.arena())], pos, None, None);
             end_of_file_token = self
                 .parse_expected_token(
                     SyntaxKind::EndOfFileToken,
                     Some(&Diagnostics::Unexpected_token),
                     None,
                 )
-                .alloc(self);
+                .alloc(self.arena());
         }
 
         let source_file = self.create_source_file(
