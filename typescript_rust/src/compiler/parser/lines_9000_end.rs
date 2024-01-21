@@ -23,7 +23,7 @@ use crate::{
 impl IncrementalParserType {
     pub fn create_syntax_cursor(
         &self,
-        source_file: Id<Node>, /*SourceFile*/
+        source_file: &Node, /*SourceFile*/
     ) -> IncrementalParserSyntaxCursor {
         IncrementalParserSyntaxCursor::create(source_file)
     }

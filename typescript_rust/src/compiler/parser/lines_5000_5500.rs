@@ -168,7 +168,7 @@ impl ParserType {
                         );
                     } else {
                         self.parse_error_at_range(
-                            &*closing_element_as_jsx_closing_element.tag_name,
+                            &*closing_element_as_jsx_closing_element.tag_name.ref_(self),
                             &Diagnostics::Expected_corresponding_JSX_closing_tag_for_0,
                             Some(vec![get_text_of_node_from_source_text(
                                 &self.source_text_as_chars(),
@@ -277,7 +277,7 @@ impl ParserType {
                         skip_trivia(&self.source_text_as_chars(), tag.ref_(self).pos(), None, None, None);
                     self.parse_error_at(
                         start,
-                        tag.end(),
+                        tag.ref_(self).end(),
                         &Diagnostics::JSX_element_0_has_no_corresponding_closing_tag,
                         Some(vec![get_text_of_node_from_source_text(
                             &self.source_text_as_chars(),
@@ -792,7 +792,7 @@ impl ParserType {
             },
         );
         if question_dot_token.is_some() || tag.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
-            tag_expression.set_flags(tag_expression.ref_(self).flags() | NodeFlags::OptionalChain);
+            tag_expression.set_flags(tag_expression.flags() | NodeFlags::OptionalChain);
         }
         tag_expression.question_dot_token = question_dot_token;
         self.finish_node(tag_expression, pos, None).alloc(self.arena())

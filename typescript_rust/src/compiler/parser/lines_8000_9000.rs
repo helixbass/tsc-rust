@@ -195,7 +195,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 is_identifier(&node_as_type_reference_node.type_name.ref_(self))
                     && &*node_as_type_reference_node
                         .type_name
-                        .as_identifier()
+                        .ref_(self).as_identifier()
                         .escaped_text
                         == "Object"
                     && node_as_type_reference_node.maybe_type_arguments().is_none()
@@ -235,7 +235,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         );
 
         let nested_type_literal = if target != PropertyLikeParse::CallbackParameter {
-            self.parse_nested_type_literal(type_expression.clone(), &name, target, indent)
+            self.parse_nested_type_literal(type_expression.clone(), name, target, indent)
         } else {
             None
         };
@@ -731,7 +731,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 .try_parse(|| self.parse_child_property_tag(indent).map(|node| node.alloc(self.arena())))
             {
                 has_children = true;
-                if child.kind() == SyntaxKind::JSDocTypeTag {
+                if child.ref_(self).kind() == SyntaxKind::JSDocTypeTag {
                     if child_type_tag.is_some() {
                         self.parser.parse_error_at_current_token(&Diagnostics::A_JSDoc_typedef_comment_may_not_contain_multiple_type_tags, None);
                         let parse_diagnostics = self.parser.parse_diagnostics();
@@ -797,9 +797,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 self.parser.get_node_pos()
             } else {
                 full_name
-                    .as_ref()
-                    .unwrap_or_else(|| type_expression.as_ref().unwrap_or_else(|| &tag_name))
-                    .end()
+                    .unwrap_or(type_expression.unwrap_or(tag_name))
+                    .ref_(self).end()
             },
         );
         let end = end.unwrap();
@@ -974,12 +973,15 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         let child = self.try_parse_child_tag(target, indent);
                         if matches!(
                             child.as_ref(),
-                            Some(child) if matches!(child.kind(), SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag) &&
+                            Some(child) if matches!(
+                                child.kind(),
+                                SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag
+                            ) &&
                                 target != PropertyLikeParse::CallbackParameter &&
                                 matches!(
                                     name,
-                                    Some(name) if is_identifier(&child.ref_(self).as_jsdoc_property_like_tag().name.ref_(self)) ||
-                                        !self.escaped_texts_equal(name, child.ref_(self).as_jsdoc_property_like_tag().name.ref_(self).as_qualified_name().left)
+                                    Some(name) if is_identifier(&child.as_jsdoc_property_like_tag().name.ref_(self)) ||
+                                        !self.escaped_texts_equal(name, child.as_jsdoc_property_like_tag().name.ref_(self).as_qualified_name().left)
                                 )
                         ) {
                             return None;
@@ -1074,7 +1076,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 .parse_expected(SyntaxKind::CloseBracketToken, None, None);
         }
 
-        if node_is_missing(Some(&*name)) {
+        if node_is_missing(Some(&name.ref_(self))) {
             return None;
         }
         Some(

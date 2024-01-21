@@ -702,7 +702,7 @@ impl ParserType {
             check_identifier_end = self.scanner().get_text_pos();
             self.parse_identifier_name(None)
         };
-        if name.as_identifier().escaped_text == "type" {
+        if name.ref_(self).as_identifier().escaped_text == "type" {
             if self.token() == SyntaxKind::AsKeyword {
                 let first_as: Id<Node> = self.parse_identifier_name(None).alloc(self.arena());
                 if self.token() == SyntaxKind::AsKeyword {

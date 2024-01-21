@@ -51,7 +51,7 @@ impl ParserType {
         let source_file_ref = source_file.ref_(self);
         let source_file_as_source_file = source_file_ref.as_source_file();
         source_file_as_source_file.set_external_module_indicator(
-            for_each(&source_file_as_source_file.statements(), |statement, _| {
+            for_each(&source_file_as_source_file.statements(), |&statement, _| {
                 self.is_an_external_module_indicator_node(statement)
             })
             .or_else(|| self.get_import_meta_if_necessary(source_file)),

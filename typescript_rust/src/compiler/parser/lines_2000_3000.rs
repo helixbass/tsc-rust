@@ -429,7 +429,7 @@ impl ParserType {
                     && matches!(
                         method_declaration
                             .name()
-                            .as_identifier()
+                            .ref_(self).as_identifier()
                             .original_keyword_kind,
                         Some(SyntaxKind::ConstructorKeyword)
                     );
