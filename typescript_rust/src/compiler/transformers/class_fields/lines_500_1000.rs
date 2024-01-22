@@ -310,6 +310,7 @@ impl TransformClassFields {
                         node_as_for_statement.statement,
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
+                        self,
                     ),
                 )
                 .into(),

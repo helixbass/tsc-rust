@@ -459,6 +459,7 @@ impl TransformTypeScript {
                 Some(body),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?
             .unwrap());
         }

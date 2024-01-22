@@ -515,6 +515,7 @@ pub fn visit_parameter_list_full(
             updated = Some(add_default_value_assignments_if_needed(
                 updated.as_ref().unwrap(),
                 context,
+                arena,
             ));
         }
         context.set_lexical_environment_flags(LexicalEnvironmentFlags::InParameters, false);
@@ -600,6 +601,7 @@ pub fn try_visit_parameter_list_full(
             updated = Some(add_default_value_assignments_if_needed(
                 updated.as_ref().unwrap(),
                 context,
+                arena,
             ));
         }
         context.set_lexical_environment_flags(LexicalEnvironmentFlags::InParameters, false);
@@ -611,11 +613,12 @@ pub fn try_visit_parameter_list_full(
 fn add_default_value_assignments_if_needed(
     parameters: &NodeArray, /*<ParameterDeclaration>*/
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> Gc<NodeArray /*<ParameterDeclaration>*/> {
     let mut result: Option<Vec<Id<Node /*ParameterDeclaration*/>>> = _d();
     for (i, parameter) in parameters.iter().enumerate() {
         let parameter = *parameter;
-        let updated = add_default_value_assignment_if_needed(parameter, context);
+        let updated = add_default_value_assignment_if_needed(parameter, context, arena);
         if result.is_some() || updated != parameter {
             result
                 .get_or_insert_with(|| parameters[..i].to_owned())
@@ -636,16 +639,17 @@ fn add_default_value_assignments_if_needed(
 fn add_default_value_assignment_if_needed(
     parameter: Id<Node>, /*ParameterDeclaration*/
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    let parameter_ref = parameter.ref_(context);
+    let parameter_ref = parameter.ref_(arena);
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     if parameter_as_parameter_declaration
         .dot_dot_dot_token
         .is_some()
     {
         parameter
-    } else if is_binding_pattern(parameter_as_parameter_declaration.maybe_name().refed(context)) {
-        add_default_value_assignment_for_binding_pattern(parameter, context)
+    } else if is_binding_pattern(parameter_as_parameter_declaration.maybe_name().refed(arena)) {
+        add_default_value_assignment_for_binding_pattern(parameter, context, arena)
     } else if let Some(parameter_initializer) =
         parameter_as_parameter_declaration.maybe_initializer()
     {
@@ -654,6 +658,7 @@ fn add_default_value_assignment_if_needed(
             parameter_as_parameter_declaration.name(),
             parameter_initializer,
             context,
+            arena,
         )
     } else {
         parameter
@@ -663,8 +668,9 @@ fn add_default_value_assignment_if_needed(
 fn add_default_value_assignment_for_binding_pattern(
     parameter: Id<Node>, /*ParameterDeclaration*/
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    let parameter_ref = parameter.ref_(context);
+    let parameter_ref = parameter.ref_(arena);
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(factory.create_variable_statement(
@@ -706,8 +712,8 @@ fn add_default_value_assignment_for_binding_pattern(
     ));
     factory.update_parameter_declaration(
         parameter,
-        parameter.ref_(context).maybe_decorators(),
-        parameter.ref_(context).maybe_modifiers(),
+        parameter.ref_(arena).maybe_decorators(),
+        parameter.ref_(arena).maybe_modifiers(),
         parameter_as_parameter_declaration.dot_dot_dot_token,
         Some(factory.get_generated_name_for_node(Some(parameter), None)),
         parameter_as_parameter_declaration.question_token,
@@ -721,8 +727,9 @@ fn add_default_value_assignment_for_initializer(
     name: Id<Node>,        /*Identifier*/
     initializer: Id<Node>, /*Expression*/
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    let parameter_ref = parameter.ref_(context);
+    let parameter_ref = parameter.ref_(arena);
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(
@@ -735,34 +742,34 @@ fn add_default_value_assignment_for_initializer(
                             .create_assignment(
                                 factory
                                     .clone_node(name)
-                                    .set_emit_flags(EmitFlags::NoSourceMap, context),
+                                    .set_emit_flags(EmitFlags::NoSourceMap, arena),
                                 initializer.set_emit_flags(
                                     EmitFlags::NoSourceMap
-                                        | get_emit_flags(&initializer.ref_(context))
+                                        | get_emit_flags(&initializer.ref_(arena))
                                         | EmitFlags::NoComments,
-                                    context,
+                                    arena,
                                 ),
                             )
-                            .set_text_range(Some(&*parameter.ref_(context)), context)
-                            .set_emit_flags(EmitFlags::NoComments, context),
+                            .set_text_range(Some(&*parameter.ref_(arena)), arena)
+                            .set_emit_flags(EmitFlags::NoComments, arena),
                     )],
                     None,
                 )
-                .set_text_range(Some(&*parameter.ref_(context)), context)
+                .set_text_range(Some(&*parameter.ref_(arena)), arena)
                 .set_emit_flags(
                     EmitFlags::SingleLine
                         | EmitFlags::NoTrailingSourceMap
                         | EmitFlags::NoTokenSourceMaps
                         | EmitFlags::NoComments,
-                    context,
+                    arena,
                 ),
             None,
         ),
     );
     factory.update_parameter_declaration(
         parameter,
-        parameter.ref_(context).maybe_decorators(),
-        parameter.ref_(context).maybe_modifiers(),
+        parameter.ref_(arena).maybe_decorators(),
+        parameter.ref_(arena).maybe_modifiers(),
         parameter_as_parameter_declaration.dot_dot_dot_token,
         parameter_as_parameter_declaration.maybe_name(),
         parameter_as_parameter_declaration.question_token,
@@ -775,6 +782,7 @@ pub fn visit_function_body(
     node: Option<Id<Node> /*ConciseBody*/>,
     visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*ConciseBody*/>> {
     visit_function_body_full(
         node,
@@ -788,6 +796,7 @@ pub fn visit_function_body(
                 Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
             ) -> Option<Id<Node>>,
         >::None,
+        arena,
     )
 }
 
@@ -803,6 +812,7 @@ pub fn visit_function_body_full(
             Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
         ) -> Option<Id<Node>>,
     >,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*ConciseBody*/>> {
     context.resume_lexical_environment();
     let mut node_visitor = |node: Option<Id<Node>>,
@@ -821,7 +831,7 @@ pub fn visit_function_body_full(
             )
         }
     };
-    let updated = node_visitor(node, Some(&mut visitor), Some(&|node: Id<Node>| is_concise_body(node, context)), None);
+    let updated = node_visitor(node, Some(&mut visitor), Some(&|node: Id<Node>| is_concise_body(node, arena)), None);
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
         if updated.is_none() {
@@ -833,7 +843,7 @@ pub fn visit_function_body_full(
             .converters()
             .convert_to_function_block(updated, None);
         let statements = get_factory()
-            .merge_lexical_environment(block.ref_(context).as_block().statements.clone(), Some(&declarations))
+            .merge_lexical_environment(block.ref_(arena).as_block().statements.clone(), Some(&declarations))
             .as_node_array();
         return Some(context.factory().update_block(block, statements));
     }
@@ -844,6 +854,7 @@ pub fn try_visit_function_body(
     node: Option<Id<Node> /*ConciseBody*/>,
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> io::Result<Option<Id<Node /*ConciseBody*/>>> {
     try_visit_function_body_full(
         node,
@@ -857,6 +868,7 @@ pub fn try_visit_function_body(
                 Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
             ) -> io::Result<Option<Id<Node>>>,
         >::None,
+        arena,
     )
 }
 
@@ -872,6 +884,7 @@ pub fn try_visit_function_body_full(
             Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
         ) -> io::Result<Option<Id<Node>>>,
     >,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Id<Node /*ConciseBody*/>>> {
     context.resume_lexical_environment();
     let mut node_visitor =
@@ -891,7 +904,7 @@ pub fn try_visit_function_body_full(
                 )
             }
         };
-    let updated = node_visitor(node, Some(&mut visitor), Some(&|node: Id<Node>| is_concise_body(node, context)), None)?;
+    let updated = node_visitor(node, Some(&mut visitor), Some(&|node: Id<Node>| is_concise_body(node, arena)), None)?;
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
         if updated.is_none() {
@@ -903,7 +916,7 @@ pub fn try_visit_function_body_full(
             .converters()
             .convert_to_function_block(updated, None);
         let statements = get_factory()
-            .merge_lexical_environment(block.ref_(context).as_block().statements.clone(), Some(&declarations))
+            .merge_lexical_environment(block.ref_(arena).as_block().statements.clone(), Some(&declarations))
             .as_node_array();
         return Ok(Some(context.factory().update_block(block, statements)));
     }
@@ -914,28 +927,30 @@ pub fn visit_iteration_body(
     body: Id<Node>, /*Statement*/
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> Id<Node /*Statement*/> {
-    try_visit_iteration_body(body, |a| Ok(visitor(a)), context).unwrap()
+    try_visit_iteration_body(body, |a| Ok(visitor(a)), context, arena).unwrap()
 }
 
 pub fn try_visit_iteration_body(
     body: Id<Node>, /*Statement*/
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
+    arena: &impl HasArena,
 ) -> io::Result<Id<Node /*Statement*/>> {
     context.start_block_scope();
     let updated = try_visit_node(
         body,
         Some(visitor),
-        Some(|node: Id<Node>| is_statement(node, context)),
+        Some(|node: Id<Node>| is_statement(node, arena)),
         Some(|nodes: &[Id<Node>]| context.factory().lift_to_block(nodes)),
     )?;
     let declarations = context.end_block_scope();
     if let Some(mut declarations) = declarations.non_empty()
     /*some(declarations)*/
     {
-        if is_block(&updated.ref_(context)) {
-            declarations.extend(updated.ref_(context).as_block().statements.iter().cloned());
+        if is_block(&updated.ref_(arena)) {
+            declarations.extend(updated.ref_(arena).as_block().statements.iter().cloned());
             return Ok(context.factory().update_block(updated, declarations));
         }
         declarations.push(updated);

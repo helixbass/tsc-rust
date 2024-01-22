@@ -60,6 +60,7 @@ impl TransformTypeScript {
                 node_as_method_declaration.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?,
         );
         if updated != node {
@@ -114,6 +115,7 @@ impl TransformTypeScript {
                     node_as_get_accessor_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None)),
             ),
@@ -161,6 +163,7 @@ impl TransformTypeScript {
                     node_as_set_accessor_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None)),
             ),
@@ -215,6 +218,7 @@ impl TransformTypeScript {
                     node_as_function_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None)),
             ),
@@ -260,6 +264,7 @@ impl TransformTypeScript {
                 node_as_function_expression.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?
             .unwrap_or_else(|| self.factory.create_block(vec![], None)),
         );
@@ -295,6 +300,7 @@ impl TransformTypeScript {
                 node_as_arrow_function.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?
             .unwrap(),
         );

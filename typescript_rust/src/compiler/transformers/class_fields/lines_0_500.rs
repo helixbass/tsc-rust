@@ -945,6 +945,7 @@ impl TransformClassFields {
                             Some(node_as_function_like_declaration.maybe_body().unwrap()),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &**self.context,
+                            self,
                         )
                         .unwrap(),
                     ),

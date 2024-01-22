@@ -544,6 +544,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             node_visitor(node, visitor, lift, test)
                         }),
+                        arena,
                     )?,
                 ),
             )
@@ -661,6 +662,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             node_visitor(node, visitor, lift, test)
                         }),
+                        arena,
                     )?,
                 )
             )
@@ -720,6 +722,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             node_visitor(node, visitor, lift, test)
                         }),
+                        arena,
                     )?,
                 )
             )
@@ -758,6 +761,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             node_visitor(node, visitor, lift, test)
                         }),
+                        arena,
                     )?.unwrap(),
                 )
             )
@@ -1876,6 +1880,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             node_visitor(node, visitor, lift, test)
                         }),
+                        arena,
                     )?.unwrap(),
                 )
             )
@@ -1947,6 +1952,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             node_visitor(node, visitor, lift, test)
                         }),
+                        arena,
                     )?.unwrap(),
                 )
             )
@@ -2467,6 +2473,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_do_statement.statement,
                         |node: Id<Node>| visitor(node),
                         context,
+                        arena,
                     )?,
                     node_visitor(
                         Some(node_as_do_statement.expression),
@@ -2495,6 +2502,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_while_statement.statement,
                         |node: Id<Node>| visitor(node),
                         context,
+                        arena,
                     )?,
                 ),
             )
@@ -2526,6 +2534,7 @@ pub fn try_maybe_visit_each_child_full(
                     node_as_for_statement.statement,
                     |node: Id<Node>| visitor(node),
                     context,
+                    arena,
                 )?,
             ))
         }
@@ -2553,6 +2562,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_for_in_statement.statement,
                         |node: Id<Node>| visitor(node),
                         context,
+                        arena,
                     )?,
                 ),
             )
@@ -2593,6 +2603,7 @@ pub fn try_maybe_visit_each_child_full(
                         node_as_for_of_statement.statement,
                         |node: Id<Node>| visitor(node),
                         context,
+                        arena,
                     )?,
                 ),
             )
@@ -2882,6 +2893,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             node_visitor(node, visitor, lift, test)
                         }),
+                        arena,
                     )?,
                 )
             )

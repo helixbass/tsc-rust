@@ -523,6 +523,7 @@ impl TransformES2017 {
                 node_as_for_in_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
+                self,
             )?,
         ))
     }
@@ -567,6 +568,7 @@ impl TransformES2017 {
                 node_as_for_of_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
+                self,
             )?,
         ))
     }
@@ -609,6 +611,7 @@ impl TransformES2017 {
                 node_as_for_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
                 &**self.context,
+                self,
             )?,
         ))
     }
@@ -679,6 +682,7 @@ impl TransformES2017 {
                     node_as_method_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?
             },
         ))
@@ -720,6 +724,7 @@ impl TransformES2017 {
                             node_as_function_declaration.maybe_body(),
                             |node: Id<Node>| self.visitor(node),
                             &**self.context,
+                            self,
                         )?
                     },
                 )
@@ -760,6 +765,7 @@ impl TransformES2017 {
                     node_as_function_expression.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?
                 .unwrap()
             },
@@ -795,6 +801,7 @@ impl TransformES2017 {
                     node_as_arrow_function.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &**self.context,
+                    self,
                 )?
                 .unwrap()
             },

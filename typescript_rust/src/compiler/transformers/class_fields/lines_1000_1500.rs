@@ -477,7 +477,7 @@ impl TransformClassFields {
             !properties.is_empty() || !private_methods_and_accessors.is_empty();
 
         if constructor.is_none() && !needs_constructor_body {
-            return visit_function_body(None, |node: Id<Node>| self.visitor(node), &**self.context);
+            return visit_function_body(None, |node: Id<Node>| self.visitor(node), &**self.context, self);
         }
 
         self.context.resume_lexical_environment();

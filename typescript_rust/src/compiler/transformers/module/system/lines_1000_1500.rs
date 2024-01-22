@@ -247,6 +247,7 @@ impl TransformSystemModule {
                     }
                 },
                 &**self.context,
+                self,
             )?,
         );
 
@@ -276,6 +277,7 @@ impl TransformSystemModule {
                 node_as_for_in_statement.statement,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
                 &**self.context,
+                self,
             )?,
         );
 
@@ -306,6 +308,7 @@ impl TransformSystemModule {
                 node_as_for_of_statement.statement,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
                 &**self.context,
+                self,
             )?,
         );
 
@@ -367,6 +370,7 @@ impl TransformSystemModule {
                         node_as_do_statement.statement,
                         |node: Id<Node>| self.top_level_nested_visitor(node),
                         &**self.context,
+                        self,
                     )?,
                     try_visit_node(
                         node_as_do_statement.expression,
@@ -399,6 +403,7 @@ impl TransformSystemModule {
                         node_as_while_statement.statement,
                         |node: Id<Node>| self.top_level_nested_visitor(node),
                         &**self.context,
+                        self,
                     )?,
                 )
                 .into(),

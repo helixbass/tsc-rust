@@ -1153,6 +1153,7 @@ impl TransformES2018 {
                         node_as_for_statement.statement,
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
+                        self,
                     ),
                 )
                 .into(),
@@ -1305,6 +1306,7 @@ impl TransformES2018 {
             node_as_for_of_statement.statement,
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         );
         if is_block(&statement.ref_(self)) {
             let statement_ref = statement.ref_(self);
