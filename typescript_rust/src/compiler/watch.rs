@@ -25,7 +25,7 @@ use crate::{
     ProjectReference, ReferenceFileLocationOrSyntheticReferenceFileLocation,
     ReportEmitErrorSummary, ResolvedProjectReference, ScriptReferenceHost, SortedArray,
     SourceFileLike, StringOrRcNode, System, WatchCompilerHost, WatchCompilerHostOfConfigFile,
-    WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback, AllArenas,
+    WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback, AllArenas, InArena,
 };
 
 thread_local! {
@@ -405,7 +405,7 @@ pub fn is_builder_program(program: &ProgramOrBuilderProgram) -> bool {
     matches!(program, ProgramOrBuilderProgram::BuilderProgram(_))
 }
 
-pub fn list_files<TWrite: FnMut(&str)>(program: ProgramOrBuilderProgram, mut write: TWrite) {
+pub fn list_files(program: ProgramOrBuilderProgram, mut write: impl FnMut(&str), arena: &impl HasArena) {
     let options = program.get_compiler_options();
     if matches!(options.explain_files, Some(true)) {
         explain_files(
@@ -420,13 +420,13 @@ pub fn list_files<TWrite: FnMut(&str)>(program: ProgramOrBuilderProgram, mut wri
         || matches!(options.list_files_only, Some(true))
     {
         for_each(program.get_source_files(), |file, _| {
-            write(&file.as_source_file().file_name());
+            write(&file.ref_(arena).as_source_file().file_name());
             Option::<()>::None
         });
     }
 }
 
-pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) {
+pub fn explain_files(program: &Program, mut write: impl FnMut(&str)) {
     let reasons = program.get_file_include_reasons();
     let get_canonical_file_name =
         create_get_canonical_file_name(program.use_case_sensitive_file_names());
@@ -436,10 +436,10 @@ pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) 
         })
     };
     for file in &*program.get_source_files() {
-        write(&to_file_name(file.clone(), Some(&relative_file_name)));
+        write(&to_file_name(file.clone(), Some(&relative_file_name), program));
         (*reasons)
             .borrow()
-            .get(&file.as_source_file().path())
+            .get(&file.ref_(program).as_source_file().path())
             .map(|reasons| {
                 reasons.iter().for_each(|reason| {
                     write(&format!(
@@ -454,7 +454,7 @@ pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) 
                     ))
                 })
             });
-        explain_if_file_is_redirect(file, Some(relative_file_name)).map(|diagnostics| {
+        explain_if_file_is_redirect(&file.ref_(program), Some(relative_file_name), program).map(|diagnostics| {
             diagnostics
                 .iter()
                 .for_each(|d| write(&format!("  {}", d.message_text)))
@@ -463,11 +463,13 @@ pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) 
 }
 
 pub fn explain_if_file_is_redirect(
-    file: &Node, /*SourceFile*/
+    file: Id<Node>, /*SourceFile*/
     file_name_convertor: Option<impl Fn(&str) -> String>,
+    arena: &impl HasArena,
 ) -> Option<Vec<DiagnosticMessageChain>> {
     let mut result: Option<Vec<DiagnosticMessageChain>> = None;
-    let file_as_source_file = file.as_source_file();
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     if file_as_source_file.maybe_path().as_ref()
         != file_as_source_file.maybe_resolved_path().as_ref()
     {
@@ -480,6 +482,7 @@ pub fn explain_if_file_is_redirect(
             Some(vec![to_file_name(
                 file_as_source_file.original_file_name().clone(),
                 file_name_convertor.as_ref(),
+                arena,
             )]),
         ));
     }
@@ -493,6 +496,7 @@ pub fn explain_if_file_is_redirect(
             Some(vec![to_file_name(
                 file_redirect_info.redirect_target.clone(),
                 file_name_convertor.as_ref(),
+                arena,
             )]),
         ));
     }
@@ -501,11 +505,11 @@ pub fn explain_if_file_is_redirect(
 
 pub fn get_matched_file_spec(program: &Program, file_name: &str) -> Option<String> {
     let program_compiler_options = program.get_compiler_options();
-    let config_file = program_compiler_options.config_file.as_ref();
+    let config_file = program_compiler_options.config_file;
     let config_file_config_file_specs_validated_files_spec = config_file
         .and_then(|config_file| {
             config_file
-                .as_source_file()
+                .ref_(program).as_source_file()
                 .maybe_config_file_specs()
                 .clone()
         })
@@ -514,7 +518,9 @@ pub fn get_matched_file_spec(program: &Program, file_name: &str) -> Option<Strin
     let get_canonical_file_name =
         create_get_canonical_file_name(program.use_case_sensitive_file_names());
     let file_path = get_canonical_file_name(file_name);
-    let config_file_as_source_file = config_file.unwrap().as_source_file();
+    let config_file = config_file.unwrap();
+    let config_file_ref = config_file.ref_(program);
+    let config_file_as_source_file = config_file_ref.as_source_file();
     let base_path = get_directory_path(&get_normalized_absolute_path(
         &config_file_as_source_file.file_name(),
         Some(&program.get_current_directory()),
@@ -531,18 +537,20 @@ pub fn get_matched_file_spec(program: &Program, file_name: &str) -> Option<Strin
 
 pub fn get_matched_include_spec(program: &Program, file_name: &str) -> Option<String> {
     let program_compiler_options = program.get_compiler_options();
-    let config_file = program_compiler_options.config_file.as_ref();
+    let config_file = program_compiler_options.config_file;
     let config_file_config_file_specs_validated_include_specs = config_file
         .and_then(|config_file| {
             config_file
-                .as_source_file()
+                .ref_(program).as_source_file()
                 .maybe_config_file_specs()
                 .clone()
         })
         .and_then(|config_file_specs| config_file_specs.validated_include_specs.clone())?;
 
     let is_json_file = file_extension_is(file_name, Extension::Json.to_str());
-    let config_file_as_source_file = config_file.unwrap().as_source_file();
+    let config_file = config_file.unwrap();
+    let config_file_ref = config_file.ref_(program);
+    let config_file_as_source_file = config_file_ref.as_source_file();
     let base_path = get_directory_path(&get_normalized_absolute_path(
         &config_file_as_source_file.file_name(),
         Some(&program.get_current_directory()),
@@ -582,7 +590,11 @@ pub fn file_include_reason_to_diagnostics(
             get_referenced_file_location(|path| program.get_source_file_by_path(path), reason, arena);
         let reference_text = match &reference_location {
             ReferenceFileLocationOrSyntheticReferenceFileLocation::ReferenceFileLocation(reference_location) =>
-                text_substring(&reference_location.file.as_source_file().text_as_chars(), reference_location.pos.try_into().unwrap(), reference_location.end.try_into().unwrap()),
+                text_substring(
+                    &reference_location.file.ref_(program).as_source_file().text_as_chars(),
+                    reference_location.pos.try_into().unwrap(),
+                    reference_location.end.try_into().unwrap(),
+                ),
             ReferenceFileLocationOrSyntheticReferenceFileLocation::SyntheticReferenceFileLocation(reference_location) =>
                 format!("\"{}\"", reference_location.text),
         };
@@ -645,14 +657,14 @@ pub fn file_include_reason_to_diagnostics(
                 Some(reference_location_package_id) => {
                     vec![
                         reference_text,
-                        to_file_name(reference_location.file(), file_name_convertor.as_ref()),
+                        to_file_name(reference_location.file(), file_name_convertor.as_ref(), program),
                         package_id_to_string(reference_location_package_id),
                     ]
                 }
                 None => {
                     vec![
                         reference_text,
-                        to_file_name(reference_location.file(), file_name_convertor.as_ref()),
+                        to_file_name(reference_location.file(), file_name_convertor.as_ref(), program),
                     ]
                 }
             }),
@@ -660,9 +672,9 @@ pub fn file_include_reason_to_diagnostics(
     }
     match reason {
         FileIncludeReason::RootFile(reason) => {
-            if !options.config_file.as_ref().matches(|config_file| {
+            if !options.config_file.matches(|config_file| {
                 config_file
-                    .as_source_file()
+                    .ref_(program).as_source_file()
                     .maybe_config_file_specs()
                     .is_some()
             }) {
@@ -694,6 +706,7 @@ pub fn file_include_reason_to_diagnostics(
                         to_file_name(
                             options.config_file.clone().unwrap(),
                             file_name_convertor.as_ref(),
+                            program,
                         ),
                     ]),
                 )
@@ -737,12 +750,13 @@ pub fn file_include_reason_to_diagnostics(
                         {
                             let tmp: String = referenced_resolved_ref
                                 .source_file
-                                .as_source_file()
+                                .ref_(program).as_source_file()
                                 .file_name()
                                 .clone();
                             tmp
                         },
                         file_name_convertor.as_ref(),
+                        program,
                     ),
                     if options.out_file.is_some() {
                         "--outFile"
@@ -814,11 +828,12 @@ pub fn file_include_reason_to_diagnostics(
 fn to_file_name(
     file: impl Into<StringOrRcNode>,
     file_name_convertor: Option<&impl Fn(&str) -> String>,
+    arena: &impl HasArena,
 ) -> String {
     let file = file.into();
     let file_name = match file {
         StringOrRcNode::String(file) => file,
-        StringOrRcNode::RcNode(file) => file.as_source_file().file_name().clone(),
+        StringOrRcNode::RcNode(file) => file.ref_(arena).as_source_file().file_name().clone(),
     };
     if let Some(file_name_convertor) = file_name_convertor {
         file_name_convertor(&file_name)
@@ -842,6 +857,7 @@ fn emit_files_and_report_errors(
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
 ) -> io::Result<EmitFilesAndReportErrorsReturn> {
+    let arena = &**program;
     let is_list_files_only = matches!(program.get_compiler_options().list_files_only, Some(true));
 
     let mut all_diagnostics: Vec<Gc<Diagnostic>> =
@@ -903,7 +919,7 @@ fn emit_files_and_report_errors(
     let emit_diagnostics = &emit_result.diagnostics;
     add_range(&mut all_diagnostics, Some(emit_diagnostics), None, None);
 
-    let diagnostics = sort_and_deduplicate_diagnostics(&all_diagnostics);
+    let diagnostics = sort_and_deduplicate_diagnostics(&all_diagnostics, arena);
     for diagnostic in diagnostics.iter() {
         report_diagnostic.call(diagnostic.clone())?;
     }
@@ -914,7 +930,7 @@ fn emit_files_and_report_errors(
             write(&format!("TSFILE: {}", filepath));
             Option::<()>::None
         });
-        list_files(program.into(), write);
+        list_files(program.clone().into(), write, arena);
     }
 
     if let Some(report_summary) = report_summary {
@@ -936,6 +952,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status(
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
+    arena: &impl HasArena,
 ) -> io::Result<ExitStatus> {
     let EmitFilesAndReportErrorsReturn {
         emit_result,
@@ -949,6 +966,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status(
         cancellation_token,
         emit_only_dts_files,
         custom_transformers,
+        arena,
     )?;
     // println!("diagnostics: {:#?}", diagnostics);
 

@@ -20,6 +20,7 @@ use crate::{
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     DiagnosticMessage, DiagnosticReporter, Diagnostics, ExitStatus, ExtendedConfigCacheEntry,
     Extension, HasArena, Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System,
+    InArena,
 };
 
 #[allow(dead_code)]
@@ -31,9 +32,9 @@ pub(super) struct Statistic {
 #[allow(dead_code)]
 pub(super) fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
     let mut counts = get_counts_map();
-    for_each(&*program.get_source_files(), |file, _| {
+    for_each(&*program.get_source_files(), |&file, _| {
         let key = get_count_key(program, file);
-        let line_count = get_line_starts(file.as_source_file()).len();
+        let line_count = get_line_starts(file.ref_(program).as_source_file()).len();
         counts.insert(key, *counts.get(key).unwrap() + line_count);
         Option::<()>::None
     });
@@ -43,9 +44,10 @@ pub(super) fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
 #[allow(dead_code)]
 pub(super) fn count_nodes(program: &Program) -> HashMap<&'static str, usize> {
     let mut counts = get_counts_map();
-    for_each(&*program.get_source_files(), |file, _| {
+    for_each(&*program.get_source_files(), |&file, _| {
         let key = get_count_key(program, file);
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(program);
+        let file_as_source_file = file_ref.as_source_file();
         counts.insert(
             key,
             *counts.get(key).unwrap() + file_as_source_file.node_count(),
@@ -67,7 +69,8 @@ pub(super) fn get_counts_map() -> HashMap<&'static str, usize> {
 }
 
 pub(super) fn get_count_key(program: &Program, file: Id<Node> /*SourceFile*/) -> &'static str {
-    let file_as_source_file = file.as_source_file();
+    let file_ref = file.ref_(program);
+    let file_as_source_file = file_ref.as_source_file();
     if program.is_source_file_default_library(file) {
         return "Library";
     } else if file_as_source_file.is_declaration_file() {

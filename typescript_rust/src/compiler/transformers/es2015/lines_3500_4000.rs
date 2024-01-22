@@ -245,7 +245,7 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node, self), &**self.context)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node, &**self.context, self)
     }
 
     pub(super) fn visit_array_literal_expression(

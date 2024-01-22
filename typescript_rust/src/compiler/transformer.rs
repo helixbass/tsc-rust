@@ -25,7 +25,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -201,7 +201,7 @@ impl WrapCustomTransformer {
 
 impl TransformerInterface for WrapCustomTransformer {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
-        Ok(if is_bundle(node) {
+        Ok(if is_bundle(&node.ref_(self)) {
             self.transformer.transform_bundle(node)
         } else {
             self.transformer.transform_source_file(node)
@@ -299,7 +299,7 @@ fn passthrough_transformer() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDef
 }
 
 pub fn no_emit_substitution(_hint: EmitHint, node: Id<Node>) -> Id<Node> {
-    node.node_wrapper()
+    node
 }
 
 pub fn no_emit_notification(
@@ -677,10 +677,11 @@ impl TransformNodesTransformationResult {
     }
 
     fn call(&self) -> io::Result<()> {
-        for node in &self.nodes {
+        for &node in &self.nodes {
             dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
-                Some(&**node),
+                Some(node),
                 Option::<fn(Id<Node>) -> bool>::None,
+                self,
             ), self), self)
         }
 
@@ -695,7 +696,7 @@ impl TransformNodesTransformationResult {
 
         self.set_state(TransformationState::Initialized);
 
-        for node in &self.nodes {
+        for &node in &self.nodes {
             // tracing?.push(tracing.Phase.Emit, "transformNodes", node.kind === SyntaxKind.SourceFile ? { path: (node as any as SourceFile).path } : { kind: node.kind, pos: node.pos, end: node.end });}
             self.transformed().push(if self.allow_dts_files {
                 self.transformation(node)?
@@ -713,10 +714,9 @@ impl TransformNodesTransformationResult {
         Ok(())
     }
 
-    fn transformation(&self, node: Id<Node>) -> io::Result<Id<Node>> {
-        let mut node = node.node_wrapper();
+    fn transformation(&self, mut node: Id<Node>) -> io::Result<Id<Node>> {
         for transform in self.transformers_with_context().iter() {
-            node = transform.call(&node)?;
+            node = transform.call(node)?;
         }
         Ok(node)
     }
@@ -725,10 +725,10 @@ impl TransformNodesTransformationResult {
         Ok(
             if
             /*node &&*/
-            !is_source_file(node) || !node.as_source_file().is_declaration_file() {
+            !is_source_file(&node.ref_(self)) || !node.ref_(self).as_source_file().is_declaration_file() {
                 self.transformation(node)?
             } else {
-                node.node_wrapper()
+                node
             },
         )
     }
@@ -925,7 +925,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             lexical_environment_function_declarations
                 .as_mut()
                 .unwrap()
-                .push(func.node_wrapper());
+                .push(func);
         }
     }
 
@@ -1031,7 +1031,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         );
         self.maybe_block_scoped_variable_declarations_mut()
             .get_or_insert_default_()
-            .push(name.node_wrapper());
+            .push(name);
     }
 
     fn add_initialization_statement(&self, node: Id<Node> /*Statement*/) {
@@ -1046,12 +1046,12 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         set_emit_flags(node, EmitFlags::CustomPrologue, self);
         let mut lexical_environment_statements = self.lexical_environment_statements();
         if lexical_environment_statements.is_none() {
-            *lexical_environment_statements = Some(vec![node.node_wrapper()]);
+            *lexical_environment_statements = Some(vec![node]);
         } else {
             lexical_environment_statements
                 .as_mut()
                 .unwrap()
-                .push(node.node_wrapper());
+                .push(node);
         }
     }
 }
@@ -1128,8 +1128,10 @@ impl TransformationContext for TransformNodesTransformationResult {
     }
 
     fn is_substitution_enabled(&self, node: Id<Node>) -> bool {
-        matches!(self.enabled_syntax_kind_features().get(&node.kind()), Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::Substitution))
-            && !get_emit_flags(node).intersects(EmitFlags::NoSubstitution)
+        matches!(
+            self.enabled_syntax_kind_features().get(&node.ref_(self).kind()),
+            Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::Substitution)
+        ) && !get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NoSubstitution)
     }
 
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
@@ -1185,9 +1187,9 @@ impl TransformationContext for TransformNodesTransformationResult {
 
     fn is_emit_notification_enabled(&self, node: Id<Node>) -> bool {
         matches!(
-            self.enabled_syntax_kind_features().get(&node.kind()),
+            self.enabled_syntax_kind_features().get(&node.ref_(self).kind()),
             Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::EmitNotifications)
-        ) || get_emit_flags(node).intersects(EmitFlags::AdviseOnEmitNode)
+        ) || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::AdviseOnEmitNode)
     }
 
     fn on_emit_node(
@@ -1286,7 +1288,7 @@ impl TransformationResult for TransformNodesTransformationResult {
         Ok(if self.is_substitution_enabled(node) {
             self.on_substitute_node(hint, node)?
         } else {
-            node.node_wrapper()
+            node
         })
     }
 
@@ -1319,10 +1321,11 @@ impl TransformationResult for TransformNodesTransformationResult {
 
     fn dispose(&self) {
         if self.state() < TransformationState::Disposed {
-            for node in &self.nodes {
+            for &node in &self.nodes {
                 dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
-                    Some(&**node),
+                    Some(node),
                     Option::<fn(Id<Node>) -> bool>::None,
+                    self,
                 ), self), self)
             }
 
