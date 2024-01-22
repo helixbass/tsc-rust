@@ -34,7 +34,7 @@ use crate::{
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
     StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback,
-    HasArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl Program {
@@ -47,7 +47,8 @@ impl Program {
         if module_names.is_empty() {
             return Ok(vec![]);
         }
-        let containing_file_as_source_file = containing_file.as_source_file();
+        let containing_file_ref = containing_file.ref_(self);
+        let containing_file_as_source_file = containing_file_ref.as_source_file();
         let containing_file_name = get_normalized_absolute_path(
             &containing_file_as_source_file.original_file_name(),
             Some(&self.current_directory()),
@@ -79,13 +80,13 @@ impl Program {
         let containing_file: StringOrRcNode = containing_file.into();
         let containing_file_name = match &containing_file {
             StringOrRcNode::RcNode(containing_file) => get_normalized_absolute_path(
-                &containing_file.as_source_file().original_file_name(),
+                &containing_file.ref_(self).as_source_file().original_file_name(),
                 Some(&self.current_directory()),
             ),
             StringOrRcNode::String(containing_file) => containing_file.clone(),
         };
         let redirected_reference = match &containing_file {
-            StringOrRcNode::RcNode(containing_file) => {
+            StringOrRcNode::RcNode(&containing_file) => {
                 self.get_redirect_reference_for_resolution(containing_file)
             }
             StringOrRcNode::String(_) => None,
@@ -109,7 +110,8 @@ impl Program {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> Option<Gc<ResolvedProjectReference>> {
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         let redirect = self
             .get_resolved_project_reference_to_redirect(&file_as_source_file.original_file_name());
         if redirect.is_some()
@@ -188,7 +190,7 @@ impl Program {
     }
 
     pub(super) fn get_default_lib_file_priority(&self, a: Id<Node> /*SourceFile*/) -> usize {
-        let a_file_name = a.as_source_file().file_name();
+        let a_file_name = a.ref_(self).as_source_file().file_name();
         if contains_path(
             &self.default_library_path(),
             &a_file_name,
@@ -355,6 +357,7 @@ impl Program {
             emit_only_dts_files,
             Some(false),
             force_dts_emit,
+            self,
         )?;
 
         // performance.mark("afterEmit");
@@ -379,14 +382,15 @@ impl Program {
     pub fn get_common_source_directory(&self) -> String {
         self.maybe_common_source_directory_mut()
             .get_or_insert_with(|| {
-                let emitted_files = filter(&**self.files(), |file: &Id<Node>| {
+                let emitted_files = filter(&**self.files(), |&file: &Id<Node>| {
                     source_file_may_be_emitted(file, self, None)
                 });
                 get_common_source_directory(
                     &self.options,
                     || {
                         map_defined(Some(&emitted_files), |file: &Id<Node>, _| {
-                            let file_as_source_file = file.as_source_file();
+                            let file_ref = file.ref_(self);
+                            let file_as_source_file = file_ref.as_source_file();
                             if file_as_source_file.is_declaration_file() {
                                 None
                             } else {
@@ -412,7 +416,8 @@ impl Program {
         module_names: &[String],
         file: Id<Node>, /*SourceFile*/
     ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         if self.structure_is_reused() == StructureIsReused::Not
             && file_as_source_file
                 .maybe_ambient_module_names()
@@ -427,13 +432,7 @@ impl Program {
             .maybe_old_program()
             .as_ref()
             .and_then(|old_program| old_program.get_source_file_(&file_as_source_file.file_name()));
-        if !matches!(
-            old_source_file.as_deref(),
-            Some(old_source_file) if ptr::eq(
-                old_source_file,
-                file,
-            )
-        ) {
+        if old_source_file != Some(file) {
             if let Some(file_resolved_modules) =
                 file_as_source_file.maybe_resolved_modules().as_ref()
             {
@@ -443,7 +442,7 @@ impl Program {
                     let resolved_module = file_resolved_modules
                         .get(
                             module_name,
-                            get_mode_for_resolution_at_index(file_as_source_file, i),
+                            get_mode_for_resolution_at_index(file_as_source_file, i, self),
                         )
                         .flatten();
                     i += 1;
@@ -459,15 +458,15 @@ impl Program {
         for i in 0..module_names.len() {
             let module_name = &module_names[i];
             if let Some(old_source_file) = old_source_file
-                .as_ref()
-                .filter(|old_source_file| ptr::eq(file, &***old_source_file))
+                .filter(|&old_source_file| file == old_source_file)
             {
-                let old_source_file_as_source_file = old_source_file.as_source_file();
+                let old_source_file_ref = old_source_file.ref_(self);
+                let old_source_file_as_source_file = old_source_file_ref.as_source_file();
                 if !self.has_invalidated_resolution(&old_source_file_as_source_file.path()) {
                     let old_resolved_module = get_resolved_module(
-                        Some(&**old_source_file),
+                        Some(&old_source_file.ref_(self)),
                         module_name,
-                        get_mode_for_resolution_at_index(old_source_file_as_source_file, i),
+                        get_mode_for_resolution_at_index(old_source_file_as_source_file, i, self),
                     );
                     if let Some(old_resolved_module) = old_resolved_module.as_ref() {
                         if is_trace_enabled(
@@ -539,7 +538,7 @@ impl Program {
             } else {
                 resolves_to_ambient_module_in_non_modified_file = self
                     .module_name_resolves_to_ambient_module_in_non_modified_file(
-                        old_source_file.as_deref(),
+                        old_source_file,
                         module_name,
                         i,
                     );
@@ -596,7 +595,7 @@ impl Program {
             >= old_source_file
                 .and_then(|old_source_file| {
                     old_source_file
-                        .as_source_file()
+                        .ref_(self).as_source_file()
                         .maybe_imports()
                         .as_ref()
                         .map(|old_source_file_imports| old_source_file_imports.len())
@@ -605,7 +604,7 @@ impl Program {
                 + old_source_file
                     .and_then(|old_source_file| {
                         old_source_file
-                            .as_source_file()
+                            .ref_(self).as_source_file()
                             .maybe_module_augmentations()
                             .as_ref()
                             .map(|old_source_file_module_augmentations| {
@@ -617,10 +616,10 @@ impl Program {
             return false;
         }
         let resolution_to_file = get_resolved_module(
-            old_source_file,
+            old_source_file.refed(self),
             module_name,
             old_source_file.and_then(|old_source_file| {
-                get_mode_for_resolution_at_index(old_source_file.as_source_file(), index)
+                get_mode_for_resolution_at_index(old_source_file.ref_(self).as_source_file(), index, self)
             }),
         );
         let resolved_file = resolution_to_file.as_ref().and_then(|resolution_to_file| {
@@ -682,10 +681,8 @@ impl Program {
                     match new_resolved_ref {
                         None => true,
                         Some(new_resolved_ref) => {
-                            !Gc::ptr_eq(
-                                &new_resolved_ref.source_file,
-                                &old_resolved_ref.source_file,
-                            ) || old_resolved_ref.command_line.file_names
+                            new_resolved_ref.source_file != old_resolved_ref.source_file
+                             || old_resolved_ref.command_line.file_names
                                 != new_resolved_ref.command_line.file_names
                         }
                     }
@@ -698,7 +695,7 @@ impl Program {
                  parent: Option<&ResolvedProjectReference>| {
                     let new_references = if let Some(parent) = parent {
                         self.get_resolved_project_reference_by_path(
-                            &parent.source_file.as_source_file().path(),
+                            &parent.source_file.ref_(self).as_source_file().path(),
                         )
                         .unwrap()
                         .command_line
@@ -716,6 +713,7 @@ impl Program {
                     ))
                 },
             ),
+            self,
         )?)
     }
 
@@ -774,9 +772,10 @@ impl Program {
         }
         let mut seen_package_names: HashMap<String, SeenPackageName> = Default::default();
 
-        for old_source_file in &*old_source_files {
-            let old_source_file_as_source_file = old_source_file.as_source_file();
-            let new_source_file = if self.host().is_get_source_file_by_path_supported() {
+        for &old_source_file in &*old_source_files {
+            let old_source_file_ref = old_source_file.ref_(self);
+            let old_source_file_as_source_file = old_source_file_ref.as_source_file();
+            let Some(mut new_source_file) = (if self.host().is_get_source_file_by_path_supported() {
                 self.host().get_source_file_by_path(
                     &old_source_file_as_source_file.file_name(),
                     old_source_file_as_source_file
@@ -794,13 +793,12 @@ impl Program {
                     None,
                     Some(self.should_create_new_source_file()),
                 )?
+            }) else {
+                return Ok(StructureIsReused::Not);
             };
 
-            if new_source_file.is_none() {
-                return Ok(StructureIsReused::Not);
-            }
-            let mut new_source_file = new_source_file.unwrap();
-            let mut new_source_file_as_source_file = new_source_file.as_source_file();
+            let new_source_file_ref = new_source_file.ref_(self);
+            let mut new_source_file_as_source_file = new_source_file_ref.as_source_file();
 
             Debug_.assert(
                 new_source_file_as_source_file
@@ -814,25 +812,22 @@ impl Program {
                 .maybe_redirect_info()
                 .as_ref()
             {
-                if !Gc::ptr_eq(
-                    &new_source_file,
-                    &old_source_file_redirect_info.unredirected,
-                ) {
+                if new_source_file != old_source_file_redirect_info.unredirected {
                     return Ok(StructureIsReused::Not);
                 }
                 file_changed = false;
-                new_source_file = old_source_file.clone();
-                new_source_file_as_source_file = new_source_file.as_source_file();
+                new_source_file = old_source_file;
+                new_source_file_as_source_file = old_source_file_ref.as_source_file();
             } else if (*old_program.redirect_targets_map())
                 .borrow()
                 .contains_key(&*old_source_file_as_source_file.path())
             {
-                if !Gc::ptr_eq(&new_source_file, old_source_file) {
+                if new_source_file != old_source_file {
                     return Ok(StructureIsReused::Not);
                 }
                 file_changed = false;
             } else {
-                file_changed = !Gc::ptr_eq(&new_source_file, old_source_file);
+                file_changed = new_source_file != old_source_file;
             }
 
             let old_source_file_path = {
@@ -925,12 +920,12 @@ impl Program {
                     self.set_structure_is_reused(StructureIsReused::SafeModules);
                 }
 
-                self.collect_external_module_references(&new_source_file);
+                self.collect_external_module_references(new_source_file);
 
                 if !array_is_equal_to(
                     old_source_file_as_source_file.maybe_imports().as_deref(),
                     new_source_file_as_source_file.maybe_imports().as_deref(),
-                    |a: &Id<Node>, b: &Id<Node>, _| self.module_name_is_equal_to(a, b),
+                    |&a: &Id<Node>, &b: &Id<Node>, _| self.module_name_is_equal_to(a, b),
                 ) {
                     self.set_structure_is_reused(StructureIsReused::SafeModules);
                 }
@@ -941,12 +936,12 @@ impl Program {
                     new_source_file_as_source_file
                         .maybe_module_augmentations()
                         .as_deref(),
-                    |a: &Id<Node>, b: &Id<Node>, _| self.module_name_is_equal_to(a, b),
+                    |&a: &Id<Node>, &b: &Id<Node>, _| self.module_name_is_equal_to(a, b),
                 ) {
                     self.set_structure_is_reused(StructureIsReused::SafeModules);
                 }
-                if old_source_file.flags() & NodeFlags::PermanentlySetIncrementalFlags
-                    != new_source_file.flags() & NodeFlags::PermanentlySetIncrementalFlags
+                if old_source_file.ref_(self).flags() & NodeFlags::PermanentlySetIncrementalFlags
+                    != new_source_file.ref_(self).flags() & NodeFlags::PermanentlySetIncrementalFlags
                 {
                     self.set_structure_is_reused(StructureIsReused::SafeModules);
                 }
@@ -995,9 +990,10 @@ impl Program {
             .iter()
             .map(|f| f.old_file.clone())
             .collect_vec();
-        for old_file in &*old_source_files {
-            if !contains_gc(Some(&modified_files), old_file) {
-                let old_file_as_source_file = old_file.as_source_file();
+        for &old_file in &*old_source_files {
+            if !contains(Some(&modified_files), &old_file) {
+                let old_file_ref = old_file.ref_(self);
+                let old_file_as_source_file = old_file_ref.as_source_file();
                 for module_name in old_file_as_source_file
                     .maybe_ambient_module_names()
                     .as_ref()
@@ -1016,26 +1012,29 @@ impl Program {
             new_file: new_source_file,
         } in modified_source_files
         {
-            let module_names = get_module_names(&new_source_file, self);
+            let module_names = get_module_names(new_source_file, self);
             let resolutions =
-                self.resolve_module_names_reusing_old_state(&module_names, &new_source_file)?;
-            let old_source_file_as_source_file = old_source_file.as_source_file();
-            let new_source_file_as_source_file = new_source_file.as_source_file();
+                self.resolve_module_names_reusing_old_state(&module_names, new_source_file)?;
+            let old_source_file_ref = old_source_file.ref_(self);
+            let old_source_file_as_source_file = old_source_file_ref.as_source_file();
+            let new_source_file_ref = new_source_file.ref_(self);
+            let new_source_file_as_source_file = new_source_file_ref.as_source_file();
             let resolutions_changed = has_changes_in_resolutions(
                 &module_names,
                 &resolutions,
                 old_source_file_as_source_file
                     .maybe_resolved_modules()
                     .as_ref(),
-                Some(&*old_source_file),
+                Some(old_source_file),
                 |a: &Option<Gc<ResolvedModuleFull>>, b: &Option<Gc<ResolvedModuleFull>>| {
                     module_resolution_is_equal_to(a.as_ref().unwrap(), b.as_ref().unwrap())
                 },
+                self,
             );
             if resolutions_changed {
                 self.set_structure_is_reused(StructureIsReused::SafeModules);
                 *new_source_file_as_source_file.maybe_resolved_modules() = Some(
-                    zip_to_mode_aware_cache(&new_source_file, &module_names, &resolutions),
+                    zip_to_mode_aware_cache(new_source_file, &module_names, &resolutions, self),
                 );
             } else {
                 *new_source_file_as_source_file.maybe_resolved_modules() =
@@ -1059,19 +1058,21 @@ impl Program {
                 old_source_file_as_source_file
                     .maybe_resolved_type_reference_directive_names()
                     .as_ref(),
-                Some(&*old_source_file),
+                Some(old_source_file),
                 |a: &Option<Gc<ResolvedTypeReferenceDirective>>,
                  b: &Option<Gc<ResolvedTypeReferenceDirective>>| {
                     type_directive_is_equal_to(a.as_ref().unwrap(), b.as_ref().unwrap())
                 },
+                self,
             );
             if type_reference_resolutions_changed {
                 self.set_structure_is_reused(StructureIsReused::SafeModules);
                 *new_source_file_as_source_file.maybe_resolved_type_reference_directive_names() =
                     Some(zip_to_mode_aware_cache(
-                        &new_source_file,
+                        new_source_file,
                         &types_reference_directives,
                         &type_reference_resolutions,
+                        self,
                     ));
             } else {
                 *new_source_file_as_source_file.maybe_resolved_type_reference_directive_names() =
@@ -1099,7 +1100,7 @@ impl Program {
         );
         for new_source_file in &new_source_files {
             self.files_by_name_mut().insert(
-                (&**new_source_file.as_source_file().path()).to_owned(),
+                (&**new_source_file.ref_(self).as_source_file().path()).to_owned(),
                 new_source_file.clone().into(),
             );
         }
@@ -1111,7 +1112,8 @@ impl Program {
                 continue;
             }
             let old_file = old_file.as_source_file();
-            let old_file_as_source_file = old_file.as_source_file();
+            let old_file_ref = old_file.ref_(self);
+            let old_file_as_source_file = old_file_ref.as_source_file();
             if &**old_file_as_source_file.path() == &**path {
                 if old_program.is_source_file_from_external_library(old_file) {
                     self.source_files_found_searching_node_modules_mut()
@@ -1172,6 +1174,7 @@ impl Program {
             Some(false),
             Some(true),
             None,
+            self,
         )?;
 
         // performance.mark("afterEmit");
@@ -1212,7 +1215,7 @@ impl Program {
 
     pub fn is_source_file_from_external_library(&self, file: Id<Node> /*SourceFile*/) -> bool {
         self.source_files_found_searching_node_modules()
-            .get(&**file.as_source_file().path())
+            .get(&**file.ref_(self).as_source_file().path())
             .copied()
             == Some(true)
     }
@@ -1274,13 +1277,13 @@ impl Program {
         }
         Ok(sort_and_deduplicate_diagnostics(&try_flat_map(
             Some(&*self.get_source_files()),
-            |source_file: &Id<Node>, _| {
+            |&source_file: &Id<Node>, _| {
                 // if (cancellationToken) {
                 //     cancellationToken.throwIfCancellationRequested();
                 // }
                 get_diagnostics(source_file, cancellation_token.clone())
             },
-        )?)
+        )?, self)
         .into())
     }
 
@@ -1288,13 +1291,14 @@ impl Program {
         &self,
         source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Gc<Diagnostic>> {
-        if skip_type_checking(source_file, &self.options, |file_name: &str| {
+        if skip_type_checking(&source_file.ref_(self), &self.options, |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
         }) {
             return vec![];
         }
 
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         let program_diagnostics_in_file = self
             .program_diagnostics()
             .get_diagnostics(Some(&source_file_as_source_file.file_name()));
@@ -1351,8 +1355,9 @@ impl Program {
         // refactor eg get_diagnostics_helper() to use closures instead?
         _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
-        let source_file_as_source_file = source_file.as_source_file();
-        if is_source_file_js(source_file) {
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
+        if is_source_file_js(&source_file.ref_(self)) {
             let mut source_file_additional_syntactic_diagnostics =
                 source_file_as_source_file.maybe_additional_syntactic_diagnostics_mut();
             let source_file_additional_syntactic_diagnostics =
@@ -1360,12 +1365,12 @@ impl Program {
                     .get_or_insert_with(|| self.get_js_syntactic_diagnostics_for_file(source_file));
             return concatenate(
                 source_file_additional_syntactic_diagnostics.clone(),
-                (*source_file.as_source_file().parse_diagnostics())
+                (*source_file.ref_(self).as_source_file().parse_diagnostics())
                     .borrow()
                     .clone(),
             );
         }
-        (*source_file.as_source_file().parse_diagnostics())
+        (*source_file.ref_(self).as_source_file().parse_diagnostics())
             .borrow()
             .clone()
     }
@@ -1401,12 +1406,18 @@ impl ReadFileCallback for GetPrependNodesReadFileCallback {
         let path = self.program.to_path(file_name);
         let source_file = self.program.get_source_file_by_path(&path);
         if let Some(source_file) = source_file {
-            Some(source_file.as_source_file().text().clone())
+            Some(source_file.ref_(self).as_source_file().text().clone())
         } else if self.program.files_by_name().contains_key(&*path) {
             None
         } else {
             self.program.host().read_file(&path).ok().flatten()
         }
+    }
+}
+
+impl HasArena for GetPrependNodesReadFileCallback {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

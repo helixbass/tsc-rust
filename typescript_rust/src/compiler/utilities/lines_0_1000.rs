@@ -722,8 +722,9 @@ pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
     names: &[impl AsRef<str>],
     new_resolutions: &[TValue],
     old_resolutions: Option<&ModeAwareCache<TValue>>,
-    old_source_file: Option<&Node /*SourceFile*/>,
+    old_source_file: Option<Id<Node /*SourceFile*/>>,
     mut comparer: impl FnMut(&TValue, &TValue) -> bool,
+    arena: &impl HasArena,
 ) -> bool {
     Debug_.assert(names.len() == new_resolutions.len(), None);
 
@@ -734,7 +735,7 @@ pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
             old_resolutions.get(
                 name,
                 old_source_file.and_then(|old_source_file| {
-                    get_mode_for_resolution_at_index(old_source_file.as_source_file(), i)
+                    get_mode_for_resolution_at_index(old_source_file.ref_(arena).as_source_file(), i, arena)
                 }),
             )
         });

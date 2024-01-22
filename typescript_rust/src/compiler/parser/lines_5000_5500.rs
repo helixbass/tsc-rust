@@ -58,14 +58,14 @@ impl ParserType {
         &self,
         in_expression_context: bool,
         top_invalid_node_position: Option<isize>,
-        opening_tag: Option<Id<Node> /*JsxOpeningElement | JsxOpeningFragment*/>,
+        opening_tag: Option<&Node /*JsxOpeningElement | JsxOpeningFragment*/>,
     ) -> Node /*JsxElement | JsxSelfClosingElement | JsxFragment*/ {
         let pos = self.get_node_pos();
         let opening = self
             .parse_jsx_opening_or_self_closing_element_or_opening_fragment(in_expression_context);
         let result: Node;
         if opening.kind() == SyntaxKind::JsxOpeningElement {
-            let mut children = self.parse_jsx_children(opening);
+            let mut children = self.parse_jsx_children(&opening);
             let closing_element: Id<Node /*JsxClosingElement*/>;
 
             let opening_as_jsx_opening_element = opening.as_jsx_opening_element();
@@ -258,20 +258,19 @@ impl ParserType {
 
     pub(super) fn parse_jsx_child(
         &self,
-        opening_tag: Id<Node>, /*JsxOpeningElement | JsxOpeningFragment*/
+        opening_tag: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
         token: SyntaxKind,     /*JsxTokenSyntaxKind*/
     ) -> Option<Node /*JsxChild*/> {
         match token {
             SyntaxKind::EndOfFileToken => {
-                if is_jsx_opening_fragment(&opening_tag.ref_(self)) {
+                if is_jsx_opening_fragment(opening_tag) {
                     self.parse_error_at_range(
-                        &*opening_tag.ref_(self),
+                        opening_tag,
                         &Diagnostics::JSX_fragment_has_no_corresponding_closing_tag,
                         None,
                     );
                 } else {
-                    let opening_tag_ref = opening_tag.ref_(self);
-                    let opening_tag_as_jsx_opening_element = opening_tag_ref.as_jsx_opening_element();
+                    let opening_tag_as_jsx_opening_element = opening_tag.as_jsx_opening_element();
                     let tag = opening_tag_as_jsx_opening_element.tag_name;
                     let start =
                         skip_trivia(&self.source_text_as_chars(), tag.ref_(self).pos(), None, None, None);
@@ -308,7 +307,7 @@ impl ParserType {
 
     pub(super) fn parse_jsx_children(
         &self,
-        opening_tag: Id<Node>, /*JsxOpeningElement | JsxOpeningFragment*/
+        opening_tag: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
     ) -> Gc<NodeArray> /*<JsxChild>*/ {
         let mut list: Vec<Id<Node>> = vec![];
         let list_pos = self.get_node_pos();
@@ -325,9 +324,8 @@ impl ParserType {
             };
             let child = child.alloc(self.arena());
             list.push(child);
-            if is_jsx_opening_element(&opening_tag.ref_(self)) && child.ref_(self).kind() == SyntaxKind::JsxElement {
-                let opening_tag_ref = opening_tag.ref_(self);
-                let opening_tag_as_jsx_opening_element = opening_tag_ref.as_jsx_opening_element();
+            if is_jsx_opening_element(opening_tag) && child.ref_(self).kind() == SyntaxKind::JsxElement {
+                let opening_tag_as_jsx_opening_element = opening_tag.as_jsx_opening_element();
                 let child_ref = child.ref_(self);
                 let child_as_jsx_element = child_ref.as_jsx_element();
                 if !tag_names_are_equivalent(
@@ -521,14 +519,13 @@ impl ParserType {
 
     pub(super) fn parse_jsx_closing_element(
         &self,
-        open: Id<Node>, /*JsxOpeningElement*/
+        open: &Node, /*JsxOpeningElement*/
         in_expression_context: bool,
     ) -> JsxClosingElement {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::LessThanSlashToken, None, None);
         let tag_name = self.parse_jsx_element_name().alloc(self.arena());
-        let open_ref = open.ref_(self);
-        let open_as_jsx_opening_element = open_ref.as_jsx_opening_element();
+        let open_as_jsx_opening_element = open.as_jsx_opening_element();
         if self.parse_expected(SyntaxKind::GreaterThanToken, None, Some(false)) {
             if in_expression_context
                 || !tag_names_are_equivalent(open_as_jsx_opening_element.tag_name, tag_name, self)

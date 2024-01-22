@@ -164,7 +164,7 @@ impl Program {
                     &file.ref_(self),
                     &module_names[index],
                     resolution.cloned(),
-                    get_mode_for_resolution_at_index(file_as_source_file, index),
+                    get_mode_for_resolution_at_index(file_as_source_file, index, self),
                 );
 
                 if resolution.is_none() {
@@ -1205,6 +1205,7 @@ impl Program {
             get_referenced_file_location(
                 |path: &Path| self.get_source_file_by_path(path),
                 location_reason.as_referenced_file(),
+                self,
             )
         });
         let file_include_reason_details = file_include_reasons.map(|file_include_reasons| {
@@ -1264,6 +1265,7 @@ impl Program {
                 self,
                 &reason,
                 Option::<fn(&str) -> String>::None,
+                self,
             ));
         if location_reason.is_none() && is_referenced_file(Some(&reason)) {
             *location_reason = Some(reason.clone());
@@ -1323,6 +1325,7 @@ impl Program {
             let reference_location = get_referenced_file_location(
                 |path| self.get_source_file_by_path(path),
                 reason.as_referenced_file(),
+                self,
             );
             let message: &DiagnosticMessage;
             match reason.kind() {
@@ -1441,6 +1444,7 @@ impl Program {
                     Option::<
                         fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> _,
                     >::None,
+                    self,
                 )?;
                 let (source_file, index) = reference_info;
                 let references_syntax = first_defined(
@@ -1641,6 +1645,7 @@ impl Program {
                     Option<&ResolvedProjectReference>,
                 ) -> Option<()>,
             >::None,
+            self,
         );
     }
 

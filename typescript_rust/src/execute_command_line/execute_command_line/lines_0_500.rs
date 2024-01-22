@@ -1039,9 +1039,10 @@ pub(super) fn execute_command_line_worker(
                 cb,
                 report_diagnostic,
                 &config_parse_result,
+                arena,
             );
         } else {
-            perform_compilation(sys, cb, report_diagnostic, &config_parse_result)?;
+            perform_compilation(sys, cb, report_diagnostic, &config_parse_result, arena)?;
         }
     } else {
         if matches!(command_line.options.show_config, Some(true)) {
@@ -1077,10 +1078,10 @@ pub(super) fn execute_command_line_worker(
             );
         } else if is_incremental_compilation(&command_line_options) {
             command_line.options = command_line_options;
-            perform_incremental_compilation(sys, cb, report_diagnostic, &command_line);
+            perform_incremental_compilation(sys, cb, report_diagnostic, &command_line, arena);
         } else {
             command_line.options = command_line_options;
-            perform_compilation(sys, cb, report_diagnostic, &command_line)?;
+            perform_compilation(sys, cb, report_diagnostic, &command_line, arena)?;
         }
     }
 

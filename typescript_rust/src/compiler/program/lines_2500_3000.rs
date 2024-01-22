@@ -20,6 +20,7 @@ use crate::{
     NodeSymbolOverride, NonEmpty, PackageId, Path, Program, RedirectInfo, ReferencedFile,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile,
     SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
+    HasArena, AllArenas, InArena,
 };
 
 impl Program {
@@ -29,10 +30,10 @@ impl Program {
         source_file: Id<Node>, /*SourceFile*/
         position: isize,
     ) -> Id<Node> {
-        let mut current = source_file.node_wrapper();
+        let mut current = source_file;
         loop {
-            let child = if is_java_script_file && has_jsdoc_nodes(&current) {
-                maybe_for_each(current.maybe_js_doc().as_ref(), |child: &Id<Node>, _| {
+            let child = if is_java_script_file && has_jsdoc_nodes(&current.ref_(self)) {
+                maybe_for_each(current.ref_(self).maybe_js_doc().as_ref(), |&child: &Id<Node>, _| {
                     self.get_containing_child(position, child)
                 })
             } else {
@@ -68,7 +69,7 @@ impl Program {
         self.get_source_file_from_reference_worker(
             &resolve_tripleslash_reference(
                 &ref_.file_name,
-                &referencing_file.as_has_file_name().file_name(),
+                &referencing_file.ref_(self).as_has_file_name().file_name(),
             ),
             |file_name| Ok(self.get_source_file(file_name)),
             Option::<fn(&'static DiagnosticMessage, Option<Vec<String>>)>::None,
@@ -129,7 +130,7 @@ impl Program {
                             &self
                                 .get_source_file_by_path(&reason.unwrap().as_referenced_file().file)
                                 .unwrap()
-                                .as_source_file()
+                                .ref_(self).as_source_file()
                                 .file_name(),
                         )
                 {
@@ -234,7 +235,8 @@ impl Program {
         existing_file: Id<Node>, /*SourceFile*/
         reason: Gc<FileIncludeReason>,
     ) {
-        let existing_file_as_source_file = existing_file.as_source_file();
+        let existing_file_ref = existing_file.ref_(self);
+        let existing_file_as_source_file = existing_file_ref.as_source_file();
         let has_existing_reason_to_report_error_on = !is_referenced_file(Some(&reason))
             && some(
                 (*self.file_reasons())
@@ -275,14 +277,14 @@ impl Program {
         resolved_path: &Path,
         original_file_name: &str,
     ) -> Id<Node /*SourceFile*/> {
-        let redirect: SourceFile = redirect_target.as_source_file().clone();
+        let redirect: SourceFile = redirect_target.ref_(self).as_source_file().clone();
         redirect.set_file_name(file_name.to_owned());
         redirect.set_path(path.clone());
         redirect.set_resolved_path(Some(resolved_path.clone()));
         redirect.set_original_file_name(Some(original_file_name.to_owned()));
         *redirect.maybe_redirect_info_mut() = Some(RedirectInfo {
-            redirect_target: redirect_target.node_wrapper(),
-            unredirected: unredirected.node_wrapper(),
+            redirect_target,
+            unredirected,
         });
         self.source_files_found_searching_node_modules_mut()
             .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
@@ -353,8 +355,8 @@ impl Program {
                     )?,
                     _ => None,
                 };
-                if let Some(file) = file.as_ref() {
-                    self.add_file_to_files_by_name(Some(&**file), &path, None);
+                if let Some(file) = file {
+                    self.add_file_to_files_by_name(Some(file), &path, None);
                     return Ok(Some(file.clone()));
                 }
             }
@@ -367,10 +369,10 @@ impl Program {
                 FilesByNameValue::SourceFile(file) => Some(file),
                 _ => None,
             };
-            self.add_file_include_reason(file.as_deref(), reason.clone());
-            if let Some(file) = file.as_ref() {
+            self.add_file_include_reason(file, reason.clone());
+            if let Some(file) = file {
                 if self.options.force_consistent_casing_in_file_names == Some(true) {
-                    let ref checked_name = file.as_source_file().file_name();
+                    let ref checked_name = file.ref_(self).as_source_file().file_name();
                     let is_redirect = self.to_path(checked_name) != self.to_path(&file_name);
                     if is_redirect {
                         file_name = self
@@ -395,16 +397,16 @@ impl Program {
                 }
             }
 
-            if let Some(file) = file.as_ref().filter(|file| {
+            if let Some(file) = file.filter(|file| {
                 matches!(
                     self.source_files_found_searching_node_modules()
-                        .get(&**file.as_source_file().path())
+                        .get(&**file.ref_(self).as_source_file().path())
                         .cloned(),
                     Some(true)
                 ) && self.current_node_modules_depth() == 0
             }) {
                 self.source_files_found_searching_node_modules_mut()
-                    .insert(file.as_source_file().path().to_string(), false);
+                    .insert(file.ref_(self).as_source_file().path().to_string(), false);
                 if self.options.no_resolve != Some(true) {
                     self.process_referenced_files(file, is_default_lib)?;
                     self.process_type_reference_directives(file)?;
@@ -414,19 +416,19 @@ impl Program {
                 }
 
                 self.modules_with_elided_imports()
-                    .insert(file.as_source_file().path().to_string(), false);
+                    .insert(file.ref_(self).as_source_file().path().to_string(), false);
                 self.process_imported_modules(file)?;
-            } else if let Some(file) = file.as_ref().filter(|file| {
+            } else if let Some(file) = file.filter(|file| {
                 matches!(
                     self.modules_with_elided_imports()
-                        .get(&**file.as_source_file().path())
+                        .get(&**file.ref_(self).as_source_file().path())
                         .cloned(),
                     Some(true)
                 )
             }) {
                 if self.current_node_modules_depth() < self.max_node_module_js_depth {
                     self.modules_with_elided_imports()
-                        .insert(file.as_source_file().path().to_string(), false);
+                        .insert(file.ref_(self).as_source_file().path().to_string(), false);
                     self.process_imported_modules(file)?;
                 }
             }
@@ -473,18 +475,18 @@ impl Program {
             if let Some(file_from_package_id) = file_from_package_id.as_ref() {
                 let dup_file = self.create_redirect_source_file(
                     file_from_package_id,
-                    file.as_ref().unwrap(),
+                    file.unwrap(),
                     &file_name,
                     &path,
                     &self.to_path(&file_name),
                     original_file_name,
                 );
                 (*self.redirect_targets_map()).borrow_mut().add(
-                    file_from_package_id.as_source_file().path().clone(),
+                    file_from_package_id.ref_(self).as_source_file().path().clone(),
                     file_name.clone(),
                 );
-                self.add_file_to_files_by_name(Some(&*dup_file), &path, redirected_path.as_ref());
-                self.add_file_include_reason(Some(&*dup_file), reason.clone());
+                self.add_file_to_files_by_name(Some(dup_file), &path, redirected_path.as_ref());
+                self.add_file_include_reason(Some(dup_file), reason.clone());
                 self.source_file_to_package_name()
                     .insert(path.clone(), package_id.name.clone());
                 self.processing_other_files
@@ -500,12 +502,13 @@ impl Program {
                     .insert(path.clone(), package_id.name.clone());
             }
         }
-        self.add_file_to_files_by_name(file.as_deref(), &path, redirected_path.as_ref());
+        self.add_file_to_files_by_name(file, &path, redirected_path.as_ref());
 
-        if let Some(file) = file.as_ref() {
+        if let Some(file) = file {
             self.source_files_found_searching_node_modules_mut()
                 .insert(path.to_string(), self.current_node_modules_depth() > 0);
-            let file_as_source_file = file.as_source_file();
+            let file_ref = file.ref_(self);
+            let file_as_source_file = file_ref.as_source_file();
             file_as_source_file.set_file_name(file_name.clone());
             file_as_source_file.set_path(path.clone());
             file_as_source_file.set_resolved_path(Some(self.to_path(&file_name)));
@@ -522,7 +525,7 @@ impl Program {
                 self.options.clone(),
                 self,
             ));
-            self.add_file_include_reason(Some(&**file), reason.clone());
+            self.add_file_include_reason(Some(file), reason.clone());
 
             if CompilerHost::use_case_sensitive_file_names(&**self.host()) {
                 let path_lower_case = to_file_name_lower_case(&path);
@@ -530,7 +533,7 @@ impl Program {
                     .files_by_name_ignore_case()
                     .get(&path_lower_case)
                     .cloned();
-                if let Some(existing_file) = existing_file.as_ref() {
+                if let Some(existing_file) = existing_file {
                     self.report_file_names_differ_only_in_casing_error(
                         &file_name,
                         existing_file,
@@ -583,7 +586,7 @@ impl Program {
             let file = file.borrow();
             (*self.file_reasons())
                 .borrow_mut()
-                .add(file.as_source_file().path().clone(), reason.clone());
+                .add(file.ref_(self).as_source_file().path().clone(), reason.clone());
         }
     }
 
@@ -593,7 +596,6 @@ impl Program {
         path: &Path,
         redirected_path: Option<&Path>,
     ) {
-        let file = file.map(|file| file.borrow().node_wrapper());
         if let Some(redirected_path) = redirected_path {
             self.files_by_name_mut().insert(
                 redirected_path.to_string(),
@@ -675,7 +677,7 @@ impl Program {
                 self.for_each_resolved_project_reference(
                     |referenced_project: Gc<ResolvedProjectReference>| -> Option<()> {
                         let referenced_project_source_file_path =
-                            referenced_project.source_file.as_source_file().path();
+                            referenced_project.source_file.ref_(self).as_source_file().path();
                         if &self.to_path(self.options.config_file_path.as_ref().unwrap())
                             != &*referenced_project_source_file_path
                         {
@@ -713,6 +715,7 @@ impl Program {
         for_each_resolved_project_reference(
             self.maybe_resolved_project_references_mut().as_deref(),
             |resolved_project_reference, _parent| cb(resolved_project_reference),
+            self,
         )
     }
 
@@ -818,7 +821,8 @@ impl Program {
         file: Id<Node>, /*SourceFile*/
         is_default_lib: bool,
     ) -> io::Result<()> {
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         try_maybe_for_each(
             file_as_source_file
                 .maybe_referenced_files()
@@ -851,7 +855,8 @@ impl Program {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         let file_type_reference_directives = file_as_source_file.maybe_type_reference_directives();
         let type_directives = maybe_map(
             file_type_reference_directives
@@ -868,7 +873,7 @@ impl Program {
         let file_type_reference_directives = (*file_type_reference_directives).borrow();
 
         let resolutions = self
-            .resolve_type_reference_directive_names_worker(&type_directives, file.node_wrapper())?;
+            .resolve_type_reference_directive_names_worker(&type_directives, file)?;
         for index in 0..type_directives.len() {
             let ref_ = &file_type_reference_directives[index];
             let resolved_type_reference_directive = &resolutions[index];
@@ -966,10 +971,10 @@ impl Program {
                             .unwrap();
                         if !matches!(
                             other_file_text.as_ref(),
-                            Some(other_file_text) if other_file_text == &*existing_file.as_source_file().text()
+                            Some(other_file_text) if other_file_text == &*existing_file.ref_(self).as_source_file().text()
                         ) {
                             self.add_file_preprocessing_file_explaining_diagnostic(
-                                Some(&*existing_file),
+                                Some(existing_file),
                                 reason,
                                 &Diagnostics::Conflicting_definitions_for_0_found_at_1_and_2_Consider_installing_a_specific_version_of_this_library_to_resolve_the_conflict,
                                 Some(vec![
@@ -1089,22 +1094,28 @@ impl RedirectSourceFileIdOverride {
 impl NodeIdOverride for RedirectSourceFileIdOverride {
     fn maybe_id(&self) -> Option<NodeId> {
         self.redirect_source_file
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_redirect_info()
             .as_ref()
             .unwrap()
             .redirect_target
-            .maybe_id()
+            .ref_(self).maybe_id()
     }
 
     fn set_id(&self, value: NodeId) {
         self.redirect_source_file
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_redirect_info()
             .as_ref()
             .unwrap()
             .redirect_target
-            .set_id(value);
+            .ref_(self).set_id(value);
+    }
+}
+
+impl HasArena for RedirectSourceFileIdOverride {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1124,22 +1135,22 @@ impl RedirectSourceFileSymbolOverride {
 impl NodeSymbolOverride for RedirectSourceFileSymbolOverride {
     fn maybe_symbol(&self) -> Option<Id<Symbol>> {
         self.redirect_source_file
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_redirect_info()
             .as_ref()
             .unwrap()
             .redirect_target
-            .maybe_symbol()
+            .ref_(self).maybe_symbol()
     }
 
     fn set_symbol(&self, value: Id<Symbol>) {
         self.redirect_source_file
-            .as_source_file()
+            .ref_(self).as_source_file()
             .maybe_redirect_info()
             .as_ref()
             .unwrap()
             .redirect_target
-            .set_symbol(value);
+            .ref_(self).set_symbol(value);
     }
 }
 
@@ -1164,6 +1175,13 @@ impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference 
                 cb(resolved_project_reference);
                 None
             },
+            self,
         );
+    }
+}
+
+impl HasArena for ProgramForEachResolvedProjectReference {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

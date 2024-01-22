@@ -11,7 +11,8 @@ use crate::{
     is_unary_expression, maybe_same_map, same_map, set_text_range, set_text_range_id_node,
     skip_partially_emitted_expressions, some, Associativity, BaseNodeFactory, Comparison,
     HasTypeArgumentsInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
+    OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind, HasArena, AllArenas,
+    InArena, NodeExt,
 };
 
 pub fn create_parenthesizer_rules<
@@ -49,17 +50,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             get_operator_associativity(SyntaxKind::BinaryExpression, binary_operator, None);
         let emitted_operand = skip_partially_emitted_expressions(operand, self);
         if !is_left_side_of_binary
-            && operand.kind() == SyntaxKind::ArrowFunction
+            && operand.ref_(self).kind() == SyntaxKind::ArrowFunction
             && binary_operator_precedence > OperatorPrecedence::Assignment
         {
             return true;
         }
-        let operand_precedence = get_expression_precedence(&emitted_operand);
+        let operand_precedence = get_expression_precedence(emitted_operand, self);
         match compare_values(Some(operand_precedence), Some(binary_operator_precedence)) {
             Comparison::LessThan => {
                 if !is_left_side_of_binary
                     && binary_operator_associativity == Associativity::Right
-                    && operand.kind() == SyntaxKind::YieldExpression
+                    && operand.ref_(self).kind() == SyntaxKind::YieldExpression
                 {
                     return false;
                 }
@@ -71,8 +72,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 if is_left_side_of_binary {
                     binary_operator_associativity == Associativity::Right
                 } else {
-                    if is_binary_expression(&*emitted_operand)
-                        && emitted_operand.as_binary_expression().operator_token.kind()
+                    if is_binary_expression(&emitted_operand.ref_(self))
+                        && emitted_operand.ref_(self).as_binary_expression().operator_token.ref_(self).kind()
                             == binary_operator
                     {
                         if self.operator_has_associative_property(binary_operator) {
@@ -82,7 +83,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                         if binary_operator == SyntaxKind::PlusToken {
                             let left_kind = match left_operand {
                                 Some(left_operand) => {
-                                    let left_operand = left_operand.borrow();
                                     self.get_literal_kind_of_binary_plus_operand(left_operand)
                                 }
                                 None => SyntaxKind::Unknown,
@@ -90,14 +90,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                             if is_literal_kind(left_kind)
                                 && left_kind
                                     == self
-                                        .get_literal_kind_of_binary_plus_operand(&emitted_operand)
+                                        .get_literal_kind_of_binary_plus_operand(emitted_operand)
                             {
                                 return false;
                             }
                         }
                     }
 
-                    let operand_associativity = get_expression_associativity(&emitted_operand);
+                    let operand_associativity = get_expression_associativity(emitted_operand, self);
                     operand_associativity == Associativity::Left
                 }
             }
@@ -120,14 +120,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     ) -> SyntaxKind {
         let node = skip_partially_emitted_expressions(node, self);
 
-        if is_literal_kind(node.kind()) {
-            return node.kind();
+        if is_literal_kind(node.ref_(self).kind()) {
+            return node.ref_(self).kind();
         }
 
-        if node.kind() == SyntaxKind::BinaryExpression
-            && node.as_binary_expression().operator_token.kind() == SyntaxKind::PlusToken
+        if node.ref_(self).kind() == SyntaxKind::BinaryExpression
+            && node.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::PlusToken
         {
-            let node_as_binary_expression = node.as_binary_expression();
+            let node_ref = node.ref_(self);
+            let node_as_binary_expression = node_ref.as_binary_expression();
             if node_as_binary_expression
                 .maybe_cached_literal_kind()
                 .is_some()
@@ -165,8 +166,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     ) -> Id<Node /*Expression*/> {
         let skipped = skip_partially_emitted_expressions(operand, self);
 
-        if skipped.kind() == SyntaxKind::ParenthesizedExpression {
-            return operand.node_wrapper();
+        if skipped.ref_(self).kind() == SyntaxKind::ParenthesizedExpression {
+            return operand;
         }
 
         if self.binary_operand_needs_parentheses(
@@ -176,9 +177,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             left_operand,
         ) {
             self.factory
-                .create_parenthesized_expression(operand.node_wrapper())
+                .create_parenthesized_expression(operand)
         } else {
-            operand.node_wrapper()
+            operand
         }
     }
 
@@ -188,15 +189,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         i: usize,
     ) -> Id<Node /*TypeNode*/> {
         if i == 0
-            && is_function_or_constructor_type_node(node)
+            && is_function_or_constructor_type_node(&node.ref_(self))
             && node
-                .as_has_type_parameters()
+                .ref_(self).as_has_type_parameters()
                 .maybe_type_parameters()
                 .is_some()
         {
-            self.factory.create_parenthesized_type(node.node_wrapper())
+            self.factory.create_parenthesized_type(node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 }
@@ -222,11 +223,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 
     fn parenthesize_expression_of_computed_property_name(&self, expression: Id<Node>) -> Id<Node> {
-        if is_comma_sequence(expression) {
+        if is_comma_sequence(expression, self) {
             self.factory
-                .create_parenthesized_expression(expression.node_wrapper())
+                .create_parenthesized_expression(expression)
         } else {
-            expression.node_wrapper()
+            expression
         }
     }
 
@@ -237,32 +238,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             None,
         );
         let emitted_condition = skip_partially_emitted_expressions(condition, self);
-        let condition_precedence = get_expression_precedence(&emitted_condition);
+        let condition_precedence = get_expression_precedence(emitted_condition, self);
         if compare_values(Some(condition_precedence), Some(conditional_precedence))
             != Comparison::GreaterThan
         {
             return self
                 .factory
-                .create_parenthesized_expression(condition.node_wrapper());
+                .create_parenthesized_expression(condition);
         }
-        condition.node_wrapper()
+        condition
     }
 
     fn parenthesize_branch_of_conditional_expression(&self, branch: Id<Node>) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(branch, self);
-        if is_comma_sequence(&emitted_expression) {
+        if is_comma_sequence(emitted_expression, self) {
             self.factory
-                .create_parenthesized_expression(branch.node_wrapper())
+                .create_parenthesized_expression(branch)
         } else {
-            branch.node_wrapper()
+            branch
         }
     }
 
     fn parenthesize_expression_of_export_default(&self, expression: Id<Node>) -> Id<Node> {
         let check = skip_partially_emitted_expressions(expression, self);
-        let mut needs_parens = is_comma_sequence(&check);
+        let mut needs_parens = is_comma_sequence(check, self);
         if !needs_parens {
-            match get_leftmost_expression(&check, false).kind() {
+            match get_leftmost_expression(check, false, self).ref_(self).kind() {
                 SyntaxKind::ClassExpression | SyntaxKind::FunctionExpression => {
                     needs_parens = true;
                 }
@@ -271,27 +272,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
         if needs_parens {
             self.factory
-                .create_parenthesized_expression(expression.node_wrapper())
+                .create_parenthesized_expression(expression)
         } else {
-            expression.node_wrapper()
+            expression
         }
     }
 
     fn parenthesize_expression_of_new(&self, expression: Id<Node>) -> Id<Node> {
-        let leftmost_expr = get_leftmost_expression(expression, true);
-        match leftmost_expr.kind() {
+        let leftmost_expr = get_leftmost_expression(expression, true, self);
+        match leftmost_expr.ref_(self).kind() {
             SyntaxKind::CallExpression => {
                 return self
                     .factory
-                    .create_parenthesized_expression(expression.node_wrapper());
+                    .create_parenthesized_expression(expression);
             }
 
             SyntaxKind::NewExpression => {
-                return if leftmost_expr.as_new_expression().arguments.is_none() {
+                return if leftmost_expr.ref_(self).as_new_expression().arguments.is_none() {
                     self.factory
-                        .create_parenthesized_expression(expression.node_wrapper())
+                        .create_parenthesized_expression(expression)
                 } else {
-                    expression.node_wrapper()
+                    expression
                 };
             }
             _ => (),
@@ -303,46 +304,37 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     fn parenthesize_left_side_of_access(&self, expression: Id<Node>) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression, self);
         if is_left_hand_side_expression(emitted_expression, self)
-            && (emitted_expression.kind() != SyntaxKind::NewExpression
-                || emitted_expression.as_new_expression().arguments.is_some())
+            && (emitted_expression.ref_(self).kind() != SyntaxKind::NewExpression
+                || emitted_expression.ref_(self).as_new_expression().arguments.is_some())
         {
-            return expression.node_wrapper();
+            return expression;
         }
 
-        set_text_range(
-            &*self
-                .factory
-                .create_parenthesized_expression(expression.node_wrapper()),
-            Some(expression),
-        )
-        .node_wrapper()
+        self
+            .factory
+            .create_parenthesized_expression(expression)
+            .set_text_range(Some(&*expression.ref_(self)), self)
     }
 
     fn parenthesize_operand_of_postfix_unary(&self, operand: Id<Node>) -> Id<Node> {
         if is_left_hand_side_expression(operand, self) {
-            operand.node_wrapper()
+            operand
         } else {
-            set_text_range(
-                &*self
-                    .factory
-                    .create_parenthesized_expression(operand.node_wrapper()),
-                Some(operand),
-            )
-            .node_wrapper()
+            self
+                .factory
+                .create_parenthesized_expression(operand)
+                .set_text_range(Some(&*operand.ref_(self)), self)
         }
     }
 
     fn parenthesize_operand_of_prefix_unary(&self, operand: Id<Node>) -> Id<Node> {
         if is_unary_expression(operand, self) {
-            operand.node_wrapper()
+            operand
         } else {
-            set_text_range(
-                &*self
-                    .factory
-                    .create_parenthesized_expression(operand.node_wrapper()),
-                Some(operand),
-            )
-            .node_wrapper()
+            self
+                .factory
+                .create_parenthesized_expression(operand)
+                .set_text_range(Some(&*operand.ref_(self)), self)
         }
     }
 
@@ -350,7 +342,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         &self,
         elements: NodeArrayOrVec,
     ) -> Gc<NodeArray> {
-        let result = same_map(&elements, |element, _| {
+        let result = same_map(&elements, |&element, _| {
             self.parenthesize_expression_for_disallowed_comma(element)
         });
         let node_array = self.factory.create_node_array(
@@ -378,111 +370,104 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn parenthesize_expression_for_disallowed_comma(&self, expression: Id<Node>) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression, self);
-        let expression_precedence = get_expression_precedence(&emitted_expression);
+        let expression_precedence = get_expression_precedence(emitted_expression, self);
         let comma_precedence =
             get_operator_precedence(SyntaxKind::BinaryExpression, SyntaxKind::CommaToken, None);
         if expression_precedence > comma_precedence {
-            expression.node_wrapper()
+            expression
         } else {
-            set_text_range(
-                &*self
-                    .factory
-                    .create_parenthesized_expression(expression.node_wrapper()),
-                Some(expression),
-            )
-            .node_wrapper()
+            self
+                .factory
+                .create_parenthesized_expression(expression)
+                .set_text_range(Some(&*expression.ref_(self)), self)
         }
     }
 
     fn parenthesize_expression_of_expression_statement(&self, expression: Id<Node>) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression, self);
-        if is_call_expression(&emitted_expression) {
-            let emitted_expression_as_call_expression = emitted_expression.as_call_expression();
-            let callee = &emitted_expression_as_call_expression.expression;
-            let kind = skip_partially_emitted_expressions(callee, self).kind();
+        if is_call_expression(&emitted_expression.ref_(self)) {
+            let emitted_expression_ref = emitted_expression.ref_(self);
+            let emitted_expression_as_call_expression = emitted_expression_ref.as_call_expression();
+            let callee = emitted_expression_as_call_expression.expression;
+            let kind = skip_partially_emitted_expressions(callee, self).ref_(self).kind();
             if matches!(
                 kind,
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
             ) {
                 let updated = self.factory.update_call_expression(
-                    &emitted_expression,
+                    emitted_expression,
                     set_text_range_id_node(
                         self.factory
-                            .create_parenthesized_expression(callee.node_wrapper()),
-                        Some(&**callee),
+                            .create_parenthesized_expression(callee),
+                        Some(&*callee.ref_(self)),
+                        self,
                     ),
                     emitted_expression_as_call_expression.maybe_type_arguments(),
                     emitted_expression_as_call_expression.arguments.clone(),
                 );
                 return self.factory.restore_outer_expressions(
                     Some(expression),
-                    &updated,
+                    updated,
                     Some(OuterExpressionKinds::PartiallyEmittedExpressions),
                 );
             }
         }
 
-        let leftmost_expression_kind = get_leftmost_expression(&emitted_expression, false).kind();
+        let leftmost_expression_kind = get_leftmost_expression(emitted_expression, false, self).ref_(self).kind();
         if matches!(
             leftmost_expression_kind,
             SyntaxKind::ObjectLiteralExpression | SyntaxKind::FunctionExpression
         ) {
-            return set_text_range(
-                &*self
-                    .factory
-                    .create_parenthesized_expression(expression.node_wrapper()),
-                Some(expression),
-            )
-            .node_wrapper();
+            return self
+                .factory
+                .create_parenthesized_expression(expression)
+                .set_text_range(Some(&*expression.ref_(self)), self);
         }
 
-        expression.node_wrapper()
+        expression
     }
 
     fn parenthesize_concise_body_of_arrow_function(&self, body: Id<Node>) -> Id<Node> {
-        if !is_block(body)
-            && (is_comma_sequence(body)
-                || get_leftmost_expression(body, false).kind()
+        if !is_block(&body.ref_(self))
+            && (is_comma_sequence(body, self)
+                || get_leftmost_expression(body, false, self).ref_(self).kind()
                     == SyntaxKind::ObjectLiteralExpression)
         {
-            return set_text_range(
-                &*self
-                    .factory
-                    .create_parenthesized_expression(body.node_wrapper()),
-                Some(body),
-            )
-            .node_wrapper();
+            return self
+                .factory
+                .create_parenthesized_expression(body)
+                .set_text_range(Some(&*body.ref_(self)), self);
         }
 
-        body.node_wrapper()
+        body
     }
 
     fn parenthesize_member_of_conditional_type(&self, member: Id<Node>) -> Id<Node> {
-        if member.kind() == SyntaxKind::ConditionalType {
+        if member.ref_(self).kind() == SyntaxKind::ConditionalType {
             self.factory
-                .create_parenthesized_type(member.node_wrapper())
+                .create_parenthesized_type(member)
         } else {
-            member.node_wrapper()
+            member
         }
     }
 
     fn parenthesize_member_of_element_type(&self, member: Id<Node>) -> Id<Node> {
-        match member.kind() {
+        match member.ref_(self).kind() {
             SyntaxKind::UnionType
             | SyntaxKind::IntersectionType
             | SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType => self
                 .factory
-                .create_parenthesized_type(member.node_wrapper()),
+                .create_parenthesized_type(member),
             _ => self.parenthesize_member_of_conditional_type(member),
         }
     }
 
     fn parenthesize_element_type_of_array_type(&self, member: Id<Node>) -> Id<Node> {
-        match member.kind() {
+        match member.ref_(self).kind() {
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
                 .factory
-                .create_parenthesized_type(member.node_wrapper()),
+                .create_parenthesized_type(member),
             _ => self.parenthesize_member_of_element_type(member),
         }
     }
@@ -496,7 +481,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             NodeArrayOrVec::Vec(members) => members,
         };
         self.factory.create_node_array(
-            Some(same_map(&members, |member, _| {
+            Some(same_map(&members, |&member, _| {
                 self.parenthesize_member_of_element_type(member)
             })),
             None,
@@ -512,13 +497,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             Option::<fn(&Id<Node>) -> bool>::None,
         ) {
             return Some(self.factory.create_node_array(
-                maybe_same_map(type_arguments.as_deref(), |type_arguments, index| {
+                maybe_same_map(type_arguments.as_deref(), |&type_arguments, index| {
                     self.parenthesize_ordinal_type_argument(type_arguments, index)
                 }),
                 None,
             ));
         }
         None
+    }
+}
+
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
+    HasArena for ParenthesizerRulesConcrete<TBaseNodeFactory>
+{
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -545,7 +538,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     for NullParenthesizerRules<TBaseNodeFactory>
 {
     fn parenthesize_left_side_of_binary(&self, _: SyntaxKind, left_side: Id<Node>) -> Id<Node> {
-        left_side.node_wrapper()
+        left_side
     }
 
     fn parenthesize_right_side_of_binary(
@@ -554,39 +547,39 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         _left_side: Option<Id<Node>>,
         right_side: Id<Node>,
     ) -> Id<Node> {
-        right_side.node_wrapper()
+        right_side
     }
 
     fn parenthesize_expression_of_computed_property_name(&self, expression: Id<Node>) -> Id<Node> {
-        expression.node_wrapper()
+        expression
     }
 
     fn parenthesize_condition_of_conditional_expression(&self, condition: Id<Node>) -> Id<Node> {
-        condition.node_wrapper()
+        condition
     }
 
     fn parenthesize_branch_of_conditional_expression(&self, branch: Id<Node>) -> Id<Node> {
-        branch.node_wrapper()
+        branch
     }
 
     fn parenthesize_expression_of_export_default(&self, expression: Id<Node>) -> Id<Node> {
-        expression.node_wrapper()
+        expression
     }
 
     fn parenthesize_expression_of_new(&self, expression: Id<Node>) -> Id<Node> {
-        expression.node_wrapper()
+        expression
     }
 
     fn parenthesize_left_side_of_access(&self, expression: Id<Node>) -> Id<Node> {
-        expression.node_wrapper()
+        expression
     }
 
     fn parenthesize_operand_of_postfix_unary(&self, operand: Id<Node>) -> Id<Node> {
-        operand.node_wrapper()
+        operand
     }
 
     fn parenthesize_operand_of_prefix_unary(&self, operand: Id<Node>) -> Id<Node> {
-        operand.node_wrapper()
+        operand
     }
 
     fn parenthesize_expressions_of_comma_delimited_list(
@@ -602,27 +595,27 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     }
 
     fn parenthesize_expression_for_disallowed_comma(&self, expression: Id<Node>) -> Id<Node> {
-        expression.node_wrapper()
+        expression
     }
 
     fn parenthesize_expression_of_expression_statement(&self, expression: Id<Node>) -> Id<Node> {
-        expression.node_wrapper()
+        expression
     }
 
     fn parenthesize_concise_body_of_arrow_function(&self, expression: Id<Node>) -> Id<Node> {
-        expression.node_wrapper()
+        expression
     }
 
     fn parenthesize_member_of_conditional_type(&self, member: Id<Node>) -> Id<Node> {
-        member.node_wrapper()
+        member
     }
 
     fn parenthesize_member_of_element_type(&self, member: Id<Node>) -> Id<Node> {
-        member.node_wrapper()
+        member
     }
 
     fn parenthesize_element_type_of_array_type(&self, member: Id<Node>) -> Id<Node> {
-        member.node_wrapper()
+        member
     }
 
     fn parenthesize_constituent_types_of_union_or_intersection_type(

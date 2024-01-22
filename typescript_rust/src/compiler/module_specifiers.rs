@@ -28,6 +28,7 @@ use crate::{
     ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
     ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, OptionTry, Path,
     ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
+    InArena,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -91,10 +92,10 @@ fn get_ending(
         Some("index") => Ending::Index,
         Some("js") => Ending::JsExtension,
         _ => {
-            if uses_js_extensions_on_imports(importing_source_file)
+            if uses_js_extensions_on_imports(importing_source_file, arena)
                 || is_format_requiring_extensions(
                     compiler_options.clone(),
-                    &importing_source_file.as_source_file().path(),
+                    &importing_source_file.ref_(arena).as_source_file().path(),
                     host,
                     arena,
                 )
@@ -311,6 +312,7 @@ fn try_get_module_specifiers_from_cache_worker(
     importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
+    arena: &impl HasArena,
 ) -> (
     Option<Vec<String>>,
     Option<Id<Node>>,
@@ -326,8 +328,8 @@ fn try_get_module_specifiers_from_cache_worker(
     let cache = host.get_module_specifier_cache();
     let cached = cache.as_ref().and_then(|cache| {
         cache.get(
-            &importing_source_file.as_source_file().path(),
-            &module_source_file.as_source_file().path(),
+            &importing_source_file.ref_(arena).as_source_file().path(),
+            &module_source_file.ref_(arena).as_source_file().path(),
             user_preferences,
         )
     });
@@ -389,6 +391,7 @@ pub fn get_module_specifiers_with_cache_info(
             importing_source_file,
             host,
             user_preferences,
+            arena,
         );
     if let Some(specifiers) = specifiers {
         return Ok(ModuleSpecifiersWithCacheInfo {
@@ -405,8 +408,10 @@ pub fn get_module_specifiers_with_cache_info(
     let module_source_file = module_source_file.unwrap();
 
     computed_without_cache = true;
-    let importing_source_file_as_source_file = importing_source_file.as_source_file();
-    let module_source_file_as_source_file = module_source_file.as_source_file();
+    let importing_source_file_ref = importing_source_file.ref_(arena);
+    let importing_source_file_as_source_file = importing_source_file_ref.as_source_file();
+    let module_source_file_ref = module_source_file.ref_(arena);
+    let module_source_file_as_source_file = module_source_file_ref.as_source_file();
     let module_paths = module_paths.unwrap_or_else(|| {
         get_all_module_paths_worker(
             &importing_source_file_as_source_file.path(),
@@ -445,7 +450,8 @@ fn compute_module_specifiers(
     user_preferences: &UserPreferences,
     arena: &impl HasArena,
 ) -> io::Result<Vec<String>> {
-    let importing_source_file_as_source_file = importing_source_file.as_source_file();
+    let importing_source_file_ref = importing_source_file.ref_(arena);
+    let importing_source_file_as_source_file = importing_source_file_ref.as_source_file();
     let info = get_info(&importing_source_file_as_source_file.path(), host);
     let preferences = get_preferences(
         host,
@@ -471,8 +477,9 @@ fn compute_module_specifiers(
                 let specifier = get_module_name_string_literal_at(
                     importing_source_file_as_source_file,
                     reason.as_referenced_file().index,
+                    arena,
                 )
-                .as_literal_like_node()
+                .ref_(arena).as_literal_like_node()
                 .text()
                 .clone();
                 if preferences.relative_preference != RelativePreference::NonRelative
@@ -720,13 +727,13 @@ pub fn count_path_components(path: &str) -> usize {
     count
 }
 
-fn uses_js_extensions_on_imports(node: Id<Node> /*SourceFile*/) -> bool {
-    let imports = node.as_source_file().maybe_imports();
+fn uses_js_extensions_on_imports(node: Id<Node> /*SourceFile*/, arena: &impl HasArena) -> bool {
+    let imports = node.ref_(arena).as_source_file().maybe_imports();
     imports
         .as_ref()
         .and_then(|imports| {
             first_defined(imports, |node: &Id<Node>, _| {
-                let text = node.as_literal_like_node().text();
+                let text = node.ref_(arena).as_literal_like_node().text();
                 if path_is_relative(&text) {
                     Some(has_js_file_extension(&text))
                 } else {
@@ -1033,20 +1040,20 @@ fn try_get_module_name_from_ambient_module(
         .and_then(|module_symbol_declarations| {
             module_symbol_declarations
                 .into_iter()
-                .find(|d| {
-                    is_non_global_ambient_module(d)
-                        && (!is_external_module_augmentation(d)
+                .find(|&&d| {
+                    is_non_global_ambient_module(d, checker)
+                        && (!is_external_module_augmentation(d, checker)
                             || !is_external_module_name_relative(
-                                &get_text_of_identifier_or_literal(&d.as_module_declaration().name),
+                                &get_text_of_identifier_or_literal(&d.ref_(checker).as_module_declaration().name.ref_(checker)),
                             ))
                 })
                 .cloned()
         });
     if let Some(decl) = decl {
         return Ok(Some(
-            decl.as_module_declaration()
+            decl.ref_(checker).as_module_declaration()
                 .name
-                .as_string_literal()
+                .ref_(checker).as_string_literal()
                 .text()
                 .clone(),
         ));
@@ -1054,24 +1061,25 @@ fn try_get_module_name_from_ambient_module(
 
     let ambient_module_declare_candidates = try_map_defined(
         checker.symbol(module_symbol).maybe_declarations().as_ref(),
-        |d: &Id<Node>, _| -> io::Result<Option<Id<Node>>> {
-            if !is_module_declaration(d) {
+        |&d: &Id<Node>, _| -> io::Result<Option<Id<Node>>> {
+            if !is_module_declaration(&d.ref_(checker)) {
                 return Ok(None);
             }
-            let top_namespace = get_top_namespace(d);
+            let top_namespace = get_top_namespace(d, checker);
             if !(matches!(
-                top_namespace.maybe_parent().as_ref(),
+                top_namespace.ref_(checker).maybe_parent(),
                 Some(top_namespace_parent) if matches!(
-                    top_namespace_parent.maybe_parent().as_ref(),
-                    Some(top_namespace_parent_parent) if is_module_block(top_namespace_parent) &&
-                        is_ambient_module(top_namespace_parent_parent) &&
-                        is_source_file(&top_namespace_parent_parent.parent())
+                    top_namespace_parent.ref_(checker).maybe_parent(),
+                    Some(top_namespace_parent_parent) if is_module_block(&top_namespace_parent.ref_(checker)) &&
+                        is_ambient_module(top_namespace_parent_parent, checker) &&
+                        is_source_file(&top_namespace_parent_parent.ref_(checker).parent().ref_(checker))
                 )
             )) {
                 return Ok(None);
             }
-            let ref export_assignment = return_ok_default_if_none!(checker
-                .symbol(top_namespace.parent().parent().symbol())
+            let ref export_assignment = return_ok_default_if_none!(
+                top_namespace.ref_(checker).parent().ref_(checker).parent().ref_(checker).symbol()
+                .ref_(checker)
                 .maybe_exports()
                 .as_ref()
                 .and_then(|top_namespace_parent_parent_symbol_exports| {
@@ -1088,38 +1096,38 @@ fn try_get_module_name_from_ambient_module(
                 .map(
                     |top_namespace_parent_parent_symbol_exports_got_value_declaration| {
                         top_namespace_parent_parent_symbol_exports_got_value_declaration
-                            .as_export_assignment()
+                            .ref_(checker).as_export_assignment()
                             .expression
-                            .clone()
                     },
                 ));
             let export_symbol =
                 return_ok_default_if_none!(checker.get_symbol_at_location(export_assignment)?);
-            let original_export_symbol = if checker
-                .symbol(export_symbol)
+            let original_export_symbol = if
+                export_symbol
+                .ref_(checker)
                 .flags()
                 .intersects(SymbolFlags::Alias)
             {
                 checker.get_aliased_symbol(export_symbol)?
             } else {
-                export_symbol.clone()
+                export_symbol
             };
             if matches!(
-                d.maybe_symbol(),
+                d.ref_(checker).maybe_symbol(),
                 Some(d_symbol) if original_export_symbol == d_symbol
             ) {
-                return Ok(Some(top_namespace.parent().parent()));
+                return Ok(Some(top_namespace.ref_(checker).parent().ref_(checker).parent()));
             }
             Ok(None)
         },
     )?;
-    let ambient_module_declare = ambient_module_declare_candidates.get(0);
+    let ambient_module_declare = ambient_module_declare_candidates.get(0).copied();
     if let Some(ambient_module_declare) = ambient_module_declare {
         return Ok(Some(
             ambient_module_declare
-                .as_module_declaration()
+                .ref_(checker).as_module_declaration()
                 .name
-                .as_string_literal()
+                .ref_(checker).as_string_literal()
                 .text()
                 .clone(),
         ));
@@ -1159,13 +1167,12 @@ fn try_get_module_name_from_paths(
     None
 }
 
-fn get_top_namespace(namespace_declaration: Id<Node> /*ModuleDeclaration*/) -> Id<Node> {
-    let mut namespace_declaration = namespace_declaration.node_wrapper();
+fn get_top_namespace(mut namespace_declaration: Id<Node> /*ModuleDeclaration*/, arena: &impl HasArena) -> Id<Node> {
     while namespace_declaration
-        .flags()
+        .ref_(arena).flags()
         .intersects(NodeFlags::NestedNamespace)
     {
-        namespace_declaration = namespace_declaration.parent();
+        namespace_declaration = namespace_declaration.ref_(arena).parent();
     }
     namespace_declaration
 }

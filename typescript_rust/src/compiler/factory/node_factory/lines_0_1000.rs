@@ -26,7 +26,7 @@ use crate::{
     ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
     ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral,
     StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 thread_local! {

@@ -317,6 +317,7 @@ pub(super) fn perform_compilation(
     mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     let file_names = &config.file_names;
     let options = config.options.clone();
@@ -345,7 +346,7 @@ pub(super) fn perform_compilation(
         options: options.clone(),
         project_references: project_references.clone(),
         host: Some(host),
-        config_file_parsing_diagnostics: Some(get_config_file_parsing_diagnostics(config)),
+        config_file_parsing_diagnostics: Some(get_config_file_parsing_diagnostics(config, arena)),
         old_program: None,
     };
     let program = create_program(program_options)?;
@@ -390,13 +391,12 @@ impl ToPath for PerformCompilationToPath {
     }
 }
 
-pub(super) fn perform_incremental_compilation<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
+pub(super) fn perform_incremental_compilation(
     sys: Gc<Box<dyn System>>,
-    mut cb: TCallback,
+    mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
+    arena: &impl HasArena,
 ) {
     let options = config.options.clone();
     let file_names = &config.file_names;
@@ -411,7 +411,7 @@ pub(super) fn perform_incremental_compilation<
         system: Some(&**sys),
         root_names: file_names,
         options: &options.clone(),
-        config_file_parsing_diagnostics: Some(&get_config_file_parsing_diagnostics(config)),
+        config_file_parsing_diagnostics: Some(&get_config_file_parsing_diagnostics(config, arena)),
         project_references: project_references.as_deref(),
         report_diagnostic: Some(report_diagnostic),
         report_error_summary: create_report_error_summary(sys.clone(), options.into()),

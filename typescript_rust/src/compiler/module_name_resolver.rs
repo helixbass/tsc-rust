@@ -25,7 +25,7 @@ use crate::{
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 pub(crate) fn trace(
@@ -569,7 +569,7 @@ pub fn resolve_type_reference_directive(
                     &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                     Some(vec![redirected_reference
                         .source_file
-                        .as_source_file()
+                        .ref_(arena).as_source_file()
                         .file_name()
                         .clone()]),
                 );
@@ -649,7 +649,7 @@ pub fn resolve_type_reference_directive(
                 &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                 Some(vec![redirected_reference
                     .source_file
-                    .as_source_file()
+                    .ref_(arena).as_source_file()
                     .file_name()
                     .clone()]),
             );
@@ -1059,7 +1059,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
             return self.own_map.borrow().clone();
         }
         let redirected_reference = redirected_reference.unwrap();
-        let path = redirected_reference.source_file.as_source_file().path();
+        let path = redirected_reference.source_file.ref_(self).as_source_file().path();
         let mut redirects = (*self.redirects_map).borrow().get(&path).cloned();
         if redirects.is_none() {
             redirects = Some(
@@ -1085,6 +1085,12 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
     pub fn clear(&self) {
         self.own_map.borrow().borrow_mut().clear();
         self.redirects_map.borrow_mut().clear();
+    }
+}
+
+impl<TCache: Trace + Finalize> HasArena for CacheWithRedirects<TCache> {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1288,14 +1294,16 @@ pub(crate) fn zip_to_mode_aware_cache<TValue: Clone + Trace + Finalize>(
     file: Id<Node>, /*SourceFile*/
     keys: &[String],
     values: &[TValue],
+    arena: &impl HasArena,
 ) -> ModeAwareCache<TValue> {
-    let file_as_source_file = file.as_source_file();
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     Debug_.assert(keys.len() == values.len(), None);
     let map = create_mode_aware_cache();
     for (i, key) in keys.into_iter().enumerate() {
         map.set(
             key,
-            get_mode_for_resolution_at_index(file_as_source_file, i),
+            get_mode_for_resolution_at_index(file_as_source_file, i, arena),
             values[i].clone(),
         );
     }
@@ -1622,7 +1630,7 @@ pub fn resolve_module_name(
                 &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                 Some(vec![redirected_reference
                     .source_file
-                    .as_source_file()
+                    .ref_(arena).as_source_file()
                     .file_name()
                     .clone()]),
             );
@@ -1803,9 +1811,10 @@ fn try_load_module_using_optional_resolution_settings(
     containing_directory: &str,
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {
     let resolved =
-        try_load_module_using_paths_if_eligible(extensions, module_name, loader.clone(), state)?;
+        try_load_module_using_paths_if_eligible(extensions, module_name, loader.clone(), state, arena)?;
     if let Some(resolved) = resolved {
         return Ok(resolved.value);
     }
@@ -1828,6 +1837,7 @@ fn try_load_module_using_paths_if_eligible(
     module_name: &str,
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
     let base_url = state.compiler_options.base_url.as_ref();
     let paths = state.compiler_options.paths.as_ref();
@@ -1860,7 +1870,7 @@ fn try_load_module_using_paths_if_eligible(
             let path_patterns = config_file
                 .and_then(|config_file| {
                     config_file
-                        .as_source_file()
+                        .ref_(arena).as_source_file()
                         .maybe_config_file_specs()
                         .clone()
                 })
@@ -2301,6 +2311,7 @@ fn try_resolve(
         containing_directory,
         loader.clone(),
         state,
+        arena,
     )?;
     if let Some(resolved) = resolved {
         let is_external_library_import = path_contains_node_modules(&resolved.path);
@@ -4266,6 +4277,7 @@ fn classic_name_resolver_try_resolve(
             },
         ),
         state,
+        arena,
     )?;
     if let Some(resolved_using_settings) = resolved_using_settings {
         return Ok(Some(SearchResultPresent {

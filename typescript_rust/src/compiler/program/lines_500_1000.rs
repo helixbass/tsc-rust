@@ -40,7 +40,7 @@ use crate::{
     ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
     TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    VecExt, HasArena, AllArenas,
+    VecExt, HasArena, AllArenas, InArena,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
@@ -96,6 +96,12 @@ impl LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>
         .resolved_type_reference_directive
         .clone()
         .unwrap())
+    }
+}
+
+impl HasArena for LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -156,13 +162,15 @@ impl SourceFileImportsList for SourceFile {
 pub(crate) fn get_mode_for_resolution_at_index(
     file: &impl SourceFileImportsList,
     index: usize,
+    arena: &impl HasArena,
 ) -> Option<ModuleKind> {
     if file.maybe_implied_node_format().is_none() {
         return None;
     }
     get_mode_for_usage_location(
         file.maybe_implied_node_format(),
-        &get_module_name_string_literal_at(file, index),
+        &get_module_name_string_literal_at(file, index, arena),
+        arena,
     )
 }
 
@@ -174,7 +182,7 @@ pub(crate) fn get_mode_for_usage_location(
     let implied_node_format = implied_node_format?;
     if implied_node_format != ModuleKind::ESNext {
         return Some(
-            if is_import_call(walk_up_parenthesized_expressions(usage.parent(), arena).unwrap(), arena) {
+            if is_import_call(walk_up_parenthesized_expressions(usage.ref_(arena).parent(), arena).unwrap(), arena) {
                 ModuleKind::ESNext
             } else {
                 ModuleKind::CommonJS
@@ -182,7 +190,7 @@ pub(crate) fn get_mode_for_usage_location(
         );
     }
     let expr_parent_parent =
-        walk_up_parenthesized_expressions(usage.parent(), arena).and_then(|node| node.maybe_parent());
+        walk_up_parenthesized_expressions(usage.ref_(arena).parent(), arena).and_then(|node| node.ref_(arena).maybe_parent());
     Some(
         if matches!(
             expr_parent_parent.as_ref(),
@@ -264,6 +272,7 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     containing_file_name: &str,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     loader: &dyn LoadWithModeAwareCacheLoader<TValue>,
+    arena: &impl HasArena,
 ) -> io::Result<Vec<TValue>> {
     if names.is_empty() {
         return Ok(vec![]);
@@ -271,10 +280,10 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     let mut resolutions: Vec<TValue> = Default::default();
     let mut cache: HashMap<String, TValue> = Default::default();
     let mut i = 0;
-    let containing_file_as_source_file = containing_file.as_source_file();
+    let containing_file_as_source_file = containing_file.ref_(arena).as_source_file();
     for name in names {
         let result: TValue;
-        let mode = get_mode_for_resolution_at_index(containing_file_as_source_file, i);
+        let mode = get_mode_for_resolution_at_index(containing_file_as_source_file, i, arena);
         i += 1;
         let cache_key = if let Some(mode) = mode {
             format!("{:?}|{}", mode, name)
@@ -297,12 +306,10 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     Ok(resolutions)
 }
 
-pub fn for_each_resolved_project_reference<
-    TReturn,
-    TCallback: FnMut(Gc<ResolvedProjectReference>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
->(
+pub fn for_each_resolved_project_reference<TReturn>(
     resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
-    mut cb: TCallback,
+    mut cb: impl FnMut(Gc<ResolvedProjectReference>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     for_each_project_reference(
         None,
@@ -316,6 +323,7 @@ pub fn for_each_resolved_project_reference<
                 Option<&ResolvedProjectReference>,
             ) -> Option<TReturn>,
         >::None,
+        arena,
     )
 }
 
@@ -330,6 +338,7 @@ pub fn for_each_project_reference<TReturn>(
     cb_ref: Option<
         impl Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
     >,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     let mut seen_resolved_refs: Option<HashSet<Path>> = None;
 
@@ -340,6 +349,7 @@ pub fn for_each_project_reference<TReturn>(
         project_references,
         resolved_project_references,
         None,
+        arena,
     )
 }
 
@@ -357,6 +367,7 @@ pub fn try_for_each_project_reference<TReturn, TError>(
             Option<&ResolvedProjectReference>,
         ) -> Result<Option<TReturn>, TError>,
     >,
+    arena: &impl HasArena,
 ) -> Result<Option<TReturn>, TError> {
     let mut seen_resolved_refs: Option<HashSet<Path>> = None;
 
@@ -367,6 +378,7 @@ pub fn try_for_each_project_reference<TReturn, TError>(
         project_references,
         resolved_project_references,
         None,
+        arena,
     )
 }
 
@@ -382,6 +394,7 @@ pub fn for_each_project_reference_bool(
     cb_ref: Option<
         impl Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> bool,
     >,
+    arena: &impl HasArena,
 ) -> bool {
     for_each_project_reference(
         project_references,
@@ -394,6 +407,7 @@ pub fn for_each_project_reference_bool(
                 cb_ref(a, b).then_some(())
             }
         }),
+        arena,
     )
     .is_some()
 }
@@ -412,6 +426,7 @@ pub fn try_for_each_project_reference_bool<TError>(
             Option<&ResolvedProjectReference>,
         ) -> Result<bool, TError>,
     >,
+    arena: &impl HasArena,
 ) -> Result<bool, TError> {
     Ok(try_for_each_project_reference(
         project_references,
@@ -424,6 +439,7 @@ pub fn try_for_each_project_reference_bool<TError>(
                 Ok(cb_ref(a, b)?.then_some(()))
             }
         }),
+        arena,
     )?
     .is_some())
 }
@@ -441,6 +457,7 @@ fn for_each_project_reference_worker<TReturn>(
     project_references: Option<&[Rc<ProjectReference>]>,
     resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
     parent: Option<&ResolvedProjectReference>,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     if let Some(cb_ref) = cb_ref {
         let result = cb_ref(project_references, parent);
@@ -457,7 +474,7 @@ fn for_each_project_reference_worker<TReturn>(
                 Some(resolved_ref) if matches!(
                     seen_resolved_refs,
                     Some(seen_resolved_refs) if seen_resolved_refs.contains(
-                        &*resolved_ref.source_file.as_source_file().path()
+                        &*resolved_ref.source_file.ref_(arena).as_source_file().path()
                     )
                 )
             ) {
@@ -472,7 +489,7 @@ fn for_each_project_reference_worker<TReturn>(
 
             seen_resolved_refs
                 .get_or_insert_default_()
-                .insert(resolved_ref.source_file.as_source_file().path().clone());
+                .insert(resolved_ref.source_file.ref_(arena).as_source_file().path().clone());
             for_each_project_reference_worker(
                 cb_ref,
                 cb_resolved_ref,
@@ -480,6 +497,7 @@ fn for_each_project_reference_worker<TReturn>(
                 resolved_ref.command_line.project_references.as_deref(),
                 resolved_ref.maybe_references().as_deref(),
                 Some(&**resolved_ref),
+                arena,
             )
         },
     )
@@ -501,6 +519,7 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
     project_references: Option<&[Rc<ProjectReference>]>,
     resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
     parent: Option<&ResolvedProjectReference>,
+    arena: &impl HasArena,
 ) -> Result<Option<TReturn>, TError> {
     if let Some(cb_ref) = cb_ref {
         let result = cb_ref(project_references, parent)?;
@@ -517,7 +536,7 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
                 Some(resolved_ref) if matches!(
                     seen_resolved_refs,
                     Some(seen_resolved_refs) if seen_resolved_refs.contains(
-                        &*resolved_ref.source_file.as_source_file().path()
+                        &*resolved_ref.source_file.ref_(arena).as_source_file().path()
                     )
                 )
             ) {
@@ -532,7 +551,7 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
 
             seen_resolved_refs
                 .get_or_insert_default_()
-                .insert(resolved_ref.source_file.as_source_file().path().clone());
+                .insert(resolved_ref.source_file.ref_(arena).as_source_file().path().clone());
             for_each_project_reference_worker_fallible(
                 cb_ref,
                 cb_resolved_ref,
@@ -540,6 +559,7 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
                 resolved_ref.command_line.project_references.as_deref(),
                 resolved_ref.maybe_references().as_deref(),
                 Some(&**resolved_ref),
+                arena,
             )
         },
     )
@@ -639,18 +659,20 @@ impl From<SyntheticReferenceFileLocation>
 pub(crate) fn get_referenced_file_location(
     mut get_source_file_by_path: impl FnMut(&Path) -> Option<Id<Node /*SourceFile*/>>,
     ref_: &ReferencedFile,
+    arena: &impl HasArena,
 ) -> ReferenceFileLocationOrSyntheticReferenceFileLocation {
-    let ref file = Debug_.check_defined(get_source_file_by_path(&ref_.file), None);
+    let file = Debug_.check_defined(get_source_file_by_path(&ref_.file), None);
     let kind = ref_.kind;
     let index = ref_.index;
     let pos: Option<isize>;
     let end: Option<isize>;
     let mut package_id: Option<PackageId> = None;
-    let file_as_source_file = file.as_source_file();
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     match kind {
         FileIncludeKind::Import => {
-            let import_literal = get_module_name_string_literal_at(file_as_source_file, index);
-            let import_literal_text = import_literal.as_literal_like_node().text();
+            let import_literal = get_module_name_string_literal_at(file_as_source_file, index, arena);
+            let import_literal_text = import_literal.ref_(arena).as_literal_like_node().text();
             package_id = file_as_source_file
                 .maybe_resolved_modules()
                 .as_ref()
@@ -658,14 +680,14 @@ pub(crate) fn get_referenced_file_location(
                     file_resolved_modules
                         .get(
                             &import_literal_text,
-                            get_mode_for_resolution_at_index(file_as_source_file, index),
+                            get_mode_for_resolution_at_index(file_as_source_file, index, arena),
                         )
                         .flatten()
                 })
                 .and_then(|resolved_module| resolved_module.package_id.clone());
-            if import_literal.pos() == -1 {
+            if import_literal.ref_(arena).pos() == -1 {
                 return SyntheticReferenceFileLocation {
-                    file: file.node_wrapper(),
+                    file,
                     package_id,
                     text: import_literal_text.clone(),
                 }
@@ -673,12 +695,12 @@ pub(crate) fn get_referenced_file_location(
             }
             pos = Some(skip_trivia(
                 &file_as_source_file.text_as_chars(),
-                import_literal.pos(),
+                import_literal.ref_(arena).pos(),
                 None,
                 None,
                 None,
             ));
-            end = Some(import_literal.end());
+            end = Some(import_literal.ref_(arena).end());
         }
         FileIncludeKind::ReferenceFile => {
             let file_referenced_files = file_as_source_file.referenced_files();
@@ -717,7 +739,7 @@ pub(crate) fn get_referenced_file_location(
         }
     }
     ReferenceFileLocation {
-        file: file.node_wrapper(),
+        file,
         pos: pos.unwrap(),
         end: end.unwrap(),
         package_id,
@@ -727,12 +749,13 @@ pub(crate) fn get_referenced_file_location(
 
 pub fn get_config_file_parsing_diagnostics(
     config_file_parse_result: &ParsedCommandLine,
+    arena: &impl HasArena,
 ) -> Vec<Gc<Diagnostic>> {
     if let Some(config_file_parse_result_options_config_file) =
         config_file_parse_result.options.config_file.as_ref()
     {
         (*config_file_parse_result_options_config_file
-            .as_source_file()
+            .ref_(arena).as_source_file()
             .parse_diagnostics())
         .borrow()
         .clone()
@@ -1286,7 +1309,7 @@ impl Program {
                         .as_ref()
                         .unwrap()
                         .into_iter()
-                        .map(|file| file.as_source_file().file_name().clone())
+                        .map(|file| file.ref_(self).as_source_file().file_name().clone())
                         .collect::<Vec<_>>()
                 );
                 println!(
@@ -1296,14 +1319,14 @@ impl Program {
                         .as_ref()
                         .unwrap()
                         .into_iter()
-                        .map(|file| file.as_source_file().file_name().clone())
+                        .map(|file| file.ref_(self).as_source_file().file_name().clone())
                         .collect::<Vec<_>>()
                 );
             }
             *self.files.borrow_mut() = Some({
                 let mut files: Vec<Id<Node>> = stable_sort(
                     self.processing_default_lib_files.borrow().as_ref().unwrap(),
-                    |a, b| self.compare_default_lib_files(a, b),
+                    |&a, &b| self.compare_default_lib_files(a, b),
                 )
                 .into();
                 let mut processing_other_files =
@@ -1357,9 +1380,10 @@ impl Program {
                         let referenced_file_location = get_referenced_file_location(
                             |path: &Path| self.get_source_file_by_path(path),
                             &diagnostic_as_referenced_diagnostic.reason,
+                            self,
                         );
                         let referenced_file_location_as_reference_file_location = referenced_file_location.as_reference_file_location();
-                        let file = &referenced_file_location_as_reference_file_location.file;
+                        let file = referenced_file_location_as_reference_file_location.file;
                         let pos = referenced_file_location_as_reference_file_location.pos;
                         let end = referenced_file_location_as_reference_file_location.end;
                         self.program_diagnostics_mut().add(
@@ -1826,8 +1850,8 @@ mod _FilesByNameValueDeriveTraceScope {
     }
 
     impl FilesByNameValue {
-        pub fn as_source_file(&self) -> &Id<Node /*SourceFile*/> {
-            enum_unwrapped!(self, [FilesByNameValue, SourceFile])
+        pub fn as_source_file(&self) -> Id<Node /*SourceFile*/> {
+            *enum_unwrapped!(self, [FilesByNameValue, SourceFile])
         }
     }
 
@@ -1929,7 +1953,14 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
             containing_file_name,
             redirected_reference,
             &**self.loader,
+            self,
         )
+    }
+}
+
+impl HasArena for ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

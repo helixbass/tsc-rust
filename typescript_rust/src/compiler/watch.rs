@@ -447,7 +447,8 @@ pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) 
                         file_include_reason_to_diagnostics(
                             program,
                             reason,
-                            Some(relative_file_name)
+                            Some(relative_file_name),
+                            program,
                         )
                         .message_text
                     ))
@@ -568,16 +569,17 @@ pub fn get_matched_include_spec(program: &Program, file_name: &str) -> Option<St
     .map(Clone::clone)
 }
 
-pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String>(
+pub fn file_include_reason_to_diagnostics(
     program: &Program,
     reason: &FileIncludeReason,
-    file_name_convertor: Option<TFileNameConvertor>,
+    file_name_convertor: Option<impl Fn(&str) -> String>,
+    arena: &impl HasArena,
 ) -> DiagnosticMessageChain {
     let options = program.get_compiler_options();
     if is_referenced_file(Some(reason)) {
         let reason = enum_unwrapped!(reason, [FileIncludeReason, ReferencedFile]);
         let reference_location =
-            get_referenced_file_location(|path| program.get_source_file_by_path(path), reason);
+            get_referenced_file_location(|path| program.get_source_file_by_path(path), reason, arena);
         let reference_text = match &reference_location {
             ReferenceFileLocationOrSyntheticReferenceFileLocation::ReferenceFileLocation(reference_location) =>
                 text_substring(&reference_location.file.as_source_file().text_as_chars(), reference_location.pos.try_into().unwrap(), reference_location.end.try_into().unwrap()),
@@ -809,9 +811,9 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
     }
 }
 
-fn to_file_name<TFile: Into<StringOrRcNode>, TFileNameConvertor: Fn(&str) -> String>(
-    file: TFile,
-    file_name_convertor: Option<&TFileNameConvertor>,
+fn to_file_name(
+    file: impl Into<StringOrRcNode>,
+    file_name_convertor: Option<&impl Fn(&str) -> String>,
 ) -> String {
     let file = file.into();
     let file_name = match file {
