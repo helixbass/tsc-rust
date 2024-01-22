@@ -435,7 +435,7 @@ pub fn explain_files(program: &Program, mut write: impl FnMut(&str)) {
             get_canonical_file_name(file_name)
         })
     };
-    for file in &*program.get_source_files() {
+    for &file in &*program.get_source_files() {
         write(&to_file_name(file.clone(), Some(&relative_file_name), program));
         (*reasons)
             .borrow()

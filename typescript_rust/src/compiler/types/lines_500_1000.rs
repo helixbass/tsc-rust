@@ -1710,7 +1710,7 @@ pub struct BaseNode {
     #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Node>>>,
     _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
-    _symbol_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
+    _symbol_override: GcCell<Option<Gc<Box<dyn NodeSymbolOverride>>>>,
     #[unsafe_ignore_trace]
     pub kind: SyntaxKind,
     #[unsafe_ignore_trace]
