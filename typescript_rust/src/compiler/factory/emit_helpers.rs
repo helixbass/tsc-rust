@@ -11,7 +11,7 @@ use crate::{
     is_computed_property_name, is_identifier, Debug_, EmitHelperBase, EmitHelperTextCallback,
     GeneratedIdentifierFlags, GetOrInsertDefault, MapOrDefault, NodeInterface, ReadonlyTextRange,
     ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, UnscopedEmitHelperBuilder, VecExt,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena,
 };
 
 // TODO: remove #[unsafe_ignore_trace] from TransformNodesTransformationResult if this ends up
@@ -31,7 +31,7 @@ impl EmitHelperFactory {
             .get_or_insert_with(|| {
                 self.factory
                     .create_true()
-                    .set_emit_flags(EmitFlags::Immutable)
+                    .set_emit_flags(EmitFlags::Immutable, self)
             })
             .clone()
     }
@@ -42,7 +42,7 @@ impl EmitHelperFactory {
             .get_or_insert_with(|| {
                 self.factory
                     .create_false()
-                    .set_emit_flags(EmitFlags::Immutable)
+                    .set_emit_flags(EmitFlags::Immutable, self)
             })
             .clone()
     }
@@ -50,7 +50,7 @@ impl EmitHelperFactory {
     pub fn get_unscoped_helper_name(&self, name: &str) -> Id<Node /*Identifier*/> {
         self.factory
             .create_identifier(name)
-            .set_emit_flags(EmitFlags::HelperName | EmitFlags::AdviseOnEmitNode)
+            .set_emit_flags(EmitFlags::HelperName | EmitFlags::AdviseOnEmitNode, self)
     }
 
     pub fn create_decorate_helper(
@@ -163,7 +163,7 @@ impl EmitHelperFactory {
         self.context.request_emit_helper(async_generator_helper());
 
         let generator_func_emit_node = generator_func
-            .maybe_emit_node_mut()
+            .ref_(self).maybe_emit_node_mut()
             .get_or_insert_default_()
             .clone();
         let mut generator_func_emit_node = generator_func_emit_node.borrow_mut();
@@ -225,8 +225,8 @@ impl EmitHelperFactory {
         let mut computed_temp_variable_offset = 0;
         for &element in elements.into_iter().take(elements.len() - 1) {
             let property_name = get_property_name_of_binding_or_assignment_element(element, self);
-            if let Some(ref property_name) = property_name {
-                if is_computed_property_name(property_name) {
+            if let Some(property_name) = property_name {
+                if is_computed_property_name(&property_name.ref_(self)) {
                     Debug_.assert_is_defined(
                         &computed_temp_variables,
                         Some("Encountered computed property name but 'computedTempVariables' argument was not provided.")
@@ -285,7 +285,7 @@ impl EmitHelperFactory {
         );
 
         let generator_func_emit_node = generator_func
-            .maybe_emit_node_mut()
+            .ref_(self).maybe_emit_node_mut()
             .get_or_insert_default_()
             .clone();
         let mut generator_func_emit_node = generator_func_emit_node.borrow_mut();
@@ -312,7 +312,7 @@ impl EmitHelperFactory {
                 promise_constructor.map_or_else(
                     || self.factory.create_void_zero(),
                     |promise_constructor| {
-                        create_expression_from_entity_name(&self.factory, &promise_constructor)
+                        create_expression_from_entity_name(&self.factory, promise_constructor)
                     },
                 ),
                 generator_func,

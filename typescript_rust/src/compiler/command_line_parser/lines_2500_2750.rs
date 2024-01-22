@@ -409,6 +409,7 @@ pub(super) fn get_config_file_specs(
             true,
             source_file.clone(),
             "include",
+            arena,
         ));
     }
 
@@ -419,6 +420,7 @@ pub(super) fn get_config_file_specs(
             false,
             source_file,
             "exclude",
+            arena,
         ));
     }
 

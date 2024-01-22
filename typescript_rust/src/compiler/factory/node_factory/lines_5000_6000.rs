@@ -9,7 +9,7 @@ use crate::{
     are_option_gcs_equal, are_option_rcs_equal, every, has_node_array_changed,
     is_binary_expression, is_comma_list_expression, is_comma_token, is_custom_prologue,
     is_hoisted_function, is_hoisted_variable_statement, is_outer_expression, is_parse_tree_node,
-    is_prologue_directive, is_statement_or_block, node_is_synthesized, same_flat_map_rc_node,
+    is_prologue_directive, is_statement_or_block, node_is_synthesized, same_flat_map_id_node,
     set_original_node, single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle, CallBinding,
     CommaListExpression, Debug_, EnumMember, FileReference, HasInitializerInterface,
     HasStatementsInterface, InputFiles, LanguageVariant, LiteralLikeNodeInterface, ModifierFlags,
@@ -564,7 +564,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = CommaListExpression::new(
             node,
             self.create_node_array(
-                Some(same_flat_map_rc_node(elements, |element: &Id<Node>, _| {
+                Some(same_flat_map_id_node(elements, |element: &Id<Node>, _| {
                     self.flatten_comma_elements(element)
                 })),
                 None,

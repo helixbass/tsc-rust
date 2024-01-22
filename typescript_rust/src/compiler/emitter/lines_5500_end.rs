@@ -425,6 +425,7 @@ impl Printer {
     }
 
     pub(super) fn skip_source_trivia(&self, source: &SourceMapSource, pos: isize) -> isize {
+        let source = source.ref_(self);
         if let Some(source_skip_trivia) = source.skip_trivia() {
             source_skip_trivia.call(pos)
         } else {
@@ -502,7 +503,7 @@ impl Printer {
         let LineAndCharacter {
             line: source_line,
             character: source_character,
-        } = get_line_and_character_of_position(&*self.source_map_source(), pos.try_into().unwrap());
+        } = get_line_and_character_of_position(&*self.source_map_source().ref_(self), pos.try_into().unwrap());
         self.source_map_generator().add_mapping(
             self.writer().get_line(),
             self.writer().get_column(),
@@ -558,7 +559,7 @@ impl Printer {
 
         self.set_source_map_source_index(
             self.source_map_generator()
-                .add_source(&source.file_name(self))
+                .add_source(&source.ref_(self).file_name())
                 .try_into()
                 .unwrap(),
         );
@@ -566,7 +567,7 @@ impl Printer {
             self.source_map_generator().set_source_content(
                 // TODO: should this just be a usize?
                 self.source_map_source_index().try_into().unwrap(),
-                Some(source.text().clone()),
+                Some(source.ref_(self).text().clone()),
             );
         }
 
@@ -580,7 +581,7 @@ impl Printer {
     }
 
     pub(super) fn is_json_source_map_source(&self, source_file: &SourceMapSource) -> bool {
-        file_extension_is(&source_file.file_name(self), Extension::Json.to_str())
+        file_extension_is(&source_file.ref_(self).file_name(), Extension::Json.to_str())
     }
 }
 

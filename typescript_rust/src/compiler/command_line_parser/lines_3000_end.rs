@@ -29,6 +29,7 @@ use crate::{
     ConfigFileSpecs, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
     Extension, FileExtensionInfo, HasArena, Node, ParseConfigHost,
     ToHashMapOfCompilerOptionsValues, TypeAcquisition, WatchDirectoryFlags, WatchOptions,
+    InArena,
 };
 
 pub struct ExtendedConfigCacheEntry {
@@ -64,16 +65,15 @@ pub(crate) fn get_extended_config(
             host.read_file(path)
         }));
         if (*extended_result
-            .as_ref()
             .unwrap()
-            .as_source_file()
+            .ref_(arena).as_source_file()
             .parse_diagnostics())
         .borrow()
         .is_empty()
         {
             extended_config = Some(Rc::new(parse_config(
                 None,
-                extended_result.as_deref(),
+                extended_result,
                 host,
                 &get_directory_path(extended_config_path),
                 Some(&get_base_file_name(extended_config_path, None, None)),
@@ -94,11 +94,12 @@ pub(crate) fn get_extended_config(
         }
     }
     let extended_result = extended_result.unwrap();
-    let extended_result_as_source_file = extended_result.as_source_file();
+    let extended_result_ref = extended_result.ref_(arena);
+    let extended_result_as_source_file = extended_result_ref.as_source_file();
     if let Some(source_file) = source_file {
         let source_file = source_file.borrow();
         let mut source_file_extended_source_files =
-            source_file.as_source_file().maybe_extended_source_files();
+            source_file.ref_(arena).as_source_file().maybe_extended_source_files();
         *source_file_extended_source_files =
             Some(vec![extended_result_as_source_file.file_name().clone()]);
         if let Some(extended_result_extended_source_files) =
@@ -891,6 +892,7 @@ pub(super) fn validate_specs(
     disallow_trailing_recursion: bool,
     json_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     spec_key: &str,
+    arena: &impl HasArena,
 ) -> Vec<String> {
     specs
         .into_iter()
@@ -904,6 +906,7 @@ pub(super) fn validate_specs(
                     spec_key,
                     message,
                     spec,
+                    arena,
                 ));
             }
             diag_is_none
@@ -917,14 +920,16 @@ fn create_diagnostic(
     spec_key: &str,
     message: &DiagnosticMessage,
     spec: String,
+    arena: &impl HasArena,
 ) -> Gc<Diagnostic> {
-    let element = get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec);
+    let element = get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec, arena);
     Gc::new(if let Some(element) = element {
         create_diagnostic_for_node_in_source_file(
             json_source_file.unwrap().borrow(),
             &element,
             message,
             Some(vec![spec]),
+            arena,
         )
         .into()
     } else {

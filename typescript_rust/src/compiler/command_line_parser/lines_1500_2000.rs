@@ -561,7 +561,7 @@ pub fn parse_config_file_text_to_json(
     let json_source_file = parse_json_text(file_name, json_text);
     let json_source_file_parse_diagnostics = json_source_file.ref_(arena).as_source_file().parse_diagnostics();
     let config = convert_config_file_to_object(
-        &json_source_file,
+        json_source_file,
         json_source_file_parse_diagnostics.clone(),
         false,
         Option::<&JsonConversionNotifierDummy>::None,
@@ -580,6 +580,7 @@ pub fn parse_config_file_text_to_json(
 pub fn read_json_config_file(
     file_name: &str,
     read_file: impl FnMut(&str) -> io::Result<Option<String>>,
+    arena: &impl HasArena,
 ) -> Id<Node /*TsConfigSourceFile*/> {
     let text_or_diagnostic = try_read_file(file_name, read_file);
     match text_or_diagnostic {
@@ -601,7 +602,7 @@ pub fn read_json_config_file(
                 -1,
                 -1,
             )
-            .wrap();
+            .alloc(arena.arena());
             let source_file = SourceFile::new(
                 base_node,
                 NodeArray::new(vec![], -1, -1, false, None),
@@ -614,7 +615,7 @@ pub fn read_json_config_file(
                 false,
                 false,
             )
-            .wrap();
+            .alloc(arena.arena());
             source_file
                 .as_source_file()
                 .set_parse_diagnostics(Gc::new(GcCell::new(vec![text_or_diagnostic])));
@@ -1027,8 +1028,10 @@ pub(super) fn convert_config_file_to_object(
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     report_options_errors: bool,
     options_iterator: Option<&impl JsonConversionNotifier>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
-    let source_file_as_source_file = source_file.as_source_file();
+    let source_file_ref = source_file.ref_(arena);
+    let source_file_as_source_file = source_file_ref.as_source_file();
     let root_expression = source_file_as_source_file
         .statements()
         .get(0)
@@ -1039,8 +1042,7 @@ pub(super) fn convert_config_file_to_object(
         None
     };
     if let Some(root_expression) = root_expression
-        .as_ref()
-        .filter(|root_expression| root_expression.kind() != SyntaxKind::ObjectLiteralExpression)
+        .filter(|root_expression| root_expression.ref_(arena).kind() != SyntaxKind::ObjectLiteralExpression)
     {
         errors.borrow_mut().push(Gc::new(
             create_diagnostic_for_node_in_source_file(
@@ -1056,22 +1058,24 @@ pub(super) fn convert_config_file_to_object(
                         "tsconfig.json".to_owned()
                     },
                 ]),
+                arena,
             )
             .into(),
         ));
-        if is_array_literal_expression(root_expression) {
+        if is_array_literal_expression(&root_expression.ref_(arena)) {
             let first_object = find(
-                &root_expression.as_array_literal_expression().elements,
-                |element, _| is_object_literal_expression(element),
-            );
+                &root_expression.ref_(arena).as_array_literal_expression().elements,
+                |element, _| is_object_literal_expression(&element.ref_(arena)),
+            ).copied();
             if let Some(first_object) = first_object {
                 return convert_to_object_worker(
                     source_file,
-                    Some(&**first_object),
+                    Some(first_object),
                     errors,
                     true,
                     known_root_options.as_deref(),
                     options_iterator,
+                    arena,
                 );
             }
         }
@@ -1084,6 +1088,7 @@ pub(super) fn convert_config_file_to_object(
         true,
         known_root_options.as_deref(),
         options_iterator,
+        arena,
     )
 }
 
@@ -1103,6 +1108,7 @@ pub fn convert_to_object(
         true,
         None,
         Option::<&JsonConversionNotifierDummy>::None,
+        arena,
     )
 }
 
@@ -1113,16 +1119,15 @@ pub(crate) fn convert_to_object_worker(
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
-    if root_expression.is_none() {
+    let Some(root_expression) = root_expression else {
         return Ok(if return_value {
             Some(serde_json::Value::Object(serde_json::Map::new()))
         } else {
             None
         });
-    }
-    let root_expression = root_expression.unwrap();
-    let root_expression = root_expression.borrow();
+    };
 
     convert_property_value_to_json(
         errors,
@@ -1132,5 +1137,6 @@ pub(crate) fn convert_to_object_worker(
         known_root_options,
         root_expression,
         known_root_options,
+        arena,
     )
 }

@@ -24,6 +24,7 @@ use crate::{
     JsonConversionNotifier, MultiMapOrdered, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, Number, OptionsNameMap, ParsedCommandLine, ProjectReference, Push, SyntaxKind,
     ToHashMapOfCompilerOptionsValues, WatchOptions,
+    InArena,
 };
 
 pub(super) fn is_root_option_map(
@@ -51,29 +52,32 @@ pub(super) fn convert_object_literal_expression_to_json(
     known_options: Option<&HashMap<String, Gc<CommandLineOption>>>,
     extra_key_diagnostics: Option<&dyn DidYouMeanOptionsDiagnostics>,
     parent_option: Option<&str>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     let mut result = if return_value {
         Some(serde_json::Map::new())
     } else {
         None
     };
-    for element in &node.as_object_literal_expression().properties {
-        if element.kind() != SyntaxKind::PropertyAssignment {
+    for &element in &node.ref_(arena).as_object_literal_expression().properties {
+        if element.ref_(arena).kind() != SyntaxKind::PropertyAssignment {
             errors.borrow_mut().push(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element,
                     &Diagnostics::Property_assignment_expected,
                     None,
+                    arena,
                 )
                 .into(),
             ));
             continue;
         }
 
-        let element_as_property_assignment = element.as_property_assignment();
+        let element_ref = element.ref_(arena);
+        let element_as_property_assignment = element_ref.as_property_assignment();
         if let Some(element_as_property_assignment_question_token) =
-            element_as_property_assignment.question_token.as_ref()
+            element_as_property_assignment.question_token
         {
             errors.borrow_mut().push(Gc::new(
                 create_diagnostic_for_node_in_source_file(
@@ -81,15 +85,16 @@ pub(super) fn convert_object_literal_expression_to_json(
                     element_as_property_assignment_question_token,
                     &Diagnostics::The_0_modifier_can_only_be_used_in_TypeScript_files,
                     Some(vec!["?".to_owned()]),
+                    arena,
                 )
                 .into(),
             ));
         }
-        if !is_double_quoted_string(source_file, &element_as_property_assignment.name()) {
+        if !is_double_quoted_string(source_file, element_as_property_assignment.name(), arena) {
             errors.borrow_mut().push(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
-                    &element_as_property_assignment.name(),
+                    element_as_property_assignment.name(),
                     &Diagnostics::String_literal_with_double_quotes_expected,
                     None,
                 )
@@ -98,10 +103,10 @@ pub(super) fn convert_object_literal_expression_to_json(
         }
 
         let element_name = element_as_property_assignment.name();
-        let text_of_key = if is_computed_non_literal_name(&element_name) {
+        let text_of_key = if is_computed_non_literal_name(element_name, arena) {
             None
         } else {
-            Some(get_text_of_property_name(&element_name))
+            Some(get_text_of_property_name(element_name, arena))
         };
         let text_of_key = text_of_key.as_ref();
         let key_text = text_of_key.map(|text_of_key| unescape_leading_underscores(text_of_key));
@@ -122,9 +127,10 @@ pub(super) fn convert_object_literal_expression_to_json(
                                 Gc::new(
                                     create_diagnostic_for_node_in_source_file(
                                         source_file,
-                                        &element_as_property_assignment.name(),
+                                        element_as_property_assignment.name(),
                                         message,
                                         args,
+                                        arena,
                                     )
                                     .into(),
                                 )
@@ -135,9 +141,10 @@ pub(super) fn convert_object_literal_expression_to_json(
                         errors.borrow_mut().push(Gc::new(
                             create_diagnostic_for_node_in_source_file(
                                 source_file,
-                                &element_as_property_assignment.name(),
+                                element_as_property_assignment.name(),
                                 extra_key_diagnostics.unknown_option_diagnostic(),
                                 Some(vec![key_text.to_owned()]),
+                                arena,
                             )
                             .into(),
                         ));
@@ -153,6 +160,7 @@ pub(super) fn convert_object_literal_expression_to_json(
             known_root_options,
             &element_as_property_assignment.initializer,
             option,
+            arena,
         )?;
         if let Some(key_text) = key_text {
             if return_value {
@@ -207,9 +215,10 @@ pub(super) fn convert_array_literal_expression_to_json(
     known_root_options: Option<&CommandLineOption>,
     elements: &NodeArray, /*<Expression>*/
     element_option: Option<&CommandLineOption>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     if !return_value {
-        elements.iter().try_for_each(|element| -> io::Result<_> {
+        elements.iter().try_for_each(|&element| -> io::Result<_> {
             convert_property_value_to_json(
                 errors.clone(),
                 source_file,
@@ -218,6 +227,7 @@ pub(super) fn convert_array_literal_expression_to_json(
                 known_root_options,
                 element,
                 element_option,
+                arena,
             )?;
 
             Ok(())
@@ -227,7 +237,7 @@ pub(super) fn convert_array_literal_expression_to_json(
 
     Ok(Some(serde_json::Value::Array({
         let mut results: Vec<serde_json::Value> = Default::default();
-        for element in elements {
+        for &element in elements {
             if let Some(result) = convert_property_value_to_json(
                 errors.clone(),
                 source_file,
@@ -236,6 +246,7 @@ pub(super) fn convert_array_literal_expression_to_json(
                 known_root_options,
                 element,
                 element_option,
+                arena,
             )? {
                 results.push(result);
             }
@@ -252,9 +263,10 @@ pub(super) fn convert_property_value_to_json(
     known_root_options: Option<&CommandLineOption>,
     value_expression: Id<Node>, /*Expression*/
     option: Option<&CommandLineOption>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     let mut invalid_reported: Option<bool> = None;
-    match value_expression.kind() {
+    match value_expression.ref_(arena).kind() {
         SyntaxKind::TrueKeyword => {
             report_invalid_option_value(
                 errors.clone(),
@@ -265,6 +277,7 @@ pub(super) fn convert_property_value_to_json(
                 Some(
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfBooleanType(_))),
                 ),
+                arena,
             );
             return Ok(validate_value(
                 invalid_reported,
@@ -286,6 +299,7 @@ pub(super) fn convert_property_value_to_json(
                 Some(
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfBooleanType(_))),
                 ),
+                arena,
             );
             return Ok(validate_value(
                 invalid_reported,
@@ -305,6 +319,7 @@ pub(super) fn convert_property_value_to_json(
                 value_expression,
                 option,
                 Some(matches!(option, Some(option) if option.name() == "extends")),
+                arena,
             );
             return Ok(validate_value(
                 invalid_reported,
@@ -317,13 +332,14 @@ pub(super) fn convert_property_value_to_json(
         }
 
         SyntaxKind::StringLiteral => {
-            if !is_double_quoted_string(source_file, value_expression) {
+            if !is_double_quoted_string(source_file, value_expression, arena) {
                 errors.borrow_mut().push(Gc::new(
                     create_diagnostic_for_node_in_source_file(
                         source_file,
                         value_expression,
                         &Diagnostics::String_literal_with_double_quotes_expected,
                         None,
+                        arena,
                     )
                     .into(),
                 ));
@@ -342,8 +358,9 @@ pub(super) fn convert_property_value_to_json(
                           | CommandLineOption::CommandLineOptionOfStringType(_)
                     )
                 )),
+                arena,
             );
-            let text = value_expression.as_literal_like_node().text();
+            let text = value_expression.ref_(arena).as_literal_like_node().text();
             if let Some(custom_option) = option.as_ref() {
                 if let CommandLineOptionType::Map(custom_option_type) = custom_option.type_() {
                     if !custom_option_type.contains_key(&&*text.to_lowercase()) {
@@ -358,6 +375,7 @@ pub(super) fn convert_property_value_to_json(
                                             value_expression,
                                             message,
                                             args,
+                                            arena,
                                         )
                                         .into(),
                                     )
@@ -387,6 +405,7 @@ pub(super) fn convert_property_value_to_json(
                 Some(
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfNumberType(_))),
                 ),
+                arena,
             );
             return Ok(validate_value(
                 invalid_reported,
@@ -395,7 +414,7 @@ pub(super) fn convert_property_value_to_json(
                 source_file,
                 value_expression,
                 Some(serde_json::Value::Number(
-                    (&**value_expression.as_literal_like_node().text())
+                    (&**value_expression.ref_(arena).as_literal_like_node().text())
                         .parse()
                         .unwrap(),
                 )),
@@ -403,8 +422,8 @@ pub(super) fn convert_property_value_to_json(
         }
 
         SyntaxKind::PrefixUnaryExpression => {
-            let value_expression_as_prefix_unary_expression =
-                value_expression.as_prefix_unary_expression();
+            let value_expression_ref = value_expression.ref_(arena);
+            let value_expression_as_prefix_unary_expression = value_expression_ref.as_prefix_unary_expression();
             if value_expression_as_prefix_unary_expression.operator != SyntaxKind::MinusToken
                 || value_expression_as_prefix_unary_expression.operand.kind()
                     != SyntaxKind::NumericLiteral
@@ -419,6 +438,7 @@ pub(super) fn convert_property_value_to_json(
                     Some(
                         matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfNumberType(_))),
                     ),
+                    arena,
                 );
                 return Ok(validate_value(
                     invalid_reported,
@@ -452,6 +472,7 @@ pub(super) fn convert_property_value_to_json(
                 Some(
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::TsConfigOnlyOption(_))),
                 ),
+                arena,
             );
             let object_literal_expression = value_expression;
 
@@ -521,6 +542,7 @@ pub(super) fn convert_property_value_to_json(
                 Some(
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfListType(_))),
                 ),
+                arena,
             );
             return Ok(validate_value(
                 invalid_reported,
@@ -534,13 +556,14 @@ pub(super) fn convert_property_value_to_json(
                     json_conversion_notifier,
                     return_value,
                     known_root_options,
-                    &value_expression.as_array_literal_expression().elements,
+                    &value_expression.ref_(arena).as_array_literal_expression().elements,
                     option.and_then(|option| match option {
                         CommandLineOption::CommandLineOptionOfListType(option) => {
                             Some(&*option.element)
                         }
                         _ => None,
                     }),
+                    arena,
                 )?,
             ));
         }
@@ -556,6 +579,7 @@ pub(super) fn convert_property_value_to_json(
             value_expression,
             option,
             Some(true),
+            arena,
         );
     } else {
         errors.borrow_mut().push(Gc::new(
@@ -563,7 +587,8 @@ pub(super) fn convert_property_value_to_json(
                 source_file,
                 value_expression,
                 &Diagnostics::Property_value_can_only_be_string_literal_numeric_literal_true_false_null_object_literal_or_array_literal,
-                None
+                None,
+                arena,
             )
             .into()
         ));
@@ -591,6 +616,7 @@ pub(super) fn validate_value(
                     value_expression,
                     diagnostic_message,
                     args,
+                    arena,
                 )
                 .into(),
             ));
@@ -607,6 +633,7 @@ pub(super) fn report_invalid_option_value(
     value_expression: Id<Node>, /*Expression*/
     option: Option<&CommandLineOption>,
     is_error: Option<bool>,
+    arena: &impl HasArena,
 ) {
     if matches!(is_error, Some(true)) {
         errors.borrow_mut().push(Gc::new(
@@ -618,6 +645,7 @@ pub(super) fn report_invalid_option_value(
                     option.unwrap().name().to_owned(),
                     get_compiler_option_value_type_string(option.unwrap()).to_owned(),
                 ]),
+                arena,
             )
             .into(),
         ));
@@ -628,8 +656,9 @@ pub(super) fn report_invalid_option_value(
 pub(super) fn is_double_quoted_string(
     source_file: Id<Node>, /*JsonSourceFile*/
     node: Id<Node>,
+    arena: &impl HasArena,
 ) -> bool {
-    is_string_literal(node) && is_string_double_quoted(node, source_file)
+    is_string_literal(&node.ref_(arena)) && is_string_double_quoted(node, source_file, arena)
 }
 
 pub(super) fn get_compiler_option_value_type_string(option: &CommandLineOption) -> &'static str {
@@ -692,6 +721,7 @@ pub(crate) fn convert_to_tsconfig(
     config_parse_result: &ParsedCommandLine,
     config_file_name: &str,
     host: &dyn ConvertToTSConfigHost,
+    arena: &impl HasArena,
 ) -> io::Result<TSConfig> {
     let get_canonical_file_name =
         create_get_canonical_file_name(host.use_case_sensitive_file_names());
@@ -702,7 +732,7 @@ pub(crate) fn convert_to_tsconfig(
             .as_ref()
             .and_then(|config_file| {
                 config_file
-                    .as_source_file()
+                    .ref_(arena).as_source_file()
                     .maybe_config_file_specs()
                     .clone()
             });
@@ -793,10 +823,9 @@ pub(crate) fn convert_to_tsconfig(
         config_parse_result
             .options
             .config_file
-            .as_ref()
             .and_then(|config_file| {
                 config_file
-                    .as_source_file()
+                    .ref_(arena).as_source_file()
                     .maybe_config_file_specs()
                     .clone()
             })

@@ -163,7 +163,7 @@ pub use compiler::{
         pattern_text, push_if_unique_eq, push_if_unique_gc, push_if_unique_rc, range_equals,
         range_equals_gc, range_equals_rc, reduce_left, reduce_left_no_initial_value,
         reduce_left_no_initial_value_optional, relative_complement, remove_prefix, remove_suffix,
-        replace_element, same_flat_map_rc_node, same_map, set_ui_locale, single_element_array,
+        replace_element, same_flat_map_id_node, same_map, set_ui_locale, single_element_array,
         single_or_many_node, single_or_undefined, some, sort, sort_and_deduplicate, span_map,
         stable_sort, starts_with, string_contains, sum, take_while, to_file_name_lower_case,
         trim_string, trim_string_end, trim_string_start, try_add_to_set, try_cast, try_count_where,

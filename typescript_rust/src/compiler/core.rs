@@ -509,17 +509,18 @@ pub fn flat_map_to_mutable<
     flat_map(array, mapfn)
 }
 
-pub fn same_flat_map_rc_node(
+pub fn same_flat_map_id_node(
     array: NodeArrayOrVec,
-    mut mapfn: impl FnMut(&Id<Node>, usize) -> SingleOrVec<Id<Node>>,
+    mut mapfn: impl FnMut(Id<Node>, usize) -> SingleOrVec<Id<Node>>,
 ) -> NodeArrayOrVec {
     let mut result: Option<Vec<Id<Node>>> = Default::default();
     // if (array) {
     for (i, item) in array.iter().enumerate() {
+        let item = *item;
         let mapped = mapfn(item, i);
         if result.is_some()
-            || match &mapped {
-                SingleOrVec::Single(mapped) => !Gc::ptr_eq(item, mapped),
+            || match mapped {
+                SingleOrVec::Single(mapped) => item != mapped,
                 SingleOrVec::Vec(_) => true,
             }
         {

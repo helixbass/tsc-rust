@@ -1007,7 +1007,8 @@ pub(super) fn execute_command_line_worker(
                 serde_json::to_string_pretty(&convert_to_tsconfig(
                     &config_parse_result,
                     &config_file_name,
-                    sys.as_convert_to_tsconfig_host()
+                    sys.as_convert_to_tsconfig_host(),
+                    arena,
                 )?)
                 .unwrap(),
                 sys.new_line()
@@ -1049,7 +1050,8 @@ pub(super) fn execute_command_line_worker(
                 serde_json::to_string_pretty(&convert_to_tsconfig(
                     &command_line,
                     &combine_paths(&current_directory, &vec![Some("tsconfig.json")]),
-                    sys.as_convert_to_tsconfig_host()
+                    sys.as_convert_to_tsconfig_host(),
+                    arena,
                 )?)
                 .unwrap(),
                 sys.new_line()
