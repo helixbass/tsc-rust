@@ -1240,6 +1240,7 @@ impl NodeBuilder {
                         })
                         .build()
                         .unwrap(),
+                    self,
                 )?)
                 .clone(),
             );

@@ -217,6 +217,7 @@ pub fn base64_encode(
 pub fn read_json(
     path: &str,
     mut host_read_file: impl FnMut(&str) -> io::Result<Option<String>>,
+    arena: &impl HasArena,
 ) -> serde_json::Value {
     let json_text = host_read_file(path);
     if json_text.is_err() {
@@ -227,7 +228,7 @@ pub fn read_json(
         return serde_json::Value::Object(serde_json::Map::new());
     }
     let json_text = json_text.unwrap();
-    let result = match parse_config_file_text_to_json(path, json_text) {
+    let result = match parse_config_file_text_to_json(path, json_text, arena) {
         Err(_) => {
             return serde_json::Value::Object(serde_json::Map::new());
         }

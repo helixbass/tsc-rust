@@ -996,6 +996,7 @@ impl TransformDeclarations {
                         |file_name| self.host.get_canonical_file_name(file_name),
                     ),
                     &**self.host,
+                    self,
                 )?;
                 if !path_is_relative(&specifier) {
                     self.record_type_reference_directives_if_necessary(Some(&[specifier]));

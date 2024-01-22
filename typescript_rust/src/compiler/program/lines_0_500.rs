@@ -21,7 +21,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, Extension, LineAndCharacter, ModuleResolutionHost,
     ModuleResolutionHostOverrider, Node, NodeInterface, OptionTry, Path, ProgramOrBuilderProgram,
     ScriptTarget, SourceFileLike, System,
-    HasArena, InArena,
+    HasArena, InArena, AllArenas,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -858,6 +858,12 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     }
 }
 
+impl HasArena for ChangeCompilerHostLikeToUseCacheOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 pub trait ToPath: Trace + Finalize {
     fn call(&self, file_name: &str) -> Path;
 }
@@ -898,7 +904,7 @@ pub fn get_pre_emit_diagnostics(
     add_range(
         &mut diagnostics,
         Some(
-            &program.get_syntactic_diagnostics(source_file.as_deref(), cancellation_token.clone()),
+            &program.get_syntactic_diagnostics(source_file, cancellation_token.clone()),
         ),
         None,
         None,
@@ -913,7 +919,7 @@ pub fn get_pre_emit_diagnostics(
         &mut diagnostics,
         Some(
             &program
-                .get_semantic_diagnostics(source_file.as_deref(), cancellation_token.clone())?,
+                .get_semantic_diagnostics(source_file, cancellation_token.clone())?,
         ),
         None,
         None,
@@ -924,7 +930,7 @@ pub fn get_pre_emit_diagnostics(
             &mut diagnostics,
             Some(
                 &program.get_declaration_diagnostics(
-                    source_file.as_deref(),
+                    source_file,
                     cancellation_token.clone(),
                 )?,
             ),

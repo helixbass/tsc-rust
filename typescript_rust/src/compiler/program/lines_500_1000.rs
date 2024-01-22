@@ -91,6 +91,7 @@ impl LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>
             self.host.as_dyn_module_resolution_host(),
             redirected_reference,
             self.type_reference_directive_resolution_cache.clone(),
+            self,
         )?
         .resolved_type_reference_directive
         .clone()
@@ -243,9 +244,17 @@ impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
             self.module_resolution_cache.clone(),
             redirected_reference,
             resolver_mode,
+            self,
         )?
         .resolved_module
         .clone())
+    }
+}
+
+impl HasArena for LoadWithModeAwareCacheLoaderResolveModuleName
+{
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -738,6 +747,7 @@ pub fn get_implied_node_format_for_file(
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
     options: Gc<CompilerOptions>,
+    arena: &impl HasArena,
 ) -> Option<ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/> {
     match get_emit_module_resolution_kind(&options) {
         ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext => {
@@ -766,6 +776,7 @@ pub fn get_implied_node_format_for_file(
                     package_json_info_cache,
                     host,
                     options,
+                    arena,
                 ))
             } else {
                 None
@@ -780,8 +791,9 @@ pub fn lookup_from_package_json(
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
     options: Gc<CompilerOptions>,
+    arena: &impl HasArena,
 ) -> ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/ {
-    let scope = get_package_scope_for_path(file_name, package_json_info_cache, host, options);
+    let scope = get_package_scope_for_path(file_name, package_json_info_cache, host, options, arena);
     if matches!(
         scope.as_ref(),
         Some(scope) if matches!(
@@ -1181,6 +1193,7 @@ impl Program {
                 get_automatic_type_directive_names(
                     &self.options,
                     self.host().as_dyn_module_resolution_host(),
+                    self,
                 )?
             } else {
                 vec![]

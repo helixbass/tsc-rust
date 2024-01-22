@@ -56,6 +56,7 @@ fn get_preferences(
     user_preferences: &UserPreferences,
     compiler_options: Gc<CompilerOptions>,
     importing_source_file: Id<Node>, /*SourceFile*/
+    arena: &impl HasArena,
 ) -> Preferences {
     let import_module_specifier_preference = user_preferences
         .import_module_specifier_preference
@@ -73,6 +74,7 @@ fn get_preferences(
             importing_source_file,
             compiler_options,
             host,
+            arena,
         ),
     }
 }
@@ -82,6 +84,7 @@ fn get_ending(
     importing_source_file: Id<Node>, /*SourceFile*/
     compiler_options: Gc<CompilerOptions>,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+    arena: &impl HasArena,
 ) -> Ending {
     match import_module_specifier_ending {
         Some("minimal") => Ending::Minimal,
@@ -93,6 +96,7 @@ fn get_ending(
                     compiler_options.clone(),
                     &importing_source_file.as_source_file().path(),
                     host,
+                    arena,
                 )
             {
                 Ending::JsExtension
@@ -111,6 +115,7 @@ fn is_format_requiring_extensions(
     compiler_options: Gc<CompilerOptions>,
     importing_source_file_name: &Path,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+    arena: &impl HasArena,
 ) -> bool {
     if !matches!(
         get_emit_module_resolution_kind(&compiler_options),
@@ -123,6 +128,7 @@ fn is_format_requiring_extensions(
         None,
         &get_module_resolution_host(host),
         compiler_options,
+        arena,
     ) != Some(ModuleKind::CommonJS)
 }
 
@@ -256,6 +262,7 @@ pub fn get_module_specifier(
     importing_source_file_name: &Path,
     to_file_name: &str,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+    arena: &impl HasArena,
 ) -> io::Result<String> {
     get_module_specifier_worker(
         &compiler_options,
@@ -267,6 +274,7 @@ pub fn get_module_specifier(
             &Default::default(),
             compiler_options.clone(),
             importing_source_file,
+            arena,
         ),
         &Default::default(),
     )
@@ -342,6 +350,7 @@ pub fn get_module_specifiers(
     importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
+    arena: &impl HasArena,
 ) -> io::Result<Vec<String>> {
     Ok(get_module_specifiers_with_cache_info(
         module_symbol,
@@ -350,6 +359,7 @@ pub fn get_module_specifiers(
         importing_source_file, /*SourceFile*/
         host,
         user_preferences,
+        arena,
     )?
     .module_specifiers)
 }
@@ -361,6 +371,7 @@ pub fn get_module_specifiers_with_cache_info(
     importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
+    arena: &impl HasArena,
 ) -> io::Result<ModuleSpecifiersWithCacheInfo> {
     let mut computed_without_cache = false;
     let ambient = try_get_module_name_from_ambient_module(module_symbol, checker)?;
@@ -409,6 +420,7 @@ pub fn get_module_specifiers_with_cache_info(
         importing_source_file,
         host,
         user_preferences,
+        arena,
     )?;
     if let Some(cache) = cache {
         cache.set(
@@ -431,6 +443,7 @@ fn compute_module_specifiers(
     importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
+    arena: &impl HasArena,
 ) -> io::Result<Vec<String>> {
     let importing_source_file_as_source_file = importing_source_file.as_source_file();
     let info = get_info(&importing_source_file_as_source_file.path(), host);
@@ -439,6 +452,7 @@ fn compute_module_specifiers(
         user_preferences,
         compiler_options.clone(),
         importing_source_file,
+        arena,
     );
     let existing_specifier = for_each(module_paths, |module_path: &ModulePath, _| {
         maybe_for_each(

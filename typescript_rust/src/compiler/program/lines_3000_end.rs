@@ -51,6 +51,7 @@ use crate::{
     ReadFileCallback, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedProjectReferenceBuilder, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
     SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
+    InArena,
 };
 
 impl Program {
@@ -58,7 +59,8 @@ impl Program {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         try_maybe_for_each(
             file_as_source_file
                 .maybe_lib_reference_directives()
@@ -133,7 +135,8 @@ impl Program {
 
     pub fn process_imported_modules(&self, file: Id<Node> /*SourceFile*/) -> io::Result<()> {
         self.collect_external_module_references(file);
-        let file_as_source_file = file.as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         if !file_as_source_file
             .maybe_imports()
             .as_ref()
@@ -145,7 +148,7 @@ impl Program {
                 .unwrap()
                 .is_empty()
         {
-            let module_names = get_module_names(file);
+            let module_names = get_module_names(file, self);
             let resolutions = self.resolve_module_names_reusing_old_state(&module_names, file)?;
             Debug_.assert(resolutions.len() == module_names.len(), None);
             let options_for_file = if self.use_source_of_project_reference_redirect() {
@@ -158,7 +161,7 @@ impl Program {
             for index in 0..module_names.len() {
                 let resolution = resolutions[index].as_ref();
                 set_resolved_module(
-                    file,
+                    &file.ref_(self),
                     &module_names[index],
                     resolution.cloned(),
                     get_mode_for_resolution_at_index(file_as_source_file, index),
@@ -233,8 +236,9 @@ impl Program {
                     root_directory,
                     Some(&**self.current_directory()),
                 ));
-        for source_file in source_files {
-            let source_file_as_source_file = source_file.as_source_file();
+        for &source_file in source_files {
+            let source_file_ref = source_file.ref_(self);
+            let source_file_as_source_file = source_file_ref.as_source_file();
             if !source_file_as_source_file.is_declaration_file() {
                 let absolute_source_file_path =
                     self.host()
@@ -292,15 +296,15 @@ impl Program {
             let command_line = command_line.as_ref().unwrap();
             source_file =
                 Some(Debug_.check_defined(command_line.options.config_file.clone(), None));
-            let source_file = source_file.as_ref().unwrap();
+            let source_file = source_file.unwrap();
             Debug_.assert(
-                match source_file.as_source_file().maybe_path().as_ref() {
+                match source_file.ref_(self).as_source_file().maybe_path().as_ref() {
                     None => true,
                     Some(source_file_path_) => source_file_path_ == &source_file_path,
                 },
                 None,
             );
-            self.add_file_to_files_by_name(Some(&**source_file), &source_file_path, None);
+            self.add_file_to_files_by_name(Some(source_file), &source_file_path, None);
         } else {
             let base_path = get_normalized_absolute_path(
                 &get_directory_path(&ref_path),
@@ -309,13 +313,13 @@ impl Program {
             source_file = self
                 .host()
                 .get_source_file(&ref_path, ScriptTarget::JSON, None, None)?;
-            self.add_file_to_files_by_name(source_file.as_deref(), &source_file_path, None);
+            self.add_file_to_files_by_name(source_file, &source_file_path, None);
             if source_file.is_none() {
                 self.project_reference_redirects_mut()
                     .insert(source_file_path.clone(), None);
                 return Ok(None);
             }
-            let source_file = source_file.as_ref().unwrap();
+            let source_file = source_file.unwrap();
             command_line = Some(parse_json_source_file_config_file_content(
                 source_file,
                 &**self.config_parsing_host(),
@@ -330,7 +334,8 @@ impl Program {
             )?);
         }
         let source_file = source_file.unwrap();
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(self);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         source_file_as_source_file.set_file_name(ref_path.clone());
         source_file_as_source_file.set_path(source_file_path.clone());
         source_file_as_source_file.set_resolved_path(Some(source_file_path.clone()));
@@ -515,15 +520,15 @@ impl Program {
                     .iter()
                     .map(|root_name| self.to_path(root_name)),
             );
-            for file in &*self.files() {
-                if source_file_may_be_emitted(file, self, None)
-                    && !root_paths.contains(&*file.as_source_file().path())
+            for &file in &*self.files() {
+                if source_file_may_be_emitted(&file.ref_(self), self, None)
+                    && !root_paths.contains(&*file.ref_(self).as_source_file().path())
                 {
                     self.add_program_diagnostic_explaining_file(
                         file,
                         &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern,
                         Some(vec![
-                            file.as_source_file().file_name().clone(),
+                            file.ref_(self).as_source_file().file_name().clone(),
                             self.options.config_file_path.clone().unwrap_or_else(|| "".to_owned())
                         ])
                     );
@@ -688,7 +693,7 @@ impl Program {
 
         let first_non_ambient_external_module_source_file =
             find(&**self.files(), |f: &Id<Node>, _| {
-                is_external_module(f) && !f.as_source_file().is_declaration_file()
+                is_external_module(&f.ref_(self)) && !f.ref_(self).as_source_file().is_declaration_file()
             })
             .cloned();
         if self.options.isolated_modules == Some(true) {
@@ -713,18 +718,19 @@ impl Program {
             }
 
             let first_non_external_module_source_file = find(&**self.files(), |f: &Id<Node>, _| {
-                !is_external_module(f)
-                    && !is_source_file_js(f)
-                    && !f.as_source_file().is_declaration_file()
-                    && f.as_source_file().script_kind() != ScriptKind::JSON
+                !is_external_module(&f.ref_(self))
+                    && !is_source_file_js(&f.ref_(self))
+                    && !f.ref_(self).as_source_file().is_declaration_file()
+                    && f.ref_(self).as_source_file().script_kind() != ScriptKind::JSON
             })
             .cloned();
             if let Some(first_non_external_module_source_file) =
-                first_non_external_module_source_file.as_ref()
+                first_non_external_module_source_file
             {
                 let span = get_error_span_for_node(
                     first_non_external_module_source_file,
                     first_non_external_module_source_file,
+                    self,
                 );
                 self.program_diagnostics_mut().add(
                     Gc::new(
@@ -735,7 +741,7 @@ impl Program {
                             &Diagnostics::_0_cannot_be_compiled_under_isolatedModules_because_it_is_considered_a_global_script_file_Add_an_import_export_or_an_empty_export_statement_to_make_it_a_module,
                             Some(vec![
                                 get_base_file_name(
-                                    &first_non_external_module_source_file.as_source_file().file_name(),
+                                    &first_non_external_module_source_file.ref_(self).as_source_file().file_name(),
                                     None, None,
                                 )
                             ])
@@ -744,17 +750,18 @@ impl Program {
                 );
             }
         } else if let Some(first_non_ambient_external_module_source_file) =
-            first_non_ambient_external_module_source_file.as_ref()
+            first_non_ambient_external_module_source_file
         {
             if language_version < ScriptTarget::ES2015
                 && self.options.module == Some(ModuleKind::None)
             {
                 let span = get_error_span_for_node(
                     first_non_ambient_external_module_source_file,
-                    &first_non_ambient_external_module_source_file
-                        .as_source_file()
+                    first_non_ambient_external_module_source_file
+                        .ref_(self).as_source_file()
                         .maybe_external_module_indicator()
                         .unwrap(),
+                    self,
                 );
                 self.program_diagnostics_mut().add(
                     Gc::new(
@@ -790,14 +797,15 @@ impl Program {
                 );
             } else if self.options.module.is_none() {
                 if let Some(first_non_ambient_external_module_source_file) =
-                    first_non_ambient_external_module_source_file.as_ref()
+                    first_non_ambient_external_module_source_file
                 {
                     let span = get_error_span_for_node(
                         first_non_ambient_external_module_source_file,
-                        &first_non_ambient_external_module_source_file
-                            .as_source_file()
+                        first_non_ambient_external_module_source_file
+                            .ref_(self).as_source_file()
                             .maybe_external_module_indicator()
                             .unwrap(),
+                        self,
                     );
                     self.program_diagnostics_mut().add(
                         Gc::new(
@@ -854,7 +862,7 @@ impl Program {
                 && self
                     .files()
                     .iter()
-                    .any(|file| get_root_length(&file.as_source_file().file_name()) > 1)
+                    .any(|file| get_root_length(&file.ref_(self).as_source_file().file_name()) > 1)
             {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Cannot_find_the_common_subdirectory_path_for_the_input_files,
@@ -1160,9 +1168,8 @@ impl Program {
         } else {
             None
         };
-        let file = file.map(|file| file.borrow().node_wrapper());
         let file_reasons = self.file_reasons();
-        if let Some(file) = file.as_ref() {
+        if let Some(file) = file {
             let file_reasons = (*file_reasons).borrow();
             if let Some(reasons) = file_reasons.get(&*file.as_source_file().path()) {
                 for reason in reasons {
@@ -1228,7 +1235,7 @@ impl Program {
             let location_as_reference_file_location = location.as_reference_file_location();
             Gc::new(
                 create_file_diagnostic_from_message_chain(
-                    &location_as_reference_file_location.file,
+                    location_as_reference_file_location.file,
                     location_as_reference_file_location.pos.try_into().unwrap(),
                     (location_as_reference_file_location.end
                         - location_as_reference_file_location.pos)
@@ -1292,7 +1299,7 @@ impl Program {
             .get_or_insert_default_()
             .push(Gc::new(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
                 kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
-                file: file.map(|file| file.borrow().as_source_file().path().clone()),
+                file: file.map(|file| file.ref_(self).as_source_file().path().clone()),
                 file_processing_reason: file_processing_reason.clone(),
                 diagnostic,
                 args,
@@ -1341,7 +1348,7 @@ impl Program {
                     reference_location.as_reference_file_location();
                 Some(Gc::new(
                     create_file_diagnostic(
-                        &reference_location_as_reference_file_location.file,
+                        reference_location_as_reference_file_location.file,
                         reference_location_as_reference_file_location.pos,
                         reference_location_as_reference_file_location.end
                             - reference_location_as_reference_file_location.pos,
@@ -1355,13 +1362,13 @@ impl Program {
             };
         }
 
-        let options_config_file = self.options.config_file.as_ref()?;
+        let options_config_file = self.options.config_file?;
         let config_file_node: Option<Id<Node>>;
         let message: &DiagnosticMessage;
         match reason.kind() {
             FileIncludeKind::RootFile => {
                 if options_config_file
-                    .as_source_file()
+                    .ref_(self).as_source_file()
                     .maybe_config_file_specs()
                     .is_none()
                 {
@@ -1377,18 +1384,20 @@ impl Program {
                     matched_by_files.filter(|matched_by_files| !matched_by_files.is_empty())
                 {
                     config_file_node = get_ts_config_prop_array_element_value(
-                        Some(&**options_config_file),
+                        Some(options_config_file),
                         "files",
                         &matched_by_files,
+                        self,
                     );
                     message = &*Diagnostics::File_is_matched_by_files_list_specified_here;
                 } else {
                     let matched_by_include = get_matched_include_spec(self, &file_name)
                         .filter(|matched_by_include| !matched_by_include.is_empty())?;
                     config_file_node = get_ts_config_prop_array_element_value(
-                        Some(&**options_config_file),
+                        Some(options_config_file),
                         "include",
                         &matched_by_include,
+                        self,
                     );
                     message = &*Diagnostics::File_is_matched_by_include_pattern_specified_here;
                 }
@@ -1436,11 +1445,11 @@ impl Program {
                 )?;
                 let (source_file, index) = reference_info;
                 let references_syntax = first_defined(
-                    get_ts_config_prop_array(Some(&*source_file), "references"),
+                    get_ts_config_prop_array(Some(source_file), "references", self),
                     |property: Id<Node>, _| {
-                        property.as_has_initializer().maybe_initializer().filter(
+                        property.ref_(self).as_has_initializer().maybe_initializer().filter(
                             |property_initializer| {
-                                is_array_literal_expression(property_initializer)
+                                is_array_literal_expression(&property_initializer.ref_(self))
                             },
                         )
                     },
@@ -1448,7 +1457,7 @@ impl Program {
                 return references_syntax
                     .filter(|references_syntax| {
                         references_syntax
-                            .as_array_literal_expression()
+                            .ref_(self).as_array_literal_expression()
                             .elements
                             .len()
                             > index
@@ -1456,14 +1465,15 @@ impl Program {
                     .map(|references_syntax| {
                         Gc::new(
                         create_diagnostic_for_node_in_source_file(
-                            &source_file,
-                            &references_syntax.as_array_literal_expression().elements[index],
+                            source_file,
+                            references_syntax.ref_(self).as_array_literal_expression().elements[index],
                             if reason.kind() == FileIncludeKind::OutputFromProjectReference {
                                 &*Diagnostics::File_is_output_from_referenced_project_specified_here
                             } else {
                                 &*Diagnostics::File_is_source_from_referenced_project_specified_here
                             },
                             None,
+                            self,
                         ).into()
                     )
                     });
@@ -1510,13 +1520,14 @@ impl Program {
                 Debug_.assert_never(reason, None);
             }
         }
-        config_file_node.as_ref().map(|config_file_node| {
+        config_file_node.map(|config_file_node| {
             Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     options_config_file,
                     config_file_node,
                     message,
                     None,
+                    self,
                 )
                 .into(),
             )
@@ -1545,7 +1556,7 @@ impl Program {
                 let parent_file = parent.map(|parent| parent.source_file.clone());
                 if resolved_ref.is_none() {
                     self.create_diagnostic_for_reference(
-                        parent_file.as_deref(),
+                        parent_file,
                         index,
                         &Diagnostics::File_0_not_found,
                         Some(vec![ref_.path.clone()]),
@@ -1563,7 +1574,7 @@ impl Program {
                     if !inputs.is_empty() {
                         if options.composite != Some(true) {
                             self.create_diagnostic_for_reference(
-                                parent_file.as_deref(),
+                                parent_file,
                                 index,
                                 &Diagnostics::Referenced_project_0_must_have_setting_composite_Colon_true,
                                 Some(vec![
@@ -1573,7 +1584,7 @@ impl Program {
                         }
                         if options.no_emit == Some(true) {
                             self.create_diagnostic_for_reference(
-                                parent_file.as_deref(),
+                                parent_file,
                                 index,
                                 &Diagnostics::Referenced_project_0_may_not_disable_emit,
                                 Some(vec![ref_.path.clone()]),
@@ -1586,7 +1597,7 @@ impl Program {
                     if let Some(out) = out.filter(|out| !out.is_empty()) {
                         if !self.host().file_exists(out) {
                             self.create_diagnostic_for_reference(
-                                parent_file.as_deref(),
+                                parent_file,
                                 index,
                                 &Diagnostics::Output_file_0_from_project_1_does_not_exist,
                                 Some(vec![out.to_owned(), ref_.path.clone()]),
@@ -1594,7 +1605,7 @@ impl Program {
                         }
                     } else {
                         self.create_diagnostic_for_reference(
-                            parent_file.as_deref(),
+                            parent_file,
                             index,
                             &Diagnostics::Cannot_prepend_project_0_because_it_does_not_have_outFile_set,
                             Some(vec![
@@ -1611,7 +1622,7 @@ impl Program {
                         })
                     {
                         self.create_diagnostic_for_reference(
-                            parent_file.as_deref(),
+                            parent_file,
                             index,
                             &Diagnostics::Cannot_write_file_0_because_it_will_overwrite_tsbuildinfo_file_generated_by_referenced_project_1,
                             Some(vec![
@@ -1644,22 +1655,23 @@ impl Program {
         let mut need_compiler_diagnostic = true;
         let paths_syntax = self.get_options_paths_syntax();
         for path_prop in paths_syntax {
-            let ref path_prop_initializer =
-                path_prop.as_has_initializer().maybe_initializer().unwrap();
-            if is_object_literal_expression(path_prop_initializer) {
-                for key_props in get_property_assignment(path_prop_initializer, key, None) {
-                    let ref initializer =
-                        key_props.as_has_initializer().maybe_initializer().unwrap();
-                    if is_array_literal_expression(initializer) {
-                        let initializer_as_array_literal_expression =
-                            initializer.as_array_literal_expression();
+            let path_prop_initializer =
+                path_prop.ref_(self).as_has_initializer().maybe_initializer().unwrap();
+            if is_object_literal_expression(&path_prop_initializer.ref_(self)) {
+                for key_props in get_property_assignment(path_prop_initializer, key, None, self) {
+                    let initializer =
+                        key_props.ref_(self).as_has_initializer().maybe_initializer().unwrap();
+                    if is_array_literal_expression(&initializer.ref_(self)) {
+                        let initializer_ref = initializer.ref_(self);
+                        let initializer_as_array_literal_expression = initializer_ref.as_array_literal_expression();
                         if initializer_as_array_literal_expression.elements.len() > value_index {
                             self.program_diagnostics_mut().add(Gc::new(
                                 create_diagnostic_for_node_in_source_file(
-                                    self.options.config_file.as_ref().unwrap(),
-                                    &initializer_as_array_literal_expression.elements[value_index],
+                                    self.options.config_file.unwrap(),
+                                    initializer_as_array_literal_expression.elements[value_index],
                                     message,
                                     args.clone(),
+                                    self,
                                 )
                                 .into(),
                             ));
@@ -1685,9 +1697,9 @@ impl Program {
         let mut need_compiler_diagnostic = true;
         let paths_syntax = self.get_options_paths_syntax();
         for path_prop in paths_syntax {
-            let ref path_prop_initializer =
-                path_prop.as_has_initializer().maybe_initializer().unwrap();
-            if is_object_literal_expression(path_prop_initializer)
+            let path_prop_initializer =
+                path_prop.ref_(self).as_has_initializer().maybe_initializer().unwrap();
+            if is_object_literal_expression(&path_prop_initializer.ref_(self))
                 && self.create_option_diagnostic_in_object_literal_syntax(
                     path_prop_initializer,
                     on_key,
@@ -1706,10 +1718,10 @@ impl Program {
         }
     }
 
-    pub fn get_options_syntax_by_name<'name>(
+    pub fn get_options_syntax_by_name<'a>(
         &self,
-        name: &'name str,
-    ) -> Option<impl Iterator<Item = Id<Node>> + 'name> {
+        name: &'a str,
+    ) -> Option<impl Iterator<Item = Id<Node>> + 'a> {
         let compiler_options_object_literal_syntax =
             self.get_compiler_options_object_literal_syntax();
         compiler_options_object_literal_syntax.map(
@@ -1768,23 +1780,24 @@ impl Program {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        let source_file = source_file.node_wrappered();
         let references_syntax = first_defined(
             get_ts_config_prop_array(
                 source_file
                     .clone()
                     .or_else(|| self.options.config_file.clone()),
                 "references",
+                self,
             ),
-            |ref property: Id<Node>, _| {
-                let property_as_property_assignment = property.as_property_assignment();
-                is_array_literal_expression(&property_as_property_assignment.initializer)
-                    .then(|| property_as_property_assignment.initializer.clone())
+            |property: Id<Node>, _| {
+                let property_ref = property.ref_(self);
+                let property_as_property_assignment = property_ref.as_property_assignment();
+                is_array_literal_expression(&property_as_property_assignment.initializer.ref_(self))
+                    .then_some(property_as_property_assignment.initializer)
             },
         );
         if let Some(references_syntax) = references_syntax.filter(|references_syntax| {
             references_syntax
-                .as_array_literal_expression()
+                .ref_(self).as_array_literal_expression()
                 .elements
                 .len()
                 > index
@@ -1792,12 +1805,12 @@ impl Program {
             self.program_diagnostics_mut().add(
                 create_diagnostic_for_node_in_source_file(
                     source_file
-                        .as_ref()
-                        .or_else(|| self.options.config_file.as_ref())
+                        .or(self.options.config_file)
                         .unwrap(),
-                    &references_syntax.as_array_literal_expression().elements[index],
+                    references_syntax.as_array_literal_expression().elements[index],
                     message,
                     args,
+                    self,
                 )
                 .into(),
             );
@@ -1817,7 +1830,7 @@ impl Program {
     ) {
         let compiler_options_object_literal_syntax =
             self.get_compiler_options_object_literal_syntax();
-        let need_compiler_diagnostic = match compiler_options_object_literal_syntax.as_ref() {
+        let need_compiler_diagnostic = match compiler_options_object_literal_syntax {
             None => true,
             Some(compiler_options_object_literal_syntax) => !self
                 .create_option_diagnostic_in_object_literal_syntax(
@@ -1845,9 +1858,10 @@ impl Program {
             let json_object_literal =
                 get_ts_config_object_literal_expression(self.options.config_file, self);
             if let Some(json_object_literal) = json_object_literal {
-                for prop in get_property_assignment(json_object_literal, "compilerOptions", None) {
-                    let prop_as_property_assignment = prop.as_property_assignment();
-                    if is_object_literal_expression(&prop_as_property_assignment.initializer) {
+                for prop in get_property_assignment(json_object_literal, "compilerOptions", None, self) {
+                    let prop_ref = prop.ref_(self);
+                    let prop_as_property_assignment = prop_ref.as_property_assignment();
+                    if is_object_literal_expression(&prop_as_property_assignment.initializer.ref_(self)) {
                         self.set_compiler_options_object_literal_syntax(Some(Some(
                             prop_as_property_assignment.initializer.clone(),
                         )));
@@ -1869,18 +1883,19 @@ impl Program {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let props = get_property_assignment(object_literal, key1, key2);
+        let props = get_property_assignment(object_literal, key1, key2, self);
         for prop in props.clone() {
             self.program_diagnostics_mut().add(Gc::new(
                 create_diagnostic_for_node_in_source_file(
-                    self.options.config_file.as_ref().unwrap(),
-                    &*if on_key {
-                        prop.as_property_assignment().name()
+                    self.options.config_file.unwrap(),
+                    if on_key {
+                        prop.ref_(self).as_property_assignment().name()
                     } else {
-                        prop.as_property_assignment().initializer.clone()
+                        prop.ref_(self).as_property_assignment().initializer
                     },
                     message,
                     args.clone(),
+                    self,
                 )
                 .into(),
             ));
@@ -2704,19 +2719,20 @@ pub(super) fn need_resolve_json_module(
     }
 }
 
-pub(super) fn get_module_names(file: Id<Node> /*SourceFile*/) -> Vec<String> {
-    let file_as_source_file = file.as_source_file();
+pub(super) fn get_module_names(file: Id<Node> /*SourceFile*/, arena: &impl HasArena) -> Vec<String> {
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     let imports = file_as_source_file.maybe_imports();
     let imports = imports.as_ref().unwrap();
     let module_augmentations = file_as_source_file.maybe_module_augmentations();
     let module_augmentations = module_augmentations.as_ref().unwrap();
     let mut res: Vec<String> = imports
         .into_iter()
-        .map(|i| i.as_literal_like_node().text().clone())
+        .map(|i| i.ref_(arena).as_literal_like_node().text().clone())
         .collect();
     for aug in module_augmentations {
-        if aug.kind() == SyntaxKind::StringLiteral {
-            res.push(aug.as_literal_like_node().text().clone());
+        if aug.ref_(arena).kind() == SyntaxKind::StringLiteral {
+            res.push(aug.ref_(arena).as_literal_like_node().text().clone());
         }
     }
     res
@@ -2725,6 +2741,7 @@ pub(super) fn get_module_names(file: Id<Node> /*SourceFile*/) -> Vec<String> {
 pub(crate) fn get_module_name_string_literal_at(
     file: &impl SourceFileImportsList,
     index: usize,
+    arena: &impl HasArena,
 ) -> Id<Node /*StringLiteralLike*/> {
     let imports = file.imports();
     let module_augmentations = file.module_augmentations();
@@ -2733,7 +2750,7 @@ pub(crate) fn get_module_name_string_literal_at(
     }
     let mut aug_index = imports.len();
     for aug in &*module_augmentations {
-        if aug.kind() == SyntaxKind::StringLiteral {
+        if aug.ref_(arena).kind() == SyntaxKind::StringLiteral {
             if index == aug_index {
                 return aug.clone();
             }

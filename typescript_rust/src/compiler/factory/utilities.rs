@@ -420,7 +420,7 @@ fn create_expression_for_property_assignment<
                 factory,
                 receiver,
                 property_as_property_assignment.name(),
-                Some(property_as_property_assignment.name()),
+                Some(&*property_as_property_assignment.name().ref_(factory)),
             ),
             property_as_property_assignment.initializer.clone(),
         )
@@ -443,7 +443,7 @@ fn create_expression_for_shorthand_property_assignment<
                 factory,
                 receiver,
                 property_as_shorthand_property_assignment.name(),
-                Some(property_as_shorthand_property_assignment.name()),
+                Some(&*property_as_shorthand_property_assignment.name().ref_(factory)),
             ),
             factory.clone_node(property_as_shorthand_property_assignment.name()),
         )
@@ -466,7 +466,7 @@ fn create_expression_for_method_declaration<
                 factory,
                 receiver,
                 method_as_method_declaration.name(),
-                Some(method_as_method_declaration.name()),
+                Some(&*method_as_method_declaration.name().ref_(factory)),
             ),
             factory
                 .create_function_expression(

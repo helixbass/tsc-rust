@@ -520,6 +520,7 @@ impl Program {
                     .as_double_deref(),
                 self.host().as_dyn_module_resolution_host(),
                 self.options.clone(),
+                self,
             ));
             self.add_file_include_reason(Some(&**file), reason.clone());
 
@@ -1056,6 +1057,7 @@ impl Program {
             self.maybe_module_resolution_cache().clone(),
             None,
             None,
+            self,
         )?;
         if let Some(local_override_module_result_resolved_module) =
             local_override_module_result.resolved_module.as_ref()

@@ -1016,7 +1016,7 @@ impl Program {
             new_file: new_source_file,
         } in modified_source_files
         {
-            let module_names = get_module_names(&new_source_file);
+            let module_names = get_module_names(&new_source_file, self);
             let resolutions =
                 self.resolve_module_names_reusing_old_state(&module_names, &new_source_file)?;
             let old_source_file_as_source_file = old_source_file.as_source_file();

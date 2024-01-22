@@ -28,6 +28,7 @@ use crate::{
     OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
     ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
     TsConfigOnlyOption, WatchOptions,
+    InArena,
 };
 
 pub(super) fn parse_response_file(
@@ -507,7 +508,8 @@ pub fn get_parsed_command_line_of_config_file(
 
     let result = parse_json_text(config_file_name, config_file_text);
     let cwd = host.get_current_directory()?;
-    let result_as_source_file = result.as_source_file();
+    let result_ref = result.ref_(arena);
+    let result_as_source_file = result_ref.as_source_file();
     result_as_source_file.set_path(to_path(
         config_file_name,
         Some(&cwd),
@@ -516,7 +518,7 @@ pub fn get_parsed_command_line_of_config_file(
     result_as_source_file.set_resolved_path(Some(result_as_source_file.path().clone()));
     result_as_source_file.set_original_file_name(Some(result_as_source_file.file_name().clone()));
     Ok(Some(parse_json_source_file_config_file_content(
-        &result,
+        result,
         host,
         &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(&cwd)),
         options_to_extend,
@@ -532,11 +534,12 @@ pub fn get_parsed_command_line_of_config_file(
 pub fn read_config_file(
     file_name: &str,
     read_file: impl FnMut(&str) -> io::Result<Option<String>>,
+    arena: &impl HasArena,
 ) -> io::Result<ReadConfigFileReturn> {
     let text_or_diagnostic = try_read_file(file_name, read_file);
     Ok(match text_or_diagnostic {
         StringOrRcDiagnostic::String(text_or_diagnostic) => {
-            parse_config_file_text_to_json(file_name, text_or_diagnostic)?
+            parse_config_file_text_to_json(file_name, text_or_diagnostic, arena)?
         }
         StringOrRcDiagnostic::RcDiagnostic(text_or_diagnostic) => ReadConfigFileReturn {
             config: Some(serde_json::Value::Object(serde_json::Map::new())),
@@ -553,9 +556,10 @@ pub struct ReadConfigFileReturn {
 pub fn parse_config_file_text_to_json(
     file_name: &str,
     json_text: String,
+    arena: &impl HasArena,
 ) -> io::Result<ReadConfigFileReturn> {
     let json_source_file = parse_json_text(file_name, json_text);
-    let json_source_file_parse_diagnostics = json_source_file.as_source_file().parse_diagnostics();
+    let json_source_file_parse_diagnostics = json_source_file.ref_(arena).as_source_file().parse_diagnostics();
     let config = convert_config_file_to_object(
         &json_source_file,
         json_source_file_parse_diagnostics.clone(),

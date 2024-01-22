@@ -139,7 +139,7 @@ pub(super) fn parse_config(
             .into(),
         ));
         return Ok(ParsedTsconfigBuilder::default()
-            .raw(json.try_or_else(|| convert_to_object(source_file, errors, arena))?)
+            .raw(json.try_or_else(|| convert_to_object(source_file.unwrap(), errors, arena))?)
             .build()
             .unwrap());
     }
@@ -151,6 +151,7 @@ pub(super) fn parse_config(
             &base_path,
             config_file_name,
             &mut errors.borrow_mut(),
+            arena,
         )?
     } else {
         parse_own_config_of_json_source_file(
@@ -265,6 +266,7 @@ pub(super) fn parse_own_config_of_json(
     base_path: &str,
     config_file_name: Option<&str>,
     errors: &mut Vec<Gc<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> io::Result<ParsedTsconfig> {
     let mut json = match json {
         serde_json::Value::Object(json) => json,
@@ -317,6 +319,7 @@ pub(super) fn parse_own_config_of_json(
                     &new_base,
                     errors,
                     |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
+                    arena,
                 )?;
             }
             _ => {
@@ -565,6 +568,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                             .into(),
                         )
                     },
+                    self,
                 )?;
             }
             _ => (),
@@ -620,6 +624,7 @@ pub(super) fn get_extends_config_path(
     base_path: &str,
     errors: &mut Vec<Gc<Diagnostic>>,
     mut create_diagnostic: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<String>> {
     let extended_config = normalize_slashes(extended_config);
     if is_rooted_disk_path(&extended_config)
@@ -653,6 +658,7 @@ pub(super) fn get_extends_config_path(
         None,
         None,
         None,
+        arena,
     )?;
     if let Some(resolved_resolved_module) = resolved.resolved_module.as_ref() {
         return Ok(Some(resolved_resolved_module.resolved_file_name.clone()));

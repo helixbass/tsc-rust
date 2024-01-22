@@ -881,7 +881,7 @@ pub fn insert_sorted<
     insert: TItem,
     // compare: Comparer<&'array_or_item TItem>,
     // compare: Comparer<&TItem, &TItem>,
-    compare: fn(&TItem, &TItem) -> Comparison,
+    compare: impl Fn(&TItem, &TItem) -> Comparison,
 ) {
     if array.is_empty() {
         array.push(insert);
