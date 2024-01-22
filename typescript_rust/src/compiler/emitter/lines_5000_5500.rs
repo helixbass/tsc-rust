@@ -456,7 +456,7 @@ impl Printer {
             || emit_flags.intersects(EmitFlags::NoTrailingComments)
             || node.ref_(self).kind() == SyntaxKind::JsxText;
         maybe_for_each(
-            get_synthetic_trailing_comments(node).as_ref(),
+            get_synthetic_trailing_comments(&node.ref_(self)).as_ref(),
             |comment: &Rc<SynthesizedComment>, _| -> Option<()> {
                 self.emit_trailing_synthesized_comment(comment);
                 None

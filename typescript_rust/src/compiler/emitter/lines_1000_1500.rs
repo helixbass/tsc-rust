@@ -487,7 +487,7 @@ impl Printer {
     ) -> io::Result<()> {
         let allow_snippets = allow_snippets.unwrap_or(true);
         if allow_snippets {
-            let snippet = get_snippet_element(node);
+            let snippet = get_snippet_element(&node.ref_(self));
             if let Some(snippet) = snippet {
                 return self.emit_snippet_node(hint, node, snippet);
             }

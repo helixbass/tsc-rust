@@ -1709,6 +1709,8 @@ impl Node {
 pub struct BaseNode {
     #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Node>>>,
+    _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
+    _symbol_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
     #[unsafe_ignore_trace]
     pub kind: SyntaxKind,
     #[unsafe_ignore_trace]
@@ -1745,6 +1747,8 @@ impl fmt::Debug for BaseNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BaseNode")
             // .field("_arena_id", &self._arena_id)
+            // .field("_id_override", &self._id_override)
+            // .field("_symbol_override", &self._symbol_override)
             .field("kind", &self.kind)
             .field("flags", &self.flags)
             // .field("modifier_flags_cache", &self.modifier_flags_cache)
@@ -1781,6 +1785,8 @@ impl BaseNode {
     ) -> Self {
         Self {
             _arena_id: Default::default(),
+            _id_override: Default::default(),
+            _symbol_override: Default::default(),
             kind,
             flags: Cell::new(flags),
             modifier_flags_cache: Cell::new(ModifierFlags::None),
@@ -2062,7 +2068,7 @@ impl From<BaseNode> for Node {
 impl Clone for BaseNode {
     fn clone(&self) -> Self {
         Self {
-            _node_wrapper: Default::default(),
+            _arena_id: Default::default(),
             _id_override: self._id_override.clone(),
             _symbol_override: self._symbol_override.clone(),
             kind: self.kind,
@@ -2212,7 +2218,7 @@ impl NodeExt for Id<Node> {
         has_trailing_new_line: Option<bool>,
         arena: &impl HasArena,
     ) -> Self {
-        add_synthetic_trailing_comment(&self, kind, text, has_trailing_new_line, arena);
+        add_synthetic_trailing_comment(self, kind, text, has_trailing_new_line, arena);
         self
     }
 

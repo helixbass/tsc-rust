@@ -372,7 +372,7 @@ pub(super) fn parse_own_config_of_json_source_file(
         &root_compiler_options,
     );
     let json =
-        convert_config_file_to_object(source_file, errors.clone(), true, Some(&options_iterator))?;
+        convert_config_file_to_object(source_file, errors.clone(), true, Some(&options_iterator), arena)?;
 
     let mut type_acquisition = type_acquisition.borrow_mut();
     let typing_options_type_acquisition = typing_options_type_acquisition.borrow();

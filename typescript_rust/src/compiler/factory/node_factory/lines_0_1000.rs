@@ -675,8 +675,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertyAssignment => {
-                    if is_identifier(&name) {
-                        node.add_transform_flags(propagate_identifier_name_flags(&name, self));
+                    if is_identifier(&name.ref_(self)) {
+                        node.add_transform_flags(propagate_identifier_name_flags(name, self));
                     }
                 }
                 _ => {
@@ -796,8 +796,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         updated: Id<Node>,
         original: Id<Node>,
     ) -> Id<Node> {
-        let updated_as_function_like_declaration = updated.as_function_like_declaration();
-        let original_as_function_like_declaration = original.as_function_like_declaration();
+        let updated_ref = updated.ref_(self);
+        let updated_as_function_like_declaration = updated_ref.as_function_like_declaration();
+        let original_ref = original.ref_(self);
+        let original_as_function_like_declaration = original_ref.as_function_like_declaration();
         if let Some(original_exclamation_token) = original_as_function_like_declaration
             .maybe_exclamation_token()
             .clone()

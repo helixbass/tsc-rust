@@ -1070,7 +1070,7 @@ impl Printer {
             return expression.ref_(self).as_numeric_literal().numeric_literal_flags == TokenFlags::None
                 && !string_contains(&text, token_to_string(SyntaxKind::DotToken).unwrap());
         } else if is_access_expression(&expression.ref_(self)) {
-            let constant_value = get_constant_value(expression);
+            let constant_value = get_constant_value(&expression.ref_(self));
             return matches!(
                 constant_value,
                 Some(StringOrNumber::Number(constant_value)) if is_finite(&constant_value) &&

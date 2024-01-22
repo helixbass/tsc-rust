@@ -11,6 +11,7 @@ use crate::{
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters, NodeFactory,
     NodeInterface, SignatureDeclarationInterface, SyntaxKind,
+    HasArena, AllArenas, InArena, NodeExt,
 };
 
 pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -40,17 +41,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         node: Id<Node>, /*ConciseBody*/
         multi_line: Option<bool>,
     ) -> Id<Node /*Block*/> {
-        if is_block(node) {
-            return node.node_wrapper();
+        if is_block(&node.ref_(self)) {
+            return node;
         }
         let return_statement = self
             .factory
-            .create_return_statement_raw(Some(node.node_wrapper()));
-        let return_statement = set_text_range(&*return_statement.wrap(), Some(node)).node_wrapper();
+            .create_return_statement_raw(Some(node));
+        let return_statement = return_statement.alloc(self.arena()).set_text_range(Some(&*node.ref_(self)), self);
         let body = self
             .factory
             .create_block_raw(vec![return_statement], multi_line);
-        let body = set_text_range(&*body.wrap(), Some(node)).node_wrapper();
+        let body = body.alloc(self.arena()).set_text_range(Some(&*node.ref_(self)), self);
         body
     }
 
@@ -58,7 +59,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> Id<Node /*FunctionExpression*/> {
-        let node_as_function_declaration = node.as_function_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_function_declaration = node_ref.as_function_declaration();
         if node_as_function_declaration.maybe_body().is_none() {
             Debug_.fail(Some("Cannot convert a FunctionDeclaration without a body"));
         }
@@ -78,9 +80,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             node_as_function_declaration.maybe_body().unwrap(),
         );
         set_original_node(updated, Some(node), self);
-        let updated = set_text_range(&*updated, Some(node)).node_wrapper();
-        if get_starts_on_new_line(node) == Some(true) {
-            set_starts_on_new_line(updated, true);
+        let updated = updated.set_text_range(Some(&*node.ref_(self)), self);
+        if get_starts_on_new_line(&node.ref_(self)) == Some(true) {
+            set_starts_on_new_line(updated, true, self);
         }
         updated
     }
@@ -89,61 +91,62 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         &self,
         element: Id<Node>, /*ArrayBindingOrAssignmentElement*/
     ) -> Id<Node /*Expression*/> {
-        if is_binding_element(element) {
-            let element_as_binding_element = element.as_binding_element();
+        if is_binding_element(&element.ref_(self)) {
+            let element_ref = element.ref_(self);
+            let element_as_binding_element = element_ref.as_binding_element();
             if element_as_binding_element.dot_dot_dot_token.is_some() {
                 Debug_.assert_node(
                     Some(element_as_binding_element.name()),
-                    Some(is_identifier),
+                    Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                     None,
                 );
-                let ret = self
+                return self
                     .factory
-                    .create_spread_element_raw(element_as_binding_element.name());
-                let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-                set_original_node(ret, Some(element), self);
-                return ret;
+                    .create_spread_element_raw(element_as_binding_element.name())
+                    .alloc(self.arena())
+                    .set_text_range(Some(&*element.ref_(self)), self)
+                    .set_original_node(Some(element), self);
             }
             let expression =
-                self.convert_to_assignment_element_target(&element_as_binding_element.name());
+                self.convert_to_assignment_element_target(element_as_binding_element.name());
             return match element_as_binding_element.maybe_initializer() {
                 Some(element_initializer) => {
-                    let ret = self
+                    return self
                         .factory
-                        .create_assignment_raw(expression, element_initializer);
-                    let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-                    set_original_node(ret, Some(element), self);
-                    return ret;
+                        .create_assignment_raw(expression, element_initializer)
+                        .set_text_range(Some(&*element.ref_(self)), self)
+                        .set_original_node(Some(element), self);
                 }
                 None => expression,
             };
         }
-        cast(Some(element), |element| is_expression(element, self)).node_wrapper()
+        cast(Some(element), |&element| is_expression(element, self))
     }
 
     fn convert_to_object_assignment_element(
         &self,
         element: Id<Node>, /*ObjectBindingOrAssignmentElement*/
     ) -> Id<Node /*ObjectLiteralElementLike*/> {
-        if is_binding_element(element) {
-            let element_as_binding_element = element.as_binding_element();
+        if is_binding_element(&element.ref_(self)) {
+            let element_ref = element.ref_(self);
+            let element_as_binding_element = element_ref.as_binding_element();
             if element_as_binding_element.dot_dot_dot_token.is_some() {
                 Debug_.assert_node(
                     Some(element_as_binding_element.name()),
-                    Some(is_identifier),
+                    Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                     None,
                 );
-                let ret = self
+                return self
                     .factory
-                    .create_spread_assignment_raw(element_as_binding_element.name());
-                let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-                set_original_node(ret, Some(element), self);
-                return ret;
+                    .create_spread_assignment_raw(element_as_binding_element.name())
+                    .alloc(self.arena())
+                    .set_text_range(Some(&*element.ref_(self)),self)
+                    .set_original_node(Some(element), self);
             }
-            if let Some(element_property_name) = element_as_binding_element.property_name.as_ref() {
+            if let Some(element_property_name) = element_as_binding_element.property_name {
                 let expression =
-                    self.convert_to_assignment_element_target(&element_as_binding_element.name());
-                let ret = self.factory.create_property_assignment_raw(
+                    self.convert_to_assignment_element_target(element_as_binding_element.name());
+                return self.factory.create_property_assignment_raw(
                     element_property_name.clone(),
                     match element_as_binding_element.maybe_initializer() {
                         Some(initializer) => {
@@ -151,35 +154,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                         }
                         None => expression,
                     },
-                );
-                let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-                set_original_node(ret, Some(element), self);
-                return ret;
+                )
+                    .alloc(self.arena())
+                    .set_text_range(Some(&*element.ref_(self)), self)
+                    .set_original_node(Some(element), self);
             }
             Debug_.assert_node(
                 Some(element_as_binding_element.name()),
-                Some(is_identifier),
+                Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                 None,
             );
-            let ret = self.factory.create_shorthand_property_assignment_raw(
+            return self.factory.create_shorthand_property_assignment_raw(
                 element_as_binding_element.name(),
                 element_as_binding_element.maybe_initializer(),
-            );
-            let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
-            set_original_node(ret, Some(element), self);
-            return ret;
+            )
+                .alloc(self.arena())
+                .set_text_range(Some(&*element.ref_(self)), self)
+                .set_original_node(Some(element), self);
         }
         cast(Some(element), |element| {
-            is_object_literal_element_like(element)
+            is_object_literal_element_like(&element.ref_(self))
         })
-        .node_wrapper()
     }
 
     fn convert_to_assignment_pattern(
         &self,
         node: Id<Node>, /*BindingOrAssignmentPattern*/
     ) -> Id<Node /*AssignmentPattern*/> {
-        match node.kind() {
+        match node.ref_(self).kind() {
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ArrayLiteralExpression => {
                 self.convert_to_array_assignment_pattern(node)
             }
@@ -194,50 +196,60 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         &self,
         node: Id<Node>, /*ObjectBindingOrAssignmentPattern*/
     ) -> Id<Node /*ObjectLiteralExpression*/> {
-        if is_object_binding_pattern(node) {
-            let node_as_object_binding_pattern = node.as_object_binding_pattern();
-            let ret = self.factory.create_object_literal_expression_raw(
+        if is_object_binding_pattern(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_object_binding_pattern = node_ref.as_object_binding_pattern();
+            return self.factory.create_object_literal_expression_raw(
                 Some(map(
                     &node_as_object_binding_pattern.elements,
                     |element, _| self.convert_to_object_assignment_element(element),
                 )),
                 None,
-            );
-            let ret = set_text_range(&*ret.wrap(), Some(node)).node_wrapper();
-            set_original_node(ret, Some(node), self);
-            return ret;
+            )
+                .alloc(self.arena())
+                .set_text_range(Some(&*node.ref_(self)), self)
+                .set_original_node(Some(node), self);
         }
-        cast(Some(node), |node| is_object_literal_expression(node)).node_wrapper()
+        cast(Some(node), |node| is_object_literal_expression(&node.ref_(self)))
     }
 
     fn convert_to_array_assignment_pattern(
         &self,
         node: Id<Node>, /*ArrayBindingOrAssignmentPattern*/
     ) -> Id<Node /*ArrayLiteralExpression*/> {
-        if is_array_binding_pattern(node) {
-            let node_as_array_binding_pattern = node.as_array_binding_pattern();
-            let ret = self.factory.create_array_literal_expression_raw(
+        if is_array_binding_pattern(&node.ref_(self)) {
+            let node_ref = node.ref_(self);
+            let node_as_array_binding_pattern = node_ref.as_array_binding_pattern();
+            return self.factory.create_array_literal_expression_raw(
                 Some(map(
                     &node_as_array_binding_pattern.elements,
                     |element, _| self.convert_to_array_assignment_element(element),
                 )),
                 None,
-            );
-            let ret = set_text_range(&*ret.wrap(), Some(node)).node_wrapper();
-            set_original_node(ret, Some(node), self);
-            return ret;
+            )
+                .alloc(self.arena())
+                .set_text_range(Some(&*node.ref_(self)), self)
+                .set_original_node(Some(node), self);
         }
-        cast(Some(node), |node| is_array_literal_expression(node)).node_wrapper()
+        cast(Some(node), |node| is_array_literal_expression(&node.ref_(self)))
     }
 
     fn convert_to_assignment_element_target(
         &self,
         node: Id<Node>, /*BindingOrAssignmentElementTarget*/
     ) -> Id<Node /*Expression*/> {
-        if is_binding_pattern(Some(node)) {
+        if is_binding_pattern(Some(&node.ref_(self))) {
             return self.convert_to_assignment_pattern(node);
         }
-        cast(Some(node), |node| is_expression(node, self)).node_wrapper()
+        cast(Some(node), |&node| is_expression(node, self))
+    }
+}
+
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
+    HasArena for NodeConvertersConcrete<TBaseNodeFactory>
+{
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

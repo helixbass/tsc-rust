@@ -681,7 +681,7 @@ impl TransformNodesTransformationResult {
             dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                 Some(&**node),
                 Option::<fn(Id<Node>) -> bool>::None,
-            )))
+            ), self), self)
         }
 
         // performance.mark("beforeTransform");
@@ -1323,7 +1323,7 @@ impl TransformationResult for TransformNodesTransformationResult {
                 dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                     Some(&**node),
                     Option::<fn(Id<Node>) -> bool>::None,
-                )))
+                ), self), self)
             }
 
             self.set_lexical_environment_variable_declarations(None);

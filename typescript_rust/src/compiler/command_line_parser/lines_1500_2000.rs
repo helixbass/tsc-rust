@@ -565,6 +565,7 @@ pub fn parse_config_file_text_to_json(
         json_source_file_parse_diagnostics.clone(),
         false,
         Option::<&JsonConversionNotifierDummy>::None,
+        arena,
     )?;
     let json_source_file_parse_diagnostics = (*json_source_file_parse_diagnostics).borrow();
     Ok(ReadConfigFileReturn {
@@ -617,7 +618,7 @@ pub fn read_json_config_file(
             )
             .alloc(arena.arena());
             source_file
-                .as_source_file()
+                .ref_(arena).as_source_file()
                 .set_parse_diagnostics(Gc::new(GcCell::new(vec![text_or_diagnostic])));
             source_file
         }
@@ -1035,7 +1036,7 @@ pub(super) fn convert_config_file_to_object(
     let root_expression = source_file_as_source_file
         .statements()
         .get(0)
-        .map(|statement| statement.as_expression_statement().expression.clone());
+        .map(|statement| statement.ref_(arena).as_expression_statement().expression);
     let known_root_options: Option<Gc<CommandLineOption>> = if report_options_errors {
         Some(get_tsconfig_root_options_map())
     } else {

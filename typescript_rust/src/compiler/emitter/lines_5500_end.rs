@@ -503,7 +503,7 @@ impl Printer {
         let LineAndCharacter {
             line: source_line,
             character: source_character,
-        } = get_line_and_character_of_position(&*self.source_map_source().ref_(self), pos.try_into().unwrap());
+        } = get_line_and_character_of_position(&self.source_map_source().ref_(self), pos.try_into().unwrap());
         self.source_map_generator().add_mapping(
             self.writer().get_line(),
             self.writer().get_column(),

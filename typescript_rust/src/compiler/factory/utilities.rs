@@ -724,7 +724,7 @@ pub fn create_external_helpers_import_declaration_if_needed<
         if module_kind >= ModuleKind::ES2015 && module_kind <= ModuleKind::ESNext
             || source_file_as_source_file.maybe_implied_node_format() == Some(ModuleKind::ESNext)
         {
-            let helpers = get_emit_helpers(source_file);
+            let helpers = get_emit_helpers(&source_file.ref_(node_factory));
             if let Some(helpers) = helpers {
                 let mut helper_names: Vec<String> = _d();
                 for helper in helpers {
@@ -832,7 +832,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
             && (module_kind < ModuleKind::ES2015
                 || node_as_source_file.maybe_implied_node_format() == Some(ModuleKind::CommonJS));
         if !create {
-            let helpers = get_emit_helpers(node);
+            let helpers = get_emit_helpers(&node.ref_(factory));
             if let Some(helpers) = helpers {
                 for helper in helpers {
                     if !helper.scoped() {

@@ -63,7 +63,7 @@ pub(crate) fn get_extended_config(
     if extended_result.is_none() {
         extended_result = Some(read_json_config_file(extended_config_path, |path| {
             host.read_file(path)
-        }));
+        }, arena));
         if (*extended_result
             .unwrap()
             .ref_(arena).as_source_file()
@@ -925,8 +925,8 @@ fn create_diagnostic(
     let element = get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec, arena);
     Gc::new(if let Some(element) = element {
         create_diagnostic_for_node_in_source_file(
-            json_source_file.unwrap().borrow(),
-            &element,
+            json_source_file.unwrap(),
+            element,
             message,
             Some(vec![spec]),
             arena,

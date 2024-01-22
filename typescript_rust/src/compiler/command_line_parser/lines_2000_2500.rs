@@ -97,6 +97,7 @@ pub(super) fn convert_object_literal_expression_to_json(
                     element_as_property_assignment.name(),
                     &Diagnostics::String_literal_with_double_quotes_expected,
                     None,
+                    arena,
                 )
                 .into(),
             ));
@@ -158,7 +159,7 @@ pub(super) fn convert_object_literal_expression_to_json(
             json_conversion_notifier,
             return_value,
             known_root_options,
-            &element_as_property_assignment.initializer,
+            element_as_property_assignment.initializer,
             option,
             arena,
         )?;
@@ -187,16 +188,16 @@ pub(super) fn convert_object_literal_expression_to_json(
                         if is_valid_option_value {
                             json_conversion_notifier.on_set_valid_option_key_value_in_root(
                                 &key_text,
-                                &element_as_property_assignment.name(),
+                                element_as_property_assignment.name(),
                                 value.as_ref(),
-                                &element_as_property_assignment.initializer,
+                                element_as_property_assignment.initializer,
                             )?;
                         } else if option.is_none() {
                             json_conversion_notifier.on_set_unknown_option_key_value_in_root(
                                 &key_text,
-                                &element_as_property_assignment.name(),
+                                element_as_property_assignment.name(),
                                 value.as_ref(),
-                                &element_as_property_assignment.initializer,
+                                element_as_property_assignment.initializer,
                             );
                         }
                     }
@@ -286,6 +287,7 @@ pub(super) fn convert_property_value_to_json(
                 source_file,
                 value_expression,
                 Some(serde_json::Value::Bool(true)),
+                arena,
             ));
         }
 
@@ -308,6 +310,7 @@ pub(super) fn convert_property_value_to_json(
                 source_file,
                 value_expression,
                 Some(serde_json::Value::Bool(false)),
+                arena,
             ));
         }
 
@@ -328,6 +331,7 @@ pub(super) fn convert_property_value_to_json(
                 source_file,
                 value_expression,
                 Some(serde_json::Value::Null),
+                arena,
             ));
         }
 
@@ -392,6 +396,7 @@ pub(super) fn convert_property_value_to_json(
                 source_file,
                 value_expression,
                 Some(serde_json::Value::String(text.clone())),
+                arena,
             ));
         }
 
@@ -418,6 +423,7 @@ pub(super) fn convert_property_value_to_json(
                         .parse()
                         .unwrap(),
                 )),
+                arena,
             ));
         }
 
@@ -425,7 +431,7 @@ pub(super) fn convert_property_value_to_json(
             let value_expression_ref = value_expression.ref_(arena);
             let value_expression_as_prefix_unary_expression = value_expression_ref.as_prefix_unary_expression();
             if value_expression_as_prefix_unary_expression.operator != SyntaxKind::MinusToken
-                || value_expression_as_prefix_unary_expression.operand.kind()
+                || value_expression_as_prefix_unary_expression.operand.ref_(arena).kind()
                     != SyntaxKind::NumericLiteral
             {
             } else {
@@ -451,13 +457,14 @@ pub(super) fn convert_property_value_to_json(
                             -Into::<Number>::into(
                                 &**value_expression_as_prefix_unary_expression
                                     .operand
-                                    .as_literal_like_node()
+                                    .ref_(arena).as_literal_like_node()
                                     .text(),
                             )
                             .value(),
                         )
                         .unwrap(),
                     )),
+                    arena,
                 ));
             }
         }
@@ -500,6 +507,7 @@ pub(super) fn convert_property_value_to_json(
                     } else {
                         Some(option_name)
                     },
+                    arena,
                 )?;
                 return Ok(validate_value(
                     invalid_reported,
@@ -508,6 +516,7 @@ pub(super) fn convert_property_value_to_json(
                     source_file,
                     value_expression,
                     converted,
+                    arena,
                 ));
             } else {
                 let converted = convert_object_literal_expression_to_json(
@@ -520,6 +529,7 @@ pub(super) fn convert_property_value_to_json(
                     None,
                     None,
                     None,
+                    arena,
                 )?;
                 return Ok(validate_value(
                     invalid_reported,
@@ -528,6 +538,7 @@ pub(super) fn convert_property_value_to_json(
                     source_file,
                     value_expression,
                     converted,
+                    arena,
                 ));
             }
         }
@@ -565,6 +576,7 @@ pub(super) fn convert_property_value_to_json(
                     }),
                     arena,
                 )?,
+                arena,
             ));
         }
 
@@ -604,6 +616,7 @@ pub(super) fn validate_value(
     source_file: Id<Node>,      /*JsonSourceFile*/
     value_expression: Id<Node>, /*Expression*/
     value: Option<serde_json::Value>,
+    arena: &impl HasArena,
 ) -> Option<serde_json::Value> {
     if !matches!(invalid_reported, Some(true)) {
         let diagnostic = option

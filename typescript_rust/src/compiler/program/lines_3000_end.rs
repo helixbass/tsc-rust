@@ -191,9 +191,9 @@ impl Program {
                     && !elide_import
                     && !(is_js_file && !get_allow_js_compiler_option(&options_for_file))
                     && (is_in_js_file(Some(
-                        &*file_as_source_file.maybe_imports().as_ref().unwrap()[index],
+                        &file_as_source_file.maybe_imports().as_ref().unwrap()[index].ref_(self),
                     )) || !file_as_source_file.maybe_imports().as_ref().unwrap()[index]
-                        .flags()
+                        .ref_(self).flags()
                         .intersects(NodeFlags::JSDoc));
 
                 if elide_import {
@@ -1171,7 +1171,7 @@ impl Program {
         let file_reasons = self.file_reasons();
         if let Some(file) = file {
             let file_reasons = (*file_reasons).borrow();
-            if let Some(reasons) = file_reasons.get(&*file.as_source_file().path()) {
+            if let Some(reasons) = file_reasons.get(&*file.ref_(self).as_source_file().path()) {
                 for reason in reasons {
                     self.process_reason(
                         &mut file_include_reasons,
@@ -1215,8 +1215,7 @@ impl Program {
             )
         });
         let redirect_info = file
-            .as_ref()
-            .and_then(|file| explain_if_file_is_redirect(file, Option::<fn(&str) -> String>::None));
+            .and_then(|file| explain_if_file_is_redirect(&file.ref_(self), Option::<fn(&str) -> String>::None));
         let chain = if let Some(mut redirect_info) = redirect_info {
             chain_diagnostic_messages_multiple(
                 if let Some(file_include_reason_details) = file_include_reason_details {
@@ -1235,7 +1234,7 @@ impl Program {
             let location_as_reference_file_location = location.as_reference_file_location();
             Gc::new(
                 create_file_diagnostic_from_message_chain(
-                    location_as_reference_file_location.file,
+                    &location_as_reference_file_location.file.ref_(self),
                     location_as_reference_file_location.pos.try_into().unwrap(),
                     (location_as_reference_file_location.end
                         - location_as_reference_file_location.pos)
@@ -1807,7 +1806,7 @@ impl Program {
                     source_file
                         .or(self.options.config_file)
                         .unwrap(),
-                    references_syntax.as_array_literal_expression().elements[index],
+                    references_syntax.ref_(self).as_array_literal_expression().elements[index],
                     message,
                     args,
                     self,

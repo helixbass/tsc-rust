@@ -65,16 +65,17 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> 
     node.ref_(arena).maybe_emit_node().unwrap()
 }
 
-pub fn dispose_emit_nodes(source_file: Option<Id<Node> /*SourceFile*/>) {
+pub fn dispose_emit_nodes(source_file: Option<Id<Node> /*SourceFile*/>, arena: &impl HasArena) {
     let annotated_nodes = maybe_get_source_file_of_node(get_parse_tree_node(
         source_file,
         Option::<fn(Id<Node>) -> _>::None,
-    ))
-    .and_then(|source_file| source_file.maybe_emit_node())
+        arena,
+    ), arena)
+    .and_then(|source_file| source_file.ref_(arena).maybe_emit_node())
     .and_then(|emit_node| (*emit_node).borrow().annotated_nodes.clone());
     if let Some(annotated_nodes) = annotated_nodes.as_ref() {
         for node in annotated_nodes {
-            node.set_emit_node(None);
+            node.ref_(arena).set_emit_node(None);
         }
     }
 }
@@ -181,7 +182,7 @@ pub fn add_synthetic_leading_comment(
     arena: &impl HasArena,
 ) /*-> Id<Node>*/
 {
-    let mut synthetic_leading_comments = get_synthetic_leading_comments(node);
+    let mut synthetic_leading_comments = get_synthetic_leading_comments(&node.ref_(arena));
     if synthetic_leading_comments.is_none() {
         synthetic_leading_comments = Some(Default::default());
     }
@@ -197,7 +198,7 @@ pub fn add_synthetic_leading_comment(
     set_synthetic_leading_comments(node, synthetic_leading_comments, arena);
 }
 
-pub fn get_synthetic_trailing_comments(node: Id<Node>) -> Option<Vec<Rc<SynthesizedComment>>> {
+pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().trailing_comments.clone())
 }
@@ -220,7 +221,7 @@ pub fn add_synthetic_trailing_comment(
     arena: &impl HasArena,
 ) /*-> Id<Node>*/
 {
-    let mut synthetic_trailing_comments = get_synthetic_trailing_comments(node);
+    let mut synthetic_trailing_comments = get_synthetic_trailing_comments(&node.ref_(arena));
     if synthetic_trailing_comments.is_none() {
         synthetic_trailing_comments = Some(Default::default());
     }
@@ -237,8 +238,8 @@ pub fn add_synthetic_trailing_comment(
 }
 
 pub fn move_synthetic_comments(node: Id<Node>, original: Id<Node>, arena: &impl HasArena) -> Id<Node> {
-    set_synthetic_leading_comments(node, get_synthetic_leading_comments(original), arena);
-    set_synthetic_trailing_comments(node, get_synthetic_trailing_comments(original), arena);
+    set_synthetic_leading_comments(node, get_synthetic_leading_comments(&original.ref_(arena)), arena);
+    set_synthetic_trailing_comments(node, get_synthetic_trailing_comments(&original.ref_(arena)), arena);
     let emit = get_or_create_emit_node(original, arena);
     let mut emit = emit.borrow_mut();
     emit.leading_comments = None;
@@ -246,7 +247,7 @@ pub fn move_synthetic_comments(node: Id<Node>, original: Id<Node>, arena: &impl 
     node
 }
 
-pub fn get_constant_value(node: Id<Node> /*AccessExpression*/) -> Option<StringOrNumber> {
+pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
 }
@@ -279,10 +280,10 @@ pub fn add_emit_helpers(node: Id<Node>, helpers: Option<&[Gc<EmitHelper>]>, aren
             push_if_unique_gc(emit_node.helpers.get_or_insert_default_(), helper);
         }
     }
-    node.node_wrapper()
+    node
 }
 
-pub fn get_emit_helpers(node: Id<Node>) -> Option<Vec<Gc<EmitHelper>>> {
+pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().helpers.clone())
 }
@@ -293,7 +294,7 @@ pub fn move_emit_helpers(
     mut predicate: impl FnMut(&EmitHelper) -> bool,
     arena: &impl HasArena,
 ) {
-    let source_emit_node = return_if_none!(source.maybe_emit_node());
+    let source_emit_node = return_if_none!(source.ref_(arena).maybe_emit_node());
     let mut source_emit_node = source_emit_node.borrow_mut();
     if source_emit_node.helpers.is_none() {
         return;
@@ -324,7 +325,7 @@ pub fn move_emit_helpers(
     }
 }
 
-pub(crate) fn get_snippet_element(node: Id<Node>) -> Option<SnippetElement> {
+pub(crate) fn get_snippet_element(node: &Node) -> Option<SnippetElement> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().snippet_element)
 }
