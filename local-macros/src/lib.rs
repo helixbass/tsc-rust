@@ -534,8 +534,8 @@ fn get_ast_enum_interface_impl(
             let alloc_method = if should_impl_from {
                 quote! {
                     fn alloc(self, arena: &crate::AllArenas) -> ::id_arena::Id<crate::Node> {
-                        let id = arena.alloc_node(crate::Node::from(self));
-                        arena.node(id).set_arena_id(id);
+                        let id = crate::HasArena::alloc_node(arena, crate::Node::from(self));
+                        crate::HasArena::node(arena, id).set_arena_id(id);
                         id
                     }
                 }
