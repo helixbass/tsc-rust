@@ -227,7 +227,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let question_token_is_some = question_token.is_some();
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
         let node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
-        if is_this_identifier(&node.maybe_name().refed(self)) {
+        if is_this_identifier(node.maybe_name().refed(self)) {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(
