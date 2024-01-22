@@ -180,6 +180,7 @@ impl TransformES2015 {
             Some(&node.ref_(self).as_signature_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         )?
         .unwrap();
         let body = self.transform_function_body(node)?;
@@ -245,7 +246,7 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node, &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
     }
 
     pub(super) fn visit_array_literal_expression(

@@ -938,6 +938,7 @@ impl TransformClassFields {
                             Some(&node_as_function_like_declaration.parameters()),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &**self.context,
+                            self,
                         ),
                         None,
                         visit_function_body(

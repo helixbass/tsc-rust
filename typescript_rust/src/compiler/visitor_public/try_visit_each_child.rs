@@ -523,6 +523,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             nodes_visitor(nodes, visitor, test, start, count)
                         }),
+                        arena,
                     )?
                     .unwrap(),
                     node_visitor(
@@ -580,6 +581,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             nodes_visitor(nodes, visitor, test, start, count)
                         }),
+                        arena,
                     )?
                     .unwrap(),
                     try_visit_function_body_full(
@@ -638,6 +640,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             nodes_visitor(nodes, visitor, test, start, count)
                         }),
+                        arena,
                     )?
                     .unwrap(),
                     node_visitor(
@@ -702,6 +705,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             nodes_visitor(nodes, visitor, test, start, count)
                         }),
+                        arena,
                     )?
                     .unwrap(),
                     try_visit_function_body_full(
@@ -1851,6 +1855,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             nodes_visitor(nodes, visitor, test, start, count)
                         }),
+                        arena,
                     )?
                     .unwrap(),
                     node_visitor(
@@ -1908,6 +1913,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             nodes_visitor(nodes, visitor, test, start, count)
                         }),
+                        arena,
                     )?
                     .unwrap(),
                     node_visitor(
@@ -2855,6 +2861,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             nodes_visitor(nodes, visitor, test, start, count)
                         }),
+                        arena,
                     )?
                     .unwrap(),
                     node_visitor(
@@ -3879,6 +3886,7 @@ pub fn try_maybe_visit_each_child_full(
                     &node_as_source_file.statements(),
                     |node: Id<Node>| visitor(node),
                     context,
+                    arena,
                 )?,
                 None,
                 None,

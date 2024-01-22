@@ -635,6 +635,7 @@ impl TransformES2015 {
                 .as_deref(),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         )?
         .map_or_else(|| vec![].into(), Into::into))
     }

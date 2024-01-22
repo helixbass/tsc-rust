@@ -1216,7 +1216,7 @@ impl Program {
             )
         });
         let redirect_info = file
-            .and_then(|file| explain_if_file_is_redirect(&file.ref_(self), Option::<fn(&str) -> String>::None, self));
+            .and_then(|file| explain_if_file_is_redirect(file, Option::<fn(&str) -> String>::None, self));
         let chain = if let Some(mut redirect_info) = redirect_info {
             chain_diagnostic_messages_multiple(
                 if let Some(file_include_reason_details) = file_include_reason_details {

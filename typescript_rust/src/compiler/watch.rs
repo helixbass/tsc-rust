@@ -454,7 +454,7 @@ pub fn explain_files(program: &Program, mut write: impl FnMut(&str)) {
                     ))
                 })
             });
-        explain_if_file_is_redirect(&file.ref_(program), Some(relative_file_name), program).map(|diagnostics| {
+        explain_if_file_is_redirect(file, Some(relative_file_name), program).map(|diagnostics| {
             diagnostics
                 .iter()
                 .for_each(|d| write(&format!("  {}", d.message_text)))
@@ -966,7 +966,6 @@ pub fn emit_files_and_report_errors_and_get_exit_status(
         cancellation_token,
         emit_only_dts_files,
         custom_transformers,
-        arena,
     )?;
     // println!("diagnostics: {:#?}", diagnostics);
 

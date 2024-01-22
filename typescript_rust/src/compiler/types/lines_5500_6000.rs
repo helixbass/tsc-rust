@@ -1676,7 +1676,7 @@ impl PartialEq for BaseDiagnosticRelatedInformation {
     fn eq(&self, other: &Self) -> bool {
         self.category == other.category
             && self.code == other.code
-            && are_option_gcs_equal(self.file.as_ref(), other.file.as_ref())
+            && self.file == other.file
             && self.start == other.start
             && self.length == other.length
             && self.message_text == other.message_text

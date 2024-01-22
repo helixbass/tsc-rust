@@ -381,10 +381,7 @@ impl SingleNodeOrVecNode {
     pub fn ptr_eq_node(&self, node: Id<Node>) -> bool {
         matches!(
             self,
-            SingleNodeOrVecNode::SingleNode(single_node) if ptr::eq(
-                &**single_node,
-                node,
-            )
+            SingleNodeOrVecNode::SingleNode(single_node) if *single_node == node
         )
     }
 }

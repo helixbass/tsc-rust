@@ -668,6 +668,7 @@ impl TransformES2017 {
                 Some(&node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?
             .unwrap(),
             None,
@@ -708,6 +709,7 @@ impl TransformES2017 {
                         Some(&node_as_function_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
+                        self,
                     )?
                     .unwrap(),
                     None,
@@ -747,6 +749,7 @@ impl TransformES2017 {
                 Some(&node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?
             .unwrap(),
             None,
@@ -780,6 +783,7 @@ impl TransformES2017 {
                 Some(&node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )?
             .unwrap(),
             None,

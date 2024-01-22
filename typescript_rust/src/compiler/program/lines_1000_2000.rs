@@ -86,7 +86,8 @@ impl Program {
             StringOrRcNode::String(containing_file) => containing_file.clone(),
         };
         let redirected_reference = match &containing_file {
-            StringOrRcNode::RcNode(&containing_file) => {
+            StringOrRcNode::RcNode(containing_file) => {
+                let containing_file = *containing_file;
                 self.get_redirect_reference_for_resolution(containing_file)
             }
             StringOrRcNode::String(_) => None,
@@ -383,7 +384,7 @@ impl Program {
         self.maybe_common_source_directory_mut()
             .get_or_insert_with(|| {
                 let emitted_files = filter(&**self.files(), |&file: &Id<Node>| {
-                    source_file_may_be_emitted(file, self, None)
+                    source_file_may_be_emitted(&file.ref_(self), self, None)
                 });
                 get_common_source_directory(
                     &self.options,

@@ -359,6 +359,7 @@ pub(super) fn perform_compilation(
         None,
         None,
         None,
+        arena,
     )?;
     report_statistics(&**sys, &program);
     cb(program.into());

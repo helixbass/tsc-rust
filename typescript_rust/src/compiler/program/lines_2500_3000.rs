@@ -288,11 +288,11 @@ impl Program {
         });
         self.source_files_found_searching_node_modules_mut()
             .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
-        let redirect = redirect.alloc(self);
-        redirect.set_id_override(Gc::new(Box::new(RedirectSourceFileIdOverride::new(
+        let redirect = redirect.alloc(self.arena());
+        redirect.ref_(self).set_id_override(Gc::new(Box::new(RedirectSourceFileIdOverride::new(
             redirect.clone(),
         ))));
-        redirect.set_symbol_override(Gc::new(Box::new(RedirectSourceFileSymbolOverride::new(
+        redirect.ref_(self).set_symbol_override(Gc::new(Box::new(RedirectSourceFileSymbolOverride::new(
             redirect.clone(),
         ))));
         redirect
@@ -472,7 +472,7 @@ impl Program {
                 .package_id_to_source_file()
                 .get(&package_id_key)
                 .cloned();
-            if let Some(file_from_package_id) = file_from_package_id.as_ref() {
+            if let Some(file_from_package_id) = file_from_package_id {
                 let dup_file = self.create_redirect_source_file(
                     file_from_package_id,
                     file.unwrap(),

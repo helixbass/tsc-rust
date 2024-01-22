@@ -529,6 +529,7 @@ pub fn maybe_visit_each_child_full(
                                 nodes_visitor(nodes, visitor, test, start, count)
                             },
                         ),
+                        arena,
                     )
                     .unwrap(),
                     node_visitor(
@@ -587,6 +588,7 @@ pub fn maybe_visit_each_child_full(
                                 nodes_visitor(nodes, visitor, test, start, count)
                             },
                         ),
+                        arena,
                     )
                     .unwrap(),
                     visit_function_body_full(
@@ -645,6 +647,7 @@ pub fn maybe_visit_each_child_full(
                                 nodes_visitor(nodes, visitor, test, start, count)
                             },
                         ),
+                        arena,
                     )
                     .unwrap(),
                     node_visitor(
@@ -709,6 +712,7 @@ pub fn maybe_visit_each_child_full(
                                 nodes_visitor(nodes, visitor, test, start, count)
                             },
                         ),
+                        arena,
                     )
                     .unwrap(),
                     visit_function_body_full(
@@ -1858,6 +1862,7 @@ pub fn maybe_visit_each_child_full(
                                 nodes_visitor(nodes, visitor, test, start, count)
                             },
                         ),
+                        arena,
                     )
                     .unwrap(),
                     node_visitor(
@@ -1915,6 +1920,7 @@ pub fn maybe_visit_each_child_full(
                                 nodes_visitor(nodes, visitor, test, start, count)
                             },
                         ),
+                        arena,
                     )
                     .unwrap(),
                     node_visitor(
@@ -2862,6 +2868,7 @@ pub fn maybe_visit_each_child_full(
                                 nodes_visitor(nodes, visitor, test, start, count)
                             },
                         ),
+                        arena,
                     )
                     .unwrap(),
                     node_visitor(
@@ -3894,6 +3901,7 @@ pub fn maybe_visit_each_child_full(
                             Option<usize>,
                         ) -> Option<Gc<NodeArray>>,
                     >::None,
+                    arena,
                 ),
                 None,
                 None,

@@ -434,6 +434,7 @@ impl TransformClassFields {
                 .as_deref(),
             |node: Id<Node>| self.visitor(node),
             &**self.context,
+            self,
         );
         let body =
             self.transform_constructor_body(node, constructor, is_derived_class)?;

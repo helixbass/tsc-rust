@@ -47,6 +47,7 @@ impl TransformTypeScript {
                         Option<usize>,
                     ) -> io::Result<Option<Gc<NodeArray>>>,
                 >::None,
+                self,
             )?,
             None,
             None,

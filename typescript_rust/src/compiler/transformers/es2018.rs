@@ -1601,6 +1601,7 @@ impl TransformES2018 {
                 Some(&node.ref_(self).as_constructor_declaration().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .unwrap(),
             Some(self.transform_function_body(node)),
@@ -1631,6 +1632,7 @@ impl TransformES2018 {
                 Some(&node_as_get_accessor_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .unwrap(),
             None,
@@ -1662,6 +1664,7 @@ impl TransformES2018 {
                 Some(&node_as_set_accessor_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .unwrap(),
             Some(self.transform_function_body(node)),
@@ -1721,6 +1724,7 @@ impl TransformES2018 {
                 Some(&node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .unwrap(),
             None,
@@ -1789,6 +1793,7 @@ impl TransformES2018 {
                 Some(&node_as_function_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .unwrap(),
             None,
@@ -1827,6 +1832,7 @@ impl TransformES2018 {
                 Some(&node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .unwrap(),
             None,
@@ -1876,6 +1882,7 @@ impl TransformES2018 {
                 Some(&node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &**self.context,
+                self,
             )
             .unwrap(),
             None,
@@ -1961,6 +1968,7 @@ impl TransformES2018 {
                                     Option<usize>,
                                 ) -> Option<Gc<NodeArray>>,
                             >::None,
+                            self,
                         ),
                     ),
                 ),

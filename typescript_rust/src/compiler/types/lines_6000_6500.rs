@@ -228,7 +228,7 @@ impl PartialEq for CompilerOptionsValue {
             ) => {
                 self_value.is_some()
                     && other_value.is_some()
-                    && Gc::ptr_eq(self_value.as_ref().unwrap(), other_value.as_ref().unwrap())
+                    && self_value.unwrap() == other_value.unwrap()
                     || self_value.is_none() && other_value.is_none()
             }
             (
@@ -1477,7 +1477,7 @@ mod _CompilerOptionsDeriveTraceScope {
                 && self.charset == other.charset
                 && self.check_js == other.check_js
                 && self.config_file_path == other.config_file_path
-                && are_option_gcs_equal(self.config_file.as_ref(), other.config_file.as_ref())
+                && self.config_file == other.config_file
                 && self.declaration == other.declaration
                 && self.declaration_map == other.declaration_map
                 && self.emit_declaration_only == other.emit_declaration_only

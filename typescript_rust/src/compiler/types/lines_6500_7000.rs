@@ -640,7 +640,7 @@ impl From<SourceMapSourceConcrete> for SourceMapSource {
 }
 
 pub enum SourceMapSourceRef<'a> {
-    SourceFile(Ref<'a, Node /*SourceFile*/>),
+    SourceFile(debug_cell::Ref<'a, Node /*SourceFile*/>),
     SourceMapSourceConcrete(&'a SourceMapSourceConcrete),
 }
 
@@ -706,8 +706,8 @@ impl<'a> SourceFileLike for SourceMapSourceRef<'a> {
     }
 }
 
-impl<'a> From<Ref<'a, Node /*SourceFile*/>> for SourceMapSourceRef<'a> {
-    fn from(value: Ref<'a, Node /*SourceFile*/>) -> Self {
+impl<'a> From<debug_cell::Ref<'a, Node /*SourceFile*/>> for SourceMapSourceRef<'a> {
+    fn from(value: debug_cell::Ref<'a, Node /*SourceFile*/>) -> Self {
         Self::SourceFile(value)
     }
 }

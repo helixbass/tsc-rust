@@ -1010,6 +1010,7 @@ impl TransformGenerators {
                         Some(&node.ref_(self).as_function_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
+                        self,
                     )
                     .unwrap(),
                     None,
@@ -1057,6 +1058,7 @@ impl TransformGenerators {
                         Some(&node.ref_(self).as_function_expression().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
+                        self,
                     ),
                     None,
                     self.transform_generator_function_body(

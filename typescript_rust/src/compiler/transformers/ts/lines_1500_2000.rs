@@ -422,6 +422,7 @@ impl TransformTypeScript {
                         Some(&node_as_constructor_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &**self.context,
+                        self,
                     )?
                     .unwrap(),
                     Some(self.transform_constructor_body(

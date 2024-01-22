@@ -114,7 +114,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                     return self
                         .factory
                         .create_assignment_raw(expression, element_initializer)
-                        .alloc(self)
+                        .alloc(self.arena())
                         .set_text_range(Some(&*element.ref_(self)), self)
                         .set_original_node(Some(element), self);
                 }
