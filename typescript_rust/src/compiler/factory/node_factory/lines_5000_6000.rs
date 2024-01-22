@@ -320,7 +320,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 | propagate_child_flags(Some(node.end_of_file_token()), self),
         );
         node.set_implied_node_format(source_as_source_file.maybe_implied_node_format());
-        node.wrap()
+        node.alloc(self.arena())
     }
 
     pub fn update_source_file(
@@ -936,7 +936,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         kinds: Option<OuterExpressionKinds>,
     ) -> Id<Node /*Expression*/> {
         let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
-        if let Some(outer_expression) = outer_expression.filter(|outer_expression| {
+        if let Some(outer_expression) = outer_expression.filter(|&outer_expression| {
             is_outer_expression(outer_expression, Some(kinds), self)
                 && !self.is_ignorable_paren(outer_expression)
         }) {
@@ -1044,7 +1044,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             let callee_ref = callee.ref_(self);
             let callee_as_property_access_expression = callee_ref.as_property_access_expression();
             if self.should_be_captured_in_temp_variable(
-                &callee_as_property_access_expression.expression,
+                callee_as_property_access_expression.expression,
                 cache_identifiers,
             ) {
                 this_arg = self.create_temp_variable(
@@ -1059,7 +1059,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                             this_arg.clone(),
                             callee_as_property_access_expression.expression.clone(),
                         )
-                        .set_text_range(Some(&*callee_as_property_access_expression.expression), self),
+                        .set_text_range(Some(&*callee_as_property_access_expression.expression.ref_(self)), self),
                         callee_as_property_access_expression.name.clone(),
                     )
                     .set_text_range(Some(&*callee.ref_(self)), self);
@@ -1071,7 +1071,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             let callee_ref = callee.ref_(self);
             let callee_as_element_access_expression = callee_ref.as_element_access_expression();
             if self.should_be_captured_in_temp_variable(
-                &callee_as_element_access_expression.expression,
+                callee_as_element_access_expression.expression,
                 cache_identifiers,
             ) {
                 this_arg = self.create_temp_variable(
@@ -1086,7 +1086,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                             this_arg.clone(),
                             callee_as_element_access_expression.expression.clone(),
                         )
-                        .set_text_range(Some(&*callee_as_element_access_expression.expression), self),
+                        .set_text_range(Some(&*callee_as_element_access_expression.expression.ref_(self)), self),
                         callee_as_element_access_expression
                             .argument_expression
                             .clone(),
@@ -1322,7 +1322,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         is_string_literal(&node_as_expression_statement.expression.ref_(self))
             && *node_as_expression_statement
                 .expression
-                .as_string_literal()
+                .ref_(self).as_string_literal()
                 .text()
                 == "use strict"
     }

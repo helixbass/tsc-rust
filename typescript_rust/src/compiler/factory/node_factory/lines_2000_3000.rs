@@ -896,7 +896,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if node.maybe_type_arguments().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if is_super_property(&node.expression.ref_(self)) {
+        if is_super_property(node.expression, self) {
             node.add_transform_flags(TransformFlags::ContainsLexicalThis);
         }
         node
@@ -1257,7 +1257,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             propagate_child_flags(Some(node.equals_greater_than_token), self)
                 | TransformFlags::ContainsES2015,
         );
-        if modifiers_to_flags(node.ref_(self).maybe_modifiers().as_double_deref(), self)
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
             .intersects(ModifierFlags::Async)
         {
             node.add_transform_flags(

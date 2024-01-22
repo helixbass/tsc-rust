@@ -513,7 +513,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let default_tag_name = get_default_tag_name_for_kind(node.ref_(self).kind());
         let node_ref = node.ref_(self);
         let node_as_jsdoc_tag = node_ref.as_jsdoc_tag();
-        if node_as_jsdoc_tag.tag_name().as_identifier().escaped_text
+        if node_as_jsdoc_tag.tag_name().ref_(self).as_identifier().escaped_text
             == escape_leading_underscores(default_tag_name)
         {
             node_as_jsdoc_tag.tag_name()

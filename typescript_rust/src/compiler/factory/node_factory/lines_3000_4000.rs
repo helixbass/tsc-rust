@@ -321,7 +321,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(node.declaration_list), self));
-        if modifiers_to_flags(node.ref_(self).maybe_modifiers().as_double_deref(), self)
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
             .intersects(ModifierFlags::Ambient)
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);

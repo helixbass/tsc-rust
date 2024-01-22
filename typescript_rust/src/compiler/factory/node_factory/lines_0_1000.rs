@@ -1124,7 +1124,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
         let name = self.create_base_generated_identifier("", flags).alloc(self.arena());
         if let Some(mut record_temp_variable) = record_temp_variable {
-            record_temp_variable(&name);
+            record_temp_variable(name);
         }
         name
     }
@@ -1170,8 +1170,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let name = self
             .create_base_generated_identifier(
-                if let Some(node) = node.as_ref().filter(|node| is_identifier(node)) {
-                    id_text(node)
+                if let Some(node) = node.as_ref().filter(|node| is_identifier(&node.ref_(self))) {
+                    id_text(&node.ref_(self))
                 } else {
                     ""
                 },

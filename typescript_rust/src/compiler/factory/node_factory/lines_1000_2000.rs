@@ -19,7 +19,7 @@ use crate::{
     SetAccessorDeclaration, SignatureDeclarationInterface, StrOrRcNode, SyntaxKind,
     TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
     TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
-    InArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -227,7 +227,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let question_token_is_some = question_token.is_some();
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
         let node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
-        if is_this_identifier(&node.maybe_name().ref_(self)) {
+        if is_this_identifier(&node.maybe_name().refed(self)) {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(
@@ -972,13 +972,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             &node_as_index_signature_declaration.parameters(),
             &parameters,
         ) || node_as_index_signature_declaration.maybe_type() != Some(type_)
-        ) || !has_option_node_array_changed(
-            node.ref_(self).maybe_decorators().as_deref(),
-            decorators.as_ref(),
-        ) || !has_option_node_array_changed(
-            node.ref_(self).maybe_modifiers().as_deref(),
-            modifiers.as_ref(),
-        ) {
+            || !has_option_node_array_changed(
+                node.ref_(self).maybe_decorators().as_deref(),
+                decorators.as_ref(),
+            ) || !has_option_node_array_changed(
+                node.ref_(self).maybe_modifiers().as_deref(),
+                modifiers.as_ref(),
+            )
+        {
             self.update_base_signature_declaration(
                 self.create_index_signature(decorators, modifiers, parameters, Some(type_)),
                 node,
