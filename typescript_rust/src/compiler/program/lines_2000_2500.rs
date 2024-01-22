@@ -947,7 +947,7 @@ impl Program {
             }
         }
 
-        for node in &file_as_source_file.statements() {
+        for &node in &file_as_source_file.statements() {
             self.collect_module_references(
                 &mut imports,
                 file,
@@ -1072,7 +1072,7 @@ impl Program {
                 }
             } else if is_import_call(node, self) && {
                 let node_arguments = &node.ref_(self).as_call_expression().arguments;
-                node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0])
+                node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0].ref_(self))
             } {
                 set_parent_recursive(Some(node), false, self);
                 if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.get(0).cloned()

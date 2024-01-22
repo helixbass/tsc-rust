@@ -169,7 +169,7 @@ pub(crate) fn get_mode_for_resolution_at_index(
     }
     get_mode_for_usage_location(
         file.maybe_implied_node_format(),
-        &get_module_name_string_literal_at(file, index, arena),
+        get_module_name_string_literal_at(file, index, arena),
         arena,
     )
 }
@@ -193,8 +193,8 @@ pub(crate) fn get_mode_for_usage_location(
         walk_up_parenthesized_expressions(usage.ref_(arena).parent(), arena).and_then(|node| node.ref_(arena).maybe_parent());
     Some(
         if matches!(
-            expr_parent_parent.as_ref(),
-            Some(expr_parent_parent) if is_import_equals_declaration(expr_parent_parent)
+            expr_parent_parent,
+            Some(expr_parent_parent) if is_import_equals_declaration(&expr_parent_parent.ref_(arena))
         ) {
             ModuleKind::CommonJS
         } else {

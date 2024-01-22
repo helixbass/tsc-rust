@@ -139,11 +139,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             }
 
             let left_kind =
-                self.get_literal_kind_of_binary_plus_operand(&node_as_binary_expression.left);
+                self.get_literal_kind_of_binary_plus_operand(node_as_binary_expression.left);
             let literal_kind = if is_literal_kind(left_kind)
                 && left_kind
                     == self
-                        .get_literal_kind_of_binary_plus_operand(&node_as_binary_expression.right)
+                        .get_literal_kind_of_binary_plus_operand(node_as_binary_expression.right)
             {
                 left_kind
             } else {

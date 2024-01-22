@@ -288,7 +288,7 @@ impl Program {
         });
         self.source_files_found_searching_node_modules_mut()
             .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
-        let redirect = redirect.wrap();
+        let redirect = redirect.alloc(self);
         redirect.set_id_override(Gc::new(Box::new(RedirectSourceFileIdOverride::new(
             redirect.clone(),
         ))));
@@ -879,7 +879,7 @@ impl Program {
             let resolved_type_reference_directive = &resolutions[index];
             let file_name = to_file_name_lower_case(&ref_.file_name);
             set_resolved_type_reference_directive(
-                file,
+                &file.ref_(self),
                 &file_name,
                 resolved_type_reference_directive.clone(),
             );
@@ -1151,6 +1151,12 @@ impl NodeSymbolOverride for RedirectSourceFileSymbolOverride {
             .unwrap()
             .redirect_target
             .ref_(self).set_symbol(value);
+    }
+}
+
+impl HasArena for RedirectSourceFileSymbolOverride {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

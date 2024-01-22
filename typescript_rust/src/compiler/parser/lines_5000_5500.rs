@@ -148,10 +148,10 @@ impl ParserType {
                     self,
                 ) {
                     if opening_tag.matches(|opening_tag| {
-                        is_jsx_opening_element(&opening_tag.ref_(self))
+                        is_jsx_opening_element(opening_tag)
                             && tag_names_are_equivalent(
                                 closing_element_as_jsx_closing_element.tag_name,
-                                opening_tag.ref_(self).as_jsx_opening_element().tag_name,
+                                opening_tag.as_jsx_opening_element().tag_name,
                                 self,
                             )
                     }) {

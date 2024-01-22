@@ -1077,7 +1077,7 @@ fn try_get_module_name_from_ambient_module(
             )) {
                 return Ok(None);
             }
-            let ref export_assignment = return_ok_default_if_none!(
+            let export_assignment = return_ok_default_if_none!(
                 top_namespace.ref_(checker).parent().ref_(checker).parent().ref_(checker).symbol()
                 .ref_(checker)
                 .maybe_exports()
