@@ -597,6 +597,7 @@ pub fn try_maybe_visit_each_child_full(
                         | {
                             node_visitor(node, visitor, lift, test)
                         }),
+                        arena,
                     )?,
                 )
             )

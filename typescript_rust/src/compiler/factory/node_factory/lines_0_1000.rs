@@ -995,10 +995,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         source_node: Id<Node>, /*PropertyNameLiteral*/
     ) -> StringLiteral {
         let mut node = self.create_base_string_literal(
-            get_text_of_identifier_or_literal(source_node).into_owned(),
+            get_text_of_identifier_or_literal(&source_node.ref_(self)).into_owned(),
             None,
         );
-        node.text_source_node = Some(source_node.node_wrapper());
+        node.text_source_node = Some(source_node);
         node
     }
 
@@ -1087,7 +1087,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         original_keyword_kind: Option<SyntaxKind>,
     ) -> Id<Node> {
         self.create_identifier_raw(text, type_arguments, original_keyword_kind)
-            .wrap()
+            .alloc(self.arena())
     }
 
     pub fn create_identifier(&self, text: &str) -> Id<Node> {
@@ -1102,14 +1102,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         >,
     ) -> Id<Node> {
         let type_arguments = type_arguments.map(Into::into);
-        let node_type_arguments = node.as_identifier().maybe_type_arguments();
+        let node_type_arguments = node.ref_(self).as_identifier().maybe_type_arguments();
         if has_option_node_array_changed(node_type_arguments.as_deref(), type_arguments.as_ref()) {
             self.update(
-                self.create_identifier_full(id_text(node), type_arguments, None),
+                self.create_identifier_full(id_text(&node.ref_(self)), type_arguments, None),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1122,7 +1122,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if reserved_in_nested_scopes == Some(true) {
             flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
         }
-        let name = self.create_base_generated_identifier("", flags).wrap();
+        let name = self.create_base_generated_identifier("", flags).alloc(self.arena());
         if let Some(mut record_temp_variable) = record_temp_variable {
             record_temp_variable(&name);
         }
@@ -1137,7 +1137,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if reserved_in_nested_scopes == Some(true) {
             flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
         }
-        self.create_base_generated_identifier("", flags).wrap()
+        self.create_base_generated_identifier("", flags).alloc(self.arena())
     }
 
     pub fn create_unique_name(
@@ -1155,7 +1155,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some("GeneratedIdentifierFlags.FileLevel cannot be set without also setting GeneratedIdentifierFlags.Optimistic")
         );
         self.create_base_generated_identifier(text, GeneratedIdentifierFlags::Unique | flags)
-            .wrap()
+            .alloc(self.arena())
     }
 
     pub fn get_generated_name_for_node(
@@ -1168,7 +1168,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             !flags.intersects(GeneratedIdentifierFlags::KindMask),
             Some("Argument out of range: flags"),
         );
-        let node = node.map(|node| node.borrow().node_wrapper());
         let name = self
             .create_base_generated_identifier(
                 if let Some(node) = node.as_ref().filter(|node| is_identifier(node)) {
@@ -1178,8 +1177,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 },
                 GeneratedIdentifierFlags::Node | flags,
             )
-            .wrap();
-        name.set_original(node);
+            .alloc(self.arena());
+        name.ref_(self).set_original(node);
         name
     }
 
@@ -1303,7 +1302,7 @@ pub fn has_option_str_or_node_changed(
     match (existing, maybe_changed) {
         (None, None) => false,
         (Some(existing), Some(StrOrRcNode::RcNode(maybe_changed))) => {
-            !Gc::ptr_eq(existing, maybe_changed)
+            *existing != *maybe_changed
         }
         _ => true,
     }

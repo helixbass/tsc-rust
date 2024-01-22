@@ -18,6 +18,7 @@ use crate::{
     LiteralLikeNodeInterface, MissingDeclaration, NamedExports, NamedImports, NamespaceExport,
     NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StrOrRcNode,
     StringOrNodeArray, SyntaxKind, TransformFlags,
+    InArena,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -39,13 +40,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         elements: Gc<NodeArray>, /*<AssertEntry>*/
         multi_line: Option<bool>,
     ) -> Id<Node> {
-        let node_as_assert_clause = node.as_assert_clause();
+        let node_ref = node.ref_(self);
+        let node_as_assert_clause = node_ref.as_assert_clause();
         if !Gc::ptr_eq(&node_as_assert_clause.elements, &elements)
             || node_as_assert_clause.multi_line != multi_line
         {
             self.update(self.create_assert_clause(elements, multi_line), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -67,13 +69,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name: Id<Node /*AssertionKey*/>,
         value: Id<Node /*StringLiteral*/>,
     ) -> Id<Node> {
-        let node_as_assert_entry = node.as_assert_entry();
-        if !Gc::ptr_eq(&node_as_assert_entry.name, &name)
-            || !Gc::ptr_eq(&node_as_assert_entry.value, &value)
+        let node_ref = node.ref_(self);
+        let node_as_assert_entry = node_ref.as_assert_entry();
+        if node_as_assert_entry.name != name
+            || node_as_assert_entry.value != value
         {
             self.update(self.create_assert_entry(name, value), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -81,7 +84,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_namespace_import_raw(&self, name: Id<Node /*Identifier*/>) -> NamespaceImport {
         let node = self.create_base_node(SyntaxKind::NamespaceImport);
         let node = NamespaceImport::new(node, name);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.name), self));
+        node.add_transform_flags(propagate_child_flags(Some(node.name), self));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
@@ -93,11 +96,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*NamespaceImport*/
         name: Id<Node /*Identifier*/>,
     ) -> Id<Node> {
-        let node_as_namespace_import = node.as_namespace_import();
-        if !Gc::ptr_eq(&node_as_namespace_import.name, &name) {
+        let node_ref = node.ref_(self);
+        let node_as_namespace_import = node_ref.as_namespace_import();
+        if node_as_namespace_import.name != name {
             self.update(self.create_namespace_import(name), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -106,7 +110,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::NamespaceExport);
         let node = NamespaceExport::new(node, name);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.name), self) | TransformFlags::ContainsESNext,
+            propagate_child_flags(Some(node.name), self) | TransformFlags::ContainsESNext,
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -119,11 +123,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*NamespaceExport*/
         name: Id<Node /*Identifier*/>,
     ) -> Id<Node> {
-        let node_as_namespace_export = node.as_namespace_export();
-        if !Gc::ptr_eq(&node_as_namespace_export.name, &name) {
+        let node_ref = node.ref_(self);
+        let node_as_namespace_export = node_ref.as_namespace_export();
+        if node_as_namespace_export.name != name {
             self.update(self.create_namespace_export(name), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -143,12 +148,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*NamedImports*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_as_named_imports = node.as_named_imports();
+        let node_ref = node.ref_(self);
+        let node_as_named_imports = node_ref.as_named_imports();
         let elements = elements.into();
         if has_node_array_changed(&node_as_named_imports.elements, &elements) {
             self.update(self.create_named_imports(elements), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -163,7 +169,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = ImportSpecifier::new(node, is_type_only, property_name, name);
         node.add_transform_flags(
             propagate_child_flags(node.property_name.clone(), self)
-                | propagate_child_flags(Some(&*node.name), self),
+                | propagate_child_flags(Some(node.name), self),
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -178,20 +184,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         property_name: Option<Id<Node /*Identifier*/>>,
         name: Id<Node /*Identifier*/>,
     ) -> Id<Node> {
-        let node_as_import_specifier = node.as_import_specifier();
+        let node_ref = node.ref_(self);
+        let node_as_import_specifier = node_ref.as_import_specifier();
         if node_as_import_specifier.is_type_only != is_type_only
-            || !are_option_gcs_equal(
-                node_as_import_specifier.property_name.as_ref(),
-                property_name.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_import_specifier.name, &name)
+            || node_as_import_specifier.property_name != property_name
+            || node_as_import_specifier.name != name
         {
             self.update(
                 self.create_import_specifier(is_type_only, property_name, name),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -210,13 +214,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             is_export_equals,
             if matches!(is_export_equals, Some(true)) {
                 self.parenthesizer_rules()
-                    .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, &expression)
+                    .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, expression)
             } else {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_of_export_default(&expression)
+                    .parenthesize_expression_of_export_default(expression)
             },
         );
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
+        node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
@@ -230,12 +234,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_as_export_assignment = node.as_export_assignment();
+        let node_ref = node.ref_(self);
+        let node_as_export_assignment = node_ref.as_export_assignment();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !Gc::ptr_eq(&node_as_export_assignment.expression, &expression)
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+            || node_as_export_assignment.expression != expression
         {
             self.update(
                 self.create_export_assignment(
@@ -247,7 +252,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -290,24 +295,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         module_specifier: Option<Id<Node /*Expression*/>>,
         assert_clause: Option<Id<Node /*AssertClause*/>>,
     ) -> Id<Node> {
-        let node_as_export_declaration = node.as_export_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_export_declaration = node_ref.as_export_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
             || node_as_export_declaration.is_type_only != is_type_only
-            || !are_option_gcs_equal(
-                node_as_export_declaration.export_clause.as_ref(),
-                export_clause.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_export_declaration.module_specifier.as_ref(),
-                module_specifier.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_export_declaration.assert_clause.as_ref(),
-                assert_clause.as_ref(),
-            )
+            || node_as_export_declaration.export_clause != export_clause
+            || node_as_export_declaration.module_specifier != module_specifier
+            || node_as_export_declaration.assert_clause != assert_clause
         {
             self.update(
                 self.create_export_declaration(
@@ -321,7 +318,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -341,12 +338,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*NamedExports*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_as_named_exports = node.as_named_exports();
+        let node_ref = node.ref_(self);
+        let node_as_named_exports = node_ref.as_named_exports();
         let elements = elements.into();
         if has_node_array_changed(&node_as_named_exports.elements, &elements) {
             self.update(self.create_named_exports(elements), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -370,7 +368,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         node.add_transform_flags(
             propagate_child_flags(node.property_name.clone(), self)
-                | propagate_child_flags(Some(&*node.name), self),
+                | propagate_child_flags(Some(node.name), self),
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -386,20 +384,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name: Id<Node>,
         /*Identifier*/
     ) -> Id<Node> {
-        let node_as_export_specifier = node.as_export_specifier();
+        let node_ref = node.ref_(self);
+        let node_as_export_specifier = node_ref.as_export_specifier();
         if node_as_export_specifier.is_type_only != is_type_only
-            || !are_option_gcs_equal(
-                node_as_export_specifier.property_name.as_ref(),
-                property_name.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_export_specifier.name, &name)
+            || node_as_export_specifier.property_name != property_name
+            || node_as_export_specifier.name != name
         {
             self.update(
                 self.create_export_specifier(is_type_only, property_name, name),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -420,7 +416,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ExternalModuleReference {
         let node = self.create_base_node(SyntaxKind::ExternalModuleReference);
         let node = ExternalModuleReference::new(node, expression);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression), self));
+        node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
@@ -432,11 +428,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*ExternalModuleReference*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_as_external_module_reference = node.as_external_module_reference();
-        if !Gc::ptr_eq(&node_as_external_module_reference.expression, &expression) {
+        let node_ref = node.ref_(self);
+        let node_as_external_module_reference = node_ref.as_external_module_reference();
+        if node_as_external_module_reference.expression != expression {
             self.update(self.create_external_module_reference(expression), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -513,8 +510,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     #[allow(dead_code)]
     fn get_default_tag_name(&self, node: Id<Node> /*JSDocTag*/) -> Id<Node /*Identifier*/> {
-        let default_tag_name = get_default_tag_name_for_kind(node.kind());
-        let node_as_jsdoc_tag = node.as_jsdoc_tag();
+        let default_tag_name = get_default_tag_name_for_kind(node.ref_(self).kind());
+        let node_ref = node.ref_(self);
+        let node_as_jsdoc_tag = node_ref.as_jsdoc_tag();
         if node_as_jsdoc_tag.tag_name().as_identifier().escaped_text
             == escape_leading_underscores(default_tag_name)
         {
@@ -710,7 +708,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JSDocMemberName);
         let node = JSDocMemberName::new(node, left, right);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.left), self) | propagate_child_flags(Some(&*node.right), self),
+            propagate_child_flags(Some(node.left), self) | propagate_child_flags(Some(node.right), self),
         );
         node
     }
@@ -816,9 +814,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             closing_element,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.opening_element), self)
+            propagate_child_flags(Some(node.opening_element), self)
                 | propagate_children_flags(Some(&node.children))
-                | propagate_child_flags(Some(&*node.closing_element), self)
+                | propagate_child_flags(Some(node.closing_element), self)
                 | TransformFlags::ContainsJsx,
         );
         node
@@ -831,18 +829,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         children: impl Into<NodeArrayOrVec>,
         closing_element: Id<Node /*JsxClosingElement*/>,
     ) -> Id<Node> {
-        let node_as_jsx_element = node.as_jsx_element();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_element = node_ref.as_jsx_element();
         let children = children.into();
-        if !Gc::ptr_eq(&node_as_jsx_element.opening_element, &opening_element)
+        if node_as_jsx_element.opening_element != opening_element
             || has_node_array_changed(&node_as_jsx_element.children, &children)
-            || !Gc::ptr_eq(&node_as_jsx_element.closing_element, &closing_element)
+            || node_as_jsx_element.closing_element != closing_element
         {
             self.update(
                 self.create_jsx_element(opening_element, children, closing_element),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -861,9 +860,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             attributes,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.tag_name), self)
+            propagate_child_flags(Some(node.tag_name), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_child_flags(Some(&*node.attributes), self)
+                | propagate_child_flags(Some(node.attributes), self)
                 | TransformFlags::ContainsJsx,
         );
         if node.maybe_type_arguments().is_some() {
@@ -879,23 +878,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Id<Node /*JsxAttributes*/>,
     ) -> Id<Node> {
-        let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_self_closing_element = node_ref.as_jsx_self_closing_element();
         let type_arguments = type_arguments.map(Into::into);
-        if !Gc::ptr_eq(&node_as_jsx_self_closing_element.tag_name, &tag_name)
+        if node_as_jsx_self_closing_element.tag_name != tag_name
             || has_option_node_array_changed(
                 node_as_jsx_self_closing_element
                     .maybe_type_arguments()
                     .as_deref(),
                 type_arguments.as_ref(),
             )
-            || !Gc::ptr_eq(&node_as_jsx_self_closing_element.attributes, &attributes)
+            || node_as_jsx_self_closing_element.attributes != attributes
         {
             self.update(
                 self.create_jsx_self_closing_element(tag_name, type_arguments, attributes),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -914,9 +914,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             attributes,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.tag_name), self)
+            propagate_child_flags(Some(node.tag_name), self)
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_child_flags(Some(&*node.attributes), self)
+                | propagate_child_flags(Some(node.attributes), self)
                 | TransformFlags::ContainsJsx,
         );
         if node.maybe_type_arguments().is_some() {
@@ -932,23 +932,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Id<Node /*JsxAttributes*/>,
     ) -> Id<Node> {
-        let node_as_jsx_opening_element = node.as_jsx_opening_element();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_opening_element = node_ref.as_jsx_opening_element();
         let type_arguments = type_arguments.map(Into::into);
-        if !Gc::ptr_eq(&node_as_jsx_opening_element.tag_name, &tag_name)
+        if node_as_jsx_opening_element.tag_name != tag_name
             || has_option_node_array_changed(
                 node_as_jsx_opening_element
                     .maybe_type_arguments()
                     .as_deref(),
                 type_arguments.as_ref(),
             )
-            || !Gc::ptr_eq(&node_as_jsx_opening_element.attributes, &attributes)
+            || node_as_jsx_opening_element.attributes != attributes
         {
             self.update(
                 self.create_jsx_opening_element(tag_name, type_arguments, attributes),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -960,7 +961,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JsxClosingElement);
         let node = JsxClosingElement::new(node, tag_name);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.tag_name), self) | TransformFlags::ContainsJsx,
+            propagate_child_flags(Some(node.tag_name), self) | TransformFlags::ContainsJsx,
         );
         node
     }
@@ -970,11 +971,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*JsxClosingElement*/
         tag_name: Id<Node /*JsxTagNameExpression*/>,
     ) -> Id<Node> {
-        let node_as_jsx_closing_element = node.as_jsx_closing_element();
-        if !Gc::ptr_eq(&node_as_jsx_closing_element.tag_name, &tag_name) {
+        let node_ref = node.ref_(self);
+        let node_as_jsx_closing_element = node_ref.as_jsx_closing_element();
+        if node_as_jsx_closing_element.tag_name != tag_name {
             self.update(self.create_jsx_closing_element(tag_name), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -993,9 +995,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             closing_fragment,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.opening_fragment), self)
+            propagate_child_flags(Some(node.opening_fragment), self)
                 | propagate_children_flags(Some(&node.children))
-                | propagate_child_flags(Some(&*node.closing_fragment), self)
+                | propagate_child_flags(Some(node.closing_fragment), self)
                 | TransformFlags::ContainsJsx,
         );
         node
@@ -1008,18 +1010,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         children: impl Into<NodeArrayOrVec>,
         closing_fragment: Id<Node /*JsxClosingFragment*/>,
     ) -> Id<Node> {
-        let node_as_jsx_fragment = node.as_jsx_fragment();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_fragment = node_ref.as_jsx_fragment();
         let children = children.into();
-        if !Gc::ptr_eq(&node_as_jsx_fragment.opening_fragment, &opening_fragment)
+        if node_as_jsx_fragment.opening_fragment != opening_fragment
             || has_node_array_changed(&node_as_jsx_fragment.children, &children)
-            || !Gc::ptr_eq(&node_as_jsx_fragment.closing_fragment, &closing_fragment)
+            || node_as_jsx_fragment.closing_fragment != closing_fragment
         {
             self.update(
                 self.create_jsx_fragment(opening_fragment, children, closing_fragment),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1045,7 +1048,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         text: String,
         contains_only_trivia_white_spaces: Option<bool>,
     ) -> Id<Node> {
-        let node_as_jsx_text = node.as_jsx_text();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_text = node_ref.as_jsx_text();
         if &*node_as_jsx_text.text() != &text
             || Some(node_as_jsx_text.contains_only_trivia_white_spaces)
                 != contains_only_trivia_white_spaces
@@ -1055,7 +1059,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1084,7 +1088,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JsxAttribute);
         let node = JsxAttribute::new(node, name, initializer);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.name), self)
+            propagate_child_flags(Some(node.name), self)
                 | propagate_child_flags(node.initializer.clone(), self)
                 | TransformFlags::ContainsJsx,
         );
@@ -1097,16 +1101,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name: Id<Node /*Identifier*/>,
         initializer: Option<Id<Node /*StringLiteral | JsxExpression*/>>,
     ) -> Id<Node> {
-        let node_as_jsx_attribute = node.as_jsx_attribute();
-        if !Gc::ptr_eq(&node_as_jsx_attribute.name, &name)
-            || !are_option_gcs_equal(
-                node_as_jsx_attribute.initializer.as_ref(),
-                initializer.as_ref(),
-            )
+        let node_ref = node.ref_(self);
+        let node_as_jsx_attribute = node_ref.as_jsx_attribute();
+        if node_as_jsx_attribute.name != name
+            || node_as_jsx_attribute.initializer != initializer
         {
             self.update(self.create_jsx_attribute(name, initializer), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1128,12 +1130,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*JsxAttributes*/
         properties: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_as_jsx_attributes = node.as_jsx_attributes();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_attributes = node_ref.as_jsx_attributes();
         let properties = properties.into();
         if has_node_array_changed(&node_as_jsx_attributes.properties, &properties) {
             self.update(self.create_jsx_attributes(properties), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1145,7 +1148,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::JsxSpreadAttribute);
         let node = JsxSpreadAttribute::new(node, expression);
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression), self) | TransformFlags::ContainsJsx,
+            propagate_child_flags(Some(node.expression), self) | TransformFlags::ContainsJsx,
         );
         node
     }
@@ -1155,11 +1158,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*JsxSpreadAttribute*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_as_jsx_spread_attribute = node.as_jsx_spread_attribute();
-        if !Gc::ptr_eq(&node_as_jsx_spread_attribute.expression, &expression) {
+        let node_ref = node.ref_(self);
+        let node_as_jsx_spread_attribute = node_ref.as_jsx_spread_attribute();
+        if node_as_jsx_spread_attribute.expression != expression {
             self.update(self.create_jsx_spread_attribute(expression), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1184,11 +1188,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*JsxExpression*/
         expression: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_as_jsx_expression = node.as_jsx_expression();
-        if !are_option_gcs_equal(
-            node_as_jsx_expression.expression.as_ref(),
-            expression.as_ref(),
-        ) {
+        let node_ref = node.ref_(self);
+        let node_as_jsx_expression = node_ref.as_jsx_expression();
+        if node_as_jsx_expression.expression != expression {
             self.update(
                 self.create_jsx_expression(
                     node_as_jsx_expression.dot_dot_dot_token.clone(),
@@ -1197,7 +1199,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1211,11 +1213,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = CaseClause::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(&expression),
+                .parenthesize_expression_for_disallowed_comma(expression),
             self.create_node_array(Some(statements), None),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression), self)
+            propagate_child_flags(Some(node.expression), self)
                 | propagate_children_flags(Some(&node.statements)),
         );
         node
@@ -1227,14 +1229,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Id<Node /*Expression*/>,
         statements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_as_case_clause = node.as_case_clause();
+        let node_ref = node.ref_(self);
+        let node_as_case_clause = node_ref.as_case_clause();
         let statements = statements.into();
-        if !Gc::ptr_eq(&node_as_case_clause.expression, &expression)
+        if node_as_case_clause.expression != expression
             || has_node_array_changed(&node_as_case_clause.statements, &statements)
         {
             self.update(self.create_case_clause(expression, statements), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1254,12 +1257,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>, /*DefaultClause*/
         statements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_as_default_clause = node.as_default_clause();
+        let node_ref = node.ref_(self);
+        let node_as_default_clause = node_ref.as_default_clause();
         let statements = statements.into();
         if has_node_array_changed(&node_as_default_clause.statements, &statements) {
             self.update(self.create_default_clause(statements), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1289,7 +1293,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Id<Node>,                   /*HeritageClause*/
         types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
     ) -> Id<Node> {
-        let node_as_heritage_clause = node.as_heritage_clause();
+        let node_ref = node.ref_(self);
+        let node_as_heritage_clause = node_ref.as_heritage_clause();
         let types = types.into();
         if has_node_array_changed(&node_as_heritage_clause.types, &types) {
             self.update(
@@ -1297,7 +1302,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1322,7 +1327,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                         None,
                     ),
                     StrOrRcNode::RcNode(variable_declaration)
-                        if !is_variable_declaration(&variable_declaration) =>
+                        if !is_variable_declaration(&variable_declaration.ref_(self)) =>
                     {
                         self.create_variable_declaration(
                             Some(variable_declaration),
@@ -1338,7 +1343,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = CatchClause::new(node, variable_declaration, block);
         node.add_transform_flags(
             propagate_child_flags(node.variable_declaration.clone(), self)
-                | propagate_child_flags(Some(&*node.block), self),
+                | propagate_child_flags(Some(node.block), self),
         );
         if !variable_declaration_is_some {
             node.add_transform_flags(TransformFlags::ContainsES2019);
@@ -1352,15 +1357,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         variable_declaration: Option<Id<Node> /*VariableDeclaration*/>,
         block: Id<Node /*Block*/>,
     ) -> Id<Node> {
-        let node_as_catch_clause = node.as_catch_clause();
-        if !are_option_gcs_equal(
-            node_as_catch_clause.variable_declaration.as_ref(),
-            variable_declaration.as_ref(),
-        ) || !Gc::ptr_eq(&node_as_catch_clause.block, &block)
+        let node_ref = node.ref_(self);
+        let node_as_catch_clause = node_ref.as_catch_clause();
+        if node_as_catch_clause.variable_declaration != variable_declaration
+            || node_as_catch_clause.block != block
         {
             self.update(self.create_catch_clause(variable_declaration, block), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 }
