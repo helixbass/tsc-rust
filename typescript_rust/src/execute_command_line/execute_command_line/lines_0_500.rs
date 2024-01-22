@@ -840,6 +840,7 @@ pub(super) fn execute_command_line_worker(
     sys: Gc<Box<dyn System>>,
     cb: &mut impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     command_line: &mut ParsedCommandLine,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     let mut report_diagnostic = create_diagnostic_reporter(sys.clone(), None);
     if matches!(command_line.options.build, Some(true)) {
@@ -985,6 +986,7 @@ pub(super) fn execute_command_line_worker(
                 command_line.watch_options.clone(),
                 sys.clone(),
                 report_diagnostic.clone(),
+                arena,
             )?
             .unwrap(),
         );

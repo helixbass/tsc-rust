@@ -531,7 +531,7 @@ pub use compiler::{
         SignatureOptionalCallSignatureCache, SingleNodeOrVecNode, SnippetElement, SnippetKind,
         SourceFile, SourceFileLike, SourceFileMayBeEmittedHost, SourceFilePrologueDirective,
         SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo, SourceMapEmitResult,
-        SourceMapGenerator, SourceMapRange, SourceMapSource, SourceTextAsChars, SpreadAssignment,
+        SourceMapGenerator, SourceMapRange, SourceMapSource, SourceMapSourceRef, SourceTextAsChars, SpreadAssignment,
         SpreadElement, StringLiteral, StringLiteralType, StringMappingType,
         StringOrDiagnosticMessage, StringOrNodeArray, StructureIsReused, SubstitutionType,
         SwitchStatement, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags,

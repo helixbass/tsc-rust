@@ -20,7 +20,7 @@ use crate::{
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ParseConfigHost, ParsedCommandLine,
     Path, ProgramBuildInfo, ReadonlyTextRange, ResolveModuleNameResolutionHost, SourceFileLike,
     SourceTextAsChars, StringOrNumber, SymlinkCache,
-    HasArena,
+    HasArena, InArena,
 };
 
 pub trait ModuleResolutionHost {
@@ -619,6 +619,32 @@ pub enum SourceMapSource {
 }
 
 impl SourceMapSource {
+    pub fn ref_<'a>(&'a self, arena: &'a impl HasArena) -> SourceMapSourceRef<'a> {
+        match self {
+            SourceMapSource::SourceFile(value) => value.ref_(arena).into(),
+            SourceMapSource::SourceMapSourceConcrete(value) => value.into(),
+        }
+    }
+}
+
+impl From<Id<Node /*SourceFile*/>> for SourceMapSource {
+    fn from(value: Id<Node>) -> Self {
+        Self::SourceFile(value)
+    }
+}
+
+impl From<SourceMapSourceConcrete> for SourceMapSource {
+    fn from(value: SourceMapSourceConcrete) -> Self {
+        Self::SourceMapSourceConcrete(value)
+    }
+}
+
+pub enum SourceMapSourceRef<'a> {
+    SourceFile(Ref<'a, Node /*SourceFile*/>),
+    SourceMapSourceConcrete(&'a SourceMapSourceConcrete),
+}
+
+impl<'a> SourceMapSourceRef<'a> {
     pub fn file_name(&self) -> String {
         match self {
             Self::SourceFile(value) => value.as_source_file().file_name().clone(),
@@ -634,7 +660,7 @@ impl SourceMapSource {
     }
 }
 
-impl SourceFileLike for SourceMapSource {
+impl<'a> SourceFileLike for SourceMapSourceRef<'a> {
     fn text(&self) -> Ref<String> {
         match self {
             Self::SourceFile(value) => value.as_source_file().text(),
@@ -680,14 +706,14 @@ impl SourceFileLike for SourceMapSource {
     }
 }
 
-impl From<Id<Node /*SourceFile*/>> for SourceMapSource {
-    fn from(value: Id<Node>) -> Self {
+impl<'a> From<Ref<'a, Node /*SourceFile*/>> for SourceMapSourceRef<'a> {
+    fn from(value: Ref<'a, Node /*SourceFile*/>) -> Self {
         Self::SourceFile(value)
     }
 }
 
-impl From<SourceMapSourceConcrete> for SourceMapSource {
-    fn from(value: SourceMapSourceConcrete) -> Self {
+impl<'a> From<&'a SourceMapSourceConcrete> for SourceMapSourceRef<'a> {
+    fn from(value: &'a SourceMapSourceConcrete) -> Self {
         Self::SourceMapSourceConcrete(value)
     }
 }

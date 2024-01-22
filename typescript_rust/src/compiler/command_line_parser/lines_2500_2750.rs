@@ -18,6 +18,7 @@ use crate::{
     ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, Node,
     NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
     ToHashMapOfCompilerOptionsValues, WatchOptions,
+    InArena,
 };
 
 pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
@@ -91,6 +92,7 @@ pub fn parse_json_config_file_content(
     extra_file_extensions: Option<&[FileExtensionInfo]>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
+    arena: &impl HasArena,
 ) -> io::Result<ParsedCommandLine> {
     parse_json_config_file_content_worker(
         json,
@@ -103,6 +105,7 @@ pub fn parse_json_config_file_content(
         resolution_stack,
         extra_file_extensions,
         extended_config_cache,
+        arena,
     )
 }
 
@@ -116,6 +119,7 @@ pub fn parse_json_source_file_config_file_content(
     extra_file_extensions: Option<&[FileExtensionInfo]>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
+    arena: &impl HasArena,
 ) -> io::Result<ParsedCommandLine> {
     parse_json_config_file_content_worker(
         None,
@@ -128,6 +132,7 @@ pub fn parse_json_source_file_config_file_content(
         resolution_stack,
         extra_file_extensions,
         extended_config_cache,
+        arena,
     )
 }
 
@@ -136,8 +141,7 @@ pub(crate) fn set_config_file_in_options(
     config_file: Option<Id<Node> /*TsConfigSourceFile*/>,
 ) {
     if let Some(config_file) = config_file {
-        let config_file = config_file.borrow();
-        options.config_file = Some(config_file.node_wrapper());
+        options.config_file = Some(config_file);
     }
 }
 
@@ -160,6 +164,7 @@ pub(super) fn parse_json_config_file_content_worker(
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
     mut extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+    arena: &impl HasArena,
 ) -> io::Result<ParsedCommandLine> {
     let existing_options = existing_options.unwrap_or_else(|| Gc::new(Default::default()));
     let resolution_stack_default = vec![];
@@ -184,6 +189,7 @@ pub(super) fn parse_json_config_file_content_worker(
             .collect::<Vec<_>>(),
         errors.clone(),
         &mut extended_config_cache,
+        arena,
     )?;
     let raw = parsed_config.raw.as_ref();
     let mut options: CompilerOptions = extend_compiler_options(
@@ -213,14 +219,14 @@ pub(super) fn parse_json_config_file_content_worker(
         source_file.clone(),
         &mut errors.borrow_mut(),
         config_file_name,
+        arena,
     ));
-    if let Some(source_file) = source_file.as_ref() {
-        let source_file = source_file.borrow();
+    if let Some(source_file) = source_file {
         source_file
-            .as_source_file()
+            .ref_(arena).as_source_file()
             .set_config_file_specs(Some(config_file_specs.clone()));
     }
-    set_config_file_in_options(&mut options, source_file.clone());
+    set_config_file_in_options(&mut options, source_file);
 
     let base_path_for_file_names =
         normalize_path(&if let Some(config_file_name) = config_file_name.as_ref() {
@@ -282,6 +288,7 @@ pub(super) fn get_config_file_specs(
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Gc<Diagnostic>>,
     config_file_name: Option<&str>,
+    arena: &impl HasArena,
 ) -> ConfigFileSpecs {
     let references_of_raw = get_prop_from_raw(
         raw,
@@ -308,20 +315,20 @@ pub(super) fn get_config_file_specs(
             _ => false,
         };
         if files_specs.is_empty() && has_zero_or_no_references && !has_extends {
-            if let Some(source_file) = source_file.as_ref() {
-                let source_file = source_file.borrow();
+            if let Some(source_file) = source_file {
                 let file_name = config_file_name.unwrap_or("tsconfig.json");
                 let diagnostic_message = &Diagnostics::The_files_list_in_config_file_0_is_empty;
                 let node_value = first_defined(
-                    get_ts_config_prop_array(Some(source_file), "files"),
-                    |property, _| property.as_property_assignment().maybe_initializer(),
+                    get_ts_config_prop_array(Some(source_file), "files", arena),
+                    |property, _| property.ref_(arena).as_property_assignment().maybe_initializer(),
                 );
                 let error: Gc<Diagnostic> = Gc::new(if let Some(node_value) = node_value {
                     create_diagnostic_for_node_in_source_file(
                         source_file,
-                        &node_value,
+                        node_value,
                         diagnostic_message,
                         Some(vec![file_name.to_owned()]),
+                        arena,
                     )
                     .into()
                 } else {

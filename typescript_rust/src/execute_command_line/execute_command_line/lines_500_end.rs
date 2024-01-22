@@ -24,6 +24,7 @@ use crate::{
     IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine, Path, Program,
     ProgramHost, ReportEmitErrorSummary, SemanticDiagnosticsBuilderProgram,
     SolutionBuilderHostBase, System, ToPath, WatchCompilerHost, WatchOptions, WatchStatusReporter,
+    HasArena,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -53,6 +54,7 @@ pub fn execute_command_line(
     system: Gc<Box<dyn System>>,
     mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     command_line_args: &[String],
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     if is_build(command_line_args) {
         let ParsedBuildCommand {
@@ -95,10 +97,10 @@ pub fn execute_command_line(
         command_line.options.generate_cpu_profile.clone()
     {
         system.enable_cpu_profiler(&command_line_options_generate_cpu_profile, &mut || {
-            execute_command_line_worker(system.clone(), &mut cb, &mut command_line)
+            execute_command_line_worker(system.clone(), &mut cb, &mut command_line, arena)
         })
     } else {
-        execute_command_line_worker(system, &mut cb, &mut command_line)
+        execute_command_line_worker(system, &mut cb, &mut command_line, arena)
     }
 }
 

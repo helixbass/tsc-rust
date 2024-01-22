@@ -22,6 +22,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry, Extension,
     JsonConversionNotifier, ModuleResolutionKind, Node, NodeInterface, OptionTry, ParseConfigHost,
     Path, TypeAcquisition, WatchOptions,
+    HasArena, AllArenas,
 };
 
 pub(super) fn create_compiler_diagnostic_only_if_json(
@@ -121,6 +122,7 @@ pub(super) fn parse_config(
     resolution_stack: &[&str],
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+    arena: &impl HasArena,
 ) -> io::Result<ParsedTsconfig> {
     let base_path = normalize_slashes(base_path);
     let resolved_path =
@@ -137,7 +139,7 @@ pub(super) fn parse_config(
             .into(),
         ));
         return Ok(ParsedTsconfigBuilder::default()
-            .raw(json.try_or_else(|| convert_to_object(source_file.unwrap().borrow(), errors))?)
+            .raw(json.try_or_else(|| convert_to_object(source_file, errors, arena))?)
             .build()
             .unwrap());
     }
@@ -152,14 +154,12 @@ pub(super) fn parse_config(
         )?
     } else {
         parse_own_config_of_json_source_file(
-            source_file
-                .as_ref()
-                .map(|source_file| source_file.borrow())
-                .unwrap(),
+            source_file.unwrap(),
             host,
             &base_path,
             config_file_name,
             errors.clone(),
+            arena,
         )?
     };
 
@@ -185,6 +185,7 @@ pub(super) fn parse_config(
             &resolution_stack,
             errors.clone(),
             extended_config_cache,
+            arena,
         )?;
         if let Some(extended_config) = extended_config
             .filter(|extended_config| is_successful_parsed_tsconfig(&extended_config))
@@ -344,6 +345,7 @@ pub(super) fn parse_own_config_of_json_source_file(
     base_path: &str,
     config_file_name: Option<&str>,
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+    arena: &impl HasArena,
 ) -> io::Result<ParsedTsconfig> {
     let mut options = get_default_compiler_options(config_file_name);
     let type_acquisition: RefCell<Option<TypeAcquisition>> = Default::default();
@@ -401,9 +403,10 @@ pub(super) fn parse_own_config_of_json_source_file(
                     Gc::new(
                         create_diagnostic_for_node_in_source_file(
                             source_file,
-                            &root_compiler_options[0],
+                            root_compiler_options[0],
                             &Diagnostics::_0_should_be_set_inside_the_compilerOptions_object_of_the_config_json_file,
-                            Some(vec![(&*get_text_of_property_name(&root_compiler_options[0])).to_owned()])
+                            Some(vec![(&*get_text_of_property_name(root_compiler_options[0], arena)).to_owned()]),
+                            arena,
                         )
                         .into()
                     )
@@ -557,6 +560,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                                 value_node,
                                 message,
                                 args,
+                                self,
                             )
                             .into(),
                         )
@@ -583,6 +587,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                     key_node,
                     &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
                     None,
+                    self,
                 )
                 .into(),
             ));
@@ -595,10 +600,17 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                 }
                 append(
                     root_compiler_options.as_mut().unwrap(),
-                    Some(key_node.node_wrapper()),
+                    Some(key_node),
                 );
             }
         });
+    }
+}
+
+impl<'a, THost: ParseConfigHost + ?Sized> HasArena for ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost>
+{
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

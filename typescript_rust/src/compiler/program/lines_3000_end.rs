@@ -326,6 +326,7 @@ impl Program {
                 None,
                 None,
                 None,
+                self,
             )?);
         }
         let source_file = source_file.unwrap();

@@ -21,6 +21,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, Extension, LineAndCharacter, ModuleResolutionHost,
     ModuleResolutionHostOverrider, Node, NodeInterface, OptionTry, Path, ProgramOrBuilderProgram,
     ScriptTarget, SourceFileLike, System,
+    HasArena, InArena,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -804,7 +805,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
                 let source_file = source_file_cache.get(&*key);
                 matches!(
                     source_file,
-                    Some(source_file) if &**source_file.as_source_file().text() != data
+                    Some(source_file) if &**source_file.ref_(self).as_source_file().text() != data
                 )
             };
             if source_file_is_different {
@@ -875,6 +876,7 @@ pub fn get_pre_emit_diagnostics(
     program: &ProgramOrBuilderProgram,
     source_file: Option<Id<Node>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    arena: &impl HasArena,
 ) -> io::Result<Vec<Gc<Diagnostic>>> {
     let program = match program {
         ProgramOrBuilderProgram::Program(program) => program,
@@ -893,7 +895,6 @@ pub fn get_pre_emit_diagnostics(
         None,
         None,
     );
-    let source_file = source_file.map(|source_file| source_file.borrow().node_wrapper());
     add_range(
         &mut diagnostics,
         Some(
@@ -932,7 +933,7 @@ pub fn get_pre_emit_diagnostics(
         );
     }
 
-    Ok(sort_and_deduplicate_diagnostics(&diagnostics).into())
+    Ok(sort_and_deduplicate_diagnostics(&diagnostics, arena).into())
 }
 
 pub trait FormatDiagnosticsHost {
@@ -944,11 +945,12 @@ pub trait FormatDiagnosticsHost {
 pub fn format_diagnostics(
     diagnostics: &[Gc<Diagnostic>],
     host: &impl FormatDiagnosticsHost,
+    arena: &impl HasArena,
 ) -> io::Result<String> {
     let mut output = "".to_owned();
 
     for diagnostic in diagnostics {
-        output.push_str(&format_diagnostic(diagnostic, host)?);
+        output.push_str(&format_diagnostic(diagnostic, host, arena)?);
     }
     Ok(output)
 }
@@ -956,6 +958,7 @@ pub fn format_diagnostics(
 pub fn format_diagnostic(
     diagnostic: &Diagnostic,
     host: &impl FormatDiagnosticsHost,
+    arena: &impl HasArena,
 ) -> io::Result<String> {
     let error_message = format!(
         "{} TS{}: {}{}",
@@ -967,10 +970,10 @@ pub fn format_diagnostic(
 
     if let Some(diagnostic_file) = diagnostic.maybe_file() {
         let LineAndCharacter { line, character } = get_line_and_character_of_position(
-            diagnostic_file.as_source_file(),
+            diagnostic_file.ref_(arena).as_source_file(),
             diagnostic.maybe_start().unwrap().try_into().unwrap(),
         );
-        let file_name = diagnostic_file.as_source_file().file_name();
+        let file_name = diagnostic_file.ref_(arena).as_source_file().file_name();
         let relative_file_name =
             convert_to_relative_path(&file_name, &host.get_current_directory()?, |file_name| {
                 host.get_canonical_file_name(file_name)
@@ -1024,10 +1027,12 @@ fn format_code_span(
     indent: &str,
     squiggle_color: &str, /*ForegroundColorEscapeSequences*/
     host: &impl FormatDiagnosticsHost,
+    arena: &impl HasArena,
 ) -> String {
     let start_as_usize: usize = start.try_into().unwrap();
     let length_as_usize: usize = length.try_into().unwrap();
-    let file_as_source_file = file.as_source_file();
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     let LineAndCharacter {
         line: first_line,
         character: first_line_char,
@@ -1134,6 +1139,7 @@ pub fn format_location(
     start: isize,
     host: &impl FormatDiagnosticsHost,
     color: Option<impl Fn(&str, &str) -> String>,
+    arena: &impl HasArena,
 ) -> io::Result<String> {
     let color_present = |text: &str, format_style: &str| {
         if let Some(color) = color.as_ref() {
@@ -1142,7 +1148,8 @@ pub fn format_location(
             format_color_and_reset(text, format_style)
         }
     };
-    let file_as_source_file = file.as_source_file();
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     let LineAndCharacter {
         line: first_line,
         character: first_line_char,
@@ -1174,10 +1181,11 @@ pub fn format_location(
 pub fn format_diagnostics_with_color_and_context(
     diagnostics: &[Gc<Diagnostic>],
     host: &impl FormatDiagnosticsHost,
+    arena: &impl HasArena,
 ) -> io::Result<String> {
     let mut output = "".to_owned();
     for diagnostic in diagnostics {
-        if let Some(diagnostic_file) = diagnostic.maybe_file().as_ref() {
+        if let Some(diagnostic_file) = diagnostic.maybe_file() {
             let file = diagnostic_file;
             let start = diagnostic.start();
             output.push_str(&format_location(
@@ -1185,6 +1193,7 @@ pub fn format_diagnostics_with_color_and_context(
                 start,
                 host,
                 Option::<fn(&str, &str) -> String>::None,
+                arena,
             )?);
             output.push_str(" - ");
         }
@@ -1203,7 +1212,7 @@ pub fn format_diagnostics_with_color_and_context(
             None,
         ));
 
-        if let Some(diagnostic_file) = diagnostic.maybe_file().as_ref() {
+        if let Some(diagnostic_file) = diagnostic.maybe_file() {
             output.push_str(host.get_new_line());
             output.push_str(&format_code_span(
                 diagnostic_file,
@@ -1212,6 +1221,7 @@ pub fn format_diagnostics_with_color_and_context(
                 "",
                 get_category_format(diagnostic.category()),
                 host,
+                arena,
             ));
         }
         if let Some(diagnostic_related_information) =
@@ -1223,7 +1233,7 @@ pub fn format_diagnostics_with_color_and_context(
                 let start = related_information.maybe_start();
                 let length = related_information.maybe_length();
                 let message_text = related_information.message_text();
-                if let Some(file) = file.as_ref() {
+                if let Some(file) = file {
                     output.push_str(host.get_new_line());
                     output.push_str(&format!(
                         "{}{}",
@@ -1232,7 +1242,8 @@ pub fn format_diagnostics_with_color_and_context(
                             file,
                             start.unwrap(),
                             host,
-                            Option::<fn(&str, &str) -> String>::None
+                            Option::<fn(&str, &str) -> String>::None,
+                            arena,
                         )?
                     ));
                     output.push_str(&format_code_span(
@@ -1242,6 +1253,7 @@ pub fn format_diagnostics_with_color_and_context(
                         indent_,
                         ForegroundColorEscapeSequences::Cyan,
                         host,
+                        arena,
                     ));
                 }
                 output.push_str(host.get_new_line());

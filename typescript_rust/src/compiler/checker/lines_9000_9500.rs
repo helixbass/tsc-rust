@@ -631,7 +631,7 @@ impl TypeChecker {
             Debug_.fail(Some(&format!(
                 "Unhandled declaration kind! {} for {}",
                 Debug_.format_syntax_kind(Some(declaration.ref_(self).kind())),
-                Debug_.format_symbol(&symbol.ref_(self))
+                Debug_.format_symbol(symbol, self)
             )));
         }
 

@@ -11,6 +11,7 @@ use id_arena::Id;
 use crate::{
     maybe_map, unescape_leading_underscores, AssertionLevel, Node, NodeArray, NodeInterface,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    HasArena, InArena,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -198,7 +199,7 @@ impl DebugType {
     ) {
         if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertEachNode) {
             self.assert(
-                /*test === undefined ||*/ nodes.into_iter().all(|node| test(node)),
+                /*test === undefined ||*/ nodes.into_iter().all(|&node| test(node)),
                 Some(message.unwrap_or("Unexpected node.")),
             );
         }
@@ -212,7 +213,7 @@ impl DebugType {
     ) {
         if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertNode) {
             self.assert(
-                node.is_some() && (test.is_none() || (test.unwrap())(node.unwrap().borrow())),
+                node.is_some() && (test.is_none() || (test.unwrap())(node.unwrap())),
                 Some(message.unwrap_or("Unexpected node.")),
             );
         }
@@ -226,20 +227,20 @@ impl DebugType {
     ) {
         if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertNotNode) {
             self.assert(
-                node.is_none() || test.is_none() || !(test.unwrap())(node.unwrap().borrow()),
+                node.is_none() || test.is_none() || !(test.unwrap())(node.unwrap()),
                 Some(message.unwrap_or("Unexpected node.")),
             );
         }
     }
 
-    pub fn format_symbol(&self, symbol: &Symbol) -> String {
+    pub fn format_symbol(&self, symbol: Id<Symbol>, arena: &impl HasArena) -> String {
         format!(
             "{{ name: {}; flags: {}; declarations: {:?} }}",
-            unescape_leading_underscores(symbol.escaped_name()),
-            self.format_symbol_flags(Some(symbol.flags())),
+            unescape_leading_underscores(symbol.ref_(arena).escaped_name()),
+            self.format_symbol_flags(Some(symbol.ref_(arena).flags())),
             maybe_map(
-                symbol.maybe_declarations().as_deref(),
-                |node: &Id<Node>, _| self.format_syntax_kind(Some(node.kind()))
+                symbol.ref_(arena).maybe_declarations().as_deref(),
+                |node: &Id<Node>, _| self.format_syntax_kind(Some(node.ref_(arena).kind()))
             )
         )
     }

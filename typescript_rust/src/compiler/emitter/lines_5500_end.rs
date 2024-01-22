@@ -558,7 +558,7 @@ impl Printer {
 
         self.set_source_map_source_index(
             self.source_map_generator()
-                .add_source(&source.file_name())
+                .add_source(&source.file_name(self))
                 .try_into()
                 .unwrap(),
         );
@@ -580,7 +580,7 @@ impl Printer {
     }
 
     pub(super) fn is_json_source_map_source(&self, source_file: &SourceMapSource) -> bool {
-        file_extension_is(&source_file.file_name(), Extension::Json.to_str())
+        file_extension_is(&source_file.file_name(self), Extension::Json.to_str())
     }
 }
 

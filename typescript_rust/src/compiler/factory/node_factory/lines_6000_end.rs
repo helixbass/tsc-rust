@@ -40,7 +40,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         };
         if is_parameter(&node.ref_(self)) {
             let node_ref = node.ref_(self);
-            let node_as_parameter_declaration = node.as_parameter_declaration();
+            let node_as_parameter_declaration = node_ref.as_parameter_declaration();
             self.update_parameter_declaration(
                 node,
                 node.ref_(self).maybe_decorators(),

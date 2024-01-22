@@ -25,7 +25,7 @@ use crate::{
     ProjectReference, ReferenceFileLocationOrSyntheticReferenceFileLocation,
     ReportEmitErrorSummary, ResolvedProjectReference, ScriptReferenceHost, SortedArray,
     SourceFileLike, StringOrRcNode, System, WatchCompilerHost, WatchCompilerHostOfConfigFile,
-    WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
+    WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback, AllArenas,
 };
 
 thread_local! {
@@ -111,7 +111,7 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
     fn call(&self, diagnostic: Gc<Diagnostic>) -> io::Result<()> {
         if !self.pretty {
             self.system
-                .write(&format_diagnostic(&diagnostic, &*self.host)?);
+                .write(&format_diagnostic(&diagnostic, &*self.host, self)?);
             return Ok(());
         }
 
@@ -119,12 +119,18 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
         diagnostics.push(diagnostic);
         self.system.write(&format!(
             "{}{}",
-            format_diagnostics_with_color_and_context(&diagnostics, &*self.host)?,
+            format_diagnostics_with_color_and_context(&diagnostics, &*self.host, self)?,
             self.host.get_new_line()
         ));
         diagnostics.pop();
 
         Ok(())
+    }
+}
+
+impl HasArena for DiagnosticReporterConcrete {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -246,6 +252,7 @@ pub fn parse_config_file_with_system(
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     system: Gc<Box<dyn System>>,
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<ParsedCommandLine>> {
     let host = ParseConfigFileWithSystemHost::new(system, report_diagnostic);
     get_parsed_command_line_of_config_file(
@@ -255,6 +262,7 @@ pub fn parse_config_file_with_system(
         extended_config_cache,
         watch_options_to_extend,
         None,
+        arena,
     )
 }
 

@@ -30,7 +30,7 @@ use crate::{
     Node, NodeArray, NodeInterface, ReadonlyTextRange, SortedArray, Symbol, SymbolInterface,
     SyntaxKind, TokenFlags, __String, escape_leading_underscores, get_name_of_declaration,
     insert_sorted, is_member_name, Diagnostic, DiagnosticCollection,
-    DiagnosticRelatedInformationInterface, HasArena,
+    DiagnosticRelatedInformationInterface, HasArena, AllArenas,
 };
 
 pub fn is_literal_computed_property_declaration_name(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -841,7 +841,7 @@ impl DiagnosticCollection {
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
             diagnostics = self
                 .file_diagnostics
-                .get(&*diagnostic_file.as_source_file().file_name());
+                .get(&*diagnostic_file.ref_(self).as_source_file().file_name());
         } else {
             diagnostics = Some(&self.non_file_diagnostics);
         }
@@ -850,7 +850,7 @@ impl DiagnosticCollection {
             diagnostics,
             &diagnostic,
             |diagnostic, _| diagnostic,
-            |a, b| compare_diagnostics_skip_related_information(&**a, &**b),
+            |a, b| compare_diagnostics_skip_related_information(&**a, &**b, self),
             None,
         );
         if result >= 0 {
@@ -861,7 +861,8 @@ impl DiagnosticCollection {
 
     pub fn add(&mut self, diagnostic: Gc<Diagnostic>) {
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
-            let diagnostic_file_as_source_file = diagnostic_file.as_source_file();
+            let diagnostic_file_ref = diagnostic_file.ref_(self);
+            let diagnostic_file_as_source_file = diagnostic_file_ref.as_source_file();
             if self
                 .file_diagnostics
                 .get(&*diagnostic_file_as_source_file.file_name())
@@ -885,7 +886,7 @@ impl DiagnosticCollection {
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b),
+                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, self),
             );
         } else {
             if self.has_read_non_file_diagnostics() {
@@ -897,7 +898,7 @@ impl DiagnosticCollection {
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b),
+                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, self),
             );
         }
     }
@@ -927,6 +928,12 @@ impl DiagnosticCollection {
         }
         file_diags.splice(0..0, self.non_file_diagnostics.to_vec());
         file_diags
+    }
+}
+
+impl HasArena for DiagnosticCollection {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

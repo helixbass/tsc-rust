@@ -101,10 +101,10 @@ fn create_jsx_factory_expression_from_entity_name<
         let jsx_factory_as_qualified_name = jsx_factory_ref.as_qualified_name();
         let left = create_jsx_factory_expression_from_entity_name(
             factory,
-            &jsx_factory_as_qualified_name.left,
+            jsx_factory_as_qualified_name.left,
             parent,
         );
-        let right = factory.create_identifier(id_text(&jsx_factory_as_qualified_name.right));
+        let right = factory.create_identifier(id_text(&jsx_factory_as_qualified_name.right.ref_(factory)));
         factory.create_property_access_expression(left, right)
     } else {
         create_react_namespace(Some(id_text(&jsx_factory.ref_(factory))), parent)
@@ -419,8 +419,8 @@ fn create_expression_for_property_assignment<
             create_member_access_for_property_name(
                 factory,
                 receiver,
-                &property_as_property_assignment.name(),
-                Some(&*property_as_property_assignment.name()),
+                property_as_property_assignment.name(),
+                Some(property_as_property_assignment.name()),
             ),
             property_as_property_assignment.initializer.clone(),
         )
@@ -442,10 +442,10 @@ fn create_expression_for_shorthand_property_assignment<
             create_member_access_for_property_name(
                 factory,
                 receiver,
-                &property_as_shorthand_property_assignment.name(),
-                Some(&*property_as_shorthand_property_assignment.name()),
+                property_as_shorthand_property_assignment.name(),
+                Some(property_as_shorthand_property_assignment.name()),
             ),
-            factory.clone_node(&property_as_shorthand_property_assignment.name()),
+            factory.clone_node(property_as_shorthand_property_assignment.name()),
         )
         .set_text_range(Some(&*property.ref_(factory)), factory)
         .set_original_node(Some(property), factory)
@@ -465,8 +465,8 @@ fn create_expression_for_method_declaration<
             create_member_access_for_property_name(
                 factory,
                 receiver,
-                &method_as_method_declaration.name(),
-                Some(&*method_as_method_declaration.name()),
+                method_as_method_declaration.name(),
+                Some(method_as_method_declaration.name()),
             ),
             factory
                 .create_function_expression(
@@ -551,7 +551,7 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     let temp = factory.create_temp_variable(Some(record_temp_variable), None);
     let mut expression = factory
         .create_assignment(temp, expression)
-        .set_text_range(Some(&*node_as_unary_expression.operand()), factory);
+        .set_text_range(Some(&*node_as_unary_expression.operand().ref_(factory)), factory);
 
     let mut operation/*: Expression*/ = if is_prefix_unary_expression(&node.ref_(factory)) {
         factory.create_prefix_unary_expression(operator, temp.clone())
@@ -560,7 +560,6 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     }.set_text_range(Some(&*node.ref_(factory)), factory);
 
     if let Some(result_variable) = result_variable {
-        let result_variable = result_variable.borrow();
         operation = factory
             .create_assignment(result_variable, operation)
             .set_text_range(Some(&*node.ref_(factory)), factory);
@@ -595,7 +594,7 @@ fn is_use_strict_prologue(node: Id<Node> /*ExpressionStatement*/, arena: &impl H
     is_string_literal(&node_as_expression_statement.expression.ref_(arena))
         && &*node_as_expression_statement
             .expression
-            .as_string_literal()
+            .ref_(arena).as_string_literal()
             .text()
             == "use strict"
 }
@@ -884,7 +883,7 @@ pub fn get_local_name_for_external_import<
             factory.create_identifier(
                 (&*get_source_text_of_node_from_source_file(source_file, name, None, factory))
                     .non_empty()
-                    .unwrap_or_else(|| id_text(&name)),
+                    .unwrap_or_else(|| id_text(&name.ref_(factory))),
             )
         });
     }
@@ -1724,7 +1723,7 @@ fn binary_expression_state_check_circularity(
     }
 }
 
-pub trait BinaryExpressionStateMachine: Trace + Finalize {
+pub trait BinaryExpressionStateMachine: Trace + Finalize + HasArena {
     type TResult: Clone;
     type TOuterState: Clone;
     type TState: Clone;

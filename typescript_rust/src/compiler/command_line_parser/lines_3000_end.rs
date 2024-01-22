@@ -43,6 +43,7 @@ pub(crate) fn get_extended_config(
     resolution_stack: &[&str],
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Rc<ParsedTsconfig>>> {
     let path = if host.use_case_sensitive_file_names() {
         extended_config_path.to_owned()
@@ -79,6 +80,7 @@ pub(crate) fn get_extended_config(
                 resolution_stack,
                 errors.clone(),
                 extended_config_cache,
+                arena,
             )?));
         }
         if let Some(extended_config_cache) = extended_config_cache {

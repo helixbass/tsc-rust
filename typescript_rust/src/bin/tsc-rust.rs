@@ -1,7 +1,7 @@
 use std::{io, rc::Rc};
 
 use regex::Regex;
-use typescript_rust::{execute_command_line, get_sys, Debug_, LogLevel, LoggingHost};
+use typescript_rust::{execute_command_line, get_sys, Debug_, LogLevel, LoggingHost, static_arena};
 
 fn main() -> io::Result<()> {
     Debug_.set_logging_host(Some(Rc::new(LoggingHostConcrete::new())));
@@ -26,7 +26,9 @@ fn main() -> io::Result<()> {
     sys.set_blocking();
     // }
 
-    execute_command_line(sys.clone(), |_| {}, sys.args())?;
+    let arena = static_arena();
+
+    execute_command_line(sys.clone(), |_| {}, sys.args(), &*arena)?;
 
     Ok(())
 }

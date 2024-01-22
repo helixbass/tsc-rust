@@ -496,6 +496,7 @@ pub fn get_parsed_command_line_of_config_file(
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<ParsedCommandLine>> {
     let config_file_text = try_read_file(config_file_name, |file_name| host.read_file(file_name));
     if let StringOrRcDiagnostic::RcDiagnostic(ref config_file_text) = config_file_text {
@@ -524,6 +525,7 @@ pub fn get_parsed_command_line_of_config_file(
         extra_file_extensions,
         extended_config_cache,
         watch_options_to_extend,
+        arena,
     )?))
 }
 
@@ -1084,14 +1086,15 @@ pub(super) fn convert_config_file_to_object(
 pub fn convert_to_object(
     source_file: Id<Node>, /*JsonSourceFile*/
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     convert_to_object_worker(
         source_file,
         source_file
-            .as_source_file()
+            .ref_(arena).as_source_file()
             .statements()
             .get(0)
-            .map(|statement| statement.as_expression_statement().expression.clone()),
+            .map(|statement| statement.ref_(arena).as_expression_statement().expression),
         errors,
         true,
         None,
