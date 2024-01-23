@@ -17,8 +17,8 @@ use crate::{
     element_at, flatten, is_call_to_helper, is_expression_statement, is_identifier,
     is_packed_array_literal, is_return_statement, set_emit_flags, set_original_node, try_span_map,
     AsDoubleDeref, CallBinding, GeneratedIdentifierFlags, SignatureDeclarationInterface,
-    TransformFlags,
-    InArena, OptionInArena,
+    TransformFlags, Transformer,
+    InArena, OptionInArena, downcast_transformer_ref,
     CoreTransformationContext,
 };
 
@@ -713,9 +713,9 @@ impl TransformES2015 {
             elements,
             |node: &Id<Node>, _| -> Rc<dyn PartitionSpread> {
                 if is_spread_element(&node.ref_(self)) {
-                    Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.rc_wrapper()))
+                    Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.arena_id()))
                 } else {
-                    Rc::new(PartitionSpreadVisitSpanOfNonSpreads::new(self.rc_wrapper()))
+                    Rc::new(PartitionSpreadVisitSpanOfNonSpreads::new(self.arena_id()))
                 }
             },
             |partition: &[Id<Node>], visit_partition, _start, end| {
@@ -776,12 +776,16 @@ impl PartialEq for dyn PartitionSpread {
 }
 
 pub(super) struct PartitionSpreadVisitSpanOfSpreads {
-    transform_es2015: Gc<Box<TransformES2015>>,
+    transform_es2015: Transformer,
 }
 
 impl PartitionSpreadVisitSpanOfSpreads {
-    pub(super) fn new(transform_es2015: Gc<Box<TransformES2015>>) -> Self {
+    pub(super) fn new(transform_es2015: Transformer) -> Self {
         Self { transform_es2015 }
+    }
+
+    pub(super) fn transform_es2015(&self) -> debug_cell::Ref<'_, TransformES2015> {
+        downcast_transformer_ref(self.transform_es2015, self)
     }
 }
 
@@ -792,7 +796,7 @@ impl PartitionSpread for PartitionSpreadVisitSpanOfSpreads {
         _multi_line: bool,
         _has_trailing_comma: bool,
     ) -> io::Result<Vec<SpreadSegment>> {
-        self.transform_es2015.visit_span_of_spreads(chunk)
+        self.transform_es2015().visit_span_of_spreads(chunk)
     }
 
     fn eq_key(&self) -> &'static str {
@@ -801,12 +805,16 @@ impl PartitionSpread for PartitionSpreadVisitSpanOfSpreads {
 }
 
 pub(super) struct PartitionSpreadVisitSpanOfNonSpreads {
-    transform_es2015: Gc<Box<TransformES2015>>,
+    transform_es2015: Transformer,
 }
 
 impl PartitionSpreadVisitSpanOfNonSpreads {
-    pub(super) fn new(transform_es2015: Gc<Box<TransformES2015>>) -> Self {
+    pub(super) fn new(transform_es2015: Transformer) -> Self {
         Self { transform_es2015 }
+    }
+
+    pub(super) fn transform_es2015(&self) -> debug_cell::Ref<'_, TransformES2015> {
+        downcast_transformer_ref(self.transform_es2015, self)
     }
 }
 
@@ -817,7 +825,7 @@ impl PartitionSpread for PartitionSpreadVisitSpanOfNonSpreads {
         multi_line: bool,
         has_trailing_comma: bool,
     ) -> io::Result<Vec<SpreadSegment>> {
-        Ok(vec![self.transform_es2015.visit_span_of_non_spreads(
+        Ok(vec![self.transform_es2015().visit_span_of_non_spreads(
             chunk.to_owned(),
             multi_line,
             has_trailing_comma,

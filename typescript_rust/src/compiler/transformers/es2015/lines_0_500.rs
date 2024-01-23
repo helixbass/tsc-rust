@@ -185,6 +185,7 @@ pub(super) fn create_spread_segment(
 pub(super) struct TransformES2015 {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
+    pub(super) _arena_id: Cell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
@@ -206,6 +207,7 @@ impl TransformES2015 {
         let context_ref = context.ref_(arena_ref);
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
+            _arena_id: Default::default(),
             factory: context_ref.factory(),
             compiler_options: context_ref.get_compiler_options(),
             resolver: context_ref.get_emit_resolver(),
@@ -217,6 +219,7 @@ impl TransformES2015 {
             converted_loop_state: Default::default(),
             enabled_substitutions: Default::default(),
         }));
+        downcast_transformer_ref::<Self>(ret, arena_ref).set_arena_id(ret);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformES2015OnEmitNodeOverrider::new(
                 ret,
@@ -230,6 +233,14 @@ impl TransformES2015 {
             )))
         });
         ret
+    }
+
+    pub(super) fn arena_id(&self) -> Transformer {
+        self._arena_id.get().unwrap()
+    }
+
+    pub(super) fn set_arena_id(&self, id: Transformer) {
+        self._arena_id.set(Some(id));
     }
 
     pub(super) fn maybe_current_source_file(&self) -> GcCellRef<Option<Id<Node /*SourceFile*/>>> {

@@ -1466,6 +1466,12 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES2017OnSubstit
     }
 }
 
+impl HasArena for TransformES2017OnSubstituteNodeOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 #[derive(Trace, Finalize)]
 struct TransformES2017Factory {}
 

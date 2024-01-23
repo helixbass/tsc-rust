@@ -437,7 +437,6 @@ impl TransformGenerators {
         let compiler_options = context_ref.get_compiler_options();
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: _d(),
             factory: context_ref.factory(),
             language_version: get_emit_script_target(&compiler_options),
             compiler_options,

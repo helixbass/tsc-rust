@@ -1684,7 +1684,7 @@ impl TransformDeclarationsFactory {
 
 impl TransformerFactoryInterface for TransformDeclarationsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        TransformDeclarations::new(context, &*static_arena()).as_transformer()
+        TransformDeclarations::new(context, &*static_arena())
     }
 }
 

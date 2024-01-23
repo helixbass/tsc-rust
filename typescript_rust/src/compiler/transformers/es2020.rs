@@ -29,7 +29,6 @@ impl TransformES2020 {
         let context_ref = context.ref_(arena_ref);
         arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: Default::default(),
             factory: context_ref.factory(),
             context,
         }))
