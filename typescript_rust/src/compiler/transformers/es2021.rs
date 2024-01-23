@@ -12,18 +12,24 @@ use crate::{
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
     HasArena, AllArenas, InArena,
     TransformNodesTransformationResult,
+    CoreTransformationContext,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES2021 {
+    #[unsafe_ignore_trace]
+    _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
 }
 
 impl TransformES2021 {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Self {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Self {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
         Self {
-            factory: context.factory(),
+            _arena: arena,
+            factory: context_ref.factory(),
             context,
         }
     }
@@ -33,7 +39,7 @@ impl TransformES2021 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
@@ -52,7 +58,7 @@ impl TransformES2021 {
                 maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )
                 .map(Into::into)
@@ -60,7 +66,7 @@ impl TransformES2021 {
             _ => maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )
             .map(Into::into),

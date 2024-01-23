@@ -9,22 +9,27 @@ use crate::{
     maybe_visit_each_child, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node,
     NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena,
-    TransformNodesTransformationResult,
+    HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES2016 {
+    #[unsafe_ignore_trace]
+    _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
 impl TransformES2016 {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Self {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Self {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
         Self {
-            factory: context.factory(),
-            base_factory: context.base_factory(),
+            _arena: arena,
+            factory: context_ref.factory(),
+            base_factory: context_ref.base_factory(),
             context,
         }
     }
@@ -34,7 +39,7 @@ impl TransformES2016 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
@@ -49,7 +54,7 @@ impl TransformES2016 {
             _ => maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )
             .map(Into::into),
@@ -65,7 +70,7 @@ impl TransformES2016 {
                 self.visit_exponentiation_assignment_expression(node)
             }
             SyntaxKind::AsteriskAsteriskToken => self.visit_exponentiation_expression(node),
-            _ => visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self),
+            _ => visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self),
         }
     }
 
@@ -234,7 +239,7 @@ impl TransformerFactoryInterface for TransformES2016Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            Gc::new(Box::new(TransformES2016::new(context))),
+            Gc::new(Box::new(TransformES2016::new(context, &*static_arena()))),
         )
     }
 }

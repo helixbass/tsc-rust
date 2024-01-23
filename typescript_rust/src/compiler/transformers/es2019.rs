@@ -8,22 +8,27 @@ use crate::{
     BaseNodeFactorySynthetic, Node, NodeFactory, NodeInterface, SyntaxKind, TransformFlags,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, static_arena,
     TransformNodesTransformationResult,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES2019 {
+    #{unsafe_ignore_trace}
+    _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
 }
 
 impl TransformES2019 {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: Default::default(),
-            factory: context.factory(),
+            factory: context_ref.factory(),
             context,
         }));
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
@@ -40,7 +45,7 @@ impl TransformES2019 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -55,7 +60,7 @@ impl TransformES2019 {
             _ => maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )
             .map(Into::into),
@@ -87,7 +92,7 @@ impl TransformES2019 {
                 ),
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 }
 
@@ -116,7 +121,7 @@ impl TransformerFactoryInterface for TransformES2019Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformES2019::new(context).as_transformer(),
+            TransformES2019::new(context, &*static_arena()).as_transformer(),
         )
     }
 }

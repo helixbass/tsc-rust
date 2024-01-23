@@ -28,7 +28,7 @@ impl TransformES2015 {
             return try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             );
         }
@@ -45,7 +45,7 @@ impl TransformES2015 {
             self.enter_subtree(HierarchyFacts::BlockExcludes, HierarchyFacts::BlockIncludes)
         };
         let updated =
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?;
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?;
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
         Ok(updated)
     }
@@ -57,7 +57,7 @@ impl TransformES2015 {
         try_visit_each_child(
             node,
             |node: Id<Node>| self.visitor_with_unused_expression_result(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )
     }
@@ -76,7 +76,7 @@ impl TransformES2015 {
                     self.visitor(node)?
                 })
             },
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )
     }
@@ -125,7 +125,7 @@ impl TransformES2015 {
                 )?,
             ));
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     pub(super) fn visit_comma_list_expression(
@@ -139,7 +139,7 @@ impl TransformES2015 {
             return try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor_with_unused_expression_result(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             );
         }
@@ -280,7 +280,7 @@ impl TransformES2015 {
             updated = Some(try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?);
         }
@@ -346,7 +346,7 @@ impl TransformES2015 {
 
             return Ok(declaration_list);
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     pub(super) fn get_range_union(
@@ -429,7 +429,7 @@ impl TransformES2015 {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
                 .into(),
         ))
     }
@@ -465,7 +465,7 @@ impl TransformES2015 {
             );
         } else {
             updated = Some(
-                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
                     .into(),
             );
         }

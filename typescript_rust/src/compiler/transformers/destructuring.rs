@@ -26,7 +26,7 @@ use crate::{
     try_visit_node, BaseNodeFactory, Debug_, Matches, NamedDeclarationInterface, NodeFactory,
     Number, OptionTry, ReadonlyTextRangeConcrete, TransformFlags, VecExt,
     InArena, AllArenas,
-    TransformNodesTransformationResult,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 trait FlattenContext {
@@ -582,7 +582,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
             *pending_expressions.borrow_mut() = None;
             emit_binding_or_assignment(
                 &mut pending_expressions.borrow_mut(),
-                &**context.ref_(arena),
+                &*context.ref_(arena),
                 &mut pending_declarations.borrow_mut(),
                 temp,
                 value,
@@ -740,7 +740,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
     ) -> io::Result<()> {
         emit_binding_or_assignment(
             &mut self.pending_expressions.borrow_mut(),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             &mut self.pending_declarations.borrow_mut(),
             target,
             value,

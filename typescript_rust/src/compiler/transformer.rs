@@ -352,6 +352,7 @@ pub fn transform_nodes(
 pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
+    #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Self>>>,
     on_emit_node_outermost_override_or_original_method:
         GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,

@@ -1508,7 +1508,7 @@ impl TransformerFactoryInterface for TransformClassFieldsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformClassFields::new(context, &*static_arena()),
+            TransformClassFields::new(context, &*static_arena()).as_transformer(),
         )
     }
 }

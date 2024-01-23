@@ -892,7 +892,7 @@ fn emit_js_file_or_bundle(
     );
 
     Debug_.assert(
-        transform.transformed().len() == 1,
+        transform.ref_(arena).transformed().len() == 1,
         Some("Should only see one output from the transform"),
     );
     print_source_file_or_bundle(
@@ -904,13 +904,13 @@ fn emit_js_file_or_bundle(
         &compiler_options,
         js_file_path,
         source_map_file_path,
-        transform.transformed()[0],
+        transform.ref_(arena).transformed()[0],
         &printer,
         &(&*compiler_options).into(),
         &*printer,
     )?;
 
-    transform.dispose();
+    transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
         bundle_build_info.borrow_mut().js = printer.maybe_bundle_file_info().clone();
     }
@@ -921,13 +921,13 @@ fn emit_js_file_or_bundle(
 #[derive(Trace, Finalize)]
 struct EmitJsFileOrBundlePrintHandlers {
     resolver: Gc<Box<dyn EmitResolver>>,
-    transform: Gc<Box<TransformNodesTransformationResult>>,
+    transform: Id<TransformNodesTransformationResult>,
 }
 
 impl EmitJsFileOrBundlePrintHandlers {
     fn new(
         resolver: Gc<Box<dyn EmitResolver>>,
-        transform: Gc<Box<TransformNodesTransformationResult>>,
+        transform: Id<TransformNodesTransformationResult>,
     ) -> Self {
         Self {
             resolver,
@@ -1053,8 +1053,8 @@ fn emit_declaration_file_or_bundle(
         arena,
     )?;
 
-    if length(declaration_transform.diagnostics().as_deref()) > 0 {
-        for diagnostic in declaration_transform.diagnostics().unwrap() {
+    if length(declaration_transform.ref_(arena).diagnostics().as_deref()) > 0 {
+        for diagnostic in declaration_transform.ref_(arena).diagnostics().unwrap() {
             emitter_diagnostics.add(diagnostic);
         }
     }
@@ -1084,7 +1084,7 @@ fn emit_declaration_file_or_bundle(
             ),
         ))),
     );
-    let decl_blocked = declaration_transform.diagnostics().is_non_empty()
+    let decl_blocked = declaration_transform.ref_(arena).diagnostics().is_non_empty()
         || host.is_emit_blocked(declaration_file_path)
         || compiler_options.no_emit == Some(true);
     *emit_skipped = *emit_skipped || decl_blocked;
@@ -1139,13 +1139,13 @@ fn emit_declaration_file_or_bundle(
 #[derive(Trace, Finalize)]
 struct EmitDeclarationFileOrBundlePrintHandlers {
     resolver: Gc<Box<dyn EmitResolver>>,
-    declaration_transform: Gc<Box<TransformNodesTransformationResult>>,
+    declaration_transform: Id<TransformNodesTransformationResult>,
 }
 
 impl EmitDeclarationFileOrBundlePrintHandlers {
     fn new(
         resolver: Gc<Box<dyn EmitResolver>>,
-        declaration_transform: Gc<Box<TransformNodesTransformationResult>>,
+        declaration_transform: Id<TransformNodesTransformationResult>,
     ) -> Self {
         Self {
             resolver,

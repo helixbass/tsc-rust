@@ -10,6 +10,7 @@ use crate::{
     NodeInterface, Number, SyntaxKind, TransformFlags, VisitResult, _d, get_emit_flags,
     is_generated_identifier, EmitFlags,
     InArena,
+    CoreTransformationContext,
 };
 
 impl TransformGenerators {
@@ -158,7 +159,7 @@ impl TransformGenerators {
                 ),
             );
         } else {
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
         }
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
@@ -205,7 +206,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     pub(super) fn transform_and_emit_break_statement(
@@ -245,7 +246,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     pub(super) fn transform_and_emit_return_statement(
@@ -431,7 +432,7 @@ impl TransformGenerators {
             self.begin_script_switch_block();
         }
 
-        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.end_switch_block();
@@ -470,7 +471,7 @@ impl TransformGenerators {
             self.begin_script_labeled_block(id_text(&node_as_labeled_statement.label.ref_(self)).to_owned());
         }
 
-        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.end_labeled_block();
@@ -525,7 +526,7 @@ impl TransformGenerators {
             self.emit_statement(visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             ));
         }

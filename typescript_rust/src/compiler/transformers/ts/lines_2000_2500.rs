@@ -22,6 +22,7 @@ use crate::{
     OuterExpressionKinds, ReadonlyTextRange, SignatureDeclarationInterface, StringOrNumber,
     SyntaxKind, VisitResult,
     InArena, OptionInArena,
+    CoreTransformationContext,
 };
 
 impl TransformTypeScript {
@@ -51,7 +52,7 @@ impl TransformTypeScript {
             try_visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -59,7 +60,7 @@ impl TransformTypeScript {
             try_visit_function_body(
                 node_as_method_declaration.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?,
         );
@@ -105,7 +106,7 @@ impl TransformTypeScript {
             try_visit_parameter_list(
                 Some(&node_as_get_accessor_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -114,7 +115,7 @@ impl TransformTypeScript {
                 try_visit_function_body(
                     node_as_get_accessor_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None)),
@@ -154,7 +155,7 @@ impl TransformTypeScript {
             try_visit_parameter_list(
                 Some(&node_as_set_accessor_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -162,7 +163,7 @@ impl TransformTypeScript {
                 try_visit_function_body(
                     node_as_set_accessor_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None)),
@@ -208,7 +209,7 @@ impl TransformTypeScript {
             try_visit_parameter_list(
                 Some(&node_as_function_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -217,7 +218,7 @@ impl TransformTypeScript {
                 try_visit_function_body(
                     node_as_function_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None)),
@@ -255,7 +256,7 @@ impl TransformTypeScript {
             try_visit_parameter_list(
                 Some(&node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -263,7 +264,7 @@ impl TransformTypeScript {
             try_visit_function_body(
                 node_as_function_expression.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap_or_else(|| self.factory.create_block(vec![], None)),
@@ -290,7 +291,7 @@ impl TransformTypeScript {
             try_visit_parameter_list(
                 Some(&node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -299,7 +300,7 @@ impl TransformTypeScript {
             try_visit_function_body(
                 node_as_arrow_function.maybe_body(),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -383,7 +384,7 @@ impl TransformTypeScript {
             try_maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
         })
@@ -491,7 +492,7 @@ impl TransformTypeScript {
                 .create_partially_emitted_expression(expression, Some(node)));
         }
 
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     pub(super) fn visit_assertion_expression(

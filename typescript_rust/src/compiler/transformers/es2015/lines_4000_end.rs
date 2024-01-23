@@ -15,6 +15,7 @@ use crate::{
     LiteralLikeNodeInterface, Matches, Node, NodeArray, NodeExt, NodeInterface, ProcessLevel,
     SignatureDeclarationInterface, SyntaxKind, TokenFlags, VisitResult,
     InArena,
+    TransformationContext,
 };
 
 impl TransformES2015 {
@@ -152,7 +153,7 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> {
         Ok(Some(
             try_process_tagged_template_expression(
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 node,
                 |node: Id<Node>| self.visitor(node),
                 *self.current_source_file(),

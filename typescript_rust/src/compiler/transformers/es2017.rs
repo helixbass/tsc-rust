@@ -29,8 +29,8 @@ use crate::{
     ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TypeReferenceSerializationKind, VisitResult,
-    HasArena, AllArenas, InArena, OptionInArena,
-    TransformNodesTransformationResult,
+    HasArena, AllArenas, InArena, OptionInArena, static_arena,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 bitflags! {
@@ -50,6 +50,8 @@ bitflags! {
 
 #[derive(Trace, Finalize)]
 struct TransformES2017 {
+    #[unsafe_ignore_trace]
+    _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -74,13 +76,16 @@ struct TransformES2017 {
 }
 
 impl TransformES2017 {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
-        let compiler_options = context.get_compiler_options();
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
+        let compiler_options = context_ref.get_compiler_options();
 
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: Default::default(),
-            factory: context.factory(),
-            resolver: context.get_emit_resolver(),
+            factory: context_ref.factory(),
+            resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
             language_version: get_emit_script_target(&compiler_options),
             compiler_options,
@@ -94,13 +99,13 @@ impl TransformES2017 {
         }));
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
         *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        context.override_on_emit_node(&mut |previous_on_emit_node| {
+        context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformES2017OnEmitNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_emit_node,
             )))
         });
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformES2017OnSubstituteNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_substitute_node,
@@ -200,7 +205,7 @@ impl TransformES2017 {
             !is_effective_strict_mode_source_file(node, &self.compiler_options, self),
         );
         let visited =
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?;
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?;
         add_emit_helpers(visited, self.context.ref_(self).read_emit_helpers().as_deref(), self);
         Ok(visited)
     }
@@ -256,7 +261,7 @@ impl TransformES2017 {
         Ok(try_maybe_visit_each_child(
             Some(node),
             |node: Id<Node>| self.visitor(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )?
         .map(Into::into))
@@ -330,7 +335,7 @@ impl TransformES2017 {
                 try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into)
@@ -346,7 +351,7 @@ impl TransformES2017 {
                 try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into)
@@ -365,7 +370,7 @@ impl TransformES2017 {
             _ => try_maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .map(Into::into),
@@ -403,7 +408,7 @@ impl TransformES2017 {
                 | SyntaxKind::LabeledStatement => try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.async_body_visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into),
@@ -447,7 +452,7 @@ impl TransformES2017 {
                 let result = try_visit_each_child(
                     node,
                     |node: Id<Node>| self.async_body_visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?;
                 self.set_enclosing_function_parameter_names(
@@ -458,7 +463,7 @@ impl TransformES2017 {
                 try_visit_each_child(
                     node,
                     |node: Id<Node>| self.async_body_visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
             },
@@ -485,7 +490,7 @@ impl TransformES2017 {
         try_maybe_visit_each_child(
             Some(node),
             |node: Id<Node>| self.visitor(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )
     }
@@ -523,7 +528,7 @@ impl TransformES2017 {
             try_visit_iteration_body(
                 node_as_for_in_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?,
         ))
@@ -568,7 +573,7 @@ impl TransformES2017 {
             try_visit_iteration_body(
                 node_as_for_of_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?,
         ))
@@ -611,7 +616,7 @@ impl TransformES2017 {
             try_visit_iteration_body(
                 node_as_for_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?,
         ))
@@ -625,7 +630,7 @@ impl TransformES2017 {
             return try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             );
         }
@@ -671,7 +676,7 @@ impl TransformES2017 {
             try_visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -682,7 +687,7 @@ impl TransformES2017 {
                 try_visit_function_body(
                     node_as_method_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
             },
@@ -713,7 +718,7 @@ impl TransformES2017 {
                     try_visit_parameter_list(
                         Some(&node_as_function_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     )?
                     .unwrap(),
@@ -724,7 +729,7 @@ impl TransformES2017 {
                         try_visit_function_body(
                             node_as_function_declaration.maybe_body(),
                             |node: Id<Node>| self.visitor(node),
-                            &**self.context.ref_(self),
+                            &*self.context.ref_(self),
                             self,
                         )?
                     },
@@ -754,7 +759,7 @@ impl TransformES2017 {
             try_visit_parameter_list(
                 Some(&node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -765,7 +770,7 @@ impl TransformES2017 {
                 try_visit_function_body(
                     node_as_function_expression.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .unwrap()
@@ -789,7 +794,7 @@ impl TransformES2017 {
             try_visit_parameter_list(
                 Some(&node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -801,7 +806,7 @@ impl TransformES2017 {
                 try_visit_function_body(
                     node_as_arrow_function.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .unwrap()
@@ -1470,7 +1475,7 @@ impl TransformerFactoryInterface for TransformES2017Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformES2017::new(context).as_transformer(),
+            TransformES2017::new(context, &*static_arena()).as_transformer(),
         )
     }
 }

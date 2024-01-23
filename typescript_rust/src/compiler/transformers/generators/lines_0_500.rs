@@ -20,7 +20,7 @@ use crate::{
     NodeInterface, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
     HasArena, AllArenas, InArena, static_arena,
-    TransformNodesTransformationResult,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 pub(super) type Label = i32;
@@ -380,6 +380,7 @@ pub(super) fn get_instruction_name(instruction: Instruction) -> Option<&'static 
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformGenerators {
+    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
@@ -880,7 +881,7 @@ impl TransformGenerators {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
             .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self)
     }
 
@@ -900,7 +901,7 @@ impl TransformGenerators {
             self.visit_generator(node)
         } else if transform_flags.intersects(TransformFlags::ContainsGenerator) {
             Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into(),
             )
         } else {
             Some(node.into())
@@ -952,7 +953,7 @@ impl TransformGenerators {
                         visit_each_child(
                             node,
                             |node: Id<Node>| self.visitor(node),
-                            &**self.context.ref_(self),
+                            &*self.context.ref_(self),
                             self,
                         )
                         .into(),
@@ -979,7 +980,7 @@ impl TransformGenerators {
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => self.visit_new_expression(node),
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into(),
             ),
         }
     }
@@ -1014,7 +1015,7 @@ impl TransformGenerators {
                     visit_parameter_list(
                         Some(&node.ref_(self).as_function_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     )
                     .unwrap(),
@@ -1030,7 +1031,7 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
@@ -1062,7 +1063,7 @@ impl TransformGenerators {
                     visit_parameter_list(
                         Some(&node.ref_(self).as_function_expression().parameters()),
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     ),
                     None,
@@ -1077,7 +1078,7 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }

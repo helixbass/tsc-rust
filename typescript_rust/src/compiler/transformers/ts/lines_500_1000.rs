@@ -19,6 +19,7 @@ use crate::{
     NodeFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
     SignatureDeclarationInterface, SourceFileLike, SyntaxKind, TextRange, TransformFlags,
     VisitResult, InArena,
+    CoreTransformationContext,
 };
 
 impl TransformTypeScript {
@@ -35,7 +36,7 @@ impl TransformTypeScript {
             try_visit_lexical_environment_full(
                 &node.ref_(self).as_source_file().statements(),
                 |node: Id<Node>| self.source_element_visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 Some(0),
                 Some(always_strict),
                 Option::<
@@ -145,7 +146,7 @@ impl TransformTypeScript {
             return Ok(try_maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .map(Into::into));
@@ -396,7 +397,7 @@ impl TransformTypeScript {
             return try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             );
         }

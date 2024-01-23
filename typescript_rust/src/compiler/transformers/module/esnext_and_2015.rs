@@ -18,12 +18,14 @@ use crate::{
     ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
-    HasArena, AllArenas, InArena,
-    TransformNodesTransformationResult,
+    HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformEcmascriptModule {
+    #[unsafe_ignore_trace]
+    _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -43,13 +45,16 @@ struct TransformEcmascriptModule {
 }
 
 impl TransformEcmascriptModule {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
-        let compiler_options = context.get_compiler_options();
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
+        let compiler_options = context_ref.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: _d(),
-            factory: context.factory(),
-            host: context.get_emit_host(),
-            resolver: context.get_emit_resolver(),
+            factory: context_ref.factory(),
+            host: context_ref.get_emit_host(),
+            resolver: context_ref.get_emit_resolver(),
             language_version: get_emit_script_target(&compiler_options),
             compiler_options,
             context: context.clone(),
@@ -59,13 +64,13 @@ impl TransformEcmascriptModule {
         }));
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
         *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        context.override_on_emit_node(&mut |previous_on_emit_node| {
+        context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformEcmascriptModuleOnEmitNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_emit_node,
             )))
         });
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(
                 TransformEcmascriptModuleOnSubstituteNodeOverrider::new(
                     downcasted.clone(),
@@ -73,8 +78,8 @@ impl TransformEcmascriptModule {
                 ),
             ))
         });
-        context.enable_emit_notification(SyntaxKind::SourceFile);
-        context.enable_substitution(SyntaxKind::Identifier);
+        context_ref.enable_emit_notification(SyntaxKind::SourceFile);
+        context_ref.enable_substitution(SyntaxKind::Identifier);
         downcasted
     }
 
@@ -269,7 +274,7 @@ impl TransformEcmascriptModule {
                 )
             }
             None => {
-                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
             }
         })
     }
@@ -678,7 +683,7 @@ impl TransformerFactoryInterface for TransformEcmascriptModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformEcmascriptModule::new(context).as_transformer(),
+            TransformEcmascriptModule::new(context, &*static_arena()).as_transformer(),
         )
     }
 }

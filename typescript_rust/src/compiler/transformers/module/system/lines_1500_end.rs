@@ -15,6 +15,7 @@ use crate::{
     NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind, VisitResult, _d, get_original_node_id,
     is_prefix_unary_expression, NonEmpty, OptionTry,
     InArena,
+    CoreTransformationContext,
 };
 
 impl TransformSystemModule {
@@ -172,7 +173,7 @@ impl TransformSystemModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
                 .into(),
         ))
     }
@@ -286,7 +287,7 @@ impl TransformSystemModule {
             }
         }
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
                 .into(),
         ))
     }

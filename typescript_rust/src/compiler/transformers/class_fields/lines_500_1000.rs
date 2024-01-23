@@ -21,6 +21,7 @@ use crate::{
     PrivateIdentifierKind, ReadonlyTextRangeConcrete, SyntaxKind, TransformFlags, VecExt,
     VisitResult,
     InArena,
+    CoreTransformationContext, TransformationContext,
 };
 
 impl TransformClassFields {
@@ -78,7 +79,7 @@ impl TransformClassFields {
             }
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 
     pub(super) fn visit_pre_or_postfix_unary_expression(
@@ -278,7 +279,7 @@ impl TransformClassFields {
                 }
             }
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 
     pub(super) fn visit_for_statement(&self, node: Id<Node> /*ForStatement*/) -> VisitResult {
@@ -309,7 +310,7 @@ impl TransformClassFields {
                     visit_iteration_body(
                         node_as_for_statement.statement,
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     ),
                 )
@@ -497,7 +498,7 @@ impl TransformClassFields {
             }
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 
     pub(super) fn visit_tagged_template_expression(
@@ -600,7 +601,7 @@ impl TransformClassFields {
             }
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 
     pub(super) fn transform_class_static_block_declaration(
@@ -872,7 +873,7 @@ impl TransformClassFields {
         {
             return self.visit_private_identifier_in_in_expression(node);
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 
     pub(super) fn create_private_identifier_assignment(
@@ -965,7 +966,7 @@ impl TransformClassFields {
             |&member: &Id<Node>, _| self.does_class_element_need_transform(member),
         ) {
             return Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into(),
             );
         }
 
@@ -1121,7 +1122,7 @@ impl TransformClassFields {
                     .into(),
             );
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 }
 

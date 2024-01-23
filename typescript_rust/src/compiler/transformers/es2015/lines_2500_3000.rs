@@ -15,6 +15,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface,
     OptionTry, SyntaxKind, TransformFlags,
     InArena,
+    CoreTransformationContext,
 };
 
 impl TransformES2015 {
@@ -262,7 +263,7 @@ impl TransformES2015 {
             return try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             );
         }
@@ -479,7 +480,7 @@ impl TransformES2015 {
                             try_visit_each_child(
                                 node,
                                 |node: Id<Node>| self.visitor(node),
-                                &**self.context.ref_(self),
+                                &*self.context.ref_(self),
                                 self,
                             )?
                         },

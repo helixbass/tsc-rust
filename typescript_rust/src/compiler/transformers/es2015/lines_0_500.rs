@@ -20,7 +20,7 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
     HasArena, AllArenas, InArena, static_arena,
-    TransformNodesTransformationResult,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 bitflags! {
@@ -565,7 +565,7 @@ impl TransformES2015 {
             _ => try_maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .map(Into::into),

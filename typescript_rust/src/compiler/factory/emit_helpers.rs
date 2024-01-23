@@ -12,7 +12,7 @@ use crate::{
     GeneratedIdentifierFlags, GetOrInsertDefault, MapOrDefault, NodeInterface, ReadonlyTextRange,
     ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, UnscopedEmitHelperBuilder, VecExt,
     HasArena, AllArenas, InArena,
-    TransformNodesTransformationResult,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 // TODO: remove #[unsafe_ignore_trace] from TransformNodesTransformationResult if this ends up

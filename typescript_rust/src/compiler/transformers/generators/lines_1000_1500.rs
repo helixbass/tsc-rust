@@ -11,6 +11,7 @@ use crate::{
     CallBinding, HasInitializerInterface, NamedDeclarationInterface, NodeArray, NodeExt,
     NodeInterface, SyntaxKind,
     InArena,
+    CoreTransformationContext,
 };
 
 impl TransformGenerators {
@@ -178,7 +179,7 @@ impl TransformGenerators {
             );
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 
     pub(super) fn visit_call_expression(
@@ -224,7 +225,7 @@ impl TransformGenerators {
             );
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 
     pub(super) fn visit_new_expression(
@@ -275,7 +276,7 @@ impl TransformGenerators {
             );
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
     }
 
     pub(super) fn transform_and_emit_statements(
@@ -515,12 +516,12 @@ impl TransformGenerators {
         let mut node = node;
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.begin_script_loop_block();
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
             self.end_loop_block();
             Some(node.into())
         } else {
             Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
                     .into(),
             )
         }
@@ -565,12 +566,12 @@ impl TransformGenerators {
     ) -> VisitResult {
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.begin_script_loop_block();
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
             self.end_loop_block();
             Some(node.into())
         } else {
             Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
                     .into(),
             )
         }
@@ -682,12 +683,12 @@ impl TransformGenerators {
                 visit_iteration_body(
                     node_as_for_statement.statement,
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 ),
             );
         } else {
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
         }
 
         if self.maybe_in_statement_containing_yield() == Some(true) {

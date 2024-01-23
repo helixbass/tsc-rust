@@ -9,6 +9,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeCheckFlags, NodeExt, NodeInterface, ReadonlyTextRange,
     SyntaxKind,
     InArena, OptionInArena,
+    CoreTransformationContext, TransformationContext,
 };
 
 impl TransformTypeScript {

@@ -8,12 +8,14 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, is_source_file,
     transform_ecmascript_module, transform_module, try_map, Debug_, ModuleKind, SyntaxKind,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, static_arena,
     TransformNodesTransformationResult,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformNodeModule {
+    #[unsafe_ignore_trace]
+    _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     esm_transform: Transformer,
@@ -26,18 +28,21 @@ struct TransformNodeModule {
 }
 
 impl TransformNodeModule {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
         let esm_transform = transform_ecmascript_module().call(context.clone());
 
-        let esm_on_substitute_node = context.pop_overridden_on_substitute_node();
-        let esm_on_emit_node = context.pop_overridden_on_emit_node();
+        let esm_on_substitute_node = context_ref.pop_overridden_on_substitute_node();
+        let esm_on_emit_node = context_ref.pop_overridden_on_emit_node();
 
         let cjs_transform = transform_module().call(context.clone());
 
-        let cjs_on_substitute_node = context.pop_overridden_on_substitute_node();
-        let cjs_on_emit_node = context.pop_overridden_on_emit_node();
+        let cjs_on_substitute_node = context_ref.pop_overridden_on_substitute_node();
+        let cjs_on_emit_node = context_ref.pop_overridden_on_emit_node();
 
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: _d(),
             context: context.clone(),
             esm_transform,
@@ -51,20 +56,20 @@ impl TransformNodeModule {
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
         *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
 
-        context.override_on_emit_node(&mut |previous_on_emit_node| {
+        context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformNodeModuleOnEmitNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_emit_node,
             )))
         });
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformNodeModuleOnSubstituteNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_substitute_node,
             )))
         });
-        context.enable_substitution(SyntaxKind::SourceFile);
-        context.enable_emit_notification(SyntaxKind::SourceFile);
+        context_ref.enable_substitution(SyntaxKind::SourceFile);
+        context_ref.enable_emit_notification(SyntaxKind::SourceFile);
         downcasted
     }
 
@@ -266,8 +271,8 @@ impl TransformNodeModuleFactory {
 }
 
 impl TransformerFactoryInterface for TransformNodeModuleFactory {
-    fn call(&self, context: Id<TransformNodeModuleOnSubstituteNodeOverrider>) -> Transformer {
-        TransformNodeModule::new(context).as_transformer()
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
+        TransformNodeModule::new(context, &*static_arena()).as_transformer()
     }
 }
 

@@ -339,7 +339,7 @@ impl TransformModule {
                         try_maybe_visit_each_child(
                             node_as_function_declaration.maybe_body(),
                             |node: Id<Node>| self.visitor(node),
-                            &**self.context.ref_(self),
+                            &*self.context.ref_(self),
                             self,
                         )?,
                     )
@@ -352,7 +352,7 @@ impl TransformModule {
                 .push(try_visit_each_child(
                     node,
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?);
         }
@@ -420,7 +420,7 @@ impl TransformModule {
                 .push(try_visit_each_child(
                     node,
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?);
         }
@@ -544,7 +544,7 @@ impl TransformModule {
                 .push(try_visit_each_child(
                     node,
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?);
         }

@@ -17,6 +17,7 @@ use crate::{
     GetOrInsertDefault, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface,
     NodeArray, NodeExt, NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
     InArena, OptionInArena,
+    CoreTransformationContext,
 };
 
 impl TransformTypeScript {
@@ -489,7 +490,7 @@ impl TransformTypeScript {
                 Ok(try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into))
@@ -650,7 +651,7 @@ impl TransformTypeScript {
                 Ok(try_visit_each_child(
                     node,
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?
                 .into())

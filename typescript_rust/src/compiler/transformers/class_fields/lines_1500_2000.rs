@@ -22,6 +22,7 @@ use crate::{
     GeneratedIdentifierFlags, GetOrInsertDefault, NodeArray, NodeCheckFlags, PrivateIdentifierKind,
     SyntaxKind, VisitResult,
     InArena,
+    CoreTransformationContext,
 };
 
 impl TransformClassFields {
@@ -439,7 +440,7 @@ impl TransformClassFields {
         let node_as_property_access_expression = node_ref.as_property_access_expression();
         let parameter = self.factory.get_generated_name_for_node(Some(node), None);
         let Some(info) = self.access_private_identifier(node_as_property_access_expression.name()) else {
-            return visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            return visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
         };
         let mut receiver = node_as_property_access_expression.expression;
         if is_this_property(node, self)

@@ -20,6 +20,7 @@ use crate::{
     ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
     InArena, OptionInArena,
+    CoreTransformationContext,
 };
 
 impl TransformES2015 {
@@ -468,7 +469,7 @@ impl TransformES2015 {
                 try_visit_parameter_list(
                     Some(&node_as_arrow_function.parameters()),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?,
                 Option::<Id<Node>>::None,
@@ -511,7 +512,7 @@ impl TransformES2015 {
         let parameters = try_visit_parameter_list(
             Some(&node_as_function_expression.parameters()),
             |node: Id<Node>| self.visitor(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )?
         .unwrap();
@@ -559,7 +560,7 @@ impl TransformES2015 {
         let parameters = try_visit_parameter_list(
             Some(&node_as_function_declaration.parameters()),
             |node: Id<Node>| self.visitor(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )?
         .unwrap();
@@ -625,7 +626,7 @@ impl TransformES2015 {
         let parameters = try_visit_parameter_list(
             Some(&node_as_function_like_declaration.parameters()),
             |node: Id<Node>| self.visitor(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )?
         .unwrap();

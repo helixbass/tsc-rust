@@ -11,22 +11,26 @@ use crate::{
     visit_node, visit_nodes, BaseNodeFactorySynthetic, Debug_, Node, NodeArray, NodeExt,
     NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena,
-    TransformNodesTransformationResult,
+    HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES2020 {
+    _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
 }
 
 impl TransformES2020 {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: Default::default(),
-            factory: context.factory(),
+            factory: context_ref.factory(),
             context,
         }));
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
@@ -43,7 +47,7 @@ impl TransformES2020 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -68,7 +72,7 @@ impl TransformES2020 {
                 maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )
                 .map(Into::into)
@@ -82,7 +86,7 @@ impl TransformES2020 {
                 maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )
                 .map(Into::into)
@@ -91,7 +95,7 @@ impl TransformES2020 {
             _ => maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )
             .map(Into::into),
@@ -267,7 +271,7 @@ impl TransformES2020 {
                 args,
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     fn visit_non_optional_expression(
@@ -566,7 +570,7 @@ impl TransformerFactoryInterface for TransformES2020Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformES2020::new(context).as_transformer(),
+            TransformES2020::new(context, &*static_arena()).as_transformer(),
         )
     }
 }

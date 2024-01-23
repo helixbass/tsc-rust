@@ -27,6 +27,7 @@ use crate::{
     ModifierFlags, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt,
     PrivateIdentifierKind, PropertyDescriptorAttributesBuilder, ScriptTarget, SyntaxKind,
     InArena, OptionInArena,
+    CoreTransformationContext, TransformationContext,
 };
 
 impl TransformClassFields {
@@ -316,7 +317,7 @@ impl TransformClassFields {
                 visit_each_child(
                     node,
                     |node: Id<Node>| self.class_element_visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )
                 .into(),
@@ -433,7 +434,7 @@ impl TransformClassFields {
                 .map(|constructor| constructor.ref_(self).as_signature_declaration().parameters())
                 .as_deref(),
             |node: Id<Node>| self.visitor(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         );
         let body =
@@ -477,7 +478,7 @@ impl TransformClassFields {
             !properties.is_empty() || !private_methods_and_accessors.is_empty();
 
         if constructor.is_none() && !needs_constructor_body {
-            return visit_function_body(None, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            return visit_function_body(None, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
         }
 
         self.context.ref_(self).resume_lexical_environment();

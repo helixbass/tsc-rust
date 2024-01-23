@@ -17,6 +17,7 @@ use crate::{
     GetOrInsertDefault, HasInitializerInterface, Matches, NamedDeclarationInterface,
     NodeCheckFlags,
     InArena,
+    CoreTransformationContext,
 };
 
 impl TransformES2015 {

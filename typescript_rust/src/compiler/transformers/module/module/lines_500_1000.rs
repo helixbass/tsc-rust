@@ -19,6 +19,7 @@ use crate::{
     try_visit_each_child, try_visit_iteration_body, try_visit_node, EmitFlags, GetOrInsertDefault,
     LiteralLikeNodeInterface, MapOrDefault, ModuleKind, NodeArray, NodeFlags, ScriptTarget,
     InArena,
+    CoreTransformationContext,
 };
 
 impl TransformModule {
@@ -85,7 +86,7 @@ impl TransformModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
                 .into(),
         ))
     }
@@ -170,7 +171,7 @@ impl TransformModule {
                 self,
             );
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
     }
 
     pub(super) fn visit_for_statement(
@@ -204,7 +205,7 @@ impl TransformModule {
                     try_visit_iteration_body(
                         node_as_for_statement.statement,
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     )?,
                 )
@@ -361,7 +362,7 @@ impl TransformModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
                 .into(),
         ))
     }

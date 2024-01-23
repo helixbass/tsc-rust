@@ -11,12 +11,14 @@ use crate::{
     NodeInterface, SyntaxKind, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface,
-    HasArena, AllArenas, InArena,
-    TransformNodesTransformationResult,
+    HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES5 {
+    #[unsafe_ignore_trace]
+    _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -25,11 +27,14 @@ struct TransformES5 {
 }
 
 impl TransformES5 {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
-        let compiler_options = context.get_compiler_options();
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
+        let compiler_options = context_ref.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: Default::default(),
-            factory: context.factory(),
+            factory: context_ref.factory(),
             compiler_options: compiler_options.clone(),
             context: context.clone(),
             no_substitution: Default::default(),
@@ -40,25 +45,25 @@ impl TransformES5 {
             compiler_options.jsx,
             Some(JsxEmit::Preserve) | Some(JsxEmit::ReactNative)
         ) {
-            context.override_on_emit_node(&mut |previous_on_emit_node| {
+            context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
                 Gc::new(Box::new(TransformES5OnEmitNodeOverrider::new(
                     downcasted.clone(),
                     previous_on_emit_node,
                 )))
             });
-            context.enable_emit_notification(SyntaxKind::JsxOpeningElement);
-            context.enable_emit_notification(SyntaxKind::JsxClosingElement);
-            context.enable_emit_notification(SyntaxKind::JsxSelfClosingElement);
+            context_ref.enable_emit_notification(SyntaxKind::JsxOpeningElement);
+            context_ref.enable_emit_notification(SyntaxKind::JsxClosingElement);
+            context_ref.enable_emit_notification(SyntaxKind::JsxSelfClosingElement);
             *downcasted.no_substitution.borrow_mut() = Some(Default::default());
         }
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformES5OnSubstituteNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_substitute_node,
             )))
         });
-        context.enable_emit_notification(SyntaxKind::PropertyAccessExpression);
-        context.enable_emit_notification(SyntaxKind::PropertyAssignment);
+        context_ref.enable_emit_notification(SyntaxKind::PropertyAccessExpression);
+        context_ref.enable_emit_notification(SyntaxKind::PropertyAssignment);
 
         downcasted
     }
@@ -261,7 +266,7 @@ impl TransformES5Factory {
 
 impl TransformerFactoryInterface for TransformES5Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(context.clone(), TransformES5::new(context).as_transformer())
+        chain_bundle().call(context.clone(), TransformES5::new(context, &*static_arena()).as_transformer())
     }
 }
 

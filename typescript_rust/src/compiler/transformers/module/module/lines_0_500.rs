@@ -22,8 +22,8 @@ use crate::{
     NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty, SyntaxKind, TransformFlags,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     VecExt,
-    HasArena, AllArenas, InArena,
-    TransformNodesTransformationResult,
+    HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 pub(super) struct AsynchronousDependencies {
@@ -34,6 +34,8 @@ pub(super) struct AsynchronousDependencies {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformModule {
+    #[unsafe_ignore_trace]
+    pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -54,13 +56,16 @@ pub(super) struct TransformModule {
 }
 
 impl TransformModule {
-    pub(super) fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
-        let compiler_options = context.get_compiler_options();
+    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
+        let compiler_options = context_ref.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: _d(),
-            factory: context.factory(),
-            resolver: context.get_emit_resolver(),
-            host: context.get_emit_host(),
+            factory: context_ref.factory(),
+            resolver: context_ref.get_emit_resolver(),
+            host: context_ref.get_emit_host(),
             language_version: get_emit_script_target(&compiler_options),
             module_kind: get_emit_module_kind(&compiler_options),
             compiler_options,
@@ -74,24 +79,24 @@ impl TransformModule {
         }));
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
         *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        context.override_on_emit_node(&mut |previous_on_emit_node| {
+        context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformModuleOnEmitNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_emit_node,
             )))
         });
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformModuleOnSubstituteNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_substitute_node,
             )))
         });
-        context.enable_substitution(SyntaxKind::CallExpression);
-        context.enable_substitution(SyntaxKind::TaggedTemplateExpression);
-        context.enable_substitution(SyntaxKind::Identifier);
-        context.enable_substitution(SyntaxKind::BinaryExpression);
-        context.enable_substitution(SyntaxKind::ShorthandPropertyAssignment);
-        context.enable_emit_notification(SyntaxKind::SourceFile);
+        context_ref.enable_substitution(SyntaxKind::CallExpression);
+        context_ref.enable_substitution(SyntaxKind::TaggedTemplateExpression);
+        context_ref.enable_substitution(SyntaxKind::Identifier);
+        context_ref.enable_substitution(SyntaxKind::BinaryExpression);
+        context_ref.enable_substitution(SyntaxKind::ShorthandPropertyAssignment);
+        context_ref.enable_emit_notification(SyntaxKind::SourceFile);
         downcasted
     }
 
@@ -188,7 +193,7 @@ impl TransformModule {
 
         self.set_current_source_file(Some(node));
         self.set_current_module_info(Some(Gc::new(collect_external_module_info(
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             node,
             &**self.resolver,
             &self.compiler_options,
@@ -1255,7 +1260,7 @@ impl TransformerFactoryInterface for TransformModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformModule::new(context).as_transformer(),
+            TransformModule::new(context, &*static_arena()).as_transformer(),
         )
     }
 }

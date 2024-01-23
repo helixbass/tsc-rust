@@ -247,7 +247,7 @@ impl TransformSystemModule {
                         self.visitor(node)
                     }
                 },
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?,
         );
@@ -277,7 +277,7 @@ impl TransformSystemModule {
             try_visit_iteration_body(
                 node_as_for_in_statement.statement,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?,
         );
@@ -308,7 +308,7 @@ impl TransformSystemModule {
             try_visit_iteration_body(
                 node_as_for_of_statement.statement,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?,
         );
@@ -370,7 +370,7 @@ impl TransformSystemModule {
                     try_visit_iteration_body(
                         node_as_do_statement.statement,
                         |node: Id<Node>| self.top_level_nested_visitor(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     )?,
                     try_visit_node(
@@ -403,7 +403,7 @@ impl TransformSystemModule {
                     try_visit_iteration_body(
                         node_as_while_statement.statement,
                         |node: Id<Node>| self.top_level_nested_visitor(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     )?,
                 )
@@ -547,7 +547,7 @@ impl TransformSystemModule {
             try_visit_each_child(
                 node,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .into(),
@@ -562,7 +562,7 @@ impl TransformSystemModule {
             try_visit_each_child(
                 node,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .into(),
@@ -603,7 +603,7 @@ impl TransformSystemModule {
         let node = try_visit_each_child(
             node,
             |node: Id<Node>| self.top_level_nested_visitor(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )?;
 
@@ -648,7 +648,7 @@ impl TransformSystemModule {
             _ => (),
         }
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
                 .into(),
         ))
     }

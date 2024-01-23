@@ -11,6 +11,7 @@ use crate::{
     last_or_undefined, GetOrInsertDefault, NamedDeclarationInterface, NodeArray, NodeExt, NonEmpty,
     Number, SyntaxKind,
     InArena,
+    CoreTransformationContext, TransformationContext,
 };
 
 impl TransformGenerators {

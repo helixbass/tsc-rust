@@ -17,6 +17,7 @@ use crate::{
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeArray,
     NodeExt, NodeFlags, ReadonlyTextRange, SignatureDeclarationInterface,
     InArena, OptionInArena,
+    CoreTransformationContext,
 };
 
 impl TransformSystemModule {
@@ -184,7 +185,7 @@ impl TransformSystemModule {
                 .push(try_visit_each_child(
                     node,
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context.ref_(self),
+                    &*self.context.ref_(self),
                     self,
                 )?);
         }

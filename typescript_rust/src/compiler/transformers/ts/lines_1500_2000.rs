@@ -19,6 +19,7 @@ use crate::{
     NodeFlags, NodeInterface, NonEmpty, PeekableExt, ScriptTarget, SignatureDeclarationInterface,
     SyntaxKind, TypeReferenceSerializationKind, VisitResult,
     InArena, OptionInArena,
+    CoreTransformationContext,
 };
 
 impl TransformTypeScript {
@@ -334,7 +335,7 @@ impl TransformTypeScript {
         try_maybe_visit_each_child(
             Some(node),
             |node: Id<Node>| self.visitor(node),
-            &**self.context.ref_(self),
+            &*self.context.ref_(self),
             self,
         )
     }
@@ -421,7 +422,7 @@ impl TransformTypeScript {
                     try_visit_parameter_list(
                         Some(&node_as_constructor_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     )?
                     .unwrap(),
@@ -458,7 +459,7 @@ impl TransformTypeScript {
             return Ok(try_visit_function_body(
                 Some(body),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?
             .unwrap());

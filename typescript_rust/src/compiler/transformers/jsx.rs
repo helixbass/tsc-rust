@@ -29,7 +29,7 @@ use crate::{
     MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number,
     ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags, VisitResult,
     HasArena, AllArenas, InArena, static_arena,
-    TransformNodesTransformationResult,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 #[derive(Builder, Default, Trace, Finalize)]
@@ -46,6 +46,7 @@ pub(super) struct PerFileState {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformJsx {
+    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     compiler_options: Gc<CompilerOptions>,
@@ -221,7 +222,7 @@ impl TransformJsx {
                 .unwrap(),
         ));
         let mut visited =
-            visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+            visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
         add_emit_helpers(visited, self.context.ref_(self).read_emit_helpers().as_deref(), self);
         let mut statements: NodeArrayOrVec = visited.ref_(self).as_source_file().statements().into();
         if let Some(current_file_state_filename_declaration) =
@@ -360,7 +361,7 @@ impl TransformJsx {
             SyntaxKind::JsxFragment => self.visit_jsx_fragment(node, false).map(Into::into),
             SyntaxKind::JsxExpression => self.visit_jsx_expression(node).map(Into::into),
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into(),
             ),
         }
     }
