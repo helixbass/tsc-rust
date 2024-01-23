@@ -1,4 +1,4 @@
-use std::{io, mem};
+use std::{io, mem, any::Any};
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
@@ -22,22 +22,15 @@ struct TransformES2019 {
 }
 
 impl TransformES2019 {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
             _transformer_wrapper: Default::default(),
             factory: context_ref.factory(),
             context,
-        }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        downcasted
-    }
-
-    fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        }))
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
@@ -100,6 +93,10 @@ impl TransformerInterface for TransformES2019 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        unimplemented!()
+    }
 }
 
 impl HasArena for TransformES2019 {
@@ -121,7 +118,7 @@ impl TransformerFactoryInterface for TransformES2019Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformES2019::new(context, &*static_arena()).as_transformer(),
+            TransformES2019::new(context, &*static_arena()),
         )
     }
 }

@@ -1,7 +1,7 @@
 use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
-    io,
+    io, any::Any,
 };
 
 use derive_builder::Builder;
@@ -1076,6 +1076,10 @@ impl TransformerInterface for TransformJsx {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformJsx {
@@ -1096,9 +1100,15 @@ impl TransformJsxFactory {
 impl TransformerFactoryInterface for TransformJsxFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
-            context.clone(),
-            Gc::new(Box::new(TransformJsx::new(context, &*static_arena()))),
+            context,
+            self.alloc_transformer(Box::new(TransformJsx::new(context, &*static_arena()))),
         )
+    }
+}
+
+impl HasArena for TransformJsxFactory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

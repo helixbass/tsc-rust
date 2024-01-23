@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem, ptr};
+use std::{cell::Cell, collections::HashMap, io, mem, ptr, any::Any};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -19,7 +19,7 @@ use crate::{
     SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena, static_arena,
+    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -185,8 +185,6 @@ pub(super) fn create_spread_segment(
 pub(super) struct TransformES2015 {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
-    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) _rc_wrapper: GcCell<Option<Gc<Box<Self>>>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
@@ -203,13 +201,11 @@ pub(super) struct TransformES2015 {
 }
 
 impl TransformES2015 {
-    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: Default::default(),
-            _rc_wrapper: Default::default(),
             factory: context_ref.factory(),
             compiler_options: context_ref.get_compiler_options(),
             resolver: context_ref.get_emit_resolver(),
@@ -221,30 +217,19 @@ impl TransformES2015 {
             converted_loop_state: Default::default(),
             enabled_substitutions: Default::default(),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformES2015OnEmitNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformES2015OnSubstituteNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_substitute_node,
             )))
         });
-        *downcasted._rc_wrapper.borrow_mut() = Some(downcasted.clone());
-        downcasted
-    }
-
-    pub(super) fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
-    }
-
-    pub(super) fn rc_wrapper(&self) -> Gc<Box<Self>> {
-        self._rc_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     pub(super) fn maybe_current_source_file(&self) -> GcCellRef<Option<Id<Node /*SourceFile*/>>> {
@@ -577,6 +562,10 @@ impl TransformerInterface for TransformES2015 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformES2015 {
@@ -587,19 +576,23 @@ impl HasArena for TransformES2015 {
 
 #[derive(Trace, Finalize)]
 struct TransformES2015OnEmitNodeOverrider {
-    transform_es2015: Gc<Box<TransformES2015>>,
+    transform_es2015: Transformer,
     previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformES2015OnEmitNodeOverrider {
     fn new(
-        transform_es2015: Gc<Box<TransformES2015>>,
+        transform_es2015: Transformer,
         previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es2015,
             previous_on_emit_node,
         }
+    }
+
+    fn transform_es2015(&self) -> debug_cell::Ref<'_, TransformES2015> {
+        downcast_transformer_ref(self.transform_es2015, self)
     }
 }
 
@@ -611,13 +604,13 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if self
-            .transform_es2015
+            .transform_es2015()
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::CapturedThis)
             && is_function_like(Some(&node.ref_(self)))
         {
-            let ancestor_facts = self.transform_es2015.enter_subtree(
+            let ancestor_facts = self.transform_es2015().enter_subtree(
                 HierarchyFacts::FunctionExcludes,
                 if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::CapturesThis) {
                     HierarchyFacts::FunctionIncludes | HierarchyFacts::CapturesThis
@@ -627,7 +620,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
             );
             self.previous_on_emit_node
                 .on_emit_node(hint, node, emit_callback)?;
-            self.transform_es2015.exit_subtree(
+            self.transform_es2015().exit_subtree(
                 ancestor_facts,
                 HierarchyFacts::None,
                 HierarchyFacts::None,
@@ -648,13 +641,13 @@ impl HasArena for TransformES2015OnEmitNodeOverrider {
 
 #[derive(Trace, Finalize)]
 struct TransformES2015OnSubstituteNodeOverrider {
-    transform_es2015: Gc<Box<TransformES2015>>,
+    transform_es2015: Transformer,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformES2015OnSubstituteNodeOverrider {
     pub(super) fn new(
-        transform_es2015: Gc<Box<TransformES2015>>,
+        transform_es2015: Transformer,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
@@ -663,12 +656,16 @@ impl TransformES2015OnSubstituteNodeOverrider {
         }
     }
 
+    fn transform_es2015(&self) -> debug_cell::Ref<'_, TransformES2015> {
+        downcast_transformer_ref(self.transform_es2015, self)
+    }
+
     pub(super) fn substitute_identifier(
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> {
         if self
-            .transform_es2015
+            .transform_es2015()
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
@@ -679,7 +676,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
                 .try_filter(|&original| self.is_name_of_declaration_with_colliding_name(original))?
             {
                 return Ok(self
-                    .transform_es2015
+                    .transform_es2015()
                     .factory
                     .get_generated_name_for_node(Some(original), None)
                     .set_text_range(Some(&*node.ref_(self)), self));
@@ -700,7 +697,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
             | SyntaxKind::VariableDeclaration => {
                 node.ref_(self).parent().ref_(self).as_named_declaration().name() == node
                     && self
-                        .transform_es2015
+                        .transform_es2015()
                         .resolver
                         .is_declaration_with_colliding_name(node.ref_(self).parent())?
             }
@@ -730,21 +727,21 @@ impl TransformES2015OnSubstituteNodeOverrider {
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Identifier*/>> {
         if self
-            .transform_es2015
+            .transform_es2015()
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
             && !is_internal_name(&node.ref_(self))
         {
             let declaration = self
-                .transform_es2015
+                .transform_es2015()
                 .resolver
                 .get_referenced_declaration_with_colliding_name(node)?;
             if let Some(declaration) = declaration.filter(|&declaration| {
                 !(is_class_like(&declaration.ref_(self)) && self.is_part_of_class_body(declaration, node))
             }) {
                 return Ok(self
-                    .transform_es2015
+                    .transform_es2015()
                     .factory
                     .get_generated_name_for_node(get_name_of_declaration(Some(declaration), self), None)
                     .set_text_range(Some(&*node.ref_(self)), self));
@@ -790,18 +787,18 @@ impl TransformES2015OnSubstituteNodeOverrider {
         node: Id<Node>, /*PrimaryExpression*/
     ) -> Id<Node /*PrimaryExpression*/> {
         if self
-            .transform_es2015
+            .transform_es2015()
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::CapturedThis)
             && self
-                .transform_es2015
+                .transform_es2015()
                 .maybe_hierarchy_facts()
                 .unwrap_or_default()
                 .intersects(HierarchyFacts::CapturesThis)
         {
             return self
-                .transform_es2015
+                .transform_es2015()
                 .factory
                 .create_unique_name(
                     "_this",
@@ -851,8 +848,8 @@ impl TransformES2015Factory {
 impl TransformerFactoryInterface for TransformES2015Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
-            context.clone(),
-            TransformES2015::new(context, &*static_arena()).as_transformer(),
+            context,
+            TransformES2015::new(context, &*static_arena()),
         )
     }
 }

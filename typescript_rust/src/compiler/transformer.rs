@@ -1,7 +1,7 @@
 use std::{
     cell::{Cell, RefCell, RefMut},
     collections::HashMap,
-    io, mem,
+    io, mem, any::Any,
 };
 
 use bitflags::bitflags;
@@ -183,9 +183,9 @@ fn get_declaration_transformers(
     transformers
 }
 
-fn wrap_custom_transformer(transformer: CustomTransformer) -> Transformer /*<Bundle | SourceFile>*/
+fn wrap_custom_transformer(transformer: CustomTransformer, arena: &impl HasArena) -> Transformer /*<Bundle | SourceFile>*/
 {
-    Gc::new(Box::new(WrapCustomTransformer::new(transformer)))
+    arena.alloc_transformer(Box::new(WrapCustomTransformer::new(transformer)))
 }
 
 #[derive(Trace, Finalize)]
@@ -206,6 +206,10 @@ impl TransformerInterface for WrapCustomTransformer {
         } else {
             self.transformer.transform_source_file(node)
         })
+    }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -260,9 +264,15 @@ impl TransformerFactoryInterface for WrapCustomTransformerFactory {
             }
             TransformerFactoryOrCustomTransformerFactory::CustomTransformerFactory(transformer) => {
                 let custom_transformer = transformer.call(context);
-                wrap_custom_transformer(custom_transformer)
+                wrap_custom_transformer(custom_transformer, self)
             }
         }
+    }
+}
+
+impl HasArena for WrapCustomTransformerFactory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -710,7 +720,7 @@ impl TransformNodesTransformationResult {
 
     fn transformation(&self, mut node: Id<Node>) -> io::Result<Id<Node>> {
         for transform in self.transformers_with_context().iter() {
-            node = transform.call(node)?;
+            node = transform.ref_(self).call(node)?;
         }
         Ok(node)
     }

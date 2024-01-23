@@ -1,4 +1,4 @@
-use std::{io, ptr};
+use std::{io, ptr, any::Any};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -318,10 +318,11 @@ pub trait TransformerFactoryInterface: Trace + Finalize {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer;
 }
 
-pub type Transformer = Gc<Box<dyn TransformerInterface>>;
+pub type Transformer = Id<Box<dyn TransformerInterface>>;
 
 pub trait TransformerInterface: Trace + Finalize {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>>;
+    fn as_dyn_any(&self) -> &dyn Any;
 }
 
 pub type VisitResult = Option<SingleNodeOrVecNode>;

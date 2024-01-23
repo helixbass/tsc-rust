@@ -1,10 +1,10 @@
-use std::rc::Rc;
+use std::{any::Any, rc::Rc};
 
 use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult};
+use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer};
 
 #[derive(Default)]
 pub struct AllArenas {
@@ -16,6 +16,7 @@ pub struct AllArenas {
     pub types: RefCell<Arena<Type>>,
     pub type_mappers: RefCell<Arena<TypeMapper>>,
     pub transform_nodes_transformation_results: RefCell<Arena<TransformNodesTransformationResult>>,
+    pub transformers: RefCell<Arena<Box<dyn TransformerInterface>>>,
 }
 
 pub trait HasArena {
@@ -59,6 +60,14 @@ pub trait HasArena {
 
     fn alloc_transform_nodes_transformation_result(&self, transform_nodes_transformation_result: TransformNodesTransformationResult) -> Id<TransformNodesTransformationResult> {
         self.arena().alloc_transform_nodes_transformation_result(transform_nodes_transformation_result)
+    }
+
+    fn transformer(&self, transformer: Id<Box<dyn TransformerInterface>>) -> Ref<Box<dyn TransformerInterface>> {
+        self.arena().transformer(transformer)
+    }
+
+    fn alloc_transformer(&self, transformer: Box<dyn TransformerInterface>) -> Id<Box<dyn TransformerInterface>> {
+        self.arena().alloc_transformer(transformer)
     }
 }
 
@@ -118,11 +127,21 @@ impl HasArena for AllArenas {
 
     #[track_caller]
     fn transform_nodes_transformation_result(&self, transform_nodes_transformation_result: Id<TransformNodesTransformationResult>) -> Ref<TransformNodesTransformationResult> {
-        Ref::map(self.transform_nodes_transformation_results.borrow(), |transformm_nodes_transformation_results| &transform_nodes_transformation_results[transform_nodes_transformation_result])
+        Ref::map(self.transform_nodes_transformation_results.borrow(), |transform_nodes_transformation_results| &transform_nodes_transformation_results[transform_nodes_transformation_result])
     }
 
     fn alloc_transform_nodes_transformation_result(&self, transform_nodes_transformation_result: TransformNodesTransformationResult) -> Id<TransformNodesTransformationResult> {
         let id = self.transform_nodes_transformation_results.borrow_mut().alloc(transform_nodes_transformation_result);
+        id
+    }
+
+    #[track_caller]
+    fn transformer(&self, transformer: Id<Box<dyn TransformerInterface>>) -> Ref<Box<dyn TransformerInterface>> {
+        Ref::map(self.transformers.borrow(), |transformers| &transformers[transformer])
+    }
+
+    fn alloc_transformer(&self, transformer: Box<dyn TransformerInterface>) -> Id<Box<dyn TransformerInterface>> {
+        let id = self.transformers.borrow_mut().alloc(transformer);
         id
     }
 }
@@ -174,6 +193,14 @@ impl InArena for Id<TransformNodesTransformationResult> {
     }
 }
 
+impl InArena for Id<Box<dyn TransformerInterface>> {
+    type Item = Box<dyn TransformerInterface>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformerInterface>> {
+        has_arena.transformer(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -194,4 +221,14 @@ thread_local! {
 
 pub fn static_arena() -> Rc<AllArenas> {
     ARENA.with(|arena| (**arena).clone())
+}
+
+pub fn downcast_transformer_ref<TTransformer: Any>(
+    transformer: Transformer,
+    arena: &impl HasArena,
+) -> Ref<'_, TTransformer> {
+    Ref::map(
+        transformer.ref_(arena),
+        |transformer| transformer.as_dyn_any().downcast_ref::<TTransformer>().unwrap()
+    )
 }

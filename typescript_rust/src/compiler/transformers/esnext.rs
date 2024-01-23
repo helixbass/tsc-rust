@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, any::Any};
 
 use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
@@ -51,6 +51,10 @@ impl TransformerInterface for TransformESNext {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformESNext {
@@ -71,9 +75,15 @@ impl TransformESNextFactory {
 impl TransformerFactoryInterface for TransformESNextFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
-            context.clone(),
-            Gc::new(Box::new(TransformESNext::new(context))),
+            context,
+            self.alloc_transformer(Box::new(TransformESNext::new(context))),
         )
+    }
+}
+
+impl HasArena for TransformESNextFactory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

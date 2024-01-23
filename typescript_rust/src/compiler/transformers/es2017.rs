@@ -1,7 +1,7 @@
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    io, mem,
+    io, mem, any::Any,
 };
 
 use bitflags::bitflags;
@@ -29,7 +29,7 @@ use crate::{
     ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TypeReferenceSerializationKind, VisitResult,
-    HasArena, AllArenas, InArena, OptionInArena, static_arena,
+    HasArena, AllArenas, InArena, OptionInArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -52,7 +52,6 @@ bitflags! {
 struct TransformES2017 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
-    _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     resolver: Gc<Box<dyn EmitResolver>>,
@@ -76,14 +75,13 @@ struct TransformES2017 {
 }
 
 impl TransformES2017 {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
 
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: Default::default(),
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
@@ -97,25 +95,19 @@ impl TransformES2017 {
             substituted_super_accessors: Default::default(),
             context_flags: Cell::new(ContextFlags::None),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformES2017OnEmitNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformES2017OnSubstituteNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_substitute_node,
             )))
         });
-        downcasted
-    }
-
-    fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     fn maybe_enabled_substitutions(&self) -> Option<ES2017SubstitutionFlags> {
@@ -1344,6 +1336,10 @@ impl TransformerInterface for TransformES2017 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        unimplemented!()
+    }
 }
 
 impl HasArena for TransformES2017 {
@@ -1354,19 +1350,23 @@ impl HasArena for TransformES2017 {
 
 #[derive(Trace, Finalize)]
 struct TransformES2017OnEmitNodeOverrider {
-    transform_es2017: Gc<Box<TransformES2017>>,
+    transform_es2017: Transformer,
     previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformES2017OnEmitNodeOverrider {
     fn new(
-        transform_es2017: Gc<Box<TransformES2017>>,
+        transform_es2017: Transformer,
         previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es2017,
             previous_on_emit_node,
         }
+    }
+
+    fn transform_es2017(&self) -> debug_cell::Ref<'_, TransformES2017> {
+        downcast_transformer_ref(self.transform_es2017, self)
     }
 }
 
@@ -1378,41 +1378,41 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2017OnEmitNodeOverr
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if matches!(
-            self.transform_es2017.maybe_enabled_substitutions(),
+            self.transform_es2017().maybe_enabled_substitutions(),
             Some(enabled_substitutions) if enabled_substitutions.intersects(ES2017SubstitutionFlags::AsyncMethodsWithSuper)
-        ) && self.transform_es2017.is_super_container(node)
+        ) && self.transform_es2017().is_super_container(node)
         {
-            let super_container_flags = self.transform_es2017.resolver.get_node_check_flags(node)
+            let super_container_flags = self.transform_es2017().resolver.get_node_check_flags(node)
                 & (NodeCheckFlags::AsyncMethodWithSuper
                     | NodeCheckFlags::AsyncMethodWithSuperBinding);
-            if super_container_flags != self.transform_es2017.enclosing_super_container_flags() {
+            if super_container_flags != self.transform_es2017().enclosing_super_container_flags() {
                 let saved_enclosing_super_container_flags =
-                    self.transform_es2017.enclosing_super_container_flags();
-                self.transform_es2017
+                    self.transform_es2017().enclosing_super_container_flags();
+                self.transform_es2017()
                     .set_enclosing_super_container_flags(super_container_flags);
                 self.previous_on_emit_node
                     .on_emit_node(hint, node, emit_callback)?;
-                self.transform_es2017
+                self.transform_es2017()
                     .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
                 return Ok(());
             }
         } else if matches!(
-            self.transform_es2017.maybe_enabled_substitutions(),
+            self.transform_es2017().maybe_enabled_substitutions(),
             Some(enabled_substitutions) if enabled_substitutions != ES2017SubstitutionFlags::None
         ) && self
-            .transform_es2017
+            .transform_es2017()
             .substituted_super_accessors()
             .get(&get_node_id(&node.ref_(self)))
             .cloned()
             == Some(true)
         {
             let saved_enclosing_super_container_flags =
-                self.transform_es2017.enclosing_super_container_flags();
-            self.transform_es2017
+                self.transform_es2017().enclosing_super_container_flags();
+            self.transform_es2017()
                 .set_enclosing_super_container_flags(NodeCheckFlags::None);
             self.previous_on_emit_node
                 .on_emit_node(hint, node, emit_callback)?;
-            self.transform_es2017
+            self.transform_es2017()
                 .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
             return Ok(());
         }
@@ -1431,19 +1431,23 @@ impl HasArena for TransformES2017OnEmitNodeOverrider {
 
 #[derive(Trace, Finalize)]
 struct TransformES2017OnSubstituteNodeOverrider {
-    transform_es2017: Gc<Box<TransformES2017>>,
+    transform_es2017: Transformer,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformES2017OnSubstituteNodeOverrider {
     fn new(
-        transform_es2017: Gc<Box<TransformES2017>>,
+        transform_es2017: Transformer,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es2017,
             previous_on_substitute_node,
         }
+    }
+
+    fn transform_es2017(&self) -> debug_cell::Ref<'_, TransformES2017> {
+        downcast_transformer_ref(self.transform_es2017, self)
     }
 }
 
@@ -1453,9 +1457,9 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES2017OnSubstit
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression
-            && self.transform_es2017.enclosing_super_container_flags() != NodeCheckFlags::None
+            && self.transform_es2017().enclosing_super_container_flags() != NodeCheckFlags::None
         {
-            return Ok(self.transform_es2017.substitute_expression(node));
+            return Ok(self.transform_es2017().substitute_expression(node));
         }
 
         Ok(node)
@@ -1475,7 +1479,7 @@ impl TransformerFactoryInterface for TransformES2017Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformES2017::new(context, &*static_arena()).as_transformer(),
+            TransformES2017::new(context, &*static_arena()),
         )
     }
 }

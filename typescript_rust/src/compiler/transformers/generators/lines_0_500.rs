@@ -1,7 +1,7 @@
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem,
+    io, mem, any::Any,
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -19,7 +19,7 @@ use crate::{
     FunctionLikeDeclarationInterface, Matches, NamedDeclarationInterface, NodeArray, NodeExt,
     NodeInterface, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
-    HasArena, AllArenas, InArena, static_arena,
+    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -382,7 +382,6 @@ pub(super) fn get_instruction_name(instruction: Instruction) -> Option<&'static 
 pub(super) struct TransformGenerators {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
-    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
@@ -432,11 +431,11 @@ pub(super) struct TransformGenerators {
 }
 
 impl TransformGenerators {
-    pub fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    pub fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
             _transformer_wrapper: _d(),
             factory: context_ref.factory(),
@@ -470,19 +469,13 @@ impl TransformGenerators {
             current_exception_block: _d(),
             with_block_stack: _d(),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformGeneratorsOnSubstituteNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_substitute_node,
             )))
         });
-        downcasted
-    }
-
-    pub(super) fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     pub(super) fn maybe_renamed_catch_variables(&self) -> GcCellRef<Option<HashMap<String, bool>>> {
@@ -1091,6 +1084,10 @@ impl TransformerInterface for TransformGenerators {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformGenerators {
@@ -1101,19 +1098,23 @@ impl HasArena for TransformGenerators {
 
 #[derive(Trace, Finalize)]
 struct TransformGeneratorsOnSubstituteNodeOverrider {
-    transform_generators: Gc<Box<TransformGenerators>>,
+    transform_generators: Transformer,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformGeneratorsOnSubstituteNodeOverrider {
     fn new(
-        transform_generators: Gc<Box<TransformGenerators>>,
+        transform_generators: Transformer,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_generators,
             previous_on_substitute_node,
         }
+    }
+
+    fn transform_generators(&self) -> debug_cell::Ref<'_, TransformGenerators> {
+        downcast_transformer_ref(self.transform_generators, self)
     }
 
     fn substitute_expression(
@@ -1132,7 +1133,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
     ) -> io::Result<Id<Node>> {
         if !is_generated_identifier(&node.ref_(self))
             && self
-                .transform_generators
+                .transform_generators()
                 .maybe_renamed_catch_variables()
                 .as_ref()
                 .matches(|renamed_catch_variables| {
@@ -1142,18 +1143,18 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
             let original = get_original_node(node, self);
             if is_identifier(&original.ref_(self)) && original.ref_(self).maybe_parent().is_some() {
                 let declaration = self
-                    .transform_generators
+                    .transform_generators()
                     .resolver
                     .get_referenced_value_declaration(original)?;
                 if let Some(declaration) = declaration {
                     let name = self
-                        .transform_generators
+                        .transform_generators()
                         .renamed_catch_variable_declarations()
                         .get(&get_original_node_id(declaration, self))
                         .cloned();
                     if let Some(name) = name {
                         return Ok(self
-                            .transform_generators
+                            .transform_generators()
                             .factory
                             .clone_node(name)
                             .set_text_range(Some(&*name.ref_(self)), self)
@@ -1202,7 +1203,7 @@ impl TransformerFactoryInterface for TransformGeneratorsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformGenerators::new(context, &*static_arena()).as_transformer(),
+            TransformGenerators::new(context, &*static_arena()),
         )
     }
 }

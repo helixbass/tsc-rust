@@ -3,7 +3,7 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     io, mem, ptr,
-    rc::Rc,
+    rc::Rc, any::Any,
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -38,8 +38,8 @@ use crate::{
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
     SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    InArena, contains,
-    push_if_unique_eq,
+    InArena, downcast_transformer_ref,
+    push_if_unique_eq, contains, 
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -163,7 +163,6 @@ pub(super) fn declaration_emit_node_builder_flags() -> NodeBuilderFlags {
 pub(super) struct TransformDeclarations {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
-    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) get_symbol_accessibility_diagnostic: GcCell<GetSymbolAccessibilityDiagnostic>,
     #[unsafe_ignore_trace]
@@ -211,14 +210,13 @@ impl TransformDeclarations {
     pub(super) fn new(
         context: Id<TransformNodesTransformationResult>,
         arena: *const AllArenas,
-    ) -> Gc<Box<Self>> {
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let options = context.ref_(arena_ref).get_compiler_options();
         let host = context.ref_(arena_ref).get_emit_host();
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: Default::default(),
             get_symbol_accessibility_diagnostic: GcCell::new(throw_diagnostic()),
             needs_declare: Cell::new(true),
             is_bundled_emit: Cell::new(false),
@@ -246,20 +244,14 @@ impl TransformDeclarations {
             options,
             context,
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        *downcasted.symbol_tracker.borrow_mut() = Some(Gc::new(Box::new(
-            TransformDeclarationsSymbolTracker::new(downcasted.clone(), host),
+        *downcast_transformer_ref::<Self>(ret, arena_ref).symbol_tracker.borrow_mut() = Some(Gc::new(Box::new(
+            TransformDeclarationsSymbolTracker::new(ret, host),
         )));
-        downcasted
+        ret
     }
 
     pub(super) fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
         self.arena().symbol(symbol)
-    }
-
-    pub(super) fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
     }
 
     pub(super) fn get_symbol_accessibility_diagnostic(&self) -> GetSymbolAccessibilityDiagnostic {
@@ -1238,6 +1230,10 @@ impl TransformerInterface for TransformDeclarations {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_root(node)
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 thread_local! {
@@ -1264,13 +1260,13 @@ impl GetSymbolAccessibilityDiagnosticInterface for ThrowDiagnostic {
 pub(super) struct TransformDeclarationsSymbolTracker {
     #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
-    pub(super) transform_declarations: Gc<Box<TransformDeclarations>>,
+    pub(super) transform_declarations: Transformer,
     pub(super) host: Gc<Box<dyn EmitHost>>,
 }
 
 impl TransformDeclarationsSymbolTracker {
     pub(super) fn new(
-        transform_declarations: Gc<Box<TransformDeclarations>>,
+        transform_declarations: Transformer,
         host: Gc<Box<dyn EmitHost>>,
     ) -> Self {
         Self {
@@ -1280,17 +1276,21 @@ impl TransformDeclarationsSymbolTracker {
         }
     }
 
+    pub(super) fn transform_declarations(&self) -> debug_cell::Ref<'_, TransformDeclarations> {
+        downcast_transformer_ref(self.transform_declarations, self)
+    }
+
     pub(super) fn error_declaration_name_with_fallback(&self) -> Cow<'static, str> {
-        if let Some(error_name_node) = self.transform_declarations.maybe_error_name_node() {
+        if let Some(error_name_node) = self.transform_declarations().maybe_error_name_node() {
             declaration_name_to_string(Some(error_name_node), self)
         } else if let Some(error_fallback_node_name) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_fallback_node()
             .and_then(|error_fallback_node| get_name_of_declaration(Some(error_fallback_node), self))
         {
             declaration_name_to_string(Some(error_fallback_node_name), self)
         } else if let Some(ref error_fallback_node) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_fallback_node()
             .filter(|error_fallback_node| is_export_assignment(&error_fallback_node.ref_(self)))
         {
@@ -1323,9 +1323,9 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             return Some(Ok(false));
         }
         let issued_diagnostic = self
-            .transform_declarations
+            .transform_declarations()
             .handle_symbol_accessibility_error(&match self
-                .transform_declarations
+                .transform_declarations()
                 .resolver
                 .is_symbol_accessible(
                     symbol,
@@ -1338,10 +1338,10 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                 Err(err) => return Some(Err(err)),
                 Ok(value) => value,
             });
-        self.transform_declarations
+        self.transform_declarations()
             .record_type_reference_directives_if_necessary(
                 match self
-                    .transform_declarations
+                    .transform_declarations()
                     .resolver
                     .get_type_reference_directives_for_symbol(symbol, Some(meaning))
                 {
@@ -1367,11 +1367,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn report_inaccessible_this_error(&self) {
         if let Some(error_name_node_or_error_fallback_node) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_name_node()
-            .or_else(|| self.transform_declarations.maybe_error_fallback_node())
+            .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
-            self.transform_declarations.context.ref_(self).add_diagnostic(
+            self.transform_declarations().context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
@@ -1391,11 +1391,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn report_inaccessible_unique_symbol_error(&self) {
         if let Some(error_name_node_or_error_fallback_node) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_name_node()
-            .or_else(|| self.transform_declarations.maybe_error_fallback_node())
+            .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
-            self.transform_declarations.context.ref_(self).add_diagnostic(
+            self.transform_declarations().context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
@@ -1415,11 +1415,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn report_cyclic_structure_error(&self) {
         if let Some(error_name_node_or_error_fallback_node) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_name_node()
-            .or_else(|| self.transform_declarations.maybe_error_fallback_node())
+            .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
-            self.transform_declarations.context.ref_(self).add_diagnostic(
+            self.transform_declarations().context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_a_type_with_a_cyclic_structure_which_cannot_be_trivially_serialized_A_type_annotation_is_necessary,
@@ -1438,11 +1438,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn report_private_in_base_of_class_expression(&self, property_name: &str) {
         if let Some(error_name_node_or_error_fallback_node) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_name_node()
-            .or_else(|| self.transform_declarations.maybe_error_fallback_node())
+            .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
-            self.transform_declarations.context.ref_(self).add_diagnostic(
+            self.transform_declarations().context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::Property_0_of_exported_class_expression_may_not_be_private_or_protected,
@@ -1461,11 +1461,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn report_likely_unsafe_import_required_error(&self, specifier: &str) {
         if let Some(error_name_node_or_error_fallback_node) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_name_node()
-            .or_else(|| self.transform_declarations.maybe_error_fallback_node())
+            .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
-            self.transform_declarations.context.ref_(self).add_diagnostic(
+            self.transform_declarations().context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_cannot_be_named_without_a_reference_to_1_This_is_likely_not_portable_A_type_annotation_is_necessary,
@@ -1485,11 +1485,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn report_truncation_error(&self) {
         if let Some(error_name_node_or_error_fallback_node) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_name_node()
-            .or_else(|| self.transform_declarations.maybe_error_fallback_node())
+            .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
-            self.transform_declarations.context.ref_(self).add_diagnostic(
+            self.transform_declarations().context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_this_node_exceeds_the_maximum_length_the_compiler_will_serialize_An_explicit_type_annotation_is_needed,
@@ -1519,16 +1519,16 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
         let directives = self
-            .transform_declarations
+            .transform_declarations()
             .resolver
             .get_type_reference_directives_for_symbol(symbol, Some(SymbolFlags::All))?;
         if let Some(directives) = directives.non_empty() {
             return Ok(self
-                .transform_declarations
+                .transform_declarations()
                 .record_type_reference_directives_if_necessary(Some(&directives)));
         }
         let container = get_source_file_of_node(node, self);
-        self.transform_declarations
+        self.transform_declarations()
             .refs_mut()
             .insert(get_original_node_id(container, self), container);
 
@@ -1540,8 +1540,8 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn track_external_module_symbol_of_import_type_node(&self, symbol: Id<Symbol>) {
-        if !self.transform_declarations.is_bundled_emit() {
-            self.transform_declarations
+        if !self.transform_declarations().is_bundled_emit() {
+            self.transform_declarations()
                 .maybe_exported_modules_from_declaration_emit_mut()
                 .get_or_insert_default_()
                 .push(symbol);
@@ -1574,7 +1574,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         );
         if let Some(augmenting_declarations) = augmenting_declarations {
             for augmentations in augmenting_declarations {
-                self.transform_declarations.context.ref_(self).add_diagnostic(
+                self.transform_declarations().context.ref_(self).add_diagnostic(
                     add_related_info_rc(
                         create_diagnostic_for_node(
                             augmentations,
@@ -1602,11 +1602,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn report_non_serializable_property(&self, property_name: &str) {
         if let Some(error_name_node_or_error_fallback_node) = self
-            .transform_declarations
+            .transform_declarations()
             .maybe_error_name_node()
-            .or_else(|| self.transform_declarations.maybe_error_fallback_node())
+            .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
-            self.transform_declarations.context.ref_(self).add_diagnostic(
+            self.transform_declarations().context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_type_of_this_node_cannot_be_serialized_because_its_property_0_cannot_be_serialized,

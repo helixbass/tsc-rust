@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::Cell, collections::HashMap, io, mem};
+use std::{borrow::Borrow, cell::Cell, collections::HashMap, io, mem, any::Any};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -19,7 +19,7 @@ use crate::{
     maybe_visit_nodes, move_range_pos, set_comment_range, visit_function_body,
     visit_parameter_list, AsDoubleDeref, EmitFlags, HasInitializerInterface,
     NamedDeclarationInterface, NodeCheckFlags, ReadonlyTextRangeConcrete,
-    HasArena, AllArenas, InArena, static_arena,
+    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -398,7 +398,6 @@ bitflags! {
 pub(super) struct TransformClassFields {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
-    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
@@ -427,15 +426,14 @@ pub(super) struct TransformClassFields {
 }
 
 impl TransformClassFields {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
         let language_version = get_emit_script_target(&compiler_options);
         let use_define_for_class_fields = get_use_define_for_class_fields(&compiler_options);
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: Default::default(),
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
@@ -460,27 +458,21 @@ impl TransformClassFields {
             current_computed_property_name_class_lexical_environment: Default::default(),
             current_static_property_declaration_or_static_block: Default::default(),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformClassFieldsOnEmitNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(
                 TransformClassFieldsOnSubstituteNodeOverrider::new(
-                    downcasted.clone(),
+                    ret,
                     previous_on_substitute_node,
                 ),
             ))
         });
-        downcasted
-    }
-
-    fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     pub(super) fn maybe_enabled_substitutions(&self) -> Option<ClassPropertySubstitutionFlags> {
@@ -1191,6 +1183,10 @@ impl TransformerInterface for TransformClassFields {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformClassFields {
@@ -1201,19 +1197,23 @@ impl HasArena for TransformClassFields {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformClassFieldsOnEmitNodeOverrider {
-    transform_class_fields: Gc<Box<TransformClassFields>>,
+    transform_class_fields: Transformer,
     previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformClassFieldsOnEmitNodeOverrider {
     fn new(
-        transform_class_fields: Gc<Box<TransformClassFields>>,
+        transform_class_fields: Transformer,
         previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_class_fields,
             previous_on_emit_node,
         }
+    }
+
+    fn transform_class_fields(&self) -> debug_cell::Ref<'_, TransformClassFields> {
+        downcast_transformer_ref(self.transform_class_fields, self)
     }
 }
 
@@ -1227,28 +1227,28 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
         let original = get_original_node(node, self);
         if let Some(original_id) = original.ref_(self).maybe_id() {
             let class_lexical_environment = self
-                .transform_class_fields
+                .transform_class_fields()
                 .class_lexical_environment_map()
                 .get(&original_id)
                 .cloned();
             if let Some(class_lexical_environment) = class_lexical_environment {
                 let saved_class_lexical_environment = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .maybe_current_class_lexical_environment();
                 let saved_current_computed_property_name_class_lexical_environment = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .maybe_current_computed_property_name_class_lexical_environment();
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_class_lexical_environment(Some(class_lexical_environment.clone()));
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(Some(
                         class_lexical_environment.clone(),
                     ));
                 self.previous_on_emit_node
                     .on_emit_node(hint, node, emit_callback)?;
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(
                         saved_current_computed_property_name_class_lexical_environment,
                     );
@@ -1268,20 +1268,20 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 }
 
                 let saved_class_lexical_environment = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .maybe_current_class_lexical_environment();
                 let saved_current_computed_property_name_class_lexical_environment = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .maybe_current_computed_property_name_class_lexical_environment();
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_class_lexical_environment(None);
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(None);
                 self.previous_on_emit_node
                     .on_emit_node(hint, node, emit_callback)?;
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(
                         saved_current_computed_property_name_class_lexical_environment,
                     );
@@ -1293,23 +1293,23 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
             | SyntaxKind::MethodDeclaration
             | SyntaxKind::PropertyDeclaration => {
                 let saved_class_lexical_environment = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .maybe_current_class_lexical_environment();
                 let saved_current_computed_property_name_class_lexical_environment = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .maybe_current_computed_property_name_class_lexical_environment();
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(
-                        self.transform_class_fields
+                        self.transform_class_fields()
                             .maybe_current_class_lexical_environment(),
                     );
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_class_lexical_environment(None);
                 self.previous_on_emit_node
                     .on_emit_node(hint, node, emit_callback)?;
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(
                         saved_current_computed_property_name_class_lexical_environment,
                     );
@@ -1317,23 +1317,23 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
             }
             SyntaxKind::ComputedPropertyName => {
                 let saved_class_lexical_environment = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .maybe_current_class_lexical_environment();
                 let saved_current_computed_property_name_class_lexical_environment = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .maybe_current_computed_property_name_class_lexical_environment();
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_class_lexical_environment(
-                        self.transform_class_fields
+                        self.transform_class_fields()
                             .maybe_current_computed_property_name_class_lexical_environment(),
                     );
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(None);
                 self.previous_on_emit_node
                     .on_emit_node(hint, node, emit_callback)?;
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
-                self.transform_class_fields
+                self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(
                         saved_current_computed_property_name_class_lexical_environment,
                     );
@@ -1356,19 +1356,23 @@ impl HasArena for TransformClassFieldsOnEmitNodeOverrider {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformClassFieldsOnSubstituteNodeOverrider {
-    transform_class_fields: Gc<Box<TransformClassFields>>,
+    transform_class_fields: Transformer,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformClassFieldsOnSubstituteNodeOverrider {
     pub(super) fn new(
-        transform_class_fields: Gc<Box<TransformClassFields>>,
+        transform_class_fields: Transformer,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_class_fields,
             previous_on_substitute_node,
         }
+    }
+
+    fn transform_class_fields(&self) -> debug_cell::Ref<'_, TransformClassFields> {
+        downcast_transformer_ref(self.transform_class_fields, self)
     }
 
     pub(super) fn substitute_expression(
@@ -1387,13 +1391,13 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
         node: Id<Node>, /*ThisExpression*/
     ) -> Id<Node> {
         if self
-            .transform_class_fields
+            .transform_class_fields()
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ClassPropertySubstitutionFlags::ClassStaticThisOrSuperReference)
         {
             if let Some(current_class_lexical_environment) = self
-                .transform_class_fields
+                .transform_class_fields()
                 .maybe_current_class_lexical_environment()
             {
                 let current_class_lexical_environment =
@@ -1403,15 +1407,15 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                     current_class_lexical_environment.class_constructor;
                 if facts.intersects(ClassFacts::ClassWasDecorated) {
                     return self
-                        .transform_class_fields
+                        .transform_class_fields()
                         .factory
                         .create_parenthesized_expression(
-                            self.transform_class_fields.factory.create_void_zero(),
+                            self.transform_class_fields().factory.create_void_zero(),
                         );
                 }
                 if let Some(class_constructor) = class_constructor {
                     return self
-                        .transform_class_fields
+                        .transform_class_fields()
                         .factory
                         .clone_node(class_constructor)
                         .set_original_node(Some(node), self)
@@ -1436,30 +1440,30 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         if self
-            .transform_class_fields
+            .transform_class_fields()
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ClassPropertySubstitutionFlags::ClassAliases)
         {
             if self
-                .transform_class_fields
+                .transform_class_fields()
                 .resolver
                 .get_node_check_flags(node)
                 .intersects(NodeCheckFlags::ConstructorReferenceInClass)
             {
                 let declaration = self
-                    .transform_class_fields
+                    .transform_class_fields()
                     .resolver
                     .get_referenced_value_declaration(node)?;
                 if let Some(declaration) = declaration {
                     let class_alias = self
-                        .transform_class_fields
+                        .transform_class_fields()
                         .class_aliases()
                         .get(&declaration.ref_(self).id())
                         .cloned();
                     if let Some(class_alias) = class_alias {
                         return Ok(Some(
-                            self.transform_class_fields
+                            self.transform_class_fields()
                                 .factory
                                 .clone_node(class_alias)
                                 .set_source_map_range(Some((&*node.ref_(self)).into()), self)
@@ -1508,7 +1512,7 @@ impl TransformerFactoryInterface for TransformClassFieldsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformClassFields::new(context, &*static_arena()).as_transformer(),
+            TransformClassFields::new(context, &*static_arena()),
         )
     }
 }

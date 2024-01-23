@@ -1,4 +1,4 @@
-use std::{io, mem};
+use std::{io, mem, any::Any};
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
@@ -8,7 +8,7 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, is_source_file,
     transform_ecmascript_module, transform_module, try_map, Debug_, ModuleKind, SyntaxKind,
-    HasArena, AllArenas, InArena, static_arena,
+    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -16,7 +16,6 @@ use crate::{
 struct TransformNodeModule {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
-    _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     esm_transform: Transformer,
     esm_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -28,7 +27,7 @@ struct TransformNodeModule {
 }
 
 impl TransformNodeModule {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let esm_transform = transform_ecmascript_module().call(context.clone());
@@ -41,9 +40,8 @@ impl TransformNodeModule {
         let cjs_on_substitute_node = context_ref.pop_overridden_on_substitute_node();
         let cjs_on_emit_node = context_ref.pop_overridden_on_emit_node();
 
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: _d(),
             context: context.clone(),
             esm_transform,
             esm_on_substitute_node,
@@ -53,28 +51,22 @@ impl TransformNodeModule {
             cjs_on_emit_node,
             current_source_file: _d(),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
 
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformNodeModuleOnEmitNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformNodeModuleOnSubstituteNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_substitute_node,
             )))
         });
         context_ref.enable_substitution(SyntaxKind::SourceFile);
         context_ref.enable_emit_notification(SyntaxKind::SourceFile);
-        downcasted
-    }
-
-    fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     fn maybe_current_source_file(&self) -> Option<Id<Node /*SourceFile*/>> {
@@ -101,7 +93,7 @@ impl TransformNodeModule {
         }
 
         self.set_current_source_file(Some(node));
-        let result = self.get_module_transform_for_file(node).call(node)?;
+        let result = self.get_module_transform_for_file(node).ref_(self).call(node)?;
         self.set_current_source_file(None);
         Debug_.assert(is_source_file(&result.ref_(self)), None);
         Ok(result)
@@ -138,6 +130,10 @@ impl TransformerInterface for TransformNodeModule {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file_or_bundle(node)
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformNodeModule {
@@ -148,19 +144,23 @@ impl HasArena for TransformNodeModule {
 
 #[derive(Trace, Finalize)]
 struct TransformNodeModuleOnEmitNodeOverrider {
-    transform_node_module: Gc<Box<TransformNodeModule>>,
+    transform_node_module: Transformer,
     previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformNodeModuleOnEmitNodeOverrider {
     fn new(
-        transform_node_module: Gc<Box<TransformNodeModule>>,
+        transform_node_module: Transformer,
         previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_node_module,
             previous_on_emit_node,
         }
+    }
+
+    fn transform_node_module(&self) -> debug_cell::Ref<'_, TransformNodeModule> {
+        downcast_transformer_ref(self.transform_node_module, self)
     }
 }
 
@@ -172,10 +172,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if is_source_file(&node.ref_(self)) {
-            self.transform_node_module
+            self.transform_node_module()
                 .set_current_source_file(Some(node));
         }
-        let Some(current_source_file) = self.transform_node_module.maybe_current_source_file() else {
+        let Some(current_source_file) = self.transform_node_module().maybe_current_source_file() else {
             return self
                 .previous_on_emit_node
                 .on_emit_node(hint, node, emit_callback);
@@ -185,13 +185,13 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
             .maybe_implied_node_format()
             == Some(ModuleKind::ESNext)
         {
-            return self.transform_node_module.esm_on_emit_node.on_emit_node(
+            return self.transform_node_module().esm_on_emit_node.on_emit_node(
                 hint,
                 node,
                 emit_callback,
             );
         }
-        self.transform_node_module
+        self.transform_node_module()
             .cjs_on_emit_node
             .on_emit_node(hint, node, emit_callback)
     }
@@ -205,19 +205,23 @@ impl HasArena for TransformNodeModuleOnEmitNodeOverrider {
 
 #[derive(Trace, Finalize)]
 struct TransformNodeModuleOnSubstituteNodeOverrider {
-    transform_node_module: Gc<Box<TransformNodeModule>>,
+    transform_node_module: Transformer,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformNodeModuleOnSubstituteNodeOverrider {
     fn new(
-        transform_node_module: Gc<Box<TransformNodeModule>>,
+        transform_node_module: Transformer,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_node_module,
             previous_on_substitute_node,
         }
+    }
+
+    fn transform_node_module(&self) -> debug_cell::Ref<'_, TransformNodeModule> {
+        downcast_transformer_ref(self.transform_node_module, self)
     }
 }
 
@@ -226,12 +230,12 @@ impl TransformationContextOnSubstituteNodeOverrider
 {
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         if is_source_file(&node.ref_(self)) {
-            self.transform_node_module
+            self.transform_node_module()
                 .set_current_source_file(Some(node));
             self.previous_on_substitute_node
                 .on_substitute_node(hint, node)
         } else {
-            let current_source_file = self.transform_node_module.maybe_current_source_file();
+            let current_source_file = self.transform_node_module().maybe_current_source_file();
             if current_source_file.is_none() {
                 return self
                     .previous_on_substitute_node
@@ -244,11 +248,11 @@ impl TransformationContextOnSubstituteNodeOverrider
                 == Some(ModuleKind::ESNext)
             {
                 return self
-                    .transform_node_module
+                    .transform_node_module()
                     .esm_on_substitute_node
                     .on_substitute_node(hint, node);
             }
-            self.transform_node_module
+            self.transform_node_module()
                 .cjs_on_substitute_node
                 .on_substitute_node(hint, node)
         }
@@ -272,7 +276,7 @@ impl TransformNodeModuleFactory {
 
 impl TransformerFactoryInterface for TransformNodeModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        TransformNodeModule::new(context, &*static_arena()).as_transformer()
+        TransformNodeModule::new(context, &*static_arena())
     }
 }
 

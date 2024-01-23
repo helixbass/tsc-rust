@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, mem};
+use std::{collections::HashMap, io, mem, any::Any};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
@@ -18,7 +18,7 @@ use crate::{
     ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
-    HasArena, AllArenas, InArena, static_arena,
+    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -26,7 +26,6 @@ use crate::{
 struct TransformEcmascriptModule {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
-    _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     host: Gc<Box<dyn EmitHost>>,
@@ -45,13 +44,12 @@ struct TransformEcmascriptModule {
 }
 
 impl TransformEcmascriptModule {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: _d(),
             factory: context_ref.factory(),
             host: context_ref.get_emit_host(),
             resolver: context_ref.get_emit_resolver(),
@@ -62,29 +60,23 @@ impl TransformEcmascriptModule {
             current_source_file: _d(),
             import_require_statements: _d(),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformEcmascriptModuleOnEmitNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(
                 TransformEcmascriptModuleOnSubstituteNodeOverrider::new(
-                    downcasted.clone(),
+                    ret,
                     previous_on_substitute_node,
                 ),
             ))
         });
         context_ref.enable_emit_notification(SyntaxKind::SourceFile);
         context_ref.enable_substitution(SyntaxKind::Identifier);
-        downcasted
-    }
-
-    fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
@@ -534,6 +526,10 @@ impl TransformerInterface for TransformEcmascriptModule {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformEcmascriptModule {
@@ -544,19 +540,23 @@ impl HasArena for TransformEcmascriptModule {
 
 #[derive(Trace, Finalize)]
 struct TransformEcmascriptModuleOnEmitNodeOverrider {
-    transform_ecmascript_module: Gc<Box<TransformEcmascriptModule>>,
+    transform_ecmascript_module: Transformer,
     previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformEcmascriptModuleOnEmitNodeOverrider {
     fn new(
-        transform_ecmascript_module: Gc<Box<TransformEcmascriptModule>>,
+        transform_ecmascript_module: Transformer,
         previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_ecmascript_module,
             previous_on_emit_node,
         }
+    }
+
+    fn transform_ecmascript_module(&self) -> debug_cell::Ref<'_, TransformEcmascriptModule> {
+        downcast_transformer_ref(self.transform_ecmascript_module, self)
     }
 }
 
@@ -570,22 +570,22 @@ impl TransformationContextOnEmitNodeOverrider for TransformEcmascriptModuleOnEmi
         if is_source_file(&node.ref_(self)) {
             if (is_external_module(&node.ref_(self))
                 || self
-                    .transform_ecmascript_module
+                    .transform_ecmascript_module()
                     .compiler_options
                     .isolated_modules
                     == Some(true))
                 && self
-                    .transform_ecmascript_module
+                    .transform_ecmascript_module()
                     .compiler_options
                     .import_helpers
                     == Some(true)
             {
-                self.transform_ecmascript_module
+                self.transform_ecmascript_module()
                     .set_helper_name_substitutions(Some(_d()));
             }
             self.previous_on_emit_node
                 .on_emit_node(hint, node, emit_callback)?;
-            self.transform_ecmascript_module
+            self.transform_ecmascript_module()
                 .set_helper_name_substitutions(None);
         } else {
             self.previous_on_emit_node
@@ -604,19 +604,23 @@ impl HasArena for TransformEcmascriptModuleOnEmitNodeOverrider {
 
 #[derive(Trace, Finalize)]
 struct TransformEcmascriptModuleOnSubstituteNodeOverrider {
-    transform_ecmascript_module: Gc<Box<TransformEcmascriptModule>>,
+    transform_ecmascript_module: Transformer,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
     fn new(
-        transform_ecmascript_module: Gc<Box<TransformEcmascriptModule>>,
+        transform_ecmascript_module: Transformer,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_ecmascript_module,
             previous_on_substitute_node,
         }
+    }
+
+    fn transform_ecmascript_module(&self) -> debug_cell::Ref<'_, TransformEcmascriptModule> {
+        downcast_transformer_ref(self.transform_ecmascript_module, self)
     }
 
     fn substitute_helper_name(
@@ -626,16 +630,16 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
         let node_ref = node.ref_(self);
         let name = id_text(&node_ref);
         let mut substitution = self
-            .transform_ecmascript_module
+            .transform_ecmascript_module()
             .helper_name_substitutions()
             .get(name)
             .cloned();
         if substitution.is_none() {
-            substitution = Some(self.transform_ecmascript_module.factory.create_unique_name(
+            substitution = Some(self.transform_ecmascript_module().factory.create_unique_name(
                 name,
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             ));
-            self.transform_ecmascript_module
+            self.transform_ecmascript_module()
                 .helper_name_substitutions_mut()
                 .insert(name.to_owned(), substitution.clone().unwrap());
         }
@@ -651,7 +655,7 @@ impl TransformationContextOnSubstituteNodeOverrider
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
         if self
-            .transform_ecmascript_module
+            .transform_ecmascript_module()
             .maybe_helper_name_substitutions()
             .is_some()
             && is_identifier(&node.ref_(self))
@@ -683,7 +687,7 @@ impl TransformerFactoryInterface for TransformEcmascriptModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformEcmascriptModule::new(context, &*static_arena()).as_transformer(),
+            TransformEcmascriptModule::new(context, &*static_arena()),
         )
     }
 }

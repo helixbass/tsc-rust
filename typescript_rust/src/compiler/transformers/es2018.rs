@@ -2,7 +2,7 @@ use std::{
     borrow::Borrow,
     cell::Cell,
     collections::{HashMap, HashSet},
-    io, mem,
+    io, mem, any::Any,
 };
 
 use bitflags::bitflags;
@@ -32,7 +32,7 @@ use crate::{
     NodeExt, NodeFactory, NodeFlags, NodeId, NodeInterface, ProcessLevel, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
     TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
-    HasArena, AllArenas, InArena, OptionInArena, static_arena,
+    HasArena, AllArenas, InArena, OptionInArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -73,7 +73,6 @@ bitflags! {
 struct TransformES2018 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
-    _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
@@ -100,13 +99,12 @@ struct TransformES2018 {
 }
 
 impl TransformES2018 {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: Default::default(),
             factory: context_ref.factory(),
             base_factory: context_ref.base_factory(),
             resolver: context_ref.get_emit_resolver(),
@@ -124,25 +122,19 @@ impl TransformES2018 {
             has_super_element_access: Default::default(),
             substituted_super_accessors: Default::default(),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformES2018OnEmitNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformES2018OnSubstituteNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_substitute_node,
             )))
         });
-        downcasted
-    }
-
-    fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     fn exported_variable_statement(&self) -> bool {
@@ -2173,6 +2165,10 @@ impl TransformerInterface for TransformES2018 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformES2018 {
@@ -2183,19 +2179,23 @@ impl HasArena for TransformES2018 {
 
 #[derive(Trace, Finalize)]
 struct TransformES2018OnEmitNodeOverrider {
-    transform_es2018: Gc<Box<TransformES2018>>,
+    transform_es2018: Transformer,
     previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformES2018OnEmitNodeOverrider {
     fn new(
-        transform_es2018: Gc<Box<TransformES2018>>,
+        transform_es2018: Transformer,
         previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es2018,
             previous_on_emit_node,
         }
+    }
+
+    fn transform_es2018(&self) -> debug_cell::Ref<'_, TransformES2018> {
+        downcast_transformer_ref(self.transform_es2018, self)
     }
 
     fn is_super_container(&self, node: Id<Node>) -> bool {
@@ -2219,40 +2219,40 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         if self
-            .transform_es2018
+            .transform_es2018()
             .enabled_substitutions()
             .intersects(ESNextSubstitutionFlags::AsyncMethodsWithSuper)
             && self.is_super_container(node)
         {
-            let super_container_flags = self.transform_es2018.resolver.get_node_check_flags(node)
+            let super_container_flags = self.transform_es2018().resolver.get_node_check_flags(node)
                 & (NodeCheckFlags::AsyncMethodWithSuper
                     | NodeCheckFlags::AsyncMethodWithSuperBinding);
-            if super_container_flags != self.transform_es2018.enclosing_super_container_flags() {
+            if super_container_flags != self.transform_es2018().enclosing_super_container_flags() {
                 let saved_enclosing_super_container_flags =
-                    self.transform_es2018.enclosing_super_container_flags();
-                self.transform_es2018
+                    self.transform_es2018().enclosing_super_container_flags();
+                self.transform_es2018()
                     .set_enclosing_super_container_flags(super_container_flags);
                 self.previous_on_emit_node
                     .on_emit_node(hint, node, emit_callback)?;
-                self.transform_es2018
+                self.transform_es2018()
                     .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
                 return Ok(());
             }
-        } else if self.transform_es2018.enabled_substitutions() != ESNextSubstitutionFlags::None
+        } else if self.transform_es2018().enabled_substitutions() != ESNextSubstitutionFlags::None
             && self
-                .transform_es2018
+                .transform_es2018()
                 .substituted_super_accessors()
                 .get(&get_node_id(&node.ref_(self)))
                 .copied()
                 == Some(true)
         {
             let saved_enclosing_super_container_flags =
-                self.transform_es2018.enclosing_super_container_flags();
-            self.transform_es2018
+                self.transform_es2018().enclosing_super_container_flags();
+            self.transform_es2018()
                 .set_enclosing_super_container_flags(NodeCheckFlags::None);
             self.previous_on_emit_node
                 .on_emit_node(hint, node, emit_callback)?;
-            self.transform_es2018
+            self.transform_es2018()
                 .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
             return Ok(());
         }
@@ -2272,19 +2272,23 @@ impl HasArena for TransformES2018OnEmitNodeOverrider {
 
 #[derive(Trace, Finalize)]
 struct TransformES2018OnSubstituteNodeOverrider {
-    transform_es2018: Gc<Box<TransformES2018>>,
+    transform_es2018: Transformer,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformES2018OnSubstituteNodeOverrider {
     fn new(
-        transform_es2018: Gc<Box<TransformES2018>>,
+        transform_es2018: Transformer,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es2018,
             previous_on_substitute_node,
         }
+    }
+
+    fn transform_es2018(&self) -> debug_cell::Ref<'_, TransformES2018> {
+        downcast_transformer_ref(self.transform_es2018, self)
     }
 
     fn substitute_expression(&self, node: Id<Node> /*Expression*/) -> Id<Node> {
@@ -2311,10 +2315,10 @@ impl TransformES2018OnSubstituteNodeOverrider {
         let node_as_property_access_expression = node_ref.as_property_access_expression();
         if node_as_property_access_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
             return self
-                .transform_es2018
+                .transform_es2018()
                 .factory
                 .create_property_access_expression(
-                    self.transform_es2018.factory.create_unique_name(
+                    self.transform_es2018().factory.create_unique_name(
                         "_super",
                         Some(
                             GeneratedIdentifierFlags::Optimistic
@@ -2353,13 +2357,13 @@ impl TransformES2018OnSubstituteNodeOverrider {
             } else {
                 self.substitute_element_access_expression(expression)
             };
-            return self.transform_es2018.factory.create_call_expression(
-                self.transform_es2018
+            return self.transform_es2018().factory.create_call_expression(
+                self.transform_es2018()
                     .factory
                     .create_property_access_expression(argument_expression, "call"),
                 Option::<Gc<NodeArray>>::None,
                 Some(
-                    vec![self.transform_es2018.factory.create_this()]
+                    vec![self.transform_es2018().factory.create_this()]
                         .and_extend(node_as_call_expression.arguments.iter().cloned()),
                 ),
             );
@@ -2373,15 +2377,15 @@ impl TransformES2018OnSubstituteNodeOverrider {
         location: &impl ReadonlyTextRange,
     ) -> Id<Node /*LeftHandSideExpression*/> {
         if self
-            .transform_es2018
+            .transform_es2018()
             .enclosing_super_container_flags()
             .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
         {
-            self.transform_es2018
+            self.transform_es2018()
                 .factory
                 .create_property_access_expression(
-                    self.transform_es2018.factory.create_call_expression(
-                        self.transform_es2018
+                    self.transform_es2018().factory.create_call_expression(
+                        self.transform_es2018()
                             .factory
                             .create_identifier("_superIndex"),
                         Option::<Gc<NodeArray>>::None,
@@ -2391,10 +2395,10 @@ impl TransformES2018OnSubstituteNodeOverrider {
                 )
                 .set_text_range(Some(location), self)
         } else {
-            self.transform_es2018
+            self.transform_es2018()
                 .factory
                 .create_call_expression(
-                    self.transform_es2018
+                    self.transform_es2018()
                         .factory
                         .create_identifier("_superIndex"),
                     Option::<Gc<NodeArray>>::None,
@@ -2411,7 +2415,7 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES2018OnSubstit
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression
-            && self.transform_es2018.enclosing_super_container_flags() != NodeCheckFlags::None
+            && self.transform_es2018().enclosing_super_container_flags() != NodeCheckFlags::None
         {
             return Ok(self.substitute_expression(node));
         }
@@ -2438,7 +2442,7 @@ impl TransformerFactoryInterface for TransformES2018Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformES2018::new(context, &*static_arena()).as_transformer(),
+            TransformES2018::new(context, &*static_arena()),
         )
     }
 }

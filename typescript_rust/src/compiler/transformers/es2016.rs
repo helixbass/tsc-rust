@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, any::Any};
 
 use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
@@ -218,6 +218,10 @@ impl TransformerInterface for TransformES2016 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        unimplemented!()
+    }
 }
 
 impl HasArena for TransformES2016 {
@@ -238,9 +242,15 @@ impl TransformES2016Factory {
 impl TransformerFactoryInterface for TransformES2016Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
-            context.clone(),
-            Gc::new(Box::new(TransformES2016::new(context, &*static_arena()))),
+            context,
+            self.alloc_transformer(Box::new(TransformES2016::new(context, &*static_arena()))),
         )
+    }
+}
+
+impl HasArena for TransformES2016Factory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

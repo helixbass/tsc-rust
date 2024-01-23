@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem, ptr};
+use std::{cell::Cell, collections::HashMap, io, mem, ptr, any::Any};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -20,7 +20,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     UnderscoreEscapedMap, VisitResult,
-    HasArena, AllArenas, InArena, static_arena,
+    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
@@ -59,7 +59,6 @@ bitflags! {
 pub(super) struct TransformTypeScript {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
-    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) base_factory: Gc<BaseNodeFactorySynthetic>,
@@ -88,13 +87,12 @@ pub(super) struct TransformTypeScript {
 }
 
 impl TransformTypeScript {
-    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+        let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: Default::default(),
             factory: context_ref.factory(),
             base_factory: context_ref.base_factory(),
             resolver: context_ref.get_emit_resolver(),
@@ -114,17 +112,15 @@ impl TransformTypeScript {
             class_aliases: Default::default(),
             applicable_substitutions: Default::default(),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformTypeScriptOnEmitNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformTypeScriptOnSubstituteNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_substitute_node,
             )))
         });
@@ -132,11 +128,7 @@ impl TransformTypeScript {
         context_ref.enable_substitution(SyntaxKind::PropertyAccessExpression);
         context_ref.enable_substitution(SyntaxKind::ElementAccessExpression);
 
-        downcasted
-    }
-
-    pub(super) fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node>> {
@@ -643,6 +635,10 @@ impl TransformerInterface for TransformTypeScript {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         self.transform_source_file_or_bundle(node)
     }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl HasArena for TransformTypeScript {
@@ -653,19 +649,23 @@ impl HasArena for TransformTypeScript {
 
 #[derive(Trace, Finalize)]
 struct TransformTypeScriptOnEmitNodeOverrider {
-    transform_type_script: Gc<Box<TransformTypeScript>>,
+    transform_type_script: Transformer,
     previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformTypeScriptOnEmitNodeOverrider {
     fn new(
-        transform_type_script: Gc<Box<TransformTypeScript>>,
+        transform_type_script: Transformer,
         previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_type_script,
             previous_on_emit_node,
         }
+    }
+
+    pub(super) fn transform_type_script(&self) -> debug_cell::Ref<'_, TransformTypeScript> {
+        downcast_transformer_ref(self.transform_type_script, self)
     }
 
     pub(super) fn is_transformed_module_declaration(&self, node: Id<Node>) -> bool {
@@ -684,34 +684,34 @@ impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeO
         node: Id<Node>,
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        let saved_applicable_substitutions = self.transform_type_script.applicable_substitutions();
-        let saved_current_source_file = self.transform_type_script.maybe_current_source_file();
+        let saved_applicable_substitutions = self.transform_type_script().applicable_substitutions();
+        let saved_current_source_file = self.transform_type_script().maybe_current_source_file();
 
         if is_source_file(&node.ref_(self)) {
-            self.transform_type_script
+            self.transform_type_script()
                 .set_current_source_file(Some(node));
         }
 
         if self
-            .transform_type_script
+            .transform_type_script()
             .enabled_substitutions()
             .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
             && self.is_transformed_module_declaration(node)
         {
-            self.transform_type_script.set_applicable_substitutions(
-                self.transform_type_script.applicable_substitutions()
+            self.transform_type_script().set_applicable_substitutions(
+                self.transform_type_script().applicable_substitutions()
                     | TypeScriptSubstitutionFlags::NamespaceExports,
             );
         }
 
         if self
-            .transform_type_script
+            .transform_type_script()
             .enabled_substitutions()
             .intersects(TypeScriptSubstitutionFlags::NonQualifiedEnumMembers)
             && self.is_transformed_enum_declaration(node)
         {
-            self.transform_type_script.set_applicable_substitutions(
-                self.transform_type_script.applicable_substitutions()
+            self.transform_type_script().set_applicable_substitutions(
+                self.transform_type_script().applicable_substitutions()
                     | TypeScriptSubstitutionFlags::NonQualifiedEnumMembers,
             );
         }
@@ -719,9 +719,9 @@ impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeO
         self.previous_on_emit_node
             .on_emit_node(hint, node, emit_callback)?;
 
-        self.transform_type_script
+        self.transform_type_script()
             .set_applicable_substitutions(saved_applicable_substitutions);
-        self.transform_type_script
+        self.transform_type_script()
             .set_current_source_file(saved_current_source_file);
 
         Ok(())
@@ -736,19 +736,23 @@ impl HasArena for TransformTypeScriptOnEmitNodeOverrider {
 
 #[derive(Trace, Finalize)]
 struct TransformTypeScriptOnSubstituteNodeOverrider {
-    transform_type_script: Gc<Box<TransformTypeScript>>,
+    transform_type_script: Transformer,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn new(
-        transform_type_script: Gc<Box<TransformTypeScript>>,
+        transform_type_script: Transformer,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_type_script,
             previous_on_substitute_node,
         }
+    }
+
+    pub(super) fn transform_type_script(&self) -> debug_cell::Ref<'_, TransformTypeScript> {
+        downcast_transformer_ref(self.transform_type_script, self)
     }
 
     fn substitute_shorthand_property_assignment(
@@ -758,7 +762,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         let node_ref = node.ref_(self);
         let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         if self
-            .transform_type_script
+            .transform_type_script()
             .enabled_substitutions()
             .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
         {
@@ -770,18 +774,18 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                         .object_assignment_initializer
                         .as_ref()
                 {
-                    let initializer = self.transform_type_script.factory.create_assignment(
+                    let initializer = self.transform_type_script().factory.create_assignment(
                         exported_name,
                         node_object_assignment_initializer.clone(),
                     );
                     return Ok(self
-                        .transform_type_script
+                        .transform_type_script()
                         .factory
                         .create_property_assignment(name, initializer)
                         .set_text_range(Some(&*node.ref_(self)), self));
                 }
                 return Ok(self
-                    .transform_type_script
+                    .transform_type_script()
                     .factory
                     .create_property_assignment(name, exported_name)
                     .set_text_range(Some(&*node.ref_(self)), self));
@@ -822,26 +826,26 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         if self
-            .transform_type_script
+            .transform_type_script()
             .enabled_substitutions()
             .intersects(TypeScriptSubstitutionFlags::ClassAliases)
         {
             if self
-                .transform_type_script
+                .transform_type_script()
                 .resolver
                 .get_node_check_flags(node)
                 .intersects(NodeCheckFlags::ConstructorReferenceInClass)
             {
                 let declaration = self
-                    .transform_type_script
+                    .transform_type_script()
                     .resolver
                     .get_referenced_value_declaration(node)?;
                 if let Some(declaration) = declaration {
-                    let class_aliases = self.transform_type_script.class_aliases();
+                    let class_aliases = self.transform_type_script().class_aliases();
                     let class_alias = class_aliases.get(&declaration.ref_(self).id()).copied();
                     if let Some(class_alias) = class_alias {
                         return Ok(Some(
-                            self.transform_type_script
+                            self.transform_type_script()
                                 .factory
                                 .clone_node(class_alias)
                                 .set_source_map_range(Some((&*node.ref_(self)).into()), self)
@@ -859,35 +863,35 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Expression*/>>> {
-        if self.transform_type_script.enabled_substitutions()
-            & self.transform_type_script.applicable_substitutions()
+        if self.transform_type_script().enabled_substitutions()
+            & self.transform_type_script().applicable_substitutions()
             != TypeScriptSubstitutionFlags::None
             && !is_generated_identifier(&node.ref_(self))
             && !is_local_name(&node.ref_(self))
         {
             let container = self
-                .transform_type_script
+                .transform_type_script()
                 .resolver
                 .get_referenced_export_container(node, Some(false))?;
             if let Some(container) =
                 container.filter(|container| container.ref_(self).kind() != SyntaxKind::SourceFile)
             {
                 let substitute = self
-                    .transform_type_script
+                    .transform_type_script()
                     .applicable_substitutions()
                     .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
                     && container.ref_(self).kind() == SyntaxKind::ModuleDeclaration
                     || self
-                        .transform_type_script
+                        .transform_type_script()
                         .applicable_substitutions()
                         .intersects(TypeScriptSubstitutionFlags::NonQualifiedEnumMembers)
                         && container.ref_(self).kind() == SyntaxKind::EnumDeclaration;
                 if substitute {
                     return Ok(Some(
-                        self.transform_type_script
+                        self.transform_type_script()
                             .factory
                             .create_property_access_expression(
-                                self.transform_type_script
+                                self.transform_type_script()
                                     .factory
                                     .get_generated_name_for_node(Some(container), None),
                                 node,
@@ -926,15 +930,15 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 
             let substitute = match constant_value {
                 StringOrNumber::String(constant_value) => self
-                    .transform_type_script
+                    .transform_type_script()
                     .factory
                     .create_string_literal(constant_value, None, None),
                 StringOrNumber::Number(constant_value) => self
-                    .transform_type_script
+                    .transform_type_script()
                     .factory
                     .create_numeric_literal(constant_value, None),
             };
-            if self.transform_type_script.compiler_options.remove_comments != Some(true) {
+            if self.transform_type_script().compiler_options.remove_comments != Some(true) {
                 let original_node = maybe_get_original_node_full(
                     Some(node),
                     Some(|node: Option<Id<Node>>| is_access_expression(&node.unwrap().ref_(self))),
@@ -975,12 +979,12 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     }
 
     fn try_get_const_enum_value(&self, node: Id<Node>) -> io::Result<Option<StringOrNumber>> {
-        if self.transform_type_script.compiler_options.isolated_modules == Some(true) {
+        if self.transform_type_script().compiler_options.isolated_modules == Some(true) {
             return Ok(None);
         }
 
         (is_property_access_expression(&node.ref_(self)) || is_element_access_expression(&node.ref_(self)))
-            .try_then_and(|| self.transform_type_script.resolver.get_constant_value(node))
+            .try_then_and(|| self.transform_type_script().resolver.get_constant_value(node))
     }
 }
 
@@ -1018,7 +1022,7 @@ impl TransformTypeScriptFactory {
 
 impl TransformerFactoryInterface for TransformTypeScriptFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        TransformTypeScript::new(context, &*static_arena()).as_transformer()
+        TransformTypeScript::new(context, &*static_arena())
     }
 }
 
