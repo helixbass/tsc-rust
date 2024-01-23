@@ -39,7 +39,7 @@ impl TransformES2019 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -54,7 +54,7 @@ impl TransformES2019 {
             _ => maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )
             .map(Into::into),
@@ -86,7 +86,7 @@ impl TransformES2019 {
                 ),
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 }
 

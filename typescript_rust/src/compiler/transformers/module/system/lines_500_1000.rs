@@ -38,7 +38,7 @@ impl TransformSystemModule {
         let node_as_import_declaration = node_ref.as_import_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if node_as_import_declaration.import_clause.is_some() {
-            self.context.hoist_variable_declaration(
+            self.context.ref_(self).hoist_variable_declaration(
                 get_local_name_for_external_import(
                     &self.factory,
                     node,
@@ -79,7 +79,7 @@ impl TransformSystemModule {
         );
 
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
-        self.context.hoist_variable_declaration(
+        self.context.ref_(self).hoist_variable_declaration(
             get_local_name_for_external_import(&self.factory, node, self.current_source_file())
                 .unwrap(),
         );
@@ -184,7 +184,7 @@ impl TransformSystemModule {
                 .push(try_visit_each_child(
                     node,
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?);
         }
@@ -214,7 +214,7 @@ impl TransformSystemModule {
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
 
         let name = self.factory.get_local_name(node, None, None);
-        self.context.hoist_variable_declaration(name);
+        self.context.ref_(self).hoist_variable_declaration(name);
 
         statements.get_or_insert_default_().push(
             self.factory
@@ -352,7 +352,7 @@ impl TransformSystemModule {
             }
         } else {
             self.context
-                .hoist_variable_declaration(self.factory.clone_node(node_name));
+                .ref_(self).hoist_variable_declaration(self.factory.clone_node(node_name));
         }
     }
 
@@ -437,7 +437,7 @@ impl TransformSystemModule {
         is_exported_declaration: bool,
     ) -> Id<Node> {
         self.context
-            .hoist_variable_declaration(self.factory.clone_node(name));
+            .ref_(self).hoist_variable_declaration(self.factory.clone_node(name));
         if is_exported_declaration {
             self.create_export_expression(
                 name,

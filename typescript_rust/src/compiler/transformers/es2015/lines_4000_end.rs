@@ -152,7 +152,7 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> {
         Ok(Some(
             try_process_tagged_template_expression(
-                &**self.context,
+                &**self.context.ref_(self),
                 node,
                 |node: Id<Node>| self.visitor(node),
                 *self.current_source_file(),
@@ -279,7 +279,7 @@ impl TransformES2015 {
                 self.maybe_enabled_substitutions().unwrap_or_default()
                     | ES2015SubstitutionFlags::BlockScopedBindings,
             ));
-            self.context.enable_substitution(SyntaxKind::Identifier);
+            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
         }
     }
 
@@ -293,21 +293,21 @@ impl TransformES2015 {
                 self.maybe_enabled_substitutions().unwrap_or_default()
                     | ES2015SubstitutionFlags::CapturedThis,
             ));
-            self.context.enable_substitution(SyntaxKind::ThisKeyword);
+            self.context.ref_(self).enable_substitution(SyntaxKind::ThisKeyword);
             self.context
-                .enable_emit_notification(SyntaxKind::Constructor);
+                .ref_(self).enable_emit_notification(SyntaxKind::Constructor);
             self.context
-                .enable_emit_notification(SyntaxKind::MethodDeclaration);
+                .ref_(self).enable_emit_notification(SyntaxKind::MethodDeclaration);
             self.context
-                .enable_emit_notification(SyntaxKind::GetAccessor);
+                .ref_(self).enable_emit_notification(SyntaxKind::GetAccessor);
             self.context
-                .enable_emit_notification(SyntaxKind::SetAccessor);
+                .ref_(self).enable_emit_notification(SyntaxKind::SetAccessor);
             self.context
-                .enable_emit_notification(SyntaxKind::ArrowFunction);
+                .ref_(self).enable_emit_notification(SyntaxKind::ArrowFunction);
             self.context
-                .enable_emit_notification(SyntaxKind::FunctionExpression);
+                .ref_(self).enable_emit_notification(SyntaxKind::FunctionExpression);
             self.context
-                .enable_emit_notification(SyntaxKind::FunctionDeclaration);
+                .ref_(self).enable_emit_notification(SyntaxKind::FunctionDeclaration);
         }
     }
 

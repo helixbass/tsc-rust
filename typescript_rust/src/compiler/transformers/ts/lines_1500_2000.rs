@@ -96,7 +96,7 @@ impl TransformTypeScript {
                     node_as_type_reference_node.type_name,
                 );
                 let temp = self.factory.create_temp_variable(
-                    Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
+                    Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                     None,
                 );
                 self.factory.create_conditional_expression(
@@ -181,7 +181,7 @@ impl TransformTypeScript {
         }
         let left = self.serialize_entity_name_as_expression_fallback(node_as_qualified_name.left);
         let temp = self.factory.create_temp_variable(
-            Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
+            Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
             None,
         );
         self.factory.create_logical_and(
@@ -307,7 +307,7 @@ impl TransformTypeScript {
                 let generated_name = self
                     .factory
                     .get_generated_name_for_node(Some(name), None);
-                self.context.hoist_variable_declaration(generated_name);
+                self.context.ref_(self).hoist_variable_declaration(generated_name);
                 return Ok(self.factory.update_computed_property_name(
                     name,
                     self.factory.create_assignment(generated_name, expression),
@@ -334,7 +334,7 @@ impl TransformTypeScript {
         try_maybe_visit_each_child(
             Some(node),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )
     }
@@ -421,7 +421,7 @@ impl TransformTypeScript {
                     try_visit_parameter_list(
                         Some(&node_as_constructor_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     )?
                     .unwrap(),
@@ -458,7 +458,7 @@ impl TransformTypeScript {
             return Ok(try_visit_function_body(
                 Some(body),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?
             .unwrap());
@@ -468,7 +468,7 @@ impl TransformTypeScript {
         #[allow(clippy::needless_late_init)]
         let index_of_first_statement: usize/* = 0*/;
 
-        self.context.resume_lexical_environment();
+        self.context.ref_(self).resume_lexical_environment();
 
         index_of_first_statement = try_add_prologue_directives_and_initial_super_call(
             &self.factory,
@@ -509,7 +509,7 @@ impl TransformTypeScript {
             .factory
             .merge_lexical_environment(
                 statements,
-                self.context.end_lexical_environment().as_deref(),
+                self.context.ref_(self).end_lexical_environment().as_deref(),
             )
             .as_vec_owned();
         Ok(self

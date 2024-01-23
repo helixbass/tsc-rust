@@ -207,11 +207,13 @@ pub(super) struct TransformDeclarations {
 
 impl TransformDeclarations {
     pub(super) fn new(
-        arena: *const AllArenas,
         context: Id<Box<dyn TransformationContext>>,
+        arena: *const AllArenas,
     ) -> Gc<Box<Self>> {
-        let options = context.get_compiler_options();
-        let host = context.get_emit_host();
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
+        let options = context.ref_(arena_ref).get_compiler_options();
+        let host = context.ref_(arena_ref).get_emit_host();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _arena: arena,
             _transformer_wrapper: Default::default(),
@@ -227,7 +229,7 @@ impl TransformDeclarations {
             late_statement_replacement_map: Default::default(),
             suppress_new_diagnostic_contexts: Default::default(),
             exported_modules_from_declaration_emit: Default::default(),
-            factory: context.factory(),
+            factory: context.ref_(arena_ref).factory(),
             host: host.clone(),
             symbol_tracker: Default::default(),
             error_name_node: Default::default(),
@@ -236,7 +238,7 @@ impl TransformDeclarations {
             refs: Default::default(),
             libs: Default::default(),
             emitted_imports: Default::default(),
-            resolver: context.get_emit_resolver(),
+            resolver: context.ref_(arena_ref).get_emit_resolver(),
             no_resolve: options.no_resolve,
             strip_internal: options.strip_internal,
             options,
@@ -518,7 +520,7 @@ impl TransformDeclarations {
                     {
                         args.push(symbol_accessibility_result_error_module_name);
                     }
-                    self.context.add_diagnostic(
+                    self.context.ref_(self).add_diagnostic(
                         create_diagnostic_for_node(
                             symbol_accessibility_result
                                 .error_node
@@ -541,7 +543,7 @@ impl TransformDeclarations {
                     {
                         args.push(symbol_accessibility_result_error_module_name);
                     }
-                    self.context.add_diagnostic(
+                    self.context.ref_(self).add_diagnostic(
                         create_diagnostic_for_node(
                             symbol_accessibility_result
                                 .error_node
@@ -662,7 +664,7 @@ impl TransformDeclarations {
                                                 ]),
                                                 self.factory.create_string_literal(
                                                     get_resolved_external_module_name(
-                                                        &**self.context.get_emit_host(),
+                                                        &**self.context.ref_(self).get_emit_host(),
                                                         &source_file.ref_(self),
                                                         None,
                                                     ),
@@ -1367,7 +1369,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
-            self.transform_declarations.context.add_diagnostic(
+            self.transform_declarations.context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
@@ -1391,7 +1393,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
-            self.transform_declarations.context.add_diagnostic(
+            self.transform_declarations.context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
@@ -1415,7 +1417,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
-            self.transform_declarations.context.add_diagnostic(
+            self.transform_declarations.context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_a_type_with_a_cyclic_structure_which_cannot_be_trivially_serialized_A_type_annotation_is_necessary,
@@ -1438,7 +1440,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
-            self.transform_declarations.context.add_diagnostic(
+            self.transform_declarations.context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::Property_0_of_exported_class_expression_may_not_be_private_or_protected,
@@ -1461,7 +1463,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
-            self.transform_declarations.context.add_diagnostic(
+            self.transform_declarations.context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_cannot_be_named_without_a_reference_to_1_This_is_likely_not_portable_A_type_annotation_is_necessary,
@@ -1485,7 +1487,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
-            self.transform_declarations.context.add_diagnostic(
+            self.transform_declarations.context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_this_node_exceeds_the_maximum_length_the_compiler_will_serialize_An_explicit_type_annotation_is_needed,
@@ -1570,7 +1572,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         );
         if let Some(augmenting_declarations) = augmenting_declarations {
             for augmentations in augmenting_declarations {
-                self.transform_declarations.context.add_diagnostic(
+                self.transform_declarations.context.ref_(self).add_diagnostic(
                     add_related_info_rc(
                         create_diagnostic_for_node(
                             augmentations,
@@ -1602,7 +1604,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .maybe_error_name_node()
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
-            self.transform_declarations.context.add_diagnostic(
+            self.transform_declarations.context.ref_(self).add_diagnostic(
                 create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_type_of_this_node_cannot_be_serialized_because_its_property_0_cannot_be_serialized,
@@ -1680,7 +1682,7 @@ impl TransformDeclarationsFactory {
 
 impl TransformerFactoryInterface for TransformDeclarationsFactory {
     fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
-        TransformDeclarations::new(&*static_arena(), context).as_transformer()
+        TransformDeclarations::new(context, &*static_arena()).as_transformer()
     }
 }
 

@@ -266,7 +266,7 @@ impl TransformTypeScript {
         self.set_current_scope_first_declarations_of_name(None);
 
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        self.context.start_lexical_environment();
+        self.context.ref_(self).start_lexical_environment();
 
         let mut statements_location: Option<ReadonlyTextRangeConcrete> = Default::default();
         let mut block_location: Option<Id<Node> /*TextRange*/> = Default::default();
@@ -316,7 +316,7 @@ impl TransformTypeScript {
 
         insert_statements_after_standard_prologue(
             &mut statements,
-            self.context.end_lexical_environment().as_deref(),
+            self.context.ref_(self).end_lexical_environment().as_deref(),
             self,
         );
         self.set_current_namespace_container_name(saved_current_namespace_container_name);
@@ -489,7 +489,7 @@ impl TransformTypeScript {
                 Ok(try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into))
@@ -650,7 +650,7 @@ impl TransformTypeScript {
                 Ok(try_visit_each_child(
                     node,
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
                 .into())

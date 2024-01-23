@@ -4,7 +4,7 @@ use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Node, Symbol, Type, TypeInterface, TypeMapper};
+use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformationContext};
 
 #[derive(Default)]
 pub struct AllArenas {
@@ -15,6 +15,7 @@ pub struct AllArenas {
     // pub symbol_tables: RefCell<Arena<SymbolTable>>,
     pub types: RefCell<Arena<Type>>,
     pub type_mappers: RefCell<Arena<TypeMapper>>,
+    pub transformation_contexts: RefCell<Arena<Box<dyn TransformationContext>>>,
 }
 
 pub trait HasArena {
@@ -50,6 +51,14 @@ pub trait HasArena {
 
     fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
         self.arena().alloc_symbol(symbol)
+    }
+
+    fn transformation_context(&self, transformation_context: Id<Box<dyn TransformationContext>>) -> Ref<Box<dyn TransformationContext>> {
+        self.arena().transformation_context(transformation_context)
+    }
+
+    fn alloc_transformation_context(&self, transformation_context: Box<dyn TransformationContext>) -> Id<Box<dyn TransformationContext>> {
+        self.arena().alloc_transformation_context(transformation_context)
     }
 }
 
@@ -106,6 +115,16 @@ impl HasArena for AllArenas {
         let id = self.symbols.borrow_mut().alloc(symbol);
         id
     }
+
+    #[track_caller]
+    fn transformation_context(&self, transformation_context: Id<Box<dyn TransformationContext>>) -> Ref<Box<dyn TransformationContext>> {
+        Ref::map(self.transformation_contexts.borrow(), |transformation_contexts| &transformation_contexts[transformation_context])
+    }
+
+    fn alloc_transformation_context(&self, transformation_context: Box<dyn TransformationContext>) -> Id<Box<dyn TransformationContext>> {
+        let id = self.transformation_contexts.borrow_mut().alloc(transformation_context);
+        id
+    }
 }
 
 pub trait InArena {
@@ -144,6 +163,14 @@ impl InArena for Id<Symbol> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Symbol> {
         has_arena.symbol(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn TransformationContext>> {
+    type Item = Box<dyn TransformationContext>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformationContext>> {
+        has_arena.transformation_context(*self)
     }
 }
 

@@ -19,7 +19,7 @@ use crate::{
     SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, static_arena,
 };
 
 bitflags! {
@@ -182,6 +182,8 @@ pub(super) fn create_spread_segment(
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformES2015 {
+    #[unsafe_ignore_trace]
+    pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) _rc_wrapper: GcCell<Option<Gc<Box<Self>>>>,
     pub(super) context: Id<Box<dyn TransformationContext>>,
@@ -200,13 +202,16 @@ pub(super) struct TransformES2015 {
 }
 
 impl TransformES2015 {
-    pub(super) fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    pub(super) fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: Default::default(),
             _rc_wrapper: Default::default(),
-            factory: context.factory(),
-            compiler_options: context.get_compiler_options(),
-            resolver: context.get_emit_resolver(),
+            factory: context_ref.factory(),
+            compiler_options: context_ref.get_compiler_options(),
+            resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
             current_source_file: Default::default(),
             current_text: Default::default(),
@@ -217,13 +222,13 @@ impl TransformES2015 {
         }));
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
         *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        context.override_on_emit_node(&mut |previous_on_emit_node| {
+        context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformES2015OnEmitNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_emit_node,
             )))
         });
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformES2015OnSubstituteNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_substitute_node,
@@ -319,7 +324,7 @@ impl TransformES2015 {
     }
 
     pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.get_emit_helper_factory()
+        self.context.ref_(self).get_emit_helper_factory()
     }
 
     pub(super) fn record_tagged_template_string(&self, temp: Id<Node> /*Identifier*/) {
@@ -348,7 +353,7 @@ impl TransformES2015 {
 
         let visited = self
             .visit_source_file(node)?
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self);
+            .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self);
 
         self.set_current_source_file(None);
         self.set_current_text(None);
@@ -559,7 +564,7 @@ impl TransformES2015 {
             _ => try_maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?
             .map(Into::into),
@@ -846,7 +851,7 @@ impl TransformerFactoryInterface for TransformES2015Factory {
     fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformES2015::new(context).as_transformer(),
+            TransformES2015::new(context, &*static_arena()).as_transformer(),
         )
     }
 }

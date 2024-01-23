@@ -33,7 +33,7 @@ impl TransformES2016 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
@@ -48,7 +48,7 @@ impl TransformES2016 {
             _ => maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )
             .map(Into::into),
@@ -64,7 +64,7 @@ impl TransformES2016 {
                 self.visit_exponentiation_assignment_expression(node)
             }
             SyntaxKind::AsteriskAsteriskToken => self.visit_exponentiation_expression(node),
-            _ => visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self),
+            _ => visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self),
         }
     }
 
@@ -92,11 +92,11 @@ impl TransformES2016 {
             let left_ref = left.ref_(self);
             let left_as_element_access_expression = left_ref.as_element_access_expression();
             let expression_temp = self.factory.create_temp_variable(
-                Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
+                Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                 None,
             );
             let argument_expression_temp = self.factory.create_temp_variable(
-                Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
+                Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                 None,
             );
             target = set_text_range_id_node(
@@ -133,7 +133,7 @@ impl TransformES2016 {
             let left_ref = left.ref_(self);
             let left_as_property_access_expression = left_ref.as_property_access_expression();
             let expression_temp = self.factory.create_temp_variable(
-                Some(|node: Id<Node>| self.context.hoist_variable_declaration(node)),
+                Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                 None,
             );
             target = set_text_range_id_node(

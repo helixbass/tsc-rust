@@ -20,7 +20,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     UnderscoreEscapedMap, VisitResult,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, static_arena,
 };
 
 pub(super) const USE_NEW_TYPE_METADATA_FORMAT: bool = false;
@@ -56,6 +56,8 @@ bitflags! {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformTypeScript {
+    #[unsafe_ignore_trace]
+    pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -85,13 +87,16 @@ pub(super) struct TransformTypeScript {
 }
 
 impl TransformTypeScript {
-    pub(super) fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
-        let compiler_options = context.get_compiler_options();
+    pub(super) fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
+        let compiler_options = context_ref.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: Default::default(),
-            factory: context.factory(),
-            base_factory: context.base_factory(),
-            resolver: context.get_emit_resolver(),
+            factory: context_ref.factory(),
+            base_factory: context_ref.base_factory(),
+            resolver: context_ref.get_emit_resolver(),
             strict_null_checks: get_strict_option_value(&compiler_options, "strictNullChecks"),
             language_version: get_emit_script_target(&compiler_options),
             module_kind: get_emit_module_kind(&compiler_options),
@@ -110,21 +115,21 @@ impl TransformTypeScript {
         }));
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
         *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        context.override_on_emit_node(&mut |previous_on_emit_node| {
+        context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformTypeScriptOnEmitNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_emit_node,
             )))
         });
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformTypeScriptOnSubstituteNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_substitute_node,
             )))
         });
 
-        context.enable_substitution(SyntaxKind::PropertyAccessExpression);
-        context.enable_substitution(SyntaxKind::ElementAccessExpression);
+        context_ref.enable_substitution(SyntaxKind::PropertyAccessExpression);
+        context_ref.enable_substitution(SyntaxKind::ElementAccessExpression);
 
         downcasted
     }
@@ -264,7 +269,7 @@ impl TransformTypeScript {
     }
 
     pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.get_emit_helper_factory()
+        self.context.ref_(self).get_emit_helper_factory()
     }
 
     pub(super) fn transform_source_file_or_bundle(
@@ -318,7 +323,7 @@ impl TransformTypeScript {
 
         let visited =
             self.try_save_state_and_invoke(node, |node: Id<Node>| self.visit_source_file(node))?;
-        add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
+        add_emit_helpers(visited, self.context.ref_(self).read_emit_helpers().as_deref(), self);
 
         self.set_current_source_file(None);
         Ok(visited)
@@ -441,7 +446,7 @@ impl TransformTypeScript {
                 return Ok(try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into));
@@ -625,7 +630,7 @@ impl TransformTypeScript {
             _ => try_maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?
             .map(Into::into),
@@ -1012,7 +1017,7 @@ impl TransformTypeScriptFactory {
 
 impl TransformerFactoryInterface for TransformTypeScriptFactory {
     fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
-        TransformTypeScript::new(context).as_transformer()
+        TransformTypeScript::new(context, &*static_arena()).as_transformer()
     }
 }
 

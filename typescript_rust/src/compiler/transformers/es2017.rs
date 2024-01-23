@@ -199,8 +199,8 @@ impl TransformES2017 {
             !is_effective_strict_mode_source_file(node, &self.compiler_options, self),
         );
         let visited =
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?;
-        add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?;
+        add_emit_helpers(visited, self.context.ref_(self).read_emit_helpers().as_deref(), self);
         Ok(visited)
     }
 
@@ -255,7 +255,7 @@ impl TransformES2017 {
         Ok(try_maybe_visit_each_child(
             Some(node),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )?
         .map(Into::into))
@@ -329,7 +329,7 @@ impl TransformES2017 {
                 try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into)
@@ -345,7 +345,7 @@ impl TransformES2017 {
                 try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into)
@@ -364,7 +364,7 @@ impl TransformES2017 {
             _ => try_maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?
             .map(Into::into),
@@ -402,7 +402,7 @@ impl TransformES2017 {
                 | SyntaxKind::LabeledStatement => try_maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.async_body_visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
                 .map(Into::into),
@@ -446,7 +446,7 @@ impl TransformES2017 {
                 let result = try_visit_each_child(
                     node,
                     |node: Id<Node>| self.async_body_visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?;
                 self.set_enclosing_function_parameter_names(
@@ -457,7 +457,7 @@ impl TransformES2017 {
                 try_visit_each_child(
                     node,
                     |node: Id<Node>| self.async_body_visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
             },
@@ -484,7 +484,7 @@ impl TransformES2017 {
         try_maybe_visit_each_child(
             Some(node),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )
     }
@@ -522,7 +522,7 @@ impl TransformES2017 {
             try_visit_iteration_body(
                 node_as_for_in_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?,
         ))
@@ -567,7 +567,7 @@ impl TransformES2017 {
             try_visit_iteration_body(
                 node_as_for_of_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?,
         ))
@@ -610,7 +610,7 @@ impl TransformES2017 {
             try_visit_iteration_body(
                 node_as_for_statement.statement,
                 |node: Id<Node>| self.async_body_visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?,
         ))
@@ -624,7 +624,7 @@ impl TransformES2017 {
             return try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             );
         }
@@ -670,7 +670,7 @@ impl TransformES2017 {
             try_visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -681,7 +681,7 @@ impl TransformES2017 {
                 try_visit_function_body(
                     node_as_method_declaration.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
             },
@@ -712,7 +712,7 @@ impl TransformES2017 {
                     try_visit_parameter_list(
                         Some(&node_as_function_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     )?
                     .unwrap(),
@@ -723,7 +723,7 @@ impl TransformES2017 {
                         try_visit_function_body(
                             node_as_function_declaration.maybe_body(),
                             |node: Id<Node>| self.visitor(node),
-                            &**self.context,
+                            &**self.context.ref_(self),
                             self,
                         )?
                     },
@@ -753,7 +753,7 @@ impl TransformES2017 {
             try_visit_parameter_list(
                 Some(&node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -764,7 +764,7 @@ impl TransformES2017 {
                 try_visit_function_body(
                     node_as_function_expression.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
                 .unwrap()
@@ -788,7 +788,7 @@ impl TransformES2017 {
             try_visit_parameter_list(
                 Some(&node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?
             .unwrap(),
@@ -800,7 +800,7 @@ impl TransformES2017 {
                 try_visit_function_body(
                     node_as_arrow_function.maybe_body(),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?
                 .unwrap()
@@ -891,7 +891,7 @@ impl TransformES2017 {
 
     fn hoist_variable(&self, name: Id<Node>) {
         if is_identifier(&name.ref_(self)) {
-            self.context.hoist_variable_declaration(name);
+            self.context.ref_(self).hoist_variable_declaration(name);
         } else {
             for &element in &name.ref_(self).as_has_elements().elements() {
                 if !is_omitted_expression(&element.ref_(self)) {
@@ -946,7 +946,7 @@ impl TransformES2017 {
     ) -> io::Result<Id<Node /*ConciseBody*/>> {
         let node_ref = node.ref_(self);
         let node_as_function_like_declaration = node_ref.as_function_like_declaration();
-        self.context.resume_lexical_environment();
+        self.context.ref_(self).resume_lexical_environment();
 
         let ref original = get_original_node(node, self);
         let node_type = original.ref_(self).as_has_type().maybe_type();
@@ -994,7 +994,7 @@ impl TransformES2017 {
             statements.push(
                 self.factory.create_return_statement(Some(
                     self.context
-                        .get_emit_helper_factory()
+                        .ref_(self).get_emit_helper_factory()
                         .create_awaiter_helper(
                             self.in_has_lexical_this_context(),
                             has_lexical_arguments,
@@ -1009,7 +1009,7 @@ impl TransformES2017 {
 
             insert_statements_after_standard_prologue(
                 &mut statements,
-                self.context.end_lexical_environment().as_deref(),
+                self.context.ref_(self).end_lexical_environment().as_deref(),
                 self,
             );
 
@@ -1064,7 +1064,7 @@ impl TransformES2017 {
         } else {
             let expression = self
                 .context
-                .get_emit_helper_factory()
+                .ref_(self).get_emit_helper_factory()
                 .create_awaiter_helper(
                     self.in_has_lexical_this_context(),
                     has_lexical_arguments,
@@ -1075,7 +1075,7 @@ impl TransformES2017 {
                     )?,
                 );
 
-            let declarations = self.context.end_lexical_environment();
+            let declarations = self.context.ref_(self).end_lexical_environment();
             if let Some(declarations) = declarations.non_empty()
             /*some(declarations)*/
             {
@@ -1177,24 +1177,24 @@ impl TransformES2017 {
                 enabled_substitutions | ES2017SubstitutionFlags::AsyncMethodsWithSuper,
             ));
 
-            self.context.enable_substitution(SyntaxKind::CallExpression);
+            self.context.ref_(self).enable_substitution(SyntaxKind::CallExpression);
             self.context
-                .enable_substitution(SyntaxKind::PropertyAccessExpression);
+                .ref_(self).enable_substitution(SyntaxKind::PropertyAccessExpression);
             self.context
-                .enable_substitution(SyntaxKind::ElementAccessExpression);
+                .ref_(self).enable_substitution(SyntaxKind::ElementAccessExpression);
 
             self.context
-                .enable_emit_notification(SyntaxKind::ClassDeclaration);
+                .ref_(self).enable_emit_notification(SyntaxKind::ClassDeclaration);
             self.context
-                .enable_emit_notification(SyntaxKind::MethodDeclaration);
+                .ref_(self).enable_emit_notification(SyntaxKind::MethodDeclaration);
             self.context
-                .enable_emit_notification(SyntaxKind::GetAccessor);
+                .ref_(self).enable_emit_notification(SyntaxKind::GetAccessor);
             self.context
-                .enable_emit_notification(SyntaxKind::SetAccessor);
+                .ref_(self).enable_emit_notification(SyntaxKind::SetAccessor);
             self.context
-                .enable_emit_notification(SyntaxKind::Constructor);
+                .ref_(self).enable_emit_notification(SyntaxKind::Constructor);
             self.context
-                .enable_emit_notification(SyntaxKind::VariableStatement);
+                .ref_(self).enable_emit_notification(SyntaxKind::VariableStatement);
         }
     }
 

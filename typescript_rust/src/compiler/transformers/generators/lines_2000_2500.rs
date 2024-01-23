@@ -128,7 +128,7 @@ impl TransformGenerators {
         let variable_name = variable_as_variable_declaration.name();
         if is_generated_identifier(&variable_name.ref_(self)) {
             name = variable_name.clone();
-            self.context.hoist_variable_declaration(variable_name);
+            self.context.ref_(self).hoist_variable_declaration(variable_name);
         } else {
             let variable_name_ref = variable_name.ref_(self);
             let text = id_text(&variable_name_ref);
@@ -136,7 +136,7 @@ impl TransformGenerators {
             if self.maybe_renamed_catch_variables().is_none() {
                 self.set_renamed_catch_variables(Some(_d()));
                 self.set_renamed_catch_variable_declarations(_d());
-                self.context.enable_substitution(SyntaxKind::Identifier);
+                self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
             }
 
             self.renamed_catch_variables_mut()

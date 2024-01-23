@@ -28,7 +28,7 @@ use crate::{
     visit_node, Debug_, GetOrInsertDefault, HasStatementsInterface, LiteralLikeNodeInterface,
     MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number,
     ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags, VisitResult,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, static_arena,
 };
 
 #[derive(Builder, Default, Trace, Finalize)]
@@ -45,6 +45,7 @@ pub(super) struct PerFileState {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformJsx {
+    _arena: *const AllArenas,
     context: Id<Box<dyn TransformationContext>>,
     compiler_options: Gc<CompilerOptions>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -53,10 +54,13 @@ pub(super) struct TransformJsx {
 }
 
 impl TransformJsx {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Self {
+    fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Self {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
         Self {
-            factory: context.factory(),
-            compiler_options: context.get_compiler_options(),
+            _arena: arena,
+            factory: context_ref.factory(),
+            compiler_options: context_ref.get_compiler_options(),
             context,
             current_source_file: _d(),
             current_file_state: _d(),
@@ -93,7 +97,7 @@ impl TransformJsx {
     }
 
     fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.get_emit_helper_factory()
+        self.context.ref_(self).get_emit_helper_factory()
     }
 
     fn get_current_file_name_expression(&self) -> Id<Node /*Identifier*/> {
@@ -216,8 +220,8 @@ impl TransformJsx {
                 .unwrap(),
         ));
         let mut visited =
-            visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
-        add_emit_helpers(visited, self.context.read_emit_helpers().as_deref(), self);
+            visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
+        add_emit_helpers(visited, self.context.ref_(self).read_emit_helpers().as_deref(), self);
         let mut statements: NodeArrayOrVec = visited.ref_(self).as_source_file().statements().into();
         if let Some(current_file_state_filename_declaration) =
             self.current_file_state().filename_declaration
@@ -355,7 +359,7 @@ impl TransformJsx {
             SyntaxKind::JsxFragment => self.visit_jsx_fragment(node, false).map(Into::into),
             SyntaxKind::JsxExpression => self.visit_jsx_expression(node).map(Into::into),
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
             ),
         }
     }
@@ -670,7 +674,7 @@ impl TransformJsx {
             create_jsx_factory_expression(
                 &self.factory,
                 self.context
-                    .get_emit_resolver()
+                    .ref_(self).get_emit_resolver()
                     .get_jsx_factory_entity(self.maybe_current_source_file()),
                 self.compiler_options.react_namespace.as_deref(),
                 node,
@@ -736,10 +740,10 @@ impl TransformJsx {
         let element = create_expression_for_jsx_fragment(
             &self.factory,
             self.context
-                .get_emit_resolver()
+                .ref_(self).get_emit_resolver()
                 .get_jsx_factory_entity(self.maybe_current_source_file()),
             self.context
-                .get_emit_resolver()
+                .ref_(self).get_emit_resolver()
                 .get_jsx_fragment_factory_entity(self.maybe_current_source_file()),
             self.compiler_options.react_namespace.as_deref().unwrap(),
             &map_defined(Some(children), |&child: &Id<Node>, _| {
@@ -1091,7 +1095,7 @@ impl TransformerFactoryInterface for TransformJsxFactory {
     fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            Gc::new(Box::new(TransformJsx::new(context))),
+            Gc::new(Box::new(TransformJsx::new(context, &*static_arena()))),
         )
     }
 }

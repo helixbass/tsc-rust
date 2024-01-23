@@ -268,7 +268,7 @@ impl TransformSystemModule {
         self.set_current_source_file(Some(node));
         self.set_enclosing_block_scoped_container(Some(node));
         let module_info = Gc::new(collect_external_module_info(
-            &**self.context,
+            &**self.context.ref_(self),
             node,
             &**self.resolver,
             &self.compiler_options,
@@ -433,7 +433,7 @@ impl TransformSystemModule {
         let node_as_source_file = node_ref.as_source_file();
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
 
-        self.context.start_lexical_environment();
+        self.context.ref_(self).start_lexical_environment();
 
         let ensure_use_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
             || self.compiler_options.no_implicit_use_strict != Some(true)
@@ -489,7 +489,7 @@ impl TransformSystemModule {
 
         insert_statements_after_standard_prologue(
             &mut statements,
-            self.context.end_lexical_environment().as_deref(),
+            self.context.ref_(self).end_lexical_environment().as_deref(),
             self,
         );
 

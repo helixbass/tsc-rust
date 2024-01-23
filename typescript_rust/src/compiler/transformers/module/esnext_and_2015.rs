@@ -82,7 +82,7 @@ impl TransformEcmascriptModule {
     }
 
     fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.get_emit_helper_factory()
+        self.context.ref_(self).get_emit_helper_factory()
     }
 
     fn maybe_helper_name_substitutions(
@@ -268,7 +268,7 @@ impl TransformEcmascriptModule {
                 )
             }
             None => {
-                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
             }
         })
     }

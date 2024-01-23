@@ -127,14 +127,14 @@ impl TransformES2015 {
         outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
     ) -> io::Result<IterationStatementPartFunction<Vec<Id<Node /*Statement*/>>>> {
         let function_name = self.factory.create_unique_name("_loop", None);
-        self.context.start_lexical_environment();
+        self.context.ref_(self).start_lexical_environment();
         let statement = try_visit_node(
             node.ref_(self).as_has_statement().statement(),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_statement(node, self)),
             Some(&|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
         )?;
-        let lexical_environment = self.context.end_lexical_environment();
+        let lexical_environment = self.context.ref_(self).end_lexical_environment();
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         if self.should_convert_condition_of_for_statement(node)

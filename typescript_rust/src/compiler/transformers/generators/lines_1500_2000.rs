@@ -24,7 +24,7 @@ impl TransformGenerators {
             let key = self.declare_local(None);
             let keys_index = self.factory.create_loop_variable(None);
             let initializer = node_as_for_in_statement.initializer;
-            self.context.hoist_variable_declaration(keys_index);
+            self.context.ref_(self).hoist_variable_declaration(keys_index);
             self.emit_assignment(
                 keys_array.clone(),
                 self.factory
@@ -78,7 +78,7 @@ impl TransformGenerators {
                 let initializer_as_variable_declaration_list = initializer_ref.as_variable_declaration_list();
                 for &variable in &initializer_as_variable_declaration_list.declarations {
                     self.context
-                        .hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
+                        .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
                 }
 
                 self.factory.clone_node(
@@ -136,7 +136,7 @@ impl TransformGenerators {
             let initializer_as_variable_declaration_list = initializer_ref.as_variable_declaration_list();
             for &variable in &initializer_as_variable_declaration_list.declarations {
                 self.context
-                    .hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
+                    .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
             }
 
             node = self.factory.update_for_in_statement(
@@ -158,7 +158,7 @@ impl TransformGenerators {
                 ),
             );
         } else {
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
         }
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
@@ -205,7 +205,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn transform_and_emit_break_statement(
@@ -245,7 +245,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn transform_and_emit_return_statement(
@@ -431,7 +431,7 @@ impl TransformGenerators {
             self.begin_script_switch_block();
         }
 
-        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.end_switch_block();
@@ -470,7 +470,7 @@ impl TransformGenerators {
             self.begin_script_labeled_block(id_text(&node_as_labeled_statement.label.ref_(self)).to_owned());
         }
 
-        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
 
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.end_labeled_block();
@@ -525,7 +525,7 @@ impl TransformGenerators {
             self.emit_statement(visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             ));
         }
@@ -557,7 +557,7 @@ impl TransformGenerators {
 
         let temp = self.factory.create_temp_variable(
             Some(|node: Id<Node>| {
-                self.context.hoist_variable_declaration(node);
+                self.context.ref_(self).hoist_variable_declaration(node);
             }),
             None,
         );
@@ -573,7 +573,7 @@ impl TransformGenerators {
             },
             |name| self.factory.create_unique_name(name, None),
         );
-        self.context.hoist_variable_declaration(temp);
+        self.context.ref_(self).hoist_variable_declaration(temp);
         temp
     }
 }

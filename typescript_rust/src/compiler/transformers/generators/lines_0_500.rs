@@ -19,7 +19,7 @@ use crate::{
     FunctionLikeDeclarationInterface, Matches, NamedDeclarationInterface, NodeArray, NodeExt,
     NodeInterface, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, static_arena,
 };
 
 pub(super) type Label = i32;
@@ -379,6 +379,7 @@ pub(super) fn get_instruction_name(instruction: Instruction) -> Option<&'static 
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformGenerators {
+    pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -429,14 +430,17 @@ pub(super) struct TransformGenerators {
 }
 
 impl TransformGenerators {
-    pub fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
-        let compiler_options = context.get_compiler_options();
+    pub fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Gc<Box<Self>> {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
+        let compiler_options = context_ref.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _arena: arena,
             _transformer_wrapper: _d(),
-            factory: context.factory(),
+            factory: context_ref.factory(),
             language_version: get_emit_script_target(&compiler_options),
             compiler_options,
-            resolver: context.get_emit_resolver(),
+            resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
             renamed_catch_variables: _d(),
             renamed_catch_variable_declarations: _d(),
@@ -466,7 +470,7 @@ impl TransformGenerators {
         }));
         let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
         *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformGeneratorsOnSubstituteNodeOverrider::new(
                 downcasted.clone(),
                 previous_on_substitute_node,
@@ -861,7 +865,7 @@ impl TransformGenerators {
     }
 
     pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.get_emit_helper_factory()
+        self.context.ref_(self).get_emit_helper_factory()
     }
 
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
@@ -875,8 +879,8 @@ impl TransformGenerators {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+            .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self)
     }
 
     pub(super) fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -895,7 +899,7 @@ impl TransformGenerators {
             self.visit_generator(node)
         } else if transform_flags.intersects(TransformFlags::ContainsGenerator) {
             Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
             )
         } else {
             Some(node.into())
@@ -947,7 +951,7 @@ impl TransformGenerators {
                         visit_each_child(
                             node,
                             |node: Id<Node>| self.visitor(node),
-                            &**self.context,
+                            &**self.context.ref_(self),
                             self,
                         )
                         .into(),
@@ -974,7 +978,7 @@ impl TransformGenerators {
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => self.visit_new_expression(node),
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
             ),
         }
     }
@@ -1009,7 +1013,7 @@ impl TransformGenerators {
                     visit_parameter_list(
                         Some(&node.ref_(self).as_function_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     )
                     .unwrap(),
@@ -1025,13 +1029,13 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
 
         if self.maybe_in_generator_function_body() == Some(true) {
-            self.context.hoist_function_declaration(node);
+            self.context.ref_(self).hoist_function_declaration(node);
             None
         } else {
             Some(node)
@@ -1057,7 +1061,7 @@ impl TransformGenerators {
                     visit_parameter_list(
                         Some(&node.ref_(self).as_function_expression().parameters()),
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     ),
                     None,
@@ -1072,7 +1076,7 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
@@ -1196,7 +1200,7 @@ impl TransformerFactoryInterface for TransformGeneratorsFactory {
     fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformGenerators::new(context).as_transformer(),
+            TransformGenerators::new(context, &*static_arena()).as_transformer(),
         )
     }
 }

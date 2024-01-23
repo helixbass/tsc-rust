@@ -112,7 +112,7 @@ impl TransformES2015 {
             );
         } else {
             updated =
-                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?;
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?;
         }
 
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
@@ -179,7 +179,7 @@ impl TransformES2015 {
         let parameters = try_visit_parameter_list(
             Some(&node.ref_(self).as_signature_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )?
         .unwrap();
@@ -237,7 +237,7 @@ impl TransformES2015 {
         node: Id<Node>, /*ComputedPropertyName*/
     ) -> io::Result<VisitResult> {
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
                 .into(),
         ))
     }
@@ -246,7 +246,7 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*YieldExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_array_literal_expression(
@@ -266,7 +266,7 @@ impl TransformES2015 {
                 node_as_array_literal_expression.elements.has_trailing_comma,
             );
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_call_expression(
@@ -551,7 +551,7 @@ impl TransformES2015 {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
                 node_as_call_expression.expression,
                 |node: Id<Node>| {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 },
                 None,
                 None,
@@ -642,7 +642,7 @@ impl TransformES2015 {
             return Ok(set_original_node(resulting_call, Some(node), self));
         }
 
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_new_expression(
@@ -661,7 +661,7 @@ impl TransformES2015 {
                     "bind",
                 ),
                 |node: Id<Node>| {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 },
                 None,
                 None,
@@ -697,7 +697,7 @@ impl TransformES2015 {
                 Some(vec![]),
             ));
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn transform_and_spread_elements(

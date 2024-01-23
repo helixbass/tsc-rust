@@ -85,7 +85,7 @@ impl TransformModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
                 .into(),
         ))
     }
@@ -170,7 +170,7 @@ impl TransformModule {
                 self,
             );
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_for_statement(
@@ -204,7 +204,7 @@ impl TransformModule {
                     try_visit_iteration_body(
                         node_as_for_statement.statement,
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     )?,
                 )
@@ -324,7 +324,7 @@ impl TransformModule {
                     if !value_is_discarded {
                         temp = Some(self.factory.create_temp_variable(
                             Some(|node: Id<Node>| {
-                                self.context.hoist_variable_declaration(node);
+                                self.context.ref_(self).hoist_variable_declaration(node);
                             }),
                             None,
                         ));
@@ -361,7 +361,7 @@ impl TransformModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
                 .into(),
         ))
     }
@@ -438,7 +438,7 @@ impl TransformModule {
         } else {
             let temp = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 }),
                 None,
             );

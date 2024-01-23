@@ -153,7 +153,7 @@ impl TransformTypeScript {
             );
             self.class_aliases_mut()
                 .insert(get_original_node_id(node, self), class_alias);
-            self.context.hoist_variable_declaration(class_alias);
+            self.context.ref_(self).hoist_variable_declaration(class_alias);
             return Some(class_alias);
         }
         None
@@ -189,7 +189,7 @@ impl TransformTypeScript {
             self.set_enabled_substitutions(
                 self.enabled_substitutions() | TypeScriptSubstitutionFlags::NonQualifiedEnumMembers,
             );
-            self.context.enable_substitution(SyntaxKind::Identifier);
+            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
         }
     }
 
@@ -202,7 +202,7 @@ impl TransformTypeScript {
                 self.enabled_substitutions() | TypeScriptSubstitutionFlags::ClassAliases,
             );
 
-            self.context.enable_substitution(SyntaxKind::Identifier);
+            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
 
             self.set_class_aliases(Some(Default::default()));
         }
@@ -217,12 +217,12 @@ impl TransformTypeScript {
                 self.enabled_substitutions() | TypeScriptSubstitutionFlags::NamespaceExports,
             );
 
-            self.context.enable_substitution(SyntaxKind::Identifier);
+            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
             self.context
-                .enable_substitution(SyntaxKind::ShorthandPropertyAssignment);
+                .ref_(self).enable_substitution(SyntaxKind::ShorthandPropertyAssignment);
 
             self.context
-                .enable_emit_notification(SyntaxKind::ModuleDeclaration);
+                .ref_(self).enable_emit_notification(SyntaxKind::ModuleDeclaration);
         }
     }
 

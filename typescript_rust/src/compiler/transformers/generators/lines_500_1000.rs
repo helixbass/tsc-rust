@@ -24,7 +24,7 @@ impl TransformGenerators {
         let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
         self.set_in_generator_function_body(Some(false));
         self.set_in_statement_containing_yield(Some(false));
-        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
         self.set_in_generator_function_body(saved_in_generator_function_body);
         self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         Some(node.into())
@@ -68,7 +68,7 @@ impl TransformGenerators {
                 .create_temp_variable(Option::<fn(Id<Node>)>::None, None),
         ));
 
-        self.context.resume_lexical_environment();
+        self.context.ref_(self).resume_lexical_environment();
 
         let statement_offset = self.factory.copy_prologue(
             &body_as_block.statements,
@@ -82,7 +82,7 @@ impl TransformGenerators {
         let build_result = self.build();
         insert_statements_after_standard_prologue(
             &mut statements,
-            self.context.end_lexical_environment().as_deref(),
+            self.context.ref_(self).end_lexical_environment().as_deref(),
             self,
         );
         statements.push(self.factory.create_return_statement(Some(build_result)));
@@ -131,7 +131,7 @@ impl TransformGenerators {
                 .declarations
             {
                 self.context
-                    .hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
+                    .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
             }
 
             let variables = get_initialized_variables(node_as_variable_statement.declaration_list, self);
@@ -251,7 +251,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_left_associative_binary_expression(
@@ -285,7 +285,7 @@ impl TransformGenerators {
             );
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_comma_expression(
@@ -479,7 +479,7 @@ impl TransformGenerators {
             return result_local;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_yield_expression(

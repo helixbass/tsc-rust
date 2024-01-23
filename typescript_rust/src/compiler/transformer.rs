@@ -323,7 +323,7 @@ pub fn transform_nodes(
     // this type, but looks like there aren't any other TransformationResult implementers so maybe
     // returning the concrete type is fine?
     // ) -> Gc<Box<dyn TransformationResult>> {
-) -> io::Result<Gc<Box<TransformNodesTransformationResult>>> {
+) -> io::Result<Gc<Box<dyn TransformationContext>>> {
     let transformation_result = TransformNodesTransformationResult::new(
         vec![],
         TransformationState::Uninitialized,
@@ -348,8 +348,8 @@ pub fn transform_nodes(
 
 #[derive(Trace, Finalize)]
 pub struct TransformNodesTransformationResult {
-    _rc_wrapper: GcCell<Option<Gc<Box<TransformNodesTransformationResult>>>>,
-    _dyn_transformation_context_wrapper: GcCell<Option<Id<Box<dyn TransformationContext>>>>,
+    #[unsafe_ignore_trace]
+    _arena: *const AllArenas,
     on_emit_node_outermost_override_or_original_method:
         GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     on_emit_node_previous_override_or_original_method:
@@ -416,80 +416,59 @@ impl TransformNodesTransformationResult {
         host: Option<Gc<Box<dyn EmitHost>>>,
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
         base_factory: Gc<BaseNodeFactorySynthetic>,
-    ) -> Gc<Box<Self>> {
-        let dyn_transformation_context_wrapper: Id<Box<dyn TransformationContext>> =
-            Gc::new(Box::new(Self {
-                _rc_wrapper: Default::default(),
-                _dyn_transformation_context_wrapper: Default::default(),
-                on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
-                    NoEmitNotificationTransformationContextOnEmitNodeOverrider,
-                ))),
-                on_emit_node_previous_override_or_original_method: _d(),
-                on_substitute_node_outermost_override_or_original_method: GcCell::new(Gc::new(
-                    Box::new(NoEmitNotificationTransformationContextOnSubstituteNodeOverrider),
-                )),
-                on_substitute_node_previous_override_or_original_method: _d(),
-                transformed: GcCell::new(transformed),
-                state: Cell::new(state),
-                nodes,
-                lexical_environment_variable_declarations: GcCell::new(
-                    lexical_environment_variable_declarations,
-                ),
-                lexical_environment_function_declarations: GcCell::new(
-                    lexical_environment_function_declarations,
-                ),
-                lexical_environment_statements: GcCell::new(Some(vec![])),
-                lexical_environment_variable_declarations_stack: GcCell::new(Some(
-                    lexical_environment_variable_declarations_stack,
-                )),
-                lexical_environment_function_declarations_stack: GcCell::new(Some(
-                    lexical_environment_function_declarations_stack,
-                )),
-                lexical_environment_statements_stack: GcCell::new(Some(vec![])),
-                lexical_environment_flags_stack: RefCell::new(Some(vec![])),
-                emit_helpers: GcCell::new(emit_helpers),
-                diagnostics: GcCell::new(diagnostics),
-                transformers,
-                transformers_with_context: Default::default(),
-                allow_dts_files,
-                enabled_syntax_kind_features: Default::default(),
-                lexical_environment_flags: Cell::new(LexicalEnvironmentFlags::None),
-                lexical_environment_suspended: Default::default(),
-                block_scoped_variable_declarations_stack: GcCell::new(Some(vec![])),
-                block_scoped_variable_declarations: GcCell::new(Some(vec![])),
-                block_scope_stack_offset: Default::default(),
-                options,
-                resolver,
-                host,
-                created_emit_helper_factory: Default::default(),
-                factory,
-                base_factory,
-            }));
-        let downcasted: Gc<Box<Self>> =
-            unsafe { mem::transmute(dyn_transformation_context_wrapper.clone()) };
-        *downcasted._dyn_transformation_context_wrapper.borrow_mut() =
-            Some(dyn_transformation_context_wrapper);
-        downcasted.set_rc_wrapper(downcasted.clone());
-        downcasted
-    }
-
-    pub fn as_dyn_transformation_context(&self) -> Id<Box<dyn TransformationContext>> {
-        self._dyn_transformation_context_wrapper
-            .borrow()
-            .clone()
-            .unwrap()
+        arena: *const AllArenas,
+    ) -> Id<Box<dyn TransformationContext>> {
+        let arena_ref = unsafe { &*arena };
+        arena_ref.alloc_transformation_context(Box::new(Self {
+            _arena: arena,
+            on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
+                NoEmitNotificationTransformationContextOnEmitNodeOverrider,
+            ))),
+            on_emit_node_previous_override_or_original_method: _d(),
+            on_substitute_node_outermost_override_or_original_method: GcCell::new(Gc::new(
+                Box::new(NoEmitNotificationTransformationContextOnSubstituteNodeOverrider),
+            )),
+            on_substitute_node_previous_override_or_original_method: _d(),
+            transformed: GcCell::new(transformed),
+            state: Cell::new(state),
+            nodes,
+            lexical_environment_variable_declarations: GcCell::new(
+                lexical_environment_variable_declarations,
+            ),
+            lexical_environment_function_declarations: GcCell::new(
+                lexical_environment_function_declarations,
+            ),
+            lexical_environment_statements: GcCell::new(Some(vec![])),
+            lexical_environment_variable_declarations_stack: GcCell::new(Some(
+                lexical_environment_variable_declarations_stack,
+            )),
+            lexical_environment_function_declarations_stack: GcCell::new(Some(
+                lexical_environment_function_declarations_stack,
+            )),
+            lexical_environment_statements_stack: GcCell::new(Some(vec![])),
+            lexical_environment_flags_stack: RefCell::new(Some(vec![])),
+            emit_helpers: GcCell::new(emit_helpers),
+            diagnostics: GcCell::new(diagnostics),
+            transformers,
+            transformers_with_context: Default::default(),
+            allow_dts_files,
+            enabled_syntax_kind_features: Default::default(),
+            lexical_environment_flags: Cell::new(LexicalEnvironmentFlags::None),
+            lexical_environment_suspended: Default::default(),
+            block_scoped_variable_declarations_stack: GcCell::new(Some(vec![])),
+            block_scoped_variable_declarations: GcCell::new(Some(vec![])),
+            block_scope_stack_offset: Default::default(),
+            options,
+            resolver,
+            host,
+            created_emit_helper_factory: Default::default(),
+            factory,
+            base_factory,
+        }))
     }
 
     fn state(&self) -> TransformationState {
         self.state.get()
-    }
-
-    fn set_rc_wrapper(&self, rc: Gc<Box<TransformNodesTransformationResult>>) {
-        *self._rc_wrapper.borrow_mut() = Some(rc);
-    }
-
-    pub fn rc_wrapper(&self) -> Gc<Box<TransformNodesTransformationResult>> {
-        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     fn lexical_environment_variable_declarations(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
@@ -1071,6 +1050,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         if created_emit_helper_factory.is_none() {
             *created_emit_helper_factory = Some(Gc::new(create_emit_helper_factory(
                 self.as_dyn_transformation_context(),
+                self,
             )));
         }
         created_emit_helper_factory.clone().unwrap()

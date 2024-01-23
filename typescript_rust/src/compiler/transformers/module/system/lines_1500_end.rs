@@ -172,7 +172,7 @@ impl TransformSystemModule {
         }
 
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
                 .into(),
         ))
     }
@@ -253,7 +253,7 @@ impl TransformSystemModule {
                     if !value_is_discarded {
                         temp = Some(self.factory.create_temp_variable(
                             Some(|node: Id<Node>| {
-                                self.context.hoist_variable_declaration(node);
+                                self.context.ref_(self).hoist_variable_declaration(node);
                             }),
                             None,
                         ));
@@ -286,7 +286,7 @@ impl TransformSystemModule {
             }
         }
         Ok(Some(
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?
                 .into(),
         ))
     }

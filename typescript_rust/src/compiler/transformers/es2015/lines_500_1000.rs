@@ -32,7 +32,7 @@ impl TransformES2015 {
         );
         let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        self.context.start_lexical_environment();
+        self.context.ref_(self).start_lexical_environment();
         let statement_offset = self.factory.try_copy_prologue(
             &node_as_source_file.statements(),
             &mut prologue,
@@ -64,7 +64,7 @@ impl TransformES2015 {
         }
         prologue = self
             .factory
-            .merge_lexical_environment(prologue, self.context.end_lexical_environment().as_deref())
+            .merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
             .as_vec_owned();
         self.insert_capture_this_for_node_if_needed(&mut prologue, node);
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
@@ -100,12 +100,12 @@ impl TransformES2015 {
                 );
             }
             let result =
-                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?;
+                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?;
             converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
                 saved_allowed_non_labeled_jumps;
             return Ok(result);
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_case_block(
@@ -117,7 +117,7 @@ impl TransformES2015 {
             HierarchyFacts::BlockScopeIncludes,
         );
         let updated =
-            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)?;
+            try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)?;
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
         Ok(updated)
     }
@@ -168,7 +168,7 @@ impl TransformES2015 {
         } else if self.is_return_void_statement_in_constructor_with_captured_super(node) {
             return Ok(self.return_captured_this(node));
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_this_keyword(&self, node: Id<Node>) -> Id<Node> {
@@ -214,7 +214,7 @@ impl TransformES2015 {
         try_visit_each_child(
             node,
             |node: Id<Node>| self.visitor_with_unused_expression_result(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )
     }
@@ -338,7 +338,7 @@ impl TransformES2015 {
                     .create_return_statement(Some(return_expression)));
             }
         }
-        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     pub(super) fn visit_class_declaration(
@@ -499,7 +499,7 @@ impl TransformES2015 {
         } else {
             name
         };
-        self.context.start_lexical_environment();
+        self.context.ref_(self).start_lexical_environment();
         self.add_extends_helper_if_needed(&mut statements, node, extends_clause_element);
         self.add_constructor(
             &mut statements,
@@ -535,7 +535,7 @@ impl TransformES2015 {
 
         insert_statements_after_standard_prologue(
             &mut statements,
-            self.context.end_lexical_environment().as_deref(),
+            self.context.ref_(self).end_lexical_environment().as_deref(),
             self,
         );
 
@@ -634,7 +634,7 @@ impl TransformES2015 {
                 .map(|constructor| constructor.ref_(self).as_constructor_declaration().parameters())
                 .as_deref(),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )?
         .map_or_else(|| vec![].into(), Into::into))
@@ -646,12 +646,12 @@ impl TransformES2015 {
         is_derived_class: bool,
     ) -> Id<Node> {
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        self.context.resume_lexical_environment();
+        self.context.ref_(self).resume_lexical_environment();
         statements = self
             .factory
             .merge_lexical_environment(
                 statements,
-                self.context.end_lexical_environment().as_deref(),
+                self.context.ref_(self).end_lexical_environment().as_deref(),
             )
             .as_vec_owned();
 
@@ -705,7 +705,7 @@ impl TransformES2015 {
 
         let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        self.context.resume_lexical_environment();
+        self.context.ref_(self).resume_lexical_environment();
 
         let mut statement_offset = 0;
         if !has_synthesized_super {
@@ -768,7 +768,7 @@ impl TransformES2015 {
 
         prologue = self
             .factory
-            .merge_lexical_environment(prologue, self.context.end_lexical_environment().as_deref())
+            .merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
             .as_vec_owned();
         prologue = self.insert_capture_new_target_if_needed(prologue, constructor, false);
 

@@ -384,7 +384,7 @@ impl TransformDeclarations {
         if is_string_literal_like(&input.ref_(self)) {
             if self.is_bundled_emit() {
                 let new_name = get_external_module_name_from_declaration(
-                    &**self.context.get_emit_host(),
+                    &**self.context.ref_(self).get_emit_host(),
                     &**self.resolver,
                     parent,
                     self,
@@ -789,7 +789,7 @@ impl TransformDeclarations {
                     let node = try_visit_each_child(
                         input,
                         |node: Id<Node>| self.visit_declaration_subtree(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     )?;
                     let node_ref = node.ref_(self);
@@ -820,7 +820,7 @@ impl TransformDeclarations {
                     let node = try_visit_each_child(
                         input,
                         |node: Id<Node>| self.visit_declaration_subtree(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     )?;
                     let node_ref = node.ref_(self);
@@ -1267,7 +1267,7 @@ impl TransformDeclarations {
                         try_maybe_visit_each_child(
                             Some(input),
                             |node: Id<Node>| self.visit_declaration_subtree(node),
-                            &**self.context,
+                            &**self.context.ref_(self),
                             self,
                         )?,
                     )?
@@ -1482,7 +1482,7 @@ impl TransformDeclarations {
             try_maybe_visit_each_child(
                 Some(input),
                 |node: Id<Node>| self.visit_declaration_subtree(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?,
         )

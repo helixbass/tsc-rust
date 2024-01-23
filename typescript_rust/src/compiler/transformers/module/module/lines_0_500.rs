@@ -99,7 +99,7 @@ impl TransformModule {
     }
 
     pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.get_emit_helper_factory()
+        self.context.ref_(self).get_emit_helper_factory()
     }
 
     pub(super) fn module_info_map(&self) -> GcCellRef<HashMap<NodeId, Gc<ExternalModuleInfo>>> {
@@ -187,7 +187,7 @@ impl TransformModule {
 
         self.set_current_source_file(Some(node));
         self.set_current_module_info(Some(Gc::new(collect_external_module_info(
-            &**self.context,
+            &**self.context.ref_(self),
             node,
             &**self.resolver,
             &self.compiler_options,
@@ -222,7 +222,7 @@ impl TransformModule {
     ) -> io::Result<Id<Node>> {
         let node_ref = node.ref_(self);
         let node_as_source_file = node_ref.as_source_file();
-        self.context.start_lexical_environment();
+        self.context.ref_(self).start_lexical_environment();
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let ensure_use_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
@@ -290,7 +290,7 @@ impl TransformModule {
         self.add_export_equals_if_needed(&mut statements, false)?;
         insert_statements_after_standard_prologue(
             &mut statements,
-            self.context.end_lexical_environment().as_deref(),
+            self.context.ref_(self).end_lexical_environment().as_deref(),
             self,
         );
 
@@ -307,7 +307,7 @@ impl TransformModule {
                 None,
                 None,
             )
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self))
+            .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self))
     }
 
     pub(super) fn transform_amd_module(
@@ -434,7 +434,7 @@ impl TransformModule {
                 None,
                 None,
             )
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self))
+            .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self))
     }
 
     pub(super) fn transform_umd_module(
@@ -638,7 +638,7 @@ impl TransformModule {
                 None,
                 None,
             )
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self))
+            .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self))
     }
 
     pub(super) fn collect_asynchronous_dependencies(
@@ -758,7 +758,7 @@ impl TransformModule {
     ) -> io::Result<Id<Node>> {
         let node_ref = node.ref_(self);
         let node_as_source_file = node_ref.as_source_file();
-        self.context.start_lexical_environment();
+        self.context.ref_(self).start_lexical_environment();
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let statement_offset = self.factory.try_copy_prologue(
@@ -834,7 +834,7 @@ impl TransformModule {
 
         insert_statements_after_standard_prologue(
             &mut statements,
-            self.context.end_lexical_environment().as_deref(),
+            self.context.ref_(self).end_lexical_environment().as_deref(),
             self,
         );
 

@@ -50,7 +50,7 @@ impl TransformClassFields {
         if facts.intersects(ClassFacts::NeedsClassConstructorReference) {
             let temp = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 }),
                 Some(true),
             );
@@ -298,9 +298,9 @@ impl TransformClassFields {
         self.factory.create_temp_variable(
             Some(|node: Id<Node>| {
                 if requires_block_scoped_var {
-                    self.context.add_block_scoped_variable(node);
+                    self.context.ref_(self).add_block_scoped_variable(node);
                 } else {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 }
             }),
             Some(is_class_with_constructor_reference),
@@ -316,7 +316,7 @@ impl TransformClassFields {
                 visit_each_child(
                     node,
                     |node: Id<Node>| self.class_element_visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )
                 .into(),
@@ -433,7 +433,7 @@ impl TransformClassFields {
                 .map(|constructor| constructor.ref_(self).as_signature_declaration().parameters())
                 .as_deref(),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         );
         let body =
@@ -477,10 +477,10 @@ impl TransformClassFields {
             !properties.is_empty() || !private_methods_and_accessors.is_empty();
 
         if constructor.is_none() && !needs_constructor_body {
-            return visit_function_body(None, |node: Id<Node>| self.visitor(node), &**self.context, self);
+            return visit_function_body(None, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
         }
 
-        self.context.resume_lexical_environment();
+        self.context.ref_(self).resume_lexical_environment();
 
         let mut index_of_first_statement = 0;
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
@@ -566,7 +566,7 @@ impl TransformClassFields {
             .factory
             .merge_lexical_environment(
                 statements,
-                self.context.end_lexical_environment().as_deref(),
+                self.context.ref_(self).end_lexical_environment().as_deref(),
             )
             .as_vec_owned();
 
@@ -833,7 +833,7 @@ impl TransformClassFields {
                     | ClassPropertySubstitutionFlags::ClassAliases,
             ));
 
-            self.context.enable_substitution(SyntaxKind::Identifier);
+            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
 
             self.set_class_aliases(Some(_d()));
         }
@@ -850,26 +850,26 @@ impl TransformClassFields {
                     | ClassPropertySubstitutionFlags::ClassStaticThisOrSuperReference,
             ));
 
-            self.context.enable_substitution(SyntaxKind::ThisKeyword);
+            self.context.ref_(self).enable_substitution(SyntaxKind::ThisKeyword);
 
             self.context
-                .enable_emit_notification(SyntaxKind::FunctionDeclaration);
+                .ref_(self).enable_emit_notification(SyntaxKind::FunctionDeclaration);
             self.context
-                .enable_emit_notification(SyntaxKind::FunctionExpression);
+                .ref_(self).enable_emit_notification(SyntaxKind::FunctionExpression);
             self.context
-                .enable_emit_notification(SyntaxKind::Constructor);
+                .ref_(self).enable_emit_notification(SyntaxKind::Constructor);
 
             self.context
-                .enable_emit_notification(SyntaxKind::GetAccessor);
+                .ref_(self).enable_emit_notification(SyntaxKind::GetAccessor);
             self.context
-                .enable_emit_notification(SyntaxKind::SetAccessor);
+                .ref_(self).enable_emit_notification(SyntaxKind::SetAccessor);
             self.context
-                .enable_emit_notification(SyntaxKind::MethodDeclaration);
+                .ref_(self).enable_emit_notification(SyntaxKind::MethodDeclaration);
             self.context
-                .enable_emit_notification(SyntaxKind::PropertyDeclaration);
+                .ref_(self).enable_emit_notification(SyntaxKind::PropertyDeclaration);
 
             self.context
-                .enable_emit_notification(SyntaxKind::ComputedPropertyName);
+                .ref_(self).enable_emit_notification(SyntaxKind::ComputedPropertyName);
         }
     }
 

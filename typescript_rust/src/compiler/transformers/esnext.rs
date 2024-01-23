@@ -27,7 +27,7 @@ impl TransformESNext {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -40,7 +40,7 @@ impl TransformESNext {
         #[allow(clippy::match_single_binding)]
         match node.ref_(self).kind() {
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
             ),
         }
     }

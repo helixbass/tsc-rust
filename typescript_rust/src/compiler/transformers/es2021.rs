@@ -32,7 +32,7 @@ impl TransformES2021 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
@@ -51,7 +51,7 @@ impl TransformES2021 {
                 maybe_visit_each_child(
                     Some(node),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )
                 .map(Into::into)
@@ -59,7 +59,7 @@ impl TransformES2021 {
             _ => maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )
             .map(Into::into),
@@ -106,7 +106,7 @@ impl TransformES2021 {
             } else {
                 self.factory.create_temp_variable(
                     Some(|node: Id<Node>| {
-                        self.context.hoist_variable_declaration(node);
+                        self.context.ref_(self).hoist_variable_declaration(node);
                     }),
                     None,
                 )
@@ -142,7 +142,7 @@ impl TransformES2021 {
                 } else {
                     self.factory.create_temp_variable(
                         Some(|node: Id<Node>| {
-                            self.context.hoist_variable_declaration(node);
+                            self.context.ref_(self).hoist_variable_declaration(node);
                         }),
                         None,
                     )

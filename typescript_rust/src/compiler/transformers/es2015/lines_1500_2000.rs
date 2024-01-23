@@ -246,7 +246,7 @@ impl TransformES2015 {
         )?;
         let e: Id<Node /*Expression*/>;
         if !is_private_identifier(&property_name.ref_(self))
-            && get_use_define_for_class_fields(&self.context.get_compiler_options())
+            && get_use_define_for_class_fields(&self.context.ref_(self).get_compiler_options())
         {
             let name = if is_computed_property_name(&property_name.ref_(self)) {
                 property_name.ref_(self).as_computed_property_name().expression
@@ -468,7 +468,7 @@ impl TransformES2015 {
                 try_visit_parameter_list(
                     Some(&node_as_arrow_function.parameters()),
                     |node: Id<Node>| self.visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )?,
                 Option::<Id<Node>>::None,
@@ -511,7 +511,7 @@ impl TransformES2015 {
         let parameters = try_visit_parameter_list(
             Some(&node_as_function_expression.parameters()),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )?
         .unwrap();
@@ -559,7 +559,7 @@ impl TransformES2015 {
         let parameters = try_visit_parameter_list(
             Some(&node_as_function_declaration.parameters()),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )?
         .unwrap();
@@ -625,7 +625,7 @@ impl TransformES2015 {
         let parameters = try_visit_parameter_list(
             Some(&node_as_function_like_declaration.parameters()),
             |node: Id<Node>| self.visitor(node),
-            &**self.context,
+            &**self.context.ref_(self),
             self,
         )?
         .unwrap();
@@ -680,7 +680,7 @@ impl TransformES2015 {
         let body = node_as_function_like_declaration.maybe_body().unwrap();
         let mut statement_offset: Option<usize> = Default::default();
 
-        self.context.resume_lexical_environment();
+        self.context.ref_(self).resume_lexical_environment();
         if is_block(&body.ref_(self)) {
             let body_ref = body.ref_(self);
             let body_as_block = body_ref.as_block();
@@ -780,7 +780,7 @@ impl TransformES2015 {
 
         prologue = self
             .factory
-            .merge_lexical_environment(prologue, self.context.end_lexical_environment().as_deref())
+            .merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
             .as_vec_owned();
         prologue = self.insert_capture_new_target_if_needed(prologue, node, false);
         self.insert_capture_this_for_node_if_needed(&mut prologue, node);

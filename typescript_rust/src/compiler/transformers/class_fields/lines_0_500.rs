@@ -19,7 +19,7 @@ use crate::{
     maybe_visit_nodes, move_range_pos, set_comment_range, visit_function_body,
     visit_parameter_list, AsDoubleDeref, EmitFlags, HasInitializerInterface,
     NamedDeclarationInterface, NodeCheckFlags, ReadonlyTextRangeConcrete,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, static_arena,
 };
 
 bitflags! {
@@ -395,7 +395,8 @@ bitflags! {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformClassFields {
-    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
+    #[unsafe_ignore_trace]
+    pub(super) _arena: *const AllArenas,
     pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
@@ -424,14 +425,16 @@ pub(super) struct TransformClassFields {
 }
 
 impl TransformClassFields {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
-        let compiler_options = context.get_compiler_options();
+    fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Transformer {
+        let arena_ref = unsafe { &*arena };
+        let context_ref = context.ref_(arena_ref);
+        let compiler_options = context_ref.get_compiler_options();
         let language_version = get_emit_script_target(&compiler_options);
         let use_define_for_class_fields = get_use_define_for_class_fields(&compiler_options);
-        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
-            _transformer_wrapper: Default::default(),
-            factory: context.factory(),
-            resolver: context.get_emit_resolver(),
+        let ret = arena_ref.alloc_transformation_context(Box::new(Self {
+            _arena: arena,
+            factory: context_ref.factory(),
+            resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
             use_define_for_class_fields,
             compiler_options,
@@ -454,27 +457,21 @@ impl TransformClassFields {
             current_computed_property_name_class_lexical_environment: Default::default(),
             current_static_property_declaration_or_static_block: Default::default(),
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
-        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
-        context.override_on_emit_node(&mut |previous_on_emit_node| {
+        context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformClassFieldsOnEmitNodeOverrider::new(
-                downcasted.clone(),
+                ret,
                 previous_on_emit_node,
             )))
         });
-        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+        context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(
                 TransformClassFieldsOnSubstituteNodeOverrider::new(
-                    downcasted.clone(),
+                    ret,
                     previous_on_substitute_node,
                 ),
             ))
         });
-        downcasted
-    }
-
-    pub(super) fn as_transformer(&self) -> Transformer {
-        self._transformer_wrapper.borrow().clone().unwrap()
+        ret
     }
 
     pub(super) fn maybe_enabled_substitutions(&self) -> Option<ClassPropertySubstitutionFlags> {
@@ -638,15 +635,15 @@ impl TransformClassFields {
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_source_file = node_ref.as_source_file();
-        let ref options = self.context.get_compiler_options();
+        let ref options = self.context.ref_(self).get_compiler_options();
         if node_as_source_file.is_declaration_file()
             || self.use_define_for_class_fields
                 && get_emit_script_target(options) == ScriptTarget::ESNext
         {
             return node;
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self)
-            .add_emit_helpers(self.context.read_emit_helpers().as_deref(), self)
+        visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self)
+            .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self)
     }
 
     pub(super) fn visitor_worker(&self, node: Id<Node>, value_is_discarded: bool) -> VisitResult /*<Node>*/
@@ -723,7 +720,7 @@ impl TransformClassFields {
                     let result = visit_each_child(
                         node,
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     );
                     self.set_current_static_property_declaration_or_static_block(
@@ -734,7 +731,7 @@ impl TransformClassFields {
                 _ => (),
             }
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 
     pub(super) fn discarded_value_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -752,7 +749,7 @@ impl TransformClassFields {
                     visit_each_child(
                         node,
                         |node: Id<Node>| self.heritage_clause_visitor(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     )
                     .into(),
@@ -819,7 +816,7 @@ impl TransformClassFields {
 
             return Some(
                 self.context
-                    .get_emit_helper_factory()
+                    .ref_(self).get_emit_helper_factory()
                     .create_class_private_field_in_helper(
                         (*info).borrow().brand_check_identifier(),
                         receiver,
@@ -829,7 +826,7 @@ impl TransformClassFields {
             );
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 
     pub(super) fn class_element_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -853,7 +850,7 @@ impl TransformClassFields {
         self.set_pending_statements(Some(_d()));
 
         let visited_node =
-            visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+            visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
         let statement: SingleNodeOrVecNode =
             if self.maybe_pending_statements().as_ref().is_non_empty() {
                 vec![visited_node]
@@ -873,7 +870,7 @@ impl TransformClassFields {
     ) -> VisitResult {
         let name_ref = name.ref_(self);
         let name_as_computed_property_name = name_ref.as_computed_property_name();
-        let mut node = visit_each_child(name, |node: Id<Node>| self.visitor(node), &**self.context, self);
+        let mut node = visit_each_child(name, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
         if self.maybe_pending_expressions().as_ref().is_non_empty() {
             let mut expressions = self.pending_expressions().clone();
             expressions.push(name_as_computed_property_name.expression.clone());
@@ -905,7 +902,7 @@ impl TransformClassFields {
                 visit_each_child(
                     node,
                     |node: Id<Node>| self.class_element_visitor(node),
-                    &**self.context,
+                    &**self.context.ref_(self),
                     self,
                 )
                 .into(),
@@ -937,14 +934,14 @@ impl TransformClassFields {
                         visit_parameter_list(
                             Some(&node_as_function_like_declaration.parameters()),
                             |node: Id<Node>| self.class_element_visitor(node),
-                            &**self.context,
+                            &**self.context.ref_(self),
                             self,
                         ),
                         None,
                         visit_function_body(
                             Some(node_as_function_like_declaration.maybe_body().unwrap()),
                             |node: Id<Node>| self.class_element_visitor(node),
-                            &**self.context,
+                            &**self.context.ref_(self),
                             self,
                         )
                         .unwrap(),
@@ -1078,7 +1075,7 @@ impl TransformClassFields {
         match info.kind() {
             PrivateIdentifierKind::Accessor => self
                 .context
-                .get_emit_helper_factory()
+                .ref_(self).get_emit_helper_factory()
                 .create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
@@ -1089,7 +1086,7 @@ impl TransformClassFields {
                 ),
             PrivateIdentifierKind::Method => self
                 .context
-                .get_emit_helper_factory()
+                .ref_(self).get_emit_helper_factory()
                 .create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
@@ -1098,7 +1095,7 @@ impl TransformClassFields {
                 ),
             PrivateIdentifierKind::Field => self
                 .context
-                .get_emit_helper_factory()
+                .ref_(self).get_emit_helper_factory()
                 .create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
@@ -1177,7 +1174,7 @@ impl TransformClassFields {
                 }
             }
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 }
 
@@ -1502,7 +1499,7 @@ impl TransformerFactoryInterface for TransformClassFieldsFactory {
     fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            TransformClassFields::new(context).as_transformer(),
+            TransformClassFields::new(context, &*static_arena()),
         )
     }
 }

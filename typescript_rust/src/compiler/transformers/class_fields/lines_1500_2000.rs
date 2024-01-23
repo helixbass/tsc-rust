@@ -72,9 +72,9 @@ impl TransformClassFields {
                     .get_node_check_flags(name)
                     .intersects(NodeCheckFlags::BlockScopedBindingInLoop)
                 {
-                    self.context.add_block_scoped_variable(generated_name);
+                    self.context.ref_(self).add_block_scoped_variable(generated_name);
                 } else {
-                    self.context.hoist_variable_declaration(generated_name);
+                    self.context.ref_(self).hoist_variable_declaration(generated_name);
                 }
                 return Some(self.factory.create_assignment(generated_name, expression));
             }
@@ -368,9 +368,9 @@ impl TransformClassFields {
             .get_node_check_flags(node)
             .intersects(NodeCheckFlags::BlockScopedBindingInLoop)
         {
-            self.context.add_block_scoped_variable(identifier);
+            self.context.ref_(self).add_block_scoped_variable(identifier);
         } else {
-            self.context.hoist_variable_declaration(identifier);
+            self.context.ref_(self).hoist_variable_declaration(identifier);
         }
 
         identifier
@@ -439,7 +439,7 @@ impl TransformClassFields {
         let node_as_property_access_expression = node_ref.as_property_access_expression();
         let parameter = self.factory.get_generated_name_for_node(Some(node), None);
         let Some(info) = self.access_private_identifier(node_as_property_access_expression.name()) else {
-            return visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self);
+            return visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self);
         };
         let mut receiver = node_as_property_access_expression.expression;
         if is_this_property(node, self)
@@ -448,7 +448,7 @@ impl TransformClassFields {
         {
             receiver = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 }),
                 Some(true),
             );

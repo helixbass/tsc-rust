@@ -35,7 +35,7 @@ impl TransformTypeScript {
             try_visit_lexical_environment_full(
                 &node.ref_(self).as_source_file().statements(),
                 |node: Id<Node>| self.source_element_visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 Some(0),
                 Some(always_strict),
                 Option::<
@@ -145,7 +145,7 @@ impl TransformTypeScript {
             return Ok(try_maybe_visit_each_child(
                 Some(node),
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             )?
             .map(Into::into));
@@ -155,7 +155,7 @@ impl TransformTypeScript {
         let facts = self.get_class_facts(node, &static_properties);
 
         if facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression) {
-            self.context.start_lexical_environment();
+            self.context.ref_(self).start_lexical_environment();
         }
 
         let name = node_as_class_declaration.maybe_name().or_else(|| {
@@ -205,7 +205,7 @@ impl TransformTypeScript {
 
             insert_statements_after_standard_prologue(
                 &mut statements,
-                self.context.end_lexical_environment().as_deref(),
+                self.context.ref_(self).end_lexical_environment().as_deref(),
                 self,
             );
 
@@ -396,7 +396,7 @@ impl TransformTypeScript {
             return try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             );
         }

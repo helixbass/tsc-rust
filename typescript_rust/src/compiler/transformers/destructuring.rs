@@ -205,7 +205,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
                 || -> io::Result<_> {
                     Ok(self
                         .context
-                        .factory()
+                        .ref_(self).factory()
                         .create_assignment(
                             try_visit_node(
                                 target,
@@ -237,14 +237,14 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
         &self,
         elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     ) -> Id<Node /*ArrayBindingOrAssignmentPattern*/> {
-        make_array_assignment_pattern(&self.context.factory(), elements)
+        make_array_assignment_pattern(&self.context.ref_(self).factory(), elements)
     }
 
     fn create_object_binding_or_assignment_pattern(
         &self,
         elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     ) -> Id<Node /*ObjectBindingOrAssignmentPattern*/> {
-        make_object_assignment_pattern(&self.context.factory(), elements)
+        make_object_assignment_pattern(&self.context.ref_(self).factory(), elements)
     }
 
     fn create_array_binding_or_assignment_element(
@@ -354,7 +354,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     let flatten_context = FlattenDestructuringAssignmentFlattenContext::new(
         context.clone(),
         level,
-        context.get_compiler_options().downlevel_iteration == Some(true),
+        context.ref_(self).get_compiler_options().downlevel_iteration == Some(true),
         expressions.clone(),
         create_assignment_callback.clone(),
         visitor.clone(),
@@ -416,7 +416,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     }
 
     let ret = context
-        .factory()
+        .ref_(self).factory()
         .inline_expressions((*expressions).borrow().as_ref().unwrap()) /* || context.factory.createOmittedExpression()*/;
     Ok(ret)
 }
@@ -529,7 +529,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     let flatten_context = FlattenDestructuringBindingFlattenContext::new(
         context.clone(),
         level,
-        context.get_compiler_options().downlevel_iteration == Some(true),
+        context.ref_(arena).get_compiler_options().downlevel_iteration == Some(true),
         hoist_temp_variables,
         pending_expressions.clone(),
         pending_declarations.clone(),
@@ -559,7 +559,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 &*initializer.ref_(arena),
                 arena,
             )?;
-            node = context.factory().update_variable_declaration(
+            node = context.ref_(arena).factory().update_variable_declaration(
                 node,
                 node.ref_(arena).as_variable_declaration().maybe_name(),
                 None,
@@ -572,16 +572,16 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     flatten_binding_or_assignment_element(&flatten_context, node, rval, &*node.ref_(arena), skip_initializer, arena)?;
     if (*pending_expressions).borrow().is_some() {
         let temp = context
-            .factory()
+            .ref_(arena).factory()
             .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
         if hoist_temp_variables {
             let value = context
-                .factory()
+                .ref_(arena).factory()
                 .inline_expressions((*pending_expressions).borrow().as_ref().unwrap());
             *pending_expressions.borrow_mut() = None;
             emit_binding_or_assignment(
                 &mut pending_expressions.borrow_mut(),
-                &**context,
+                &**context.ref_(arena),
                 &mut pending_declarations.borrow_mut(),
                 temp,
                 value,
@@ -590,7 +590,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 arena,
             );
         } else {
-            context.hoist_variable_declaration(temp);
+            context.ref_(arena).hoist_variable_declaration(temp);
             let mut pending_declarations = pending_declarations.borrow_mut();
             let pending_declarations_len = pending_declarations.len();
             let pending_declaration = &mut pending_declarations[pending_declarations_len - 1];
@@ -599,7 +599,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 .get_or_insert_default_()
                 .push(
                     context
-                        .factory()
+                        .ref_(arena).factory()
                         .create_assignment(temp.clone(), pending_declaration.value.clone()),
                 );
             pending_declaration
@@ -625,7 +625,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
         original,
     } in (*pending_declarations).borrow().iter()
     {
-        let variable = context.factory().create_variable_declaration(
+        let variable = context.ref_(arena).factory().create_variable_declaration(
             Some(name.clone()),
             None,
             None,
@@ -633,7 +633,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 || value.clone(),
                 |pending_expressions| {
                     context
-                        .factory()
+                        .ref_(arena).factory()
                         .inline_expressions(&pending_expressions.clone().and_push(value.clone()))
                 },
             )),
@@ -755,21 +755,21 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
         &self,
         elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     ) -> Id<Node /*ArrayBindingOrAssignmentPattern*/> {
-        make_array_binding_pattern(&self.context.factory(), elements, self)
+        make_array_binding_pattern(&self.context.ref_(self).factory(), elements, self)
     }
 
     fn create_object_binding_or_assignment_pattern(
         &self,
         elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     ) -> Id<Node /*ObjectBindingOrAssignmentPattern*/> {
-        make_object_binding_pattern(&self.context.factory(), elements, self)
+        make_object_binding_pattern(&self.context.ref_(self).factory(), elements, self)
     }
 
     fn create_array_binding_or_assignment_element(
         &self,
         name: Id<Node>, /*Identifier*/
     ) -> Id<Node /*BindingOrAssignmentElement*/> {
-        make_binding_element(&self.context.factory(), name)
+        make_binding_element(&self.context.ref_(self).factory(), name)
     }
 
     fn visitor(&self, node: Id<Node>) -> Option<io::Result<VisitResult /*<Node>*/>> {
@@ -838,7 +838,7 @@ fn flatten_binding_or_assignment_element(
                 value = Some(initializer);
             }
         } else if value.is_none() {
-            value = Some(flatten_context.context().factory().create_void_zero());
+            value = Some(flatten_context.context().ref_(arena).factory().create_void_zero());
         }
     }
     if is_object_binding_or_assigment_pattern(&binding_target.ref_(arena)) {
@@ -965,7 +965,7 @@ fn flatten_object_binding_or_assignment_pattern(
             }
             let rhs_value = flatten_context
                 .context()
-                .get_emit_helper_factory()
+                .ref_(arena).get_emit_helper_factory()
                 .create_rest_helper(
                     value,
                     &elements,
@@ -1009,7 +1009,7 @@ fn flatten_array_binding_or_assignment_pattern(
             flatten_context,
             flatten_context
                 .context()
-                .get_emit_helper_factory()
+                .ref_(arena).get_emit_helper_factory()
                 .create_read_helper(
                     value,
                     (!(num_elements > 0
@@ -1059,10 +1059,10 @@ fn flatten_array_binding_or_assignment_pattern(
                 flatten_context.set_has_transformed_prior_element(Some(true));
                 let temp = flatten_context
                     .context()
-                    .factory()
+                    .ref_(arena).factory()
                     .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
                 if flatten_context.hoist_temp_variables() {
-                    flatten_context.context().hoist_variable_declaration(temp);
+                    flatten_context.context().ref_(arena).hoist_variable_declaration(temp);
                 }
 
                 rest_containing_elements
@@ -1081,7 +1081,7 @@ fn flatten_array_binding_or_assignment_pattern(
         } else if get_rest_indicator_of_binding_or_assignment_element(&element.ref_(arena)).is_none() {
             let rhs_value = flatten_context
                 .context()
-                .factory()
+                .ref_(arena).factory()
                 .create_element_access_expression(value, Number::new(i as f64));
             flatten_binding_or_assignment_element(
                 flatten_context,
@@ -1094,7 +1094,7 @@ fn flatten_array_binding_or_assignment_pattern(
         } else if i == num_elements - 1 {
             let rhs_value = flatten_context
                 .context()
-                .factory()
+                .ref_(arena).factory()
                 .create_array_slice_call(value, Some(Number::new(i as f64)));
             flatten_binding_or_assignment_element(
                 flatten_context,
@@ -1165,11 +1165,11 @@ fn create_default_value_check(
     let value = ensure_identifier(flatten_context, value, true, location, arena)?;
     Ok(flatten_context
         .context()
-        .factory()
+        .ref_(arena).factory()
         .create_conditional_expression(
             flatten_context
                 .context()
-                .factory()
+                .ref_(arena).factory()
                 .create_type_check(value, "undefined"),
             None,
             default_value,
@@ -1201,22 +1201,22 @@ fn create_destructuring_property_access(
         )?;
         flatten_context
             .context()
-            .factory()
+            .ref_(arena).factory()
             .create_element_access_expression(value, argument_expression)
     } else if is_string_or_numeric_literal_like(&property_name.ref_(arena)) {
         let argument_expression = get_factory().clone_node(property_name);
         flatten_context
             .context()
-            .factory()
+            .ref_(arena).factory()
             .create_element_access_expression(value, argument_expression)
     } else {
         let name = flatten_context
             .context()
-            .factory()
+            .ref_(arena).factory()
             .create_identifier(id_text(&property_name.ref_(arena)));
         flatten_context
             .context()
-            .factory()
+            .ref_(arena).factory()
             .create_property_access_expression(value, name)
     })
 }
@@ -1233,14 +1233,14 @@ fn ensure_identifier(
     } else {
         let temp = flatten_context
             .context()
-            .factory()
+            .ref_(arena).factory()
             .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
         if flatten_context.hoist_temp_variables() {
-            flatten_context.context().hoist_variable_declaration(temp);
+            flatten_context.context().ref_(arena).hoist_variable_declaration(temp);
             flatten_context.emit_expression(
                 flatten_context
                     .context()
-                    .factory()
+                    .ref_(arena).factory()
                     .create_assignment(temp, value)
                     .set_text_range(Some(location), arena),
             );

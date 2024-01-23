@@ -65,8 +65,8 @@ impl TransformES2015 {
             Some(vec![]),
         );
 
-        self.context.hoist_variable_declaration(error_record);
-        self.context.hoist_variable_declaration(return_method);
+        self.context.ref_(self).hoist_variable_declaration(error_record);
+        self.context.ref_(self).hoist_variable_declaration(return_method);
 
         let initializer = if ancestor_facts
             .unwrap_or_default()
@@ -262,7 +262,7 @@ impl TransformES2015 {
             return try_visit_each_child(
                 node,
                 |node: Id<Node>| self.visitor(node),
-                &**self.context,
+                &**self.context.ref_(self),
                 self,
             );
         }
@@ -270,7 +270,7 @@ impl TransformES2015 {
 
         let temp = self.factory.create_temp_variable(
             Some(|node: Id<Node>| {
-                self.context.hoist_variable_declaration(node);
+                self.context.ref_(self).hoist_variable_declaration(node);
             }),
             None,
         );
@@ -479,7 +479,7 @@ impl TransformES2015 {
                             try_visit_each_child(
                                 node,
                                 |node: Id<Node>| self.visitor(node),
-                                &**self.context,
+                                &**self.context.ref_(self),
                                 self,
                             )?
                         },

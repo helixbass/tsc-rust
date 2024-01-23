@@ -78,7 +78,7 @@ impl TransformClassFields {
             }
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 
     pub(super) fn visit_pre_or_postfix_unary_expression(
@@ -117,7 +117,7 @@ impl TransformClassFields {
                         (!(is_prefix_unary_expression(&node.ref_(self)) || value_is_discarded)).then(|| {
                             self.factory.create_temp_variable(
                                 Some(|node: Id<Node>| {
-                                    self.context.hoist_variable_declaration(node);
+                                    self.context.ref_(self).hoist_variable_declaration(node);
                                 }),
                                 None,
                             )
@@ -127,7 +127,7 @@ impl TransformClassFields {
                         node,
                         expression,
                         |node: Id<Node>| {
-                            self.context.hoist_variable_declaration(node);
+                            self.context.ref_(self).hoist_variable_declaration(node);
                         },
                         temp,
                     );
@@ -207,7 +207,7 @@ impl TransformClassFields {
                                 } else {
                                     getter_name = Some(self.factory.create_temp_variable(
                                         Some(|node: Id<Node>| {
-                                            self.context.hoist_variable_declaration(node);
+                                            self.context.ref_(self).hoist_variable_declaration(node);
                                         }),
                                         None,
                                     ));
@@ -240,7 +240,7 @@ impl TransformClassFields {
                                 let temp = (!value_is_discarded).then(|| {
                                     self.factory.create_temp_variable(
                                         Some(|node: Id<Node>| {
-                                            self.context.hoist_variable_declaration(node);
+                                            self.context.ref_(self).hoist_variable_declaration(node);
                                         }),
                                         None,
                                     )
@@ -251,7 +251,7 @@ impl TransformClassFields {
                                         node,
                                         expression,
                                         |node: Id<Node>| {
-                                            self.context.hoist_variable_declaration(node);
+                                            self.context.ref_(self).hoist_variable_declaration(node);
                                         },
                                         temp,
                                     );
@@ -278,7 +278,7 @@ impl TransformClassFields {
                 }
             }
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 
     pub(super) fn visit_for_statement(&self, node: Id<Node> /*ForStatement*/) -> VisitResult {
@@ -309,7 +309,7 @@ impl TransformClassFields {
                     visit_iteration_body(
                         node_as_for_statement.statement,
                         |node: Id<Node>| self.visitor(node),
-                        &**self.context,
+                        &**self.context.ref_(self),
                         self,
                     ),
                 )
@@ -355,7 +355,7 @@ impl TransformClassFields {
         }
         let read_expression = self.factory.create_temp_variable(
             Some(|node: Id<Node>| {
-                self.context.hoist_variable_declaration(node);
+                self.context.ref_(self).hoist_variable_declaration(node);
             }),
             None,
         );
@@ -380,7 +380,7 @@ impl TransformClassFields {
             let CallBinding { this_arg, target } = self.factory.create_call_binding(
                 node_as_call_expression.expression,
                 |node: Id<Node>| {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 },
                 Some(self.language_version),
                 None,
@@ -497,7 +497,7 @@ impl TransformClassFields {
             }
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 
     pub(super) fn visit_tagged_template_expression(
@@ -515,7 +515,7 @@ impl TransformClassFields {
             let CallBinding { this_arg, target } = self.factory.create_call_binding(
                 node_as_tagged_template_expression.tag,
                 |node: Id<Node>| {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 },
                 Some(self.language_version),
                 None,
@@ -600,7 +600,7 @@ impl TransformClassFields {
             }
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 
     pub(super) fn transform_class_static_block_declaration(
@@ -619,7 +619,7 @@ impl TransformClassFields {
                 );
             }
 
-            self.context.start_lexical_environment();
+            self.context.ref_(self).start_lexical_environment();
             let saved_current_static_property_declaration_or_static_block =
                 self.maybe_current_static_property_declaration_or_static_block();
             self.set_current_static_property_declaration_or_static_block(Some(node));
@@ -637,7 +637,7 @@ impl TransformClassFields {
                 .factory
                 .merge_lexical_environment(
                     statements,
-                    self.context.end_lexical_environment().as_deref(),
+                    self.context.ref_(self).end_lexical_environment().as_deref(),
                 )
                 .as_node_array();
             self.set_current_static_property_declaration_or_static_block(
@@ -796,7 +796,7 @@ impl TransformClassFields {
                                     if !is_simple_inlineable_expression(&setter_name.ref_(self)) {
                                         getter_name = self.factory.create_temp_variable(
                                             Some(|node: Id<Node>| {
-                                                self.context.hoist_variable_declaration(node);
+                                                self.context.ref_(self).hoist_variable_declaration(node);
                                             }),
                                             None,
                                         );
@@ -831,7 +831,7 @@ impl TransformClassFields {
                                 let temp = (!value_is_discarded).then(|| {
                                     self.factory.create_temp_variable(
                                         Some(|node: Id<Node>| {
-                                            self.context.hoist_variable_declaration(node);
+                                            self.context.ref_(self).hoist_variable_declaration(node);
                                         }),
                                         None,
                                     )
@@ -872,7 +872,7 @@ impl TransformClassFields {
         {
             return self.visit_private_identifier_in_in_expression(node);
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 
     pub(super) fn create_private_identifier_assignment(
@@ -919,7 +919,7 @@ impl TransformClassFields {
         match info.kind() {
             PrivateIdentifierKind::Accessor => self
                 .context
-                .get_emit_helper_factory()
+                .ref_(self).get_emit_helper_factory()
                 .create_class_private_field_set_helper(
                     receiver,
                     info.brand_check_identifier(),
@@ -931,7 +931,7 @@ impl TransformClassFields {
                 ),
             PrivateIdentifierKind::Method => self
                 .context
-                .get_emit_helper_factory()
+                .ref_(self).get_emit_helper_factory()
                 .create_class_private_field_set_helper(
                     receiver,
                     info.brand_check_identifier(),
@@ -941,7 +941,7 @@ impl TransformClassFields {
                 ),
             PrivateIdentifierKind::Field => self
                 .context
-                .get_emit_helper_factory()
+                .ref_(self).get_emit_helper_factory()
                 .create_class_private_field_set_helper(
                     receiver,
                     info.brand_check_identifier(),
@@ -965,7 +965,7 @@ impl TransformClassFields {
             |&member: &Id<Node>, _| self.does_class_element_need_transform(member),
         ) {
             return Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into(),
+                visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into(),
             );
         }
 
@@ -1096,7 +1096,7 @@ impl TransformClassFields {
         if facts.intersects(ClassFacts::NeedsClassSuperReference) {
             let temp = self.factory.create_temp_variable(
                 Some(|node: Id<Node>| {
-                    self.context.hoist_variable_declaration(node);
+                    self.context.ref_(self).hoist_variable_declaration(node);
                 }),
                 Some(true),
             );
@@ -1121,7 +1121,7 @@ impl TransformClassFields {
                     .into(),
             );
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context, self).into())
+        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &**self.context.ref_(self), self).into())
     }
 }
 
