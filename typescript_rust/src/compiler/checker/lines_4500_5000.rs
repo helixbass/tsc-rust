@@ -967,7 +967,7 @@ impl NodeBuilder {
                 return Ok(Some(get_factory().create_indexed_access_type_node(
                     parent_name,
                     get_factory().create_literal_type_node(get_factory().create_string_literal(
-                        member_name.into_owned(),
+                        member_name,
                         None,
                         None,
                     )),
@@ -978,7 +978,7 @@ impl NodeBuilder {
                         parent_name.ref_(self).as_type_reference_node().type_name,
                     ),
                     get_factory().create_literal_type_node(get_factory().create_string_literal(
-                        member_name.into_owned(),
+                        member_name,
                         None,
                         None,
                     )),

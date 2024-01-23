@@ -201,7 +201,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name, containing_type)?;
-        Ok(suggestion.map(|suggestion| symbol_name(suggestion, self).into_owned()))
+        Ok(suggestion.map(|suggestion| symbol_name(suggestion, self)))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_symbol_(
@@ -276,7 +276,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let symbol_result =
             self.get_suggested_symbol_for_nonexistent_symbol_(location, outer_name, meaning)?;
-        Ok(symbol_result.map(|symbol_result| symbol_name(symbol_result, self).into_owned()))
+        Ok(symbol_result.map(|symbol_result| symbol_name(symbol_result, self)))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
@@ -301,7 +301,7 @@ impl TypeChecker {
         target_module: Id<Symbol>,
     ) -> io::Result<Option<String>> {
         let suggestion = self.get_suggested_symbol_for_nonexistent_module(name, target_module)?;
-        Ok(suggestion.map(|suggestion| symbol_name(suggestion, self).into_owned()))
+        Ok(suggestion.map(|suggestion| symbol_name(suggestion, self)))
     }
 
     pub(super) fn get_suggestion_for_nonexistent_index_signature(
@@ -322,8 +322,7 @@ impl TypeChecker {
         let mut suggestion = try_get_property_access_or_identifier_to_string(
             expr.ref_(self).as_element_access_expression().expression,
             self,
-        )
-        .map(Cow::into_owned);
+        );
         match suggestion.as_mut() {
             None => {
                 suggestion = Some(suggested_method.to_owned());
@@ -392,7 +391,7 @@ impl TypeChecker {
             }
 
             if candidate.ref_(self).flags().intersects(meaning) {
-                return Ok(Some(candidate_name.into_owned()));
+                return Ok(Some(candidate_name));
             }
 
             if candidate.ref_(self).flags().intersects(SymbolFlags::Alias) {
@@ -401,7 +400,7 @@ impl TypeChecker {
                     alias,
                     Some(alias) if alias.ref_(self).flags().intersects(meaning)
                 ) {
-                    return Ok(Some(candidate_name.into_owned()));
+                    return Ok(Some(candidate_name));
                 }
             }
             Ok(None)

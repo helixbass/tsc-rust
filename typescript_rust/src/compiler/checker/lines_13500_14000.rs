@@ -126,7 +126,7 @@ impl TypeChecker {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
-                Some(vec![symbol_name(symbol, self).into_owned()]),
+                Some(vec![symbol_name(symbol, self)]),
             );
             return Ok(if arity != 0 {
                 self.empty_generic_type()
@@ -145,7 +145,7 @@ impl TypeChecker {
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
                 Some(vec![
-                    symbol_name(symbol, self).into_owned(),
+                    symbol_name(symbol, self),
                     arity.to_string(),
                 ]),
             );
@@ -249,7 +249,7 @@ impl TypeChecker {
                     decl,
                     &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
                     Some(vec![
-                        symbol_name(symbol, self).into_owned(),
+                        symbol_name(symbol, self),
                         arity.to_string(),
                     ]),
                 );

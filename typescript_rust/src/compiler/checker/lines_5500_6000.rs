@@ -653,7 +653,7 @@ impl NodeBuilder {
         } else {
             None
         };
-        let parameter_symbol_name: Option<Cow<'_, str>>;
+        let parameter_symbol_name: Option<String>;
         let name: StrOrRcNode<'_> =
             if let Some(parameter_declaration) = parameter_declaration {
                 if let Some(parameter_declaration_name) = parameter_declaration

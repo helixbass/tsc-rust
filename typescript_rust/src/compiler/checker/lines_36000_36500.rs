@@ -394,7 +394,7 @@ impl TypeChecker {
                                         parameter.ref_(self).as_parameter_declaration().name(),
                                         &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
                                         Some(vec![
-                                            symbol_name(parameter.ref_(self).symbol(), self).into_owned()
+                                            symbol_name(parameter.ref_(self).symbol(), self)
                                         ]),
                                         self,
                                     ).into()
@@ -721,7 +721,7 @@ impl TypeChecker {
                                                 name,
                                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                                 Some(vec![
-                                                    symbol_name(local, self).into_owned()
+                                                    symbol_name(local, self)
                                                 ]),
                                                 self,
                                             ).into()
@@ -828,8 +828,7 @@ impl TypeChecker {
                                 Some(vec![self
                                     .binding_name_text(
                                         first(binding_elements).ref_(self).as_binding_element().name(),
-                                    )
-                                    .into_owned()]),
+                                    )]),
                                 self,
                             )
                             .into()
@@ -854,8 +853,7 @@ impl TypeChecker {
                                 e,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                 Some(vec![self
-                                    .binding_name_text(e.ref_(self).as_binding_element().name())
-                                    .into_owned()]),
+                                    .binding_name_text(e.ref_(self).as_binding_element().name())]),
                                 self,
                             )
                             .into(),
@@ -882,8 +880,7 @@ impl TypeChecker {
                             Some(vec![self
                                 .binding_name_text(
                                     first(declarations).ref_(self).as_variable_declaration().name(),
-                                )
-                                .into_owned()]),
+                                )]),
                             self,
                         )
                         .into()
@@ -911,8 +908,7 @@ impl TypeChecker {
                                 decl,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                 Some(vec![self
-                                    .binding_name_text(decl.ref_(self).as_variable_declaration().name())
-                                    .into_owned()]),
+                                    .binding_name_text(decl.ref_(self).as_variable_declaration().name())]),
                                 self,
                             )
                             .into(),
@@ -938,8 +934,7 @@ impl TypeChecker {
                     )
                     .ref_(self).as_binding_element()
                     .name(),
-                )
-                .into_owned(),
+                ),
             _ => Debug_.assert_never(name, None),
         }
     }

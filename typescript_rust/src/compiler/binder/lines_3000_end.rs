@@ -608,7 +608,7 @@ impl BinderType {
                             .as_ref()
                             .unwrap()[0],
                         &Diagnostics::Duplicate_identifier_0,
-                        Some(vec![symbol_name(prototype_symbol, self).into_owned()]),
+                        Some(vec![symbol_name(prototype_symbol, self)]),
                     )
                     .into(),
                 ));

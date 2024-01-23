@@ -643,7 +643,7 @@ impl TypeChecker {
                             self.error(
                                 Some(member_name_node),
                                 message,
-                                Some(vec![member_name.into_owned(), class_name]),
+                                Some(vec![member_name, class_name]),
                             );
                         }
                     }

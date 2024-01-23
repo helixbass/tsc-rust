@@ -947,7 +947,7 @@ impl TypeChecker {
                 let existing_kind = seen.get(&*effective_name).copied();
                 match existing_kind {
                     None => {
-                        seen.insert(effective_name.into_owned(), current_kind);
+                        seen.insert(effective_name, current_kind);
                     }
                     Some(existing_kind) => {
                         if current_kind.intersects(DeclarationMeaning::PropertyAssignmentOrMethod)
@@ -966,7 +966,7 @@ impl TypeChecker {
                                 && current_kind != existing_kind
                             {
                                 seen.insert(
-                                    effective_name.into_owned(),
+                                    effective_name,
                                     current_kind | existing_kind,
                                 );
                             } else {

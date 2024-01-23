@@ -1078,7 +1078,7 @@ impl EmitResolverCreateResolver {
             .file_to_directive
             .as_ref()
             .unwrap()
-            .contains_key(&**file.ref_(self).as_source_file().as_source_file.path())
+            .contains_key(&**file.ref_(self).as_source_file().path())
         {
             return;
         }

@@ -1110,7 +1110,7 @@ impl TypeChecker {
                                         .unwrap_or(declaration),
                                 ),
                                 diagnostic,
-                                Some(vec![symbol_name(symbol, self).into_owned()]),
+                                Some(vec![symbol_name(symbol, self)]),
                             ),
                             related_diagnostics.clone(),
                         );

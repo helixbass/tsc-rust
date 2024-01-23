@@ -150,7 +150,7 @@ impl InArena for Id<Symbol> {
 pub trait OptionInArena {
     type Item;
 
-    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<&'a Self::Item>;
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, Self::Item>>;
 }
 
 impl OptionInArena for Option<Id<Node>> {

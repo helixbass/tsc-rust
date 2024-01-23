@@ -204,7 +204,7 @@ impl TypeChecker {
         access_node
             .filter(|access_node| is_property_name(&access_node.ref_(self)))
             .and_then(|access_node| {
-                get_property_name_for_property_name_node(access_node, self).map(Cow::into_owned)
+                get_property_name_for_property_name_node(access_node, self)
             })
     }
 
