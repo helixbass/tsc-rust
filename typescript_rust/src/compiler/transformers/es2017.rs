@@ -50,7 +50,7 @@ bitflags! {
 #[derive(Trace, Finalize)]
 struct TransformES2017 {
     _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Gc<CompilerOptions>,
@@ -73,7 +73,7 @@ struct TransformES2017 {
 }
 
 impl TransformES2017 {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
 
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
@@ -1466,7 +1466,7 @@ impl TransformES2017Factory {
 }
 
 impl TransformerFactoryInterface for TransformES2017Factory {
-    fn call(&self, context: gc::Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformES2017::new(context).as_transformer(),

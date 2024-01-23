@@ -57,7 +57,7 @@ pub enum StructureIsReused {
 pub type CustomTransformerFactory = Gc<Box<dyn CustomTransformerFactoryInterface>>;
 
 pub trait CustomTransformerFactoryInterface: Trace + Finalize {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> CustomTransformer;
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> CustomTransformer;
 }
 
 pub type CustomTransformer = Gc<Box<dyn CustomTransformerInterface>>;

@@ -17,12 +17,12 @@ use crate::{
 #[derive(Trace, Finalize)]
 struct TransformES2020 {
     _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
 }
 
 impl TransformES2020 {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: Default::default(),
             factory: context.factory(),
@@ -562,7 +562,7 @@ impl TransformES2020Factory {
 }
 
 impl TransformerFactoryInterface for TransformES2020Factory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformES2020::new(context).as_transformer(),

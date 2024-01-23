@@ -12,11 +12,11 @@ use crate::{
 
 #[derive(Trace, Finalize)]
 struct TransformESNext {
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
 }
 
 impl TransformESNext {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
+    fn new(context: Id<Box<dyn TransformationContext>>) -> Self {
         Self { context }
     }
 
@@ -68,7 +68,7 @@ impl TransformESNextFactory {
 }
 
 impl TransformerFactoryInterface for TransformESNextFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             Gc::new(Box::new(TransformESNext::new(context))),

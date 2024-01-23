@@ -19,7 +19,7 @@ use crate::{
 #[derive(Trace, Finalize)]
 pub struct EmitHelperFactory {
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     immutable_true: GcCell<Option<Id<Node>>>,
     immutable_false: GcCell<Option<Id<Node>>>,
 }
@@ -573,7 +573,7 @@ impl HasArena for EmitHelperFactory {
 }
 
 pub fn create_emit_helper_factory(
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
 ) -> EmitHelperFactory {
     EmitHelperFactory {
         factory: context.factory(),

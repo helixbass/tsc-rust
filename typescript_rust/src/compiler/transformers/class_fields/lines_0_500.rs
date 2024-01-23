@@ -396,7 +396,7 @@ bitflags! {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformClassFields {
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
@@ -424,7 +424,7 @@ pub(super) struct TransformClassFields {
 }
 
 impl TransformClassFields {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
         let language_version = get_emit_script_target(&compiler_options);
         let use_define_for_class_fields = get_use_define_for_class_fields(&compiler_options);
@@ -1499,7 +1499,7 @@ impl TransformClassFieldsFactory {
 }
 
 impl TransformerFactoryInterface for TransformClassFieldsFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformClassFields::new(context).as_transformer(),

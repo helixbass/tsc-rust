@@ -30,7 +30,7 @@ pub(super) struct DependencyGroup {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformSystemModule {
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
@@ -50,7 +50,7 @@ pub(super) struct TransformSystemModule {
 }
 
 impl TransformSystemModule {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: Default::default(),
             factory: context.factory(),
@@ -1238,7 +1238,7 @@ impl TransformSystemModuleFactory {
 }
 
 impl TransformerFactoryInterface for TransformSystemModuleFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformSystemModule::new(context).as_transformer(),

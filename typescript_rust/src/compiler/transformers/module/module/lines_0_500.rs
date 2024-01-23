@@ -34,7 +34,7 @@ pub(super) struct AsynchronousDependencies {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformModule {
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) host: Gc<Box<dyn EmitHost>>,
@@ -53,7 +53,7 @@ pub(super) struct TransformModule {
 }
 
 impl TransformModule {
-    pub(super) fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    pub(super) fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: _d(),
@@ -1251,7 +1251,7 @@ impl TransformModuleFactory {
 }
 
 impl TransformerFactoryInterface for TransformModuleFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformModule::new(context).as_transformer(),

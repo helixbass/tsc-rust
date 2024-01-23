@@ -57,7 +57,7 @@ bitflags! {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformTypeScript {
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) base_factory: Gc<BaseNodeFactorySynthetic>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
@@ -85,7 +85,7 @@ pub(super) struct TransformTypeScript {
 }
 
 impl TransformTypeScript {
-    pub(super) fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    pub(super) fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: Default::default(),
@@ -1011,7 +1011,7 @@ impl TransformTypeScriptFactory {
 }
 
 impl TransformerFactoryInterface for TransformTypeScriptFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         TransformTypeScript::new(context).as_transformer()
     }
 }

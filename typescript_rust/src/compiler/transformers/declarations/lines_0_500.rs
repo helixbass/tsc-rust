@@ -162,7 +162,7 @@ pub(super) struct TransformDeclarations {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) get_symbol_accessibility_diagnostic: GcCell<GetSymbolAccessibilityDiagnostic>,
     #[unsafe_ignore_trace]
     pub(super) needs_declare: Cell<bool>,
@@ -208,7 +208,7 @@ pub(super) struct TransformDeclarations {
 impl TransformDeclarations {
     pub(super) fn new(
         arena: *const AllArenas,
-        context: Gc<Box<dyn TransformationContext>>,
+        context: Id<Box<dyn TransformationContext>>,
     ) -> Gc<Box<Self>> {
         let options = context.get_compiler_options();
         let host = context.get_emit_host();
@@ -1679,7 +1679,7 @@ impl TransformDeclarationsFactory {
 }
 
 impl TransformerFactoryInterface for TransformDeclarationsFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         TransformDeclarations::new(&*static_arena(), context).as_transformer()
     }
 }

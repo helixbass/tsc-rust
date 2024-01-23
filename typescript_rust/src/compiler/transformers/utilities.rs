@@ -61,7 +61,7 @@ struct ChainBundle;
 impl WrapCustomTransformerFactoryHandleDefault for ChainBundle {
     fn call(
         &self,
-        _context: Gc<Box<dyn TransformationContext>>,
+        _context: Id<Box<dyn TransformationContext>>,
         transform_source_file: Transformer,
     ) -> Transformer {
         transform_source_file

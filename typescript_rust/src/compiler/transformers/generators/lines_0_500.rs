@@ -380,7 +380,7 @@ pub(super) fn get_instruction_name(instruction: Instruction) -> Option<&'static 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformGenerators {
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     #[unsafe_ignore_trace]
@@ -429,7 +429,7 @@ pub(super) struct TransformGenerators {
 }
 
 impl TransformGenerators {
-    pub fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    pub fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: _d(),
@@ -1193,7 +1193,7 @@ impl TransformGeneratorsFactory {
 }
 
 impl TransformerFactoryInterface for TransformGeneratorsFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformGenerators::new(context).as_transformer(),

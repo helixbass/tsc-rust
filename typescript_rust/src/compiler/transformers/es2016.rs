@@ -14,13 +14,13 @@ use crate::{
 
 #[derive(Trace, Finalize)]
 struct TransformES2016 {
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
 impl TransformES2016 {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
+    fn new(context: Id<Box<dyn TransformationContext>>) -> Self {
         Self {
             factory: context.factory(),
             base_factory: context.base_factory(),
@@ -230,7 +230,7 @@ impl TransformES2016Factory {
 }
 
 impl TransformerFactoryInterface for TransformES2016Factory {
-    fn call(&self, context: gc::Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             Gc::new(Box::new(TransformES2016::new(context))),

@@ -218,7 +218,7 @@ impl HasArena for WrapCustomTransformer {
 pub trait WrapCustomTransformerFactoryHandleDefault: Trace + Finalize {
     fn call(
         &self,
-        context: Gc<Box<dyn TransformationContext>>,
+        context: Id<Box<dyn TransformationContext>>,
         transformer: Transformer,
     ) -> Transformer /*<SourceFile | Bundle>*/;
 }
@@ -252,7 +252,7 @@ impl WrapCustomTransformerFactory {
 }
 
 impl TransformerFactoryInterface for WrapCustomTransformerFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         match &*self.transformer {
             TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
                 let custom_transformer = transformer.call(context.clone());
@@ -284,7 +284,7 @@ struct PassthroughTransformer;
 impl WrapCustomTransformerFactoryHandleDefault for PassthroughTransformer {
     fn call(
         &self,
-        _context: Gc<Box<dyn TransformationContext>>,
+        _context: Id<Box<dyn TransformationContext>>,
         transform_source_file: Transformer,
     ) -> Transformer {
         transform_source_file
@@ -349,7 +349,7 @@ pub fn transform_nodes(
 #[derive(Trace, Finalize)]
 pub struct TransformNodesTransformationResult {
     _rc_wrapper: GcCell<Option<Gc<Box<TransformNodesTransformationResult>>>>,
-    _dyn_transformation_context_wrapper: GcCell<Option<Gc<Box<dyn TransformationContext>>>>,
+    _dyn_transformation_context_wrapper: GcCell<Option<Id<Box<dyn TransformationContext>>>>,
     on_emit_node_outermost_override_or_original_method:
         GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     on_emit_node_previous_override_or_original_method:
@@ -417,7 +417,7 @@ impl TransformNodesTransformationResult {
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
         base_factory: Gc<BaseNodeFactorySynthetic>,
     ) -> Gc<Box<Self>> {
-        let dyn_transformation_context_wrapper: Gc<Box<dyn TransformationContext>> =
+        let dyn_transformation_context_wrapper: Id<Box<dyn TransformationContext>> =
             Gc::new(Box::new(Self {
                 _rc_wrapper: Default::default(),
                 _dyn_transformation_context_wrapper: Default::default(),
@@ -473,7 +473,7 @@ impl TransformNodesTransformationResult {
         downcasted
     }
 
-    pub fn as_dyn_transformation_context(&self) -> Gc<Box<dyn TransformationContext>> {
+    pub fn as_dyn_transformation_context(&self) -> Id<Box<dyn TransformationContext>> {
         self._dyn_transformation_context_wrapper
             .borrow()
             .clone()

@@ -314,7 +314,7 @@ pub trait TransformationResult {
 pub type TransformerFactory = Gc<Box<dyn TransformerFactoryInterface>>;
 
 pub trait TransformerFactoryInterface: Trace + Finalize {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer;
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer;
 }
 
 pub type Transformer = Gc<Box<dyn TransformerInterface>>;

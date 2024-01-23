@@ -184,7 +184,7 @@ pub(super) fn create_spread_segment(
 pub(super) struct TransformES2015 {
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) _rc_wrapper: GcCell<Option<Gc<Box<Self>>>>,
-    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) context: Id<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
@@ -200,7 +200,7 @@ pub(super) struct TransformES2015 {
 }
 
 impl TransformES2015 {
-    pub(super) fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    pub(super) fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: Default::default(),
             _rc_wrapper: Default::default(),
@@ -843,7 +843,7 @@ impl TransformES2015Factory {
 }
 
 impl TransformerFactoryInterface for TransformES2015Factory {
-    fn call(&self, context: gc::Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformES2015::new(context).as_transformer(),

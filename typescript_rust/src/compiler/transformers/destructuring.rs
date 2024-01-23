@@ -29,7 +29,7 @@ use crate::{
 };
 
 trait FlattenContext {
-    fn context(&self) -> Gc<Box<dyn TransformationContext>>;
+    fn context(&self) -> Id<Box<dyn TransformationContext>>;
     fn level(&self) -> FlattenLevel;
     fn downlevel_iteration(&self) -> bool;
     fn hoist_temp_variables(&self) -> bool;
@@ -70,7 +70,7 @@ pub enum FlattenLevel {
 pub fn flatten_destructuring_assignment<'a, 'b>(
     node: Id<Node>, /*VariableDeclaration | DestructuringAssignment*/
     visitor: Option<impl FnMut(Id<Node>) -> VisitResult + 'a>,
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     needs_value: Option<bool>,
     create_assignment_callback: Option<
@@ -107,7 +107,7 @@ fn emit_expression(
 }
 
 struct FlattenDestructuringAssignmentFlattenContext<'visitor, 'create_assignment_callback> {
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     downlevel_iteration: bool,
     expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
@@ -131,7 +131,7 @@ impl<'visitor, 'create_assignment_callback>
     FlattenDestructuringAssignmentFlattenContext<'visitor, 'create_assignment_callback>
 {
     pub fn new(
-        context: Gc<Box<dyn TransformationContext>>,
+        context: Id<Box<dyn TransformationContext>>,
         level: FlattenLevel,
         downlevel_iteration: bool,
         expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
@@ -162,7 +162,7 @@ impl<'visitor, 'create_assignment_callback>
 }
 
 impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
-    fn context(&self) -> Gc<Box<dyn TransformationContext>> {
+    fn context(&self) -> Id<Box<dyn TransformationContext>> {
         self.context.clone()
     }
 
@@ -283,7 +283,7 @@ impl HasArena for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
 pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
     mut node: Id<Node>, /*VariableDeclaration | DestructuringAssignment*/
     visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>,
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     needs_value: Option<bool>,
     // create_assignment_callback: Option<Gc<Box<dyn TryCreateAssignmentCallback>>>,
@@ -479,7 +479,7 @@ fn binding_or_assignment_pattern_contains_non_literal_computed_name(
 pub fn flatten_destructuring_binding(
     node: Id<Node>, /*VariableDeclaration | ParameterDeclaration*/
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     rval: Option<Id<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
@@ -512,7 +512,7 @@ struct PendingDeclaration {
 pub fn try_flatten_destructuring_binding<'visitor>(
     mut node: Id<Node>, /*VariableDeclaration | ParameterDeclaration*/
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor,
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     rval: Option<Id<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
@@ -673,7 +673,7 @@ fn emit_binding_or_assignment(
 }
 
 struct FlattenDestructuringBindingFlattenContext<'visitor> {
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     downlevel_iteration: bool,
     hoist_temp_variables: bool,
@@ -685,7 +685,7 @@ struct FlattenDestructuringBindingFlattenContext<'visitor> {
 
 impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
     pub fn new(
-        context: Gc<Box<dyn TransformationContext>>,
+        context: Id<Box<dyn TransformationContext>>,
         level: FlattenLevel,
         downlevel_iteration: bool,
         hoist_temp_variables: bool,
@@ -707,7 +707,7 @@ impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
 }
 
 impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
-    fn context(&self) -> Gc<Box<dyn TransformationContext>> {
+    fn context(&self) -> Id<Box<dyn TransformationContext>> {
         self.context.clone()
     }
 

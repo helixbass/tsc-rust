@@ -14,7 +14,7 @@ use crate::{
 #[derive(Trace, Finalize)]
 struct TransformNodeModule {
     _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     esm_transform: Transformer,
     esm_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     esm_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -25,7 +25,7 @@ struct TransformNodeModule {
 }
 
 impl TransformNodeModule {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let esm_transform = transform_ecmascript_module().call(context.clone());
 
         let esm_on_substitute_node = context.pop_overridden_on_substitute_node();
@@ -265,7 +265,7 @@ impl TransformNodeModuleFactory {
 }
 
 impl TransformerFactoryInterface for TransformNodeModuleFactory {
-    fn call(&self, context: gc::Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         TransformNodeModule::new(context).as_transformer()
     }
 }

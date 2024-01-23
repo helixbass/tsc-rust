@@ -45,7 +45,7 @@ pub(super) struct PerFileState {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformJsx {
-    context: Gc<Box<dyn TransformationContext>>,
+    context: Id<Box<dyn TransformationContext>>,
     compiler_options: Gc<CompilerOptions>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
@@ -53,7 +53,7 @@ pub(super) struct TransformJsx {
 }
 
 impl TransformJsx {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
+    fn new(context: Id<Box<dyn TransformationContext>>) -> Self {
         Self {
             factory: context.factory(),
             compiler_options: context.get_compiler_options(),
@@ -1088,7 +1088,7 @@ impl TransformJsxFactory {
 }
 
 impl TransformerFactoryInterface for TransformJsxFactory {
-    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             Gc::new(Box::new(TransformJsx::new(context))),
