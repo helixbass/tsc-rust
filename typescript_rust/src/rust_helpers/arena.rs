@@ -15,7 +15,7 @@ pub struct AllArenas {
     // pub symbol_tables: RefCell<Arena<SymbolTable>>,
     pub types: RefCell<Arena<Type>>,
     pub type_mappers: RefCell<Arena<TypeMapper>>,
-    pub transformation_contexts: RefCell<Arena<TransformNodesTransformationResult>>,
+    pub transform_nodes_transformation_results: RefCell<Arena<TransformNodesTransformationResult>>,
 }
 
 pub trait HasArena {
@@ -53,12 +53,12 @@ pub trait HasArena {
         self.arena().alloc_symbol(symbol)
     }
 
-    fn transformation_context(&self, transformation_context: Id<TransformNodesTransformationResult>) -> Ref<TransformNodesTransformationResult> {
-        self.arena().transformation_context(transformation_context)
+    fn transform_nodes_transformation_result(&self, transform_nodes_transformation_result: Id<TransformNodesTransformationResult>) -> Ref<TransformNodesTransformationResult> {
+        self.arena().transform_nodes_transformation_result(transform_nodes_transformation_result)
     }
 
-    fn alloc_transformation_context(&self, transformation_context: TransformNodesTransformationResult) -> Id<TransformNodesTransformationResult> {
-        self.arena().alloc_transformation_context(transformation_context)
+    fn alloc_transform_nodes_transformation_result(&self, transform_nodes_transformation_result: TransformNodesTransformationResult) -> Id<TransformNodesTransformationResult> {
+        self.arena().alloc_transform_nodes_transformation_result(transform_nodes_transformation_result)
     }
 }
 
@@ -117,12 +117,12 @@ impl HasArena for AllArenas {
     }
 
     #[track_caller]
-    fn transformation_context(&self, transformation_context: Id<TransformNodesTransformationResult>) -> Ref<TransformNodesTransformationResult> {
-        Ref::map(self.transformation_contexts.borrow(), |transformation_contexts| &transformation_contexts[transformation_context])
+    fn transform_nodes_transformation_result(&self, transform_nodes_transformation_result: Id<TransformNodesTransformationResult>) -> Ref<TransformNodesTransformationResult> {
+        Ref::map(self.transform_nodes_transformation_results.borrow(), |transformm_nodes_transformation_results| &transform_nodes_transformation_results[transform_nodes_transformation_result])
     }
 
-    fn alloc_transformation_context(&self, transformation_context: TransformNodesTransformationResult) -> Id<TransformNodesTransformationResult> {
-        let id = self.transformation_contexts.borrow_mut().alloc(transformation_context);
+    fn alloc_transform_nodes_transformation_result(&self, transform_nodes_transformation_result: TransformNodesTransformationResult) -> Id<TransformNodesTransformationResult> {
+        let id = self.transform_nodes_transformation_results.borrow_mut().alloc(transform_nodes_transformation_result);
         id
     }
 }
@@ -170,7 +170,7 @@ impl InArena for Id<TransformNodesTransformationResult> {
     type Item = TransformNodesTransformationResult;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TransformNodesTransformationResult> {
-        has_arena.transformation_context(*self)
+        has_arena.transform_nodes_transformation_result(*self)
     }
 }
 

@@ -423,7 +423,7 @@ impl TransformNodesTransformationResult {
         arena: *const AllArenas,
     ) -> Id<Self> {
         let arena_ref = unsafe { &*arena };
-        let ret = arena_ref.alloc_transformation_context(Self {
+        let ret = arena_ref.alloc_transform_nodes_transformation_result(Self {
             _arena: arena,
             _arena_id: _d(),
             on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
