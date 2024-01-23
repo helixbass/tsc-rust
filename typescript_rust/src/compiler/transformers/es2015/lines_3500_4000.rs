@@ -19,7 +19,7 @@ use crate::{
     AsDoubleDeref, CallBinding, GeneratedIdentifierFlags, SignatureDeclarationInterface,
     TransformFlags, Transformer,
     InArena, OptionInArena, downcast_transformer_ref,
-    CoreTransformationContext,
+    CoreTransformationContext, HasArena, AllArenas,
 };
 
 impl TransformES2015 {
@@ -804,6 +804,12 @@ impl PartitionSpread for PartitionSpreadVisitSpanOfSpreads {
     }
 }
 
+impl HasArena for PartitionSpreadVisitSpanOfSpreads {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 pub(super) struct PartitionSpreadVisitSpanOfNonSpreads {
     transform_es2015: Transformer,
 }
@@ -834,5 +840,11 @@ impl PartitionSpread for PartitionSpreadVisitSpanOfNonSpreads {
 
     fn eq_key(&self) -> &'static str {
         "PartitionSpreadVisitSpanOfNonSpreads"
+    }
+}
+
+impl HasArena for PartitionSpreadVisitSpanOfNonSpreads {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

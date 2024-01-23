@@ -185,6 +185,7 @@ pub(super) fn create_spread_segment(
 pub(super) struct TransformES2015 {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
+    #[unsafe_ignore_trace]
     pub(super) _arena_id: Cell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
