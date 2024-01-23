@@ -19,6 +19,7 @@ use crate::{
     OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    AllArenas,
 };
 
 impl TypeChecker {
@@ -661,11 +662,13 @@ impl TypeChecker {
                         Box::new({
                             let type_checker = self.rc_wrapper();
                             let prop_clone = prop.clone();
+                            let arena_raw: *const AllArenas = self.arena();
+                            let arena = unsafe { &*arena_raw };
                             move || -> io::Result<_> {
-                                if prop_clone.ref_(self).kind() != SyntaxKind::JsxAttribute {
+                                if prop_clone.ref_(arena).kind() != SyntaxKind::JsxAttribute {
                                     return Ok(type_checker.true_type());
                                 }
-                                let prop_clone_ref = prop_clone.ref_(self);
+                                let prop_clone_ref = prop_clone.ref_(arena);
                                 let prop_as_jsx_attribute = prop_clone_ref.as_jsx_attribute();
                                 let prop_initializer = prop_as_jsx_attribute.initializer;
                                 Ok(match prop_initializer {

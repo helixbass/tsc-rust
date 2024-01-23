@@ -2295,17 +2295,20 @@ fn try_resolve(
     extensions: Extensions,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<TryResolveSearchResultValue>> {
-    let arena_raw: *const AllArenas = arena.arena();
     let loader: ResolutionKindSpecificLoader =
-        Rc::new(|extensions, candidate, only_record_failures, state| {
-            node_load_module_by_relative_name(
-                extensions,
-                candidate,
-                only_record_failures,
-                state,
-                true,
-                unsafe { &*arena_raw },
-            )
+        Rc::new({
+            let arena_raw: *const AllArenas = arena.arena();
+            let arena = unsafe { &*arena_raw };
+            |extensions, candidate, only_record_failures, state| {
+                node_load_module_by_relative_name(
+                    extensions,
+                    candidate,
+                    only_record_failures,
+                    state,
+                    true,
+                    arena,
+                )
+            }
         });
     let resolved = try_load_module_using_optional_resolution_settings(
         extensions,
