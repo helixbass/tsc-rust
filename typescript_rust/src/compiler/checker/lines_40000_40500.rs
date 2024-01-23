@@ -52,7 +52,8 @@ impl TypeChecker {
             try_maybe_for_each(
                 node.ref_(self).maybe_js_doc().as_ref(),
                 |jsdoc: &Id<Node>, _| -> io::Result<Option<()>> {
-                    let tags = jsdoc.ref_(self).as_jsdoc().tags.as_ref();
+                    let jsdoc_ref = jsdoc.ref_(self);
+                    let tags = jsdoc_ref.as_jsdoc().tags.as_ref();
                     try_maybe_for_each(tags, |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(tag))?;
                         Ok(None)

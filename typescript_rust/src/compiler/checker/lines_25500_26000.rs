@@ -32,7 +32,7 @@ impl TypeChecker {
         if is_call_expression {
             return container.ref_(self).kind() == SyntaxKind::Constructor;
         } else {
-            if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self))
+            if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self).as_deref())
                 || container.ref_(self).parent().ref_(self).kind() == SyntaxKind::ObjectLiteralExpression
             {
                 if is_static(container, self) {
@@ -396,7 +396,7 @@ impl TypeChecker {
             if !matches!(
                 context_flags,
                 Some(context_flags) if context_flags.intersects(ContextFlags::SkipBindingPatterns)
-            ) && is_binding_pattern(declaration.ref_(self).as_named_declaration().maybe_name().refed(self))
+            ) && is_binding_pattern(declaration.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref())
             {
                 return Ok(Some(self.get_type_from_binding_pattern(
                     declaration.ref_(self).as_named_declaration().name(),

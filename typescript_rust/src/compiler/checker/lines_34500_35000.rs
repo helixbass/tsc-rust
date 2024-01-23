@@ -60,7 +60,7 @@ impl TypeChecker {
             self.check_function_or_constructor_symbol(symbol)?;
         }
 
-        if node_is_missing(node_as_constructor_declaration.maybe_body().refed(self)) {
+        if node_is_missing(node_as_constructor_declaration.maybe_body().refed(self).as_deref()) {
             return Ok(());
         }
         let node_body = node_as_constructor_declaration.maybe_body().unwrap();
@@ -99,7 +99,8 @@ impl TypeChecker {
                     ));
 
                 if super_call_should_be_first {
-                    let statements = &node_body.ref_(self).as_block().statements;
+                    let node_body_ref = node_body.ref_(self);
+                    let statements = &node_body_ref.as_block().statements;
                     let mut super_call_statement: Option<Id<Node /*ExpressionStatement*/>> = None;
 
                     for &statement in statements {
@@ -164,7 +165,7 @@ impl TypeChecker {
             self.check_signature_declaration(node)?;
             if node.ref_(self).kind() == SyntaxKind::GetAccessor {
                 if !node.ref_(self).flags().intersects(NodeFlags::Ambient)
-                    && node_is_present(node_as_function_like_declaration.maybe_body().refed(self))
+                    && node_is_present(node_as_function_like_declaration.maybe_body().refed(self).as_deref())
                     && node.ref_(self).flags().intersects(NodeFlags::HasImplicitReturn)
                 {
                     if !node.ref_(self).flags().intersects(NodeFlags::HasExplicitReturn) {
@@ -1004,7 +1005,7 @@ impl TypeChecker {
                     all_have_question_token = all_have_question_token && has_question_token(&node.ref_(self));
                     let body_is_present = node_is_present(
                         node.ref_(self).maybe_as_function_like_declaration()
-                            .and_then(|node| node.maybe_body()).refed(self),
+                            .and_then(|node| node.maybe_body()).refed(self).as_deref(),
                     );
 
                     if body_is_present && body_declaration.is_some() {

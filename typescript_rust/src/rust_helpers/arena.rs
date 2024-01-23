@@ -156,8 +156,8 @@ pub trait OptionInArena {
 impl OptionInArena for Option<Id<Node>> {
     type Item = Node;
 
-    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<&'a Node> {
-        self.map(|node| has_arena.node(node)).as_deref()
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, Node>> {
+        self.map(|node| has_arena.node(node))
     }
 }
 

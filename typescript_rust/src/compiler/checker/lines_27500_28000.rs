@@ -565,7 +565,8 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.check_grammar_jsx_expression(node);
-        let node_as_jsx_expression = node.ref_(self).as_jsx_expression();
+        let node_ref = node.ref_(self);
+        let node_as_jsx_expression = node_ref.as_jsx_expression();
         Ok(
             if let Some(node_expression) = node_as_jsx_expression.expression {
                 let type_ = self.check_expression(node_expression, check_mode, None)?;
@@ -600,7 +601,7 @@ impl TypeChecker {
         {
             return true;
         }
-        if is_in_js_file(symbol.ref_(self).maybe_value_declaration().refed(self)) {
+        if is_in_js_file(symbol.ref_(self).maybe_value_declaration().refed(self).as_deref()) {
             let parent = symbol
                 .ref_(self)
                 .maybe_value_declaration()

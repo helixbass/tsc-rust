@@ -514,10 +514,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node_ref = node.ref_(self);
         let node_as_template_expression = node_ref.as_template_expression();
-        let mut texts = vec![node_as_template_expression
-            .head
-            .ref_(self).as_literal_like_node()
-            .text()];
+        // TODO: try and avoid String cloning here? 
+        let mut texts = vec![node_as_template_expression.head.ref_(self).as_literal_like_node().text().clone()];
         let mut types = vec![];
         for span in node_as_template_expression.template_spans.iter() {
             let span_ref = span.ref_(self);
@@ -530,7 +528,7 @@ impl TypeChecker {
                     None,
                 );
             }
-            texts.push(span.literal.ref_(self).as_literal_like_node().text());
+            texts.push(span.literal.ref_(self).as_literal_like_node().text().clone());
             types.push(
                 if self.is_type_assignable_to(type_, self.template_constraint_type())? {
                     type_

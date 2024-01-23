@@ -322,7 +322,7 @@ impl TypeChecker {
         self.get_signature_instantiation(
             signature.clone(),
             Some(&*self.get_inferred_types(&context)?),
-            is_in_js_file(contextual_signature.declaration.refed(self)),
+            is_in_js_file(contextual_signature.declaration.refed(self).as_deref()),
             None,
         )
     }
@@ -695,7 +695,7 @@ impl TypeChecker {
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
-        let is_javascript = is_in_js_file(signature.declaration.refed(self));
+        let is_javascript = is_in_js_file(signature.declaration.refed(self).as_deref());
         let type_parameters = signature.maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(

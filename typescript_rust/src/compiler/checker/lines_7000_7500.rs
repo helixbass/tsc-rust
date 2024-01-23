@@ -555,7 +555,7 @@ impl SymbolTableToDeclarationStatements {
             self.add_result(
                 set_text_range_id_node(
                     decl,
-                    self.get_signature_text_range_location(sig).refed(self),
+                    self.get_signature_text_range_location(sig).refed(self).as_deref(),
                     self,
                 ),
                 modifier_flags,
@@ -1021,7 +1021,7 @@ impl SymbolTableToDeclarationStatements {
                             .copied()
                             .next()
                     })
-                    .refed(self),
+                    .refed(self).as_deref(),
                 self,
             ),
             modifier_flags,

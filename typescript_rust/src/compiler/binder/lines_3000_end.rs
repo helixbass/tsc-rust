@@ -324,7 +324,7 @@ impl BinderType {
         let mut includes = SymbolFlags::None;
         let mut excludes = SymbolFlags::None;
         if maybe_is_function_like_declaration(
-            get_assigned_expando_initializer(Some(declaration), self).refed(self),
+            get_assigned_expando_initializer(Some(declaration), self).refed(self).as_deref(),
         ) {
             includes = SymbolFlags::Method;
             excludes = SymbolFlags::MethodExcludes;
@@ -694,7 +694,7 @@ impl BinderType {
             self.check_strict_mode_eval_or_arguments(node, node_name);
         }
 
-        if is_binding_pattern(node_name.refed(self)) {
+        if is_binding_pattern(node_name.refed(self).as_deref()) {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::FunctionScopedVariable,

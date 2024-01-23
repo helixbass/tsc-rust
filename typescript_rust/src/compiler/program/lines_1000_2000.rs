@@ -191,7 +191,8 @@ impl Program {
     }
 
     pub(super) fn get_default_lib_file_priority(&self, a: Id<Node> /*SourceFile*/) -> usize {
-        let a_file_name = a.ref_(self).as_source_file().file_name();
+        let a_ref = a.ref_(self);
+        let a_file_name = a_ref.as_source_file().file_name();
         if contains_path(
             &self.default_library_path(),
             &a_file_name,
@@ -617,7 +618,7 @@ impl Program {
             return false;
         }
         let resolution_to_file = get_resolved_module(
-            old_source_file.refed(self),
+            old_source_file.refed(self).as_deref(),
             module_name,
             old_source_file.and_then(|old_source_file| {
                 get_mode_for_resolution_at_index(old_source_file.ref_(self).as_source_file(), index, self)

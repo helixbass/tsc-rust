@@ -16,7 +16,7 @@ use crate::{
     JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
     Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, StrOrNodeArray,
     SyntaxKind, TextRange,
-    InArena,
+    InArena, OptionInArena,
 };
 
 impl Printer {
@@ -185,10 +185,12 @@ impl Printer {
         } else {
             Some(vec![])
         };
+        let current_source_file_ref = current_source_file.refed(self);
         #[allow(clippy::unused_unit)]
         for_each_trailing_comment_range(
-            current_source_file
-                .map(|current_source_file| current_source_file.ref_(self).as_source_file().text_as_chars())
+            current_source_file_ref
+                .as_ref()
+                .map(|current_source_file_ref| current_source_file_ref.as_source_file().text_as_chars())
                 .as_deref()
                 .unwrap_or_else(|| default_text.as_ref().unwrap()),
             (pos + 1).try_into().unwrap(),
@@ -210,10 +212,12 @@ impl Printer {
         } else {
             Some(vec![])
         };
+        let current_source_file_ref = current_source_file.refed(self);
         #[allow(clippy::unused_unit)]
         for_each_leading_comment_range(
-            current_source_file
-                .map(|current_source_file| current_source_file.ref_(self).as_source_file().text_as_chars())
+            current_source_file_ref
+                .as_ref()
+                .map(|current_source_file_ref| current_source_file_ref.as_source_file().text_as_chars())
                 .as_deref()
                 .unwrap_or_else(|| default_text.as_ref().unwrap()),
             (pos + 1).try_into().unwrap(),

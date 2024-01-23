@@ -91,7 +91,7 @@ impl TypeChecker {
         let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier, self) {
             if !(func.ref_(self).kind() == SyntaxKind::Constructor
-                && node_is_present(func.ref_(self).as_function_like_declaration().maybe_body().refed(self)))
+                && node_is_present(func.ref_(self).as_function_like_declaration().maybe_body().refed(self).as_deref()))
             {
                 self.error(
                     Some(node),
@@ -115,7 +115,7 @@ impl TypeChecker {
             }
         }
         if node_as_parameter_declaration.question_token.is_some()
-            && is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self))
+            && is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self).as_deref())
             && func
                 .ref_(self).maybe_as_function_like_declaration()
                 .and_then(|func| func.maybe_body())
@@ -180,7 +180,7 @@ impl TypeChecker {
         }
 
         if node_as_parameter_declaration.dot_dot_dot_token.is_some()
-            && !is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self))
+            && !is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self).as_deref())
             && !self.is_type_assignable_to(
                 self.get_reduced_type(self.get_type_of_symbol(node.ref_(self).symbol())?)?,
                 self.any_readonly_array_type(),
@@ -495,7 +495,7 @@ impl TypeChecker {
             if member.ref_(self).kind() == SyntaxKind::Constructor {
                 for &param in &member.ref_(self).as_constructor_declaration().parameters() {
                     if is_parameter_property_declaration(param, member, self)
-                        && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name().refed(self))
+                        && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref())
                     {
                         self.add_name(
                             &mut instance_names,

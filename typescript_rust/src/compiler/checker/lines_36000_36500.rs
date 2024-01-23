@@ -199,12 +199,12 @@ impl TypeChecker {
         )?;
 
         if self.produce_diagnostics && get_effective_return_type_node(node, self).is_none() {
-            if node_is_missing(body.refed(self)) && !self.is_private_within_ambient(node) {
+            if node_is_missing(body.refed(self).as_deref()) && !self.is_private_within_ambient(node) {
                 self.report_implicit_any(node, self.any_type(), None)?;
             }
 
             if function_flags.intersects(FunctionFlags::Generator)
-                && node_is_present(body.refed(self))
+                && node_is_present(body.refed(self).as_deref())
             {
                 self.get_return_type_of_signature(self.get_signature_from_declaration_(node)?)?;
             }
@@ -465,7 +465,8 @@ impl TypeChecker {
             }
 
             let type_parameter_name = type_parameter.ref_(self).as_type_parameter_declaration().name();
-            let name = id_text(&type_parameter_name.ref_(self));
+            let type_parameter_name_ref = type_parameter_name.ref_(self);
+            let name = id_text(&type_parameter_name_ref);
             let parent = type_parameter.ref_(self).parent();
             if parent.ref_(self).kind() != SyntaxKind::InferType
                 && parent
@@ -922,12 +923,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn binding_name_text<'name>(
+    pub(super) fn binding_name_text(
         &self,
         name: Id<Node>, /*BindingName*/
-    ) -> Cow<'name, str> {
+    ) -> String {
+        // TODO: try and avoid String cloning here?
         match name.ref_(self).kind() {
-            SyntaxKind::Identifier => id_text(&name.ref_(self)).into(),
+            SyntaxKind::Identifier => id_text(&name.ref_(self)).to_owned(),
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
                 .binding_name_text(
                     cast_present(
@@ -937,8 +939,7 @@ impl TypeChecker {
                     .ref_(self).as_binding_element()
                     .name(),
                 )
-                .into_owned()
-                .into(),
+                .into_owned(),
             _ => Debug_.assert_never(name, None),
         }
     }
@@ -1007,7 +1008,7 @@ impl TypeChecker {
             || node.ref_(self).flags().intersects(NodeFlags::Ambient)
             || node_is_missing(
                 node.ref_(self).maybe_as_function_like_declaration()
-                    .and_then(|node| node.maybe_body()).refed(self),
+                    .and_then(|node| node.maybe_body()).refed(self).as_deref(),
             )
         {
             return;
@@ -1072,7 +1073,7 @@ impl TypeChecker {
 
         let root = get_root_declaration(node, self);
         if is_parameter(&root.ref_(self))
-            && node_is_missing(root.ref_(self).parent().ref_(self).as_function_like_declaration().maybe_body().refed(self))
+            && node_is_missing(root.ref_(self).parent().ref_(self).as_function_like_declaration().maybe_body().refed(self).as_deref())
         {
             return false;
         }

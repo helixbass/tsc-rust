@@ -1,4 +1,4 @@
-use std::io;
+use std::{borrow::Cow, io};
 
 use gc::Gc;
 use id_arena::Id;
@@ -122,7 +122,7 @@ impl TransformTypeScript {
             .set_source_map_range(
                 node.ref_(self).as_named_declaration()
                     .maybe_name()
-                    .refed(self)
+                    .refed(self).as_deref()
                     .map(Into::into),
                 self,
             )
@@ -146,9 +146,9 @@ impl TransformTypeScript {
         {
             self.enable_substitution_for_class_aliases();
             let class_alias = self.factory.create_unique_name(
-                node.ref_(self).as_class_declaration()
+                &node.ref_(self).as_class_declaration()
                     .maybe_name()
-                    .map_or_else(|| "default", |node_name| id_text(&node_name.ref_(self))),
+                    .map_or_else(|| "default".into(), |node_name| Cow::from(id_text(&node_name.ref_(self)).to_owned())),
                 None,
             );
             self.class_aliases_mut()

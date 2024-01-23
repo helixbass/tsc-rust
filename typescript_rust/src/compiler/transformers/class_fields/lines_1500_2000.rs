@@ -641,7 +641,8 @@ impl TransformClassFields {
                 }
             }
             if is_property_assignment(&node.ref_(self)) {
-                let node_as_property_assignment = node.ref_(self).as_property_assignment();
+                let node_ref = node.ref_(self);
+                let node_as_property_assignment = node_ref.as_property_assignment();
                 let initializer = get_initializer_of_binding_or_assignment_element(node, self);
                 return Some(
                     self.factory

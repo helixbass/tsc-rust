@@ -488,7 +488,7 @@ impl TypeChecker {
             }
         }
 
-        if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self)) {
+        if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self).as_deref()) {
             let symbol = self.get_symbol_of_node(container.ref_(self).parent())?.unwrap();
             let type_ = if is_static(container, self) {
                 self.get_type_of_symbol(symbol)?
@@ -540,7 +540,7 @@ impl TypeChecker {
                 return self.get_explicit_type_of_symbol(signature_this_parameter, None);
             }
         }
-        if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self)) {
+        if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self).as_deref()) {
             let symbol = self.get_symbol_of_node(container.ref_(self).parent())?.unwrap();
             return Ok(if is_static(container, self) {
                 Some(self.get_type_of_symbol(symbol)?)

@@ -730,7 +730,8 @@ impl TypeChecker {
         let host = get_jsdoc_host(node, self);
         if let Some(host) = host {
             if is_expression_statement(&host.ref_(self)) {
-                let host_as_expression_statement = host.ref_(self).as_expression_statement();
+                let host_ref = host.ref_(self);
+                let host_as_expression_statement = host_ref.as_expression_statement();
                 if is_binary_expression(&host_as_expression_statement.expression.ref_(self))
                     && get_assignment_declaration_kind(host_as_expression_statement.expression, self)
                         == AssignmentDeclarationKind::PrototypeProperty

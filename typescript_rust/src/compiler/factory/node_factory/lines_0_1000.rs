@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell, ptr};
+use std::{borrow::{Borrow, Cow}, cell::RefCell, ptr};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCellRef, Trace};
@@ -1170,10 +1170,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let name = self
             .create_base_generated_identifier(
-                if let Some(node) = node.as_ref().filter(|node| is_identifier(&node.ref_(self))) {
-                    id_text(&node.ref_(self))
+                &if let Some(node) = node.as_ref().filter(|node| is_identifier(&node.ref_(self))) {
+                    Cow::from(id_text(&node.ref_(self)).to_owned())
                 } else {
-                    ""
+                    "".into()
                 },
                 GeneratedIdentifierFlags::Node | flags,
             )

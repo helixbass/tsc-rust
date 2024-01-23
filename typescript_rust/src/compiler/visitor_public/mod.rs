@@ -648,7 +648,7 @@ fn add_default_value_assignment_if_needed(
         .is_some()
     {
         parameter
-    } else if is_binding_pattern(parameter_as_parameter_declaration.maybe_name().refed(arena)) {
+    } else if is_binding_pattern(parameter_as_parameter_declaration.maybe_name().refed(arena).as_deref()) {
         add_default_value_assignment_for_binding_pattern(parameter, context, arena)
     } else if let Some(parameter_initializer) =
         parameter_as_parameter_declaration.maybe_initializer()

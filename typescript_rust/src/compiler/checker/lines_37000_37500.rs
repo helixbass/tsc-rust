@@ -256,7 +256,7 @@ impl TypeChecker {
                 .get(0)
                 .copied();
             if let Some(variable) = variable.filter(|variable| {
-                is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self))
+                is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
             }) {
                 self.error(
                     variable.ref_(self).as_variable_declaration().maybe_name(),

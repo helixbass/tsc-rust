@@ -35,7 +35,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
                 prop.ref_(self).maybe_declarations().as_ref(),
-                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Id<Node>| maybe_is_class_like(decl.ref_(self).maybe_parent().refed(self)))
+                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Id<Node>| maybe_is_class_like(decl.ref_(self).maybe_parent().refed(self).as_deref()))
             ))
     }
 

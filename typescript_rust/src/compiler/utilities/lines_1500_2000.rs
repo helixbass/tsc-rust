@@ -53,7 +53,7 @@ pub fn unwrap_innermost_statement_of_label(
 
 pub fn is_function_block(node: Id<Node>, arena: &impl HasArena) -> bool {
     /*node &&*/
-    node.ref_(arena).kind() == SyntaxKind::Block && is_function_like(node.ref_(arena).maybe_parent().refed(arena))
+    node.ref_(arena).kind() == SyntaxKind::Block && is_function_like(node.ref_(arena).maybe_parent().refed(arena).as_deref())
 }
 
 pub fn is_object_literal_method(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -244,7 +244,7 @@ pub fn get_this_container(mut node: Id<Node>, include_arrow_functions: bool, are
         };
         match node.ref_(arena).kind() {
             SyntaxKind::ComputedPropertyName => {
-                if maybe_is_class_like(node.ref_(arena).parent().ref_(arena).maybe_parent().refed(arena)) {
+                if maybe_is_class_like(node.ref_(arena).parent().ref_(arena).maybe_parent().refed(arena).as_deref()) {
                     return node;
                 }
                 node = node.ref_(arena).parent();

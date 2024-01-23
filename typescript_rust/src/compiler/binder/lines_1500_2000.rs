@@ -73,7 +73,7 @@ impl BinderType {
         } else {
             None
         };
-        if is_binding_pattern(name.refed(self)) {
+        if is_binding_pattern(name.refed(self).as_deref()) {
             for &child in &name.unwrap().ref_(self).as_has_elements().elements() {
                 self.bind_initialized_variable_flow(child);
             }
@@ -101,7 +101,7 @@ impl BinderType {
     pub(super) fn bind_binding_element_flow(&self, node: Id<Node> /*BindingElement*/) {
         let node_ref = node.ref_(self);
         let node_as_binding_element = node_ref.as_binding_element();
-        if is_binding_pattern(node_as_binding_element.maybe_name().refed(self)) {
+        if is_binding_pattern(node_as_binding_element.maybe_name().refed(self).as_deref()) {
             self.bind_each(node_as_binding_element.maybe_decorators().as_double_deref());
             self.bind_each(node_as_binding_element.maybe_modifiers().as_double_deref());
             self.bind(node_as_binding_element.dot_dot_dot_token);
@@ -420,7 +420,7 @@ impl BinderType {
             | SyntaxKind::CaseBlock => ContainerFlags::IsBlockScopedContainer,
 
             SyntaxKind::Block => {
-                if is_function_like(node.ref_(self).maybe_parent().refed(self))
+                if is_function_like(node.ref_(self).maybe_parent().refed(self).as_deref())
                     || is_class_static_block_declaration(&node.ref_(self).parent().ref_(self))
                 {
                     ContainerFlags::None
@@ -610,10 +610,10 @@ impl BinderType {
                 let node_ref = node.ref_(self);
                 let node_as_module_declaration = node_ref.as_module_declaration();
                 if node_as_module_declaration.name.ref_(self).kind() == SyntaxKind::StringLiteral {
-                    let text = node_as_module_declaration
+                    let node_name_ref = node_as_module_declaration
                         .name
-                        .ref_(self).as_literal_like_node()
-                        .text();
+                        .ref_(self);
+                    let text = node_name_ref.as_literal_like_node().text();
                     pattern = try_parse_pattern(&text);
                     if pattern.is_none() {
                         self.error_on_first_token(

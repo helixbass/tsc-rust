@@ -1723,7 +1723,7 @@ impl Program {
     }
 
     pub fn get_options_syntax_by_name<'a>(
-        &self,
+        &'a self,
         name: &'a str,
     ) -> Option<impl Iterator<Item = Id<Node>> + 'a> {
         let compiler_options_object_literal_syntax =
@@ -1735,7 +1735,7 @@ impl Program {
         )
     }
 
-    pub fn get_options_paths_syntax(&self) -> impl Iterator<Item = Id<Node>> {
+    pub fn get_options_paths_syntax<'a>(&'a self) -> impl Iterator<Item = Id<Node>> + 'a {
         self.get_options_syntax_by_name("paths").unwrap_or_empty()
     }
 

@@ -979,7 +979,8 @@ pub fn format_diagnostic(
             diagnostic_file.ref_(arena).as_source_file(),
             diagnostic.maybe_start().unwrap().try_into().unwrap(),
         );
-        let file_name = diagnostic_file.ref_(arena).as_source_file().file_name();
+        let diagnostic_file_ref = diagnostic_file.ref_(arena);
+        let file_name = diagnostic_file_ref.as_source_file().file_name();
         let relative_file_name =
             convert_to_relative_path(&file_name, &host.get_current_directory()?, |file_name| {
                 host.get_canonical_file_name(file_name)

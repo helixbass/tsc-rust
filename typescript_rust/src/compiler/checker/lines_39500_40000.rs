@@ -184,7 +184,8 @@ impl TypeChecker {
                                 } else {
                                     node_name
                                 };
-                                let name = id_text(&name_node.ref_(self));
+                                let name_node_ref = name_node.ref_(self);
+                                let name = id_text(&name_node_ref);
                                 self.add_type_only_declaration_related_info(
                                     self.error(Some(node), message, Some(vec![name.to_owned()])),
                                     if is_type {
@@ -207,12 +208,11 @@ impl TypeChecker {
                                 };
                                 let node_ref = node.ref_(self);
                                 let node_as_export_specifier = node_ref.as_export_specifier();
-                                let name = id_text(
-                                    &node_as_export_specifier
-                                        .property_name
-                                        .unwrap_or(node_as_export_specifier.name)
-                                        .ref_(self),
-                                );
+                                let name_ref = node_as_export_specifier
+                                    .property_name
+                                    .unwrap_or(node_as_export_specifier.name)
+                                    .ref_(self);
+                                let name = id_text(&name_ref);
                                 self.add_type_only_declaration_related_info(
                                     self.error(Some(node), message, Some(vec![name.to_owned()])),
                                     if is_type {

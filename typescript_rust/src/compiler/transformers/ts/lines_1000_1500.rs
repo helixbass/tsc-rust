@@ -513,7 +513,7 @@ impl TransformTypeScript {
         let value_declaration = if is_class_like(&node.ref_(self)) {
             get_first_constructor_with_body(node, self)
         } else if is_function_like(Some(&node.ref_(self)))
-            && node_is_present(node.ref_(self).as_function_like_declaration().maybe_body().refed(self))
+            && node_is_present(node.ref_(self).as_function_like_declaration().maybe_body().refed(self).as_deref())
         {
             Some(node)
         } else {
@@ -543,7 +543,7 @@ impl TransformTypeScript {
                     .is_some()
                 {
                     expressions.push(self.serialize_type_node(get_rest_parameter_element_type(
-                        parameter_as_parameter_declaration.maybe_type().refed(self),
+                        parameter_as_parameter_declaration.maybe_type().refed(self).as_deref(),
                     ))?);
                 } else {
                     expressions.push(self.serialize_type_of_node(parameter)?);

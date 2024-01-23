@@ -955,7 +955,7 @@ impl SymbolTableToDeclarationStatements {
                                         flags,
                                     )
                             ),
-                            text_range.refed(self),
+                            text_range.refed(self).as_deref(),
                             self,
                         );
                         self.add_result(

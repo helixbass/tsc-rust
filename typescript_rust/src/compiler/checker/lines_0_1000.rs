@@ -1554,7 +1554,8 @@ impl TypeChecker {
             }
             let map = packages_map.as_mut().unwrap();
             self.host.get_source_files().iter().for_each(|&sf| {
-                let sf_as_source_file = sf.ref_(self).as_source_file();
+                let sf_ref = sf.ref_(self);
+                let sf_as_source_file = sf_ref.as_source_file();
                 let sf_resolved_modules = sf_as_source_file.maybe_resolved_modules();
                 if sf_resolved_modules.is_none() {
                     return;

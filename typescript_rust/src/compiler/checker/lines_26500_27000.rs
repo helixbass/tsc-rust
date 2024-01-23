@@ -801,7 +801,7 @@ impl TypeChecker {
         let links = self.get_node_links(node_as_computed_property_name.expression);
         if (*links).borrow().resolved_type.is_none() {
             if (is_type_literal_node(&node.ref_(self).parent().ref_(self).parent().ref_(self))
-                || maybe_is_class_like(node.ref_(self).parent().ref_(self).maybe_parent().refed(self))
+                || maybe_is_class_like(node.ref_(self).parent().ref_(self).maybe_parent().refed(self).as_deref())
                 || is_interface_declaration(&node.ref_(self).parent().ref_(self).parent().ref_(self)))
                 && is_binary_expression(&node_as_computed_property_name.expression.ref_(self))
                 && node_as_computed_property_name

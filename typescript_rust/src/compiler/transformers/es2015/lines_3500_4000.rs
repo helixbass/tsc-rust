@@ -79,7 +79,7 @@ impl TransformES2015 {
         if is_binding_pattern(
             node_variable_declaration
                 .ref_(self).as_variable_declaration()
-                .maybe_name().refed(self),
+                .maybe_name().refed(self).as_deref(),
         ) {
             let temp = self
                 .factory

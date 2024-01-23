@@ -85,7 +85,7 @@ impl TypeChecker {
                         return;
                     }
                 }
-                if node_is_present(subsequent_node.ref_(self).as_function_like_declaration().maybe_body().refed(self)) {
+                if node_is_present(subsequent_node.ref_(self).as_function_like_declaration().maybe_body().refed(self).as_deref()) {
                     self.error(
                         Some(error_node),
                         &Diagnostics::Function_implementation_name_must_be_0,

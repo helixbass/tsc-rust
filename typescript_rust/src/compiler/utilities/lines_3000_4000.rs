@@ -401,22 +401,20 @@ pub fn is_dynamic_name(name: Id<Node> /*DeclarationName*/, arena: &impl HasArena
 pub fn get_property_name_for_property_name_node(
     name: Id<Node>, /*PropertyName*/
     arena: &impl HasArena,
-) -> Option<Cow<'_, str> /*__String*/> {
+) -> Option<String /*__String*/> {
     match name.ref_(arena).kind() {
-        SyntaxKind::Identifier => Some((&*name.ref_(arena).as_identifier().escaped_text).into()),
-        SyntaxKind::PrivateIdentifier => Some((&*name.ref_(arena).as_private_identifier().escaped_text).into()),
+        SyntaxKind::Identifier => Some(name.ref_(arena).as_identifier().escaped_text.clone()),
+        SyntaxKind::PrivateIdentifier => Some(name.ref_(arena).as_private_identifier().escaped_text.clone()),
         SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral => Some(
             escape_leading_underscores(&name.ref_(arena).as_literal_like_node().text())
-                .into_owned()
-                .into(),
+                .into_owned(),
         ),
         SyntaxKind::ComputedPropertyName => {
             let name_expression = name.ref_(arena).as_computed_property_name().expression;
             if is_string_or_numeric_literal_like(&name_expression.ref_(arena)) {
                 Some(
                     escape_leading_underscores(&name_expression.ref_(arena).as_literal_like_node().text())
-                        .into_owned()
-                        .into(),
+                        .into_owned(),
                 )
             } else if is_signed_numeric_literal(name_expression, arena) {
                 let name_expression_ref = name_expression.ref_(arena);
@@ -434,7 +432,6 @@ pub fn get_property_name_for_property_name_node(
                                 .as_literal_like_node()
                                 .text()
                         )
-                        .into(),
                     )
                 } else {
                     Some(
@@ -443,7 +440,6 @@ pub fn get_property_name_for_property_name_node(
                             .ref_(arena).as_literal_like_node()
                             .text()
                             .clone()
-                            .into(),
                     )
                 }
             } else {
@@ -861,32 +857,32 @@ impl DiagnosticCollection {
 
     pub fn add(&mut self, diagnostic: Gc<Diagnostic>) {
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
-            let diagnostic_file_ref = diagnostic_file.ref_(self);
-            let diagnostic_file_as_source_file = diagnostic_file_ref.as_source_file();
+            let file_name = diagnostic_file.ref_(self).as_source_file().file_name().clone();
             if self
                 .file_diagnostics
-                .get(&*diagnostic_file_as_source_file.file_name())
+                .get(&*diagnostic_file.ref_(self).as_source_file().file_name())
                 .is_none()
             {
                 let diagnostics = SortedArray::new(vec![]);
                 self.file_diagnostics.insert(
-                    diagnostic_file_as_source_file.file_name().clone(),
+                    file_name.clone(),
                     diagnostics,
                 );
                 insert_sorted(
                     &mut self.files_with_diagnostics,
-                    diagnostic_file_as_source_file.file_name().clone(),
+                    file_name.clone(),
                     |a: &String, b: &String| compare_strings_case_sensitive(a, b),
                 );
             }
             let diagnostics = self
                 .file_diagnostics
-                .get_mut(&*diagnostic_file_as_source_file.file_name())
+                .get_mut(&*file_name)
                 .unwrap();
+            let arena = unsafe { &*self.arena };
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, self),
+                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, arena),
             );
         } else {
             if self.has_read_non_file_diagnostics() {
@@ -895,10 +891,11 @@ impl DiagnosticCollection {
             }
 
             let diagnostics = &mut self.non_file_diagnostics;
+            let arena = unsafe { &*self.arena };
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, self),
+                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, arena),
             );
         }
     }
@@ -933,7 +930,7 @@ impl DiagnosticCollection {
 
 impl HasArena for DiagnosticCollection {
     fn arena(&self) -> &AllArenas {
-        unimplemented!()
+        unsafe { &*self.arena }
     }
 }
 

@@ -474,7 +474,8 @@ impl TransformDeclarations {
             ));
         }
         let decl_import_clause = decl_as_import_declaration.import_clause.unwrap();
-        let decl_import_clause_as_import_clause = decl_import_clause.ref_(self).as_import_clause();
+        let decl_import_clause_ref = decl_import_clause.ref_(self);
+        let decl_import_clause_as_import_clause = decl_import_clause_ref.as_import_clause();
         let visible_default_binding = /*decl.importClause &&*/
             decl_import_clause_as_import_clause.name.clone().filter(|_| {
                 self.resolver.is_declaration_visible(decl_import_clause)
@@ -1206,7 +1207,7 @@ impl TransformDeclarations {
                 SyntaxKind::VariableDeclaration => {
                     let input_ref = input.ref_(self);
                     let input_as_variable_declaration = input_ref.as_variable_declaration();
-                    if is_binding_pattern(input_as_variable_declaration.maybe_name().refed(self)) {
+                    if is_binding_pattern(input_as_variable_declaration.maybe_name().refed(self).as_deref()) {
                         return Ok(Some(
                             self.recreate_binding_pattern(input_as_variable_declaration.name())?
                                 .into(),

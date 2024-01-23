@@ -208,7 +208,7 @@ impl TypeChecker {
         let container = get_this_container(error_location, false, self);
         let mut location: Option<Id<Node>> = Some(container.clone());
         while let Some(location_present) = location {
-            if maybe_is_class_like(location_present.ref_(self).maybe_parent().refed(self)) {
+            if maybe_is_class_like(location_present.ref_(self).maybe_parent().refed(self).as_deref()) {
                 let class_symbol =
                     break_if_none!(self.get_symbol_of_node(location_present.ref_(self).parent())?);
 
@@ -337,7 +337,8 @@ impl TypeChecker {
                         parent_as_qualified_name.left == error_location,
                         Some("Should only be resolving left side of qualified name as a namespace"),
                     );
-                    let prop_name = &parent_as_qualified_name.right.ref_(self).as_identifier().escaped_text;
+                    let parent_right_ref = parent_as_qualified_name.right.ref_(self);
+                    let prop_name = &parent_right_ref.as_identifier().escaped_text;
                     let prop_type = self.get_property_of_type(
                         self.get_declared_type_of_symbol(symbol)?,
                         prop_name,
@@ -855,8 +856,9 @@ impl TypeChecker {
             };
 
             let type_only_declaration_name = type_only_declaration.ref_(self).as_named_declaration().name();
+            let type_only_declaration_name_ref = type_only_declaration_name.ref_(self);
             let name = unescape_leading_underscores(
-                &type_only_declaration_name.ref_(self).as_identifier().escaped_text,
+                &type_only_declaration_name_ref.as_identifier().escaped_text,
             );
             add_related_info(
                 &self.error(

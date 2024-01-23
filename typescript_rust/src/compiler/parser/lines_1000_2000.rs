@@ -787,8 +787,9 @@ impl ParserType {
             return;
         }
 
-        let expression_text = if is_identifier(&node.ref_(self)) {
-            Some(id_text(&node.ref_(self)))
+        let node_ref = node.ref_(self);
+        let expression_text = if is_identifier(&node_ref) {
+            Some(id_text(&node_ref))
         } else {
             None
         };

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, iter};
+use std::{borrow::{Borrow, Cow}, iter};
 
 use gc::Gc;
 use id_arena::Id;
@@ -70,6 +70,7 @@ macro_rules! impl_non_empty_for_option_and_non_option {
 impl_non_empty_for_option_and_non_option!(&str);
 impl_non_empty_for_option_and_non_option!(&String);
 impl_non_empty_for_option_and_non_option!(String);
+impl_non_empty_for_option_and_non_option!(Cow<'_, str>);
 impl_non_empty_for_option_and_non_option!(&[TItem], TItem);
 impl_non_empty_for_option_and_non_option!(&Vec<TItem>, TItem);
 impl_non_empty_for_option_and_non_option!(Vec<TItem>, TItem);

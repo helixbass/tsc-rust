@@ -78,7 +78,7 @@ pub fn is_property_access_entity_name_expression(node: Id<Node>, arena: &impl Ha
 pub fn try_get_property_access_or_identifier_to_string(
     expr: Id<Node>, /*Expression*/
     arena: &impl HasArena,
-) -> Option<Cow<'_, str>> {
+) -> Option<String> {
     if is_property_access_expression(&expr.ref_(arena)) {
         let expr_ref = expr.ref_(arena);
         let expr_as_property_access_expression = expr_ref.as_property_access_expression();
@@ -93,7 +93,6 @@ pub fn try_get_property_access_or_identifier_to_string(
                     base_str,
                     entity_name_to_string(expr_as_property_access_expression.name, arena)
                 )
-                .into(),
             );
         }
     } else if is_element_access_expression(&expr.ref_(arena)) {
@@ -115,12 +114,11 @@ pub fn try_get_property_access_or_identifier_to_string(
                         )
                         .unwrap()
                     )
-                    .into(),
                 );
             }
         }
     } else if is_identifier(&expr.ref_(arena)) {
-        return Some(unescape_leading_underscores(&expr.ref_(arena).as_identifier().escaped_text).into());
+        return Some(unescape_leading_underscores(&expr.ref_(arena).as_identifier().escaped_text).to_owned());
     }
     None
 }

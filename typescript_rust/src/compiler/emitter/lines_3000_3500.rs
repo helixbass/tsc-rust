@@ -38,7 +38,8 @@ impl Printer {
             node,
             None,
         );
-        let node_as_switch_statement = node.ref_(self).as_switch_statement();
+        let node_ref = node.ref_(self);
+        let node_as_switch_statement = node_ref.as_switch_statement();
         self.emit_expression(Some(node_as_switch_statement.expression), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
@@ -973,7 +974,8 @@ impl Printer {
             None,
         );
         self.write_space();
-        let elements = &node.ref_(self).as_assert_clause().elements;
+        let node_ref = node.ref_(self);
+        let elements = &node_ref.as_assert_clause().elements;
         self.emit_list(
             Some(node),
             Some(elements),

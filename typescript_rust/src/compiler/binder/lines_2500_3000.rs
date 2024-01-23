@@ -375,7 +375,7 @@ impl BinderType {
             }
             SyntaxKind::Block => {
                 if !is_function_like_or_class_static_block_declaration(
-                    node.ref_(self).maybe_parent().refed(self),
+                    node.ref_(self).maybe_parent().refed(self).as_deref(),
                 ) {
                     return;
                 }
@@ -395,8 +395,8 @@ impl BinderType {
                     return;
                 }
                 let prop_tag = node;
-                let prop_tag_as_jsdoc_property_like_tag =
-                    prop_tag.ref_(self).as_jsdoc_property_like_tag();
+                let prop_tag_ref = prop_tag.ref_(self);
+                let prop_tag_as_jsdoc_property_like_tag = prop_tag_ref.as_jsdoc_property_like_tag();
                 let flags = if prop_tag_as_jsdoc_property_like_tag.is_bracketed
                     || matches!(
                         prop_tag_as_jsdoc_property_like_tag.type_expression,
@@ -415,8 +415,8 @@ impl BinderType {
             }
             SyntaxKind::JSDocPropertyTag => {
                 let prop_tag = node;
-                let prop_tag_as_jsdoc_property_like_tag =
-                    prop_tag.ref_(self).as_jsdoc_property_like_tag();
+                let prop_tag_ref = prop_tag.ref_(self);
+                let prop_tag_as_jsdoc_property_like_tag = prop_tag_ref.as_jsdoc_property_like_tag();
                 let flags = if prop_tag_as_jsdoc_property_like_tag.is_bracketed
                     || matches!(
                         prop_tag_as_jsdoc_property_like_tag.type_expression,
@@ -615,7 +615,8 @@ impl BinderType {
     }
 
     pub(super) fn bind_export_declaration(&self, node: Id<Node> /*ExportDeclaration*/) {
-        let node_as_export_declaration = node.ref_(self).as_export_declaration();
+        let node_ref = node.ref_(self);
+        let node_as_export_declaration = node_ref.as_export_declaration();
         if !matches!(
             self.container().ref_(self).maybe_symbol(),
             Some(symbol) if symbol.ref_(self).maybe_exports().is_some()
@@ -672,7 +673,8 @@ impl BinderType {
 
     pub(super) fn set_common_js_module_indicator(&self, node: Id<Node>) -> bool {
         let file = self.file();
-        let file_as_source_file = file.ref_(self).as_source_file();
+        let file_ref = file.ref_(self);
+        let file_as_source_file = file_ref.as_source_file();
         if file_as_source_file
             .maybe_external_module_indicator()
             .is_some()
@@ -730,7 +732,8 @@ impl BinderType {
         if !self.set_common_js_module_indicator(node) {
             return;
         }
-        let node_as_binary_expression = node.ref_(self).as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         let symbol = self.for_each_identifier_in_entity_name(
             node_as_binary_expression
                 .left
@@ -788,7 +791,8 @@ impl BinderType {
         if !self.set_common_js_module_indicator(node) {
             return;
         }
-        let node_as_binary_expression = node.ref_(self).as_binary_expression();
+        let node_ref = node.ref_(self);
+        let node_as_binary_expression = node_ref.as_binary_expression();
         let assigned_expression =
             get_right_most_assigned_expression(node_as_binary_expression.right, self);
         if is_empty_object_literal(&assigned_expression.ref_(self))
@@ -799,9 +803,8 @@ impl BinderType {
         }
 
         if is_object_literal_expression(&assigned_expression.ref_(self)) {
-            let assigned_expression_as_object_literal_expression = assigned_expression
-                .ref_(self)
-                .as_object_literal_expression();
+            let assigned_expression_ref = assigned_expression.ref_(self);
+            let assigned_expression_as_object_literal_expression = assigned_expression_ref.as_object_literal_expression();
             if every(
                 &assigned_expression_as_object_literal_expression.properties,
                 |property, _| is_shorthand_property_assignment(&property.ref_(self)),

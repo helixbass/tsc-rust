@@ -746,7 +746,7 @@ impl TypeChecker {
             for &declaration in declarations {
                 if (declaration.ref_(self).kind() == SyntaxKind::ClassDeclaration
                     || declaration.ref_(self).kind() == SyntaxKind::FunctionDeclaration
-                        && node_is_present(declaration.ref_(self).as_function_declaration().maybe_body().refed(self)))
+                        && node_is_present(declaration.ref_(self).as_function_declaration().maybe_body().refed(self).as_deref()))
                     && !declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
                 {
                     return Some(declaration);
@@ -959,7 +959,7 @@ impl TypeChecker {
             }
             SyntaxKind::BindingElement | SyntaxKind::VariableDeclaration => {
                 let name = node.ref_(self).as_named_declaration().maybe_name();
-                if is_binding_pattern(name.refed(self)) {
+                if is_binding_pattern(name.refed(self).as_deref()) {
                     for &el in &name.unwrap().ref_(self).as_has_elements().elements() {
                         self.check_module_augmentation_element(el, is_global_augmentation)?;
                     }

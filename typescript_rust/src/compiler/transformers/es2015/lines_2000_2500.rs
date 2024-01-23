@@ -330,11 +330,11 @@ impl TransformES2015 {
                 && (is_binding_pattern(
                     node_as_variable_declaration_list.declarations[0]
                         .ref_(self).as_variable_declaration()
-                        .maybe_name().refed(self),
+                        .maybe_name().refed(self).as_deref(),
                 ) || is_binding_pattern(
                     last(&node_as_variable_declaration_list.declarations)
                         .ref_(self).as_variable_declaration()
-                        .maybe_name().refed(self),
+                        .maybe_name().refed(self).as_deref(),
                 ))
             {
                 set_source_map_range(
@@ -408,7 +408,7 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_variable_declaration = node_ref.as_variable_declaration();
         let name = node_as_variable_declaration.maybe_name();
-        if is_binding_pattern(name.refed(self)) {
+        if is_binding_pattern(name.refed(self).as_deref()) {
             return self.visit_variable_declaration(node);
         }
 
@@ -445,7 +445,7 @@ impl TransformES2015 {
             HierarchyFacts::None,
         );
         let updated: VisitResult/*<VariableDeclaration>*/;
-        if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self)) {
+        if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self).as_deref()) {
             updated = Some(
                 try_flatten_destructuring_binding(
                     node,
@@ -778,7 +778,7 @@ impl TransformES2015 {
                         first_original_declaration
                             .ref_(self).as_variable_declaration()
                             .maybe_name()
-                            .refed(self),
+                            .refed(self).as_deref(),
                     )
                 })
             {

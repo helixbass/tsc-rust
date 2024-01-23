@@ -404,7 +404,8 @@ impl TransformSystemModule {
                 &self.compiler_options,
             )?;
             if let Some(external_module_name) = external_module_name {
-                let text = external_module_name.ref_(self).as_string_literal().text();
+                let external_module_name_ref = external_module_name.ref_(self);
+                let text = external_module_name_ref.as_string_literal().text();
                 let group_index = group_indices.get(&*text).copied();
                 if let Some(group_index) = group_index {
                     dependency_groups[group_index]
@@ -1194,6 +1195,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
     fn is_substitution_prevented(&self, node: Id<Node>) -> bool {
         self.transform_system_module
             .maybe_no_substitution()
+            .as_ref()
             .matches(|no_substitution| {
                 node.ref_(self).maybe_id()
                     .matches(|node_id| no_substitution.get(&node_id).copied() == Some(true))

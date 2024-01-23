@@ -280,7 +280,8 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     let mut resolutions: Vec<TValue> = Default::default();
     let mut cache: HashMap<String, TValue> = Default::default();
     let mut i = 0;
-    let containing_file_as_source_file = containing_file.ref_(arena).as_source_file();
+    let containing_file_ref = containing_file.ref_(arena);
+    let containing_file_as_source_file = containing_file_ref.as_source_file();
     for name in names {
         let result: TValue;
         let mode = get_mode_for_resolution_at_index(containing_file_as_source_file, i, arena);
@@ -672,7 +673,8 @@ pub(crate) fn get_referenced_file_location(
     match kind {
         FileIncludeKind::Import => {
             let import_literal = get_module_name_string_literal_at(file_as_source_file, index, arena);
-            let import_literal_text = import_literal.ref_(arena).as_literal_like_node().text();
+            let import_literal_ref = import_literal.ref_(arena);
+            let import_literal_text = import_literal_ref.as_literal_like_node().text();
             package_id = file_as_source_file
                 .maybe_resolved_modules()
                 .as_ref()

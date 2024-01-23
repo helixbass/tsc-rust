@@ -49,7 +49,8 @@ impl NodeBuilder {
                 .find(|d| d.ref_(self).kind() == SyntaxKind::JSDocPropertyTag)
                 .copied()
                 .unwrap();
-            let comment_text = get_text_of_jsdoc_comment(d.ref_(self).as_jsdoc_tag().maybe_comment().map(
+            let d_ref = d.ref_(self);
+            let comment_text = get_text_of_jsdoc_comment(d_ref.as_jsdoc_tag().maybe_comment().map(
                 |d_comment| -> StrOrNodeArray {
                     match d_comment {
                         StringOrNodeArray::String(d_comment) => (&**d_comment).into(),

@@ -279,7 +279,7 @@ impl TransformES2015 {
                 &self.factory,
                 receiver,
                 property_name,
-                member_as_method_declaration.maybe_name().refed(self),
+                member_as_method_declaration.maybe_name().refed(self).as_deref(),
             );
             e = self
                 .factory
@@ -331,7 +331,7 @@ impl TransformES2015 {
                 first_accessor
                     .ref_(self).as_named_declaration()
                     .maybe_name()
-                    .refed(self)
+                    .refed(self).as_deref()
                     .map(Into::into),
                 self,
             );
@@ -355,7 +355,7 @@ impl TransformES2015 {
                     first_accessor
                         .ref_(self).as_named_declaration()
                         .maybe_name()
-                        .refed(self)
+                        .refed(self).as_deref()
                         .map(Into::into),
                     self,
                 );
@@ -682,7 +682,8 @@ impl TransformES2015 {
 
         self.context.resume_lexical_environment();
         if is_block(&body.ref_(self)) {
-            let body_as_block = body.ref_(self).as_block();
+            let body_ref = body.ref_(self);
+            let body_as_block = body_ref.as_block();
             statement_offset = Some(self.factory.copy_standard_prologue(
                 &body_as_block.statements,
                 &mut prologue,
@@ -709,7 +710,8 @@ impl TransformES2015 {
         multi_line = self.add_rest_parameter_if_needed(&mut statements, node, false)? || multi_line;
 
         if is_block(&body.ref_(self)) {
-            let body_as_block = body.ref_(self).as_block();
+            let body_ref = body.ref_(self);
+            let body_as_block = body_ref.as_block();
             statement_offset = self.factory.try_copy_custom_prologue(
                 &body_as_block.statements,
                 &mut statements,
@@ -800,7 +802,7 @@ impl TransformES2015 {
                     .set_text_range(statements_location.as_ref()),
                 Some(multi_line),
             )
-            .set_text_range(node_as_function_like_declaration.maybe_body().refed(self), self);
+            .set_text_range(node_as_function_like_declaration.maybe_body().refed(self).as_deref(), self);
         if !multi_line && single_line {
             set_emit_flags(block, EmitFlags::SingleLine, self);
         }

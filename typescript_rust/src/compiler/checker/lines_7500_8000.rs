@@ -395,7 +395,7 @@ impl SymbolTableToDeclarationStatements {
                         Some(vec![]),
                         None,
                     ),
-                    signatures[0].declaration.refed(self),
+                    signatures[0].declaration.refed(self).as_deref(),
                     self,
                 )]);
             }
@@ -411,7 +411,7 @@ impl SymbolTableToDeclarationStatements {
                     &self.context(),
                     Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
                 )?;
-            results.push(set_text_range_id_node(decl, sig.declaration.refed(self), self));
+            results.push(set_text_range_id_node(decl, sig.declaration.refed(self).as_deref(), self));
         }
         Ok(results)
     }
@@ -817,7 +817,7 @@ impl MakeSerializePropertySymbol {
                                 .copied()
                                 .or(first_property_like_decl)
                         })
-                        .refed(self),
+                        .refed(self).as_deref(),
                     self,
                 ));
             }
@@ -862,7 +862,7 @@ impl MakeSerializePropertySymbol {
                                 .copied()
                                 .or(first_property_like_decl)
                         })
-                        .refed(self),
+                        .refed(self).as_deref(),
                     self,
                 ));
             }
@@ -927,7 +927,7 @@ impl MakeSerializePropertySymbol {
                             .copied()
                             .or(first_property_like_decl)
                     })
-                    .refed(self),
+                    .refed(self).as_deref(),
                 self,
             )]);
         }
@@ -982,7 +982,7 @@ impl MakeSerializePropertySymbol {
                                         .and_then(|p_declarations| p_declarations.get(0).copied())
                                 })
                         })
-                        .refed(self),
+                        .refed(self).as_deref(),
                     self,
                 )]);
             }
@@ -1016,7 +1016,7 @@ impl MakeSerializePropertySymbol {
                     })
                     .map(|sig_declaration| sig_declaration.ref_(self).parent())
                     .or(sig.declaration);
-                results.push(set_text_range_id_node(decl, location.refed(self), self));
+                results.push(set_text_range_id_node(decl, location.refed(self).as_deref(), self));
             }
             return Ok(results);
         }

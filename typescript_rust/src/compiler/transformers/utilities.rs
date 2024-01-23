@@ -113,7 +113,8 @@ pub fn get_import_needs_import_star_helper(node: Id<Node> /*ImportDeclaration*/,
     if !is_named_imports(&bindings.ref_(arena)) {
         return false;
     }
-    let bindings_as_named_imports = bindings.ref_(arena).as_named_imports();
+    let bindings_ref = bindings.ref_(arena);
+    let bindings_as_named_imports = bindings_ref.as_named_imports();
     let mut default_ref_count = 0;
     for &binding in &bindings_as_named_imports.elements {
         if is_named_default_reference(binding, arena) {
@@ -353,7 +354,8 @@ fn add_exported_names_for_export_declaration(
     node: Id<Node>, /*ExportDeclaration*/
     arena: &impl HasArena,
 ) -> io::Result<()> {
-    let node_as_export_declaration = node.ref_(arena).as_export_declaration();
+    let node_ref = node.ref_(arena);
+    let node_as_export_declaration = node_ref.as_export_declaration();
     for &specifier in &cast(
         node_as_export_declaration.export_clause,
         |node: &Id<Node>| is_named_exports(&node.ref_(arena)),
@@ -361,7 +363,8 @@ fn add_exported_names_for_export_declaration(
     .ref_(arena).as_named_exports()
     .elements
     {
-        let specifier_as_export_specifier = specifier.ref_(arena).as_export_specifier();
+        let specifier_ref = specifier.ref_(arena);
+        let specifier_as_export_specifier = specifier_ref.as_export_specifier();
         if unique_exports
             .get(id_text(&specifier_as_export_specifier.name.ref_(arena)))
             .copied()
@@ -412,7 +415,8 @@ fn collect_exported_variable_info(
             }
         }
     } else if !is_generated_identifier(&decl_name.ref_(arena)) {
-        let text = id_text(&decl_name.ref_(arena));
+        let decl_name_ref = decl_name.ref_(arena);
+        let text = id_text(&decl_name_ref);
         if unique_exports.get(text).copied() != Some(true) {
             unique_exports.insert(text.to_owned(), true);
             exported_names.get_or_insert_default_().push(decl_name);
@@ -480,9 +484,11 @@ pub fn try_add_prologue_directives_and_initial_super_call(
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     arena: &impl HasArena,
 ) -> io::Result<usize> {
-    let ctor_as_constructor_declaration = ctor.ref_(arena).as_constructor_declaration();
+    let ctor_ref = ctor.ref_(arena);
+    let ctor_as_constructor_declaration = ctor_ref.as_constructor_declaration();
     if let Some(ctor_body) = ctor_as_constructor_declaration.maybe_body() {
-        let statements = &ctor_body.ref_(arena).as_block().statements;
+        let ctor_body_ref = ctor_body.ref_(arena);
+        let statements = &ctor_body_ref.as_block().statements;
         let index = factory.try_copy_prologue(
             statements,
             result,

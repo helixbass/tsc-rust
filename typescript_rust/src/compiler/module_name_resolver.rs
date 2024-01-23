@@ -1059,7 +1059,8 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
             return self.own_map.borrow().clone();
         }
         let redirected_reference = redirected_reference.unwrap();
-        let path = redirected_reference.source_file.ref_(self).as_source_file().path();
+        let redirected_reference_source_file_ref = redirected_reference.source_file.ref_(self);
+        let path = redirected_reference_source_file_ref.as_source_file().path();
         let mut redirects = (*self.redirects_map).borrow().get(&path).cloned();
         if redirects.is_none() {
             redirects = Some(
@@ -2294,6 +2295,7 @@ fn try_resolve(
     extensions: Extensions,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<TryResolveSearchResultValue>> {
+    let arena_raw: *const AllArenas = arena.arena();
     let loader: ResolutionKindSpecificLoader =
         Rc::new(|extensions, candidate, only_record_failures, state| {
             node_load_module_by_relative_name(
@@ -2302,7 +2304,7 @@ fn try_resolve(
                 only_record_failures,
                 state,
                 true,
-                arena,
+                unsafe { &*arena_raw },
             )
         });
     let resolved = try_load_module_using_optional_resolution_settings(
@@ -3012,6 +3014,7 @@ fn load_node_module_from_directory_worker(
         }
     }
 
+    let arena_raw: *const AllArenas = arena.arena();
     let loader: ResolutionKindSpecificLoader =
         Rc::new(|extensions, candidate, only_record_failures, state| {
             let from_file = try_file(candidate, only_record_failures, state);
@@ -3040,7 +3043,7 @@ fn load_node_module_from_directory_worker(
                 only_record_failures,
                 state,
                 false,
-                arena,
+                unsafe { &*arena_raw },
             )
         });
 
@@ -3907,6 +3910,7 @@ fn load_module_from_specific_node_modules_directory(
         let rest = rest.clone();
         let redirected_reference = redirected_reference.clone();
         let cache = cache.clone();
+        let arena_raw: *const AllArenas = arena.arena();
         move |extensions, candidate, only_record_failures, state| {
             if let Some(package_info) = (*package_info).borrow().as_ref().filter(|package_info| {
                 matches!(
@@ -3943,7 +3947,7 @@ fn load_module_from_specific_node_modules_directory(
                                 .as_ref()
                                 .and_then(|package_info| package_info.version_paths.clone())
                                 .as_deref(),
-                            arena,
+                            unsafe { &*arena_raw },
                         )
                     })?;
             Ok(with_package_id(

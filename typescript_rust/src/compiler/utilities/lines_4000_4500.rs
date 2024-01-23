@@ -1197,7 +1197,7 @@ pub fn get_first_constructor_with_body(
 ) -> Option<Id<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
     find(&node.ref_(arena).as_class_like_declaration().members(), |member, _| {
         is_constructor_declaration(&member.ref_(arena))
-            && node_is_present(member.ref_(arena).as_constructor_declaration().maybe_body().refed(arena))
+            && node_is_present(member.ref_(arena).as_constructor_declaration().maybe_body().refed(arena).as_deref())
     })
     .copied()
 }

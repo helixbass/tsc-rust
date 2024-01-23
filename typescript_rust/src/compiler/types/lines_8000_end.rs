@@ -933,6 +933,8 @@ pub struct TextChangeRange {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct DiagnosticCollection {
+    #[unsafe_ignore_trace]
+    pub arena: *const AllArenas,
     pub non_file_diagnostics: SortedArray<Gc<Diagnostic>>,
     pub files_with_diagnostics: SortedArray<String>,
     pub file_diagnostics: HashMap<String, SortedArray<Gc<Diagnostic /*DiagnosticWithLocation*/>>>,

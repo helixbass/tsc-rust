@@ -871,7 +871,8 @@ pub fn try_maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypePredicate => {
-            let node_as_type_predicate_node = node.ref_(arena).as_type_predicate_node();
+            let node_ref = node.ref_(arena);
+            let node_as_type_predicate_node = node_ref.as_type_predicate_node();
             Some(
                 factory.update_type_predicate_node(
                     node,

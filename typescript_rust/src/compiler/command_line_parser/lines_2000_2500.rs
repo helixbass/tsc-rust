@@ -364,7 +364,8 @@ pub(super) fn convert_property_value_to_json(
                 )),
                 arena,
             );
-            let text = value_expression.ref_(arena).as_literal_like_node().text();
+            let value_expression_ref = value_expression.ref_(arena);
+            let text = value_expression_ref.as_literal_like_node().text();
             if let Some(custom_option) = option.as_ref() {
                 if let CommandLineOptionType::Map(custom_option_type) = custom_option.type_() {
                     if !custom_option_type.contains_key(&&*text.to_lowercase()) {

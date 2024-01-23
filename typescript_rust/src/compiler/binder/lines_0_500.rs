@@ -862,7 +862,8 @@ impl BinderType {
         let name = get_name_of_declaration(Some(node), self);
         if let Some(name) = name {
             if is_ambient_module(node, self) {
-                let module_name = get_text_of_identifier_or_literal(&name.ref_(self));
+                let name_ref = name.ref_(self);
+                let module_name = get_text_of_identifier_or_literal(&name_ref);
                 return Some(if is_global_scope_augmentation(&node.ref_(self)) {
                     "__global".into()
                 } else {
@@ -1064,7 +1065,7 @@ impl BinderType {
                         {
                             if is_named_declaration(&node.ref_(self)) {
                                 maybe_set_parent(
-                                    node.ref_(self).as_named_declaration().maybe_name().refed(self),
+                                    node.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref(),
                                     Some(node),
                                 );
                             }

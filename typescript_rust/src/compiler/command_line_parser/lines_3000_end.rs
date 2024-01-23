@@ -97,9 +97,9 @@ pub(crate) fn get_extended_config(
     let extended_result_ref = extended_result.ref_(arena);
     let extended_result_as_source_file = extended_result_ref.as_source_file();
     if let Some(source_file) = source_file {
-        let source_file = source_file.borrow();
+        let source_file_ref = source_file.ref_(arena);
         let mut source_file_extended_source_files =
-            source_file.ref_(arena).as_source_file().maybe_extended_source_files();
+            source_file_ref.as_source_file().maybe_extended_source_files();
         *source_file_extended_source_files =
             Some(vec![extended_result_as_source_file.file_name().clone()]);
         if let Some(extended_result_extended_source_files) =

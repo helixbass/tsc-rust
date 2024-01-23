@@ -596,7 +596,7 @@ impl TransformModule {
         let node_ref = node.ref_(self);
         let node_as_variable_declaration = node_ref.as_variable_declaration();
         Ok(
-            if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self)) {
+            if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self).as_deref()) {
                 try_flatten_destructuring_assignment(
                     try_visit_node(
                         node,

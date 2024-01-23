@@ -498,7 +498,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 | propagate_child_flags(Some(node.expression), self)
                 | TransformFlags::ContainsTypeScript,
         );
-        set_text_range(&node, original.refed(self));
+        set_text_range(&node, original.refed(self).as_deref());
         node
     }
 
@@ -998,7 +998,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             | SyntaxKind::BigIntLiteral
             | SyntaxKind::StringLiteral => false,
             SyntaxKind::ArrayLiteralExpression => {
-                let elements = &target.ref_(self).as_array_literal_expression().elements;
+                let target_ref = target.ref_(self);
+                let elements = &target_ref.as_array_literal_expression().elements;
                 if elements.is_empty() {
                     return false;
                 }

@@ -383,7 +383,7 @@ impl TransformSystemModule {
                 })
             };
         Ok(
-            if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self)) {
+            if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self).as_deref()) {
                 try_flatten_destructuring_assignment(
                     node,
                     Some(|node: Id<Node>| self.visitor(node)),

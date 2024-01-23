@@ -101,7 +101,7 @@ impl TypeChecker {
         if node_is_present(
             node.ref_(self).maybe_as_function_like_declaration()
                 .and_then(|node| node.maybe_body())
-                .refed(self),
+                .refed(self).as_deref(),
         ) {
             if is_get_accessor(&node.ref_(self)) || is_set_accessor(&node.ref_(self)) {
                 return Ok(false);
@@ -1168,7 +1168,7 @@ impl TypeChecker {
         }
         if !node_can_be_decorated(node, Some(node.ref_(self).parent()), node.ref_(self).parent().ref_(self).maybe_parent(), self) {
             if node.ref_(self).kind() == SyntaxKind::MethodDeclaration
-                && !node_is_present(node.ref_(self).as_method_declaration().maybe_body().refed(self))
+                && !node_is_present(node.ref_(self).as_method_declaration().maybe_body().refed(self).as_deref())
             {
                 return self.grammar_error_on_first_token(
                     node,
@@ -1230,7 +1230,7 @@ impl TypeChecker {
                 }
                 if node.ref_(self).kind() == SyntaxKind::IndexSignature
                     && (modifier.ref_(self).kind() != SyntaxKind::StaticKeyword
-                        || !maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)))
+                        || !maybe_is_class_like(node.ref_(self).maybe_parent().refed(self).as_deref()))
                 {
                     return self.grammar_error_on_node(
                         modifier,
@@ -1453,7 +1453,7 @@ impl TypeChecker {
                             &Diagnostics::_0_modifier_must_precede_1_modifier,
                             Some(vec!["export".to_owned(), "async".to_owned()]),
                         );
-                    } else if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)) {
+                    } else if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self).as_deref()) {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_class_elements_of_this_kind,
@@ -1511,7 +1511,7 @@ impl TypeChecker {
                             &Diagnostics::_0_modifier_cannot_be_used_in_an_ambient_context,
                             Some(vec!["override".to_owned()]),
                         );
-                    } else if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self))
+                    } else if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self).as_deref())
                         && !is_property_declaration(&node.ref_(self))
                     {
                         return self.grammar_error_on_node(
@@ -1707,7 +1707,7 @@ impl TypeChecker {
             );
         } else if node.ref_(self).kind() == SyntaxKind::Parameter
             && flags.intersects(ModifierFlags::ParameterPropertyModifier)
-            && is_binding_pattern(node.ref_(self).as_parameter_declaration().maybe_name().refed(self))
+            && is_binding_pattern(node.ref_(self).as_parameter_declaration().maybe_name().refed(self).as_deref())
         {
             return self.grammar_error_on_node(
                 node,

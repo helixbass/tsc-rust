@@ -359,7 +359,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> bool {
-        !node_is_missing(node.ref_(self).as_function_like_declaration().maybe_body().refed(self))
+        !node_is_missing(node.ref_(self).as_function_like_declaration().maybe_body().refed(self).as_deref())
     }
 
     pub(super) fn visit_property_declaration(
@@ -556,7 +556,7 @@ impl TransformTypeScript {
                                 self.factory.create_this(),
                                 property_name,
                             )
-                            .set_text_range(node.ref_(self).as_named_declaration().maybe_name().refed(self), self),
+                            .set_text_range(node.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref(), self),
                         local_name,
                     ),
                 )

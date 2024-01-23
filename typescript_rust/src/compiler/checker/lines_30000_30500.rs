@@ -466,7 +466,7 @@ impl TypeChecker {
             return Ok(self.resolving_signature());
         }
         if call_signatures.iter().any(|sig| {
-            is_in_js_file(sig.declaration.refed(self))
+            is_in_js_file(sig.declaration.refed(self).as_deref())
                 && get_jsdoc_class_tag(sig.declaration.unwrap(), self).is_some()
         }) {
             self.error(

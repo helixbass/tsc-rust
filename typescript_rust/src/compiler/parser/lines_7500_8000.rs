@@ -117,7 +117,8 @@ impl ParserType {
         if !is_meta_property(&node.ref_(self)) {
             return false;
         }
-        let node_as_meta_property = node.ref_(self).as_meta_property();
+        let node_ref = node.ref_(self);
+        let node_as_meta_property = node_ref.as_meta_property();
         node_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
             && node_as_meta_property.name.ref_(self).as_identifier().escaped_text == "meta"
     }

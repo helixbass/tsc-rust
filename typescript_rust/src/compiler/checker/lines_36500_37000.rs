@@ -345,7 +345,7 @@ impl TypeChecker {
 
                     let names_share_scope = matches!(
                         container,
-                        Some(container) if container.ref_(self).kind() == SyntaxKind::Block && is_function_like(container.ref_(self).maybe_parent().refed(self)) ||
+                        Some(container) if container.ref_(self).kind() == SyntaxKind::Block && is_function_like(container.ref_(self).maybe_parent().refed(self).as_deref()) ||
                             matches!(
                                 container.ref_(self).kind(),
                                 SyntaxKind::ModuleBlock |
@@ -487,7 +487,7 @@ impl TypeChecker {
                     .unwrap()
                     .ref_(self).maybe_as_function_like_declaration()
                     .and_then(|node| node.maybe_body())
-                    .refed(self),
+                    .refed(self).as_deref(),
             )
         {
             self.error(

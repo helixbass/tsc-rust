@@ -37,6 +37,7 @@ impl TransformSystemModule {
             }
         } else if !is_generated_identifier(&decl_name.ref_(self)) {
             let mut exclude_name = None;
+            let decl_name_ref = decl_name.ref_(self);
             if export_self {
                 self.append_export_statement(
                     statements,
@@ -44,7 +45,7 @@ impl TransformSystemModule {
                     self.factory.get_local_name(decl, None, None),
                     None,
                 );
-                exclude_name = Some(id_text(&decl_name.ref_(self)));
+                exclude_name = Some(id_text(&decl_name_ref));
             }
 
             self.append_exports_of_declaration(statements, decl, exclude_name);

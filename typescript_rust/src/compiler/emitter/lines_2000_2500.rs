@@ -547,7 +547,8 @@ impl Printer {
         } else {
             ListFormat::MultiLineTupleTypeElements
         };
-        let node_elements = &node.ref_(self).as_tuple_type_node().elements;
+        let node_ref = node.ref_(self);
+        let node_elements = &node_ref.as_tuple_type_node().elements;
         self.emit_list(
             Some(node),
             Some(&node_elements),

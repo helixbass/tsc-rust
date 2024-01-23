@@ -728,12 +728,14 @@ pub fn count_path_components(path: &str) -> usize {
 }
 
 fn uses_js_extensions_on_imports(node: Id<Node> /*SourceFile*/, arena: &impl HasArena) -> bool {
-    let imports = node.ref_(arena).as_source_file().maybe_imports();
+    let node_ref = node.ref_(arena);
+    let imports = node_ref.as_source_file().maybe_imports();
     imports
         .as_ref()
         .and_then(|imports| {
             first_defined(imports, |node: &Id<Node>, _| {
-                let text = node.ref_(arena).as_literal_like_node().text();
+                let node_ref = node.ref_(arena);
+                let text = node_ref.as_literal_like_node().text();
                 if path_is_relative(&text) {
                     Some(has_js_file_extension(&text))
                 } else {

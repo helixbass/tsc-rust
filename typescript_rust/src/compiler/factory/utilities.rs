@@ -881,9 +881,9 @@ pub fn get_local_name_for_external_import<
             name
         } else {
             factory.create_identifier(
-                (&*get_source_text_of_node_from_source_file(source_file, name, None, factory))
+                &get_source_text_of_node_from_source_file(source_file, name, None, factory)
                     .non_empty()
-                    .unwrap_or_else(|| id_text(&name.ref_(factory))),
+                    .unwrap_or_else(|| id_text(&name.ref_(factory)).to_owned().into()),
             )
         });
     }

@@ -127,7 +127,7 @@ impl TypeChecker {
                 if matches!(
                     param_symbol,
                     Some(param_symbol) if param_symbol.ref_(self).flags().intersects(SymbolFlags::Property)
-                ) && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name().refed(self))
+                ) && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref())
                 {
                     let resolved_symbol = self.resolve_name_(
                         Some(param),
@@ -487,7 +487,7 @@ impl TypeChecker {
                     .declaration
                     .and_then(|declaration| get_effective_return_type_node(declaration, self));
                 let mut jsdoc_predicate: Option<Gc<TypePredicate>> = None;
-                if type_.is_none() && is_in_js_file(signature.declaration.refed(self)) {
+                if type_.is_none() && is_in_js_file(signature.declaration.refed(self).as_deref()) {
                     let jsdoc_signature =
                         self.get_signature_of_type_tag(signature.declaration.unwrap())?;
                     if let Some(jsdoc_signature) = jsdoc_signature
@@ -626,7 +626,7 @@ impl TypeChecker {
                                     .and_then(|function_like_declaration| {
                                         function_like_declaration.maybe_body()
                                     })
-                                    .refed(self),
+                                    .refed(self).as_deref(),
                             ) {
                                 self.any_type()
                             } else {
@@ -900,7 +900,7 @@ impl TypeChecker {
             )
             .transpose()?
             .as_deref(),
-            is_in_js_file(signature.declaration.refed(self)),
+            is_in_js_file(signature.declaration.refed(self).as_deref()),
             None,
         )
     }

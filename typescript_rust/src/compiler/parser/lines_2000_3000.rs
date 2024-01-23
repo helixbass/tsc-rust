@@ -338,7 +338,7 @@ impl ParserType {
 
         let node = syntax_cursor.current_node(self, self.scanner().get_start_pos());
 
-        if node_is_missing(node.refed(self)) {
+        if node_is_missing(node.refed(self).as_deref()) {
             return None;
         }
         let node = node.unwrap();

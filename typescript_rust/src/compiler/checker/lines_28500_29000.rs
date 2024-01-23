@@ -145,8 +145,9 @@ impl TypeChecker {
         };
         let mut props_: Option<Either<_, _>> = None;
         let mut did_set_props = false;
-        if let Some(name_inner_rc_node) = name_inner_rc_node.as_ref() {
-            let parent = name_inner_rc_node.ref_(self).parent();
+        let name_inner_rc_node_ref = name_inner_rc_node.refed(self);
+        if let Some(name_inner_rc_node_ref) = name_inner_rc_node_ref.as_ref() {
+            let parent = name_inner_rc_node_ref.parent();
             if is_property_access_expression(&parent.ref_(self)) {
                 did_set_props = true;
                 props_ = Some(Either::Right(
@@ -160,7 +161,7 @@ impl TypeChecker {
                     .into_iter(),
                 ));
             }
-            name = StrOrRcNode::Str(id_text(&name_inner_rc_node.ref_(self)));
+            name = StrOrRcNode::Str(id_text(&name_inner_rc_node_ref));
         }
         if !did_set_props {
             props_ = Some(Either::Left(props));
@@ -177,8 +178,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let name = name.into();
         let str_name = match &name {
-            StrOrRcNode::Str(name) => *name,
-            StrOrRcNode::RcNode(name) => id_text(&name.ref_(self)),
+            StrOrRcNode::Str(name) => (*name).to_owned(),
+            StrOrRcNode::RcNode(name) => id_text(&name.ref_(self)).to_owned(),
         };
         let mut properties = self.get_properties_of_type(containing_type)?;
         let jsx_specific = if str_name == "for" {
@@ -617,7 +618,7 @@ impl TypeChecker {
                 .get(0)
                 .copied();
             if let Some(variable) = variable.filter(|variable| {
-                !is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self))
+                !is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
             }) {
                 return self.get_symbol_of_node(variable);
             }

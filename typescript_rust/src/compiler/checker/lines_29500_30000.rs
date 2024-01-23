@@ -552,7 +552,7 @@ impl TypeChecker {
                 if let Some(parameter) = parameter {
                     let parameter_error = create_diagnostic_for_node(
                         parameter,
-                        if is_binding_pattern(parameter.ref_(self).as_named_declaration().maybe_name().refed(self)) {
+                        if is_binding_pattern(parameter.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref()) {
                             &*Diagnostics::An_argument_matching_this_binding_pattern_was_not_provided
                         } else if is_rest_parameter(parameter, self) {
                             &*Diagnostics::Arguments_for_the_rest_parameter_0_were_not_provided
@@ -561,7 +561,7 @@ impl TypeChecker {
                         },
                         if parameter.ref_(self).as_named_declaration().maybe_name().is_none() {
                             Some(vec![args.len().to_string()])
-                        } else if !is_binding_pattern(parameter.ref_(self).as_named_declaration().maybe_name().refed(self))
+                        } else if !is_binding_pattern(parameter.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref())
                         {
                             Some(vec![id_text(&get_first_identifier(
                                 parameter.ref_(self).as_named_declaration().name(),
@@ -1056,7 +1056,7 @@ impl TypeChecker {
         let impl_decl = if is_overload {
             find(&failed_signature_declarations, |d: &Id<Node>, _| {
                 is_function_like_declaration(&d.ref_(self))
-                    && node_is_present(d.ref_(self).as_function_like_declaration().maybe_body().refed(self))
+                    && node_is_present(d.ref_(self).as_function_like_declaration().maybe_body().refed(self).as_deref())
             }).copied()
         } else {
             None
@@ -1214,7 +1214,7 @@ impl TypeChecker {
                 check_candidate = self.get_signature_instantiation(
                     candidate.clone(),
                     type_argument_types.as_deref(),
-                    is_in_js_file(candidate.declaration.refed(self)),
+                    is_in_js_file(candidate.declaration.refed(self).as_deref()),
                     inference_context
                         .as_ref()
                         .and_then(|inference_context| {
@@ -1270,7 +1270,7 @@ impl TypeChecker {
                     check_candidate = self.get_signature_instantiation(
                         candidate.clone(),
                         Some(&type_argument_types),
-                        is_in_js_file(candidate.declaration.refed(self)),
+                        is_in_js_file(candidate.declaration.refed(self).as_deref()),
                         /*inferenceContext &&*/
                         inference_context
                             .maybe_inferred_type_parameters()

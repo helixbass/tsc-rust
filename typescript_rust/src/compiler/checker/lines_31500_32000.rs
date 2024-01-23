@@ -934,7 +934,7 @@ impl TypeChecker {
         if func.ref_(self).kind() == SyntaxKind::MethodSignature || {
             let func_ref = func.ref_(self);
             let func_as_function_like_declaration = func_ref.as_function_like_declaration();
-            node_is_missing(func_as_function_like_declaration.maybe_body().refed(self))
+            node_is_missing(func_as_function_like_declaration.maybe_body().refed(self).as_deref())
                 || func_as_function_like_declaration
                     .maybe_body()
                     .unwrap()

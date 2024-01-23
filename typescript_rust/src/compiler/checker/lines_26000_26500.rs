@@ -675,7 +675,7 @@ impl TypeChecker {
                                 })
                             }
                         }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
-                        self.symbol(prop.ref_(self).symbol()).escaped_name().to_owned(),
+                        prop.ref_(self).symbol().ref_(self).escaped_name().to_owned(),
                     )
                 }
             ).into_iter()

@@ -594,7 +594,7 @@ impl TransformClassFields {
                         .and_then(|constructor| {
                             constructor.ref_(self).as_constructor_declaration().maybe_body()
                         })
-                        .refed(self),
+                        .refed(self).as_deref(),
                     self,
                 ),
         )

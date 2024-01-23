@@ -1041,7 +1041,7 @@ impl TransformES2017 {
             let block = self.factory.create_block(statements, Some(true));
             set_text_range(
                 &*block.ref_(self),
-                node_as_function_like_declaration.maybe_body().refed(self),
+                node_as_function_like_declaration.maybe_body().refed(self).as_deref(),
             );
 
             if emit_super_helpers && self.maybe_has_super_element_access() == Some(true) {
@@ -1083,7 +1083,8 @@ impl TransformES2017 {
                     .factory
                     .converters()
                     .convert_to_function_block(expression, None);
-                let block_as_block = block.ref_(self).as_block();
+                let block_ref = block.ref_(self);
+                let block_as_block = block_ref.as_block();
                 result = self.factory.update_block(
                     block,
                     set_text_range_node_array(

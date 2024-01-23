@@ -747,7 +747,7 @@ impl TypeChecker {
             return Ok(Some(links_jsx_implicit_import_container));
         }
         let runtime_import_specifier = get_jsx_runtime_import(
-            get_jsx_implicit_import_base(&self.compiler_options, file.refed(self)).as_deref(),
+            get_jsx_implicit_import_base(&self.compiler_options, file.refed(self).as_deref()).as_deref(),
             &self.compiler_options,
         );
         if runtime_import_specifier.is_none() {

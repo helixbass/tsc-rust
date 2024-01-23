@@ -222,7 +222,7 @@ pub fn get_type_parameter_owner(d: Id<Node> /*Declaration*/, arena: &impl HasAre
         let mut current = Some(d);
         while current.is_some() {
             let current_present = current.unwrap();
-            if is_function_like(current.refed(arena))
+            if is_function_like(current.refed(arena).as_deref())
                 || is_class_like(&current_present.ref_(arena))
                 || current_present.ref_(arena).kind() == SyntaxKind::InterfaceDeclaration
             {
@@ -547,18 +547,17 @@ pub fn id_text(identifier_or_private_name: &Node /*Identifier | PrivateIdentifie
     unescape_leading_underscores(identifier_or_private_name.as_member_name().escaped_text())
 }
 
-pub fn symbol_name(symbol: Id<Symbol>, arena: &impl HasArena) -> Cow<'_, str> {
+pub fn symbol_name(symbol: Id<Symbol>, arena: &impl HasArena) -> String {
     match symbol.ref_(arena).maybe_value_declaration() {
         Some(symbol_value_declaration)
             if is_private_identifier_class_element_declaration(symbol_value_declaration, arena) =>
         {
             return id_text(&symbol_value_declaration.ref_(arena).as_named_declaration().name().ref_(arena))
-                .to_owned()
-                .into();
+                .to_owned();
         }
         _ => (),
     }
-    unescape_leading_underscores(symbol.ref_(arena).escaped_name()).into()
+    unescape_leading_underscores(symbol.ref_(arena).escaped_name()).to_owned()
 }
 
 fn name_for_nameless_jsdoc_typedef(
@@ -1086,7 +1085,7 @@ pub fn get_jsdoc_return_type(
         if is_type_literal_node(&type_.ref_(arena)) {
             let sig = find(&type_.ref_(arena).as_type_literal_node().members, |node, _| {
                 is_call_signature_declaration(&node.ref_(arena))
-            });
+            }).copied();
             return sig.and_then(|sig| sig.ref_(arena).as_signature_declaration().maybe_type());
         }
         if is_function_type_node(&type_.ref_(arena)) || is_jsdoc_function_type(&type_.ref_(arena)) {
@@ -1641,7 +1640,7 @@ pub(crate) fn is_function_like_kind(kind: SyntaxKind) -> bool {
 pub(crate) fn is_function_or_module_block(node: Id<Node>, arena: &impl HasArena) -> bool {
     is_source_file(&node.ref_(arena))
         || is_module_block(&node.ref_(arena))
-        || is_block(&node.ref_(arena)) && is_function_like(node.ref_(arena).maybe_parent().refed(arena))
+        || is_block(&node.ref_(arena)) && is_function_like(node.ref_(arena).maybe_parent().refed(arena).as_deref())
 }
 
 pub fn is_class_element(node: &Node) -> bool {

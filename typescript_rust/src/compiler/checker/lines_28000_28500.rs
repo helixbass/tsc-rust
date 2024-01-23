@@ -941,7 +941,8 @@ impl TypeChecker {
         let value_declaration = value_declaration.unwrap();
 
         let mut diagnostic_message: Option<Gc<Diagnostic>> = None;
-        let declaration_name = id_text(&right.ref_(self));
+        let right_ref = right.ref_(self);
+        let declaration_name = id_text(&right_ref);
         if self.is_in_property_initializer_or_class_static_block(node)
             && !self.is_optional_property_declaration(value_declaration)
             && !(is_access_expression(&node.ref_(self))

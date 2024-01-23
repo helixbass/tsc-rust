@@ -317,7 +317,8 @@ impl Printer {
             node = original_present;
 
             if is_identifier(&node.ref_(self)) && {
-                let node_as_identifier = node.ref_(self).as_identifier();
+                let node_ref = node.ref_(self);
+                let node_as_identifier = node_ref.as_identifier();
                 node_as_identifier
                     .maybe_auto_generate_flags()
                     .unwrap_or_default()

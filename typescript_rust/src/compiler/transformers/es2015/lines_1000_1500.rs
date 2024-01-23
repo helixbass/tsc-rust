@@ -85,7 +85,7 @@ impl TransformES2015 {
         let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if node_as_parameter_declaration.dot_dot_dot_token.is_some() {
             None
-        } else if is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self)) {
+        } else if is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self).as_deref()) {
             Some(
                 self.factory
                     .create_parameter_declaration(
@@ -127,7 +127,7 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         node_as_parameter_declaration.maybe_initializer().is_some()
-            || is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self))
+            || is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self).as_deref())
     }
 
     pub(super) fn add_default_value_assignments_if_needed(

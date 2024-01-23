@@ -372,7 +372,8 @@ impl Program {
             self.add_file_include_reason(file, reason.clone());
             if let Some(file) = file {
                 if self.options.force_consistent_casing_in_file_names == Some(true) {
-                    let ref checked_name = file.ref_(self).as_source_file().file_name();
+                    let file_ref = file.ref_(self);
+                    let ref checked_name = file_ref.as_source_file().file_name();
                     let is_redirect = self.to_path(checked_name) != self.to_path(&file_name);
                     if is_redirect {
                         file_name = self
@@ -676,8 +677,9 @@ impl Program {
                 let mut map_from_file_to_project_reference_redirects = HashMap::new();
                 self.for_each_resolved_project_reference(
                     |referenced_project: Gc<ResolvedProjectReference>| -> Option<()> {
+                        let referenced_project_source_file_ref = referenced_project.source_file.ref_(self);
                         let referenced_project_source_file_path =
-                            referenced_project.source_file.ref_(self).as_source_file().path();
+                            referenced_project_source_file_ref.as_source_file().path();
                         if &self.to_path(self.options.config_file_path.as_ref().unwrap())
                             != &*referenced_project_source_file_path
                         {

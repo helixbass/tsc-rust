@@ -62,7 +62,7 @@ impl TransformModule {
             return /*statements*/;
         }
 
-        if is_binding_pattern(decl_as_named_declaration.maybe_name().refed(self)) {
+        if is_binding_pattern(decl_as_named_declaration.maybe_name().refed(self).as_deref()) {
             for &element in &decl_as_named_declaration
                 .name()
                 .ref_(self).as_has_elements()

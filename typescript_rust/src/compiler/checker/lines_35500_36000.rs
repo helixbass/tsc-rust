@@ -374,7 +374,7 @@ impl TypeChecker {
     ) -> Option<Id<Node /*TypeNode*/>> {
         let type_node = get_effective_type_annotation_node(node, self);
         if is_rest_parameter(node, self) {
-            get_rest_parameter_element_type(type_node.refed(self))
+            get_rest_parameter_element_type(type_node.refed(self).as_deref())
         } else {
             type_node
         }
@@ -568,7 +568,7 @@ impl TypeChecker {
                     i,
                     Some(i) if {
                         let decl_parameters = decl.ref_(self).as_signature_declaration().parameters();
-                        i < decl_parameters.len() && is_binding_pattern(decl_parameters[i].ref_(self).as_parameter_declaration().maybe_name().refed(self))
+                        i < decl_parameters.len() && is_binding_pattern(decl_parameters[i].ref_(self).as_parameter_declaration().maybe_name().refed(self).as_deref())
                     }
                 ) {
                     return Ok(());

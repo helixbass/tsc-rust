@@ -751,7 +751,7 @@ impl TypeChecker {
                         type_arguments.map(ToOwned::to_owned),
                         Some(&type_parameters),
                         self.get_min_type_argument_count(Some(&type_parameters)),
-                        is_in_js_file(symbol.ref_(self).maybe_value_declaration().refed(self)),
+                        is_in_js_file(symbol.ref_(self).maybe_value_declaration().refed(self).as_deref()),
                     )?,
                 ),
                 alias_symbol,

@@ -984,7 +984,7 @@ impl TransformES2018 {
             .filter(|node_variable_declaration| {
                 let node_variable_declaration_ref = node_variable_declaration.ref_(self);
                 let node_variable_declaration_as_variable_declaration = node_variable_declaration_ref.as_variable_declaration();
-                is_binding_pattern(node_variable_declaration_as_variable_declaration.maybe_name().refed(self))
+                is_binding_pattern(node_variable_declaration_as_variable_declaration.maybe_name().refed(self).as_deref())
                     && node_variable_declaration_as_variable_declaration
                         .name()
                         .ref_(self).transform_flags()
@@ -1095,7 +1095,7 @@ impl TransformES2018 {
     ) -> VisitResult /*<VariableDeclaration>*/ {
         let node_ref = node.ref_(self);
         let node_as_variable_declaration = node_ref.as_variable_declaration();
-        if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self))
+        if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self).as_deref())
             && node_as_variable_declaration
                 .name()
                 .ref_(self).transform_flags()
@@ -1275,7 +1275,7 @@ impl TransformES2018 {
                             .set_text_range(statements_location.as_ref()),
                         Some(true),
                     )
-                    .set_text_range(body_location.refed(self), self),
+                    .set_text_range(body_location.refed(self).as_deref(), self),
             );
         }
         node
@@ -1330,7 +1330,7 @@ impl TransformES2018 {
                     .set_text_range(statements_location.as_deref()),
                 Some(true),
             )
-            .set_text_range(body_location.refed(self), self)
+            .set_text_range(body_location.refed(self).as_deref(), self)
             .set_emit_flags(EmitFlags::NoSourceMap | EmitFlags::NoTokenSourceMaps, self)
     }
 

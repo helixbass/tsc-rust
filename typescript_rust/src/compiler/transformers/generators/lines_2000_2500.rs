@@ -130,7 +130,8 @@ impl TransformGenerators {
             name = variable_name.clone();
             self.context.hoist_variable_declaration(variable_name);
         } else {
-            let text = id_text(&variable_name.ref_(self));
+            let variable_name_ref = variable_name.ref_(self);
+            let text = id_text(&variable_name_ref);
             name = self.declare_local(Some(text));
             if self.maybe_renamed_catch_variables().is_none() {
                 self.set_renamed_catch_variables(Some(_d()));

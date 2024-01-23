@@ -177,7 +177,8 @@ impl TransformGenerators {
         let label = self.find_continue_target(
             node_as_continue_statement
                 .label
-                .map(|node_label| id_text(&node_label.ref_(self))),
+                .map(|node_label| id_text(&node_label.ref_(self)).to_owned())
+                .as_deref(),
         );
         if label > 0 {
             self.emit_break(label, Some(&*node.ref_(self)));
@@ -196,7 +197,8 @@ impl TransformGenerators {
             let label = self.find_continue_target(
                 node_as_continue_statement
                     .label
-                    .map(|node_label| id_text(&node_label.ref_(self))),
+                    .map(|node_label| id_text(&node_label.ref_(self)).to_owned())
+                    .as_deref(),
             );
             if label > 0 {
                 return self.create_inline_break(label, Some(&*node.ref_(self)));
@@ -215,7 +217,8 @@ impl TransformGenerators {
         let label = self.find_break_target(
             node_as_break_statement
                 .label
-                .map(|node_label| id_text(&node_label.ref_(self))),
+                .map(|node_label| id_text(&node_label.ref_(self)).to_owned())
+                .as_deref(),
         );
         if label > 0 {
             self.emit_break(label, Some(&*node.ref_(self)));
@@ -234,7 +237,8 @@ impl TransformGenerators {
             let label = self.find_break_target(
                 node_as_break_statement
                     .label
-                    .map(|node_label| id_text(&node_label.ref_(self))),
+                    .map(|node_label| id_text(&node_label.ref_(self)).to_owned())
+                    .as_deref(),
             );
             if label > 0 {
                 return self.create_inline_break(label, Some(&*node.ref_(self)));

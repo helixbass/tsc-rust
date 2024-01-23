@@ -707,9 +707,9 @@ fn is_void_zero(node: Id<Node>, arena: &impl HasArena) -> bool {
     }
     let node_expression_ref = 
         node_as_void_expression.expression.ref_(arena);
-    let node_expression_as_numeric_literal =
-        node_expression_ref.as_numeric_literal();
-    &*node_expression_as_numeric_literal.text() == "0"
+    let node_expression_as_numeric_literal = node_expression_ref.as_numeric_literal();
+    let ret = &*node_expression_as_numeric_literal.text() == "0";
+    ret
 }
 
 pub(crate) fn get_element_or_property_access_argument_expression_or_name(

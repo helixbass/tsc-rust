@@ -478,11 +478,11 @@ impl Printer {
         node
     }
 
-    pub(super) fn get_text_of_node<'node>(
+    pub(super) fn get_text_of_node(
         &self,
         node: Id<Node>,
         include_trivia: Option<bool>,
-    ) -> Cow<'node, str> {
+    ) -> Cow<'_, str> {
         if is_generated_identifier(&node.ref_(self)) {
             return self.generate_name(node).into();
         } else if (is_identifier(&node.ref_(self)) || is_private_identifier(&node.ref_(self)))
@@ -499,7 +499,7 @@ impl Printer {
                             )
                     ))
         {
-            return id_text(&*node.ref_(self)).into();
+            return id_text(&*node.ref_(self)).to_owned().into();
         } else if node.ref_(self).kind() == SyntaxKind::StringLiteral
             && node.ref_(self).as_string_literal().text_source_node.is_some()
         {

@@ -237,7 +237,7 @@ impl BinderType {
                     _ => node
                         .ref_(self).maybe_as_function_like_declaration()
                         .and_then(|node| node.maybe_body()),
-                }.refed(self))
+                }.refed(self).as_deref())
             {
                 node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::HasImplicitReturn);
                 if matches!(self.maybe_has_explicit_return(), Some(true)) {

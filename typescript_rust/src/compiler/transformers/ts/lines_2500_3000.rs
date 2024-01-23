@@ -334,7 +334,7 @@ impl TransformTypeScript {
                 ),
                 Some(true),
             )
-            .set_text_range(block_location.refed(self), self);
+            .set_text_range(block_location.refed(self).as_deref(), self);
 
         if match node_as_module_declaration.body {
             None => true,

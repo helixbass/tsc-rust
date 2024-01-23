@@ -63,7 +63,8 @@ pub fn get_declaration_of_kind(
     kind: SyntaxKind,
     arena: &impl HasArena,
 ) -> Option<Id<Node /*T extends Declaration*/>> {
-    let maybe_declarations = symbol.ref_(arena).maybe_declarations();
+    let symbol_ref = symbol.ref_(arena);
+    let maybe_declarations = symbol_ref.maybe_declarations();
     let declarations = maybe_declarations.as_ref();
     if let Some(declarations) = declarations {
         for &declaration in declarations {
@@ -1584,7 +1585,7 @@ pub fn is_effective_module_declaration(node: &Node) -> bool {
 }
 
 pub fn is_shorthand_ambient_module_symbol(module_symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
-    is_shorthand_ambient_module(module_symbol.ref_(arena).maybe_value_declaration().refed(arena))
+    is_shorthand_ambient_module(module_symbol.ref_(arena).maybe_value_declaration().refed(arena).as_deref())
 }
 
 fn is_shorthand_ambient_module(node: Option<&Node>) -> bool {
@@ -1788,7 +1789,7 @@ pub fn is_any_import_or_re_export(node: &Node) -> bool {
 
 pub fn get_enclosing_block_scope_container(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
     find_ancestor(node.ref_(arena).maybe_parent(), |current| {
-        is_block_scope(&current.ref_(arena), current.ref_(arena).maybe_parent().refed(arena))
+        is_block_scope(&current.ref_(arena), current.ref_(arena).maybe_parent().refed(arena).as_deref())
     }, arena)
 }
 
@@ -1835,29 +1836,26 @@ pub fn is_computed_non_literal_name(name: Id<Node> /*PropertyName*/, arena: &imp
         && !is_string_or_numeric_literal_like(&name.ref_(arena).as_computed_property_name().expression.ref_(arena))
 }
 
-pub fn get_text_of_property_name<'name>(
+pub fn get_text_of_property_name(
     name: Id<Node>,
     /*PropertyName | NoSubstitutionTemplateLiteral*/ arena: &impl HasArena,
-) -> Cow<'name, str> /*__String*/ {
+) -> String /*__String*/ {
     match name.ref_(arena).kind() {
-        SyntaxKind::Identifier => (&*name.ref_(arena).as_identifier().escaped_text).into(),
+        SyntaxKind::Identifier => name.ref_(arena).as_identifier().escaped_text.clone(),
         SyntaxKind::PrivateIdentifier => {
-            (&*name.ref_(arena).as_private_identifier().escaped_text).into()
+            name.ref_(arena).as_private_identifier().escaped_text.clone()
         }
         SyntaxKind::StringLiteral => {
             escape_leading_underscores(&name.ref_(arena).as_string_literal().text())
                 .into_owned()
-                .into()
         }
         SyntaxKind::NumericLiteral => {
             escape_leading_underscores(&name.ref_(arena).as_numeric_literal().text())
                 .into_owned()
-                .into()
         }
         SyntaxKind::NoSubstitutionTemplateLiteral => {
             escape_leading_underscores(&name.ref_(arena).as_template_literal_like_node().text())
                 .into_owned()
-                .into()
         }
         SyntaxKind::ComputedPropertyName => {
             let name_ref = name.ref_(arena);
@@ -1872,8 +1870,7 @@ pub fn get_text_of_property_name<'name>(
                         .as_literal_like_node()
                         .text(),
                 )
-                .into_owned()
-                .into();
+                .into_owned();
             }
             Debug_.fail(Some(
                 "Text of property name cannot be read from non-literal-valued ComputedPropertyName",
@@ -1886,12 +1883,12 @@ pub fn get_text_of_property_name<'name>(
 pub fn entity_name_to_string(
     name: Id<Node>, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
     arena: &impl HasArena,
-) -> Cow<'_, str> {
+) -> Cow<'static, str> {
     match name.ref_(arena).kind() {
         SyntaxKind::ThisKeyword => "this".into(),
         SyntaxKind::PrivateIdentifier | SyntaxKind::Identifier => {
             if get_full_width(&name.ref_(arena)) == 0 {
-                id_text(&name.ref_(arena)).into()
+                id_text(&name.ref_(arena)).to_owned().into()
             } else {
                 get_text_of_node(name, None, arena)
             }

@@ -390,7 +390,7 @@ impl TypeChecker {
 
         if (self.no_implicit_any || is_in_js_file(Some(&declaration.ref_(self))))
             && is_variable_declaration(&declaration.ref_(self))
-            && !is_binding_pattern(declaration.ref_(self).as_variable_declaration().maybe_name().refed(self))
+            && !is_binding_pattern(declaration.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
             && !get_combined_modifier_flags(declaration, self).intersects(ModifierFlags::Export)
             && !declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
         {
@@ -549,7 +549,7 @@ impl TypeChecker {
             return Ok(Some(self.true_type()));
         }
 
-        if is_binding_pattern(declaration.ref_(self).as_named_declaration().maybe_name().refed(self)) {
+        if is_binding_pattern(declaration.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref()) {
             return Ok(Some(self.get_type_from_binding_pattern(
                 declaration.ref_(self).as_named_declaration().name(),
                 Some(false),

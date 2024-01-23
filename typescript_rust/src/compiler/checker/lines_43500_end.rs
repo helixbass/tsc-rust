@@ -368,7 +368,7 @@ impl TypeChecker {
                 None,
             ));
         }
-        if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)) {
+        if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self).as_deref()) {
             if is_string_literal(&node_name.ref_(self))
                 && &*node_name.ref_(self).as_string_literal().text() == "constructor"
             {
@@ -429,7 +429,7 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_property_declaration = node_ref.as_property_declaration();
             node_as_property_declaration.exclamation_token.is_some()
-                && (!maybe_is_class_like(node.ref_(self).maybe_parent().refed(self))
+                && (!maybe_is_class_like(node.ref_(self).maybe_parent().refed(self).as_deref())
                     || node_as_property_declaration.maybe_type().is_none()
                     || node_as_property_declaration.maybe_initializer().is_some()
                     || node.ref_(self).flags().intersects(NodeFlags::Ambient)
@@ -505,7 +505,7 @@ impl TypeChecker {
         if node.ref_(self).flags().intersects(NodeFlags::Ambient) {
             let links = self.get_node_links(node);
             if (*links).borrow().has_reported_statement_in_ambient_context != Some(true)
-                && (is_function_like(node.ref_(self).maybe_parent().refed(self)) || is_accessor(&node.ref_(self).parent().ref_(self)))
+                && (is_function_like(node.ref_(self).maybe_parent().refed(self).as_deref()) || is_accessor(&node.ref_(self).parent().ref_(self)))
             {
                 let ret = self.grammar_error_on_first_token(
                     node,
@@ -1078,18 +1078,20 @@ impl EmitResolverCreateResolver {
             .file_to_directive
             .as_ref()
             .unwrap()
-            .contains_key(&**file_as_source_file.path())
+            .contains_key(&**file.ref_(self).as_source_file().as_source_file.path())
         {
             return;
         }
+        let path = (&**file.ref_(self).as_source_file().path()).to_owned();
         self.file_to_directive
             .as_mut()
             .unwrap()
-            .insert((&**file_as_source_file.path()).to_owned(), key.to_owned());
-        for file_reference in &*(*file_as_source_file.referenced_files()).borrow() {
+            .insert(path, key.to_owned());
+        let referenced_files = file.ref_(self).as_source_file().referenced_files();
+        for file_reference in &*(*referenced_files).borrow() {
             let file_name = &file_reference.file_name;
             let resolved_file =
-                resolve_tripleslash_reference(file_name, &file_as_source_file.file_name());
+                resolve_tripleslash_reference(file_name, &file.ref_(self).as_source_file().file_name());
             let referenced_file = self.type_checker.host.get_source_file(&resolved_file);
             if let Some(referenced_file) = referenced_file {
                 self.add_referenced_files_to_type_directive(referenced_file, key);

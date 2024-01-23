@@ -628,7 +628,7 @@ impl TypeChecker {
 
         let node_ref = node.ref_(self);
         let node_as_named_declaration = node_ref.as_named_declaration();
-        if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self)) {
+        if maybe_is_class_like(node.ref_(self).maybe_parent().refed(self).as_deref()) {
             if self.language_version < ScriptTarget::ES2015
                 && is_private_identifier(&node_as_named_declaration.name().ref_(self))
             {
@@ -889,8 +889,8 @@ impl TypeChecker {
             if node.ref_(self).flags().intersects(NodeFlags::Ambient) {
                 self.check_ambient_initializer(node)?;
             } else if node_as_variable_declaration.maybe_initializer().is_none() {
-                if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self))
-                    && !is_binding_pattern(node.ref_(self).maybe_parent().refed(self))
+                if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self).as_deref())
+                    && !is_binding_pattern(node.ref_(self).maybe_parent().refed(self).as_deref())
                 {
                     return Ok(self.grammar_error_on_node(
                         node,

@@ -987,7 +987,8 @@ impl Program {
             let module_name_expr = get_external_module_name(node, self);
             if let Some(module_name_expr) = module_name_expr.filter(|module_name_expr| {
                 is_string_literal(&module_name_expr.ref_(self)) && {
-                    let module_name_text = module_name_expr.ref_(self).as_string_literal().text();
+                    let module_name_expr_ref = module_name_expr.ref_(self);
+                    let module_name_text = module_name_expr_ref.as_string_literal().text();
                     !module_name_text.is_empty()
                         && (!in_ambient_module
                             || !is_external_module_name_relative(&module_name_text))
@@ -1016,7 +1017,8 @@ impl Program {
             {
                 let node_name = node.ref_(self).as_named_declaration().name();
                 node_name.ref_(self).set_parent(Some(node));
-                let name_text = get_text_of_identifier_or_literal(&node_name.ref_(self));
+                let node_name_ref = node_name.ref_(self);
+                let name_text = get_text_of_identifier_or_literal(&node_name_ref);
                 if is_external_module_file
                     || (in_ambient_module && !is_external_module_name_relative(&name_text))
                 {
@@ -1071,7 +1073,8 @@ impl Program {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }
             } else if is_import_call(node, self) && {
-                let node_arguments = &node.ref_(self).as_call_expression().arguments;
+                let node_ref = node.ref_(self);
+                let node_arguments = &node_ref.as_call_expression().arguments;
                 node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0].ref_(self))
             } {
                 set_parent_recursive(Some(node), false, self);

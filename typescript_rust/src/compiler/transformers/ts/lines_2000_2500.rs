@@ -78,7 +78,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*AccessorDeclaration*/
     ) -> bool {
-        !(node_is_missing(node.ref_(self).as_function_like_declaration().maybe_body().refed(self))
+        !(node_is_missing(node.ref_(self).as_function_like_declaration().maybe_body().refed(self).as_deref())
             && has_syntactic_modifier(node, ModifierFlags::Abstract, self))
     }
 

@@ -311,7 +311,7 @@ impl TypeChecker {
     pub(super) fn is_node_used_during_class_initialization(&self, node: Id<Node>) -> bool {
         find_ancestor(Some(node), |element| {
             if is_constructor_declaration(&element.ref_(self))
-                && node_is_present(element.ref_(self).as_constructor_declaration().maybe_body().refed(self))
+                && node_is_present(element.ref_(self).as_constructor_declaration().maybe_body().refed(self).as_deref())
                 || is_property_declaration(&element.ref_(self))
             {
                 return true.into();

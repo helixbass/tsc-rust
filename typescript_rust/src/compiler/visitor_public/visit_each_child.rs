@@ -906,7 +906,8 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::TypeReference => {
-            let node_as_type_reference_node = node.ref_(arena).as_type_reference_node();
+            let node_ref = node.ref_(arena);
+            let node_as_type_reference_node = node_ref.as_type_reference_node();
             Some(
                 factory.update_type_reference_node(
                     node,
@@ -3265,7 +3266,8 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::AssertClause => {
-            let node_as_assert_clause = node.ref_(arena).as_assert_clause();
+            let node_ref = node.ref_(arena);
+            let node_as_assert_clause = node_ref.as_assert_clause();
             Some(
                 factory.update_assert_clause(
                     node,
@@ -3282,7 +3284,8 @@ pub fn maybe_visit_each_child_full(
             )
         }
         SyntaxKind::AssertEntry => {
-            let node_as_assert_entry = node.ref_(arena).as_assert_entry();
+            let node_ref = node.ref_(arena);
+            let node_as_assert_entry = node_ref.as_assert_entry();
             Some(
                 factory.update_assert_entry(
                     node,
@@ -3324,7 +3327,8 @@ pub fn maybe_visit_each_child_full(
             ))
         }
         SyntaxKind::NamespaceImport => {
-            let node_as_namespace_import = node.ref_(arena).as_namespace_import();
+            let node_ref = node.ref_(arena);
+            let node_as_namespace_import = node_ref.as_namespace_import();
             Some(
                 factory.update_namespace_import(
                     node,

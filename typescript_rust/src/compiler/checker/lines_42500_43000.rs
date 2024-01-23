@@ -242,7 +242,7 @@ impl TypeChecker {
             parameter_as_parameter_declaration
                 .maybe_initializer()
                 .is_some()
-                || is_binding_pattern(parameter_as_parameter_declaration.maybe_name().refed(self))
+                || is_binding_pattern(parameter_as_parameter_declaration.maybe_name().refed(self).as_deref())
                 || is_rest_parameter(parameter, self)
         })
     }
