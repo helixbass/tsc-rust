@@ -27,7 +27,7 @@ use crate::{
     NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange, SignatureDeclarationInterface,
     SymbolInterface, SyntaxKind, VisitResult,
     set_comment_range,
-    OptionInArena,
+    OptionInArena, TransformationContext,
 };
 
 impl TransformDeclarations {
@@ -789,7 +789,7 @@ impl TransformDeclarations {
                     let node = try_visit_each_child(
                         input,
                         |node: Id<Node>| self.visit_declaration_subtree(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     )?;
                     let node_ref = node.ref_(self);
@@ -820,7 +820,7 @@ impl TransformDeclarations {
                     let node = try_visit_each_child(
                         input,
                         |node: Id<Node>| self.visit_declaration_subtree(node),
-                        &**self.context.ref_(self),
+                        &*self.context.ref_(self),
                         self,
                     )?;
                     let node_ref = node.ref_(self);
@@ -1267,7 +1267,7 @@ impl TransformDeclarations {
                         try_maybe_visit_each_child(
                             Some(input),
                             |node: Id<Node>| self.visit_declaration_subtree(node),
-                            &**self.context.ref_(self),
+                            &*self.context.ref_(self),
                             self,
                         )?,
                     )?
@@ -1482,7 +1482,7 @@ impl TransformDeclarations {
             try_maybe_visit_each_child(
                 Some(input),
                 |node: Id<Node>| self.visit_declaration_subtree(node),
-                &**self.context.ref_(self),
+                &*self.context.ref_(self),
                 self,
             )?,
         )

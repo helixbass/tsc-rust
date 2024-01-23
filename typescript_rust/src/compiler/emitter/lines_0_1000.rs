@@ -682,6 +682,7 @@ fn emit_source_file_or_bundle(
             build_info_directory.clone(),
             host.clone(),
         ))),
+        arena,
     )?;
     // tracing?.pop();
 
@@ -840,6 +841,7 @@ fn emit_js_file_or_bundle(
     js_file_path: Option<&str>,
     source_map_file_path: Option<&str>,
     relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     if source_file_or_bundle.is_none()
         || emit_only_dts_files == Some(true)
@@ -863,6 +865,7 @@ fn emit_js_file_or_bundle(
         &[source_file_or_bundle],
         script_transformers,
         false,
+        arena,
     )?;
 
     let printer_options = PrinterOptions {
@@ -1047,6 +1050,7 @@ fn emit_declaration_file_or_bundle(
         &input_list_or_bundle,
         declaration_transformers,
         false,
+        arena,
     )?;
 
     if length(declaration_transform.diagnostics().as_deref()) > 0 {

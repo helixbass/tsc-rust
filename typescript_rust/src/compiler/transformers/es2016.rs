@@ -10,6 +10,7 @@ use crate::{
     NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
     HasArena, AllArenas, InArena,
+    TransformNodesTransformationResult,
 };
 
 #[derive(Trace, Finalize)]

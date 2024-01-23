@@ -9,6 +9,7 @@ use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrV
 use crate::{
     BaseNodeFactory, BaseNodeFactorySynthetic, EmitHelper, EmitHelperFactory, EmitHost,
     EmitResolver, NodeFactoryFlags, HasArena,
+    TransformNodesTransformationResult,
 };
 
 #[derive(Default, Builder, Clone)]

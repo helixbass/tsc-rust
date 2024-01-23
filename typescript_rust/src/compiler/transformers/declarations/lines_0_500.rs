@@ -40,7 +40,7 @@ use crate::{
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
     InArena, contains,
     push_if_unique_eq,
-    TransformNodesTransformationResult,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 pub fn get_declaration_diagnostics(
@@ -65,8 +65,9 @@ pub fn get_declaration_diagnostics(
         },
         &[transform_declarations()],
         false,
+        arena,
     )?;
-    Ok(result.diagnostics())
+    Ok(result.ref_(arena).diagnostics())
 }
 
 pub(super) fn has_internal_annotation(

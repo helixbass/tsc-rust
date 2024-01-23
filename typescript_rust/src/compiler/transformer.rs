@@ -25,7 +25,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, static_arena,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -319,6 +319,7 @@ pub fn transform_nodes(
     nodes: &[Id<Node>],
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
+    arena: &impl HasArena,
     // TODO: would presumably have to do some further Gc-dyn-casting shenanigans in order to return
     // this type, but looks like there aren't any other TransformationResult implementers so maybe
     // returning the concrete type is fine?
@@ -341,8 +342,9 @@ pub fn transform_nodes(
         host,
         factory,
         base_factory,
+        &*static_arena(),
     );
-    transformation_result.call()?;
+    transformation_result.ref_(arena).call()?;
     Ok(transformation_result)
 }
 
@@ -350,6 +352,7 @@ pub fn transform_nodes(
 pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
+    _arena_id: Cell<Option<Id<Self>>>,
     on_emit_node_outermost_override_or_original_method:
         GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     on_emit_node_previous_override_or_original_method:
@@ -419,8 +422,9 @@ impl TransformNodesTransformationResult {
         arena: *const AllArenas,
     ) -> Id<Self> {
         let arena_ref = unsafe { &*arena };
-        arena_ref.alloc_transformation_context(Self {
+        let ret = arena_ref.alloc_transformation_context(Self {
             _arena: arena,
+            _arena_id: _d(),
             on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
                 NoEmitNotificationTransformationContextOnEmitNodeOverrider,
             ))),
@@ -464,7 +468,17 @@ impl TransformNodesTransformationResult {
             created_emit_helper_factory: Default::default(),
             factory,
             base_factory,
-        })
+        });
+        ret.ref_(arena_ref).set_arena_id(ret);
+        ret
+    }
+
+    fn arena_id(&self) -> Id<Self> {
+        self._arena_id.get().unwrap()
+    }
+
+    fn set_arena_id(&self, id: Id<Self>) {
+        self._arena_id.set(Some(id))
     }
 
     fn state(&self) -> TransformationState {
@@ -669,7 +683,7 @@ impl TransformNodesTransformationResult {
         self.set_transformers_with_context(
             self.transformers
                 .iter()
-                .map(|t| t.call(self.as_dyn_transformation_context()))
+                .map(|t| t.call(self.arena_id()))
                 .collect(),
         );
 
@@ -1049,7 +1063,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         let mut created_emit_helper_factory = self.created_emit_helper_factory();
         if created_emit_helper_factory.is_none() {
             *created_emit_helper_factory = Some(Gc::new(create_emit_helper_factory(
-                self.as_dyn_transformation_context(),
+                self.arena_id(),
                 self,
             )));
         }
