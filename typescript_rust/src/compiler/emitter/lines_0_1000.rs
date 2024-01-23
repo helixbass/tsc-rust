@@ -952,13 +952,13 @@ impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         self.transform
-            .emit_node_with_notification(hint, node, emit_callback)?;
+            .ref_(self).emit_node_with_notification(hint, node, emit_callback)?;
 
         Ok(())
     }
 
     fn is_emit_notification_enabled(&self, node: Id<Node>) -> Option<bool> {
-        self.transform.is_emit_notification_enabled(node)
+        self.transform.ref_(self).is_emit_notification_enabled(node)
     }
 
     fn is_substitute_node_supported(&self) -> bool {
@@ -966,7 +966,13 @@ impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
     }
 
     fn substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Option<Id<Node>>> {
-        Ok(Some(self.transform.substitute_node(hint, node)?))
+        Ok(Some(self.transform.ref_(self).substitute_node(hint, node)?))
+    }
+}
+
+impl HasArena for EmitJsFileOrBundlePrintHandlers {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1090,7 +1096,7 @@ fn emit_declaration_file_or_bundle(
     *emit_skipped = *emit_skipped || decl_blocked;
     if !decl_blocked || force_dts_emit == Some(true) {
         Debug_.assert(
-            declaration_transform.transformed().len() == 1,
+            declaration_transform.ref_(arena).transformed().len() == 1,
             Some("Should only see one output from the decl transform"),
         );
         print_source_file_or_bundle(
@@ -1102,7 +1108,7 @@ fn emit_declaration_file_or_bundle(
             &compiler_options,
             declaration_file_path,
             declaration_map_path,
-            declaration_transform.transformed()[0],
+            declaration_transform.ref_(arena).transformed()[0],
             &declaration_printer,
             &SourceMapOptions {
                 source_map: if force_dts_emit != Some(true) {
@@ -1119,16 +1125,16 @@ fn emit_declaration_file_or_bundle(
             arena,
         )?;
         if force_dts_emit == Some(true)
-            && declaration_transform.transformed()[0].ref_(arena).kind() == SyntaxKind::SourceFile
+            && declaration_transform.ref_(arena).transformed()[0].ref_(arena).kind() == SyntaxKind::SourceFile
         {
-            let source_file = declaration_transform.transformed()[0].clone();
+            let source_file = declaration_transform.ref_(arena).transformed()[0].clone();
             *exported_modules_from_declaration_emit = source_file
                 .ref_(arena).as_source_file()
                 .maybe_exported_modules_from_declaration_emit()
                 .clone();
         }
     }
-    declaration_transform.dispose();
+    declaration_transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
         bundle_build_info.borrow_mut().js = declaration_printer.maybe_bundle_file_info().clone();
     }
@@ -1170,14 +1176,14 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         self.declaration_transform
-            .emit_node_with_notification(hint, node, emit_callback)?;
+            .ref_(self).emit_node_with_notification(hint, node, emit_callback)?;
 
         Ok(())
     }
 
     fn is_emit_notification_enabled(&self, node: Id<Node>) -> Option<bool> {
         self.declaration_transform
-            .is_emit_notification_enabled(node)
+            .ref_(self).is_emit_notification_enabled(node)
     }
 
     fn is_substitute_node_supported(&self) -> bool {
@@ -1186,8 +1192,14 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
 
     fn substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Option<Id<Node>>> {
         Ok(Some(
-            self.declaration_transform.substitute_node(hint, node)?,
+            self.declaration_transform.ref_(self).substitute_node(hint, node)?,
         ))
+    }
+}
+
+impl HasArena for EmitDeclarationFileOrBundlePrintHandlers {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

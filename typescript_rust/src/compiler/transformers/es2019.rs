@@ -9,12 +9,12 @@ use crate::{
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
     HasArena, AllArenas, InArena, static_arena,
-    TransformNodesTransformationResult,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES2019 {
-    #{unsafe_ignore_trace}
+    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,

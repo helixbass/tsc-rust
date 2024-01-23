@@ -17,6 +17,7 @@ use crate::{
 
 #[derive(Trace, Finalize)]
 struct TransformES2020 {
+    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,

@@ -10,9 +10,8 @@ use crate::{
     skip_parentheses, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node, NodeFactory,
     NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena,
-    TransformNodesTransformationResult,
-    CoreTransformationContext,
+    HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 #[derive(Trace, Finalize)]
@@ -216,7 +215,7 @@ impl TransformerFactoryInterface for TransformES2021Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
-            Gc::new(Box::new(TransformES2021::new(context))),
+            Gc::new(Box::new(TransformES2021::new(context, &*static_arena()))),
         )
     }
 }
