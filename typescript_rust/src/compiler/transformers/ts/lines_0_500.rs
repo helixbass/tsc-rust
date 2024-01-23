@@ -841,7 +841,8 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                     .resolver
                     .get_referenced_value_declaration(node)?;
                 if let Some(declaration) = declaration {
-                    let class_aliases = self.transform_type_script().class_aliases();
+                    let transform_type_script_ref = self.transform_type_script();
+                    let class_aliases = transform_type_script_ref.class_aliases();
                     let class_alias = class_aliases.get(&declaration.ref_(self).id()).copied();
                     if let Some(class_alias) = class_alias {
                         return Ok(Some(
