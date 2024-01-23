@@ -539,7 +539,7 @@ pub(crate) fn emit_files(
         } else {
             None
         };
-    let mut emitter_diagnostics = create_diagnostic_collection();
+    let mut emitter_diagnostics = create_diagnostic_collection(&*static_arena());
     let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.get_new_line()));
     let writer = create_text_writer(&new_line);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");

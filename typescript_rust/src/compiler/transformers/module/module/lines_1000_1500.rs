@@ -474,7 +474,7 @@ impl TransformModule {
                     variables.get_or_insert_default_().push(variable.clone());
                 } else if let Some(variable_initializer) = variable_as_variable_declaration.maybe_initializer()
                 {
-                    if !is_binding_pattern(variable_as_variable_declaration.maybe_name().refed(self))
+                    if !is_binding_pattern(variable_as_variable_declaration.maybe_name().refed(self).as_deref())
                         && (is_arrow_function(&variable_initializer.ref_(self))
                             || is_function_expression(&variable_initializer.ref_(self))
                             || is_class_expression(&variable_initializer.ref_(self)))

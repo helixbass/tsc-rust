@@ -115,7 +115,7 @@ impl TypeChecker {
         let members = node.ref_(self).as_class_like_declaration().members();
         for member in &members {
             if member.ref_(self).kind() == SyntaxKind::Constructor
-                && node_is_present(member.ref_(self).as_constructor_declaration().maybe_body().refed(self))
+                && node_is_present(member.ref_(self).as_constructor_declaration().maybe_body().refed(self).as_deref())
             {
                 return Some(member.clone());
             }

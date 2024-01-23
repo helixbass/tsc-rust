@@ -3016,35 +3016,38 @@ fn load_node_module_from_directory_worker(
 
     let arena_raw: *const AllArenas = arena.arena();
     let loader: ResolutionKindSpecificLoader =
-        Rc::new(|extensions, candidate, only_record_failures, state| {
-            let from_file = try_file(candidate, only_record_failures, state);
-            if let Some(from_file) = from_file.as_ref() {
-                let resolved = resolved_if_extension_matches(extensions, from_file);
-                if let Some(resolved) = resolved.as_ref() {
-                    return Ok(no_package_id(Some(resolved)));
+        Rc::new({
+            let arena = unsafe { &*arena_raw };
+            |extensions, candidate, only_record_failures, state| {
+                let from_file = try_file(candidate, only_record_failures, state);
+                if let Some(from_file) = from_file.as_ref() {
+                    let resolved = resolved_if_extension_matches(extensions, from_file);
+                    if let Some(resolved) = resolved.as_ref() {
+                        return Ok(no_package_id(Some(resolved)));
+                    }
+                    if state.trace_enabled {
+                        trace(
+                            state.host,
+                            &Diagnostics::File_0_has_an_unsupported_extension_so_skipping_it,
+                            Some(vec![from_file.clone()]),
+                        );
+                    }
                 }
-                if state.trace_enabled {
-                    trace(
-                        state.host,
-                        &Diagnostics::File_0_has_an_unsupported_extension_so_skipping_it,
-                        Some(vec![from_file.clone()]),
-                    );
-                }
-            }
 
-            let next_extensions = if extensions == Extensions::DtsOnly {
-                Extensions::TypeScript
-            } else {
-                extensions
-            };
-            node_load_module_by_relative_name(
-                next_extensions,
-                candidate,
-                only_record_failures,
-                state,
-                false,
-                unsafe { &*arena_raw },
-            )
+                let next_extensions = if extensions == Extensions::DtsOnly {
+                    Extensions::TypeScript
+                } else {
+                    extensions
+                };
+                node_load_module_by_relative_name(
+                    next_extensions,
+                    candidate,
+                    only_record_failures,
+                    state,
+                    false,
+                    arena,
+                )
+            }
         });
 
     let only_record_failures_for_package_file =

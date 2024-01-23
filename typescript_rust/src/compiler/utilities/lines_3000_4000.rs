@@ -809,17 +809,18 @@ pub fn get_semantic_jsx_children(children: &[Id<Node /*JsxChild*/>], arena: &imp
     })
 }
 
-pub fn create_diagnostic_collection() -> DiagnosticCollection {
-    DiagnosticCollection::new()
+pub fn create_diagnostic_collection(arena: *const AllArenas) -> DiagnosticCollection {
+    DiagnosticCollection::new(arena)
 }
 
 impl DiagnosticCollection {
-    pub fn new() -> Self {
+    pub fn new(arena: *const AllArenas) -> Self {
         DiagnosticCollection {
             non_file_diagnostics: SortedArray::<Gc<Diagnostic>>::new(vec![]),
             files_with_diagnostics: SortedArray::<String>::new(vec![]),
             file_diagnostics: HashMap::<String, SortedArray<Gc<Diagnostic>>>::new(),
             has_read_non_file_diagnostics: Cell::new(false),
+            arena,
         }
     }
 

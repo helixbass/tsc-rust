@@ -38,6 +38,7 @@ use crate::{
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeMapperCallback,
     TypePredicate, TypePredicateKind, VarianceFlags,
+    static_arena,
 };
 
 lazy_static! {
@@ -805,8 +806,8 @@ pub fn create_type_checker(
         potential_reflect_collisions: Default::default(),
         awaited_type_stack: Default::default(),
 
-        diagnostics: GcCell::new(create_diagnostic_collection()),
-        suggestion_diagnostics: GcCell::new(create_diagnostic_collection()),
+        diagnostics: GcCell::new(create_diagnostic_collection(&*static_arena())),
+        suggestion_diagnostics: GcCell::new(create_diagnostic_collection(&*static_arena())),
 
         typeof_types_by_name: Default::default(),
         typeof_type: Default::default(),

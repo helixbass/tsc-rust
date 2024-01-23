@@ -1067,7 +1067,7 @@ pub(super) fn lookup_symbol_for_name(
             if container_js_global_augmentations.contains_key(name) {
                 return container_js_global_augmentations.get(name).cloned();
             }
-        }
+        };
     }
     container
         .ref_(binder).maybe_symbol()

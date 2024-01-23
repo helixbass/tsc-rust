@@ -1072,8 +1072,6 @@ impl EmitResolverCreateResolver {
         file: Id<Node>, /*SourceFile*/
         key: &str,
     ) {
-        let file_ref = file.ref_(self);
-        let file_as_source_file = file_ref.as_source_file();
         if self
             .file_to_directive
             .as_ref()

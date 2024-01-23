@@ -1311,7 +1311,7 @@ impl Program {
             return program_diagnostics_in_file;
         }
 
-        self.get_diagnostics_with_preceding_directives(
+        let ret = self.get_diagnostics_with_preceding_directives(
             source_file,
             source_file_as_source_file
                 .maybe_comment_directives()
@@ -1319,7 +1319,8 @@ impl Program {
                 .unwrap(),
             &program_diagnostics_in_file,
         )
-        .diagnostics
+        .diagnostics;
+        ret
     }
 
     pub fn get_declaration_diagnostics(

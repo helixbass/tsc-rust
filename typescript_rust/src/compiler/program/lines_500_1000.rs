@@ -40,7 +40,7 @@ use crate::{
     ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
     TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    VecExt, HasArena, AllArenas, InArena,
+    VecExt, HasArena, AllArenas, InArena, static_arena,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
@@ -987,7 +987,7 @@ impl Program {
                     Ok(get_directory_path(&self.get_default_library_file_name()?))
                 },
             )?);
-        *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection());
+        *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection(&*static_arena()));
         *self.current_directory.borrow_mut() =
             Some(CompilerHost::get_current_directory(&**self.host())?);
         *self.supported_extensions.borrow_mut() =

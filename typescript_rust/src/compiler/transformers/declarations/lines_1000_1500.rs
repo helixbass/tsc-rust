@@ -990,7 +990,7 @@ impl TransformDeclarations {
             if is_omitted_expression(&elem.ref_(self)) {
                 continue;
             }
-            if is_binding_pattern(elem_as_binding_element.maybe_name().refed(self)) {
+            if is_binding_pattern(elem_as_binding_element.maybe_name().refed(self).as_deref()) {
                 elems = maybe_concatenate(
                     elems,
                     self.walk_binding_pattern(param, elem_as_binding_element.name())?,

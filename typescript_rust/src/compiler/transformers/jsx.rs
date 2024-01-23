@@ -895,7 +895,7 @@ impl TransformJsx {
             let single_quote = node_as_string_literal
                 .single_quote
                 .unwrap_or_else(|| !is_string_double_quoted(node, self.current_source_file(), self));
-            self.factory
+            let ret = self.factory
                 .create_string_literal(
                     self.try_decode_entities(&node_as_string_literal.text())
                         .map(Cow::into_owned)
@@ -903,7 +903,8 @@ impl TransformJsx {
                     Some(single_quote),
                     None,
                 )
-                .set_text_range(Some(&*node.ref_(self)), self)
+                .set_text_range(Some(&*node.ref_(self)), self);
+            ret
         } else if node.ref_(self).kind() == SyntaxKind::JsxExpression {
             let node_ref = node.ref_(self);
             let node_as_jsx_expression = node_ref.as_jsx_expression();

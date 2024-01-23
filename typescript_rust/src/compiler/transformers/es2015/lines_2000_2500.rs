@@ -232,7 +232,7 @@ impl TransformES2015 {
                 );
                 if let Some(decl_initializer) = decl_as_variable_declaration.maybe_initializer() {
                     let assignment: Id<Node /*Expression*/>;
-                    if is_binding_pattern(decl_as_variable_declaration.maybe_name().refed(self)) {
+                    if is_binding_pattern(decl_as_variable_declaration.maybe_name().refed(self).as_deref()) {
                         assignment = try_flatten_destructuring_assignment(
                             decl,
                             Some(|node: Id<Node>| self.visitor(node)),
