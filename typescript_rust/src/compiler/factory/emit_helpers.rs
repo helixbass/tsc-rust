@@ -12,6 +12,7 @@ use crate::{
     GeneratedIdentifierFlags, GetOrInsertDefault, MapOrDefault, NodeInterface, ReadonlyTextRange,
     ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, UnscopedEmitHelperBuilder, VecExt,
     HasArena, AllArenas, InArena,
+    TransformNodesTransformationResult,
 };
 
 // TODO: remove #[unsafe_ignore_trace] from TransformNodesTransformationResult if this ends up
@@ -19,7 +20,7 @@ use crate::{
 #[derive(Trace, Finalize)]
 pub struct EmitHelperFactory {
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     immutable_true: GcCell<Option<Id<Node>>>,
     immutable_false: GcCell<Option<Id<Node>>>,
 }
@@ -573,7 +574,7 @@ impl HasArena for EmitHelperFactory {
 }
 
 pub fn create_emit_helper_factory(
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     arena: &impl HasArena,
 ) -> EmitHelperFactory {
     EmitHelperFactory {

@@ -33,6 +33,7 @@ use crate::{
     ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
     TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
     HasArena, AllArenas, InArena, OptionInArena,
+    TransformNodesTransformationResult,
 };
 
 bitflags! {
@@ -71,7 +72,7 @@ bitflags! {
 #[derive(Trace, Finalize)]
 struct TransformES2018 {
     _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
     resolver: Gc<Box<dyn EmitResolver>>,
@@ -97,7 +98,7 @@ struct TransformES2018 {
 }
 
 impl TransformES2018 {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: Default::default(),
@@ -2429,7 +2430,7 @@ impl TransformES2018Factory {
 }
 
 impl TransformerFactoryInterface for TransformES2018Factory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformES2018::new(context).as_transformer(),

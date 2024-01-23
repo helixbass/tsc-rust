@@ -20,6 +20,7 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
     HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult,
 };
 
 bitflags! {
@@ -186,7 +187,7 @@ pub(super) struct TransformES2015 {
     pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) _rc_wrapper: GcCell<Option<Gc<Box<Self>>>>,
-    pub(super) context: Id<Box<dyn TransformationContext>>,
+    pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
@@ -202,7 +203,7 @@ pub(super) struct TransformES2015 {
 }
 
 impl TransformES2015 {
-    pub(super) fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
@@ -848,7 +849,7 @@ impl TransformES2015Factory {
 }
 
 impl TransformerFactoryInterface for TransformES2015Factory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformES2015::new(context, &*static_arena()).as_transformer(),

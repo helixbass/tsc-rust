@@ -12,19 +12,20 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface,
     HasArena, AllArenas, InArena,
+    TransformNodesTransformationResult,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES5 {
     _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     compiler_options: Gc<CompilerOptions>,
     no_substitution: GcCell<Option<HashMap<NodeId, bool>>>,
 }
 
 impl TransformES5 {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: Default::default(),
@@ -259,7 +260,7 @@ impl TransformES5Factory {
 }
 
 impl TransformerFactoryInterface for TransformES5Factory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(context.clone(), TransformES5::new(context).as_transformer())
     }
 }

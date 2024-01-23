@@ -19,6 +19,7 @@ use crate::{
     try_get_module_name_from_file, try_maybe_visit_node, try_visit_nodes, Debug_, EmitFlags,
     EmitHelper, Matches, ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
     HasArena, AllArenas, InArena,
+    TransformNodesTransformationResult,
 };
 
 pub(super) struct DependencyGroup {
@@ -30,7 +31,7 @@ pub(super) struct DependencyGroup {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformSystemModule {
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Id<Box<dyn TransformationContext>>,
+    pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
@@ -50,7 +51,7 @@ pub(super) struct TransformSystemModule {
 }
 
 impl TransformSystemModule {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: Default::default(),
             factory: context.factory(),
@@ -1238,7 +1239,7 @@ impl TransformSystemModuleFactory {
 }
 
 impl TransformerFactoryInterface for TransformSystemModuleFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformSystemModule::new(context).as_transformer(),

@@ -218,7 +218,7 @@ impl HasArena for WrapCustomTransformer {
 pub trait WrapCustomTransformerFactoryHandleDefault: Trace + Finalize {
     fn call(
         &self,
-        context: Id<Box<dyn TransformationContext>>,
+        context: Id<TransformNodesTransformationResult>,
         transformer: Transformer,
     ) -> Transformer /*<SourceFile | Bundle>*/;
 }
@@ -252,7 +252,7 @@ impl WrapCustomTransformerFactory {
 }
 
 impl TransformerFactoryInterface for WrapCustomTransformerFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         match &*self.transformer {
             TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
                 let custom_transformer = transformer.call(context.clone());
@@ -284,7 +284,7 @@ struct PassthroughTransformer;
 impl WrapCustomTransformerFactoryHandleDefault for PassthroughTransformer {
     fn call(
         &self,
-        _context: Id<Box<dyn TransformationContext>>,
+        _context: Id<TransformNodesTransformationResult>,
         transform_source_file: Transformer,
     ) -> Transformer {
         transform_source_file
@@ -323,7 +323,7 @@ pub fn transform_nodes(
     // this type, but looks like there aren't any other TransformationResult implementers so maybe
     // returning the concrete type is fine?
     // ) -> Gc<Box<dyn TransformationResult>> {
-) -> io::Result<Gc<Box<dyn TransformationContext>>> {
+) -> io::Result<Id<TransformNodesTransformationResult>> {
     let transformation_result = TransformNodesTransformationResult::new(
         vec![],
         TransformationState::Uninitialized,
@@ -417,9 +417,9 @@ impl TransformNodesTransformationResult {
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
         base_factory: Gc<BaseNodeFactorySynthetic>,
         arena: *const AllArenas,
-    ) -> Id<Box<dyn TransformationContext>> {
+    ) -> Id<Self> {
         let arena_ref = unsafe { &*arena };
-        arena_ref.alloc_transformation_context(Box::new(Self {
+        arena_ref.alloc_transformation_context(Self {
             _arena: arena,
             on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
                 NoEmitNotificationTransformationContextOnEmitNodeOverrider,
@@ -464,7 +464,7 @@ impl TransformNodesTransformationResult {
             created_emit_helper_factory: Default::default(),
             factory,
             base_factory,
-        }))
+        })
     }
 
     fn state(&self) -> TransformationState {

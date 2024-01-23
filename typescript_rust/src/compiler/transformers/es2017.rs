@@ -30,6 +30,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TypeReferenceSerializationKind, VisitResult,
     HasArena, AllArenas, InArena, OptionInArena,
+    TransformNodesTransformationResult,
 };
 
 bitflags! {
@@ -50,7 +51,7 @@ bitflags! {
 #[derive(Trace, Finalize)]
 struct TransformES2017 {
     _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Gc<CompilerOptions>,
@@ -73,7 +74,7 @@ struct TransformES2017 {
 }
 
 impl TransformES2017 {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
 
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
@@ -1466,7 +1467,7 @@ impl TransformES2017Factory {
 }
 
 impl TransformerFactoryInterface for TransformES2017Factory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformES2017::new(context).as_transformer(),

@@ -20,6 +20,7 @@ use crate::{
     NodeInterface, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
     HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult,
 };
 
 pub(super) type Label = i32;
@@ -381,7 +382,7 @@ pub(super) fn get_instruction_name(instruction: Instruction) -> Option<&'static 
 pub(super) struct TransformGenerators {
     pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Id<Box<dyn TransformationContext>>,
+    pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     #[unsafe_ignore_trace]
@@ -430,7 +431,7 @@ pub(super) struct TransformGenerators {
 }
 
 impl TransformGenerators {
-    pub fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    pub fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
@@ -1197,7 +1198,7 @@ impl TransformGeneratorsFactory {
 }
 
 impl TransformerFactoryInterface for TransformGeneratorsFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformGenerators::new(context, &*static_arena()).as_transformer(),

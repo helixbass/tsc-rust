@@ -29,6 +29,7 @@ use crate::{
     MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number,
     ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags, VisitResult,
     HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult,
 };
 
 #[derive(Builder, Default, Trace, Finalize)]
@@ -46,7 +47,7 @@ pub(super) struct PerFileState {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformJsx {
     _arena: *const AllArenas,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     compiler_options: Gc<CompilerOptions>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
@@ -54,7 +55,7 @@ pub(super) struct TransformJsx {
 }
 
 impl TransformJsx {
-    fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Self {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Self {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         Self {
@@ -1092,7 +1093,7 @@ impl TransformJsxFactory {
 }
 
 impl TransformerFactoryInterface for TransformJsxFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             Gc::new(Box::new(TransformJsx::new(context, &*static_arena()))),

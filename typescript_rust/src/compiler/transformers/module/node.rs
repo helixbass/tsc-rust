@@ -9,12 +9,13 @@ use crate::{
     TransformerFactoryInterface, TransformerInterface, _d, is_source_file,
     transform_ecmascript_module, transform_module, try_map, Debug_, ModuleKind, SyntaxKind,
     HasArena, AllArenas, InArena,
+    TransformNodesTransformationResult,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformNodeModule {
     _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     esm_transform: Transformer,
     esm_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     esm_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -25,7 +26,7 @@ struct TransformNodeModule {
 }
 
 impl TransformNodeModule {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
         let esm_transform = transform_ecmascript_module().call(context.clone());
 
         let esm_on_substitute_node = context.pop_overridden_on_substitute_node();
@@ -265,7 +266,7 @@ impl TransformNodeModuleFactory {
 }
 
 impl TransformerFactoryInterface for TransformNodeModuleFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodeModuleOnSubstituteNodeOverrider>) -> Transformer {
         TransformNodeModule::new(context).as_transformer()
     }
 }

@@ -11,16 +11,17 @@ use crate::{
     NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
     HasArena, AllArenas, InArena,
+    TransformNodesTransformationResult,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES2021 {
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
 }
 
 impl TransformES2021 {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Self {
+    fn new(context: Id<TransformNodesTransformationResult>) -> Self {
         Self {
             factory: context.factory(),
             context,
@@ -206,7 +207,7 @@ impl TransformES2021Factory {
 }
 
 impl TransformerFactoryInterface for TransformES2021Factory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             Gc::new(Box::new(TransformES2021::new(context))),

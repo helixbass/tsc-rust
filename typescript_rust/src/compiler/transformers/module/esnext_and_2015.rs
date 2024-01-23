@@ -19,12 +19,13 @@ use crate::{
     NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
     HasArena, AllArenas, InArena,
+    TransformNodesTransformationResult,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformEcmascriptModule {
     _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     host: Gc<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
@@ -42,7 +43,7 @@ struct TransformEcmascriptModule {
 }
 
 impl TransformEcmascriptModule {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+    fn new(context: Id<TransformNodesTransformationResult>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: _d(),
@@ -674,7 +675,7 @@ impl TransformEcmascriptModuleFactory {
 }
 
 impl TransformerFactoryInterface for TransformEcmascriptModuleFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformEcmascriptModule::new(context).as_transformer(),

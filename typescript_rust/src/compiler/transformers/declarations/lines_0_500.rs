@@ -40,6 +40,7 @@ use crate::{
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
     InArena, contains,
     push_if_unique_eq,
+    TransformNodesTransformationResult,
 };
 
 pub fn get_declaration_diagnostics(
@@ -162,7 +163,7 @@ pub(super) struct TransformDeclarations {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Id<Box<dyn TransformationContext>>,
+    pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) get_symbol_accessibility_diagnostic: GcCell<GetSymbolAccessibilityDiagnostic>,
     #[unsafe_ignore_trace]
     pub(super) needs_declare: Cell<bool>,
@@ -207,7 +208,7 @@ pub(super) struct TransformDeclarations {
 
 impl TransformDeclarations {
     pub(super) fn new(
-        context: Id<Box<dyn TransformationContext>>,
+        context: Id<TransformNodesTransformationResult>,
         arena: *const AllArenas,
     ) -> Gc<Box<Self>> {
         let arena_ref = unsafe { &*arena };
@@ -1681,7 +1682,7 @@ impl TransformDeclarationsFactory {
 }
 
 impl TransformerFactoryInterface for TransformDeclarationsFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         TransformDeclarations::new(context, &*static_arena()).as_transformer()
     }
 }

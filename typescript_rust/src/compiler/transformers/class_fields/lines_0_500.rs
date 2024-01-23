@@ -20,6 +20,7 @@ use crate::{
     visit_parameter_list, AsDoubleDeref, EmitFlags, HasInitializerInterface,
     NamedDeclarationInterface, NodeCheckFlags, ReadonlyTextRangeConcrete,
     HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult,
 };
 
 bitflags! {
@@ -397,7 +398,7 @@ bitflags! {
 pub(super) struct TransformClassFields {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
-    pub(super) context: Id<Box<dyn TransformationContext>>,
+    pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
@@ -425,7 +426,7 @@ pub(super) struct TransformClassFields {
 }
 
 impl TransformClassFields {
-    fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Transformer {
+    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
@@ -1496,7 +1497,7 @@ impl TransformClassFieldsFactory {
 }
 
 impl TransformerFactoryInterface for TransformClassFieldsFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             TransformClassFields::new(context, &*static_arena()),

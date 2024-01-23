@@ -18,6 +18,7 @@ use crate::{
     FunctionLikeDeclarationInterface, HasInitializerInterface, InternalSymbolName, Matches,
     ModifierFlags, MultiMap, HasArena,
     InArena,
+    TransformNodesTransformationResult,
 };
 
 pub fn get_original_node_id(node: Id<Node>, arena: &impl HasArena) -> NodeId {
@@ -61,7 +62,7 @@ struct ChainBundle;
 impl WrapCustomTransformerFactoryHandleDefault for ChainBundle {
     fn call(
         &self,
-        _context: Id<Box<dyn TransformationContext>>,
+        _context: Id<TransformNodesTransformationResult>,
         transform_source_file: Transformer,
     ) -> Transformer {
         transform_source_file

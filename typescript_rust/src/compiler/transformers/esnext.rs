@@ -8,15 +8,16 @@ use crate::{
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     VisitResult,
     HasArena, AllArenas, InArena,
+    TransformNodesTransformationResult,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformESNext {
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
 }
 
 impl TransformESNext {
-    fn new(context: Id<Box<dyn TransformationContext>>) -> Self {
+    fn new(context: Id<TransformNodesTransformationResult>) -> Self {
         Self { context }
     }
 
@@ -68,7 +69,7 @@ impl TransformESNextFactory {
 }
 
 impl TransformerFactoryInterface for TransformESNextFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle().call(
             context.clone(),
             Gc::new(Box::new(TransformESNext::new(context))),

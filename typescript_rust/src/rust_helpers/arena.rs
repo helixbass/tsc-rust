@@ -4,7 +4,7 @@ use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformationContext};
+use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult};
 
 #[derive(Default)]
 pub struct AllArenas {
@@ -15,7 +15,7 @@ pub struct AllArenas {
     // pub symbol_tables: RefCell<Arena<SymbolTable>>,
     pub types: RefCell<Arena<Type>>,
     pub type_mappers: RefCell<Arena<TypeMapper>>,
-    pub transformation_contexts: RefCell<Arena<Box<dyn TransformationContext>>>,
+    pub transformation_contexts: RefCell<Arena<TransformNodesTransformationResult>>,
 }
 
 pub trait HasArena {
@@ -53,11 +53,11 @@ pub trait HasArena {
         self.arena().alloc_symbol(symbol)
     }
 
-    fn transformation_context(&self, transformation_context: Id<Box<dyn TransformationContext>>) -> Ref<Box<dyn TransformationContext>> {
+    fn transformation_context(&self, transformation_context: Id<TransformNodesTransformationResult>) -> Ref<TransformNodesTransformationResult> {
         self.arena().transformation_context(transformation_context)
     }
 
-    fn alloc_transformation_context(&self, transformation_context: Box<dyn TransformationContext>) -> Id<Box<dyn TransformationContext>> {
+    fn alloc_transformation_context(&self, transformation_context: TransformNodesTransformationResult) -> Id<TransformNodesTransformationResult> {
         self.arena().alloc_transformation_context(transformation_context)
     }
 }
@@ -117,11 +117,11 @@ impl HasArena for AllArenas {
     }
 
     #[track_caller]
-    fn transformation_context(&self, transformation_context: Id<Box<dyn TransformationContext>>) -> Ref<Box<dyn TransformationContext>> {
+    fn transformation_context(&self, transformation_context: Id<TransformNodesTransformationResult>) -> Ref<TransformNodesTransformationResult> {
         Ref::map(self.transformation_contexts.borrow(), |transformation_contexts| &transformation_contexts[transformation_context])
     }
 
-    fn alloc_transformation_context(&self, transformation_context: Box<dyn TransformationContext>) -> Id<Box<dyn TransformationContext>> {
+    fn alloc_transformation_context(&self, transformation_context: TransformNodesTransformationResult) -> Id<TransformNodesTransformationResult> {
         let id = self.transformation_contexts.borrow_mut().alloc(transformation_context);
         id
     }
@@ -166,10 +166,10 @@ impl InArena for Id<Symbol> {
     }
 }
 
-impl InArena for Id<Box<dyn TransformationContext>> {
-    type Item = Box<dyn TransformationContext>;
+impl InArena for Id<TransformNodesTransformationResult> {
+    type Item = TransformNodesTransformationResult;
 
-    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformationContext>> {
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TransformNodesTransformationResult> {
         has_arena.transformation_context(*self)
     }
 }

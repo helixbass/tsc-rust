@@ -21,6 +21,7 @@ use crate::{
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     UnderscoreEscapedMap, VisitResult,
     HasArena, AllArenas, InArena, static_arena,
+    TransformNodesTransformationResult,
 };
 
 pub(super) const USE_NEW_TYPE_METADATA_FORMAT: bool = false;
@@ -59,7 +60,7 @@ pub(super) struct TransformTypeScript {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
-    pub(super) context: Id<Box<dyn TransformationContext>>,
+    pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) base_factory: Gc<BaseNodeFactorySynthetic>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
@@ -87,7 +88,7 @@ pub(super) struct TransformTypeScript {
 }
 
 impl TransformTypeScript {
-    pub(super) fn new(context: Id<Box<dyn TransformationContext>>, arena: *const AllArenas) -> Gc<Box<Self>> {
+    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Gc<Box<Self>> {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
@@ -1016,7 +1017,7 @@ impl TransformTypeScriptFactory {
 }
 
 impl TransformerFactoryInterface for TransformTypeScriptFactory {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> Transformer {
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         TransformTypeScript::new(context, &*static_arena()).as_transformer()
     }
 }

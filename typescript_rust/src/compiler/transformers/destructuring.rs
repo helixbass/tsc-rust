@@ -26,10 +26,11 @@ use crate::{
     try_visit_node, BaseNodeFactory, Debug_, Matches, NamedDeclarationInterface, NodeFactory,
     Number, OptionTry, ReadonlyTextRangeConcrete, TransformFlags, VecExt,
     InArena, AllArenas,
+    TransformNodesTransformationResult,
 };
 
 trait FlattenContext {
-    fn context(&self) -> Id<Box<dyn TransformationContext>>;
+    fn context(&self) -> Id<TransformNodesTransformationResult>;
     fn level(&self) -> FlattenLevel;
     fn downlevel_iteration(&self) -> bool;
     fn hoist_temp_variables(&self) -> bool;
@@ -70,7 +71,7 @@ pub enum FlattenLevel {
 pub fn flatten_destructuring_assignment<'a, 'b>(
     node: Id<Node>, /*VariableDeclaration | DestructuringAssignment*/
     visitor: Option<impl FnMut(Id<Node>) -> VisitResult + 'a>,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     needs_value: Option<bool>,
     create_assignment_callback: Option<
@@ -107,7 +108,7 @@ fn emit_expression(
 }
 
 struct FlattenDestructuringAssignmentFlattenContext<'visitor, 'create_assignment_callback> {
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     downlevel_iteration: bool,
     expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
@@ -131,7 +132,7 @@ impl<'visitor, 'create_assignment_callback>
     FlattenDestructuringAssignmentFlattenContext<'visitor, 'create_assignment_callback>
 {
     pub fn new(
-        context: Id<Box<dyn TransformationContext>>,
+        context: Id<TransformNodesTransformationResult>,
         level: FlattenLevel,
         downlevel_iteration: bool,
         expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
@@ -162,7 +163,7 @@ impl<'visitor, 'create_assignment_callback>
 }
 
 impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
-    fn context(&self) -> Id<Box<dyn TransformationContext>> {
+    fn context(&self) -> Id<TransformNodesTransformationResult> {
         self.context.clone()
     }
 
@@ -283,7 +284,7 @@ impl HasArena for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
 pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
     mut node: Id<Node>, /*VariableDeclaration | DestructuringAssignment*/
     visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     needs_value: Option<bool>,
     // create_assignment_callback: Option<Gc<Box<dyn TryCreateAssignmentCallback>>>,
@@ -354,7 +355,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     let flatten_context = FlattenDestructuringAssignmentFlattenContext::new(
         context.clone(),
         level,
-        context.ref_(self).get_compiler_options().downlevel_iteration == Some(true),
+        context.ref_(arena).get_compiler_options().downlevel_iteration == Some(true),
         expressions.clone(),
         create_assignment_callback.clone(),
         visitor.clone(),
@@ -416,7 +417,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     }
 
     let ret = context
-        .ref_(self).factory()
+        .ref_(arena).factory()
         .inline_expressions((*expressions).borrow().as_ref().unwrap()) /* || context.factory.createOmittedExpression()*/;
     Ok(ret)
 }
@@ -479,7 +480,7 @@ fn binding_or_assignment_pattern_contains_non_literal_computed_name(
 pub fn flatten_destructuring_binding(
     node: Id<Node>, /*VariableDeclaration | ParameterDeclaration*/
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     rval: Option<Id<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
@@ -512,7 +513,7 @@ struct PendingDeclaration {
 pub fn try_flatten_destructuring_binding<'visitor>(
     mut node: Id<Node>, /*VariableDeclaration | ParameterDeclaration*/
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor,
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     rval: Option<Id<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
@@ -673,7 +674,7 @@ fn emit_binding_or_assignment(
 }
 
 struct FlattenDestructuringBindingFlattenContext<'visitor> {
-    context: Id<Box<dyn TransformationContext>>,
+    context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     downlevel_iteration: bool,
     hoist_temp_variables: bool,
@@ -685,7 +686,7 @@ struct FlattenDestructuringBindingFlattenContext<'visitor> {
 
 impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
     pub fn new(
-        context: Id<Box<dyn TransformationContext>>,
+        context: Id<TransformNodesTransformationResult>,
         level: FlattenLevel,
         downlevel_iteration: bool,
         hoist_temp_variables: bool,
@@ -707,7 +708,7 @@ impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
 }
 
 impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
-    fn context(&self) -> Id<Box<dyn TransformationContext>> {
+    fn context(&self) -> Id<TransformNodesTransformationResult> {
         self.context.clone()
     }
 
@@ -739,7 +740,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
     ) -> io::Result<()> {
         emit_binding_or_assignment(
             &mut self.pending_expressions.borrow_mut(),
-            &**self.context,
+            &**self.context.ref_(self),
             &mut self.pending_declarations.borrow_mut(),
             target,
             value,

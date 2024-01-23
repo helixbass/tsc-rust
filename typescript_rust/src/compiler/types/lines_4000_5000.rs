@@ -24,6 +24,7 @@ use crate::{
     IndexInfo, IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
     PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
     TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
+    TransformNodesTransformationResult,
 };
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
@@ -57,7 +58,7 @@ pub enum StructureIsReused {
 pub type CustomTransformerFactory = Gc<Box<dyn CustomTransformerFactoryInterface>>;
 
 pub trait CustomTransformerFactoryInterface: Trace + Finalize {
-    fn call(&self, context: Id<Box<dyn TransformationContext>>) -> CustomTransformer;
+    fn call(&self, context: Id<TransformNodesTransformationResult>) -> CustomTransformer;
 }
 
 pub type CustomTransformer = Gc<Box<dyn CustomTransformerInterface>>;
