@@ -1204,7 +1204,7 @@ impl Program {
         let location = location_reason.map(|location_reason| {
             get_referenced_file_location(
                 |path: &Path| self.get_source_file_by_path(path),
-                location_reason.as_referenced_file(),
+                location_reason.ref_(self).as_referenced_file(),
                 self,
             )
         });
