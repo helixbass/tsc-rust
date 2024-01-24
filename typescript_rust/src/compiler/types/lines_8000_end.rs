@@ -887,7 +887,7 @@ pub trait SymbolTracker: Trace + Finalize {
     fn report_truncation_error(&self) {}
     fn module_resolver_host(
         &self,
-    ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
+    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         None
     }
     fn is_module_resolver_host_supported(&self) -> bool;
@@ -917,32 +917,6 @@ pub trait ModuleSpecifierResolutionHostAndGetCommonSourceDirectory:
 {
     fn get_common_source_directory(&self) -> String;
     fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost;
-}
-
-pub enum RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
-    Reference(&'a dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory),
-    Ref(debug_cell::Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>),
-}
-
-impl<'a> RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
-    fn deref(&self) -> &dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
-        match self {
-            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(value) => *value,
-            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(value) => &**value,
-        }
-    }
-}
-
-impl<'a> From<&'a dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> for RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
-    fn from(value: &'a dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory) -> Self {
-        Self::Reference(value)
-    }
-}
-
-impl<'a> From<debug_cell::Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> for RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
-    fn from(value: debug_cell::Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>) -> Self {
-        Self::Ref(value)
-    }
 }
 
 #[derive(Copy, Clone, Debug)]

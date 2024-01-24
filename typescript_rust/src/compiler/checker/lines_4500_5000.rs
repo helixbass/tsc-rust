@@ -32,7 +32,6 @@ use crate::{
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
     append_if_unique_eq,
     static_arena,
-    RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
 };
 
 impl TypeChecker {
@@ -1478,10 +1477,10 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
+    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         self.module_resolver_host
             .as_ref()
-            .map(|module_resolver_host| (&***module_resolver_host).into())
+            .map(|module_resolver_host| &***module_resolver_host)
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
@@ -1768,24 +1767,8 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
-        match self.tracker.ref_(self).module_resolver_host() {
-            None => None,
-            Some(RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(_)) => {
-                Some(debug_cell::Ref::map(
-                    self.tracker.ref_(self),
-                    |tracker| {
-                        match tracker.module_resolver_host().unwrap() {
-                            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(value) => value,
-                            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(_) => unreachable!(),
-                        }
-                    }
-                ).into())
-            }
-            Some(RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(ref_)) => {
-                Some(ref_.into())
-            }
-        }
+    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+        self.tracker.ref_(self).module_resolver_host()
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
