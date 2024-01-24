@@ -24,6 +24,7 @@ pub struct AllArenas {
     pub emit_text_writers: RefCell<Arena<Box<dyn EmitTextWriter>>>,
     pub symbol_trackers: RefCell<Arena<Box<dyn SymbolTracker>>>,
     pub emit_hosts: RefCell<Arena<Box<dyn EmitHost>>>,
+    pub module_specifier_resolution_host_and_get_common_source_directories: RefCell<Arena<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
 }
 
 pub trait HasArena {
@@ -107,6 +108,14 @@ pub trait HasArena {
 
     fn alloc_emit_host(&self, emit_host: Box<dyn EmitHost>) -> Id<Box<dyn EmitHost>> {
         self.arena().alloc_emit_host(emit_host)
+    }
+
+    fn module_specifier_resolution_host_and_get_common_source_directory(&self, module_specifier_resolution_host_and_get_common_source_directory: Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>) -> Ref<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> {
+        self.arena().module_specifier_resolution_host_and_get_common_source_directory(module_specifier_resolution_host_and_get_common_source_directory)
+    }
+
+    fn alloc_module_specifier_resolution_host_and_get_common_source_directory(&self, module_specifier_resolution_host_and_get_common_source_directory: Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>) -> Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> {
+        self.arena().alloc_module_specifier_resolution_host_and_get_common_source_directory(module_specifier_resolution_host_and_get_common_source_directory)
     }
 }
 
@@ -223,6 +232,16 @@ impl HasArena for AllArenas {
         let id = self.emit_hosts.borrow_mut().alloc(emit_host);
         id
     }
+
+    #[track_caller]
+    fn module_specifier_resolution_host_and_get_common_source_directory(&self, module_specifier_resolution_host_and_get_common_source_directory: Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>) -> Ref<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> {
+        Ref::map(self.module_specifier_resolution_host_and_get_common_source_directories.borrow(), |module_specifier_resolution_host_and_get_common_source_directories| &module_specifier_resolution_host_and_get_common_source_directories[module_specifier_resolution_host_and_get_common_source_directory])
+    }
+
+    fn alloc_module_specifier_resolution_host_and_get_common_source_directory(&self, module_specifier_resolution_host_and_get_common_source_directory: Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>) -> Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> {
+        let id = self.module_specifier_resolution_host_and_get_common_source_directories.borrow_mut().alloc(module_specifier_resolution_host_and_get_common_source_directory);
+        id
+    }
 }
 
 pub trait InArena {
@@ -312,6 +331,14 @@ impl InArena for Id<Box<dyn EmitHost>> {
     }
 }
 
+impl InArena for Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> {
+    type Item = Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> {
+        has_arena.module_specifier_resolution_host_and_get_common_source_directory(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -346,6 +373,7 @@ pub fn downcast_transformer_ref<TTransformer: Any>(
 
 pub enum IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
     EmitHost(Id<Box<dyn EmitHost>>),
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory(Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>),
 }
 
 impl From<Id<Box<dyn EmitHost>>> for IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
@@ -354,15 +382,25 @@ impl From<Id<Box<dyn EmitHost>>> for IdForModuleSpecifierResolutionHostAndGetCom
     }
 }
 
+impl From<Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>> for IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
+    fn from(value: Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>) -> Self {
+        Self::ModuleSpecifierResolutionHostAndGetCommonSourceDirectory(value)
+    }
+}
+
 impl InArena for IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
     type Item = dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory;
 
-    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory + 'static> {
+    fn ref_<'a>(&self, arena: &'a impl HasArena) -> Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory + 'static> {
         match self {
-            IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory::EmitHost(value) => Ref::map(
-                value.ref_(has_arena),
+            Self::EmitHost(value) => Ref::map(
+                value.ref_(arena),
                 |value| value.as_module_specifier_resolution_host_and_get_common_source_directory(),
-            )
+            ),
+            Self::ModuleSpecifierResolutionHostAndGetCommonSourceDirectory(value) => Ref::map(
+                value.ref_(arena),
+                |value| &**value
+            ),
         }
     }
 }

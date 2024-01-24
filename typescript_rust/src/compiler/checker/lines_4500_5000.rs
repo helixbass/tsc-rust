@@ -1433,7 +1433,7 @@ impl NodeBuilder {
 #[derive(Trace, Finalize)]
 struct DefaultNodeBuilderContextSymbolTracker {
     pub module_resolver_host:
-        Option<Gc<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
+        Option<Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
 }
 
 impl DefaultNodeBuilderContextSymbolTracker {
@@ -1447,7 +1447,7 @@ impl DefaultNodeBuilderContextSymbolTracker {
                 flags,
                 Some(flags) if flags.intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
             ) {
-                Some(Gc::new(Box::new(
+                Some(arena.alloc_module_specifier_resolution_host_and_get_common_source_directory(Box::new(
                     DefaultNodeBuilderContextSymbolTrackerModuleResolverHost::new(host),
                 )))
             } else {
@@ -1479,8 +1479,7 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
         &self,
     ) -> Option<IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         self.module_resolver_host
-            .as_ref()
-            .map(|module_resolver_host| &***module_resolver_host)
+            .map(Into::into)
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
