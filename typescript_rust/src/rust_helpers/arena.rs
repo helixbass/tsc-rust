@@ -7,7 +7,7 @@ use once_cell::unsync::Lazy;
 use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    FileIncludeReason,
+    FileIncludeReason, System,
 };
 
 #[derive(Default)]
@@ -27,6 +27,7 @@ pub struct AllArenas {
     pub emit_hosts: RefCell<Arena<Box<dyn EmitHost>>>,
     pub module_specifier_resolution_host_and_get_common_source_directories: RefCell<Arena<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
     pub file_include_reasons: RefCell<Arena<FileIncludeReason>>,
+    pub systems: RefCell<Arena<Box<dyn System>>>,
 }
 
 pub trait HasArena {
@@ -126,6 +127,14 @@ pub trait HasArena {
 
     fn alloc_file_include_reason(&self, file_include_reason: FileIncludeReason) -> Id<FileIncludeReason> {
         self.arena().alloc_file_include_reason(file_include_reason)
+    }
+
+    fn system(&self, system: Id<Box<dyn System>>) -> Ref<Box<dyn System>> {
+        self.arena().system(system)
+    }
+
+    fn alloc_system(&self, system: Box<dyn System>) -> Id<Box<dyn System>> {
+        self.arena().alloc_system(system)
     }
 }
 
@@ -262,6 +271,16 @@ impl HasArena for AllArenas {
         let id = self.file_include_reasons.borrow_mut().alloc(file_include_reason);
         id
     }
+
+    #[track_caller]
+    fn system(&self, system: Id<Box<dyn System>>) -> Ref<Box<dyn System>> {
+        Ref::map(self.systems.borrow(), |systems| &systems[system])
+    }
+
+    fn alloc_system(&self, system: Box<dyn System>) -> Id<Box<dyn System>> {
+        let id = self.systems.borrow_mut().alloc(system);
+        id
+    }
 }
 
 pub trait InArena {
@@ -364,6 +383,14 @@ impl InArena for Id<FileIncludeReason> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, FileIncludeReason> {
         has_arena.file_include_reason(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn System>> {
+    type Item = Box<dyn System>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn System>> {
+        has_arena.system(*self)
     }
 }
 

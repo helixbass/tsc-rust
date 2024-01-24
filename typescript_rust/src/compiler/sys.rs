@@ -8,15 +8,19 @@ use std::{
     process,
     rc::Rc,
     time::{SystemTime, UNIX_EPOCH},
+    cell::RefCell,
+    collections::HashMap,
 };
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use crate::{
     combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,
     is_windows, match_files, process_cwd, read_file_and_strip_leading_byte_order_mark,
     ConvertToTSConfigHost, ExitStatus, FileSystemEntries, ModuleResolutionHost, ParseConfigHost,
     RequireResult, StatLike, Stats, WatchFileKind, WatchOptions,
+    HasArena, AllArenas,
 };
 
 pub fn generate_djb2_hash(_data: &str) -> String {
@@ -181,25 +185,16 @@ const byte_order_mark_indicator: &str = "\u{FEFF}";
 
 #[derive(Trace, Finalize)]
 pub struct SystemConcrete {
-    _dyn_wrapper: GcCell<Option<Gc<Box<dyn System>>>>,
     args: Vec<String>,
     use_case_sensitive_file_names: bool,
 }
 
 impl SystemConcrete {
-    pub fn new(args: Vec<String>, use_case_sensitive_file_names: bool) -> Gc<Box<Self>> {
-        let dyn_wrapper: Gc<Box<dyn System>> = Gc::new(Box::new(Self {
-            _dyn_wrapper: Default::default(),
+    pub fn new(args: Vec<String>, use_case_sensitive_file_names: bool, arena: &impl HasArena) -> Id<Box<dyn System>> {
+        arena.alloc_system(Box::new(Self {
             args,
             use_case_sensitive_file_names,
-        }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
-        *downcasted._dyn_wrapper.borrow_mut() = Some(dyn_wrapper);
-        downcasted
-    }
-
-    pub fn as_dyn_sys(&self) -> Gc<Box<dyn System>> {
-        self._dyn_wrapper.borrow().clone().unwrap()
+        }))
     }
 
     fn realpath_sync(&self, path: &str) -> io::Result<String> {
@@ -511,19 +506,31 @@ impl ParseConfigHost for SystemConcrete {
     }
 }
 
-thread_local! {
-    static SYS: Gc<Box<SystemConcrete>> = SystemConcrete::new(
-        env::args().skip(1).collect(),
-        is_file_system_case_sensitive(),
-    );
-}
+pub fn get_sys(arena: &impl HasArena) -> Id<Box<dyn System>> {
+    thread_local! {
+        static SYS_PER_ARENA: RefCell<HashMap<*const AllArenas, Id<Box<dyn System>>>> = RefCell::new(HashMap::new());
+    }
 
-pub fn get_sys() -> Gc<Box<dyn System>> {
-    SYS.with(|sys| sys.as_dyn_sys())
+    SYS_PER_ARENA.with(|sys_per_arena| {
+        let sys_per_arena = sys_per_arena.borrow_mut();
+        let arena_ptr: *const AllArenas = arena.arena();
+        *sys_per_arena.entry(&arena_ptr).or_insert_with(|| {
+            arena.alloc_system(SystemConcrete::new(
+                env::args().skip(1).collect(),
+                is_file_system_case_sensitive(),
+                arena,
+            ))
+        })
+    })
 }
 
 pub fn get_sys_concrete() -> Gc<Box<SystemConcrete>> {
-    SYS.with(|sys| sys.clone())
+    // TODO: probably could accomplish what this is used for
+    // (in the test harness it looked like) by eg adding
+    // .maybe_as_dyn_parse_config_host() method to System
+    // (and so doing eg get_sys().maybe_as_dyn_parse_config_host().unwrap())?
+    unimplemented!()
+    // SYS.with(|sys| sys.clone())
 }
 
 /*const*/

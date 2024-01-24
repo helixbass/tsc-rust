@@ -113,21 +113,23 @@ struct OutputFingerprint {
 pub(super) fn create_compiler_host(
     options: Gc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
+    arena: &impl HasArena,
 ) -> impl CompilerHost {
-    create_compiler_host_worker(options, set_parent_nodes, None)
+    create_compiler_host_worker(options, set_parent_nodes, None, arena)
 }
 
 /*pub(crate) fn create_compiler_host_worker(*/
 pub fn create_compiler_host_worker(
     options: Gc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
-    system: Option<Gc<Box<dyn System>>>,
+    system: Option<Id<Box<dyn System>>>,
+    arena: &impl HasArena,
 ) -> impl CompilerHost {
-    let system = system.unwrap_or_else(|| get_sys());
+    let system = system.unwrap_or_else(|| get_sys(arena));
     let existing_directories: HashMap<String, bool> = HashMap::new();
     let get_canonical_file_name =
-        create_get_canonical_file_name(system.use_case_sensitive_file_names());
-    let new_line = get_new_line_character(options.new_line, Some(|| system.new_line().to_owned()));
+        create_get_canonical_file_name(system.ref_(arena).use_case_sensitive_file_names());
+    let new_line = get_new_line_character(options.new_line, Some(|| system.ref_(arena).new_line().to_owned()), arena);
 
     CompilerHostConcrete {
         set_parent_nodes,
@@ -151,7 +153,7 @@ pub fn create_compiler_host_worker(
 #[derive(Trace, Finalize)]
 struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     existing_directories: GcCell<HashMap<String, bool>>,
     #[unsafe_ignore_trace]
     output_fingerprints: RefCell<Option<HashMap<String, OutputFingerprint>>>,
@@ -203,8 +205,8 @@ impl CompilerHostConcrete {
     }
 
     fn compute_hash(&self, data: &str) -> String {
-        if self.system.is_create_hash_supported() {
-            self.system.create_hash(data)
+        if self.system.ref_(self).is_create_hash_supported() {
+            self.system.ref_(self).create_hash(data)
         } else {
             generate_djb2_hash(data)
         }
@@ -228,10 +230,10 @@ impl CompilerHostConcrete {
         data: &str,
         write_byte_order_mark: bool,
     ) -> io::Result<()> {
-        if !is_watch_set(&self.options) || !self.system.is_get_modified_time_supported() {
+        if !is_watch_set(&self.options) || !self.system.ref_(self).is_get_modified_time_supported() {
             return self
                 .system
-                .write_file(file_name, data, Some(write_byte_order_mark));
+                .ref_(self).write_file(file_name, data, Some(write_byte_order_mark));
         }
 
         let mut output_fingerprints = self.output_fingerprints.borrow_mut();
@@ -241,7 +243,7 @@ impl CompilerHostConcrete {
         let output_fingerprints = output_fingerprints.as_mut().unwrap();
 
         let hash = self.compute_hash(data);
-        let mtime_before = self.system.get_modified_time(file_name);
+        let mtime_before = self.system.ref_(self).get_modified_time(file_name);
 
         if let Some(mtime_before) = mtime_before {
             let fingerprint = output_fingerprints.get(file_name);
@@ -257,11 +259,11 @@ impl CompilerHostConcrete {
         }
 
         self.system
-            .write_file(file_name, data, Some(write_byte_order_mark))?;
+            .ref_(self).write_file(file_name, data, Some(write_byte_order_mark))?;
 
         let mtime_after = self
             .system
-            .get_modified_time(file_name)
+            .ref_(self).get_modified_time(file_name)
             .unwrap_or_else(|| missing_file_modified_time());
 
         output_fingerprints.insert(
@@ -287,7 +289,7 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     }
 
     fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>> {
-        self.system.read_file(file_name)
+        self.system.ref_(self).read_file(file_name)
     }
 
     fn set_overriding_read_file(
@@ -310,7 +312,7 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     }
 
     fn file_exists_non_overridden(&self, file_name: &str) -> bool {
-        self.system.file_exists(file_name)
+        self.system.ref_(self).file_exists(file_name)
     }
 
     fn set_overriding_file_exists(
@@ -325,7 +327,7 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     }
 
     fn trace(&self, s: &str) {
-        self.system.write(&format!("{}{}", s, self.new_line));
+        self.system.ref_(self).write(&format!("{}{}", s, self.new_line));
     }
 
     fn is_trace_supported(&self) -> bool {
@@ -345,7 +347,7 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     }
 
     fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
-        Some(self.system.directory_exists(directory_name))
+        Some(self.system.ref_(self).directory_exists(directory_name))
     }
 
     fn set_overriding_directory_exists(
@@ -370,11 +372,11 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     }
 
     fn realpath_non_overridden(&self, path: &str) -> Option<String> {
-        self.system.realpath(path)
+        self.system.ref_(self).realpath(path)
     }
 
     fn is_realpath_supported(&self) -> bool {
-        self.system.is_realpath_supported()
+        self.system.ref_(self).is_realpath_supported()
     }
 
     fn set_overriding_realpath(
@@ -401,7 +403,7 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     }
 
     fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
-        Some(self.system.get_directories(path))
+        Some(self.system.ref_(self).get_directories(path))
     }
 
     fn set_overriding_get_directories(
@@ -473,13 +475,13 @@ impl CompilerHost for CompilerHostConcrete {
     fn get_current_directory(&self) -> io::Result<String> {
         let mut current_directory = self.current_directory.borrow_mut();
         if current_directory.is_none() {
-            *current_directory = Some(self.system.get_current_directory()?);
+            *current_directory = Some(self.system.ref_(self).get_current_directory()?);
         }
         Ok(current_directory.clone().unwrap())
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
-        self.system.use_case_sensitive_file_names()
+        self.system.ref_(self).use_case_sensitive_file_names()
     }
 
     fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -573,7 +575,7 @@ impl CompilerHost for CompilerHostConcrete {
     }
 
     fn get_environment_variable(&self, name: &str) -> Option<String> {
-        Some(self.system.get_environment_variable(name))
+        Some(self.system.ref_(self).get_environment_variable(name))
     }
 
     fn read_directory(
@@ -586,7 +588,7 @@ impl CompilerHost for CompilerHostConcrete {
     ) -> Option<io::Result<Vec<String>>> {
         Some(
             self.system
-                .read_directory(path, Some(extensions), excludes, Some(includes), depth),
+                .ref_(self).read_directory(path, Some(extensions), excludes, Some(includes), depth),
         )
     }
 
@@ -605,7 +607,7 @@ impl CompilerHost for CompilerHostConcrete {
     }
 
     fn create_directory_non_overridden(&self, d: &str) -> io::Result<()> {
-        self.system.create_directory(d)
+        self.system.ref_(self).create_directory(d)
     }
 
     fn is_create_directory_supported(&self) -> bool {
@@ -634,8 +636,8 @@ impl CompilerHost for CompilerHostConcrete {
     }
 
     fn create_hash(&self, data: &str) -> Option<String> {
-        if self.system.is_create_hash_supported() {
-            Some(self.system.create_hash(data))
+        if self.system.ref_(self).is_create_hash_supported() {
+            Some(self.system.ref_(self).create_hash(data))
         } else {
             None
         }
@@ -647,6 +649,12 @@ impl CompilerHost for CompilerHostConcrete {
 
     fn is_get_parsed_command_line_supported(&self) -> bool {
         false
+    }
+}
+
+impl HasArena for CompilerHostConcrete {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

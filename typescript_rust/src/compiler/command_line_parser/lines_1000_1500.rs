@@ -1038,6 +1038,7 @@ pub fn parse_command_line_worker(
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     command_line: &[String],
     read_file: Option<impl Fn(&str) -> io::Result<Option<String>>>,
+    arena: &impl HasArena,
 ) -> ParsedCommandLineWithBaseOptions {
     let mut options: IndexMap<String, CompilerOptionsValue> = Default::default();
     let watch_options: RefCell<Option<IndexMap<String, CompilerOptionsValue>>> = Default::default();
@@ -1052,6 +1053,7 @@ pub fn parse_command_line_worker(
         &watch_options,
         read_file.as_ref(),
         command_line,
+        arena,
     );
 
     let watch_options = watch_options.borrow();
@@ -1078,6 +1080,7 @@ pub(super) fn parse_strings(
     watch_options: &RefCell<Option<IndexMap<String, CompilerOptionsValue>>>,
     read_file: Option<&impl Fn(&str) -> io::Result<Option<String>>>,
     args: &[String],
+    arena: &impl HasArena,
 ) {
     let mut i = 0;
     while i < args.len() {
@@ -1093,6 +1096,7 @@ pub(super) fn parse_strings(
                 options,
                 watch_options,
                 &s_as_chars[1..].iter().collect::<String>(),
+                arena,
             );
         } else if matches!(s_as_chars.get(0).copied(), Some(CharacterCodes::minus)) {
             let input_option_name =

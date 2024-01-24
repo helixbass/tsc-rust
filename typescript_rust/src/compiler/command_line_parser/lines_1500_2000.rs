@@ -39,8 +39,9 @@ pub(super) fn parse_response_file(
     options: &mut IndexMap<String, CompilerOptionsValue>,
     watch_options: &RefCell<Option<IndexMap<String, CompilerOptionsValue>>>,
     file_name: &str,
+    arena: &impl HasArena,
 ) {
-    let sys = get_sys();
+    let sys = get_sys(arena);
     let text: StringOrRcDiagnostic = try_read_file(file_name, |file_name| match read_file {
         Some(read_file) => read_file(file_name),
         None => sys.read_file(file_name),
@@ -98,6 +99,7 @@ pub(super) fn parse_response_file(
                 watch_options,
                 read_file,
                 &args,
+                arena,
             );
         }
     }
@@ -282,11 +284,13 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
 pub fn parse_command_line(
     command_line: &[String],
     read_file: Option<impl Fn(&str) -> io::Result<Option<String>>>,
+    arena: &impl HasArena,
 ) -> ParsedCommandLine {
     parse_command_line_worker(
         &*compiler_options_did_you_mean_diagnostics(),
         command_line,
         read_file,
+        arena,
     )
     .into_parsed_command_line()
 }
@@ -405,7 +409,7 @@ pub(super) fn build_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLin
     })
 }
 
-pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
+pub(crate) fn parse_build_command(args: &[String], arena: &impl HasArena) -> ParsedBuildCommand {
     let ParsedCommandLineWithBaseOptions {
         options,
         watch_options,
@@ -416,6 +420,7 @@ pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
         &*build_options_did_you_mean_diagnostics(),
         args,
         Option::<fn(&str) -> io::Result<Option<String>>>::None,
+        arena,
     );
     let build_options: BuildOptions = hash_map_to_build_options(&options);
 

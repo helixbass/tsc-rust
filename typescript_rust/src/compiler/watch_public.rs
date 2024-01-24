@@ -1,16 +1,19 @@
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     create_compiler_host_worker, get_sys, BuilderProgram, CompilerHost, CompilerOptions,
     ConfigFileDiagnosticsReporter, Diagnostic, System,
+    HasArena,
 };
 
 pub fn create_incremental_compiler_host(
     options: Gc<CompilerOptions>,
-    system: Option<Gc<Box<dyn System>>>,
+    system: Option<Id<Box<dyn System>>>,
+    arena: &impl HasArena,
 ) -> impl CompilerHost {
-    let system = system.unwrap_or_else(|| get_sys());
-    let host = create_compiler_host_worker(options, None, Some(system));
+    let system = system.unwrap_or_else(|| get_sys(arena));
+    let host = create_compiler_host_worker(options, None, Some(system), arena);
     host
 }
 

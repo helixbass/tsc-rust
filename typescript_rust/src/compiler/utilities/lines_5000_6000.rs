@@ -248,9 +248,10 @@ pub fn directory_probably_exists(
 
 const carriage_return_line_feed: &str = "\r\n";
 const line_feed: &str = "\n";
-pub fn get_new_line_character<TGetNewLine: Fn() -> String>(
+pub fn get_new_line_character(
     new_line: Option<NewLineKind>,
-    get_new_line: Option<TGetNewLine>,
+    get_new_line: Option<impl Fn() -> String>,
+    arena: &impl HasArena,
 ) -> String {
     match new_line {
         Some(NewLineKind::CarriageReturnLineFeed) => {
@@ -264,7 +265,7 @@ pub fn get_new_line_character<TGetNewLine: Fn() -> String>(
     if let Some(get_new_line) = get_new_line {
         get_new_line()
     } else {
-        get_sys().new_line().to_owned()
+        get_sys(arena).new_line().to_owned()
     }
 }
 

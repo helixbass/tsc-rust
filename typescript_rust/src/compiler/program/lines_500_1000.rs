@@ -969,7 +969,7 @@ impl Program {
         // performance.mark("beforeProgram");
 
         *self.host.borrow_mut() = Some(host.unwrap_or_else(|| {
-            Gc::new(Box::new(create_compiler_host(self.options.clone(), None)))
+            Gc::new(Box::new(create_compiler_host(self.options.clone(), None, self)))
         }));
         *self.config_parsing_host.borrow_mut() = Some(Gc::new(Box::new(
             parse_config_host_from_compiler_host_like(

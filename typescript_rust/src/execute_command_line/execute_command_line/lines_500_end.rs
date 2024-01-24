@@ -24,7 +24,7 @@ use crate::{
     IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine, Path, Program,
     ProgramHost, ReportEmitErrorSummary, SemanticDiagnosticsBuilderProgram,
     SolutionBuilderHostBase, System, ToPath, WatchCompilerHost, WatchOptions, WatchStatusReporter,
-    HasArena,
+    HasArena, InArena, AllArenas,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -51,7 +51,7 @@ pub fn is_build(command_line_args: &[String]) -> bool {
 }
 
 pub fn execute_command_line(
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     command_line_args: &[String],
     arena: &impl HasArena,
@@ -62,12 +62,12 @@ pub fn execute_command_line(
             watch_options,
             projects,
             errors,
-        } = parse_build_command(&command_line_args[1..]);
+        } = parse_build_command(&command_line_args[1..], arena);
         let build_options = Rc::new(build_options);
         if let Some(build_options_generate_cpu_profile) =
             build_options.generate_cpu_profile.as_ref()
         {
-            system.enable_cpu_profiler(build_options_generate_cpu_profile, &mut || {
+            system.ref_(arena).enable_cpu_profiler(build_options_generate_cpu_profile, &mut || {
                 perform_build(
                     system.clone(),
                     &mut cb,
@@ -75,6 +75,7 @@ pub fn execute_command_line(
                     watch_options.as_deref(),
                     &projects,
                     errors.clone(),
+                    arena,
                 )
             })?;
             return Ok(()); // TODO: the Typescript version doesn't actually return here but seems like it should?
@@ -86,17 +87,18 @@ pub fn execute_command_line(
                 watch_options.as_deref(),
                 &projects,
                 errors,
+                arena,
             )?;
             return Ok(());
         }
     }
 
     let mut command_line =
-        parse_command_line(command_line_args, Some(|path: &str| system.read_file(path)));
+        parse_command_line(command_line_args, Some(|path: &str| system.ref_(arena).read_file(path)), arena);
     if let Some(command_line_options_generate_cpu_profile) =
         command_line.options.generate_cpu_profile.clone()
     {
-        system.enable_cpu_profiler(&command_line_options_generate_cpu_profile, &mut || {
+        system.ref_(arena).enable_cpu_profiler(&command_line_options_generate_cpu_profile, &mut || {
             execute_command_line_worker(system.clone(), &mut cb, &mut command_line, arena)
         })
     } else {
@@ -144,22 +146,24 @@ pub(super) fn report_watch_mode_without_sys_support(
 }
 
 pub(super) fn perform_build(
-    sys: Gc<Box<dyn System>>,
+    sys: Id<Box<dyn System>>,
     cb: &mut impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     build_options: Rc<BuildOptions>,
     watch_options: Option<&WatchOptions>,
     projects: &[String],
     mut errors: Vec<Gc<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     let report_diagnostic = update_report_diagnostic(
         sys.clone(),
-        create_diagnostic_reporter(sys.clone(), None),
+        create_diagnostic_reporter(sys.clone(), None, arena),
         build_options.clone().into(),
+        arena,
     );
 
     if let Some(build_options_locale) = build_options.locale.as_ref() {
         if !build_options_locale.is_empty() {
-            validate_locale_and_set_language(build_options_locale, &**sys, Some(&mut errors));
+            validate_locale_and_set_language(build_options_locale, &**sys.ref_(arena), Some(&mut errors));
         }
     }
 
@@ -167,28 +171,28 @@ pub(super) fn perform_build(
         for error in errors {
             report_diagnostic.call(error)?;
         }
-        sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+        sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
     if matches!(build_options.help, Some(true)) {
-        print_version(&**sys);
+        print_version(&**sys.ref_(arena));
         build_opts.with(|build_opts_| {
-            print_build_help(&**sys, &build_opts_);
+            print_build_help(&**sys.ref_(arena), &build_opts_);
         });
-        sys.exit(Some(ExitStatus::Success));
+        sys.ref_(arena).exit(Some(ExitStatus::Success));
     }
 
     if projects.is_empty() {
-        print_version(&**sys);
+        print_version(&**sys.ref_(arena));
         build_opts.with(|build_opts_| {
-            print_build_help(&**sys, &build_opts_);
+            print_build_help(&**sys.ref_(arena), &build_opts_);
         });
-        sys.exit(Some(ExitStatus::Success));
+        sys.ref_(arena).exit(Some(ExitStatus::Success));
     }
 
-    if !sys.is_get_modified_time_supported()
-        || !sys.is_set_modified_time_supported()
-        || matches!(build_options.clean, Some(true)) && !sys.is_delete_file_supported()
+    if !sys.ref_(arena).is_get_modified_time_supported()
+        || !sys.ref_(arena).is_set_modified_time_supported()
+        || matches!(build_options.clean, Some(true)) && !sys.ref_(arena).is_delete_file_supported()
     {
         report_diagnostic.call(Gc::new(
             create_compiler_diagnostic(
@@ -197,27 +201,28 @@ pub(super) fn perform_build(
             )
             .into(),
         ))?;
-        sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+        sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
     if matches!(build_options.watch, Some(true)) {
-        if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic)? {
+        if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic)? {
             return Ok(());
         }
         let mut build_host = create_solution_builder_with_watch_host(
-            Some(&**sys),
+            Some(&**sys.ref_(arena)),
             Option::<CreateProgramDummy>::None,
             Some(report_diagnostic.clone()),
             Some(create_builder_status_reporter(
-                &**sys,
-                Some(should_be_pretty(&**sys, build_options.clone().into())),
+                &**sys.ref_(arena),
+                Some(should_be_pretty(&**sys.ref_(arena), build_options.clone().into())),
             )),
             Some(create_watch_status_reporter(
                 sys.clone(),
                 build_options.clone().into(),
+                arena,
             )),
         );
-        update_solution_builder_host(&**sys, cb, &mut build_host);
+        update_solution_builder_host(&**sys.ref_(arena), cb, &mut build_host);
         let builder = create_solution_builder_with_watch(
             &build_host,
             projects,
@@ -234,16 +239,16 @@ pub(super) fn perform_build(
     }
 
     let mut build_host = create_solution_builder_host(
-        Some(&**sys),
+        Some(&**sys.ref_(arena)),
         Option::<CreateProgramDummy>::None,
         Some(report_diagnostic.clone()),
         Some(create_builder_status_reporter(
-            &**sys,
-            Some(should_be_pretty(&**sys, build_options.clone().into())),
+            &**sys.ref_(arena),
+            Some(should_be_pretty(&**sys.ref_(arena), build_options.clone().into())),
         )),
-        create_report_error_summary(sys.clone(), build_options.clone().into()),
+        create_report_error_summary(sys.clone(), build_options.clone().into(), arena),
     );
-    update_solution_builder_host(&**sys, cb, &mut build_host);
+    update_solution_builder_host(&**sys.ref_(arena), cb, &mut build_host);
     let builder = create_solution_builder(&build_host, projects, &build_options);
     let exit_status = if matches!(build_options.clean, Some(true)) {
         builder.clean(None)
@@ -256,7 +261,7 @@ pub(super) fn perform_build(
         )
     };
     dump_tracing_legend();
-    sys.exit(Some(exit_status));
+    sys.ref_(arena).exit(Some(exit_status));
 }
 
 #[derive(Trace, Finalize)]
@@ -285,10 +290,11 @@ struct CreateProgramDummy {}
 impl CreateProgram<BuilderProgramDummy> for CreateProgramDummy {}
 
 pub(super) fn create_report_error_summary(
-    sys: Gc<Box<dyn System>>,
+    sys: Id<Box<dyn System>>,
     options: CompilerOptionsOrBuildOptions,
+    arena: &impl HasArena,
 ) -> Option<Rc<dyn ReportEmitErrorSummary>> {
-    if should_be_pretty(&**sys, options) {
+    if should_be_pretty(&**sys.ref_(arena), options) {
         Some(Rc::new(ReportEmitErrorSummaryConcrete::new(sys)))
     } else {
         None
@@ -296,11 +302,11 @@ pub(super) fn create_report_error_summary(
 }
 
 pub(super) struct ReportEmitErrorSummaryConcrete {
-    sys: Gc<Box<dyn System>>,
+    sys: Id<Box<dyn System>>,
 }
 
 impl ReportEmitErrorSummaryConcrete {
-    pub fn new(sys: Gc<Box<dyn System>>) -> Self {
+    pub fn new(sys: Id<Box<dyn System>>) -> Self {
         Self { sys }
     }
 }
@@ -308,12 +314,18 @@ impl ReportEmitErrorSummaryConcrete {
 impl ReportEmitErrorSummary for ReportEmitErrorSummaryConcrete {
     fn call(&self, error_count: usize) {
         self.sys
-            .write(&get_error_summary_text(error_count, self.sys.new_line()));
+            .ref_(self).write(&get_error_summary_text(error_count, self.sys.ref_(self).new_line()));
+    }
+}
+
+impl HasArena for ReportEmitErrorSummaryConcrete {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 pub(super) fn perform_compilation(
-    sys: Gc<Box<dyn System>>,
+    sys: Id<Box<dyn System>>,
     mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
@@ -326,6 +338,7 @@ pub(super) fn perform_compilation(
         options.clone(),
         None,
         Some(sys.clone()),
+        arena,
     )));
     let current_directory = CompilerHost::get_current_directory(&**host)?;
     let get_canonical_file_name =
@@ -339,7 +352,7 @@ pub(super) fn perform_compilation(
         None,
     );
 
-    enable_statistics_and_tracing(&**sys, &options, false);
+    enable_statistics_and_tracing(sys, &options, false, arena);
 
     let program_options = CreateProgramOptions {
         root_names: file_names.clone(),
@@ -353,17 +366,17 @@ pub(super) fn perform_compilation(
     let exit_status = emit_files_and_report_errors_and_get_exit_status(
         program.clone(),
         report_diagnostic,
-        Some(|s: &str| sys.write(&format!("{}{}", s, sys.new_line()))),
-        create_report_error_summary(sys.clone(), options.into()),
+        Some(|s: &str| sys.ref_(arena).write(&format!("{}{}", s, sys.ref_(arena).new_line()))),
+        create_report_error_summary(sys.clone(), options.into(), arena),
         None,
         None,
         None,
         None,
         arena,
     )?;
-    report_statistics(&**sys, &program);
+    report_statistics(sys, &program, arena);
     cb(program.into());
-    sys.exit(Some(exit_status));
+    sys.ref_(arena).exit(Some(exit_status));
 }
 
 #[derive(Trace, Finalize)]
@@ -393,7 +406,7 @@ impl ToPath for PerformCompilationToPath {
 }
 
 pub(super) fn perform_incremental_compilation(
-    sys: Gc<Box<dyn System>>,
+    sys: Id<Box<dyn System>>,
     mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
@@ -402,28 +415,29 @@ pub(super) fn perform_incremental_compilation(
     let options = config.options.clone();
     let file_names = &config.file_names;
     let project_references = &config.project_references;
-    enable_statistics_and_tracing(&**sys, &options, false);
+    enable_statistics_and_tracing(sys, &options, false, arena);
     let host: Gc<Box<dyn CompilerHost>> = Gc::new(Box::new(create_incremental_compiler_host(
         options.clone(),
         Some(sys.clone()),
+        arena,
     )));
     let exit_status = perform_incremental_compilation_(IncrementalCompilationOptions {
         host: Some(host),
-        system: Some(&**sys),
+        system: Some(&**sys.ref_(arena)),
         root_names: file_names,
         options: &options.clone(),
         config_file_parsing_diagnostics: Some(&get_config_file_parsing_diagnostics(config, arena)),
         project_references: project_references.as_deref(),
         report_diagnostic: Some(report_diagnostic),
-        report_error_summary: create_report_error_summary(sys.clone(), options.into()),
+        report_error_summary: create_report_error_summary(sys.clone(), options.into(), arena),
         after_program_emit_and_diagnostics: Some(&|builder_program: Rc<
             dyn EmitAndSemanticDiagnosticsBuilderProgram,
         >| {
-            report_statistics(&**sys, &builder_program.get_program());
+            report_statistics(sys, &builder_program.get_program(), arena);
             cb(builder_program.into());
         }),
     });
-    sys.exit(Some(exit_status));
+    sys.ref_(arena).exit(Some(exit_status));
 }
 
 pub(super) fn update_solution_builder_host<
@@ -475,23 +489,25 @@ pub(super) fn update_watch_compilation_host<
 }
 
 pub(super) fn create_watch_status_reporter(
-    sys: Gc<Box<dyn System>>,
+    sys: Id<Box<dyn System>>,
     options: CompilerOptionsOrBuildOptions,
+    arena: &impl HasArena,
 ) -> Rc<dyn WatchStatusReporter> {
     Rc::new(create_watch_status_reporter_(
         sys.clone(),
-        Some(should_be_pretty(&**sys, options)),
+        Some(should_be_pretty(&**sys.ref_(arena), options)),
     ))
 }
 
 pub(super) fn create_watch_of_config_file(
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config_parse_result: Rc<ParsedCommandLine>,
     options_to_extend: Gc<CompilerOptions>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     _extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
+    arena: &impl HasArena,
 ) {
     let mut watch_compiler_host =
         create_watch_compiler_host_of_config_file(CreateWatchCompilerHostOfConfigFileInput {
@@ -502,16 +518,17 @@ pub(super) fn create_watch_of_config_file(
                 .unwrap(),
             options_to_extend: Some(&options_to_extend),
             watch_options_to_extend,
-            system: &**system,
+            system: &**system.ref_(arena),
             report_diagnostic: Some(&**report_diagnostic),
             report_watch_status: Some(create_watch_status_reporter(
                 system.clone(),
                 config_parse_result.options.clone().into(),
+                arena,
             )),
             create_program: Option::<&dyn CreateProgram<BuilderProgramDummy>>::None,
             extra_file_extensions: None,
         });
-    update_watch_compilation_host(&**system, cb, &mut watch_compiler_host);
+    update_watch_compilation_host(&**system.ref_(arena), cb, &mut watch_compiler_host);
     // TODO: how to model this?
     // watchCompilerHost.configFileParsingResult = configParseResult;
     // watchCompilerHost.extendedConfigCache = extendedConfigCache;
@@ -530,29 +547,34 @@ pub(super) fn create_watch_of_files_and_compiler_options(
 }
 
 pub(super) fn can_report_diagnostics(
-    system: &dyn System,
+    system: Id<Box<dyn System>>,
     compiler_options: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> bool {
-    ptr::eq(system, &**get_sys())
+    system == get_sys(arena)
         && (matches!(compiler_options.diagnostics, Some(true))
             || matches!(compiler_options.extended_diagnostics, Some(true)))
 }
 
-pub(super) fn can_trace(system: &dyn System, compiler_options: &CompilerOptions) -> bool {
-    ptr::eq(system, &**get_sys())
-        && matches!(compiler_options.generate_trace.as_ref(), Some(generate_trace) if !generate_trace.is_empty())
+pub(super) fn can_trace(system: Id<Box<dyn System>>, compiler_options: &CompilerOptions, arena: &impl HasArena) -> bool {
+    system == get_sys(arena)
+        && matches!(
+            compiler_options.generate_trace.as_ref(),
+            Some(generate_trace) if !generate_trace.is_empty()
+        )
 }
 
 pub(super) fn enable_statistics_and_tracing(
-    system: &dyn System,
+    system: Id<Box<dyn System>>,
     compiler_options: &CompilerOptions,
     is_build_mode: bool,
+    arena: &impl HasArena,
 ) {
-    if can_report_diagnostics(system, compiler_options) {
+    if can_report_diagnostics(system, compiler_options, arena) {
         // performance.enable(system);
     }
 
-    if can_trace(system, compiler_options) {
+    if can_trace(system, compiler_options, arena) {
         start_tracing(
             if is_build_mode { "build" } else { "project" },
             compiler_options.generate_trace.as_ref().unwrap(),
@@ -561,15 +583,15 @@ pub(super) fn enable_statistics_and_tracing(
     }
 }
 
-pub(super) fn report_statistics(sys: &dyn System, program: &Program) {
+pub(super) fn report_statistics(sys: &dyn System, program: &Program, arena: &impl HasArena) {
     let compiler_options = program.get_compiler_options();
 
-    if can_trace(sys, &compiler_options) {
+    if can_trace(sys, &compiler_options, arena) {
         // tracing?.stopTracing();
     }
 
     let /*mut*/ _statistics: Vec<Statistic> = vec![];
-    if can_report_diagnostics(sys, &compiler_options) {
+    if can_report_diagnostics(sys, &compiler_options, arena) {
         unimplemented!()
     }
 }

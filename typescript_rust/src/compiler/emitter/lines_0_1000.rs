@@ -540,7 +540,7 @@ pub(crate) fn emit_files(
             None
         };
     let mut emitter_diagnostics = create_diagnostic_collection(&*static_arena());
-    let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.ref_(arena).get_new_line()));
+    let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.ref_(arena).get_new_line()), arena);
     let writer = create_text_writer(&new_line, arena);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
     let mut bundle_build_info: Option<Gc<GcCell<BundleBuildInfo>>> = None;
@@ -1312,6 +1312,7 @@ fn print_source_file_or_bundle(
             js_file_path,
             source_map_file_path,
             source_file.refed(arena).as_deref(),
+            arena,
         );
 
         if !source_mapping_url.is_empty() {
@@ -1430,11 +1431,12 @@ fn get_source_mapping_url(
     file_path: &str,
     source_map_file_path: Option<&str>,
     source_file: Option<&Node /*SourceFile*/>,
+    arena: &impl HasArena,
 ) -> String {
     if map_options.inline_source_map == Some(true) {
         let source_map_text = source_map_generator.to_string();
         let base_64_source_map_text = base64_encode(
-            Some(|str_: &str| get_sys().base64_encode(str_)),
+            Some(|str_: &str| get_sys(arena).base64_encode(str_)),
             &source_map_text,
         );
         return format!("data:application/json;base64,{base_64_source_map_text}");
@@ -1836,9 +1838,10 @@ impl Printer {
         printer_options: PrinterOptions,
         handlers: Gc<Box<dyn PrintHandlers>>,
     ) -> Self {
+        let arena_ref = unsafe { &*arena };
         let extended_diagnostics = printer_options.extended_diagnostics == Some(true);
         let new_line =
-            get_new_line_character(printer_options.new_line, Option::<fn() -> String>::None);
+            get_new_line_character(printer_options.new_line, Option::<fn() -> String>::None, arena_ref);
         let module_kind = get_emit_module_kind_from_module_and_target(
             printer_options.module,
             printer_options.target,

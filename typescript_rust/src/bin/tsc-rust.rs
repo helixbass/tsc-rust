@@ -1,7 +1,7 @@
 use std::{io, rc::Rc};
 
 use regex::Regex;
-use typescript_rust::{execute_command_line, get_sys, Debug_, LogLevel, LoggingHost, static_arena};
+use typescript_rust::{execute_command_line, get_sys, Debug_, LogLevel, LoggingHost, static_arena, HasArena, AllArenas};
 
 fn main() -> io::Result<()> {
     Debug_.set_logging_host(Some(Rc::new(LoggingHostConcrete::new())));
@@ -10,7 +10,9 @@ fn main() -> io::Result<()> {
         Debug_.enable_debug_info();
     }
 
-    let sys = get_sys();
+    let arena = static_arena();
+
+    let sys = get_sys(&*arena);
 
     if
     /*sys.tryEnableSourceMapsForHost &&*/
@@ -25,8 +27,6 @@ fn main() -> io::Result<()> {
     // if (ts.sys.setBlocking) {
     sys.set_blocking();
     // }
-
-    let arena = static_arena();
 
     execute_command_line(sys.clone(), |_| {}, sys.args(), &*arena)?;
 
@@ -43,7 +43,13 @@ impl LoggingHostConcrete {
 
 impl LoggingHost for LoggingHostConcrete {
     fn log(&self, _level: LogLevel, s: &str) {
-        let sys = get_sys();
+        let sys = get_sys(self);
         sys.write(&format!("{}{}", s /*|| ""*/, sys.new_line()));
+    }
+}
+
+impl HasArena for LoggingHostConcrete {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

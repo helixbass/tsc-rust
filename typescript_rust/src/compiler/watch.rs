@@ -28,20 +28,20 @@ use crate::{
     WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback, AllArenas, InArena,
 };
 
-thread_local! {
-    static sys_format_diagnostics_host: Option<Gc<SysFormatDiagnosticsHost>> = /*sys ?*/ Some(Gc::new(SysFormatDiagnosticsHost::new(get_sys())));
+fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> /*Option<*/Gc<SysFormatDiagnosticsHost>/*>*/ {
+    /*sys ?*/ Gc::new(SysFormatDiagnosticsHost::new(get_sys(arena), arena))
 }
 
 #[derive(Trace, Finalize)]
 struct SysFormatDiagnosticsHost {
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
 }
 
 impl SysFormatDiagnosticsHost {
-    pub fn new(system: Gc<Box<dyn System>>) -> Self {
-        let system_use_case_sensitive_file_names = system.use_case_sensitive_file_names();
+    pub fn new(system: Id<Box<dyn System>>, arena: &impl HasArena) -> Self {
+        let system_use_case_sensitive_file_names = system.ref_(arena).use_case_sensitive_file_names();
         Self {
             system,
             get_canonical_file_name: create_get_canonical_file_name(
@@ -53,11 +53,11 @@ impl SysFormatDiagnosticsHost {
 
 impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
     fn get_current_directory(&self) -> io::Result<String> {
-        self.system.get_current_directory()
+        self.system.ref_(self).get_current_directory()
     }
 
     fn get_new_line(&self) -> &str {
-        self.system.new_line()
+        self.system.ref_(self).new_line()
     }
 
     fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -65,20 +65,25 @@ impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
     }
 }
 
+impl HasArena for SysFormatDiagnosticsHost {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 pub fn create_diagnostic_reporter(
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     pretty: Option<bool>,
+    arena: &impl HasArena,
 ) -> Gc<Box<dyn DiagnosticReporter>> {
     let host: Gc<SysFormatDiagnosticsHost> =
-        sys_format_diagnostics_host.with(|sys_format_diagnostics_host_| {
-            if Gc::ptr_eq(&system, &get_sys())
-            /*&& sysFormatDiagnosticsHost*/
-            {
-                sys_format_diagnostics_host_.clone().unwrap()
-            } else {
-                Gc::new(SysFormatDiagnosticsHost::new(system.clone()))
-            }
-        });
+        if Gc::ptr_eq(&system, &get_sys(arena))
+        /*&& sysFormatDiagnosticsHost*/
+        {
+            get_sys_format_diagnostics_host(arena)
+        } else {
+            Gc::new(SysFormatDiagnosticsHost::new(system.clone(), arena))
+        };
     Gc::new(Box::new(DiagnosticReporterConcrete::new(
         host, pretty, system,
     )))
@@ -89,14 +94,14 @@ struct DiagnosticReporterConcrete {
     host: Gc<SysFormatDiagnosticsHost>,
     pretty: bool,
     diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
 }
 
 impl DiagnosticReporterConcrete {
     pub fn new(
         host: Gc<SysFormatDiagnosticsHost>,
         pretty: Option<bool>,
-        system: Gc<Box<dyn System>>,
+        system: Id<Box<dyn System>>,
     ) -> Self {
         Self {
             host,
@@ -111,13 +116,13 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
     fn call(&self, diagnostic: Gc<Diagnostic>) -> io::Result<()> {
         if !self.pretty {
             self.system
-                .write(&format_diagnostic(&diagnostic, &*self.host, self)?);
+                .ref_(self).write(&format_diagnostic(&diagnostic, &*self.host, self)?);
             return Ok(());
         }
 
         let mut diagnostics = self.diagnostics.borrow_mut();
         diagnostics.push(diagnostic);
-        self.system.write(&format!(
+        self.system.ref_(self).write(&format!(
             "{}{}",
             format_diagnostics_with_color_and_context(&diagnostics, &*self.host, self)?,
             self.host.get_new_line()
@@ -173,19 +178,19 @@ pub fn get_locale_time_string(_system: &dyn System) -> String {
 }
 
 pub fn create_watch_status_reporter(
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     pretty: Option<bool>,
 ) -> WatchStatusReporterConcrete {
     WatchStatusReporterConcrete::new(system, pretty)
 }
 
 pub struct WatchStatusReporterConcrete {
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     pretty: bool,
 }
 
 impl WatchStatusReporterConcrete {
-    pub fn new(system: Gc<Box<dyn System>>, pretty: Option<bool>) -> Self {
+    pub fn new(system: Id<Box<dyn System>>, pretty: Option<bool>) -> Self {
         Self {
             system,
             pretty: pretty.unwrap_or(false),
@@ -202,11 +207,11 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         _error_count: Option<usize>,
     ) {
         if self.pretty {
-            clear_screen_if_not_watching_for_file_changes(&**self.system, &diagnostic, &options);
+            clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic, &options);
             let mut output = format!(
                 "[{}] ",
                 format_color_and_reset(
-                    &get_locale_time_string(&**self.system),
+                    &get_locale_time_string(&**self.system.ref_(self)),
                     ForegroundColorEscapeSequences::Grey
                 )
             );
@@ -214,34 +219,40 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
                 "{}{}{}",
                 flatten_diagnostic_message_text(
                     Some(diagnostic.message_text()),
-                    self.system.new_line(),
+                    self.system.ref_(self).new_line(),
                     None
                 ),
                 new_line,
                 new_line
             ));
-            self.system.write(&output);
+            self.system.ref_(self).write(&output);
         } else {
             let mut output = "".to_owned();
 
-            if !clear_screen_if_not_watching_for_file_changes(&**self.system, &diagnostic, &options)
+            if !clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic, &options)
             {
                 output.push_str(new_line);
             }
 
-            output.push_str(&format!("{} - ", get_locale_time_string(&**self.system)));
+            output.push_str(&format!("{} - ", get_locale_time_string(&**self.system.ref_(self))));
             output.push_str(&format!(
                 "{}{}",
                 flatten_diagnostic_message_text(
                     Some(diagnostic.message_text()),
-                    self.system.new_line(),
+                    self.system.ref_(self).new_line(),
                     None
                 ),
                 get_plain_diagnostic_following_new_lines(&diagnostic, new_line)
             ));
 
-            self.system.write(&output);
+            self.system.ref_(self).write(&output);
         }
+    }
+}
+
+impl HasArena for WatchStatusReporterConcrete {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -250,7 +261,7 @@ pub fn parse_config_file_with_system(
     options_to_extend: Gc<CompilerOptions>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<ParsedCommandLine>> {
@@ -268,13 +279,13 @@ pub fn parse_config_file_with_system(
 
 #[derive(Trace, Finalize)]
 struct ParseConfigFileWithSystemHost {
-    system: Gc<Box<dyn System>>,
+    system: Id<Box<dyn System>>,
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
 }
 
 impl ParseConfigFileWithSystemHost {
     pub fn new(
-        system: Gc<Box<dyn System>>,
+        system: Id<Box<dyn System>>,
         report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     ) -> Self {
         Self {
@@ -286,13 +297,13 @@ impl ParseConfigFileWithSystemHost {
 
 impl ParseConfigFileHost for ParseConfigFileWithSystemHost {
     fn get_current_directory(&self) -> io::Result<String> {
-        self.system.get_current_directory()
+        self.system.ref_(self).get_current_directory()
     }
 }
 
 impl ParseConfigHost for ParseConfigFileWithSystemHost {
     fn use_case_sensitive_file_names(&self) -> bool {
-        self.system.use_case_sensitive_file_names()
+        self.system.ref_(self).use_case_sensitive_file_names()
     }
 
     fn read_directory(
@@ -304,15 +315,15 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
         depth: Option<usize>,
     ) -> io::Result<Vec<String>> {
         self.system
-            .read_directory(root_dir, Some(extensions), excludes, Some(includes), depth)
+            .ref_(self).read_directory(root_dir, Some(extensions), excludes, Some(includes), depth)
     }
 
     fn file_exists(&self, path: &str) -> bool {
-        self.system.file_exists(path)
+        self.system.ref_(self).file_exists(path)
     }
 
     fn read_file(&self, path: &str) -> io::Result<Option<String>> {
-        self.system.read_file(path)
+        self.system.ref_(self).read_file(path)
     }
 
     fn is_trace_supported(&self) -> bool {
@@ -326,7 +337,13 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
     fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
-        report_unrecoverable_diagnostic(&**self.system, &**self.report_diagnostic, diagnostic)
+        report_unrecoverable_diagnostic(&**self.system.ref_(self), &**self.report_diagnostic, diagnostic)
+    }
+}
+
+impl HasArena for ParseConfigFileWithSystemHost {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
