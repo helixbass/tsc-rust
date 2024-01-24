@@ -1141,7 +1141,7 @@ impl Program {
                                     for file_name in &parsed_ref.command_line.file_names {
                                         self.process_project_reference_file(
                                             file_name,
-                                            Gc::new(FileIncludeReason::ProjectReferenceFile(
+                                            self.alloc_file_include_reason(FileIncludeReason::ProjectReferenceFile(
                                                 ProjectReferenceFile {
                                                     kind: FileIncludeKind::SourceFromProjectReference,
                                                     index,
@@ -1154,7 +1154,7 @@ impl Program {
                                 if let Some(out) = out.non_empty() {
                                     self.process_project_reference_file(
                                         &change_extension(out, ".d.ts"),
-                                        Gc::new(FileIncludeReason::ProjectReferenceFile(
+                                        self.alloc_file_include_reason(FileIncludeReason::ProjectReferenceFile(
                                             ProjectReferenceFile {
                                                 kind: FileIncludeKind::OutputFromProjectReference,
                                                 index,
@@ -1179,7 +1179,7 @@ impl Program {
                                                         }).clone()
                                                     })
                                                 ),
-                                                Gc::new(FileIncludeReason::ProjectReferenceFile(
+                                                self.alloc_file_include_reason(FileIncludeReason::ProjectReferenceFile(
                                                     ProjectReferenceFile {
                                                         kind: FileIncludeKind::OutputFromProjectReference,
                                                         index,
@@ -1205,7 +1205,7 @@ impl Program {
                     name,
                     false,
                     false,
-                    Gc::new(FileIncludeReason::RootFile(RootFile {
+                    self.alloc_file_include_reason(FileIncludeReason::RootFile(RootFile {
                         kind: FileIncludeKind::RootFile,
                         index,
                     })),
@@ -1245,7 +1245,7 @@ impl Program {
                     self.process_type_reference_directive(
                         &type_references[i],
                         resolutions.get(i).and_then(|resolution| resolution.clone()),
-                        Gc::new(FileIncludeReason::AutomaticTypeDirectiveFile(
+                        self.alloc_file_include_reason(FileIncludeReason::AutomaticTypeDirectiveFile(
                             AutomaticTypeDirectiveFile {
                                 kind: FileIncludeKind::AutomaticTypeDirectiveFile,
                                 type_reference: type_references[i].clone(),
@@ -1268,7 +1268,7 @@ impl Program {
                         &default_library_file_name,
                         true,
                         false,
-                        Gc::new(FileIncludeReason::LibFile(LibFile {
+                        self.alloc_file_include_reason(FileIncludeReason::LibFile(LibFile {
                             kind: FileIncludeKind::LibFile,
                             index: None,
                         })),
@@ -1281,7 +1281,7 @@ impl Program {
                                 &self.path_for_lib_file(lib_file_name)?,
                                 true,
                                 false,
-                                Gc::new(FileIncludeReason::LibFile(LibFile {
+                                self.alloc_file_include_reason(FileIncludeReason::LibFile(LibFile {
                                     kind: FileIncludeKind::LibFile,
                                     index: Some(index),
                                 })),
@@ -1529,13 +1529,13 @@ impl Program {
             .borrow_mut()
     }
 
-    pub(super) fn file_reasons(&self) -> Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>> {
+    pub(super) fn file_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
         self.file_reasons.borrow().clone()
     }
 
     pub(super) fn set_file_reasons(
         &self,
-        file_reasons: Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>>,
+        file_reasons: Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>>,
     ) {
         *self.file_reasons.borrow_mut() = file_reasons;
     }
@@ -2103,7 +2103,7 @@ impl ModuleSpecifierResolutionHost for Program {
         self.is_source_of_project_reference_redirect_(file_name)
     }
 
-    fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>> {
+    fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
         self.file_reasons()
     }
 

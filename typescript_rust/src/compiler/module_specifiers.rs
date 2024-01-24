@@ -467,16 +467,16 @@ fn compute_module_specifiers(
                 Some(&host.get_current_directory()),
                 info.get_canonical_file_name,
             )),
-            |reason: &Gc<FileIncludeReason>, _| {
-                if reason.kind() != FileIncludeKind::Import
-                    || reason.as_referenced_file().file
+            |reason: &Id<FileIncludeReason>, _| {
+                if reason.ref_(arena).kind() != FileIncludeKind::Import
+                    || reason.ref_(arena).as_referenced_file().file
                         != *importing_source_file_as_source_file.path()
                 {
                     return None;
                 }
                 let specifier = get_module_name_string_literal_at(
                     importing_source_file_as_source_file,
-                    reason.as_referenced_file().index,
+                    reason.ref_(arena).as_referenced_file().index,
                     arena,
                 )
                 .ref_(arena).as_literal_like_node()

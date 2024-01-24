@@ -192,7 +192,7 @@ impl Program {
         is_default_lib: bool,
         ignore_no_default_lib: bool,
         package_id: Option<&PackageId>,
-        reason: Gc<FileIncludeReason>,
+        reason: Id<FileIncludeReason>,
     ) -> io::Result<()> {
         self.get_source_file_from_reference_worker(
             file_name,
@@ -215,7 +215,7 @@ impl Program {
                     )
                 },
             ),
-            Some(&reason),
+            Some(&reason.ref_(self)),
         )?;
 
         Ok(())
@@ -224,7 +224,7 @@ impl Program {
     pub fn process_project_reference_file(
         &self,
         file_name: &str,
-        reason: Gc<FileIncludeReason /*ProjectReferenceFile*/>,
+        reason: Id<FileIncludeReason /*ProjectReferenceFile*/>,
     ) -> io::Result<()> {
         self.process_source_file(file_name, false, false, None, reason)
     }
@@ -233,17 +233,17 @@ impl Program {
         &self,
         file_name: &str,
         existing_file: Id<Node>, /*SourceFile*/
-        reason: Gc<FileIncludeReason>,
+        reason: Id<FileIncludeReason>,
     ) {
         let existing_file_ref = existing_file.ref_(self);
         let existing_file_as_source_file = existing_file_ref.as_source_file();
-        let has_existing_reason_to_report_error_on = !is_referenced_file(Some(&reason))
+        let has_existing_reason_to_report_error_on = !is_referenced_file(Some(&reason.ref_(self)))
             && some(
                 (*self.file_reasons())
                     .borrow()
                     .get(&*existing_file_as_source_file.path())
                     .as_deref(),
-                Some(|reason: &Gc<FileIncludeReason>| is_referenced_file(Some(reason))),
+                Some(|reason: &Id<FileIncludeReason>| is_referenced_file(Some(&reason.ref_(self)))),
             );
         if has_existing_reason_to_report_error_on {
             self.add_file_preprocessing_file_explaining_diagnostic(
@@ -303,7 +303,7 @@ impl Program {
         file_name: &str,
         is_default_lib: bool,
         ignore_no_default_lib: bool,
-        reason: Gc<FileIncludeReason>,
+        reason: Id<FileIncludeReason>,
         package_id: Option<&PackageId>,
     ) -> io::Result<Option<Id<Node>>> {
         // tracing?.push(tracing.Phase.Program, "findSourceFile", {
@@ -327,7 +327,7 @@ impl Program {
         file_name: &str,
         is_default_lib: bool,
         ignore_no_default_lib: bool,
-        reason: Gc<FileIncludeReason>,
+        reason: Id<FileIncludeReason>,
         package_id: Option<&PackageId>,
     ) -> io::Result<Option<Id<Node>>> {
         let path = self.to_path(file_name);
@@ -438,7 +438,7 @@ impl Program {
         }
 
         let mut redirected_path: Option<Path> = None;
-        if is_referenced_file(Some(&reason)) && !self.use_source_of_project_reference_redirect() {
+        if is_referenced_file(Some(&reason.ref_(self))) && !self.use_source_of_project_reference_redirect() {
             let redirect_project = self.get_project_reference_redirect_project(&file_name);
             if let Some(redirect_project) = redirect_project.as_ref() {
                 if matches!(
@@ -581,7 +581,7 @@ impl Program {
     pub(super) fn add_file_include_reason(
         &self,
         file: Option<Id<Node> /*SourceFile*/>,
-        reason: Gc<FileIncludeReason>,
+        reason: Id<FileIncludeReason>,
     ) {
         if let Some(file) = file {
             let file = file.borrow();
@@ -840,7 +840,7 @@ impl Program {
                     is_default_lib,
                     false,
                     None,
-                    Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
+                    self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(ReferencedFile {
                         kind: FileIncludeKind::ReferenceFile,
                         file: file_as_source_file.path().clone(),
                         index,
@@ -888,7 +888,7 @@ impl Program {
             self.process_type_reference_directive(
                 &file_name,
                 resolved_type_reference_directive.clone(),
-                Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
+                self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(ReferencedFile {
                     kind: FileIncludeKind::TypeReferenceDirective,
                     file: file_as_source_file.path().clone(),
                     index,
@@ -903,7 +903,7 @@ impl Program {
         &self,
         type_reference_directive: &str,
         resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
-        reason: Gc<FileIncludeReason>,
+        reason: Id<FileIncludeReason>,
     ) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Program, "processTypeReferenceDirective", { directive: typeReferenceDirective, hasResolved: !!resolveModuleNamesReusingOldState, refKind: reason.kind, refPath: isReferencedFile(reason) ? reason.file : undefined });
         self.process_type_reference_directive_worker(
@@ -920,7 +920,7 @@ impl Program {
         &self,
         type_reference_directive: &str,
         resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
-        reason: Gc<FileIncludeReason>,
+        reason: Id<FileIncludeReason>,
     ) -> io::Result<()> {
         let previous_resolution = (*self.resolved_type_reference_directives())
             .borrow()

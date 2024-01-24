@@ -1562,7 +1562,7 @@ pub struct FilePreprocessingFileExplainingDiagnostic {
     pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic*/
     #[unsafe_ignore_trace]
     pub file: Option<Path>,
-    pub file_processing_reason: Gc<FileIncludeReason>,
+    pub file_processing_reason: Id<FileIncludeReason>,
     pub diagnostic: &'static DiagnosticMessage,
     pub args: Option<Vec<String>>,
 }
@@ -1627,7 +1627,7 @@ pub struct Program {
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
-    pub(crate) file_reasons: GcCell<Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>>>,
+    pub(crate) file_reasons: GcCell<Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>>>,
     pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 

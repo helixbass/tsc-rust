@@ -855,7 +855,7 @@ impl Program {
         file_name: &str,
         is_default_lib: bool,
         ignore_no_default_lib: bool,
-        reason: Gc<FileIncludeReason>,
+        reason: Id<FileIncludeReason>,
     ) -> io::Result<()> {
         self.process_source_file(
             &normalize_path(file_name),

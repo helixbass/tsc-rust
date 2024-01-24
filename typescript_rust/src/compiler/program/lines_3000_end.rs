@@ -51,7 +51,7 @@ use crate::{
     ReadFileCallback, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedProjectReferenceBuilder, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
     SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
-    InArena,
+    InArena, OptionInArena,
 };
 
 impl Program {
@@ -75,7 +75,7 @@ impl Program {
                         &self.path_for_lib_file(lib_file_name)?,
                         true,
                         true,
-                        Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
+                        self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(ReferencedFile {
                             kind: FileIncludeKind::LibReferenceDirective,
                             file: file_as_source_file.path().clone(),
                             index,
@@ -204,7 +204,7 @@ impl Program {
                         resolved_file_name,
                         false,
                         false,
-                        Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
+                        self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(ReferencedFile {
                             kind: FileIncludeKind::Import,
                             file: file_as_source_file.path().clone(),
                             index,
@@ -1157,13 +1157,13 @@ impl Program {
     pub fn create_diagnostic_explaining_file(
         &self,
         file: Option<Id<Node>>,
-        mut file_processing_reason: Option<Gc<FileIncludeReason>>,
+        mut file_processing_reason: Option<Id<FileIncludeReason>>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
         let mut file_include_reasons: Option<Vec<DiagnosticMessageChain>> = None;
         let mut related_info: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
-        let mut location_reason = if is_referenced_file(file_processing_reason.as_deref()) {
+        let mut location_reason = if is_referenced_file(file_processing_reason.refed(self).as_deref()) {
             file_processing_reason.clone()
         } else {
             None
@@ -1172,7 +1172,7 @@ impl Program {
         if let Some(file) = file {
             let file_reasons = (*file_reasons).borrow();
             if let Some(reasons) = file_reasons.get(&*file.ref_(self).as_source_file().path()) {
-                for reason in reasons {
+                for &reason in reasons {
                     self.process_reason(
                         &mut file_include_reasons,
                         &mut location_reason,
@@ -1254,27 +1254,27 @@ impl Program {
     pub fn process_reason(
         &self,
         file_include_reasons: &mut Option<Vec<DiagnosticMessageChain>>,
-        location_reason: &mut Option<Gc<FileIncludeReason>>,
+        location_reason: &mut Option<Id<FileIncludeReason>>,
         related_info: &mut Option<Vec<Gc<DiagnosticRelatedInformation>>>,
-        file_processing_reason: &mut Option<Gc<FileIncludeReason>>,
-        reason: Gc<FileIncludeReason>,
+        file_processing_reason: &mut Option<Id<FileIncludeReason>>,
+        reason: Id<FileIncludeReason>,
     ) {
         file_include_reasons
             .get_or_insert_default_()
             .push(file_include_reason_to_diagnostics(
                 self,
-                &reason,
+                &reason.ref_(self),
                 Option::<fn(&str) -> String>::None,
                 self,
             ));
-        if location_reason.is_none() && is_referenced_file(Some(&reason)) {
+        if location_reason.is_none() && is_referenced_file(Some(&reason.ref_(self))) {
             *location_reason = Some(reason.clone());
         } else if !matches!(
             location_reason.clone(),
             Some(location_reason) if location_reason == reason
         ) {
             if let Some(related_information) =
-                self.file_include_reason_to_related_information(&reason)
+                self.file_include_reason_to_related_information(&reason.ref_(self))
             {
                 related_info
                     .get_or_insert_default_()
@@ -1292,7 +1292,7 @@ impl Program {
     pub fn add_file_preprocessing_file_explaining_diagnostic(
         &self,
         file: Option<Id<Node>>,
-        file_processing_reason: Gc<FileIncludeReason>,
+        file_processing_reason: Id<FileIncludeReason>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
@@ -1301,7 +1301,7 @@ impl Program {
             .push(Gc::new(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
                 kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
                 file: file.map(|file| file.ref_(self).as_source_file().path().clone()),
-                file_processing_reason: file_processing_reason.clone(),
+                file_processing_reason,
                 diagnostic,
                 args,
             })))

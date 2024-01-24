@@ -7,6 +7,7 @@ use once_cell::unsync::Lazy;
 use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+    FileIncludeReason,
 };
 
 #[derive(Default)]
@@ -25,6 +26,7 @@ pub struct AllArenas {
     pub symbol_trackers: RefCell<Arena<Box<dyn SymbolTracker>>>,
     pub emit_hosts: RefCell<Arena<Box<dyn EmitHost>>>,
     pub module_specifier_resolution_host_and_get_common_source_directories: RefCell<Arena<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
+    pub file_include_reasons: RefCell<Arena<FileIncludeReason>>,
 }
 
 pub trait HasArena {
@@ -116,6 +118,14 @@ pub trait HasArena {
 
     fn alloc_module_specifier_resolution_host_and_get_common_source_directory(&self, module_specifier_resolution_host_and_get_common_source_directory: Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>) -> Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> {
         self.arena().alloc_module_specifier_resolution_host_and_get_common_source_directory(module_specifier_resolution_host_and_get_common_source_directory)
+    }
+
+    fn file_include_reason(&self, file_include_reason: Id<FileIncludeReason>) -> Ref<FileIncludeReason> {
+        self.arena().file_include_reason(file_include_reason)
+    }
+
+    fn alloc_file_include_reason(&self, file_include_reason: FileIncludeReason) -> Id<FileIncludeReason> {
+        self.arena().alloc_file_include_reason(file_include_reason)
     }
 }
 
@@ -242,6 +252,16 @@ impl HasArena for AllArenas {
         let id = self.module_specifier_resolution_host_and_get_common_source_directories.borrow_mut().alloc(module_specifier_resolution_host_and_get_common_source_directory);
         id
     }
+
+    #[track_caller]
+    fn file_include_reason(&self, file_include_reason: Id<FileIncludeReason>) -> Ref<FileIncludeReason> {
+        Ref::map(self.file_include_reasons.borrow(), |file_include_reasons| &file_include_reasons[file_include_reason])
+    }
+
+    fn alloc_file_include_reason(&self, file_include_reason: FileIncludeReason) -> Id<FileIncludeReason> {
+        let id = self.file_include_reasons.borrow_mut().alloc(file_include_reason);
+        id
+    }
 }
 
 pub trait InArena {
@@ -339,6 +359,14 @@ impl InArena for Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirec
     }
 }
 
+impl InArena for Id<FileIncludeReason> {
+    type Item = FileIncludeReason;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, FileIncludeReason> {
+        has_arena.file_include_reason(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -350,6 +378,14 @@ impl OptionInArena for Option<Id<Node>> {
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, Node>> {
         self.map(|node| has_arena.node(node))
+    }
+}
+
+impl OptionInArena for Option<Id<FileIncludeReason>> {
+    type Item = FileIncludeReason;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, FileIncludeReason>> {
+        self.map(|file_include_reason| has_arena.file_include_reason(file_include_reason))
     }
 }
 
