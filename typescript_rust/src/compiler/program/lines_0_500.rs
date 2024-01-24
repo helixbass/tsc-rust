@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io, time,
+    borrow::{Borrow, Cow}, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io, time,
     time::SystemTime,
 };
 
@@ -124,7 +124,7 @@ pub fn create_compiler_host_worker(
     set_parent_nodes: Option<bool>,
     system: Option<Id<Box<dyn System>>>,
     arena: &impl HasArena,
-) -> impl CompilerHost {
+) -> impl CompilerHost + 'static {
     let system = system.unwrap_or_else(|| get_sys(arena));
     let existing_directories: HashMap<String, bool> = HashMap::new();
     let get_canonical_file_name =
@@ -952,7 +952,7 @@ pub fn get_pre_emit_diagnostics(
 
 pub trait FormatDiagnosticsHost {
     fn get_current_directory(&self) -> io::Result<String>;
-    fn get_new_line(&self) -> &str;
+    fn get_new_line(&self) -> Cow<'_, str>;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }
 
@@ -978,7 +978,7 @@ pub fn format_diagnostic(
         "{} TS{}: {}{}",
         diagnostic_category_name(diagnostic.category(), None),
         diagnostic.code(),
-        flatten_diagnostic_message_text(Some(diagnostic.message_text()), host.get_new_line(), None),
+        flatten_diagnostic_message_text(Some(diagnostic.message_text()), &host.get_new_line(), None),
         host.get_new_line()
     );
 
@@ -1069,7 +1069,7 @@ fn format_code_span(
     let mut context = "".to_owned();
     let mut i = first_line;
     while i <= last_line {
-        context.push_str(host.get_new_line());
+        context.push_str(&host.get_new_line());
         if has_more_than_five_lines && first_line + 1 < i && i < last_line - 1 {
             context.push_str(&format!(
                 "{}{}{}{}",
@@ -1223,12 +1223,12 @@ pub fn format_diagnostics_with_color_and_context(
         ));
         output.push_str(&flatten_diagnostic_message_text(
             Some(diagnostic.message_text()),
-            host.get_new_line(),
+            &host.get_new_line(),
             None,
         ));
 
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
-            output.push_str(host.get_new_line());
+            output.push_str(&host.get_new_line());
             output.push_str(&format_code_span(
                 diagnostic_file,
                 diagnostic.start(),
@@ -1242,14 +1242,14 @@ pub fn format_diagnostics_with_color_and_context(
         if let Some(diagnostic_related_information) =
             diagnostic.maybe_related_information().as_ref()
         {
-            output.push_str(host.get_new_line());
+            output.push_str(&host.get_new_line());
             for related_information in diagnostic_related_information {
                 let file = related_information.maybe_file();
                 let start = related_information.maybe_start();
                 let length = related_information.maybe_length();
                 let message_text = related_information.message_text();
                 if let Some(file) = file {
-                    output.push_str(host.get_new_line());
+                    output.push_str(&host.get_new_line());
                     output.push_str(&format!(
                         "{}{}",
                         half_indent,
@@ -1271,15 +1271,15 @@ pub fn format_diagnostics_with_color_and_context(
                         arena,
                     ));
                 }
-                output.push_str(host.get_new_line());
+                output.push_str(&host.get_new_line());
                 output.push_str(&format!(
                     "{}{}",
                     indent_,
-                    flatten_diagnostic_message_text(Some(message_text), host.get_new_line(), None,)
+                    flatten_diagnostic_message_text(Some(message_text), &host.get_new_line(), None,)
                 ));
             }
         }
-        output.push_str(host.get_new_line());
+        output.push_str(&host.get_new_line());
     }
     Ok(output)
 }

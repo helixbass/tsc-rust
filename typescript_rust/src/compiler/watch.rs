@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryInto, io, marker::PhantomData, rc::Rc};
+use std::{borrow::Cow, collections::HashMap, convert::TryInto, io, marker::PhantomData, rc::Rc};
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
@@ -56,8 +56,8 @@ impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
         self.system.ref_(self).get_current_directory()
     }
 
-    fn get_new_line(&self) -> &str {
-        self.system.ref_(self).new_line()
+    fn get_new_line(&self) -> Cow<'_, str> {
+        self.system.ref_(self).new_line().to_owned().into()
     }
 
     fn get_canonical_file_name(&self, file_name: &str) -> String {

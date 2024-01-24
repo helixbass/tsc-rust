@@ -11,7 +11,7 @@ pub fn create_incremental_compiler_host(
     options: Gc<CompilerOptions>,
     system: Option<Id<Box<dyn System>>>,
     arena: &impl HasArena,
-) -> impl CompilerHost {
+) -> impl CompilerHost + 'static {
     let system = system.unwrap_or_else(|| get_sys(arena));
     let host = create_compiler_host_worker(options, None, Some(system), arena);
     host
