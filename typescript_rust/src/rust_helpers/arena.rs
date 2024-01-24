@@ -4,7 +4,7 @@ use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer, TransformerFactoryInterface};
+use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer, TransformerFactoryInterface, EmitTextWriter};
 
 #[derive(Default)]
 pub struct AllArenas {
@@ -18,6 +18,7 @@ pub struct AllArenas {
     pub transform_nodes_transformation_results: RefCell<Arena<TransformNodesTransformationResult>>,
     pub transformers: RefCell<Arena<Box<dyn TransformerInterface>>>,
     pub transformer_factories: RefCell<Arena<Box<dyn TransformerFactoryInterface>>>,
+    pub emit_text_writers: RefCell<Arena<Box<dyn EmitTextWriter>>>,
 }
 
 pub trait HasArena {
@@ -77,6 +78,14 @@ pub trait HasArena {
 
     fn alloc_transformer_factory(&self, transformer_factory: Box<dyn TransformerFactoryInterface>) -> Id<Box<dyn TransformerFactoryInterface>> {
         self.arena().alloc_transformer_factory(transformer_factory)
+    }
+
+    fn emit_text_writer(&self, emit_text_writer: Id<Box<dyn EmitTextWriter>>) -> Ref<Box<dyn EmitTextWriter>> {
+        self.arena().emit_text_writer(emit_text_writer)
+    }
+
+    fn alloc_emit_text_writer(&self, emit_text_writer: Box<dyn EmitTextWriter>) -> Id<Box<dyn EmitTextWriter>> {
+        self.arena().alloc_emit_text_writer(emit_text_writer)
     }
 }
 
@@ -163,6 +172,16 @@ impl HasArena for AllArenas {
         let id = self.transformer_factories.borrow_mut().alloc(transformer_factory);
         id
     }
+
+    #[track_caller]
+    fn emit_text_writer(&self, emit_text_writer: Id<Box<dyn EmitTextWriter>>) -> Ref<Box<dyn EmitTextWriter>> {
+        Ref::map(self.emit_text_writers.borrow(), |emit_text_writers| &emit_text_writers[emit_text_writer])
+    }
+
+    fn alloc_emit_text_writer(&self, emit_text_writer: Box<dyn EmitTextWriter>) -> Id<Box<dyn EmitTextWriter>> {
+        let id = self.emit_text_writers.borrow_mut().alloc(emit_text_writer);
+        id
+    }
 }
 
 pub trait InArena {
@@ -225,6 +244,14 @@ impl InArena for Id<Box<dyn TransformerFactoryInterface>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformerFactoryInterface>> {
         has_arena.transformer_factory(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn EmitTextWriter>> {
+    type Item = Box<dyn EmitTextWriter>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn EmitTextWriter>> {
+        has_arena.emit_text_writer(*self)
     }
 }
 

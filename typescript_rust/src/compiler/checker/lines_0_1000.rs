@@ -2189,7 +2189,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        writer: Option<Id<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
@@ -2205,7 +2205,7 @@ impl TypeChecker {
         type_: Id<Type>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        writer: Option<Id<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
         self.type_to_string_(
             type_,
@@ -2221,7 +2221,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        writer: Option<Id<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
@@ -2237,7 +2237,7 @@ impl TypeChecker {
         predicate: &TypePredicate,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        writer: Option<Id<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,

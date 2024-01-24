@@ -541,7 +541,7 @@ pub(crate) fn emit_files(
         };
     let mut emitter_diagnostics = create_diagnostic_collection(&*static_arena());
     let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.get_new_line()));
-    let writer = create_text_writer(&new_line);
+    let writer = create_text_writer(&new_line, arena);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
     let mut bundle_build_info: Option<Gc<GcCell<BundleBuildInfo>>> = None;
     let mut emit_skipped = false;
@@ -565,7 +565,7 @@ pub(crate) fn emit_files(
                 resolver.clone(),
                 &declaration_transformers,
                 &mut exported_modules_from_declaration_emit,
-                writer.as_dyn_emit_text_writer(),
+                writer,
                 &mut source_map_data_list,
                 &new_line,
                 &script_transformers,
@@ -611,7 +611,7 @@ fn emit_source_file_or_bundle(
     resolver: Gc<Box<dyn EmitResolver>>,
     declaration_transformers: &[TransformerFactory],
     exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
-    writer: Gc<Box<dyn EmitTextWriter>>,
+    writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
     script_transformers: &[TransformerFactory],
@@ -833,7 +833,7 @@ fn emit_js_file_or_bundle(
     resolver: Gc<Box<dyn EmitResolver>>,
     script_transformers: &[TransformerFactory],
     bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
-    writer: Gc<Box<dyn EmitTextWriter>>,
+    writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
     emitter_diagnostics: &mut DiagnosticCollection,
@@ -987,7 +987,7 @@ fn emit_declaration_file_or_bundle(
     emitter_diagnostics: &mut DiagnosticCollection,
     exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
     bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
-    writer: Gc<Box<dyn EmitTextWriter>>,
+    writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
     source_file_or_bundle: Option<Id<Node> /*SourceFile | Bundle*/>,
@@ -1234,7 +1234,7 @@ fn collect_linked_aliases(resolver: &dyn EmitResolver, node: Id<Node>, arena: &i
 
 fn print_source_file_or_bundle(
     host: Gc<Box<dyn EmitHost>>,
-    writer: Gc<Box<dyn EmitTextWriter>>,
+    writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
     emitter_diagnostics: &mut DiagnosticCollection,
@@ -1307,10 +1307,10 @@ fn print_source_file_or_bundle(
         );
 
         if !source_mapping_url.is_empty() {
-            if !writer.is_at_start_of_line() {
-                writer.raw_write(new_line);
+            if !writer.ref_(arena).is_at_start_of_line() {
+                writer.ref_(arena).raw_write(new_line);
             }
-            writer.write_comment(&format!("//# sourceMappingUrl={source_mapping_url}"));
+            writer.ref_(arena).write_comment(&format!("//# sourceMappingUrl={source_mapping_url}"));
         }
 
         if let Some(source_map_file_path) = source_map_file_path.non_empty() {
@@ -1325,19 +1325,19 @@ fn print_source_file_or_bundle(
             )?;
         }
     } else {
-        writer.write_line(None);
+        writer.ref_(arena).write_line(None);
     }
 
     write_file(
         &EmitHostWriteFileCallback::new(host.clone()),
         emitter_diagnostics,
         js_file_path,
-        &writer.get_text(),
+        &writer.ref_(arena).get_text(),
         compiler_options.emit_bom == Some(true),
         Some(&source_files),
     )?;
 
-    writer.clear();
+    writer.ref_(arena).clear();
 
     Ok(())
 }
@@ -2025,12 +2025,12 @@ impl Printer {
         self.next_list_element_pos.set(next_list_element_pos);
     }
 
-    pub(super) fn maybe_writer(&self) -> Option<Gc<Box<dyn EmitTextWriter>>> {
+    pub(super) fn maybe_writer(&self) -> Option<Id<Box<dyn EmitTextWriter>>> {
         self.writer.borrow().clone()
     }
 
-    pub(super) fn writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
-        self.writer.borrow().clone().unwrap()
+    pub(super) fn writer(&self) -> debug_cell::Ref<'_, Box<dyn EmitTextWriter>> {
+        self.writer.borrow().clone().unwrap().ref_(self)
     }
 
     pub(super) fn has_global_name(&self, name: &str) -> Option<bool> {
@@ -2405,7 +2405,7 @@ impl Printer {
         hint: EmitHint,
         node: Id<Node>,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        output: Gc<Box<dyn EmitTextWriter>>,
+        output: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
@@ -2421,7 +2421,7 @@ impl Printer {
         format: ListFormat,
         nodes: &NodeArray,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        output: Gc<Box<dyn EmitTextWriter>>,
+        output: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);

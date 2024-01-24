@@ -54,8 +54,8 @@ pub struct Printer {
     #[unsafe_ignore_trace]
     pub next_list_element_pos: Cell<Option<isize>>,
 
-    pub writer: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
-    pub own_writer: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
+    pub writer: GcCell<Option<Id<Box<dyn EmitTextWriter>>>>,
+    pub own_writer: GcCell<Option<Id<Box<dyn EmitTextWriter>>>>,
     #[unsafe_ignore_trace]
     pub write: Cell<fn(&Printer, &str)>,
     #[unsafe_ignore_trace]

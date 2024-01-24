@@ -31,6 +31,7 @@ use crate::{
     SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
     append_if_unique_eq,
+    static_arena,
 };
 
 impl TypeChecker {
@@ -247,7 +248,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        writer: Option<Id<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
         let flags = flags.unwrap_or(SymbolFormatFlags::AllowAnyNodeKind);
         let mut node_flags = NodeBuilderFlags::IgnoreErrors;
@@ -268,7 +269,7 @@ impl TypeChecker {
         } else {
             NodeBuilder::symbol_to_entity_name
         };
-        let symbol_to_string_worker = |writer: Gc<Box<dyn EmitTextWriter>>| -> io::Result<_> {
+        let symbol_to_string_worker = |writer: Id<Box<dyn EmitTextWriter>>| -> io::Result<_> {
             let entity = builder(
                 &self.node_builder(),
                 symbol,
@@ -316,9 +317,9 @@ impl TypeChecker {
         };
         Ok(if let Some(writer) = writer {
             symbol_to_string_worker(writer.clone())?;
-            writer.get_text()
+            writer.ref_(self).get_text()
         } else {
-            using_single_line_string_writer(symbol_to_string_worker)?
+            using_single_line_string_writer(symbol_to_string_worker, self)?
         })
     }
 
@@ -328,7 +329,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        writer: Option<Id<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
         let flags = flags.unwrap_or(TypeFormatFlags::None);
         Ok(if let Some(writer) = writer {
@@ -339,9 +340,9 @@ impl TypeChecker {
                 kind,
                 writer.clone(),
             )?;
-            writer.get_text()
+            writer.ref_(self).get_text()
         } else {
-            try_using_single_line_string_writer(|writer: Gc<Box<dyn EmitTextWriter>>| {
+            try_using_single_line_string_writer(|writer: Id<Box<dyn EmitTextWriter>>| {
                 self.signature_to_string_worker(
                     signature,
                     enclosing_declaration,
@@ -349,7 +350,7 @@ impl TypeChecker {
                     kind,
                     writer,
                 )
-            })?
+            }, self)?
         })
     }
 
@@ -359,7 +360,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
-        writer: Gc<Box<dyn EmitTextWriter>>,
+        writer: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
         let sig_output: SyntaxKind;
         if flags.intersects(TypeFormatFlags::WriteArrowStyleSignature) {
@@ -402,7 +403,7 @@ impl TypeChecker {
             EmitHint::Unspecified,
             sig.unwrap(),
             source_file,
-            get_trailing_semicolon_deferring_writer(writer),
+            get_trailing_semicolon_deferring_writer(writer, &*static_arena()),
         )?;
         // writer
 
@@ -414,13 +415,13 @@ impl TypeChecker {
         type_: Id<Type>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        writer: Option<Id<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
         let flags = flags.unwrap_or(
             TypeFormatFlags::AllowUniqueESSymbolType
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
-        let writer = writer.unwrap_or_else(|| create_text_writer("").as_dyn_emit_text_writer());
+        let writer = writer.unwrap_or_else(|| create_text_writer("", self));
         let no_truncation = matches!(self.compiler_options.no_error_truncation, Some(true))
             || flags.intersects(TypeFormatFlags::NoTruncation);
         let type_node = self.node_builder().type_to_type_node(
@@ -435,7 +436,7 @@ impl TypeChecker {
                         NodeBuilderFlags::None
                     },
             ),
-            Some(writer.as_symbol_tracker()),
+            Some(writer.ref_(self).as_symbol_tracker()),
         )?;
         let type_node: Id<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
@@ -455,7 +456,7 @@ impl TypeChecker {
             source_file,
             writer.clone(),
         )?;
-        let result = writer.get_text();
+        let result = writer.ref_(self).get_text();
 
         let max_length = if no_truncation {
             no_truncation_maximum_truncation_length * 2

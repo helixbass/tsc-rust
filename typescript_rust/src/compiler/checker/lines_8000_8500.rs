@@ -37,7 +37,7 @@ impl TypeChecker {
         type_predicate: &TypePredicate,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        writer: Option<Id<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
         let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
         Ok(if let Some(writer) = writer {
@@ -47,7 +47,7 @@ impl TypeChecker {
                 flags,
                 writer.clone(),
             )?;
-            writer.get_text()
+            writer.ref_(self).get_text()
         } else {
             try_using_single_line_string_writer(|writer| {
                 self.type_predicate_to_string_worker(
@@ -56,7 +56,7 @@ impl TypeChecker {
                     flags,
                     writer,
                 )
-            })?
+            }, self)?
         })
     }
 
@@ -65,7 +65,7 @@ impl TypeChecker {
         type_predicate: &TypePredicate,
         enclosing_declaration: Option<Id<Node>>,
         flags: TypeFormatFlags,
-        writer: Gc<Box<dyn EmitTextWriter>>,
+        writer: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
         let predicate = get_factory().create_type_predicate_node(
             if matches!(

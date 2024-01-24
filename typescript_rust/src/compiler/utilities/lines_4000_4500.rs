@@ -24,7 +24,7 @@ use crate::{
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
     NodeInterface, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
     SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
-    WriteFileCallback, HasArena, InArena, OptionInArena,
+    WriteFileCallback, HasArena, InArena, OptionInArena, AllArenas,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -62,7 +62,6 @@ pub fn get_indent_size() -> usize {
 
 #[derive(Clone, Trace, Finalize)]
 pub struct TextWriter {
-    _dyn_emit_text_writer_wrapper: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
     _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
     new_line: String,
     #[unsafe_ignore_trace]
@@ -82,9 +81,8 @@ pub struct TextWriter {
 }
 
 impl TextWriter {
-    pub fn new(new_line: &str) -> Gc<Box<Self>> {
-        let dyn_wrapper: Gc<Box<dyn EmitTextWriter>> = Gc::new(Box::new(Self {
-            _dyn_emit_text_writer_wrapper: Default::default(),
+    pub fn new(new_line: &str, arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
+        arena.alloc_emit_text_writer(Box::new(Self {
             _dyn_symbol_tracker_wrapper: Gc::new(Box::new(TextWriterSymbolTracker)),
             new_line: new_line.to_owned(),
             output: Default::default(),
@@ -94,14 +92,7 @@ impl TextWriter {
             line_pos: Default::default(),
             has_trailing_comment: Default::default(),
             output_as_chars: Default::default(),
-        }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
-        *downcasted._dyn_emit_text_writer_wrapper.borrow_mut() = Some(dyn_wrapper);
-        downcasted
-    }
-
-    pub fn as_dyn_emit_text_writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
-        self._dyn_emit_text_writer_wrapper.borrow().clone().unwrap()
+        }))
     }
 
     pub fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
@@ -494,43 +485,39 @@ impl SymbolTracker for TextWriterSymbolTracker {
     }
 }
 
-pub fn create_text_writer(new_line: &str) -> Gc<Box<TextWriter>> {
-    TextWriter::new(new_line)
+pub fn create_text_writer(new_line: &str, arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
+    TextWriter::new(new_line, arena)
     // text_writer.reset()
 }
 
 pub fn get_trailing_semicolon_deferring_writer(
-    writer: Gc<Box<dyn EmitTextWriter>>,
-) -> Gc<Box<dyn EmitTextWriter>> {
-    TrailingSemicolonDeferringWriter::new(writer).as_dyn_emit_text_writer()
+    writer: Id<Box<dyn EmitTextWriter>>,
+    arena: *const AllArenas,
+) -> Id<Box<dyn EmitTextWriter>> {
+    TrailingSemicolonDeferringWriter::new(writer, arena)
 }
 
 #[derive(Trace, Finalize)]
 pub struct TrailingSemicolonDeferringWriter {
-    _dyn_emit_text_writer_wrapper: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
+    #[unsafe_ignore_trace]
+    _arena: *const AllArenas,
     _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
-    writer: Gc<Box<dyn EmitTextWriter>>,
+    writer: Id<Box<dyn EmitTextWriter>>,
     #[unsafe_ignore_trace]
     pending_trailing_semicolon: Cell<bool>,
 }
 
 impl TrailingSemicolonDeferringWriter {
-    pub fn new(writer: Gc<Box<dyn EmitTextWriter>>) -> Gc<Box<Self>> {
-        let dyn_wrapper: Gc<Box<dyn EmitTextWriter>> = Gc::new(Box::new(Self {
-            _dyn_emit_text_writer_wrapper: Default::default(),
+    pub fn new(writer: Id<Box<dyn EmitTextWriter>>, arena: *const AllArenas) -> Id<Box<dyn EmitTextWriter>> {
+        let arena_ref = unsafe { &*arena };
+        arena_ref.alloc_emit_text_writer(Box::new(Self {
+            _arena: arena,
             _dyn_symbol_tracker_wrapper: Gc::new(Box::new(
                 TrailingSemicolonDeferringWriterSymbolTracker,
             )),
             writer,
             pending_trailing_semicolon: Default::default(),
-        }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
-        *downcasted._dyn_emit_text_writer_wrapper.borrow_mut() = Some(dyn_wrapper);
-        downcasted
-    }
-
-    pub fn as_dyn_emit_text_writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
-        self._dyn_emit_text_writer_wrapper.borrow().clone().unwrap()
+        }))
     }
 
     pub fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
@@ -539,7 +526,7 @@ impl TrailingSemicolonDeferringWriter {
 
     fn commit_pending_trailing_semicolon(&self) {
         if self.pending_trailing_semicolon.get() {
-            self.writer.write_trailing_semicolon(";");
+            self.writer.ref_(self).write_trailing_semicolon(";");
             self.pending_trailing_semicolon.set(false);
         }
     }
@@ -547,21 +534,21 @@ impl TrailingSemicolonDeferringWriter {
 
 impl EmitTextWriter for TrailingSemicolonDeferringWriter {
     fn write(&self, s: &str) {
-        self.writer.write(s)
+        self.writer.ref_(self).write(s)
     }
 
     fn write_comment(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_comment(s)
+        self.writer.ref_(self).write_comment(s)
     }
 
     fn raw_write(&self, s: &str) {
-        self.writer.raw_write(s)
+        self.writer.ref_(self).raw_write(s)
     }
 
     fn write_literal(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_literal(s)
+        self.writer.ref_(self).write_literal(s)
     }
 
     fn write_trailing_semicolon(&self, _text: &str) {
@@ -569,108 +556,108 @@ impl EmitTextWriter for TrailingSemicolonDeferringWriter {
     }
 
     fn get_text(&self) -> String {
-        self.writer.get_text()
+        self.writer.ref_(self).get_text()
     }
 
     fn get_text_pos(&self) -> usize {
-        self.writer.get_text_pos()
+        self.writer.ref_(self).get_text_pos()
     }
 
     fn get_line(&self) -> usize {
-        self.writer.get_line()
+        self.writer.ref_(self).get_line()
     }
 
     fn get_column(&self) -> usize {
-        self.writer.get_column()
+        self.writer.ref_(self).get_column()
     }
 
     fn get_indent(&self) -> usize {
-        self.writer.get_indent()
+        self.writer.ref_(self).get_indent()
     }
 
     fn is_at_start_of_line(&self) -> bool {
-        self.writer.is_at_start_of_line()
+        self.writer.ref_(self).is_at_start_of_line()
     }
 
     fn has_trailing_comment(&self) -> bool {
-        self.writer.has_trailing_comment()
+        self.writer.ref_(self).has_trailing_comment()
     }
 
     fn has_trailing_whitespace(&self) -> bool {
-        self.writer.has_trailing_whitespace()
+        self.writer.ref_(self).has_trailing_whitespace()
     }
 
     fn get_text_pos_with_write_line(&self) -> Option<usize> {
-        self.writer.get_text_pos_with_write_line()
+        self.writer.ref_(self).get_text_pos_with_write_line()
     }
 
     fn non_escaping_write(&self, text: &str) {
-        self.writer.non_escaping_write(text)
+        self.writer.ref_(self).non_escaping_write(text)
     }
 
     fn is_non_escaping_write_supported(&self) -> bool {
-        self.writer.is_non_escaping_write_supported()
+        self.writer.ref_(self).is_non_escaping_write_supported()
     }
 }
 
 impl SymbolWriter for TrailingSemicolonDeferringWriter {
     fn write_line(&self, _force: Option<bool>) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_line(None)
+        self.writer.ref_(self).write_line(None)
     }
 
     fn increase_indent(&self) {
         self.commit_pending_trailing_semicolon();
-        self.writer.increase_indent()
+        self.writer.ref_(self).increase_indent()
     }
 
     fn decrease_indent(&self) {
         self.commit_pending_trailing_semicolon();
-        self.writer.decrease_indent()
+        self.writer.ref_(self).decrease_indent()
     }
 
     fn write_keyword(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_keyword(s)
+        self.writer.ref_(self).write_keyword(s)
     }
 
     fn write_operator(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_operator(s)
+        self.writer.ref_(self).write_operator(s)
     }
 
     fn write_parameter(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_parameter(s)
+        self.writer.ref_(self).write_parameter(s)
     }
 
     fn write_punctuation(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_punctuation(s)
+        self.writer.ref_(self).write_punctuation(s)
     }
 
     fn write_space(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_space(s)
+        self.writer.ref_(self).write_space(s)
     }
 
     fn write_string_literal(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_string_literal(s)
+        self.writer.ref_(self).write_string_literal(s)
     }
 
     fn write_property(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_property(s)
+        self.writer.ref_(self).write_property(s)
     }
 
     fn write_symbol(&self, s: &str, sym: Id<Symbol>) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_symbol(s, sym)
+        self.writer.ref_(self).write_symbol(s, sym)
     }
 
     fn clear(&self) {
-        self.writer.clear()
+        self.writer.ref_(self).clear()
     }
 
     fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
@@ -736,6 +723,12 @@ impl SymbolTracker for TrailingSemicolonDeferringWriter {
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
             .is_track_referenced_ambient_module_supported()
+    }
+}
+
+impl HasArena for TrailingSemicolonDeferringWriter {
+    fn arena(&self) -> &AllArenas {
+        unsafe { &*self._arena }
     }
 }
 

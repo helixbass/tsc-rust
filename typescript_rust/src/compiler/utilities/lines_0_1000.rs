@@ -108,37 +108,27 @@ pub fn is_transient_symbol(symbol: &Symbol) -> bool {
 //     static ref string_writer: Gc<Box<dyn EmitTextWriter>> = create_single_line_string_writer();
 // }
 
-// fn string_writer() -> Gc<Box<dyn EmitTextWriter>> {
-fn string_writer() -> Gc<Box<dyn EmitTextWriter>> {
-    create_single_line_string_writer()
+fn string_writer(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
+    create_single_line_string_writer(arena)
 }
 
-fn create_single_line_string_writer() -> Gc<Box<dyn EmitTextWriter>> {
-    SingleLineStringWriter::new().as_dyn_emit_text_writer()
+fn create_single_line_string_writer(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
+    SingleLineStringWriter::new(arena)
 }
 
 #[derive(Trace, Finalize)]
 struct SingleLineStringWriter {
-    _dyn_emit_text_writer_wrapper: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
     _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
     #[unsafe_ignore_trace]
     str: RefCell<String>,
 }
 
 impl SingleLineStringWriter {
-    pub fn new() -> Gc<Box<Self>> {
-        let dyn_wrapper: Gc<Box<dyn EmitTextWriter>> = Gc::new(Box::new(Self {
-            _dyn_emit_text_writer_wrapper: Default::default(),
+    pub fn new(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
+        arena.alloc_emit_text_writer(Box::new(Self {
             _dyn_symbol_tracker_wrapper: Gc::new(Box::new(SingleLineStringWriterSymbolTracker)),
             str: Default::default(),
-        }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
-        *downcasted._dyn_emit_text_writer_wrapper.borrow_mut() = Some(dyn_wrapper);
-        downcasted
-    }
-
-    fn as_dyn_emit_text_writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
-        self._dyn_emit_text_writer_wrapper.borrow().clone().unwrap()
+        }))
     }
 
     fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
@@ -581,26 +571,28 @@ pub fn copy_entries<TKey: Clone + Eq + Hash, TValue: Clone>(
 }
 
 pub fn using_single_line_string_writer(
-    action: impl FnOnce(Gc<Box<dyn EmitTextWriter>>) -> io::Result<()>,
+    action: impl FnOnce(Id<Box<dyn EmitTextWriter>>) -> io::Result<()>,
+    arena: &impl HasArena,
 ) -> io::Result<String> {
-    let string_writer = string_writer();
-    let old_string = string_writer.get_text();
+    let string_writer = string_writer(arena);
+    let old_string = string_writer.ref_(arena).get_text();
     action(string_writer.clone())?;
-    let ret = string_writer.get_text();
-    string_writer.clear();
-    string_writer.write_keyword(&old_string);
+    let ret = string_writer.ref_(arena).get_text();
+    string_writer.ref_(arena).clear();
+    string_writer.ref_(arena).write_keyword(&old_string);
     Ok(ret)
 }
 
 pub fn try_using_single_line_string_writer<TError>(
-    action: impl FnOnce(Gc<Box<dyn EmitTextWriter>>) -> Result<(), TError>,
+    action: impl FnOnce(Id<Box<dyn EmitTextWriter>>) -> Result<(), TError>,
+    arena: &impl HasArena,
 ) -> Result<String, TError> {
-    let string_writer = string_writer();
-    let old_string = string_writer.get_text();
+    let string_writer = string_writer(arena);
+    let old_string = string_writer.ref_(arena).get_text();
     action(string_writer.clone())?;
-    let ret = string_writer.get_text();
-    string_writer.clear();
-    string_writer.write_keyword(&old_string);
+    let ret = string_writer.ref_(arena).get_text();
+    string_writer.ref_(arena).clear();
+    string_writer.ref_(arena).write_keyword(&old_string);
     Ok(ret)
 }
 

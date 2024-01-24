@@ -17,7 +17,7 @@ use crate::{
     is_unparsed_prepend, is_unparsed_source, is_variable_statement, BundleFileSection,
     BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
     GetOrInsertDefault, Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
-    InArena,
+    InArena, static_arena,
 };
 
 impl Printer {
@@ -75,7 +75,7 @@ impl Printer {
     pub fn write_bundle(
         &self,
         bundle: Id<Node>, /*Bundle*/
-        output: Gc<Box<dyn EmitTextWriter>>,
+        output: Id<Box<dyn EmitTextWriter>>,
         source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) -> io::Result<()> {
         self.set_is_own_file_emit(false);
@@ -165,7 +165,7 @@ impl Printer {
     pub fn write_unparsed_source(
         &self,
         unparsed: Id<Node>, /*UnparsedSource*/
-        output: Gc<Box<dyn EmitTextWriter>>,
+        output: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
@@ -179,7 +179,7 @@ impl Printer {
     pub fn write_file(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        output: Gc<Box<dyn EmitTextWriter>>,
+        output: Id<Box<dyn EmitTextWriter>>,
         source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) -> io::Result<()> {
         self.set_is_own_file_emit(true);
@@ -194,18 +194,17 @@ impl Printer {
         Ok(())
     }
 
-    pub(super) fn begin_print(&self) -> Gc<Box<dyn EmitTextWriter>> {
+    pub(super) fn begin_print(&self) -> Id<Box<dyn EmitTextWriter>> {
         self.own_writer
             .borrow_mut()
-            .get_or_insert_with(|| create_text_writer(&self.new_line).as_dyn_emit_text_writer())
+            .get_or_insert_with(|| create_text_writer(&self.new_line, self))
             .clone()
     }
 
     pub(super) fn end_print(&self) -> String {
-        let own_writer = self.own_writer.borrow();
-        let own_writer = own_writer.as_ref().unwrap();
-        let text = own_writer.get_text();
-        own_writer.clear();
+        let own_writer = self.own_writer.borrow().clone().unwrap();
+        let text = own_writer.ref_(self).get_text();
+        own_writer.ref_(self).clear();
         text
     }
 
@@ -235,13 +234,14 @@ impl Printer {
 
     pub(super) fn set_writer(
         &self,
-        mut writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        mut writer: Option<Id<Box<dyn EmitTextWriter>>>,
         source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) {
         if let Some(writer_present) = writer.as_ref() {
             if self.printer_options.omit_trailing_semicolon == Some(true) {
                 writer = Some(get_trailing_semicolon_deferring_writer(
                     writer_present.clone(),
+                    &*static_arena(),
                 ));
             }
         }
