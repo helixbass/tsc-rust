@@ -62,7 +62,7 @@ pub fn get_indent_size() -> usize {
 
 #[derive(Clone, Trace, Finalize)]
 pub struct TextWriter {
-    _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
+    _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     new_line: String,
     #[unsafe_ignore_trace]
     output: RefCell<String>,
@@ -83,7 +83,7 @@ pub struct TextWriter {
 impl TextWriter {
     pub fn new(new_line: &str, arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
         arena.alloc_emit_text_writer(Box::new(Self {
-            _dyn_symbol_tracker_wrapper: Gc::new(Box::new(TextWriterSymbolTracker)),
+            _dyn_symbol_tracker_wrapper: arena.alloc_symbol_tracker(Box::new(TextWriterSymbolTracker)),
             new_line: new_line.to_owned(),
             output: Default::default(),
             indent: Default::default(),
@@ -95,8 +95,8 @@ impl TextWriter {
         }))
     }
 
-    pub fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
-        self._dyn_symbol_tracker_wrapper.clone()
+    pub fn as_dyn_symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>> {
+        self._dyn_symbol_tracker_wrapper
     }
 
     fn output(&self) -> Ref<String> {
@@ -351,7 +351,7 @@ impl SymbolWriter for TextWriter {
         self.reset();
     }
 
-    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+    fn as_symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>> {
         self.as_dyn_symbol_tracker()
     }
 }
@@ -364,65 +364,71 @@ impl SymbolTracker for TextWriter {
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         self._dyn_symbol_tracker_wrapper
-            .track_symbol(symbol, enclosing_declaration, meaning)
+            .ref_(self).track_symbol(symbol, enclosing_declaration, meaning)
     }
 
     fn is_track_symbol_supported(&self) -> bool {
-        self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
+        self._dyn_symbol_tracker_wrapper.ref_(self).is_track_symbol_supported()
     }
 
     fn disable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.disable_track_symbol();
+        self._dyn_symbol_tracker_wrapper.ref_(self).disable_track_symbol();
     }
 
     fn reenable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.reenable_track_symbol();
+        self._dyn_symbol_tracker_wrapper.ref_(self).reenable_track_symbol();
     }
 
     // TODO: are these correct?
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_inaccessible_this_error_supported()
+            .ref_(self).is_report_inaccessible_this_error_supported()
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_private_in_base_of_class_expression_supported()
+            .ref_(self).is_report_private_in_base_of_class_expression_supported()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_cyclic_structure_error_supported()
+            .ref_(self).is_report_cyclic_structure_error_supported()
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_nonlocal_augmentation_supported()
+            .ref_(self).is_report_nonlocal_augmentation_supported()
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_non_serializable_property_supported()
+            .ref_(self).is_report_non_serializable_property_supported()
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_module_resolver_host_supported()
+            .ref_(self).is_module_resolver_host_supported()
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_track_referenced_ambient_module_supported()
+            .ref_(self).is_track_referenced_ambient_module_supported()
+    }
+}
+
+impl HasArena for TextWriter {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -501,7 +507,7 @@ pub fn get_trailing_semicolon_deferring_writer(
 pub struct TrailingSemicolonDeferringWriter {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
-    _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
+    _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     writer: Id<Box<dyn EmitTextWriter>>,
     #[unsafe_ignore_trace]
     pending_trailing_semicolon: Cell<bool>,
@@ -512,7 +518,7 @@ impl TrailingSemicolonDeferringWriter {
         let arena_ref = unsafe { &*arena };
         arena_ref.alloc_emit_text_writer(Box::new(Self {
             _arena: arena,
-            _dyn_symbol_tracker_wrapper: Gc::new(Box::new(
+            _dyn_symbol_tracker_wrapper: arena_ref.alloc_symbol_tracker(Box::new(
                 TrailingSemicolonDeferringWriterSymbolTracker,
             )),
             writer,
@@ -520,8 +526,8 @@ impl TrailingSemicolonDeferringWriter {
         }))
     }
 
-    pub fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
-        self._dyn_symbol_tracker_wrapper.clone()
+    pub fn as_dyn_symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>> {
+        self._dyn_symbol_tracker_wrapper
     }
 
     fn commit_pending_trailing_semicolon(&self) {
@@ -660,7 +666,7 @@ impl SymbolWriter for TrailingSemicolonDeferringWriter {
         self.writer.ref_(self).clear()
     }
 
-    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+    fn as_symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>> {
         self.as_dyn_symbol_tracker()
     }
 }
@@ -670,59 +676,59 @@ impl SymbolTracker for TrailingSemicolonDeferringWriter {
     // TODO: are these correct?
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_inaccessible_this_error_supported()
+            .ref_(self).is_report_inaccessible_this_error_supported()
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_private_in_base_of_class_expression_supported()
+            .ref_(self).is_report_private_in_base_of_class_expression_supported()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_cyclic_structure_error_supported()
+            .ref_(self).is_report_cyclic_structure_error_supported()
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_nonlocal_augmentation_supported()
+            .ref_(self).is_report_nonlocal_augmentation_supported()
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_non_serializable_property_supported()
+            .ref_(self).is_report_non_serializable_property_supported()
     }
 
     fn is_track_symbol_supported(&self) -> bool {
-        self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
+        self._dyn_symbol_tracker_wrapper.ref_(self).is_track_symbol_supported()
     }
 
     fn disable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.disable_track_symbol();
+        self._dyn_symbol_tracker_wrapper.ref_(self).disable_track_symbol();
     }
 
     fn reenable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.reenable_track_symbol();
+        self._dyn_symbol_tracker_wrapper.ref_(self).reenable_track_symbol();
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_module_resolver_host_supported()
+            .ref_(self).is_module_resolver_host_supported()
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_track_referenced_ambient_module_supported()
+            .ref_(self).is_track_referenced_ambient_module_supported()
     }
 }
 

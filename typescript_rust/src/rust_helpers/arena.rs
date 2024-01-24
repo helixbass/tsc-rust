@@ -4,7 +4,10 @@ use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer, TransformerFactoryInterface, EmitTextWriter};
+use crate::{
+    Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
+    TransformerFactoryInterface, EmitTextWriter, SymbolTracker,
+};
 
 #[derive(Default)]
 pub struct AllArenas {
@@ -19,6 +22,7 @@ pub struct AllArenas {
     pub transformers: RefCell<Arena<Box<dyn TransformerInterface>>>,
     pub transformer_factories: RefCell<Arena<Box<dyn TransformerFactoryInterface>>>,
     pub emit_text_writers: RefCell<Arena<Box<dyn EmitTextWriter>>>,
+    pub symbol_trackers: RefCell<Arena<Box<dyn SymbolTracker>>>,
 }
 
 pub trait HasArena {
@@ -86,6 +90,14 @@ pub trait HasArena {
 
     fn alloc_emit_text_writer(&self, emit_text_writer: Box<dyn EmitTextWriter>) -> Id<Box<dyn EmitTextWriter>> {
         self.arena().alloc_emit_text_writer(emit_text_writer)
+    }
+
+    fn symbol_tracker(&self, symbol_tracker: Id<Box<dyn SymbolTracker>>) -> Ref<Box<dyn SymbolTracker>> {
+        self.arena().symbol_tracker(symbol_tracker)
+    }
+
+    fn alloc_symbol_tracker(&self, symbol_tracker: Box<dyn SymbolTracker>) -> Id<Box<dyn SymbolTracker>> {
+        self.arena().alloc_symbol_tracker(symbol_tracker)
     }
 }
 
@@ -182,6 +194,16 @@ impl HasArena for AllArenas {
         let id = self.emit_text_writers.borrow_mut().alloc(emit_text_writer);
         id
     }
+
+    #[track_caller]
+    fn symbol_tracker(&self, symbol_tracker: Id<Box<dyn SymbolTracker>>) -> Ref<Box<dyn SymbolTracker>> {
+        Ref::map(self.symbol_trackers.borrow(), |symbol_trackers| &symbol_trackers[symbol_tracker])
+    }
+
+    fn alloc_symbol_tracker(&self, symbol_tracker: Box<dyn SymbolTracker>) -> Id<Box<dyn SymbolTracker>> {
+        let id = self.symbol_trackers.borrow_mut().alloc(symbol_tracker);
+        id
+    }
 }
 
 pub trait InArena {
@@ -252,6 +274,14 @@ impl InArena for Id<Box<dyn EmitTextWriter>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn EmitTextWriter>> {
         has_arena.emit_text_writer(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn SymbolTracker>> {
+    type Item = Box<dyn SymbolTracker>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn SymbolTracker>> {
+        has_arena.symbol_tracker(*self)
     }
 }
 

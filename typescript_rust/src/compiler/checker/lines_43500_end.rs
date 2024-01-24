@@ -1235,7 +1235,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         declaration: Id<Node>, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
         enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.type_checker.create_type_of_declaration(
@@ -1252,7 +1252,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         signature_declaration: Id<Node>, /*SignatureDeclaration*/
         enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.type_checker
             .create_return_type_of_signature_declaration(
@@ -1268,7 +1268,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         expr: Id<Node>, /*Expression*/
         enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.type_checker
             .create_type_of_expression(expr, enclosing_declaration, flags, tracker)
@@ -1277,7 +1277,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn create_literal_const_value(
         &self,
         node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>> {
         self.type_checker.create_literal_const_value(node, tracker)
     }
@@ -1529,7 +1529,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: Id<Node>, /*SourceFile*/
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>> {
         let n = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);

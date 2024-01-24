@@ -39,7 +39,7 @@ use crate::{
     SourceMapGenerator, SourceMapSource, StringOrNumber, Symbol, SymbolAccessibilityResult,
     SymbolVisibilityResult, SyntaxKind, TextRange, TransformNodesTransformationResult,
     TransformationResult, TransformerFactory, TypeReferenceSerializationKind,
-    InArena, OptionInArena,
+    InArena, OptionInArena, SymbolTracker,
 };
 
 lazy_static! {
@@ -1600,7 +1600,7 @@ impl EmitResolver for NotImplementedResolver {
         _declaration: Id<Node>, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
         _enclosing_declaration: Id<Node>,
         _flags: crate::NodeBuilderFlags,
-        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _tracker: Id<Box<dyn SymbolTracker>>,
         _add_undefined: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         unimplemented!()
@@ -1611,7 +1611,7 @@ impl EmitResolver for NotImplementedResolver {
         _signature_declaration: Id<Node>, /*SignatureDeclaration*/
         _enclosing_declaration: Id<Node>,
         _flags: crate::NodeBuilderFlags,
-        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         unimplemented!()
     }
@@ -1621,7 +1621,7 @@ impl EmitResolver for NotImplementedResolver {
         _expr: Id<Node>, /*Expression*/
         _enclosing_declaration: Id<Node>,
         _flags: crate::NodeBuilderFlags,
-        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         unimplemented!()
     }
@@ -1629,7 +1629,7 @@ impl EmitResolver for NotImplementedResolver {
     fn create_literal_const_value(
         &self,
         _node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>> {
         unimplemented!()
     }
@@ -1761,7 +1761,7 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _node: Id<Node>, /*SourceFile*/
         _flags: crate::NodeBuilderFlags,
-        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _tracker: Id<Box<dyn SymbolTracker>>,
         _bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>> {
         unimplemented!()

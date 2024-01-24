@@ -62,6 +62,7 @@ impl NodeBuilder {
             self,
             symbol_table,
             bundled,
+            self,
         )
         .call()
     }
@@ -100,6 +101,7 @@ impl SymbolTableToDeclarationStatements {
         node_builder: &NodeBuilder,
         symbol_table: Gc<GcCell<SymbolTable>>,
         bundled: Option<bool>,
+        arena: &impl HasArena,
     ) -> Gc<Self> {
         let oldcontext = context.rc_wrapper();
         let mut context = context.clone();
@@ -146,8 +148,9 @@ impl SymbolTableToDeclarationStatements {
             node_builder.clone(),
             context.clone(),
             ret.clone(),
+            arena,
         ));
-        context.set_tracker(Gc::new(Box::new(
+        context.set_tracker(arena.alloc_symbol_tracker(Box::new(
             wrap_symbol_tracker_to_report_for_context(context.clone(), context.tracker()),
         )));
         ret
@@ -927,7 +930,7 @@ impl SymbolTableToDeclarationStatements {
                             ),
                             ModifierFlags::None
                         );
-                        self.context().tracker().track_symbol(
+                        self.context().tracker_ref().track_symbol(
                             type_.ref_(self).symbol(),
                             self.context().maybe_enclosing_declaration(),
                             SymbolFlags::Value,
@@ -1117,28 +1120,23 @@ impl SymbolTableToDeclarationStatements {
 struct SymbolTableToDeclarationStatementsSymbolTracker {
     #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
-    oldcontext_tracker: Gc<Box<dyn SymbolTracker>>,
+    oldcontext_tracker: Id<Box<dyn SymbolTracker>>,
     type_checker: Gc<TypeChecker>,
     node_builder: NodeBuilder,
     context: Gc<NodeBuilderContext>,
     symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
 }
 
-impl HasArena for SymbolTableToDeclarationStatementsSymbolTracker {
-    fn arena(&self) -> &AllArenas {
-        self.type_checker.arena()
-    }
-}
-
 impl SymbolTableToDeclarationStatementsSymbolTracker {
     fn new(
-        oldcontext_tracker: Gc<Box<dyn SymbolTracker>>,
+        oldcontext_tracker: Id<Box<dyn SymbolTracker>>,
         type_checker: Gc<TypeChecker>,
         node_builder: NodeBuilder,
         context: Gc<NodeBuilderContext>,
         symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
-    ) -> Gc<Box<dyn SymbolTracker>> {
-        Gc::new(Box::new(Self {
+        arena: &impl HasArena,
+    ) -> Id<Box<dyn SymbolTracker>> {
+        arena.alloc_symbol_tracker(Box::new(Self {
             is_track_symbol_disabled: Default::default(),
             oldcontext_tracker,
             type_checker,
@@ -1186,8 +1184,8 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
             }
         } else if
         /*oldcontext.tracker && */
-        self.oldcontext_tracker.is_track_symbol_supported() {
-            return self.oldcontext_tracker.track_symbol(sym, decl, meaning);
+        self.oldcontext_tracker.ref_(self).is_track_symbol_supported() {
+            return self.oldcontext_tracker.ref_(self).track_symbol(sym, decl, meaning);
         }
         Some(Ok(false))
     }
@@ -1202,79 +1200,79 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
 
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         self.oldcontext_tracker
-            .is_report_inaccessible_this_error_supported()
+            .ref_(self).is_report_inaccessible_this_error_supported()
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self.oldcontext_tracker
-            .is_report_private_in_base_of_class_expression_supported()
+            .ref_(self).is_report_private_in_base_of_class_expression_supported()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self.oldcontext_tracker
-            .is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
         self.oldcontext_tracker
-            .is_report_cyclic_structure_error_supported()
+            .ref_(self).is_report_cyclic_structure_error_supported()
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self.oldcontext_tracker
-            .is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
-        self.oldcontext_tracker.is_module_resolver_host_supported()
+        self.oldcontext_tracker.ref_(self).is_module_resolver_host_supported()
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         self.oldcontext_tracker
-            .is_track_referenced_ambient_module_supported()
+            .ref_(self).is_track_referenced_ambient_module_supported()
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
         self.oldcontext_tracker
-            .is_report_nonlocal_augmentation_supported()
+            .ref_(self).is_report_nonlocal_augmentation_supported()
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         self.oldcontext_tracker
-            .is_report_non_serializable_property_supported()
+            .ref_(self).is_report_non_serializable_property_supported()
     }
 
     fn report_inaccessible_this_error(&self) {
-        self.oldcontext_tracker.report_inaccessible_this_error()
+        self.oldcontext_tracker.ref_(self).report_inaccessible_this_error()
     }
 
     fn report_private_in_base_of_class_expression(&self, property_name: &str) {
         self.oldcontext_tracker
-            .report_private_in_base_of_class_expression(property_name)
+            .ref_(self).report_private_in_base_of_class_expression(property_name)
     }
 
     fn report_inaccessible_unique_symbol_error(&self) {
         self.oldcontext_tracker
-            .report_inaccessible_unique_symbol_error()
+            .ref_(self).report_inaccessible_unique_symbol_error()
     }
 
     fn report_cyclic_structure_error(&self) {
-        self.oldcontext_tracker.report_cyclic_structure_error()
+        self.oldcontext_tracker.ref_(self).report_cyclic_structure_error()
     }
 
     fn report_likely_unsafe_import_required_error(&self, specifier: &str) {
         self.oldcontext_tracker
-            .report_likely_unsafe_import_required_error(specifier)
+            .ref_(self).report_likely_unsafe_import_required_error(specifier)
     }
 
     fn report_truncation_error(&self) {
-        self.oldcontext_tracker.report_truncation_error()
+        self.oldcontext_tracker.ref_(self).report_truncation_error()
     }
 
     fn module_resolver_host(
         &self,
     ) -> Option<&dyn crate::ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
-        self.oldcontext_tracker.module_resolver_host()
+        self.oldcontext_tracker.ref_(self).module_resolver_host()
     }
 
     fn track_referenced_ambient_module(
@@ -1283,12 +1281,12 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
         self.oldcontext_tracker
-            .track_referenced_ambient_module(decl, symbol)
+            .ref_(self).track_referenced_ambient_module(decl, symbol)
     }
 
     fn track_external_module_symbol_of_import_type_node(&self, symbol: Id<Symbol>) {
         self.oldcontext_tracker
-            .track_external_module_symbol_of_import_type_node(symbol)
+            .ref_(self).track_external_module_symbol_of_import_type_node(symbol)
     }
 
     fn report_nonlocal_augmentation(
@@ -1297,7 +1295,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         parent_symbol: Id<Symbol>,
         augmenting_symbol: Id<Symbol>,
     ) {
-        self.oldcontext_tracker.report_nonlocal_augmentation(
+        self.oldcontext_tracker.ref_(self).report_nonlocal_augmentation(
             containing_file,
             parent_symbol,
             augmenting_symbol,
@@ -1306,7 +1304,13 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
 
     fn report_non_serializable_property(&self, property_name: &str) {
         self.oldcontext_tracker
-            .report_non_serializable_property(property_name)
+            .ref_(self).report_non_serializable_property(property_name)
+    }
+}
+
+impl HasArena for SymbolTableToDeclarationStatementsSymbolTracker {
+    fn arena(&self) -> &AllArenas {
+        self.type_checker.arena()
     }
 }
 

@@ -628,7 +628,7 @@ impl NodeBuilder {
             }
         }
         let initial_tracker = wrap_symbol_tracker_to_report_for_context(context, initial.tracker());
-        initial.set_tracker(Gc::new(Box::new(initial_tracker)));
+        initial.set_tracker(self.alloc_symbol_tracker(Box::new(initial_tracker)));
         initial
     }
 
@@ -851,7 +851,7 @@ impl NodeBuilder {
             {
                 introduces_error = true;
             } else {
-                context.tracker().track_symbol(
+                context.tracker_ref().track_symbol(
                     sym,
                     context.maybe_enclosing_declaration(),
                     SymbolFlags::All,

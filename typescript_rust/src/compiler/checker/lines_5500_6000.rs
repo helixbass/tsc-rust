@@ -720,7 +720,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         node: Id<Node>,
     ) -> io::Result<Id<Node>> {
-        if context.tracker().is_track_symbol_supported()
+        if context.tracker_ref().is_track_symbol_supported()
             && is_computed_property_name(&node.ref_(self))
             && self.type_checker.is_late_bindable_name(node)?
         {
@@ -768,7 +768,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<Id<Node>>,
         context: &NodeBuilderContext,
     ) -> io::Result<()> {
-        if !context.tracker().is_track_symbol_supported() {
+        if !context.tracker_ref().is_track_symbol_supported() {
             return Ok(());
         }
         let first_identifier = get_first_identifier(access_expression, self);
@@ -782,7 +782,7 @@ impl NodeBuilder {
             None,
         )?;
         if let Some(name) = name {
-            context.tracker().track_symbol(
+            context.tracker_ref().track_symbol(
                 name,
                 enclosing_declaration,
                 SymbolFlags::Value,
@@ -799,7 +799,7 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
     ) -> io::Result<Vec<Id<Symbol>>> {
-        context.tracker().track_symbol(
+        context.tracker_ref().track_symbol(
             symbol,
             context.maybe_enclosing_declaration(),
             // TODO: it looks like this is a place where the Typescript version "lied", I don't
@@ -1156,7 +1156,7 @@ impl NodeBuilder {
         }
         if file.is_none() {
             if context
-                .tracker()
+                .tracker_ref()
                 .is_track_referenced_ambient_module_supported()
             {
                 let ambient_decls = maybe_filter(
@@ -1166,7 +1166,7 @@ impl NodeBuilder {
                 if length(ambient_decls.as_deref()) > 0 {
                     for &decl in ambient_decls.as_ref().unwrap() {
                         context
-                            .tracker()
+                            .tracker_ref()
                             .track_referenced_ambient_module(decl, symbol)?;
                     }
                 }
@@ -1178,7 +1178,7 @@ impl NodeBuilder {
             }
         }
         if context.maybe_enclosing_declaration().is_none()
-            || !context.tracker().is_module_resolver_host_supported()
+            || !context.tracker_ref().is_module_resolver_host_supported()
         {
             if ambient_module_symbol_regex.is_match(symbol.ref_(self).escaped_name()) {
                 return Ok(symbol.ref_(self).escaped_name()
@@ -1211,7 +1211,7 @@ impl NodeBuilder {
                 out_file(&self.type_checker.compiler_options),
                 Some(out_file) if !out_file.is_empty()
             );
-            let context_tracker = context.tracker();
+            let context_tracker = context.tracker_ref();
             let module_resolver_host = context_tracker.module_resolver_host().unwrap();
             let specifier_compiler_options = if is_bundle {
                 Gc::new(CompilerOptions {
@@ -1319,14 +1319,14 @@ impl NodeBuilder {
             {
                 context.set_encountered_error(true);
                 context
-                    .tracker()
+                    .tracker_ref()
                     .report_likely_unsafe_import_required_error(&specifier);
             }
             let lit: Id<Node> = get_factory().create_literal_type_node(
                 get_factory().create_string_literal(specifier.clone(), None, None),
             );
             context
-                .tracker()
+                .tracker_ref()
                 .track_external_module_symbol_of_import_type_node(chain[0]);
             context.increment_approximate_length_by(specifier.len() + 10);
             if match non_root_parts {

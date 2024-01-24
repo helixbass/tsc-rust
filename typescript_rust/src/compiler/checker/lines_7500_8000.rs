@@ -106,7 +106,7 @@ impl SymbolTableToDeclarationStatements {
                 // if (referenced || target) {
                 self.include_private_symbol(referenced.unwrap_or(target));
                 // }
-                self.context().tracker().disable_track_symbol();
+                self.context().tracker_ref().disable_track_symbol();
                 if is_export_assignment_compatible_symbol_name {
                     self.results_mut()
                         .push(get_factory().create_export_assignment(
@@ -155,7 +155,7 @@ impl SymbolTableToDeclarationStatements {
                         self.serialize_export_specifier(name, &var_name, Option::<Id<Node>>::None);
                     }
                 }
-                self.context().tracker().reenable_track_symbol();
+                self.context().tracker_ref().reenable_track_symbol();
                 true
             } else {
                 let var_name = self.get_unused_name(name, Some(symbol));

@@ -598,7 +598,7 @@ pub trait SymbolWriter: SymbolTracker {
     fn decrease_indent(&self);
     fn clear(&self);
     // fn as_symbol_tracker(self: Gc<Box<Self>>) -> Gc<Box<dyn SymbolTracker>>;
-    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>>;
+    fn as_symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>>;
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -753,7 +753,7 @@ pub trait EmitResolver: Trace + Finalize {
         declaration: Id<Node>, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
         enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_return_type_of_signature_declaration(
@@ -761,19 +761,19 @@ pub trait EmitResolver: Trace + Finalize {
         signature_declaration: Id<Node>, /*SignatureDeclaration*/
         enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_type_of_expression(
         &self,
         expr: Id<Node>, /*Expression*/
         enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_literal_const_value(
         &self,
         node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>>;
     fn is_symbol_accessible(
         &self,
@@ -849,7 +849,7 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: Id<Node>, /*SourceFile*/
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>>;
     fn is_import_required_by_augmentation(

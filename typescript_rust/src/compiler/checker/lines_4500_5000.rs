@@ -578,7 +578,7 @@ impl NodeBuilder {
         type_: Id<Type>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             self.type_to_type_node_helper(Some(type_), context)
@@ -590,7 +590,7 @@ impl NodeBuilder {
         index_info: &IndexInfo,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(
@@ -609,7 +609,7 @@ impl NodeBuilder {
         kind: SyntaxKind,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
     {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
@@ -628,7 +628,7 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*EntityName*/>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.symbol_to_name(symbol, context, meaning, false)?))
@@ -641,7 +641,7 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.symbol_to_expression_(symbol, context, meaning)?))
@@ -653,7 +653,7 @@ impl NodeBuilder {
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             self.type_parameters_to_type_parameter_declarations(symbol, context)
@@ -665,7 +665,7 @@ impl NodeBuilder {
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*ParameterDeclaration*/>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.symbol_to_parameter_declaration_(
@@ -683,7 +683,7 @@ impl NodeBuilder {
         parameter: Id<Type>, /*TypeParameter*/
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*TypeParameterDeclaration*/>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.type_parameter_to_declaration_(
@@ -697,7 +697,7 @@ impl NodeBuilder {
         symbol_table: Gc<GcCell<SymbolTable>>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
         bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
@@ -714,7 +714,7 @@ impl NodeBuilder {
         &self,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
         cb: impl FnOnce(&NodeBuilderContext) -> Option<TReturn>,
     ) -> Option<TReturn> {
         Debug_.assert(
@@ -727,10 +727,9 @@ impl NodeBuilder {
             None,
         );
         let tracker = tracker
-            .filter(|tracker| tracker.is_track_symbol_supported())
+            .filter(|tracker| tracker.ref_(self).is_track_symbol_supported())
             .unwrap_or_else(|| {
-                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.host.clone(), flags)
-                    .as_dyn_symbol_tracker()
+                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.host.clone(), flags, self)
             });
         let context = NodeBuilderContext::new(
             enclosing_declaration,
@@ -738,7 +737,7 @@ impl NodeBuilder {
             tracker.clone(),
         );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
-        context.set_tracker(Gc::new(Box::new(context_tracker)));
+        context.set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
         let context = (*context).borrow();
         let resulting_node = cb(&context);
         if context.truncating.get() == Some(true)
@@ -747,7 +746,7 @@ impl NodeBuilder {
                 .get()
                 .intersects(NodeBuilderFlags::NoTruncation)
         {
-            context.tracker().report_truncation_error();
+            context.tracker_ref().report_truncation_error();
         }
         if context.encountered_error() {
             None
@@ -760,7 +759,7 @@ impl NodeBuilder {
         &self,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
         cb: impl FnOnce(&NodeBuilderContext) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         Debug_.assert(
@@ -773,10 +772,9 @@ impl NodeBuilder {
             None,
         );
         let tracker = tracker
-            .filter(|tracker| tracker.is_track_symbol_supported())
+            .filter(|tracker| tracker.ref_(self).is_track_symbol_supported())
             .unwrap_or_else(|| {
-                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.host.clone(), flags)
-                    .as_dyn_symbol_tracker()
+                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.host.clone(), flags, self)
             });
         let context = NodeBuilderContext::new(
             enclosing_declaration,
@@ -784,7 +782,7 @@ impl NodeBuilder {
             tracker.clone(),
         );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
-        context.set_tracker(Gc::new(Box::new(context_tracker)));
+        context.set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
         let context = (*context).borrow();
         let resulting_node = cb(&context)?;
         if context.truncating.get() == Some(true)
@@ -793,7 +791,7 @@ impl NodeBuilder {
                 .get()
                 .intersects(NodeBuilderFlags::NoTruncation)
         {
-            context.tracker().report_truncation_error();
+            context.tracker_ref().report_truncation_error();
         }
         Ok(if context.encountered_error() {
             None
@@ -1091,7 +1089,7 @@ impl NodeBuilder {
                     )?));
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
-                context.tracker().report_inaccessible_unique_symbol_error();
+                context.tracker_ref().report_inaccessible_unique_symbol_error();
                 // }
             }
             context.increment_approximate_length_by(13);
@@ -1163,7 +1161,7 @@ impl NodeBuilder {
                     context.set_encountered_error(true);
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
-                context.tracker().report_inaccessible_unique_symbol_error();
+                context.tracker_ref().report_inaccessible_unique_symbol_error();
                 // }
             }
             context.increment_approximate_length_by(4);
@@ -1434,7 +1432,6 @@ impl NodeBuilder {
 
 #[derive(Trace, Finalize)]
 struct DefaultNodeBuilderContextSymbolTracker {
-    _dyn_rc_wrapper: GcCell<Option<Gc<Box<dyn SymbolTracker>>>>,
     pub module_resolver_host:
         Option<Gc<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
 }
@@ -1443,9 +1440,9 @@ impl DefaultNodeBuilderContextSymbolTracker {
     pub fn new(
         host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Gc<Box<Self>> {
-        let dyn_rc_wrapper: Gc<Box<dyn SymbolTracker>> = Gc::new(Box::new(Self {
-            _dyn_rc_wrapper: Default::default(),
+        arena: &impl HasArena,
+    ) -> Id<Box<dyn SymbolTracker>> {
+        arena.alloc_symbol_tracker(Box::new(Self {
             module_resolver_host: if matches!(
                 flags,
                 Some(flags) if flags.intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
@@ -1456,14 +1453,7 @@ impl DefaultNodeBuilderContextSymbolTracker {
             } else {
                 None
             },
-        }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_rc_wrapper.clone()) };
-        *downcasted._dyn_rc_wrapper.borrow_mut() = Some(dyn_rc_wrapper);
-        downcasted
-    }
-
-    pub fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
-        self._dyn_rc_wrapper.borrow().clone().unwrap()
+        }))
     }
 }
 
@@ -1607,7 +1597,7 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
 
 pub(super) fn wrap_symbol_tracker_to_report_for_context(
     context: Gc<NodeBuilderContext>,
-    tracker: Gc<Box<dyn SymbolTracker>>,
+    tracker: Id<Box<dyn SymbolTracker>>,
 ) -> NodeBuilderContextWrappedSymbolTracker {
     NodeBuilderContextWrappedSymbolTracker::new(tracker, context)
 }
@@ -1616,13 +1606,13 @@ pub(super) fn wrap_symbol_tracker_to_report_for_context(
 pub(super) struct NodeBuilderContextWrappedSymbolTracker {
     #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
-    tracker: Gc<Box<dyn SymbolTracker>>,
+    tracker: Id<Box<dyn SymbolTracker>>,
     context: Gc<NodeBuilderContext>,
 }
 
 impl NodeBuilderContextWrappedSymbolTracker {
     pub(super) fn new(
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
         context: Gc<NodeBuilderContext>,
     ) -> Self {
         Self {
@@ -1639,56 +1629,56 @@ impl NodeBuilderContextWrappedSymbolTracker {
 
 impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     fn report_cyclic_structure_error(&self) {
-        if self.tracker.is_report_cyclic_structure_error_supported() {
+        if self.tracker.ref_(self).is_report_cyclic_structure_error_supported() {
             self.mark_context_reported_diagnostic();
         }
-        self.tracker.report_cyclic_structure_error()
+        self.tracker.ref_(self).report_cyclic_structure_error()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
-        self.tracker.is_report_cyclic_structure_error_supported()
+        self.tracker.ref_(self).is_report_cyclic_structure_error_supported()
     }
 
     fn report_inaccessible_this_error(&self) {
-        if self.tracker.is_report_inaccessible_this_error_supported() {
+        if self.tracker.ref_(self).is_report_inaccessible_this_error_supported() {
             self.mark_context_reported_diagnostic();
         }
-        self.tracker.report_inaccessible_this_error()
+        self.tracker.ref_(self).report_inaccessible_this_error()
     }
 
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
-        self.tracker.is_report_inaccessible_this_error_supported()
+        self.tracker.ref_(self).is_report_inaccessible_this_error_supported()
     }
 
     fn report_inaccessible_unique_symbol_error(&self) {
         if self
             .tracker
-            .is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
         {
             self.mark_context_reported_diagnostic();
         }
-        self.tracker.report_inaccessible_unique_symbol_error()
+        self.tracker.ref_(self).report_inaccessible_unique_symbol_error()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self.tracker
-            .is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn report_likely_unsafe_import_required_error(&self, specifier: &str) {
         if self
             .tracker
-            .is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
         {
             self.mark_context_reported_diagnostic();
         }
         self.tracker
-            .report_likely_unsafe_import_required_error(specifier)
+            .ref_(self).report_likely_unsafe_import_required_error(specifier)
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self.tracker
-            .is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn report_nonlocal_augmentation(
@@ -1697,42 +1687,42 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         parent_symbol: Id<Symbol>,
         augmenting_symbol: Id<Symbol>,
     ) {
-        if self.tracker.is_report_nonlocal_augmentation_supported() {
+        if self.tracker.ref_(self).is_report_nonlocal_augmentation_supported() {
             self.mark_context_reported_diagnostic();
         }
         self.tracker
-            .report_nonlocal_augmentation(containing_file, parent_symbol, augmenting_symbol)
+            .ref_(self).report_nonlocal_augmentation(containing_file, parent_symbol, augmenting_symbol)
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
-        self.tracker.is_report_nonlocal_augmentation_supported()
+        self.tracker.ref_(self).is_report_nonlocal_augmentation_supported()
     }
 
     fn report_private_in_base_of_class_expression(&self, property_name: &str) {
         if self
             .tracker
-            .is_report_private_in_base_of_class_expression_supported()
+            .ref_(self).is_report_private_in_base_of_class_expression_supported()
         {
             self.mark_context_reported_diagnostic();
         }
         self.tracker
-            .report_private_in_base_of_class_expression(property_name)
+            .ref_(self).report_private_in_base_of_class_expression(property_name)
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self.tracker
-            .is_report_private_in_base_of_class_expression_supported()
+            .ref_(self).is_report_private_in_base_of_class_expression_supported()
     }
 
     fn report_non_serializable_property(&self, property_name: &str) {
-        if self.tracker.is_report_non_serializable_property_supported() {
+        if self.tracker.ref_(self).is_report_non_serializable_property_supported() {
             self.mark_context_reported_diagnostic();
         }
-        self.tracker.report_non_serializable_property(property_name)
+        self.tracker.ref_(self).report_non_serializable_property(property_name)
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
-        self.tracker.is_report_non_serializable_property_supported()
+        self.tracker.ref_(self).is_report_non_serializable_property_supported()
     }
 
     fn track_symbol(
@@ -1746,7 +1736,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         }
         let result = self
             .tracker
-            .track_symbol(symbol, enclosing_declaration, meaning);
+            .ref_(self).track_symbol(symbol, enclosing_declaration, meaning);
         if matches!(
             result.as_ref(),
             Some(result) if matches!(
@@ -1760,7 +1750,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     }
 
     fn is_track_symbol_supported(&self) -> bool {
-        self.tracker.is_track_symbol_supported()
+        self.tracker.ref_(self).is_track_symbol_supported()
     }
 
     fn disable_track_symbol(&self) {
@@ -1772,17 +1762,17 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     }
 
     fn report_truncation_error(&self) {
-        self.tracker.report_truncation_error()
+        self.tracker.ref_(self).report_truncation_error()
     }
 
     fn module_resolver_host(
         &self,
     ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
-        self.tracker.module_resolver_host()
+        self.tracker.ref_(self).module_resolver_host()
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
-        self.tracker.is_module_resolver_host_supported()
+        self.tracker.ref_(self).is_module_resolver_host_supported()
     }
 
     fn track_referenced_ambient_module(
@@ -1790,16 +1780,22 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         decl: Id<Node>, /*ModuleDeclaration*/
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
-        self.tracker.track_referenced_ambient_module(decl, symbol)
+        self.tracker.ref_(self).track_referenced_ambient_module(decl, symbol)
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
-        self.tracker.is_track_referenced_ambient_module_supported()
+        self.tracker.ref_(self).is_track_referenced_ambient_module_supported()
     }
 
     fn track_external_module_symbol_of_import_type_node(&self, symbol: Id<Symbol>) {
         self.tracker
-            .track_external_module_symbol_of_import_type_node(symbol)
+            .ref_(self).track_external_module_symbol_of_import_type_node(symbol)
+    }
+}
+
+impl HasArena for NodeBuilderContextWrappedSymbolTracker {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1809,7 +1805,7 @@ pub struct NodeBuilderContext {
     pub(super) enclosing_declaration: Gc<GcCell<Option<Id<Node>>>>,
     #[unsafe_ignore_trace]
     pub flags: Cell<NodeBuilderFlags>,
-    pub(super) tracker: GcCell<Gc<Box<dyn SymbolTracker>>>,
+    pub(super) tracker: GcCell<Id<Box<dyn SymbolTracker>>>,
 
     #[unsafe_ignore_trace]
     pub encountered_error: Cell<bool>,
@@ -1842,7 +1838,7 @@ impl NodeBuilderContext {
     pub fn new(
         enclosing_declaration: Option<Id<Node>>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> Gc<Self> {
         let ret = Gc::new(Self {
             _rc_wrapper: Default::default(),
@@ -1896,11 +1892,15 @@ impl NodeBuilderContext {
         self.flags.set(flags);
     }
 
-    pub fn tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+    pub fn tracker_ref(&self) -> debug_cell::Ref<'_, Box<dyn SymbolTracker>> {
+        self.tracker.borrow().clone().ref_(self)
+    }
+
+    pub fn tracker(&self) -> Id<Box<dyn SymbolTracker>> {
         self.tracker.borrow().clone()
     }
 
-    pub fn set_tracker(&self, tracker: Gc<Box<dyn SymbolTracker>>) {
+    pub fn set_tracker(&self, tracker: Id<Box<dyn SymbolTracker>>) {
         *self.tracker.borrow_mut() = tracker;
     }
 
@@ -1966,5 +1966,11 @@ impl Clone for NodeBuilderContext {
             remapped_symbol_names: self.remapped_symbol_names.clone(),
             reverse_mapped_stack: self.reverse_mapped_stack.clone(),
         }
+    }
+}
+
+impl HasArena for NodeBuilderContext {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

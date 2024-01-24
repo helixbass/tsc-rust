@@ -409,7 +409,7 @@ impl TypeChecker {
         declaration_in: Id<Node>, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
         enclosing_declaration: Id<Node>,
         mut flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let Some(declaration) = get_parse_tree_node(
@@ -454,7 +454,7 @@ impl TypeChecker {
         signature_declaration_in: Id<Node>, /*SignatureDeclaration*/
         enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let Some(signature_declaration) = get_parse_tree_node(
             Some(signature_declaration_in),
@@ -477,7 +477,7 @@ impl TypeChecker {
         expr_in: Id<Node>, /*Expression*/
         enclosing_declaration: Id<Node>,
         flags: NodeBuilderFlags,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let Some(expr) = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)), self) else {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
@@ -571,7 +571,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*FreshableType*/
         enclosing: Id<Node>,
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>> {
         let enum_result = if type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
@@ -608,7 +608,7 @@ impl TypeChecker {
     pub(super) fn create_literal_const_value(
         &self,
         node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-        tracker: Gc<Box<dyn SymbolTracker>>,
+        tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node>> {
         let type_ = self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?;
         self.literal_type_to_node(type_, node, tracker)

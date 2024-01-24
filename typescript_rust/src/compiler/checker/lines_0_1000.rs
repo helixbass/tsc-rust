@@ -1907,7 +1907,7 @@ impl TypeChecker {
         type_: Id<Type>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.node_builder()
             .type_to_type_node(type_, enclosing_declaration, flags, tracker)
@@ -1918,7 +1918,7 @@ impl TypeChecker {
         index_info: &IndexInfo,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*IndexSignatureDeclaration*/>>> {
         self.node_builder()
             .index_info_to_index_signature_declaration(
@@ -1935,7 +1935,7 @@ impl TypeChecker {
         kind: SyntaxKind,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-        tracker: Option<Gc<Box<dyn SymbolTracker>>>,
+        tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
     {
         self.node_builder().signature_to_signature_declaration(

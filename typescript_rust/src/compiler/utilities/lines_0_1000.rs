@@ -118,7 +118,7 @@ fn create_single_line_string_writer(arena: &impl HasArena) -> Id<Box<dyn EmitTex
 
 #[derive(Trace, Finalize)]
 struct SingleLineStringWriter {
-    _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
+    _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     #[unsafe_ignore_trace]
     str: RefCell<String>,
 }
@@ -126,13 +126,13 @@ struct SingleLineStringWriter {
 impl SingleLineStringWriter {
     pub fn new(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
         arena.alloc_emit_text_writer(Box::new(Self {
-            _dyn_symbol_tracker_wrapper: Gc::new(Box::new(SingleLineStringWriterSymbolTracker)),
+            _dyn_symbol_tracker_wrapper: arena.alloc_symbol_tracker(Box::new(SingleLineStringWriterSymbolTracker)),
             str: Default::default(),
         }))
     }
 
-    fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
-        self._dyn_symbol_tracker_wrapper.clone()
+    fn as_dyn_symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>> {
+        self._dyn_symbol_tracker_wrapper
     }
 
     fn str(&self) -> Ref<String> {
@@ -255,7 +255,7 @@ impl SymbolWriter for SingleLineStringWriter {
         self.set_str("".to_owned());
     }
 
-    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+    fn as_symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>> {
         self.as_dyn_symbol_tracker()
     }
 }
@@ -268,79 +268,85 @@ impl SymbolTracker for SingleLineStringWriter {
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         self._dyn_symbol_tracker_wrapper
-            .track_symbol(symbol, enclosing_declaration, meaning)
+            .ref_(self).track_symbol(symbol, enclosing_declaration, meaning)
     }
 
     fn is_track_symbol_supported(&self) -> bool {
-        self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
+        self._dyn_symbol_tracker_wrapper.ref_(self).is_track_symbol_supported()
     }
 
     fn disable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.disable_track_symbol();
+        self._dyn_symbol_tracker_wrapper.ref_(self).disable_track_symbol();
     }
 
     fn reenable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.reenable_track_symbol();
+        self._dyn_symbol_tracker_wrapper.ref_(self).reenable_track_symbol();
     }
 
     fn report_inaccessible_this_error(&self) {
         self._dyn_symbol_tracker_wrapper
-            .report_inaccessible_this_error()
+            .ref_(self).report_inaccessible_this_error()
     }
 
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_inaccessible_this_error_supported()
+            .ref_(self).is_report_inaccessible_this_error_supported()
     }
 
     fn report_inaccessible_unique_symbol_error(&self) {
         self._dyn_symbol_tracker_wrapper
-            .report_inaccessible_unique_symbol_error()
+            .ref_(self).report_inaccessible_unique_symbol_error()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn report_private_in_base_of_class_expression(&self, _property_name: &str) {
         self._dyn_symbol_tracker_wrapper
-            .report_private_in_base_of_class_expression(_property_name)
+            .ref_(self).report_private_in_base_of_class_expression(_property_name)
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_private_in_base_of_class_expression_supported()
+            .ref_(self).is_report_private_in_base_of_class_expression_supported()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_cyclic_structure_error_supported()
+            .ref_(self).is_report_cyclic_structure_error_supported()
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_nonlocal_augmentation_supported()
+            .ref_(self).is_report_nonlocal_augmentation_supported()
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_report_non_serializable_property_supported()
+            .ref_(self).is_report_non_serializable_property_supported()
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_module_resolver_host_supported()
+            .ref_(self).is_module_resolver_host_supported()
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .is_track_referenced_ambient_module_supported()
+            .ref_(self).is_track_referenced_ambient_module_supported()
+    }
+}
+
+impl HasArena for SingleLineStringWriter {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

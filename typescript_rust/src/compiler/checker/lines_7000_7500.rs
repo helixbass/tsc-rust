@@ -421,7 +421,7 @@ impl SymbolTableToDeclarationStatements {
                                         }
                                     })
                                 {
-                                    self.context().tracker().report_nonlocal_augmentation(
+                                    self.context().tracker_ref().report_nonlocal_augmentation(
                                         containing_file,
                                         symbol,
                                         s,

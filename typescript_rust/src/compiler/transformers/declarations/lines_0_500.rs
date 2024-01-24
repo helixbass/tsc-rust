@@ -193,7 +193,7 @@ pub(super) struct TransformDeclarations {
     pub(super) exported_modules_from_declaration_emit: GcCell<Option<Vec<Id<Symbol>>>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) host: Gc<Box<dyn EmitHost>>,
-    pub(super) symbol_tracker: GcCell<Option<Gc<Box<dyn SymbolTracker>>>>,
+    pub(super) symbol_tracker: GcCell<Option<Id<Box<dyn SymbolTracker>>>>,
     pub(super) error_name_node: GcCell<Option<Id<Node /*DeclarationName*/>>>,
     pub(super) error_fallback_node: GcCell<Option<Id<Node /*Declaration*/>>>,
     pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
@@ -244,7 +244,7 @@ impl TransformDeclarations {
             options,
             context,
         }));
-        *downcast_transformer_ref::<Self>(ret, arena_ref).symbol_tracker.borrow_mut() = Some(Gc::new(Box::new(
+        *downcast_transformer_ref::<Self>(ret, arena_ref).symbol_tracker.borrow_mut() = Some(arena_ref.alloc_symbol_tracker(Box::new(
             TransformDeclarationsSymbolTracker::new(ret, host),
         )));
         ret
@@ -396,7 +396,7 @@ impl TransformDeclarations {
         self.exported_modules_from_declaration_emit.borrow_mut()
     }
 
-    pub(super) fn symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+    pub(super) fn symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>> {
         self.symbol_tracker.borrow().clone().unwrap()
     }
 
