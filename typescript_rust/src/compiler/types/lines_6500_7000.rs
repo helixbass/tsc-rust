@@ -1171,5 +1171,5 @@ pub trait EmitHost:
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost;
     fn as_module_specifier_resolution_host_and_get_common_source_directory(
         &self,
-    ) -> &dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory;
+    ) -> &(dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory + 'static);
 }
