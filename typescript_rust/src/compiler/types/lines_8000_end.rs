@@ -4,6 +4,7 @@ use std::{
     io,
     iter::FromIterator,
     rc::Rc,
+    ops::Deref,
 };
 
 use bitflags::bitflags;
@@ -887,7 +888,7 @@ pub trait SymbolTracker: Trace + Finalize {
     fn report_truncation_error(&self) {}
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+    ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
         None
     }
     fn is_module_resolver_host_supported(&self) -> bool;
@@ -917,6 +918,34 @@ pub trait ModuleSpecifierResolutionHostAndGetCommonSourceDirectory:
 {
     fn get_common_source_directory(&self) -> String;
     fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost;
+}
+
+pub enum RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
+    Reference(&'a dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory),
+    Ref(debug_cell::Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>),
+}
+
+impl<'a> Deref for RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
+    type Target = dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(value) => *value,
+            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(value) => &**value,
+        }
+    }
+}
+
+impl<'a> From<&'a dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> for RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
+    fn from(value: &'a dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory) -> Self {
+        Self::Reference(value)
+    }
+}
+
+impl<'a> From<debug_cell::Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>> for RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
+    fn from(value: debug_cell::Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>) -> Self {
+        Self::Ref(value)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]

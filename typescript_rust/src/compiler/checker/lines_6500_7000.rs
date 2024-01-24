@@ -31,7 +31,8 @@ use crate::{
     NodeBuilderFlags, NodeFlags, NodeInterface, StrOrRcNode, Symbol, SymbolAccessibility,
     SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker,
     TypeInterface,
-    OptionInArena,
+    OptionInArena, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+    RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
 };
 
 impl NodeBuilder {
@@ -1271,8 +1272,11 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn crate::ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
-        self.oldcontext_tracker.ref_(self).module_resolver_host()
+    ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
+        debug_cell::Ref::filter_map(
+            self.oldcontext_tracker.ref_(self),
+            |oldcontext_tracker| oldcontext_tracker.module_resolver_host()
+        ).ok().map(Into::into)
     }
 
     fn track_referenced_ambient_module(

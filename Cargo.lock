@@ -212,7 +212,7 @@ dependencies = [
 [[package]]
 name = "debug-cell"
 version = "0.1.1"
-source = "git+https://github.com/helixbass/debug-cell?rev=d94711a#d94711aaa1df98998bb01c1dec32e86a7ae29f2a"
+source = "git+https://github.com/helixbass/debug-cell?rev=b40e3d1#b40e3d110a37158ccb842ad6e82ee5eee04845ff"
 dependencies = [
  "backtrace",
 ]

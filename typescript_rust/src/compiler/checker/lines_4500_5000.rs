@@ -32,6 +32,7 @@ use crate::{
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
     append_if_unique_eq,
     static_arena,
+    RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
 };
 
 impl TypeChecker {
@@ -1477,10 +1478,10 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+    ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
         self.module_resolver_host
             .as_ref()
-            .map(|module_resolver_host| &***module_resolver_host)
+            .map(|module_resolver_host| (&***module_resolver_host).into())
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
@@ -1767,8 +1768,11 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
-        self.tracker.ref_(self).module_resolver_host()
+    ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
+        debug_cell::Ref::filter_map(
+            self.tracker.ref_(self),
+            |tracker| tracker.module_resolver_host()
+        ).ok().map(Into::into)
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {

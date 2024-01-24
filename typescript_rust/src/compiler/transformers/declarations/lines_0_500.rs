@@ -41,6 +41,7 @@ use crate::{
     InArena, downcast_transformer_ref,
     push_if_unique_eq, contains, 
     TransformNodesTransformationResult, CoreTransformationContext,
+    RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
 };
 
 pub fn get_declaration_diagnostics(
@@ -1506,10 +1507,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+    ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
         Some(
             self.host
-                .as_module_specifier_resolution_host_and_get_common_source_directory(),
+                .as_module_specifier_resolution_host_and_get_common_source_directory()
+                .into(),
         )
     }
 

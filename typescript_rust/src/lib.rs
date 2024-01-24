@@ -500,7 +500,7 @@ pub use compiler::{
         MissingDeclaration, ModifierFlags, ModifiersArray, ModuleBlock, ModuleDeclaration,
         ModuleKind, ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
         ModuleSpecifierCache, ModuleSpecifierResolutionHost,
-        ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface,
+        ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface,
         NamedExports, NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration,
         NamespaceImport, NewExpression, NewLineKind, Node, NodeArray, NodeArrayExt, NodeArrayOrVec,
         NodeBuilderFlags, NodeCheckFlags, NodeConverters, NodeExt, NodeFactory, NodeFlags, NodeId,
