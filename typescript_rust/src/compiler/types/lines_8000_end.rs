@@ -4,7 +4,6 @@ use std::{
     io,
     iter::FromIterator,
     rc::Rc,
-    ops::Deref,
 };
 
 use bitflags::bitflags;
@@ -925,10 +924,8 @@ pub enum RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
     Ref(debug_cell::Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>),
 }
 
-impl<'a> Deref for RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
-    type Target = dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory;
-
-    fn deref(&self) -> &Self::Target {
+impl<'a> RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'a> {
+    fn deref(&self) -> &dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
         match self {
             RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(value) => *value,
             RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(value) => &**value,

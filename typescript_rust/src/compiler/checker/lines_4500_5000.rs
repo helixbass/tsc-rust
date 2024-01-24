@@ -1769,10 +1769,23 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     fn module_resolver_host(
         &self,
     ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
-        debug_cell::Ref::filter_map(
-            self.tracker.ref_(self),
-            |tracker| tracker.module_resolver_host()
-        ).ok().map(Into::into)
+        match self.tracker.ref_(self).module_resolver_host() {
+            None => None,
+            Some(RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(_)) => {
+                Some(debug_cell::Ref::map(
+                    self.tracker.ref_(self),
+                    |tracker| {
+                        match tracker.module_resolver_host().unwrap() {
+                            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(value) => value,
+                            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(_) => unreachable!(),
+                        }
+                    }
+                ).into())
+            }
+            Some(RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(ref_)) => {
+                Some(ref_.into())
+            }
+        }
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {

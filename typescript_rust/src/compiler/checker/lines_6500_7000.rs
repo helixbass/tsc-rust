@@ -1273,10 +1273,23 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
     fn module_resolver_host(
         &self,
     ) -> Option<RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory<'_>> {
-        debug_cell::Ref::filter_map(
-            self.oldcontext_tracker.ref_(self),
-            |oldcontext_tracker| oldcontext_tracker.module_resolver_host()
-        ).ok().map(Into::into)
+        match self.oldcontext_tracker.ref_(self).module_resolver_host() {
+            None => None,
+            Some(RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(_)) => {
+                Some(debug_cell::Ref::map(
+                    self.oldcontext_tracker.ref_(self),
+                    |oldcontext_tracker| {
+                        match oldcontext_tracker.module_resolver_host().unwrap() {
+                            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Reference(value) => value,
+                            RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(_) => unreachable!(),
+                        }
+                    }
+                ).into())
+            }
+            Some(RefDynModuleSpecifierResolutionHostAndGetCommonSourceDirectory::Ref(ref_)) => {
+                Some(ref_.into())
+            }
+        }
     }
 
     fn track_referenced_ambient_module(
