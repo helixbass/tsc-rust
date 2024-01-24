@@ -583,7 +583,7 @@ pub(super) fn enable_statistics_and_tracing(
     }
 }
 
-pub(super) fn report_statistics(sys: &dyn System, program: &Program, arena: &impl HasArena) {
+pub(super) fn report_statistics(sys: Id<Box<dyn System>>, program: &Program, arena: &impl HasArena) {
     let compiler_options = program.get_compiler_options();
 
     if can_trace(sys, &compiler_options, arena) {

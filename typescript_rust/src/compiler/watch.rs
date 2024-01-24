@@ -77,7 +77,7 @@ pub fn create_diagnostic_reporter(
     arena: &impl HasArena,
 ) -> Gc<Box<dyn DiagnosticReporter>> {
     let host: Gc<SysFormatDiagnosticsHost> =
-        if Gc::ptr_eq(&system, &get_sys(arena))
+        if system == get_sys(arena)
         /*&& sysFormatDiagnosticsHost*/
         {
             get_sys_format_diagnostics_host(arena)

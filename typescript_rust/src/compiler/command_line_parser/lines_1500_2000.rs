@@ -44,7 +44,7 @@ pub(super) fn parse_response_file(
     let sys = get_sys(arena);
     let text: StringOrRcDiagnostic = try_read_file(file_name, |file_name| match read_file {
         Some(read_file) => read_file(file_name),
-        None => sys.read_file(file_name),
+        None => sys.ref_(arena).read_file(file_name),
     });
     match text {
         StringOrRcDiagnostic::RcDiagnostic(text) => {

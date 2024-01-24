@@ -512,14 +512,14 @@ pub fn get_sys(arena: &impl HasArena) -> Id<Box<dyn System>> {
     }
 
     SYS_PER_ARENA.with(|sys_per_arena| {
-        let sys_per_arena = sys_per_arena.borrow_mut();
+        let mut sys_per_arena = sys_per_arena.borrow_mut();
         let arena_ptr: *const AllArenas = arena.arena();
-        *sys_per_arena.entry(&arena_ptr).or_insert_with(|| {
-            arena.alloc_system(SystemConcrete::new(
+        *sys_per_arena.entry(arena_ptr).or_insert_with(|| {
+            SystemConcrete::new(
                 env::args().skip(1).collect(),
                 is_file_system_case_sensitive(),
                 arena,
-            ))
+            )
         })
     })
 }

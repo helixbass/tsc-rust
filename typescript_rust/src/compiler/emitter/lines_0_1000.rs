@@ -1436,7 +1436,7 @@ fn get_source_mapping_url(
     if map_options.inline_source_map == Some(true) {
         let source_map_text = source_map_generator.to_string();
         let base_64_source_map_text = base64_encode(
-            Some(|str_: &str| get_sys(arena).base64_encode(str_)),
+            Some(|str_: &str| get_sys(arena).ref_(arena).base64_encode(str_)),
             &source_map_text,
         );
         return format!("data:application/json;base64,{base_64_source_map_text}");

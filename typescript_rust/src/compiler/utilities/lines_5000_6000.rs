@@ -265,7 +265,7 @@ pub fn get_new_line_character(
     if let Some(get_new_line) = get_new_line {
         get_new_line()
     } else {
-        get_sys(arena).new_line().to_owned()
+        get_sys(arena).ref_(arena).new_line().to_owned()
     }
 }
 
