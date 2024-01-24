@@ -30,12 +30,12 @@ impl TransformNodeModule {
     fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
-        let esm_transform = transform_ecmascript_module(arena_ref).call(context.clone());
+        let esm_transform = transform_ecmascript_module(arena_ref).ref_(arena_ref).call(context.clone());
 
         let esm_on_substitute_node = context_ref.pop_overridden_on_substitute_node();
         let esm_on_emit_node = context_ref.pop_overridden_on_emit_node();
 
-        let cjs_transform = transform_module(arena_ref).call(context.clone());
+        let cjs_transform = transform_module(arena_ref).ref_(arena_ref).call(context.clone());
 
         let cjs_on_substitute_node = context_ref.pop_overridden_on_substitute_node();
         let cjs_on_emit_node = context_ref.pop_overridden_on_emit_node();
