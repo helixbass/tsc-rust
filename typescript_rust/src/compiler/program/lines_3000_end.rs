@@ -1074,7 +1074,7 @@ impl Program {
             let emit_host = self.get_emit_host(None);
             let mut emit_files_seen: HashSet<String> = Default::default();
             for_each_emitted_file(
-                &**emit_host,
+                &**emit_host.ref_(self),
                 |emit_file_names, _| {
                     if self.options.emit_declaration_only != Some(true) {
                         self.verify_emit_file_path(

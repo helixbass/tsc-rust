@@ -357,7 +357,7 @@ impl From<Id<Box<dyn EmitHost>>> for IdForModuleSpecifierResolutionHostAndGetCom
 impl InArena for IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
     type Item = dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory;
 
-    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory + 'static> {
         match self {
             IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory::EmitHost(value) => Ref::map(
                 value.ref_(has_arena),
