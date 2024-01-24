@@ -123,6 +123,6 @@ impl TransformerFactoryInterface for TransformES2019Factory {
     }
 }
 
-pub fn transform_es2019() -> TransformerFactory {
-    Gc::new(Box::new(TransformES2019Factory::new()))
+pub fn transform_es2019(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformES2019Factory::new()))
 }

@@ -274,6 +274,6 @@ impl TransformerFactoryInterface for TransformES5Factory {
     }
 }
 
-pub fn transform_es5() -> TransformerFactory {
-    Gc::new(Box::new(TransformES5Factory::new()))
+pub fn transform_es5(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformES5Factory::new()))
 }

@@ -230,6 +230,6 @@ impl HasArena for TransformES2021Factory {
     }
 }
 
-pub fn transform_es2021() -> TransformerFactory {
-    Gc::new(Box::new(TransformES2021Factory::new()))
+pub fn transform_es2021(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformES2021Factory::new()))
 }

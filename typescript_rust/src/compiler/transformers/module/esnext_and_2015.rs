@@ -692,6 +692,6 @@ impl TransformerFactoryInterface for TransformEcmascriptModuleFactory {
     }
 }
 
-pub fn transform_ecmascript_module() -> TransformerFactory {
-    Gc::new(Box::new(TransformEcmascriptModuleFactory::new()))
+pub fn transform_ecmascript_module(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformEcmascriptModuleFactory::new()))
 }

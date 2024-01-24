@@ -1517,6 +1517,6 @@ impl TransformerFactoryInterface for TransformClassFieldsFactory {
     }
 }
 
-pub fn transform_class_fields() -> TransformerFactory {
-    Gc::new(Box::new(TransformClassFieldsFactory::new()))
+pub fn transform_class_fields(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformClassFieldsFactory::new()))
 }

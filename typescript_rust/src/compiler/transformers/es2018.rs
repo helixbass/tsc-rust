@@ -2447,6 +2447,6 @@ impl TransformerFactoryInterface for TransformES2018Factory {
     }
 }
 
-pub fn transform_es2018() -> TransformerFactory {
-    Gc::new(Box::new(TransformES2018Factory::new()))
+pub fn transform_es2018(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformES2018Factory::new()))
 }

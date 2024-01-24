@@ -1027,6 +1027,6 @@ impl TransformerFactoryInterface for TransformTypeScriptFactory {
     }
 }
 
-pub fn transform_type_script() -> TransformerFactory {
-    Gc::new(Box::new(TransformTypeScriptFactory::new()))
+pub fn transform_type_script(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformTypeScriptFactory::new()))
 }

@@ -1256,6 +1256,6 @@ impl TransformerFactoryInterface for TransformSystemModuleFactory {
     }
 }
 
-pub fn transform_system_module() -> TransformerFactory {
-    Gc::new(Box::new(TransformSystemModuleFactory::new()))
+pub fn transform_system_module(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformSystemModuleFactory::new()))
 }

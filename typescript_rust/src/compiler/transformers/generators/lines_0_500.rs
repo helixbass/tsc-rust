@@ -1207,6 +1207,6 @@ impl TransformerFactoryInterface for TransformGeneratorsFactory {
     }
 }
 
-pub fn transform_generators() -> TransformerFactory {
-    Gc::new(Box::new(TransformGeneratorsFactory::new()))
+pub fn transform_generators(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformGeneratorsFactory::new()))
 }

@@ -312,7 +312,7 @@ pub trait TransformationResult {
     fn dispose(&self);
 }
 
-pub type TransformerFactory = Gc<Box<dyn TransformerFactoryInterface>>;
+pub type TransformerFactory = Id<Box<dyn TransformerFactoryInterface>>;
 
 pub trait TransformerFactoryInterface: Trace + Finalize {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer;

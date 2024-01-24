@@ -87,6 +87,6 @@ impl HasArena for TransformESNextFactory {
     }
 }
 
-pub fn transform_esnext() -> TransformerFactory {
-    Gc::new(Box::new(TransformESNextFactory::new()))
+pub fn transform_esnext(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformESNextFactory::new()))
 }

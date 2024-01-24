@@ -4,7 +4,7 @@ use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer};
+use crate::{Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer, TransformerFactoryInterface};
 
 #[derive(Default)]
 pub struct AllArenas {
@@ -17,6 +17,7 @@ pub struct AllArenas {
     pub type_mappers: RefCell<Arena<TypeMapper>>,
     pub transform_nodes_transformation_results: RefCell<Arena<TransformNodesTransformationResult>>,
     pub transformers: RefCell<Arena<Box<dyn TransformerInterface>>>,
+    pub transformer_factories: RefCell<Arena<Box<dyn TransformerFactoryInterface>>>,
 }
 
 pub trait HasArena {
@@ -68,6 +69,14 @@ pub trait HasArena {
 
     fn alloc_transformer(&self, transformer: Box<dyn TransformerInterface>) -> Id<Box<dyn TransformerInterface>> {
         self.arena().alloc_transformer(transformer)
+    }
+
+    fn transformer_factory(&self, transformer_factory: Id<Box<dyn TransformerFactoryInterface>>) -> Ref<Box<dyn TransformerFactoryInterface>> {
+        self.arena().transformer_factory(transformer_factory)
+    }
+
+    fn alloc_transformer_factory(&self, transformer_factory: Box<dyn TransformerFactoryInterface>) -> Id<Box<dyn TransformerFactoryInterface>> {
+        self.arena().alloc_transformer_factory(transformer_factory)
     }
 }
 
@@ -144,6 +153,16 @@ impl HasArena for AllArenas {
         let id = self.transformers.borrow_mut().alloc(transformer);
         id
     }
+
+    #[track_caller]
+    fn transformer_factory(&self, transformer_factory: Id<Box<dyn TransformerFactoryInterface>>) -> Ref<Box<dyn TransformerFactoryInterface>> {
+        Ref::map(self.transformer_factories.borrow(), |transformer_factories| &transformer_factories[transformer_factory])
+    }
+
+    fn alloc_transformer_factory(&self, transformer_factory: Box<dyn TransformerFactoryInterface>) -> Id<Box<dyn TransformerFactoryInterface>> {
+        let id = self.transformer_factories.borrow_mut().alloc(transformer_factory);
+        id
+    }
 }
 
 pub trait InArena {
@@ -198,6 +217,14 @@ impl InArena for Id<Box<dyn TransformerInterface>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformerInterface>> {
         has_arena.transformer(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn TransformerFactoryInterface>> {
+    type Item = Box<dyn TransformerFactoryInterface>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformerFactoryInterface>> {
+        has_arena.transformer_factory(*self)
     }
 }
 

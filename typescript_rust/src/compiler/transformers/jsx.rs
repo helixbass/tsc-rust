@@ -1112,8 +1112,8 @@ impl HasArena for TransformJsxFactory {
     }
 }
 
-pub fn transform_jsx() -> TransformerFactory {
-    Gc::new(Box::new(TransformJsxFactory::new()))
+pub fn transform_jsx(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformJsxFactory::new()))
 }
 
 static entities: Lazy<HashMap<&'static str, u32>> = Lazy::new(|| {

@@ -63,7 +63,7 @@ pub fn get_declaration_diagnostics(
                 is_source_file_not_json(&source_file.ref_(arena))
             })
         },
-        &[transform_declarations()],
+        &[transform_declarations(arena)],
         false,
         arena,
     )?;
@@ -1688,6 +1688,6 @@ impl TransformerFactoryInterface for TransformDeclarationsFactory {
     }
 }
 
-pub fn transform_declarations() -> TransformerFactory {
-    Gc::new(Box::new(TransformDeclarationsFactory::new()))
+pub fn transform_declarations(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformDeclarationsFactory::new()))
 }

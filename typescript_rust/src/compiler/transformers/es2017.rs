@@ -1490,8 +1490,8 @@ impl TransformerFactoryInterface for TransformES2017Factory {
     }
 }
 
-pub fn transform_es2017() -> TransformerFactory {
-    Gc::new(Box::new(TransformES2017Factory::new()))
+pub fn transform_es2017(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformES2017Factory::new()))
 }
 
 pub fn create_super_access_variable_statement(

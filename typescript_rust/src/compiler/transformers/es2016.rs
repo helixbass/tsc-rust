@@ -254,6 +254,6 @@ impl HasArena for TransformES2016Factory {
     }
 }
 
-pub fn transform_es2016() -> TransformerFactory {
-    Gc::new(Box::new(TransformES2016Factory::new()))
+pub fn transform_es2016(arena: &impl HasArena) -> TransformerFactory {
+    arena.alloc_transformer_factory(Box::new(TransformES2016Factory::new()))
 }

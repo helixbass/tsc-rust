@@ -28,14 +28,14 @@ use crate::{
     HasArena, AllArenas, InArena, static_arena,
 };
 
-fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
+fn get_module_transformer(module_kind: ModuleKind, arena: &impl HasArena) -> TransformerFactory {
     match module_kind {
         ModuleKind::ESNext | ModuleKind::ES2022 | ModuleKind::ES2020 | ModuleKind::ES2015 => {
-            transform_ecmascript_module()
+            transform_ecmascript_module(arena)
         }
-        ModuleKind::System => transform_system_module(),
-        ModuleKind::Node12 | ModuleKind::NodeNext => transform_node_module(),
-        _ => transform_module(),
+        ModuleKind::System => transform_system_module(arena),
+        ModuleKind::Node12 | ModuleKind::NodeNext => transform_node_module(arena),
+        _ => transform_module(arena),
     }
 }
 
@@ -66,10 +66,11 @@ pub fn get_transformers(
     compiler_options: &CompilerOptions,
     custom_transformers: Option<&CustomTransformers>,
     emit_only_dts_files: Option<bool>,
+    arena: &impl HasArena,
 ) -> EmitTransformers {
     EmitTransformers::new(
-        get_script_transformers(compiler_options, custom_transformers, emit_only_dts_files),
-        get_declaration_transformers(custom_transformers),
+        get_script_transformers(compiler_options, custom_transformers, emit_only_dts_files, arena),
+        get_declaration_transformers(custom_transformers, arena),
     )
 }
 
@@ -77,6 +78,7 @@ fn get_script_transformers(
     compiler_options: &CompilerOptions,
     custom_transformers: Option<&CustomTransformers>,
     emit_only_dts_files: Option<bool>,
+    arena: &impl HasArena,
 ) -> Vec<TransformerFactory> {
     let emit_only_dts_files = emit_only_dts_files.unwrap_or(false);
     if emit_only_dts_files {
@@ -92,7 +94,7 @@ fn get_script_transformers(
         custom_transformers
             .and_then(|custom_transformers| {
                 maybe_map(custom_transformers.before.as_ref(), |factory, _| {
-                    wrap_script_transformer_factory(factory.clone())
+                    wrap_script_transformer_factory(factory.clone(), arena)
                 })
             })
             .as_deref(),
@@ -100,50 +102,50 @@ fn get_script_transformers(
         None,
     );
 
-    transformers.push(transform_type_script());
-    transformers.push(transform_class_fields());
+    transformers.push(transform_type_script(arena));
+    transformers.push(transform_class_fields(arena));
 
     if get_jsx_transform_enabled(compiler_options) {
-        transformers.push(transform_jsx());
+        transformers.push(transform_jsx(arena));
     }
 
     if language_version < ScriptTarget::ESNext {
-        transformers.push(transform_esnext());
+        transformers.push(transform_esnext(arena));
     }
 
     if language_version < ScriptTarget::ES2021 {
-        transformers.push(transform_es2021());
+        transformers.push(transform_es2021(arena));
     }
 
     if language_version < ScriptTarget::ES2020 {
-        transformers.push(transform_es2020());
+        transformers.push(transform_es2020(arena));
     }
 
     if language_version < ScriptTarget::ES2019 {
-        transformers.push(transform_es2019());
+        transformers.push(transform_es2019(arena));
     }
 
     if language_version < ScriptTarget::ES2018 {
-        transformers.push(transform_es2018());
+        transformers.push(transform_es2018(arena));
     }
 
     if language_version < ScriptTarget::ES2017 {
-        transformers.push(transform_es2017());
+        transformers.push(transform_es2017(arena));
     }
 
     if language_version < ScriptTarget::ES2016 {
-        transformers.push(transform_es2016());
+        transformers.push(transform_es2016(arena));
     }
 
     if language_version < ScriptTarget::ES2015 {
-        transformers.push(transform_es2015());
-        transformers.push(transform_generators());
+        transformers.push(transform_es2015(arena));
+        transformers.push(transform_generators(arena));
     }
 
-    transformers.push(get_module_transformer(module_kind));
+    transformers.push(get_module_transformer(module_kind, arena));
 
     if language_version < ScriptTarget::ES5 {
-        transformers.push(transform_es5());
+        transformers.push(transform_es5(arena));
     }
 
     add_range(
@@ -151,7 +153,7 @@ fn get_script_transformers(
         custom_transformers
             .and_then(|custom_transformers| {
                 maybe_map(custom_transformers.after.as_ref(), |factory, _| {
-                    wrap_script_transformer_factory(factory.clone())
+                    wrap_script_transformer_factory(factory.clone(), arena)
                 })
             })
             .as_deref(),
@@ -164,16 +166,17 @@ fn get_script_transformers(
 
 fn get_declaration_transformers(
     custom_transformers: Option<&CustomTransformers>,
+    arena: &impl HasArena,
 ) -> Vec<TransformerFactory> {
     let mut transformers: Vec<TransformerFactory> = vec![];
-    transformers.push(transform_declarations());
+    transformers.push(transform_declarations(arena));
     add_range(
         &mut transformers,
         custom_transformers
             .and_then(|custom_transformers| {
                 maybe_map(
                     custom_transformers.after_declarations.as_ref(),
-                    |factory, _| wrap_declaration_transformer_factory(factory.clone()),
+                    |factory, _| wrap_declaration_transformer_factory(factory.clone(), arena),
                 )
             })
             .as_deref(),
@@ -230,8 +233,9 @@ pub trait WrapCustomTransformerFactoryHandleDefault: Trace + Finalize {
 fn wrap_custom_transformer_factory(
     transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
     handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+    arena: &impl HasArena,
 ) -> TransformerFactory /*<SourceFile | Bundle>*/ {
-    Gc::new(Box::new(WrapCustomTransformerFactory::new(
+    arena.alloc_transformer_factory(Box::new(WrapCustomTransformerFactory::new(
         transformer,
         handle_default,
     )))
@@ -259,7 +263,7 @@ impl TransformerFactoryInterface for WrapCustomTransformerFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         match &*self.transformer {
             TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
-                let custom_transformer = transformer.call(context.clone());
+                let custom_transformer = transformer.ref_(self).call(context.clone());
                 self.handle_default.call(context, custom_transformer)
             }
             TransformerFactoryOrCustomTransformerFactory::CustomTransformerFactory(transformer) => {
@@ -278,14 +282,16 @@ impl HasArena for WrapCustomTransformerFactory {
 
 fn wrap_script_transformer_factory(
     transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
+    arena: &impl HasArena,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
-    wrap_custom_transformer_factory(transformer, chain_bundle())
+    wrap_custom_transformer_factory(transformer, chain_bundle(), arena)
 }
 
 fn wrap_declaration_transformer_factory(
     transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
+    arena: &impl HasArena,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
-    wrap_custom_transformer_factory(transformer, passthrough_transformer())
+    wrap_custom_transformer_factory(transformer, passthrough_transformer(), arena)
 }
 
 #[derive(Trace, Finalize)]
@@ -694,7 +700,7 @@ impl TransformNodesTransformationResult {
         self.set_transformers_with_context(
             self.transformers
                 .iter()
-                .map(|t| t.call(self.arena_id()))
+                .map(|t| t.ref_(self).call(self.arena_id()))
                 .collect(),
         );
 
