@@ -328,7 +328,7 @@ pub fn no_emit_notification(
 
 pub fn transform_nodes(
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
-    host: Option<Gc<Box<dyn EmitHost>>>,
+    host: Option<Id<Box<dyn EmitHost>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
     options: Gc<CompilerOptions>,
@@ -412,7 +412,7 @@ pub struct TransformNodesTransformationResult {
     allow_dts_files: bool,
     options: Gc<CompilerOptions>,
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
-    host: Option<Gc<Box<dyn EmitHost>>>,
+    host: Option<Id<Box<dyn EmitHost>>>,
     created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
@@ -433,7 +433,7 @@ impl TransformNodesTransformationResult {
         allow_dts_files: bool,
         options: Gc<CompilerOptions>,
         resolver: Option<Gc<Box<dyn EmitResolver>>>,
-        host: Option<Gc<Box<dyn EmitHost>>>,
+        host: Option<Id<Box<dyn EmitHost>>>,
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
         base_factory: Gc<BaseNodeFactorySynthetic>,
         arena: *const AllArenas,
@@ -1071,7 +1071,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         self.resolver.clone().unwrap()
     }
 
-    fn get_emit_host(&self) -> Gc<Box<dyn EmitHost>> {
+    fn get_emit_host(&self) -> Id<Box<dyn EmitHost>> {
         self.host.clone().unwrap()
     }
 
@@ -1416,7 +1416,7 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn get_emit_host(&self) -> Gc<Box<dyn EmitHost>> {
+    fn get_emit_host(&self) -> Id<Box<dyn EmitHost>> {
         not_implemented()
     }
 

@@ -36,7 +36,7 @@ pub(super) struct TransformSystemModule {
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
-    pub(super) host: Gc<Box<dyn EmitHost>>,
+    pub(super) host: Id<Box<dyn EmitHost>>,
     pub(super) module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,
     pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
     pub(super) export_functions_map: GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
@@ -318,7 +318,7 @@ impl TransformSystemModule {
         let module_name = try_get_module_name_from_file(
             &self.factory,
             Some(node),
-            &**self.host,
+            &**self.host.ref_(self),
             &self.compiler_options,
         );
         let dependencies = self.factory.create_array_literal_expression(
@@ -397,7 +397,7 @@ impl TransformSystemModule {
                 &self.factory,
                 external_import,
                 self.current_source_file(),
-                &**self.host,
+                &**self.host.ref_(self),
                 &**self.resolver,
                 &self.compiler_options,
             )?;

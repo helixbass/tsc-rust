@@ -39,7 +39,7 @@ pub(super) struct TransformModule {
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
-    pub(super) host: Gc<Box<dyn EmitHost>>,
+    pub(super) host: Id<Box<dyn EmitHost>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
@@ -318,7 +318,7 @@ impl TransformModule {
         let module_name = try_get_module_name_from_file(
             &self.factory,
             Some(node),
-            &**self.host,
+            &**self.host.ref_(self),
             &self.compiler_options,
         );
         let json_source_file = is_json_source_file(&node.ref_(self)).then_some(node);
@@ -449,7 +449,7 @@ impl TransformModule {
         let module_name = try_get_module_name_from_file(
             &self.factory,
             Some(node),
-            &**self.host,
+            &**self.host.ref_(self),
             &self.compiler_options,
         );
         let umd_header = self.factory.create_function_expression(
@@ -682,7 +682,7 @@ impl TransformModule {
                 &self.factory,
                 import_node,
                 self.current_source_file(),
-                &**self.host,
+                &**self.host.ref_(self),
                 &**self.resolver,
                 &self.compiler_options,
             )?;
@@ -730,7 +730,7 @@ impl TransformModule {
                 &self.factory,
                 node,
                 self.current_source_file(),
-                &**self.host,
+                &**self.host.ref_(self),
                 &**self.resolver,
                 &self.compiler_options,
             )?

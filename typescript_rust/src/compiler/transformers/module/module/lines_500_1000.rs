@@ -377,7 +377,7 @@ impl TransformModule {
             &self.factory,
             node,
             self.current_source_file(),
-            &**self.host,
+            &**self.host.ref_(self),
             &**self.resolver,
             &self.compiler_options,
         )?;
@@ -776,7 +776,7 @@ impl TransformModule {
             &self.factory,
             import_node,
             self.current_source_file(),
-            &**self.host,
+            &**self.host.ref_(self),
             &**self.resolver,
             &self.compiler_options,
         )?;

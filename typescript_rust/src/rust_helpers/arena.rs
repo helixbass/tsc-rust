@@ -6,7 +6,7 @@ use once_cell::unsync::Lazy;
 
 use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
-    TransformerFactoryInterface, EmitTextWriter, SymbolTracker,
+    TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
 };
 
 #[derive(Default)]
@@ -23,6 +23,7 @@ pub struct AllArenas {
     pub transformer_factories: RefCell<Arena<Box<dyn TransformerFactoryInterface>>>,
     pub emit_text_writers: RefCell<Arena<Box<dyn EmitTextWriter>>>,
     pub symbol_trackers: RefCell<Arena<Box<dyn SymbolTracker>>>,
+    pub emit_hosts: RefCell<Arena<Box<dyn EmitHost>>>,
 }
 
 pub trait HasArena {
@@ -98,6 +99,14 @@ pub trait HasArena {
 
     fn alloc_symbol_tracker(&self, symbol_tracker: Box<dyn SymbolTracker>) -> Id<Box<dyn SymbolTracker>> {
         self.arena().alloc_symbol_tracker(symbol_tracker)
+    }
+
+    fn emit_host(&self, emit_host: Id<Box<dyn EmitHost>>) -> Ref<Box<dyn EmitHost>> {
+        self.arena().emit_host(emit_host)
+    }
+
+    fn alloc_emit_host(&self, emit_host: Box<dyn EmitHost>) -> Id<Box<dyn EmitHost>> {
+        self.arena().alloc_emit_host(emit_host)
     }
 }
 
@@ -204,10 +213,20 @@ impl HasArena for AllArenas {
         let id = self.symbol_trackers.borrow_mut().alloc(symbol_tracker);
         id
     }
+
+    #[track_caller]
+    fn emit_host(&self, emit_host: Id<Box<dyn EmitHost>>) -> Ref<Box<dyn EmitHost>> {
+        Ref::map(self.emit_hosts.borrow(), |emit_hosts| &emit_hosts[emit_host])
+    }
+
+    fn alloc_emit_host(&self, emit_host: Box<dyn EmitHost>) -> Id<Box<dyn EmitHost>> {
+        let id = self.emit_hosts.borrow_mut().alloc(emit_host);
+        id
+    }
 }
 
 pub trait InArena {
-    type Item;
+    type Item: ?Sized;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Self::Item>;
     // fn ref_mut(&self) -> RefMut<Type>;
@@ -285,6 +304,14 @@ impl InArena for Id<Box<dyn SymbolTracker>> {
     }
 }
 
+impl InArena for Id<Box<dyn EmitHost>> {
+    type Item = Box<dyn EmitHost>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn EmitHost>> {
+        has_arena.emit_host(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -315,4 +342,27 @@ pub fn downcast_transformer_ref<TTransformer: Any>(
         transformer.ref_(arena),
         |transformer| transformer.as_dyn_any().downcast_ref::<TTransformer>().unwrap()
     )
+}
+
+pub enum IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
+    EmitHost(Id<Box<dyn EmitHost>>),
+}
+
+impl From<Id<Box<dyn EmitHost>>> for IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
+    fn from(value: Id<Box<dyn EmitHost>>) -> Self {
+        Self::EmitHost(value)
+    }
+}
+
+impl InArena for IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
+    type Item = dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+        match self {
+            IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory::EmitHost(value) => Ref::map(
+                value.ref_(has_arena),
+                |value| value.as_module_specifier_resolution_host_and_get_common_source_directory(),
+            )
+        }
+    }
 }

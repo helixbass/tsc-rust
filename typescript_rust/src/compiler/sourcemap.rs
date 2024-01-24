@@ -4,11 +4,13 @@ use std::{
 };
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use crate::{
     combine_paths, get_directory_path, get_relative_path_to_directory_or_url, CharacterCodes,
     Debug_, EmitHost, GetOrInsertDefault, LineAndCharacter, NonEmpty, RawSourceMap,
     ScriptReferenceHost, SourceMapGenerator, SourceMapOptions, SourceTextAsChars,
+    HasArena, InArena, AllArenas,
 };
 
 pub struct SourceMapGeneratorOptions {
@@ -25,7 +27,7 @@ impl From<&SourceMapOptions> for SourceMapGeneratorOptions {
 }
 
 pub fn create_source_map_generator(
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     file: String,
     source_root: String,
     sources_directory_path: String,
@@ -39,7 +41,7 @@ struct SourceMapGeneratorConcrete {
     sources_directory_path: String,
     file: String,
     source_root: String,
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     #[unsafe_ignore_trace]
     raw_sources: RefCell<Vec<String>>,
     #[unsafe_ignore_trace]
@@ -95,7 +97,7 @@ impl SourceMapGeneratorConcrete {
         sources_directory_path: String,
         file: String,
         source_root: String,
-        host: Gc<Box<dyn EmitHost>>,
+        host: Id<Box<dyn EmitHost>>,
     ) -> Gc<Box<dyn SourceMapGenerator>> {
         // const { enter, exit } = generatorOptions.extendedDiagnostics
         //     ? performance.createTimer("Source Map", "beforeSourcemap", "afterSourcemap")
@@ -537,8 +539,8 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
         let source = get_relative_path_to_directory_or_url(
             &self.sources_directory_path,
             file_name,
-            &ScriptReferenceHost::get_current_directory(&**self.host),
-            |file_name: &str| self.host.get_canonical_file_name(file_name),
+            &ScriptReferenceHost::get_current_directory(&**self.host.ref_(self)),
+            |file_name: &str| self.host.ref_(self).get_canonical_file_name(file_name),
             true,
         );
 
@@ -733,6 +735,12 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
             mappings: self.mappings().clone(),
             names: Some(self.names().clone()),
         }
+    }
+}
+
+impl HasArena for SourceMapGeneratorConcrete {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

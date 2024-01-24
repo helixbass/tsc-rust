@@ -38,18 +38,18 @@ use crate::{
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
     SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    InArena, downcast_transformer_ref,
+    InArena, downcast_transformer_ref, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     push_if_unique_eq, contains, 
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 pub fn get_declaration_diagnostics(
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
     file: Option<Id<Node> /*SourceFile*/>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>> {
-    let compiler_options = ScriptReferenceHost::get_compiler_options(&**host);
+    let compiler_options = ScriptReferenceHost::get_compiler_options(&**host.ref_(arena));
     let result = transform_nodes(
         Some(resolver),
         Some(host.clone()),
@@ -59,7 +59,7 @@ pub fn get_declaration_diagnostics(
         &if let Some(file) = file {
             vec![file]
         } else {
-            filter(&host.get_source_files(), |source_file: &Id<Node>| {
+            filter(&host.ref_(arena).get_source_files(), |source_file: &Id<Node>| {
                 is_source_file_not_json(&source_file.ref_(arena))
             })
         },
@@ -192,7 +192,7 @@ pub(super) struct TransformDeclarations {
     pub(super) suppress_new_diagnostic_contexts: Cell<Option<bool>>,
     pub(super) exported_modules_from_declaration_emit: GcCell<Option<Vec<Id<Symbol>>>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    pub(super) host: Gc<Box<dyn EmitHost>>,
+    pub(super) host: Id<Box<dyn EmitHost>>,
     pub(super) symbol_tracker: GcCell<Option<Id<Box<dyn SymbolTracker>>>>,
     pub(super) error_name_node: GcCell<Option<Id<Node /*DeclarationName*/>>>,
     pub(super) error_fallback_node: GcCell<Option<Id<Node /*Declaration*/>>>,
@@ -658,7 +658,7 @@ impl TransformDeclarations {
                                                 ]),
                                                 self.factory.create_string_literal(
                                                     get_resolved_external_module_name(
-                                                        &**self.context.ref_(self).get_emit_host(),
+                                                        &**self.context.ref_(self).get_emit_host().ref_(self),
                                                         &source_file.ref_(self),
                                                         None,
                                                     ),
@@ -757,7 +757,7 @@ impl TransformDeclarations {
             bundle.synthetic_lib_references = Some(self.get_lib_references());
             bundle.has_no_default_lib = Some(has_no_default_lib);
             let output_file_path = get_directory_path(&normalize_slashes(
-                get_output_paths_for(node, &**self.host, true, self)
+                get_output_paths_for(node, &**self.host.ref_(self), true, self)
                     .declaration_file_path
                     .as_ref()
                     .unwrap(),
@@ -805,7 +805,7 @@ impl TransformDeclarations {
         }
         let mut references: Vec<FileReference> = vec![];
         let output_file_path = get_directory_path(&normalize_slashes(
-            get_output_paths_for(node, &**self.host, true, self)
+            get_output_paths_for(node, &**self.host.ref_(self), true, self)
                 .declaration_file_path
                 .as_ref()
                 .unwrap(),
@@ -968,7 +968,7 @@ impl TransformDeclarations {
                 {
                     return Ok(());
                 }
-                let paths = get_output_paths_for(file, &**self.host, true, self);
+                let paths = get_output_paths_for(file, &**self.host.ref_(self), true, self);
                 decl_file_name = paths
                     .declaration_file_path
                     .clone()
@@ -983,15 +983,15 @@ impl TransformDeclarations {
                     self.current_source_file(),
                     &to_path(
                         output_file_path,
-                        Some(&ScriptReferenceHost::get_current_directory(&**self.host)),
-                        |file_name| self.host.get_canonical_file_name(file_name),
+                        Some(&ScriptReferenceHost::get_current_directory(&**self.host.ref_(self))),
+                        |file_name| self.host.ref_(self).get_canonical_file_name(file_name),
                     ),
                     &to_path(
                         &decl_file_name,
-                        Some(&ScriptReferenceHost::get_current_directory(&**self.host)),
-                        |file_name| self.host.get_canonical_file_name(file_name),
+                        Some(&ScriptReferenceHost::get_current_directory(&**self.host.ref_(self))),
+                        |file_name| self.host.ref_(self).get_canonical_file_name(file_name),
                     ),
-                    &**self.host,
+                    &**self.host.ref_(self),
                     self,
                 )?;
                 if !path_is_relative(&specifier) {
@@ -1002,8 +1002,8 @@ impl TransformDeclarations {
                 let mut file_name = get_relative_path_to_directory_or_url(
                     output_file_path,
                     &decl_file_name,
-                    &ScriptReferenceHost::get_current_directory(&**self.host),
-                    |file_name: &str| self.host.get_canonical_file_name(file_name),
+                    &ScriptReferenceHost::get_current_directory(&**self.host.ref_(self)),
+                    |file_name: &str| self.host.ref_(self).get_canonical_file_name(file_name),
                     false,
                 );
                 if starts_with(&file_name, "./") && has_extension(&file_name) {
@@ -1041,7 +1041,7 @@ impl TransformDeclarations {
                 .map(|source_file_referenced_files| (**source_file_referenced_files).borrow())
                 .as_deref(),
             |f: &FileReference, _| -> io::Result<Option<()>> {
-                let elem = self.host.get_source_file_from_reference(source_file, f)?;
+                let elem = self.host.ref_(self).get_source_file_from_reference(source_file, f)?;
                 if let Some(elem) = elem {
                     ret.insert(get_original_node_id(elem, self), elem);
                 }
@@ -1071,7 +1071,7 @@ impl TransformDeclarations {
                         })
                         .as_deref(),
                     |ref_: &FileReference, _| -> Option<()> {
-                        let lib = self.host.get_lib_file_from_reference(ref_);
+                        let lib = self.host.ref_(self).get_lib_file_from_reference(ref_);
                         if lib.is_some() {
                             ret.insert(to_file_name_lower_case(&ref_.file_name), true);
                         }
@@ -1083,7 +1083,7 @@ impl TransformDeclarations {
                 maybe_for_each(
                     Some(&source_file.ref_(self).as_unparsed_source().lib_reference_directives),
                     |ref_: &FileReference, _| -> Option<()> {
-                        let lib = self.host.get_lib_file_from_reference(ref_);
+                        let lib = self.host.ref_(self).get_lib_file_from_reference(ref_);
                         if lib.is_some() {
                             ret.insert(to_file_name_lower_case(&ref_.file_name), true);
                         }
@@ -1261,13 +1261,13 @@ pub(super) struct TransformDeclarationsSymbolTracker {
     #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
     pub(super) transform_declarations: Transformer,
-    pub(super) host: Gc<Box<dyn EmitHost>>,
+    pub(super) host: Id<Box<dyn EmitHost>>,
 }
 
 impl TransformDeclarationsSymbolTracker {
     pub(super) fn new(
         transform_declarations: Transformer,
-        host: Gc<Box<dyn EmitHost>>,
+        host: Id<Box<dyn EmitHost>>,
     ) -> Self {
         Self {
             is_track_symbol_disabled: Default::default(),
@@ -1506,11 +1506,8 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
-        Some(
-            self.host
-                .as_module_specifier_resolution_host_and_get_common_source_directory(),
-        )
+    ) -> Option<IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+        Some(self.host.into())
     }
 
     fn track_referenced_ambient_module(

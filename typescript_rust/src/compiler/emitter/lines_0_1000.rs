@@ -512,7 +512,7 @@ pub(crate) fn get_common_source_directory_of_config(
 
 pub(crate) fn emit_files(
     resolver: Gc<Box<dyn EmitResolver>>,
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     target_source_file: Option<Id<Node> /*SourceFile*/>,
     EmitTransformers {
         script_transformers,
@@ -523,7 +523,7 @@ pub(crate) fn emit_files(
     force_dts_emit: Option<bool>,
     arena: &impl HasArena,
 ) -> io::Result<EmitResult> {
-    let compiler_options = ScriptReferenceHost::get_compiler_options(&**host);
+    let compiler_options = ScriptReferenceHost::get_compiler_options(&**host.ref_(arena));
     let mut source_map_data_list: Option<Vec<SourceMapEmitResult>> = if compiler_options.source_map
         == Some(true)
         || compiler_options.inline_source_map == Some(true)
@@ -540,7 +540,7 @@ pub(crate) fn emit_files(
             None
         };
     let mut emitter_diagnostics = create_diagnostic_collection(&*static_arena());
-    let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.get_new_line()));
+    let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.ref_(arena).get_new_line()));
     let writer = create_text_writer(&new_line, arena);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
     let mut bundle_build_info: Option<Gc<GcCell<BundleBuildInfo>>> = None;
@@ -550,7 +550,7 @@ pub(crate) fn emit_files(
 
     // enter();
     try_for_each_emitted_file(
-        &**host,
+        &**host.ref_(arena),
         |emit_file_names, source_file_or_bundle| {
             emit_source_file_or_bundle(
                 host.clone(),
@@ -577,7 +577,7 @@ pub(crate) fn emit_files(
             Ok(())
         },
         Some(get_source_files_to_emit(
-            &**host,
+            &**host.ref_(arena),
             target_source_file,
             force_dts_emit,
             arena,
@@ -599,7 +599,7 @@ pub(crate) fn emit_files(
 }
 
 fn emit_source_file_or_bundle(
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
     emitted_files_list: &mut Option<Vec<String>>,
     emit_only_dts_files: Option<bool>,
@@ -633,13 +633,13 @@ fn emit_source_file_or_bundle(
         {
             build_info_directory = Some(get_directory_path(&get_normalized_absolute_path(
                 build_info_path,
-                Some(&ScriptReferenceHost::get_current_directory(&**host)),
+                Some(&ScriptReferenceHost::get_current_directory(&**host.ref_(arena))),
             )));
             *bundle_build_info = Some(Gc::new(GcCell::new(BundleBuildInfo {
                 common_source_directory: relative_to_build_info(
                     build_info_directory.as_ref().unwrap(),
-                    &**host,
-                    &ScriptReferenceHost::get_current_directory(&**host),
+                    &**host.ref_(arena),
+                    &ScriptReferenceHost::get_current_directory(&**host.ref_(arena)),
                 ),
                 source_files: source_file_or_bundle
                     .ref_(arena).as_bundle()
@@ -649,10 +649,10 @@ fn emit_source_file_or_bundle(
                         let file = file.as_ref().unwrap();
                         relative_to_build_info(
                             build_info_directory.as_ref().unwrap(),
-                            &**host,
+                            &**host.ref_(arena),
                             &get_normalized_absolute_path(
                                 &file.ref_(arena).as_source_file().file_name(),
-                                Some(&ScriptReferenceHost::get_current_directory(&**host)),
+                                Some(&ScriptReferenceHost::get_current_directory(&**host.ref_(arena))),
                             ),
                         )
                     })
@@ -720,6 +720,7 @@ fn emit_source_file_or_bundle(
         emitter_diagnostics,
         bundle_build_info.clone(),
         build_info_path,
+        arena,
     )?;
     // tracing?.pop();
 
@@ -761,11 +762,11 @@ fn emit_source_file_or_bundle(
 #[derive(Trace, Finalize)]
 struct EmitSourceFileOrBundleRelativeToBuildInfo {
     build_info_directory: Option<String>,
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
 }
 
 impl EmitSourceFileOrBundleRelativeToBuildInfo {
-    fn new(build_info_directory: Option<String>, host: Gc<Box<dyn EmitHost>>) -> Self {
+    fn new(build_info_directory: Option<String>, host: Id<Box<dyn EmitHost>>) -> Self {
         Self {
             build_info_directory,
             host,
@@ -777,9 +778,15 @@ impl RelativeToBuildInfo for EmitSourceFileOrBundleRelativeToBuildInfo {
     fn call(&self, path: &str) -> String {
         relative_to_build_info(
             self.build_info_directory.as_ref().unwrap(),
-            &**self.host,
+            &**self.host.ref_(self),
             path,
         )
+    }
+}
+
+impl HasArena for EmitSourceFileOrBundleRelativeToBuildInfo {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -795,17 +802,18 @@ fn relative_to_build_info(build_info_directory: &str, host: &dyn EmitHost, path:
 fn emit_build_info(
     target_source_file: Option<Id<Node> /*SourceFile*/>,
     emit_skipped: &mut bool,
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     emitter_diagnostics: &mut DiagnosticCollection,
     bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
     build_info_path: Option<&str>,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     if !build_info_path.is_non_empty() || target_source_file.is_some() || *emit_skipped {
         return Ok(());
     }
     let build_info_path = build_info_path.unwrap();
-    let program = host.get_program_build_info();
-    if host.is_emit_blocked(build_info_path) {
+    let program = host.ref_(arena).get_program_build_info();
+    if host.ref_(arena).is_emit_blocked(build_info_path) {
         *emit_skipped = true;
         return Ok(());
     }
@@ -827,7 +835,7 @@ fn emit_build_info(
 
 fn emit_js_file_or_bundle(
     emit_only_dts_files: Option<bool>,
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     compiler_options: Gc<CompilerOptions>,
     emit_skipped: &mut bool,
     resolver: Gc<Box<dyn EmitResolver>>,
@@ -852,7 +860,7 @@ fn emit_js_file_or_bundle(
     let source_file_or_bundle = source_file_or_bundle.unwrap();
     let js_file_path = js_file_path.unwrap();
 
-    if host.is_emit_blocked(js_file_path) || compiler_options.no_emit == Some(true) {
+    if host.ref_(arena).is_emit_blocked(js_file_path) || compiler_options.no_emit == Some(true) {
         *emit_skipped = true;
         return Ok(());
     }
@@ -982,7 +990,7 @@ fn emit_declaration_file_or_bundle(
     emit_skipped: &mut bool,
     force_dts_emit: Option<bool>,
     resolver: Gc<Box<dyn EmitResolver>>,
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     declaration_transformers: &[TransformerFactory],
     emitter_diagnostics: &mut DiagnosticCollection,
     exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
@@ -1091,7 +1099,7 @@ fn emit_declaration_file_or_bundle(
         ))),
     );
     let decl_blocked = declaration_transform.ref_(arena).diagnostics().is_non_empty()
-        || host.is_emit_blocked(declaration_file_path)
+        || host.ref_(arena).is_emit_blocked(declaration_file_path)
         || compiler_options.no_emit == Some(true);
     *emit_skipped = *emit_skipped || decl_blocked;
     if !decl_blocked || force_dts_emit == Some(true) {
@@ -1233,7 +1241,7 @@ fn collect_linked_aliases(resolver: &dyn EmitResolver, node: Id<Node>, arena: &i
 }
 
 fn print_source_file_or_bundle(
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
@@ -1274,7 +1282,7 @@ fn print_source_file_or_bundle(
             host.clone(),
             get_base_file_name(&normalize_slashes(js_file_path), None, None),
             get_source_root(map_options),
-            get_source_map_directory(&**host, map_options, js_file_path, source_file.refed(arena).as_deref()),
+            get_source_map_directory(&**host.ref_(arena), map_options, js_file_path, source_file.refed(arena).as_deref()),
             &map_options.into(),
         ));
     }
@@ -1298,7 +1306,7 @@ fn print_source_file_or_bundle(
         }
 
         let source_mapping_url = get_source_mapping_url(
-            &**host,
+            &**host.ref_(arena),
             map_options,
             &**source_map_generator,
             js_file_path,

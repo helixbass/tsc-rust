@@ -384,7 +384,7 @@ impl TransformDeclarations {
         if is_string_literal_like(&input.ref_(self)) {
             if self.is_bundled_emit() {
                 let new_name = get_external_module_name_from_declaration(
-                    &**self.context.ref_(self).get_emit_host(),
+                    &**self.context.ref_(self).get_emit_host().ref_(self),
                     &**self.resolver,
                     parent,
                     self,

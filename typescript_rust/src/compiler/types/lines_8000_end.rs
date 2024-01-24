@@ -19,6 +19,7 @@ use crate::{
     FileIncludeReason, LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId,
     ParenthesizerRules, Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray,
     SourceMapSource, SymlinkCache, SyntaxKind, TempFlags, TextRange,
+    IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
 };
 
 #[derive(Trace, Finalize)]
@@ -887,7 +888,7 @@ pub trait SymbolTracker: Trace + Finalize {
     fn report_truncation_error(&self) {}
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+    ) -> Option<IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         None
     }
     fn is_module_resolver_host_supported(&self) -> bool;

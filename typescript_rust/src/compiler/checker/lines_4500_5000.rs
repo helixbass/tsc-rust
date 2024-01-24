@@ -31,7 +31,7 @@ use crate::{
     SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
     append_if_unique_eq,
-    static_arena,
+    static_arena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
 };
 
 impl TypeChecker {
@@ -1477,7 +1477,7 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+    ) -> Option<IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         self.module_resolver_host
             .as_ref()
             .map(|module_resolver_host| &***module_resolver_host)
@@ -1767,7 +1767,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+    ) -> Option<IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         self.tracker.ref_(self).module_resolver_host()
     }
 

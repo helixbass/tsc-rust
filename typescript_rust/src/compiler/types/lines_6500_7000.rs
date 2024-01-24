@@ -1139,7 +1139,6 @@ pub trait EmitHost:
     + Trace
     + Finalize
 {
-    fn arena(&self) -> &AllArenas;
     // fn get_source_files(&self) -> &[Id<Node /*SourceFile*/>];
     fn get_source_files(&self) -> GcCellRef<Vec<Id<Node /*SourceFile*/>>>;
     fn use_case_sensitive_file_names(&self) -> bool;

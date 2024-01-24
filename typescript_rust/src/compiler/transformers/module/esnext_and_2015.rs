@@ -28,7 +28,7 @@ struct TransformEcmascriptModule {
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Gc<CompilerOptions>,
     #[unsafe_ignore_trace]
@@ -296,7 +296,7 @@ impl TransformEcmascriptModule {
             &self.factory,
             import_node,
             Debug_.check_defined(self.maybe_current_source_file(), None),
-            &**self.host,
+            &**self.host.ref_(self),
             &**self.resolver,
             &self.compiler_options,
         )?;

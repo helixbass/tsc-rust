@@ -1153,8 +1153,8 @@ impl Program {
     pub(super) fn get_emit_host(
         &self,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
-    ) -> Gc<Box<dyn EmitHost>> {
-        Gc::new(Box::new(ProgramEmitHost::new(
+    ) -> Id<Box<dyn EmitHost>> {
+        self.alloc_emit_host(Box::new(ProgramEmitHost::new(
             self.rc_wrapper(),
             write_file_callback,
         )))
@@ -1443,10 +1443,6 @@ impl ProgramEmitHost {
 }
 
 impl EmitHost for ProgramEmitHost {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-
     fn get_prepend_nodes(&self) -> Vec<Id<Node /*InputFiles | UnparsedSource*/>> {
         self.program.get_prepend_nodes()
     }
@@ -1657,11 +1653,11 @@ impl HasArena for ProgramEmitHost {
 
 #[derive(Trace, Finalize)]
 pub struct EmitHostWriteFileCallback {
-    host: Gc<Box<dyn EmitHost>>,
+    host: Id<Box<dyn EmitHost>>,
 }
 
 impl EmitHostWriteFileCallback {
-    pub fn new(host: Gc<Box<dyn EmitHost>>) -> Self {
+    pub fn new(host: Id<Box<dyn EmitHost>>) -> Self {
         Self { host }
     }
 }
@@ -1675,13 +1671,19 @@ impl WriteFileCallback for EmitHostWriteFileCallback {
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
-        self.host.write_file(
+        self.host.ref_(self).write_file(
             file_name,
             data,
             write_byte_order_mark,
             on_error,
             source_files,
         )
+    }
+}
+
+impl HasArena for EmitHostWriteFileCallback {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
