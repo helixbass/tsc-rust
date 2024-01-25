@@ -288,7 +288,7 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: &Node /*SourceFile*/, options: Gc<CompilerOptions>) {
+pub fn bind_source_file(file: &Node /*SourceFile*/, options: Id<CompilerOptions>) {
     let file_as_source_file = file.as_source_file();
     if is_logging {
         println!("binding: {}", file_as_source_file.file_name());
@@ -311,7 +311,7 @@ pub struct BinderType {
     pub(crate) arena: *const AllArenas,
     pub(super) _rc_wrapper: GcCell<Option<Gc<BinderType>>>,
     pub(super) file: GcCell<Option<Id</*SourceFile*/ Node>>>,
-    pub(super) options: GcCell<Option<Gc<CompilerOptions>>>,
+    pub(super) options: GcCell<Option<Id<CompilerOptions>>>,
     #[unsafe_ignore_trace]
     pub(super) language_version: Cell<Option<ScriptTarget>>,
     pub(super) parent: GcCell<Option<Id<Node>>>,
@@ -402,7 +402,7 @@ pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
 }
 
 impl BinderType {
-    pub(super) fn call(&self, f: Id<Node>, opts: Gc<CompilerOptions>) {
+    pub(super) fn call(&self, f: Id<Node>, opts: Id<CompilerOptions>) {
         self.bind_source_file(f, opts);
     }
 
@@ -418,11 +418,11 @@ impl BinderType {
         *self.file.borrow_mut() = file;
     }
 
-    pub(super) fn options(&self) -> Gc<CompilerOptions> {
+    pub(super) fn options(&self) -> Id<CompilerOptions> {
         self.options.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn set_options(&self, options: Option<Gc<CompilerOptions>>) {
+    pub(super) fn set_options(&self, options: Option<Id<CompilerOptions>>) {
         *self.options.borrow_mut() = options;
     }
 
@@ -713,12 +713,12 @@ impl BinderType {
     pub(super) fn bind_source_file(
         &self,
         f: Id<Node>, /*SourceFile*/
-        opts: Gc<CompilerOptions>,
+        opts: Id<CompilerOptions>,
     ) {
         self.set_file(Some(f));
         self.set_options(Some(opts.clone()));
-        self.set_language_version(Some(get_emit_script_target(&opts)));
-        self.set_in_strict_mode(Some(self.bind_in_strict_mode(f, &opts)));
+        self.set_language_version(Some(get_emit_script_target(&opts.ref_(self))));
+        self.set_in_strict_mode(Some(self.bind_in_strict_mode(f, &opts.ref_(self))));
         self.set_classifiable_names(Some(Rc::new(RefCell::new(HashSet::new()))));
         self.set_symbol_count(0);
 

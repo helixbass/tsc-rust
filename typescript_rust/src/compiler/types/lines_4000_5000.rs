@@ -144,7 +144,7 @@ pub struct EmitResult {
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
+    fn get_compiler_options(&self) -> Id<CompilerOptions>;
 
     fn get_source_files(&self) -> GcCellRef<Vec<Id<Node /*SourceFile*/>>>;
     fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>>;
@@ -195,7 +195,7 @@ pub struct TypeChecker {
     pub(crate) inline_level: Cell<usize>,
     pub(crate) current_node: GcCell<Option<Id<Node>>>,
     pub(crate) empty_symbols: Gc<GcCell<SymbolTable>>,
-    pub(crate) compiler_options: Gc<CompilerOptions>,
+    pub(crate) compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(crate) language_version: ScriptTarget,
     #[unsafe_ignore_trace]

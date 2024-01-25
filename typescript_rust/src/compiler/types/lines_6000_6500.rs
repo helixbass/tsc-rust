@@ -2073,7 +2073,7 @@ mod _ParsedCommandLineDeriveTraceScope {
     #[derive(Builder, Debug, Default, Trace, Finalize)]
     #[builder(default, setter(into, strip_option))]
     pub struct ParsedCommandLine {
-        pub options: Gc<CompilerOptions>,
+        pub options: Id<CompilerOptions>,
         #[unsafe_ignore_trace]
         pub type_acquisition: Option<Rc<TypeAcquisition>>,
         pub file_names: Vec<String>,
@@ -2135,7 +2135,7 @@ mod _CreateProgramOptionsDeriveTraceScope {
     pub struct CreateProgramOptions {
         #[unsafe_ignore_trace]
         pub root_names: Vec<String>,
-        pub options: Gc<CompilerOptions>,
+        pub options: Id<CompilerOptions>,
         #[unsafe_ignore_trace]
         pub project_references: Option<Vec<Rc<ProjectReference>>>,
         #[builder(setter(strip_option))]

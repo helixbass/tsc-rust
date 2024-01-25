@@ -63,7 +63,7 @@ pub(super) struct TransformTypeScript {
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) base_factory: Gc<BaseNodeFactorySynthetic>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
-    pub(super) compiler_options: Gc<CompilerOptions>,
+    pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) strict_null_checks: bool,
     #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,

@@ -21,14 +21,15 @@ use crate::{
     InArena,
 };
 
-pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
-    options: Gc<CompilerOptions>,
-    to_absolute_path: TToAbsolutePath,
-) -> Gc<CompilerOptions> {
+pub(crate) fn convert_to_options_with_absolute_paths(
+    options: Id<CompilerOptions>,
+    to_absolute_path: impl Fn(&str) -> String,
+    arena: &impl HasArena,
+) -> Id<CompilerOptions> {
     let mut result: CompilerOptions = Default::default();
     let options_name_map = &get_options_name_map().options_name_map;
 
-    for (name, value) in options.to_hash_map_of_compiler_options_values() {
+    for (name, value) in options.ref_(arena).to_hash_map_of_compiler_options_values() {
         result.set_value(
             name,
             convert_to_option_value_with_absolute_paths(
@@ -43,7 +44,7 @@ pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: Fn(&str) -
     if let Some(result_config_file_path) = result.config_file_path.as_ref() {
         result.config_file_path = Some(to_absolute_path(result_config_file_path));
     }
-    Gc::new(result)
+    arena.alloc_compiler_options(result)
 }
 
 pub(super) fn convert_to_option_value_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
@@ -86,7 +87,7 @@ pub fn parse_json_config_file_content(
     json: Option<serde_json::Value>,
     host: &impl ParseConfigHost,
     base_path: &str,
-    existing_options: Option<Gc<CompilerOptions>>,
+    existing_options: Option<Id<CompilerOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
@@ -113,7 +114,7 @@ pub fn parse_json_source_file_config_file_content(
     source_file: Id<Node>, /*TsConfigSourceFile*/
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
-    existing_options: Option<Gc<CompilerOptions>>,
+    existing_options: Option<Id<CompilerOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
@@ -158,7 +159,7 @@ pub(super) fn parse_json_config_file_content_worker(
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
-    existing_options: Option<Gc<CompilerOptions>>,
+    existing_options: Option<Id<CompilerOptions>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
@@ -166,7 +167,7 @@ pub(super) fn parse_json_config_file_content_worker(
     mut extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     arena: &impl HasArena,
 ) -> io::Result<ParsedCommandLine> {
-    let existing_options = existing_options.unwrap_or_else(|| Gc::new(Default::default()));
+    let existing_options = existing_options.unwrap_or_else(|| arena.alloc_compiler_options(Default::default()));
     let resolution_stack_default = vec![];
     let resolution_stack = resolution_stack.unwrap_or(&resolution_stack_default);
     let extra_file_extensions_default = vec![];

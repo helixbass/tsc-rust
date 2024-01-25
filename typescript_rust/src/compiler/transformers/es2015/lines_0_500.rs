@@ -189,7 +189,7 @@ pub(super) struct TransformES2015 {
     pub(super) _arena_id: Cell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    pub(super) compiler_options: Gc<CompilerOptions>,
+    pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
     pub(super) current_text: GcCell<Option<SourceTextAsChars>>,

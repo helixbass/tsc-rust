@@ -208,7 +208,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + 
     fn factory(&self) -> Gc<NodeFactory<TBaseNodeFactory>>;
     fn base_factory(&self) -> Gc<TBaseNodeFactory>;
 
-    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
+    fn get_compiler_options(&self) -> Id<CompilerOptions>;
 
     fn start_lexical_environment(&self);
 

@@ -30,7 +30,7 @@ struct TransformEcmascriptModule {
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     host: Id<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     language_version: ScriptTarget,
     helper_name_substitutions: GcCell<Option<HashMap<String, Id<Node /*Identifier*/>>>>,

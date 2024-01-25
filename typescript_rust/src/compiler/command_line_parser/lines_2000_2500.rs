@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use super::{
     command_options_without_build, create_diagnostic_for_invalid_custom_type,
-    create_unknown_option_error, default_init_compiler_options, get_default_value_for_option,
+    create_unknown_option_error, get_default_init_compiler_options, get_default_value_for_option,
     get_options_name_map, get_watch_options_name_map, hash_map_to_compiler_options,
     option_declarations, tsconfig_root_options_dummy_name,
 };
@@ -718,7 +718,7 @@ pub(super) fn is_compiler_options_value(
 
 #[derive(Serialize)]
 pub(crate) struct TSConfig {
-    pub compiler_options: Gc<CompilerOptions>,
+    pub compiler_options: Id<CompilerOptions>,
     pub compile_on_save: Option<bool>,
     pub exclude: Option<Vec<String>>,
     pub files: Option<Vec<String>>,
@@ -811,7 +811,7 @@ pub(crate) fn convert_to_tsconfig(
     compiler_options.version = None;
 
     let mut config = TSConfig {
-        compiler_options: Gc::new(compiler_options),
+        compiler_options: arena.alloc_compiler_options(compiler_options),
         // watch_options: watch_option_map.map(|watch_option_map| Rc::new(hash_map_to_watch_options(&watch_option_map))),
         references: maybe_map(config_parse_result.project_references.as_ref(), |r, _| {
             Rc::new(ProjectReference {
@@ -1085,9 +1085,9 @@ pub(super) fn serialize_option_base_object(
     result
 }
 
-pub fn get_compiler_options_diff_value(options: &CompilerOptions, new_line: &str) -> String {
-    let compiler_options_map = get_serialized_compiler_option(options);
-    get_overwritten_default_options(&compiler_options_map, new_line)
+pub fn get_compiler_options_diff_value(options: &CompilerOptions, new_line: &str, arena: &impl HasArena) -> String {
+    let compiler_options_map = get_serialized_compiler_option(options, arena);
+    get_overwritten_default_options(&compiler_options_map, new_line, arena)
 }
 
 fn make_padding(padding_length: usize) -> String {
@@ -1097,41 +1097,40 @@ fn make_padding(padding_length: usize) -> String {
 fn get_overwritten_default_options(
     compiler_options_map: &IndexMap<&'static str, CompilerOptionsValue>,
     new_line: &str,
+    arena: &impl HasArena,
 ) -> String {
     let mut result: Vec<String> = vec![];
     let tab = make_padding(2);
     command_options_without_build.with(|command_options_without_build_| {
-        default_init_compiler_options.with(|default_init_compiler_options_| {
-            let default_init_compiler_options_as_hash_map =
-                default_init_compiler_options_.to_hash_map_of_compiler_options_values();
-            command_options_without_build_.iter().for_each(|cmd| {
-                if !compiler_options_map.contains_key(cmd.name()) {
-                    return;
-                }
+        let default_init_compiler_options_as_hash_map =
+            get_default_init_compiler_options(arena).ref_(arena).to_hash_map_of_compiler_options_values();
+        command_options_without_build_.iter().for_each(|cmd| {
+            if !compiler_options_map.contains_key(cmd.name()) {
+                return;
+            }
 
-                let new_value = compiler_options_map.get(cmd.name()).unwrap();
-                let default_value = get_default_value_for_option(cmd);
-                if new_value != &default_value {
-                    // TODO: this presumably needs to print new_value "as JSON"?
-                    result.push(format!("{}{}: {:?}", tab, cmd.name(), new_value));
-                } else if match default_init_compiler_options_as_hash_map.get(cmd.name()) {
-                    None => false,
-                    Some(compiler_options_value) => compiler_options_value.is_some(),
-                } {
-                    result.push(format!("{}{}: {:?}", tab, cmd.name(), default_value));
-                }
+            let new_value = compiler_options_map.get(cmd.name()).unwrap();
+            let default_value = get_default_value_for_option(cmd);
+            if new_value != &default_value {
+                // TODO: this presumably needs to print new_value "as JSON"?
+                result.push(format!("{}{}: {:?}", tab, cmd.name(), new_value));
+            } else if match default_init_compiler_options_as_hash_map.get(cmd.name()) {
+                None => false,
+                Some(compiler_options_value) => compiler_options_value.is_some(),
+            } {
+                result.push(format!("{}{}: {:?}", tab, cmd.name(), default_value));
+            }
             });
-        })
     });
     format!("{}{}", result.join(new_line), new_line)
 }
 
 pub(super) fn get_serialized_compiler_option(
     options: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
-    let compiler_options = default_init_compiler_options.with(|default_init_compiler_options_| {
-        extend_compiler_options(options, &default_init_compiler_options_)
-    });
+    let compiler_options = 
+        extend_compiler_options(options, &get_default_init_compiler_options(arena).ref_(arena));
     serialize_compiler_options(&compiler_options, None)
 }
 
@@ -1139,8 +1138,9 @@ pub fn generate_tsconfig(
     options: &CompilerOptions,
     file_names: &[String],
     new_line: &str,
+    arena: &impl HasArena,
 ) -> String {
-    let compiler_options_map = get_serialized_compiler_option(options);
+    let compiler_options_map = get_serialized_compiler_option(options, arena);
     write_configurations(&compiler_options_map, file_names, new_line)
 }
 

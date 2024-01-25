@@ -164,14 +164,14 @@ fn create_resolved_module_with_failed_lookup_locations(
     ))
 }
 
-pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {
-    pub host: &'host_and_package_json_info_cache dyn ModuleResolutionHost,
-    pub compiler_options: Gc<CompilerOptions>,
+pub(crate) struct ModuleResolutionState<'a> {
+    pub host: &'a dyn ModuleResolutionHost,
+    pub compiler_options: Id<CompilerOptions>,
     pub trace_enabled: bool,
     pub failed_lookup_locations: RefCell<Vec<String>>,
     pub result_from_cache: RefCell<Option<Gc<ResolvedModuleWithFailedLookupLocations>>>,
     pub package_json_info_cache:
-        Option<&'host_and_package_json_info_cache dyn PackageJsonInfoCache>,
+        Option<&'a dyn PackageJsonInfoCache>,
     pub features: NodeResolutionFeatures,
     pub conditions: Vec<String>,
 }
@@ -526,13 +526,13 @@ fn are_paths_equal(path1: &str, path2: &str, host: &dyn ModuleResolutionHost) ->
 pub fn resolve_type_reference_directive(
     type_reference_directive_name: &str,
     containing_file: Option<&str>,
-    mut options: Gc<CompilerOptions>,
+    mut options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
-    let trace_enabled = is_trace_enabled(&options, host);
+    let trace_enabled = is_trace_enabled(&options.ref_(arena), host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
         options = redirected_reference.command_line.options.clone();
     }
@@ -588,7 +588,7 @@ pub fn resolve_type_reference_directive(
     }
 
     let type_roots = get_effective_type_roots(
-        &options,
+        &options.ref_(arena),
         || host.get_current_directory(),
         |directory_name| host.directory_exists(directory_name),
         || host.is_directory_exists_supported(),
@@ -696,7 +696,7 @@ pub fn resolve_type_reference_directive(
             file_name,
             package_id,
         } = resolved;
-        let resolved_file_name = if options.preserve_symlinks == Some(true) {
+        let resolved_file_name = if options.ref_(arena).preserve_symlinks == Some(true) {
             file_name.clone()
         } else {
             real_path(&file_name, host, trace_enabled)
@@ -1019,13 +1019,13 @@ pub struct PerModuleNameCache {
 
 #[derive(Trace, Finalize)]
 pub struct CacheWithRedirects<TCache: Trace + Finalize + 'static> {
-    options: GcCell<Option<Gc<CompilerOptions>>>,
+    options: GcCell<Option<Id<CompilerOptions>>>,
     own_map: GcCell<Gc<GcCell<HashMap<String, Gc<TCache>>>>>,
     redirects_map: Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Gc<TCache>>>>>>>,
 }
 
 impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
-    pub fn new(options: Option<Gc<CompilerOptions>>) -> Self {
+    pub fn new(options: Option<Id<CompilerOptions>>) -> Self {
         Self {
             options: GcCell::new(options),
             own_map: Default::default(),
@@ -1043,7 +1043,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
         self.redirects_map.clone()
     }
 
-    pub fn set_own_options(&self, new_options: Gc<CompilerOptions>) {
+    pub fn set_own_options(&self, new_options: Id<CompilerOptions>) {
         *self.options.borrow_mut() = Some(new_options);
     }
 
@@ -1067,7 +1067,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
                 if match self.options.borrow().as_ref() {
                     None => true,
                     Some(options) => options_have_module_resolution_changes(
-                        options,
+                        &options.ref_(self),
                         &redirected_reference.command_line.options,
                     ),
                 } {
@@ -1096,7 +1096,7 @@ impl<TCache: Trace + Finalize> HasArena for CacheWithRedirects<TCache> {
 }
 
 pub(crate) fn create_cache_with_redirects<TCache: Trace + Finalize>(
-    options: Option<Gc<CompilerOptions>>,
+    options: Option<Id<CompilerOptions>>,
 ) -> CacheWithRedirects<TCache> {
     CacheWithRedirects::new(options)
 }
@@ -1314,7 +1314,7 @@ pub(crate) fn zip_to_mode_aware_cache<TValue: Clone + Trace + Finalize>(
 pub fn create_module_resolution_cache(
     current_directory: &str,
     get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
-    options: Option<Gc<CompilerOptions>>,
+    options: Option<Id<CompilerOptions>>,
     directory_to_module_name_map: Option<
         Gc<CacheWithRedirects<ModeAwareCache<Gc<ResolvedModuleWithFailedLookupLocations>>>>,
     >,
@@ -1529,7 +1529,7 @@ impl PackageJsonInfoCache for ModuleResolutionCache {
 pub fn create_type_reference_directive_resolution_cache(
     current_directory: &str,
     get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
-    options: Option<Gc<CompilerOptions>>,
+    options: Option<Id<CompilerOptions>>,
     package_json_info_cache: Option<Gc<Box<dyn PackageJsonInfoCache>>>,
     directory_to_module_name_map: Option<
         Gc<
@@ -1608,14 +1608,14 @@ impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
 pub fn resolve_module_name(
     module_name: &str,
     containing_file: &str,
-    mut compiler_options: Gc<CompilerOptions>,
+    mut compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
-    let trace_enabled = is_trace_enabled(&compiler_options, host);
+    let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
         compiler_options = redirected_reference.command_line.options.clone();
     }
@@ -1654,9 +1654,9 @@ pub fn resolve_module_name(
             );
         }
     } else {
-        let mut module_resolution = compiler_options.module_resolution.clone();
+        let mut module_resolution = compiler_options.ref_(arena).module_resolution.clone();
         if module_resolution.is_none() {
-            match get_emit_module_kind(&compiler_options) {
+            match get_emit_module_kind(&compiler_options.ref_(arena)) {
                 ModuleKind::CommonJS => {
                     module_resolution = Some(ModuleResolutionKind::NodeJs);
                 }
@@ -1821,7 +1821,7 @@ fn try_load_module_using_optional_resolution_settings(
     }
 
     if !is_external_module_name_relative(module_name) {
-        try_load_module_using_base_url(extensions, module_name, loader, state)
+        try_load_module_using_base_url(extensions, module_name, loader, state, arena)
     } else {
         try_load_module_using_root_dirs(
             extensions,
@@ -1829,6 +1829,7 @@ fn try_load_module_using_optional_resolution_settings(
             containing_directory,
             loader,
             state,
+            arena,
         )
     }
 }
@@ -1840,9 +1841,9 @@ fn try_load_module_using_paths_if_eligible(
     state: &ModuleResolutionState,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
-    let base_url = state.compiler_options.base_url.as_ref();
-    let paths = state.compiler_options.paths.as_ref();
-    let config_file = state.compiler_options.config_file.as_ref();
+    let base_url = state.compiler_options.ref_(arena).base_url.as_ref();
+    let paths = state.compiler_options.ref_(arena).paths.as_ref();
+    let config_file = state.compiler_options.ref_(arena).config_file.as_ref();
     if let Some(paths) = paths {
         if !path_is_relative(module_name) {
             if state.trace_enabled {
@@ -1864,7 +1865,7 @@ fn try_load_module_using_paths_if_eligible(
                     ])
                 );
             }
-            let base_directory = get_paths_base_path(&state.compiler_options, || {
+            let base_directory = get_paths_base_path(&state.compiler_options.ref_(arena), || {
                 state.host.get_current_directory()
             })?
             .unwrap();
@@ -1902,8 +1903,9 @@ fn try_load_module_using_root_dirs(
     containing_directory: &str,
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {
-    if state.compiler_options.root_dirs.is_none() {
+    if state.compiler_options.ref_(arena).root_dirs.is_none() {
         return Ok(None);
     }
 
@@ -1919,7 +1921,7 @@ fn try_load_module_using_root_dirs(
 
     let mut matched_root_dir: Option<String> = None;
     let mut matched_normalized_prefix: Option<String> = None;
-    for root_dir in state.compiler_options.root_dirs.as_ref().unwrap() {
+    for root_dir in state.compiler_options.ref_(arena).root_dirs.as_ref().unwrap() {
         let mut normalized_root = normalize_path(root_dir);
         if !ends_with(&normalized_root, directory_separator_str) {
             normalized_root.push_str(directory_separator_str);
@@ -1991,7 +1993,7 @@ fn try_load_module_using_root_dirs(
                 None,
             );
         }
-        for root_dir in state.compiler_options.root_dirs.as_ref().unwrap() {
+        for root_dir in state.compiler_options.ref_(arena).root_dirs.as_ref().unwrap() {
             if matches!(
                 matched_root_dir.as_ref(),
                 Some(matched_root_dir) if root_dir == matched_root_dir
@@ -2037,8 +2039,9 @@ fn try_load_module_using_base_url(
     module_name: &str,
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {
-    let base_url = state.compiler_options.base_url.as_ref();
+    let base_url = state.compiler_options.ref_(arena).base_url.as_ref();
     if base_url.is_none() {
         return Ok(None);
     }
@@ -2093,7 +2096,7 @@ bitflags! {
 fn node12_module_name_resolver(
     module_name: &str,
     containing_file: &str,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
@@ -2118,7 +2121,7 @@ fn node12_module_name_resolver(
 fn node_next_module_name_resolver(
     module_name: &str,
     containing_file: &str,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
@@ -2142,7 +2145,7 @@ fn node_next_module_name_resolver_worker(
     features: NodeResolutionFeatures,
     module_name: &str,
     containing_file: &str,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
@@ -2163,7 +2166,7 @@ fn node_next_module_name_resolver_worker(
         compiler_options.clone(),
         host,
         cache,
-        if compiler_options.resolve_json_module == Some(true) {
+        if compiler_options.ref_(arena).resolve_json_module == Some(true) {
             &ts_plus_json_extensions
         } else {
             &ts_extensions
@@ -2187,7 +2190,7 @@ lazy_static! {
 pub fn node_module_name_resolver(
     module_name: &str,
     containing_file: &str,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
@@ -2203,7 +2206,7 @@ pub fn node_module_name_resolver(
         cache,
         if lookup_config == Some(true) {
             &*tsconfig_extensions
-        } else if compiler_options.resolve_json_module == Some(true) {
+        } else if compiler_options.ref_(arena).resolve_json_module == Some(true) {
             &*ts_plus_json_extensions
         } else {
             &*ts_extensions
@@ -2217,14 +2220,14 @@ fn node_module_name_resolver_worker(
     features: NodeResolutionFeatures,
     module_name: &str,
     containing_directory: &str,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
     extensions: &[Extensions],
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
-    let trace_enabled = is_trace_enabled(&compiler_options, host);
+    let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
 
     let failed_lookup_locations: Vec<String> = vec![];
     let state = ModuleResolutionState {
@@ -2255,7 +2258,7 @@ fn node_module_name_resolver_worker(
                 cache.clone(),
                 redirected_reference.clone(),
                 host,
-                &compiler_options,
+                &compiler_options.ref_(arena),
                 trace_enabled,
                 *ext,
                 arena,
@@ -2487,7 +2490,7 @@ fn node_load_module_by_relative_name(
             }
         }
         let resolved_from_file =
-            load_module_from_file(extensions, candidate, only_record_failures, state);
+            load_module_from_file(extensions, candidate, only_record_failures, state, arena);
         if let Some(resolved_from_file) = resolved_from_file.as_ref() {
             let package_directory = if consider_package_json {
                 parse_node_module_from_path(&resolved_from_file.path)
@@ -2566,9 +2569,10 @@ fn load_module_from_file_no_package_id(
     candidate: &str,
     only_record_failures: bool,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> Option<Resolved> {
     no_package_id(
-        load_module_from_file(extensions, candidate, only_record_failures, state).as_ref(),
+        load_module_from_file(extensions, candidate, only_record_failures, state, arena).as_ref(),
     )
 }
 
@@ -2577,6 +2581,7 @@ fn load_module_from_file(
     candidate: &str,
     only_record_failures: bool,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> Option<PathAndExtension> {
     if matches!(extensions, Extensions::Json | Extensions::TSConfig) {
         let extension_less = try_remove_extension(candidate, Extension::Json.to_str());
@@ -2615,7 +2620,7 @@ fn load_module_from_file(
         }
     }
 
-    load_module_from_file_no_implicit_extensions(extensions, candidate, only_record_failures, state)
+    load_module_from_file_no_implicit_extensions(extensions, candidate, only_record_failures, state, arena)
 }
 
 fn load_module_from_file_no_implicit_extensions(
@@ -2623,10 +2628,11 @@ fn load_module_from_file_no_implicit_extensions(
     candidate: &str,
     only_record_failures: bool,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> Option<PathAndExtension> {
     if has_js_file_extension(candidate)
         || file_extension_is(candidate, Extension::Json.to_str())
-            && state.compiler_options.resolve_json_module == Some(true)
+            && state.compiler_options.ref_(arena).resolve_json_module == Some(true)
     {
         let extensionless = remove_file_extension(candidate);
         let extension = &candidate[extensionless.len()..];
@@ -2653,6 +2659,7 @@ fn load_js_or_exact_ts_file_name(
     candidate: &str,
     only_record_failures: bool,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> Option<PathAndExtension> {
     if matches!(extensions, Extensions::TypeScript | Extensions::DtsOnly)
         && file_extension_is_one_of(
@@ -2677,7 +2684,7 @@ fn load_js_or_exact_ts_file_name(
         });
     }
 
-    load_module_from_file_no_implicit_extensions(extensions, candidate, only_record_failures, state)
+    load_module_from_file_no_implicit_extensions(extensions, candidate, only_record_failures, state, arena)
 }
 
 fn try_adding_extensions(
@@ -2866,13 +2873,13 @@ pub(crate) fn get_package_scope_for_path(
     file_name: &Path,
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     arena: &impl HasArena,
 ) -> Option<Gc<PackageJsonInfo>> {
     let state = ModuleResolutionState {
         host,
         compiler_options: options.clone(),
-        trace_enabled: is_trace_enabled(&options, host),
+        trace_enabled: is_trace_enabled(&options.ref_(arena), host),
         failed_lookup_locations: Default::default(),
         package_json_info_cache,
         features: NodeResolutionFeatures::None,
@@ -3143,6 +3150,7 @@ fn load_node_module_from_directory_worker(
             &index_path,
             only_record_failures_for_index,
             state,
+            arena,
         ));
     }
     Ok(None)
@@ -3622,7 +3630,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
 
             return Ok(to_search_result(with_package_id(
                 Some(self.scope),
-                load_js_or_exact_ts_file_name(self.extensions, &final_path, false, self.state)
+                load_js_or_exact_ts_file_name(self.extensions, &final_path, false, self.state, self)
                     .as_ref(),
             )));
         } else if let Some(target) = target.filter(|target| target.is_object() || target.is_array())
@@ -3889,6 +3897,7 @@ fn load_module_from_specific_node_modules_directory(
                 &candidate,
                 !node_modules_directory_exists,
                 state,
+                arena,
             );
             if from_file.is_some() {
                 return Ok(no_package_id(from_file.as_ref()));
@@ -3937,7 +3946,7 @@ fn load_module_from_specific_node_modules_directory(
                 )?.and_then(|search_result| search_result.value));
             }
             let path_and_extension =
-                load_module_from_file(extensions, candidate, only_record_failures, state)
+                load_module_from_file(extensions, candidate, only_record_failures, state, arena)
                     .try_or_else(|| {
                         load_node_module_from_directory_worker(
                             extensions,
@@ -4207,13 +4216,13 @@ fn try_find_non_relative_module_name_in_cache(
 pub fn classic_name_resolver(
     module_name: &str,
     containing_file: &str,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<&impl NonRelativeModuleNameResolutionCache>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
-    let trace_enabled = is_trace_enabled(&compiler_options, host);
+    let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
     let failed_lookup_locations: RefCell<Vec<String>> = RefCell::new(vec![]);
     let state = ModuleResolutionState {
         compiler_options: compiler_options.clone(),
@@ -4283,6 +4292,7 @@ fn classic_name_resolver_try_resolve(
                     candidate,
                     only_record_failures,
                     state,
+                    arena,
                 ))
             },
         ),
@@ -4322,6 +4332,7 @@ fn classic_name_resolver_try_resolve(
                     search_name,
                     false,
                     state,
+                    arena,
                 ))
             },
         );
@@ -4340,7 +4351,7 @@ fn classic_name_resolver_try_resolve(
         let ref candidate =
             normalize_path(&combine_paths(containing_directory, &[Some(module_name)]));
         return Ok(to_search_result(load_module_from_file_no_package_id(
-            extensions, candidate, false, state,
+            extensions, candidate, false, state, arena,
         )));
     }
     Ok(None)

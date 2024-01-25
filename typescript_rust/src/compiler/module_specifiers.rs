@@ -55,7 +55,7 @@ struct Preferences {
 fn get_preferences(
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     user_preferences: &UserPreferences,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     importing_source_file: Id<Node>, /*SourceFile*/
     arena: &impl HasArena,
 ) -> Preferences {
@@ -83,7 +83,7 @@ fn get_preferences(
 fn get_ending(
     import_module_specifier_ending: Option<&str>,
     importing_source_file: Id<Node>, /*SourceFile*/
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     arena: &impl HasArena,
 ) -> Ending {
@@ -101,7 +101,7 @@ fn get_ending(
                 )
             {
                 Ending::JsExtension
-            } else if get_emit_module_resolution_kind(&compiler_options)
+            } else if get_emit_module_resolution_kind(&compiler_options.ref_(arena))
                 != ModuleResolutionKind::NodeJs
             {
                 Ending::Index
@@ -113,13 +113,13 @@ fn get_ending(
 }
 
 fn is_format_requiring_extensions(
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     importing_source_file_name: &Path,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     arena: &impl HasArena,
 ) -> bool {
     if !matches!(
-        get_emit_module_resolution_kind(&compiler_options),
+        get_emit_module_resolution_kind(&compiler_options.ref_(arena)),
         ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext
     ) {
         return false;
@@ -258,7 +258,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 }
 
 pub fn get_module_specifier(
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     importing_source_file: Id<Node>, /*SourceFile*/
     importing_source_file_name: &Path,
     to_file_name: &str,
@@ -266,7 +266,7 @@ pub fn get_module_specifier(
     arena: &impl HasArena,
 ) -> io::Result<String> {
     get_module_specifier_worker(
-        &compiler_options,
+        &compiler_options.ref_(arena),
         importing_source_file_name,
         to_file_name,
         host,
@@ -348,7 +348,7 @@ fn try_get_module_specifiers_from_cache_worker(
 pub fn get_module_specifiers(
     module_symbol: Id<Symbol>,
     checker: &TypeChecker,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
@@ -369,7 +369,7 @@ pub fn get_module_specifiers(
 pub fn get_module_specifiers_with_cache_info(
     module_symbol: Id<Symbol>,
     checker: &TypeChecker,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
@@ -444,7 +444,7 @@ pub fn get_module_specifiers_with_cache_info(
 
 fn compute_module_specifiers(
     module_paths: &[ModulePath],
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     importing_source_file: Id<Node>, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
@@ -507,7 +507,7 @@ fn compute_module_specifiers(
     let mut relative_specifiers: Option<Vec<String>> = None;
     for module_path in module_paths {
         let specifier =
-            try_get_module_name_as_node_module(module_path, &info, host, &compiler_options, None);
+            try_get_module_name_as_node_module(module_path, &info, host, &compiler_options.ref_(arena), None);
         if let Some(specifier) = specifier.as_ref() {
             append(
                 node_modules_specifiers.get_or_insert_default_(),
@@ -524,7 +524,7 @@ fn compute_module_specifiers(
             let local = get_local_module_specifier(
                 &module_path.path,
                 &info,
-                &compiler_options,
+                &compiler_options.ref_(arena),
                 host,
                 preferences,
             )?;

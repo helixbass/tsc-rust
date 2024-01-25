@@ -1403,7 +1403,7 @@ impl UnparsedSyntheticReference {
 }
 
 pub trait ScriptReferenceHost {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
+    fn get_compiler_options(&self) -> Id<CompilerOptions>;
     fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>>;
     fn get_source_file_by_path(&self, path: &Path) -> Option<Id<Node /*SourceFile*/>>;
     fn get_current_directory(&self) -> String;
@@ -1610,7 +1610,7 @@ pub struct Program {
     pub(crate) create_program_options: GcCell<Option<CreateProgramOptions>>,
     #[unsafe_ignore_trace]
     pub(crate) root_names: RefCell<Option<Vec<String>>>,
-    pub(crate) options: Gc<CompilerOptions>,
+    pub(crate) options: Id<CompilerOptions>,
     pub(crate) config_file_parsing_diagnostics: GcCell<Option<Vec<Gc<Diagnostic>>>>,
     #[unsafe_ignore_trace]
     pub(crate) project_references: RefCell<Option<Vec<Rc<ProjectReference>>>>,

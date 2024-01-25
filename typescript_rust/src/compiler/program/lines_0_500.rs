@@ -111,7 +111,7 @@ struct OutputFingerprint {
 }
 
 pub(super) fn create_compiler_host(
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     set_parent_nodes: Option<bool>,
     arena: &impl HasArena,
 ) -> impl CompilerHost {
@@ -120,7 +120,7 @@ pub(super) fn create_compiler_host(
 
 /*pub(crate) fn create_compiler_host_worker(*/
 pub fn create_compiler_host_worker(
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     set_parent_nodes: Option<bool>,
     system: Option<Id<Box<dyn System>>>,
     arena: &impl HasArena,
@@ -129,7 +129,7 @@ pub fn create_compiler_host_worker(
     let existing_directories: HashMap<String, bool> = HashMap::new();
     let get_canonical_file_name =
         create_get_canonical_file_name(system.ref_(arena).use_case_sensitive_file_names());
-    let new_line = get_new_line_character(options.new_line, Some(|| system.ref_(arena).new_line().to_owned()), arena);
+    let new_line = get_new_line_character(options.ref_(arena).new_line, Some(|| system.ref_(arena).new_line().to_owned()), arena);
 
     CompilerHostConcrete {
         set_parent_nodes,
@@ -157,7 +157,7 @@ struct CompilerHostConcrete {
     existing_directories: GcCell<HashMap<String, bool>>,
     #[unsafe_ignore_trace]
     output_fingerprints: RefCell<Option<HashMap<String, OutputFingerprint>>>,
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     new_line: String,
     current_directory: GcCell<Option<String>>,
     #[unsafe_ignore_trace]
@@ -230,7 +230,7 @@ impl CompilerHostConcrete {
         data: &str,
         write_byte_order_mark: bool,
     ) -> io::Result<()> {
-        if !is_watch_set(&self.options) || !self.system.ref_(self).is_get_modified_time_supported() {
+        if !is_watch_set(&self.options.ref_(self)) || !self.system.ref_(self).is_get_modified_time_supported() {
             return self
                 .system
                 .ref_(self).write_file(file_name, data, Some(write_byte_order_mark));

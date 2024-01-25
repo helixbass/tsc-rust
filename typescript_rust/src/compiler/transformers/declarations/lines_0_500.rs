@@ -201,7 +201,7 @@ pub(super) struct TransformDeclarations {
     pub(super) libs: GcCell<Option<HashMap<String, bool>>>,
     pub(super) emitted_imports: GcCell<Option<Vec<Id<Node /*AnyImportSyntax*/>>>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
-    pub(super) options: Gc<CompilerOptions>,
+    pub(super) options: Id<CompilerOptions>,
     pub(super) no_resolve: Option<bool>,
     pub(super) strip_internal: Option<bool>,
 }

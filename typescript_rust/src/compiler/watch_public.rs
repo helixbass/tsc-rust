@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub fn create_incremental_compiler_host(
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     system: Option<Id<Box<dyn System>>>,
     arena: &impl HasArena,
 ) -> impl CompilerHost + 'static {
@@ -22,7 +22,7 @@ pub trait WatchStatusReporter {
         &self,
         diagnostic: Gc<Diagnostic>,
         new_line: &str,
-        options: Gc<CompilerOptions>,
+        options: Id<CompilerOptions>,
         error_count: Option<usize>,
     );
 }

@@ -1214,7 +1214,7 @@ impl NodeBuilder {
             let context_tracker = context.tracker_ref();
             let module_resolver_host = context_tracker.module_resolver_host().unwrap();
             let specifier_compiler_options = if is_bundle {
-                Gc::new(CompilerOptions {
+                self.alloc_compiler_options(CompilerOptions {
                     base_url: Some(module_resolver_host.ref_(self).get_common_source_directory()),
                     ..(*self.type_checker.compiler_options).clone()
                 })

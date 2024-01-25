@@ -55,7 +55,7 @@ struct TransformES2017 {
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     resolver: Gc<Box<dyn EmitResolver>>,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     language_version: ScriptTarget,
     #[unsafe_ignore_trace]

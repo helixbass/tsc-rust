@@ -34,7 +34,7 @@ pub(super) struct TransformSystemModule {
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    pub(super) compiler_options: Gc<CompilerOptions>,
+    pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) host: Id<Box<dyn EmitHost>>,
     pub(super) module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,

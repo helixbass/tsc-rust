@@ -77,7 +77,7 @@ struct TransformES2018 {
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
     resolver: Gc<Box<dyn EmitResolver>>,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     language_version: ScriptTarget,
     #[unsafe_ignore_trace]

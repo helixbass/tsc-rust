@@ -497,7 +497,7 @@ pub trait ParseConfigFileHost:
 
 pub fn get_parsed_command_line_of_config_file(
     config_file_name: &str,
-    options_to_extend: Option<Gc<CompilerOptions>>,
+    options_to_extend: Option<Id<CompilerOptions>>,
     host: &impl ParseConfigFileHost,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,

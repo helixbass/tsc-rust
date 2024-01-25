@@ -1098,7 +1098,7 @@ pub enum EmitHint {
 }
 
 pub trait SourceFileMayBeEmittedHost {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
+    fn get_compiler_options(&self) -> Id<CompilerOptions>;
     fn is_source_file_from_external_library(&self, file: Id<Node> /*SourceFile*/) -> bool;
     fn get_resolved_project_reference_to_redirect(
         &self,

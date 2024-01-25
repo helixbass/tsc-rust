@@ -22,7 +22,8 @@ use crate::{
     DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry, Extension,
     JsonConversionNotifier, ModuleResolutionKind, Node, NodeInterface, OptionTry, ParseConfigHost,
     Path, TypeAcquisition, WatchOptions,
-    HasArena, AllArenas,
+    HasArena, AllArenas, InArena, OptionInArena,
+    Matches,
 };
 
 pub(super) fn create_compiler_diagnostic_only_if_json(
@@ -103,7 +104,7 @@ pub(crate) fn update_error_for_no_input_files(
 #[derive(Builder, Debug)]
 pub struct ParsedTsconfig {
     pub raw: Option<serde_json::Value>,
-    pub options: Option<Gc<CompilerOptions>>,
+    pub options: Option<Id<CompilerOptions>>,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub extended_config_path: Option<String>,
@@ -166,15 +167,13 @@ pub(super) fn parse_config(
 
     if own_config
         .options
-        .as_ref()
-        .and_then(|options| options.paths.as_ref())
-        .is_some()
+        .matches(|options| options.ref_(arena).paths.is_some())
     {
         // own_config.options.as_mut().unwrap().paths_base_path = Some(base_path.clone());
         own_config.options = {
             let mut options = maybe_extend_compiler_options(None, own_config.options.as_deref());
             options.paths_base_path = Some(base_path.clone());
-            Some(Gc::new(options))
+            Some(arena.alloc_compiler_options(options))
         };
     }
     if let Some(own_config_extended_config_path) = own_config.extended_config_path.as_ref() {
@@ -238,9 +237,9 @@ pub(super) fn parse_config(
                 raw.entry("compileOnSave")
                     .or_insert_with(|| base_raw_compile_on_save.clone());
             }
-            own_config.options = Some(Gc::new(maybe_extend_compiler_options(
-                extended_config.options.as_deref(),
-                own_config.options.as_deref(),
+            own_config.options = Some(arena.alloc_compiler_options(maybe_extend_compiler_options(
+                extended_config.options.refed(arena).as_deref(),
+                own_config.options.refed(arena).as_deref(),
             )));
             own_config.watch_options =
                 if own_config.watch_options.is_some() && extended_config.watch_options.is_some() {
@@ -335,7 +334,7 @@ pub(super) fn parse_own_config_of_json(
     }
     Ok(ParsedTsconfig {
         raw: Some(serde_json::Value::Object(json)),
-        options: Some(Gc::new(options)),
+        options: Some(arena.alloc_compiler_options(options)),
         watch_options: watch_options.map(|watch_options| Rc::new(watch_options)),
         type_acquisition: Some(Rc::new(type_acquisition)),
         extended_config_path,
@@ -422,7 +421,7 @@ pub(super) fn parse_own_config_of_json_source_file(
     let extended_config_path = extended_config_path.borrow();
     Ok(ParsedTsconfig {
         raw: json,
-        options: Some(Gc::new(options)),
+        options: Some(arena.alloc_compiler_options(options)),
         watch_options: watch_options
             .as_ref()
             .map(|watch_options| Rc::new(watch_options.clone())),
@@ -650,7 +649,7 @@ pub(super) fn get_extends_config_path(
     let resolved = node_module_name_resolver(
         &extended_config,
         &combine_paths(base_path, &vec![Some("tsconfig.json")]),
-        Gc::new(CompilerOptions {
+        arena.alloc_compiler_options(CompilerOptions {
             module_resolution: Some(ModuleResolutionKind::NodeJs),
             ..Default::default()
         }),

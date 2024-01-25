@@ -606,7 +606,7 @@ fn emit_source_file_or_bundle(
     emit_skipped: &mut bool,
     target_source_file: Option<Id<Node> /*SourceFile*/>,
     emitter_diagnostics: &mut DiagnosticCollection,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     force_dts_emit: Option<bool>,
     resolver: Gc<Box<dyn EmitResolver>>,
     declaration_transformers: &[TransformerFactory],
@@ -836,7 +836,7 @@ fn emit_build_info(
 fn emit_js_file_or_bundle(
     emit_only_dts_files: Option<bool>,
     host: Id<Box<dyn EmitHost>>,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     emit_skipped: &mut bool,
     resolver: Gc<Box<dyn EmitResolver>>,
     script_transformers: &[TransformerFactory],
@@ -860,7 +860,7 @@ fn emit_js_file_or_bundle(
     let source_file_or_bundle = source_file_or_bundle.unwrap();
     let js_file_path = js_file_path.unwrap();
 
-    if host.ref_(arena).is_emit_blocked(js_file_path) || compiler_options.no_emit == Some(true) {
+    if host.ref_(arena).is_emit_blocked(js_file_path) || compiler_options.ref_(arena).no_emit == Some(true) {
         *emit_skipped = true;
         return Ok(());
     }
@@ -877,15 +877,15 @@ fn emit_js_file_or_bundle(
     )?;
 
     let printer_options = PrinterOptions {
-        remove_comments: compiler_options.remove_comments,
-        new_line: compiler_options.new_line,
-        no_emit_helpers: compiler_options.no_emit_helpers,
-        module: compiler_options.module,
-        target: compiler_options.target,
-        source_map: compiler_options.source_map,
-        inline_source_map: compiler_options.inline_source_map,
-        inline_sources: compiler_options.inline_sources,
-        extended_diagnostics: compiler_options.extended_diagnostics,
+        remove_comments: compiler_options.ref_(arena).remove_comments,
+        new_line: compiler_options.ref_(arena).new_line,
+        no_emit_helpers: compiler_options.ref_(arena).no_emit_helpers,
+        module: compiler_options.ref_(arena).module,
+        target: compiler_options.ref_(arena).target,
+        source_map: compiler_options.ref_(arena).source_map,
+        inline_source_map: compiler_options.ref_(arena).inline_source_map,
+        inline_sources: compiler_options.ref_(arena).inline_sources,
+        extended_diagnostics: compiler_options.ref_(arena).extended_diagnostics,
         write_bundle_file_info: Some(bundle_build_info.is_some()),
         relative_to_build_info: Some(relative_to_build_info),
         ..Default::default()
@@ -909,12 +909,12 @@ fn emit_js_file_or_bundle(
         source_map_data_list,
         new_line,
         emitter_diagnostics,
-        &compiler_options,
+        &compiler_options.ref_(arena),
         js_file_path,
         source_map_file_path,
         transform.ref_(arena).transformed()[0],
         &printer,
-        &(&*compiler_options).into(),
+        &(&*compiler_options.ref_(arena)).into(),
         &*printer,
     )?;
 
@@ -986,7 +986,7 @@ impl HasArena for EmitJsFileOrBundlePrintHandlers {
 
 fn emit_declaration_file_or_bundle(
     emit_only_dts_files: Option<bool>,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     emit_skipped: &mut bool,
     force_dts_emit: Option<bool>,
     resolver: Gc<Box<dyn EmitResolver>>,
@@ -1009,7 +1009,7 @@ fn emit_declaration_file_or_bundle(
     }
     let source_file_or_bundle = source_file_or_bundle.unwrap();
     if !declaration_file_path.is_non_empty() {
-        if emit_only_dts_files == Some(true) || compiler_options.emit_declaration_only == Some(true)
+        if emit_only_dts_files == Some(true) || compiler_options.ref_(arena).emit_declaration_only == Some(true)
         {
             *emit_skipped = true;
         }
@@ -1034,7 +1034,7 @@ fn emit_declaration_file_or_bundle(
             is_source_file_not_json(&source_file.ref_(arena))
         })
     };
-    let input_list_or_bundle = if out_file(&compiler_options).is_non_empty() {
+    let input_list_or_bundle = if out_file(&compiler_options.ref_(arena)).is_non_empty() {
         vec![get_factory().create_bundle(
             files_for_emit.iter().cloned().map(Option::Some).collect(),
             if !is_source_file(&source_file_or_bundle.ref_(arena)) {
@@ -1046,7 +1046,7 @@ fn emit_declaration_file_or_bundle(
     } else {
         files_for_emit.clone()
     };
-    if emit_only_dts_files == Some(true) && !get_emit_declarations(&compiler_options) {
+    if emit_only_dts_files == Some(true) && !get_emit_declarations(&compiler_options.ref_(arena)) {
         files_for_emit
             .iter()
             .try_for_each(|&file_for_emit| -> io::Result<_> {
@@ -1074,14 +1074,14 @@ fn emit_declaration_file_or_bundle(
     }
 
     let printer_options = PrinterOptions {
-        remove_comments: compiler_options.remove_comments,
-        new_line: compiler_options.new_line,
+        remove_comments: compiler_options.ref_(arena).remove_comments,
+        new_line: compiler_options.ref_(arena).new_line,
         no_emit_helpers: Some(true),
-        module: compiler_options.module,
-        target: compiler_options.target,
-        source_map: compiler_options.source_map,
-        inline_source_map: compiler_options.inline_source_map,
-        extended_diagnostics: compiler_options.extended_diagnostics,
+        module: compiler_options.ref_(arena).module,
+        target: compiler_options.ref_(arena).target,
+        source_map: compiler_options.ref_(arena).source_map,
+        inline_source_map: compiler_options.ref_(arena).inline_source_map,
+        extended_diagnostics: compiler_options.ref_(arena).extended_diagnostics,
         only_print_js_doc_style: Some(true),
         write_bundle_file_info: Some(bundle_build_info.is_some()),
         record_internal_section: Some(bundle_build_info.is_some()),
@@ -1100,7 +1100,7 @@ fn emit_declaration_file_or_bundle(
     );
     let decl_blocked = declaration_transform.ref_(arena).diagnostics().is_non_empty()
         || host.ref_(arena).is_emit_blocked(declaration_file_path)
-        || compiler_options.no_emit == Some(true);
+        || compiler_options.ref_(arena).no_emit == Some(true);
     *emit_skipped = *emit_skipped || decl_blocked;
     if !decl_blocked || force_dts_emit == Some(true) {
         Debug_.assert(
@@ -1113,20 +1113,20 @@ fn emit_declaration_file_or_bundle(
             source_map_data_list,
             new_line,
             emitter_diagnostics,
-            &compiler_options,
+            &compiler_options.ref_(arena),
             declaration_file_path,
             declaration_map_path,
             declaration_transform.ref_(arena).transformed()[0],
             &declaration_printer,
             &SourceMapOptions {
                 source_map: if force_dts_emit != Some(true) {
-                    compiler_options.declaration_map
+                    compiler_options.ref_(arena).declaration_map
                 } else {
                     Some(false)
                 },
-                source_root: compiler_options.source_root.clone(),
-                map_root: compiler_options.map_root.clone(),
-                extended_diagnostics: compiler_options.extended_diagnostics,
+                source_root: compiler_options.ref_(arena).source_root.clone(),
+                map_root: compiler_options.ref_(arena).map_root.clone(),
+                extended_diagnostics: compiler_options.ref_(arena).extended_diagnostics,
                 inline_source_map: None,
                 inline_sources: None,
             },

@@ -401,7 +401,7 @@ pub(super) struct TransformClassFields {
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
-    pub(super) compiler_options: Gc<CompilerOptions>,
+    pub(super) compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
     pub(super) use_define_for_class_fields: bool,

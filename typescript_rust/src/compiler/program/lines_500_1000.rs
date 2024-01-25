@@ -54,14 +54,14 @@ pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 pub struct LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     host: Gc<Box<dyn CompilerHost>>,
     type_reference_directive_resolution_cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
 }
 
 impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
     pub fn new(
-        options: Gc<CompilerOptions>,
+        options: Id<CompilerOptions>,
         host: Gc<Box<dyn CompilerHost>>,
         type_reference_directive_resolution_cache: Option<
             Gc<TypeReferenceDirectiveResolutionCache>,
@@ -215,14 +215,14 @@ pub trait LoadWithModeAwareCacheLoader<TValue>: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 pub struct LoadWithModeAwareCacheLoaderResolveModuleName {
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     host: Gc<Box<dyn CompilerHost>>,
     module_resolution_cache: Option<Gc<ModuleResolutionCache>>,
 }
 
 impl LoadWithModeAwareCacheLoaderResolveModuleName {
     pub fn new(
-        options: Gc<CompilerOptions>,
+        options: Id<CompilerOptions>,
         host: Gc<Box<dyn CompilerHost>>,
         module_resolution_cache: Option<Gc<ModuleResolutionCache>>,
     ) -> Self {
@@ -771,7 +771,7 @@ pub fn get_implied_node_format_for_file(
     file_name: &Path,
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     arena: &impl HasArena,
 ) -> Option<ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/> {
     match get_emit_module_resolution_kind(&options) {
@@ -815,7 +815,7 @@ pub fn lookup_from_package_json(
     file_name: &Path,
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     arena: &impl HasArena,
 ) -> ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/ {
     let scope = get_package_scope_for_path(file_name, package_json_info_cache, host, options, arena);
@@ -1881,11 +1881,11 @@ pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
 #[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerHost {
     host: Gc<Box<dyn CompilerHost>>,
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
 }
 
 impl ActualResolveModuleNamesWorkerHost {
-    pub fn new(host: Gc<Box<dyn CompilerHost>>, options: Gc<CompilerOptions>) -> Self {
+    pub fn new(host: Gc<Box<dyn CompilerHost>>, options: Id<CompilerOptions>) -> Self {
         Self { host, options }
     }
 }
@@ -1978,11 +1978,11 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
 #[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerHost {
     host: Gc<Box<dyn CompilerHost>>,
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerHost {
-    pub fn new(host: Gc<Box<dyn CompilerHost>>, options: Gc<CompilerOptions>) -> Self {
+    pub fn new(host: Gc<Box<dyn CompilerHost>>, options: Id<CompilerOptions>) -> Self {
         Self { host, options }
     }
 }
@@ -2043,7 +2043,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
 }
 
 impl ScriptReferenceHost for Program {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
         self.options.clone()
     }
 
@@ -2113,7 +2113,7 @@ impl ModuleSpecifierResolutionHost for Program {
 }
 
 impl TypeCheckerHost for Program {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
         self.options.clone()
     }
 
@@ -2150,7 +2150,7 @@ impl TypeCheckerHost for Program {
 impl TypeCheckerHostDebuggable for Program {}
 
 impl SourceFileMayBeEmittedHost for Program {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
         self.get_compiler_options()
     }
 

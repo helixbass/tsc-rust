@@ -115,7 +115,7 @@ pub(super) fn update_report_diagnostic(
 }
 
 pub(super) enum CompilerOptionsOrBuildOptions {
-    CompilerOptions(Gc<CompilerOptions>),
+    CompilerOptions(Id<CompilerOptions>),
     BuildOptions(Rc<BuildOptions>),
 }
 
@@ -128,8 +128,8 @@ impl CompilerOptionsOrBuildOptions {
     }
 }
 
-impl From<Gc<CompilerOptions>> for CompilerOptionsOrBuildOptions {
-    fn from(value: Gc<CompilerOptions>) -> Self {
+impl From<Id<CompilerOptions>> for CompilerOptionsOrBuildOptions {
+    fn from(value: Id<CompilerOptions>) -> Self {
         Self::CompilerOptions(value)
     }
 }
@@ -978,7 +978,7 @@ pub(super) fn execute_command_line_worker(
     let command_line_options =
         convert_to_options_with_absolute_paths(command_line.options.clone(), |file_name| {
             get_normalized_absolute_path(file_name, Some(&current_directory))
-        });
+        }, arena);
 
     if let Some(config_file_name) = config_file_name {
         let mut extended_config_cache: HashMap<String, ExtendedConfigCacheEntry> = HashMap::new();

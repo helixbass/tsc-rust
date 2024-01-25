@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use local_macros::enum_unwrapped;
@@ -244,16 +245,16 @@ pub(super) fn compiler_options_alternate_mode() -> Rc<AlternateModeDiagnostics> 
         .with(|compiler_options_alternate_mode| compiler_options_alternate_mode.clone())
 }
 
-thread_local! {
-    pub(crate) static default_init_compiler_options: Gc<CompilerOptions> =
-        Gc::new(CompilerOptionsBuilder::default()
-            .module(ModuleKind::CommonJS)
-            .target(ScriptTarget::ES2016)
-            .strict(true)
-            .es_module_interop(true)
-            .force_consistent_casing_in_file_names(true)
-            .skip_lib_check(true)
-            .build().unwrap());
+// TODO: make static (per-arena)?
+pub(crate) fn get_default_init_compiler_options(arena: &impl HasArena) -> Id<CompilerOptions> {
+    arena.alloc_compiler_options(CompilerOptionsBuilder::default()
+        .module(ModuleKind::CommonJS)
+        .target(ScriptTarget::ES2016)
+        .strict(true)
+        .es_module_interop(true)
+        .force_consistent_casing_in_file_names(true)
+        .skip_lib_check(true)
+        .build().unwrap())
 }
 
 pub(crate) fn convert_enable_auto_discovery_to_enable(

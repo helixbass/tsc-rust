@@ -272,7 +272,7 @@ impl BuilderProgram for BuilderProgramDummy {
         unimplemented!()
     }
 
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
         unimplemented!()
     }
 
@@ -504,7 +504,7 @@ pub(super) fn create_watch_of_config_file(
     cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config_parse_result: Rc<ParsedCommandLine>,
-    options_to_extend: Gc<CompilerOptions>,
+    options_to_extend: Id<CompilerOptions>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     _extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
     arena: &impl HasArena,
@@ -540,7 +540,7 @@ pub(super) fn create_watch_of_files_and_compiler_options(
     _cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     _report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     _root_files: &[String],
-    _options: Gc<CompilerOptions>,
+    _options: Id<CompilerOptions>,
     _watch_options: Option<Rc<WatchOptions>>,
 ) {
     unimplemented!()

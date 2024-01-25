@@ -240,7 +240,7 @@ impl Program {
         self.files_by_name()
     }
 
-    pub fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    pub fn get_compiler_options(&self) -> Id<CompilerOptions> {
         self.options.clone()
     }
 
@@ -1525,7 +1525,7 @@ impl EmitHost for ProgramEmitHost {
 }
 
 impl ScriptReferenceHost for ProgramEmitHost {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
         self.program.get_compiler_options()
     }
 
@@ -1609,7 +1609,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
 }
 
 impl SourceFileMayBeEmittedHost for ProgramEmitHost {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
         self.program.get_compiler_options()
     }
 

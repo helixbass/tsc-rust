@@ -21,7 +21,7 @@ struct TransformES5 {
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     no_substitution: GcCell<Option<HashMap<NodeId, bool>>>,
 }
 

@@ -203,7 +203,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         &self,
         diagnostic: Gc<Diagnostic>,
         new_line: &str,
-        options: Gc<CompilerOptions>,
+        options: Id<CompilerOptions>,
         _error_count: Option<usize>,
     ) {
         if self.pretty {
@@ -258,7 +258,7 @@ impl HasArena for WatchStatusReporterConcrete {
 
 pub fn parse_config_file_with_system(
     config_file_name: &str,
-    options_to_extend: Gc<CompilerOptions>,
+    options_to_extend: Id<CompilerOptions>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     system: Id<Box<dyn System>>,
@@ -391,7 +391,7 @@ pub enum ProgramOrBuilderProgram {
 }
 
 impl ProgramOrBuilderProgram {
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
         match self {
             Self::Program(program) => program.get_compiler_options(),
             Self::BuilderProgram(program) => program.get_compiler_options(),

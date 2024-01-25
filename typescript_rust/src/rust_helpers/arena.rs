@@ -7,7 +7,7 @@ use once_cell::unsync::Lazy;
 use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    FileIncludeReason, System, SourceMapRange, EmitHelper,
+    FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions,
 };
 
 #[derive(Default)]
@@ -30,6 +30,7 @@ pub struct AllArenas {
     pub systems: RefCell<Arena<Box<dyn System>>>,
     pub source_map_ranges: RefCell<Arena<SourceMapRange>>,
     pub emit_helpers: RefCell<Arena<EmitHelper>>,
+    pub compiler_options: RefCell<Arena<CompilerOptions>>,
 }
 
 pub trait HasArena {
@@ -153,6 +154,14 @@ pub trait HasArena {
 
     fn alloc_emit_helper(&self, emit_helper: EmitHelper) -> Id<EmitHelper> {
         self.arena().alloc_emit_helper(emit_helper)
+    }
+
+    fn compiler_options(&self, compiler_options: Id<CompilerOptions>) -> Ref<CompilerOptions> {
+        self.arena().compiler_options(compiler_options)
+    }
+
+    fn alloc_compiler_options(&self, compiler_options: CompilerOptions) -> Id<CompilerOptions> {
+        self.arena().alloc_compiler_options(compiler_options)
     }
 }
 
@@ -319,6 +328,16 @@ impl HasArena for AllArenas {
         let id = self.emit_helpers.borrow_mut().alloc(emit_helper);
         id
     }
+
+    #[track_caller]
+    fn compiler_options(&self, compiler_options: Id<EmitHelper>) -> Ref<EmitHelper> {
+        Ref::map(self.compiler_options.borrow(), |compiler_options_| &compiler_options_[compiler_options])
+    }
+
+    fn alloc_compiler_options(&self, compiler_options: EmitHelper) -> Id<EmitHelper> {
+        let id = self.compiler_options.borrow_mut().alloc(compiler_options);
+        id
+    }
 }
 
 pub trait InArena {
@@ -448,6 +467,14 @@ impl InArena for Id<EmitHelper> {
     }
 }
 
+impl InArena for Id<CompilerOptions> {
+    type Item = CompilerOptions;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CompilerOptions> {
+        has_arena.compiler_options(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -467,6 +494,14 @@ impl OptionInArena for Option<Id<FileIncludeReason>> {
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, FileIncludeReason>> {
         self.map(|file_include_reason| has_arena.file_include_reason(file_include_reason))
+    }
+}
+
+impl OptionInArena for Option<Id<CompilerOptions>> {
+    type Item = CompilerOptions;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, CompilerOptions>> {
+        self.map(|compiler_options| has_arena.compiler_options(compiler_options))
     }
 }
 

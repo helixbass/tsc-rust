@@ -331,7 +331,7 @@ pub fn transform_nodes(
     host: Option<Id<Box<dyn EmitHost>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     nodes: &[Id<Node>],
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
@@ -410,7 +410,7 @@ pub struct TransformNodesTransformationResult {
     transformers: Vec<TransformerFactory>,
     transformers_with_context: GcCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
-    options: Gc<CompilerOptions>,
+    options: Id<CompilerOptions>,
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
     created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
@@ -431,7 +431,7 @@ impl TransformNodesTransformationResult {
         diagnostics: Vec<Gc<Diagnostic>>,
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
-        options: Gc<CompilerOptions>,
+        options: Id<CompilerOptions>,
         resolver: Option<Gc<Box<dyn EmitResolver>>>,
         host: Option<Id<Box<dyn EmitHost>>>,
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -753,7 +753,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         self.base_factory.clone()
     }
 
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
         self.options.clone()
     }
 
@@ -1376,8 +1376,8 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
         get_synthetic_factory()
     }
 
-    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
-        Gc::new(Default::default())
+    fn get_compiler_options(&self) -> Id<CompilerOptions> {
+        self.alloc_compiler_options(Default::default())
     }
 
     fn start_lexical_environment(&self) {}
