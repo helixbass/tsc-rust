@@ -32,6 +32,7 @@ use crate::{
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
     append_if_unique_eq,
     static_arena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+    Program,
 };
 
 impl TypeChecker {

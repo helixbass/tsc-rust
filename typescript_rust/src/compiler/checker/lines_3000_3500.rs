@@ -27,7 +27,7 @@ use crate::{
     HasArena, HasInitializerInterface, InArena, InternalSymbolName, ModuleKind,
     ModuleResolutionKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolLinks, SyntaxKind, TypeChecker,
-    TypeCheckerHost,
+    TypeCheckerHost, ModuleSpecifierResolutionHost,
 };
 
 impl TypeChecker {

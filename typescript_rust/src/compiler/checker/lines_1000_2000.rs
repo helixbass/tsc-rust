@@ -1161,7 +1161,7 @@ impl TypeChecker {
             if self.is_used_in_function_or_instance_property(decl_container, usage, declaration)? {
                 return Ok(true);
             }
-            let host_ref = self.host.ref_(self).get_source_files();
+            let host_ref = self.host.ref_(self);
             let source_files = host_ref.get_source_files();
             return Ok(index_of_eq(&*source_files, &declaration_file)
                 <= index_of_eq(&*source_files, &use_file));
