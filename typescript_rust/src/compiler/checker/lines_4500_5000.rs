@@ -1523,11 +1523,11 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
 
 #[derive(Trace, Finalize)]
 struct DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
-    pub host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
+    pub host: Id<Program /*TypeCheckerHost*/>,
 }
 
 impl DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
-    pub fn new(host: Gc<Box<dyn TypeCheckerHostDebuggable>>) -> Self {
+    pub fn new(host: Id<Program /*TypeCheckerHost*/>) -> Self {
         Self { host }
     }
 }
@@ -1537,7 +1537,7 @@ impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
 {
     fn get_common_source_directory(&self) -> String {
         self.host
-            .get_common_source_directory()
+            .ref_(self).get_common_source_directory()
             .unwrap_or_else(|| "".to_owned())
     }
 
@@ -1548,50 +1548,56 @@ impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
 
 impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
     fn get_current_directory(&self) -> String {
-        self.host.get_current_directory()
+        self.host.ref_(self).get_current_directory()
     }
 
     fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
-        self.host.get_symlink_cache()
+        ModuleSpecifierResolutionHost::get_symlink_cache(&*self.host.ref_(self))
     }
 
     fn use_case_sensitive_file_names(&self) -> Option<bool> {
-        self.host.use_case_sensitive_file_names()
+        ModuleSpecifierResolutionHost::use_case_sensitive_file_names(&*self.host.ref_(self))
     }
 
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
-        self.host.redirect_targets_map()
+        self.host.ref_(self).redirect_targets_map()
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
-        ModuleSpecifierResolutionHost::get_project_reference_redirect(&**self.host, file_name)
+        ModuleSpecifierResolutionHost::get_project_reference_redirect(&*self.host.ref_(self), file_name)
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
         ModuleSpecifierResolutionHost::is_source_of_project_reference_redirect(
-            &**self.host,
+            &*self.host.ref_(self),
             file_name,
         )
     }
 
     fn file_exists(&self, file_name: &str) -> bool {
-        self.host.file_exists(file_name)
+        self.host.ref_(self).file_exists(file_name)
     }
 
     fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
-        self.host.get_file_include_reasons()
+        self.host.ref_(self).get_file_include_reasons()
     }
 
     fn read_file(&self, file_name: &str) -> Option<io::Result<Option<String>>> {
-        self.host.read_file(file_name)
+        self.host.ref_(self).read_file(file_name)
     }
 
     fn is_read_file_supported(&self) -> bool {
-        self.host.is_read_file_supported()
+        self.host.ref_(self).is_read_file_supported()
     }
 
     fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
         false
+    }
+}
+
+impl HasArena for DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
