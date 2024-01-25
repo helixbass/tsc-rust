@@ -180,11 +180,11 @@ impl Printer {
     pub(super) fn get_sorted_emit_helpers(
         &self,
         node: Id<Node>,
-    ) -> Option<SortedArray<Gc<EmitHelper>>> {
+    ) -> Option<SortedArray<Id<EmitHelper>>> {
         let helpers = get_emit_helpers(&node.ref_(self));
         helpers.map(|helpers| {
-            stable_sort(&helpers, |a: &Gc<EmitHelper>, b: &Gc<EmitHelper>| {
-                compare_emit_helpers(a, b)
+            stable_sort(&helpers, |&a: &Id<EmitHelper>, &b: &Id<EmitHelper>| {
+                compare_emit_helpers(a, b, self)
             })
         })
     }

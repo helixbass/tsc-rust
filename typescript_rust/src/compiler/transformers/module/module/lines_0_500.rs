@@ -838,7 +838,7 @@ impl TransformModule {
 
         let body = self.factory.create_block(statements, Some(true));
         if self.need_umd_dynamic_import_helper() {
-            add_emit_helper(body, dynamic_import_umd_helper(), self);
+            add_emit_helper(body, dynamic_import_umd_helper(self), self);
         }
 
         Ok(body)

@@ -23,6 +23,7 @@ use crate::{
     SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
     SyntaxKind, TransformFlags,
     HasArena, InArena,
+    maybe_append_if_unique_eq,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -886,7 +887,7 @@ pub(super) fn merge_emit_node(
         let mut dest_emit_node_helpers = dest_emit_node.helpers.clone();
         for helper in helpers {
             dest_emit_node_helpers =
-                Some(maybe_append_if_unique_gc(dest_emit_node_helpers, helper));
+                Some(maybe_append_if_unique_eq(dest_emit_node_helpers, helper));
         }
         dest_emit_node.helpers = dest_emit_node_helpers;
     }

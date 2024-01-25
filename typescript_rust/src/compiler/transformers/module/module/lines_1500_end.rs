@@ -1,4 +1,4 @@
-use std::io;
+use std::{cell::OnceCell, io};
 
 use gc::Gc;
 use id_arena::Id;
@@ -10,7 +10,7 @@ use crate::{
     is_generated_identifier, is_omitted_expression, set_emit_flags, EmitFlags, EmitHelper,
     GetOrInsertDefault, ModifierFlags, Node, NodeArray, NodeExt, NodeInterface, OptionTry,
     ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, VisitResult,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl TransformModule {
@@ -314,15 +314,18 @@ impl TransformModule {
     }
 }
 
-thread_local! {
-    static _dynamic_import_umd_helper: Lazy<Gc<EmitHelper>> = Lazy::new(||
-        ScopedEmitHelperBuilder::default()
-            .name("typescript:dynamicimport-sync-require")
-            .text("\n            var __syncRequire = typeof module === \"object\" && typeof module.exports === \"object\";".to_owned())
-            .build().unwrap().into()
-    )
-}
-pub(super) fn dynamic_import_umd_helper() -> Gc<EmitHelper> {
+pub(super) fn dynamic_import_umd_helper(arena: &impl HasArena) -> Id<EmitHelper> {
+    thread_local! {
+        static _dynamic_import_umd_helper: OnceCell<Id<EmitHelper>> = OnceCell::new();
+    }
+
     _dynamic_import_umd_helper
-        .with(|dynamic_import_umd_helper| (**dynamic_import_umd_helper).clone())
+        .with(|dynamic_import_umd_helper| {
+            *dynamic_import_umd_helper.get_or_init(|| {
+                arena.alloc_emit_helper(ScopedEmitHelperBuilder::default()
+                    .name("typescript:dynamicimport-sync-require")
+                    .text("\n            var __syncRequire = typeof module === \"object\" && typeof module.exports === \"object\";".to_owned())
+                    .build().unwrap().into())
+            })
+        })
 }

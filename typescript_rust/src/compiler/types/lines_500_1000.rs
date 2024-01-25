@@ -2112,7 +2112,7 @@ pub trait NodeExt {
     fn set_parent_recursive(self, incremental: bool, arena: &impl HasArena) -> Self;
     fn and_set_original(self, original: Option<Id<Node>>, arena: &impl HasArena) -> Self;
     fn remove_all_comments(self, arena: &impl HasArena) -> Self;
-    fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>, arena: &impl HasArena) -> Self;
+    fn add_emit_helpers(self, helpers: Option<&[Id<EmitHelper>]>, arena: &impl HasArena) -> Self;
     fn add_synthetic_leading_comment(
         self,
         kind: SyntaxKind,
@@ -2195,7 +2195,7 @@ impl NodeExt for Id<Node> {
         self
     }
 
-    fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>, arena: &impl HasArena) -> Self {
+    fn add_emit_helpers(self, helpers: Option<&[Id<EmitHelper>]>, arena: &impl HasArena) -> Self {
         add_emit_helpers(self, helpers, arena);
         self
     }

@@ -1048,13 +1048,13 @@ impl TransformES2017 {
                     .get_node_check_flags(node)
                     .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
                 {
-                    add_emit_helper(block, advanced_async_super_helper(), self);
+                    add_emit_helper(block, advanced_async_super_helper(self), self);
                 } else if self
                     .resolver
                     .get_node_check_flags(node)
                     .intersects(NodeCheckFlags::AsyncMethodWithSuper)
                 {
-                    add_emit_helper(block, async_super_helper(), self);
+                    add_emit_helper(block, async_super_helper(self), self);
                 }
             }
 

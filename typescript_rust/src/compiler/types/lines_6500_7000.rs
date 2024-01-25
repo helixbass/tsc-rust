@@ -790,7 +790,7 @@ pub struct EmitNode {
     pub constant_value: Option<StringOrNumber>,
     pub external_helpers_module_name: Option<Id<Node /*Identifier*/>>,
     pub external_helpers: Option<bool>,
-    pub helpers: Option<Vec<Gc<EmitHelper>>>,
+    pub helpers: Option<Vec<Id<EmitHelper>>>,
     pub starts_on_new_line: Option<bool>,
     #[unsafe_ignore_trace]
     pub snippet_element: Option<SnippetElement>,
@@ -815,7 +815,7 @@ pub trait EmitHelperBase {
     fn scoped(&self) -> bool;
     fn text(&self) -> EmitHelperText;
     fn priority(&self) -> Option<usize>;
-    fn dependencies(&self) -> Option<&[Gc<EmitHelper>]>;
+    fn dependencies(&self) -> Option<&[Id<EmitHelper>]>;
 }
 
 mod _EmitHelperTextDeriveTraceScope {
@@ -864,7 +864,7 @@ pub struct ScopedEmitHelper {
     #[builder(default)]
     priority: Option<usize>,
     #[builder(default)]
-    dependencies: Option<Vec<Gc<EmitHelper>>>,
+    dependencies: Option<Vec<Id<EmitHelper>>>,
 }
 
 impl ScopedEmitHelper {
@@ -872,7 +872,7 @@ impl ScopedEmitHelper {
         name: String,
         text: impl Into<EmitHelperText>,
         priority: Option<usize>,
-        dependencies: Option<Vec<Gc<EmitHelper>>>,
+        dependencies: Option<Vec<Id<EmitHelper>>>,
     ) -> Self {
         let text = text.into();
         Self {
@@ -902,7 +902,7 @@ impl EmitHelperBase for ScopedEmitHelper {
         self.priority.clone()
     }
 
-    fn dependencies(&self) -> Option<&[Gc<EmitHelper>]> {
+    fn dependencies(&self) -> Option<&[Id<EmitHelper>]> {
         self.dependencies.as_deref()
     }
 }
@@ -917,7 +917,7 @@ pub struct UnscopedEmitHelper {
     #[builder(default)]
     priority: Option<usize>,
     #[builder(default)]
-    dependencies: Option<Vec<Gc<EmitHelper>>>,
+    dependencies: Option<Vec<Id<EmitHelper>>>,
     #[builder(default)]
     pub(crate) import_name: Option<String>,
 }
@@ -939,7 +939,7 @@ impl EmitHelperBase for UnscopedEmitHelper {
         self.priority
     }
 
-    fn dependencies(&self) -> Option<&[Gc<EmitHelper>]> {
+    fn dependencies(&self) -> Option<&[Id<EmitHelper>]> {
         self.dependencies.as_deref()
     }
 }
@@ -962,21 +962,9 @@ impl From<ScopedEmitHelper> for EmitHelper {
     }
 }
 
-impl From<ScopedEmitHelper> for Gc<EmitHelper> {
-    fn from(value: ScopedEmitHelper) -> Self {
-        Gc::new(value.into())
-    }
-}
-
 impl From<UnscopedEmitHelper> for EmitHelper {
     fn from(value: UnscopedEmitHelper) -> Self {
         Self::UnscopedEmitHelper(value)
-    }
-}
-
-impl From<UnscopedEmitHelper> for Gc<EmitHelper> {
-    fn from(value: UnscopedEmitHelper) -> Self {
-        Gc::new(value.into())
     }
 }
 
@@ -1009,7 +997,7 @@ impl EmitHelperBase for EmitHelper {
         }
     }
 
-    fn dependencies(&self) -> Option<&[Gc<EmitHelper>]> {
+    fn dependencies(&self) -> Option<&[Id<EmitHelper>]> {
         match self {
             Self::ScopedEmitHelper(emit_helper) => emit_helper.dependencies(),
             Self::UnscopedEmitHelper(emit_helper) => emit_helper.dependencies(),

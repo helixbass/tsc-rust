@@ -62,7 +62,7 @@ impl EmitHelperFactory {
         descriptor: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node /*Expression*/> {
         let decorator_expressions = decorator_expressions.into();
-        self.context.ref_(self).request_emit_helper(decorate_helper());
+        self.context.ref_(self).request_emit_helper(decorate_helper(self));
 
         let mut arguments_array: Vec<Id<Node /*Expression*/>> = _d();
         arguments_array.push(
@@ -89,7 +89,7 @@ impl EmitHelperFactory {
         metadata_key: &str,
         metadata_value: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(metadata_helper());
+        self.context.ref_(self).request_emit_helper(metadata_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__metadata"),
             Option::<Gc<NodeArray>>::None,
@@ -107,7 +107,7 @@ impl EmitHelperFactory {
         parameter_offset: usize,
         /*location?: TextRange*/
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(param_helper());
+        self.context.ref_(self).request_emit_helper(param_helper(self));
         /*setTextRange(*/
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__param"),
@@ -135,7 +135,7 @@ impl EmitHelperFactory {
                 Some(attributes_segments),
             );
         }
-        self.context.ref_(self).request_emit_helper(assign_helper());
+        self.context.ref_(self).request_emit_helper(assign_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__assign"),
             Option::<Gc<NodeArray>>::None,
@@ -147,7 +147,7 @@ impl EmitHelperFactory {
         &self,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(await_helper());
+        self.context.ref_(self).request_emit_helper(await_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__await"),
             Option::<Gc<NodeArray>>::None,
@@ -160,8 +160,8 @@ impl EmitHelperFactory {
         generator_func: Id<Node /*FunctionExpression*/>,
         has_lexical_this: bool,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(await_helper());
-        self.context.ref_(self).request_emit_helper(async_generator_helper());
+        self.context.ref_(self).request_emit_helper(await_helper(self));
+        self.context.ref_(self).request_emit_helper(async_generator_helper(self));
 
         let generator_func_emit_node = generator_func
             .ref_(self).maybe_emit_node_mut()
@@ -193,8 +193,8 @@ impl EmitHelperFactory {
         &self,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(await_helper());
-        self.context.ref_(self).request_emit_helper(async_delegator());
+        self.context.ref_(self).request_emit_helper(await_helper(self));
+        self.context.ref_(self).request_emit_helper(async_delegator(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__asyncDelegator"),
             Option::<Gc<NodeArray>>::None,
@@ -206,7 +206,7 @@ impl EmitHelperFactory {
         &self,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(async_values());
+        self.context.ref_(self).request_emit_helper(async_values(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__asyncValues"),
             Option::<Gc<NodeArray>>::None,
@@ -221,7 +221,7 @@ impl EmitHelperFactory {
         computed_temp_variables: Option<&[Id<Node /*Expression*/>]>,
         location: &impl ReadonlyTextRange,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(rest_helper());
+        self.context.ref_(self).request_emit_helper(rest_helper(self));
         let mut property_names: Vec<Id<Node /*Expression*/>> = _d();
         let mut computed_temp_variable_offset = 0;
         for &element in elements.into_iter().take(elements.len() - 1) {
@@ -273,7 +273,7 @@ impl EmitHelperFactory {
         promise_constructor: Option<Id<Node /*EntityName | Expression*/>>,
         body: Id<Node /*Block*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(awaiter_helper());
+        self.context.ref_(self).request_emit_helper(awaiter_helper(self));
 
         let generator_func = self.factory.create_function_expression(
             Option::<Gc<NodeArray>>::None,
@@ -322,7 +322,7 @@ impl EmitHelperFactory {
     }
 
     pub fn create_extends_helper(&self, name: Id<Node /*Identifier*/>) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(extends_helper());
+        self.context.ref_(self).request_emit_helper(extends_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__extends"),
             Option::<Gc<NodeArray>>::None,
@@ -343,7 +343,7 @@ impl EmitHelperFactory {
         cooked: Id<Node /*ArrayLiteralExpression*/>,
         raw: Id<Node /*ArrayLiteralExpression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(template_object_helper());
+        self.context.ref_(self).request_emit_helper(template_object_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__makeTemplateObject"),
             Option::<Gc<NodeArray>>::None,
@@ -357,7 +357,7 @@ impl EmitHelperFactory {
         from: Id<Node /*Expression*/>,
         pack_from: bool,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(spread_array_helper());
+        self.context.ref_(self).request_emit_helper(spread_array_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__spreadArray"),
             Option::<Gc<NodeArray>>::None,
@@ -377,7 +377,7 @@ impl EmitHelperFactory {
         &self,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(values_helper());
+        self.context.ref_(self).request_emit_helper(values_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__values"),
             Option::<Gc<NodeArray>>::None,
@@ -390,7 +390,7 @@ impl EmitHelperFactory {
         iterator_record: Id<Node /*Expression*/>,
         count: Option<usize>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(read_helper());
+        self.context.ref_(self).request_emit_helper(read_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__read"),
             Option::<Gc<NodeArray>>::None,
@@ -411,7 +411,7 @@ impl EmitHelperFactory {
         &self,
         body: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(generator_helper());
+        self.context.ref_(self).request_emit_helper(generator_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__generator"),
             Option::<Gc<NodeArray>>::None,
@@ -425,7 +425,7 @@ impl EmitHelperFactory {
         input_name: Id<Node /*Expression*/>,
         output_name: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(create_binding_helper());
+        self.context.ref_(self).request_emit_helper(create_binding_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__createBinding"),
             Option::<Gc<NodeArray>>::None,
@@ -444,7 +444,7 @@ impl EmitHelperFactory {
         &self,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(import_star_helper());
+        self.context.ref_(self).request_emit_helper(import_star_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__importStar"),
             Option::<Gc<NodeArray>>::None,
@@ -453,7 +453,7 @@ impl EmitHelperFactory {
     }
 
     pub fn create_import_star_callback_helper(&self) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(import_star_helper());
+        self.context.ref_(self).request_emit_helper(import_star_helper(self));
         self.get_unscoped_helper_name("__importStar")
     }
 
@@ -461,7 +461,7 @@ impl EmitHelperFactory {
         &self,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
-        self.context.ref_(self).request_emit_helper(import_default_helper());
+        self.context.ref_(self).request_emit_helper(import_default_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__importDefault"),
             Option::<Gc<NodeArray>>::None,
@@ -476,8 +476,8 @@ impl EmitHelperFactory {
     ) -> Id<Node /*Expression*/> {
         let exports_expression =
             exports_expression.unwrap_or_else(|| self.factory.create_identifier("exports"));
-        self.context.ref_(self).request_emit_helper(export_star_helper());
-        self.context.ref_(self).request_emit_helper(create_binding_helper());
+        self.context.ref_(self).request_emit_helper(export_star_helper(self));
+        self.context.ref_(self).request_emit_helper(create_binding_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__exportStar"),
             Option::<Gc<NodeArray>>::None,
@@ -493,7 +493,7 @@ impl EmitHelperFactory {
         f: Option<Id<Node /*Identifier*/>>,
     ) -> Id<Node /*Expression*/> {
         self.context
-            .ref_(self).request_emit_helper(class_private_field_get_helper());
+            .ref_(self).request_emit_helper(class_private_field_get_helper(self));
         let kind_str: &str = kind.borrow();
         let args = match f {
             None => vec![
@@ -526,7 +526,7 @@ impl EmitHelperFactory {
         f: Option<Id<Node /*Identifier*/>>,
     ) -> Id<Node /*Expression*/> {
         self.context
-            .ref_(self).request_emit_helper(class_private_field_set_helper());
+            .ref_(self).request_emit_helper(class_private_field_set_helper(self));
         let kind_str: &str = kind.borrow();
         let args = match f {
             None => vec![
@@ -558,7 +558,7 @@ impl EmitHelperFactory {
         receiver: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context
-            .ref_(self).request_emit_helper(class_private_field_in_helper());
+            .ref_(self).request_emit_helper(class_private_field_in_helper(self));
         self.factory.create_call_expression(
             self.get_unscoped_helper_name("__classPrivateFieldIn"),
             Option::<Gc<NodeArray>>::None,
@@ -585,20 +585,20 @@ pub fn create_emit_helper_factory(
     }
 }
 
-pub(crate) fn compare_emit_helpers(x: &Gc<EmitHelper>, y: &Gc<EmitHelper>) -> Comparison {
-    if Gc::ptr_eq(x, y) {
+pub(crate) fn compare_emit_helpers(x: Id<EmitHelper>, y: Id<EmitHelper>, arena: &impl HasArena) -> Comparison {
+    if x == y {
         return Comparison::EqualTo;
     }
-    if x.priority() == y.priority() {
+    if x.ref_(arena).priority() == y.ref_(arena).priority() {
         return Comparison::EqualTo;
     }
-    if x.priority().is_none() {
+    if x.ref_(arena).priority().is_none() {
         return Comparison::GreaterThan;
     }
-    if y.priority().is_none() {
+    if y.ref_(arena).priority().is_none() {
         return Comparison::LessThan;
     }
-    compare_values(x.priority(), y.priority())
+    compare_values(x.ref_(arena).priority(), y.ref_(arena).priority())
 }
 
 pub fn helper_string(
@@ -630,17 +630,22 @@ impl EmitHelperTextCallback for HelperString {
 }
 
 macro_rules! lazy_emit_helper {
-    ($initializer:expr $(,)?) => {{
-        use once_cell::unsync::Lazy;
+    ($initializer:expr, $arena:expr $(,)?) => {{
+        use std::cell::OnceCell;
+        use id_arena::Id;
 
         thread_local! {
-            static LAZY_HELPER: Lazy<Gc<EmitHelper>> = Lazy::new(|| $initializer);
+            static LAZY_HELPER: OnceCell<Id<EmitHelper>> = OnceCell::new();
         }
-        LAZY_HELPER.with(|lazy_helper| (**lazy_helper).clone())
+        LAZY_HELPER.with(|lazy_helper| {
+            *lazy_helper.get_or_init(|| {
+                $arena.alloc_emit_helper($initializer)
+            })
+        })
     }};
 }
 
-pub fn decorate_helper() -> Gc<EmitHelper> {
+pub fn decorate_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:decorate")
         .import_name("__decorate")
@@ -652,10 +657,10 @@ pub fn decorate_helper() -> Gc<EmitHelper> {
                 else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
                 return c > 3 && r && Object.defineProperty(target, key, r), r;
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn metadata_helper() -> Gc<EmitHelper> {
+pub fn metadata_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:metadata")
         .import_name("__metadata")
@@ -664,10 +669,10 @@ pub fn metadata_helper() -> Gc<EmitHelper> {
             var __metadata = (this && this.__metadata) || function (k, v) {
                 if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn param_helper() -> Gc<EmitHelper> {
+pub fn param_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:param")
         .import_name("__param")
@@ -680,10 +685,10 @@ pub fn param_helper() -> Gc<EmitHelper> {
         )
         .build()
         .unwrap()
-        .into())
+        .into(), arena)
 }
 
-pub fn assign_helper() -> Gc<EmitHelper> {
+pub fn assign_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:assign")
         .import_name("__assign")
@@ -704,23 +709,23 @@ pub fn assign_helper() -> Gc<EmitHelper> {
         )
         .build()
         .unwrap()
-        .into())
+        .into(), arena)
 }
 
-pub fn await_helper() -> Gc<EmitHelper> {
+pub fn await_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:await")
         .import_name("__await")
         .text(r#"
             var __await = (this && this.__await) || function (v) { return this instanceof __await ? (this.v = v, this) : new __await(v); }"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn async_generator_helper() -> Gc<EmitHelper> {
+pub fn async_generator_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:asyncGenerator")
         .import_name("__asyncGenerator")
-        .dependencies([await_helper()])
+        .dependencies([await_helper(arena)])
         .text(r#"
             var __asyncGenerator = (this && this.__asyncGenerator) || function (thisArg, _arguments, generator) {
                 if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
@@ -733,24 +738,24 @@ pub fn async_generator_helper() -> Gc<EmitHelper> {
                 function reject(value) { resume("throw", value); }
                 function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn async_delegator() -> Gc<EmitHelper> {
+pub fn async_delegator(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:asyncDelegator")
         .import_name("__asyncDelegator")
-        .dependencies([await_helper()])
+        .dependencies([await_helper(arena)])
         .text(r#"
             var __asyncDelegator = (this && this.__asyncDelegator) || function (o) {
                 var i, p;
                 return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
                 function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn async_values() -> Gc<EmitHelper> {
+pub fn async_values(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:asyncValues")
         .import_name("__asyncValues")
@@ -762,10 +767,10 @@ pub fn async_values() -> Gc<EmitHelper> {
                 function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
                 function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn rest_helper() -> Gc<EmitHelper> {
+pub fn rest_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:rest")
         .import_name("__rest")
@@ -781,10 +786,10 @@ pub fn rest_helper() -> Gc<EmitHelper> {
                     }
                 return t;
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn awaiter_helper() -> Gc<EmitHelper> {
+pub fn awaiter_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
             .name("typescript:awaiter")
             .import_name("__awaiter")
@@ -799,10 +804,10 @@ pub fn awaiter_helper() -> Gc<EmitHelper> {
                         step((generator = generator.apply(thisArg, _arguments || [])).next());
                     });
                 };"#)
-            .build().unwrap().into())
+            .build().unwrap().into(), arena)
 }
 
-pub fn extends_helper() -> Gc<EmitHelper> {
+pub fn extends_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:extends")
         .import_name("__extends")
@@ -824,10 +829,10 @@ pub fn extends_helper() -> Gc<EmitHelper> {
                     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
                 };
             })();"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn template_object_helper() -> Gc<EmitHelper> {
+pub fn template_object_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:makeTemplateObject")
         .import_name("__makeTemplateObject")
@@ -837,10 +842,10 @@ pub fn template_object_helper() -> Gc<EmitHelper> {
                 if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
                 return cooked;
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn read_helper() -> Gc<EmitHelper> {
+pub fn read_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:read")
         .import_name("__read")
@@ -865,10 +870,10 @@ pub fn read_helper() -> Gc<EmitHelper> {
         )
         .build()
         .unwrap()
-        .into())
+        .into(), arena)
 }
 
-pub fn spread_array_helper() -> Gc<EmitHelper> {
+pub fn spread_array_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:spreadArray")
         .import_name("__spreadArray")
@@ -882,10 +887,10 @@ pub fn spread_array_helper() -> Gc<EmitHelper> {
                 }
                 return to.concat(ar || Array.prototype.slice.call(from));
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn values_helper() -> Gc<EmitHelper> {
+pub fn values_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:values")
         .import_name("__values")
@@ -901,10 +906,10 @@ pub fn values_helper() -> Gc<EmitHelper> {
                 };
                 throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn generator_helper() -> Gc<EmitHelper> {
+pub fn generator_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:generator")
         .import_name("__generator")
@@ -937,10 +942,10 @@ pub fn generator_helper() -> Gc<EmitHelper> {
                     if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
                 }
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn create_binding_helper() -> Gc<EmitHelper> {
+pub fn create_binding_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:commonjscreatebinding")
         .import_name("__createBinding")
@@ -953,10 +958,10 @@ pub fn create_binding_helper() -> Gc<EmitHelper> {
                 if (k2 === undefined) k2 = k;
                 o[k2] = m[k];
             }));"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn set_module_default_helper() -> Gc<EmitHelper> {
+pub fn set_module_default_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:commonjscreatevalue")
         .import_name("__setModuleDefault")
@@ -967,15 +972,15 @@ pub fn set_module_default_helper() -> Gc<EmitHelper> {
             }) : function(o, v) {
                 o["default"] = v;
             });"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn import_star_helper() -> Gc<EmitHelper> {
+pub fn import_star_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:commonjsimportstar")
         .import_name("__importStar")
         .priority(2_usize)
-        .dependencies([create_binding_helper(), set_module_default_helper()])
+        .dependencies([create_binding_helper(arena), set_module_default_helper(arena)])
         .text(r#"
             var __importStar = (this && this.__importStar) || function (mod) {
                 if (mod && mod.__esModule) return mod;
@@ -984,10 +989,10 @@ pub fn import_star_helper() -> Gc<EmitHelper> {
                 __setModuleDefault(result, mod);
                 return result;
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn import_default_helper() -> Gc<EmitHelper> {
+pub fn import_default_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:commonjsimportdefault")
         .import_name("__importDefault")
@@ -999,23 +1004,23 @@ pub fn import_default_helper() -> Gc<EmitHelper> {
         )
         .build()
         .unwrap()
-        .into())
+        .into(), arena)
 }
 
-pub fn export_star_helper() -> Gc<EmitHelper> {
+pub fn export_star_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:export-star")
         .import_name("__exportStar")
         .priority(2_usize)
-        .dependencies([create_binding_helper()])
+        .dependencies([create_binding_helper(arena)])
         .text(r#"
             var __exportStar = (this && this.__exportStar) || function(m, exports) {
                 for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn class_private_field_get_helper() -> Gc<EmitHelper> {
+pub fn class_private_field_get_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:classPrivateFieldGet")
         .import_name("__classPrivateFieldGet")
@@ -1025,10 +1030,10 @@ pub fn class_private_field_get_helper() -> Gc<EmitHelper> {
                 if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
                 return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn class_private_field_set_helper() -> Gc<EmitHelper> {
+pub fn class_private_field_set_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:classPrivateFieldSet")
         .import_name("__classPrivateFieldSet")
@@ -1039,10 +1044,10 @@ pub fn class_private_field_set_helper() -> Gc<EmitHelper> {
                 if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
                 return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn class_private_field_in_helper() -> Gc<EmitHelper> {
+pub fn class_private_field_in_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:classPrivateFieldIn")
         .import_name("__classPrivateFieldIn")
@@ -1051,10 +1056,10 @@ pub fn class_private_field_in_helper() -> Gc<EmitHelper> {
                 if (receiver === null || (typeof receiver !== "object" && typeof receiver !== "function")) throw new TypeError("Cannot use 'in' operator on non-object");
                 return typeof state === "function" ? receiver === state : state.has(receiver);
             };"#)
-        .build().unwrap().into())
+        .build().unwrap().into(), arena)
 }
 
-pub fn async_super_helper() -> Gc<EmitHelper> {
+pub fn async_super_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(ScopedEmitHelperBuilder::default()
         .name("typescript:async-super")
         .text(helper_string(
@@ -1067,10 +1072,10 @@ pub fn async_super_helper() -> Gc<EmitHelper> {
         ))
         .build()
         .unwrap()
-        .into())
+        .into(), arena)
 }
 
-pub fn advanced_async_super_helper() -> Gc<EmitHelper> {
+pub fn advanced_async_super_helper(arena: &impl HasArena) -> Id<EmitHelper> {
     lazy_emit_helper!(ScopedEmitHelperBuilder::default()
         .name("typescript:advanced-async-super")
         .text(helper_string(
@@ -1086,7 +1091,7 @@ pub fn advanced_async_super_helper() -> Gc<EmitHelper> {
         ))
         .build()
         .unwrap()
-        .into())
+        .into(), arena)
 }
 
 pub fn is_call_to_helper(

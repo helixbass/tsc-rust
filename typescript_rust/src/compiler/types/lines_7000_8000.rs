@@ -239,9 +239,9 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
     fn get_emit_host(&self) -> Id<Box<dyn EmitHost>>;
     fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory>;
 
-    fn request_emit_helper(&self, helper: Gc<EmitHelper>);
+    fn request_emit_helper(&self, helper: Id<EmitHelper>);
 
-    fn read_emit_helpers(&self) -> Option<Vec<Gc<EmitHelper>>>;
+    fn read_emit_helpers(&self) -> Option<Vec<Id<EmitHelper>>>;
 
     fn enable_substitution(&self, kind: SyntaxKind);
 

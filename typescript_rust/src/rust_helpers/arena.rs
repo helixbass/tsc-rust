@@ -7,7 +7,7 @@ use once_cell::unsync::Lazy;
 use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    FileIncludeReason, System, SourceMapRange,
+    FileIncludeReason, System, SourceMapRange, EmitHelper,
 };
 
 #[derive(Default)]
@@ -29,6 +29,7 @@ pub struct AllArenas {
     pub file_include_reasons: RefCell<Arena<FileIncludeReason>>,
     pub systems: RefCell<Arena<Box<dyn System>>>,
     pub source_map_ranges: RefCell<Arena<SourceMapRange>>,
+    pub emit_helpers: RefCell<Arena<EmitHelper>>,
 }
 
 pub trait HasArena {
@@ -144,6 +145,14 @@ pub trait HasArena {
 
     fn alloc_source_map_range(&self, source_map_range: SourceMapRange) -> Id<SourceMapRange> {
         self.arena().alloc_source_map_range(source_map_range)
+    }
+
+    fn emit_helper(&self, emit_helper: Id<EmitHelper>) -> Ref<EmitHelper> {
+        self.arena().emit_helper(emit_helper)
+    }
+
+    fn alloc_emit_helper(&self, emit_helper: EmitHelper) -> Id<EmitHelper> {
+        self.arena().alloc_emit_helper(emit_helper)
     }
 }
 
@@ -300,6 +309,16 @@ impl HasArena for AllArenas {
         let id = self.source_map_ranges.borrow_mut().alloc(source_map_range);
         id
     }
+
+    #[track_caller]
+    fn emit_helper(&self, emit_helper: Id<EmitHelper>) -> Ref<EmitHelper> {
+        Ref::map(self.emit_helpers.borrow(), |emit_helpers| &emit_helpers[emit_helper])
+    }
+
+    fn alloc_emit_helper(&self, emit_helper: EmitHelper) -> Id<EmitHelper> {
+        let id = self.emit_helpers.borrow_mut().alloc(emit_helper);
+        id
+    }
 }
 
 pub trait InArena {
@@ -418,6 +437,14 @@ impl InArena for Id<SourceMapRange> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SourceMapRange> {
         has_arena.source_map_range(*self)
+    }
+}
+
+impl InArena for Id<EmitHelper> {
+    type Item = EmitHelper;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, EmitHelper> {
+        has_arena.emit_helper(*self)
     }
 }
 

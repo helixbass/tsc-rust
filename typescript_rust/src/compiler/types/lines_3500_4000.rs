@@ -1201,7 +1201,7 @@ pub struct UnparsedSource {
     #[unsafe_ignore_trace]
     text_as_chars: RefCell<SourceTextAsChars>,
     pub prologues: Vec<Id<Node /*UnparsedPrologue*/>>,
-    pub helpers: Option<Vec<Gc<EmitHelper /*UnscopedEmitHelper*/>>>,
+    pub helpers: Option<Vec<Id<EmitHelper /*UnscopedEmitHelper*/>>>,
 
     #[unsafe_ignore_trace]
     pub referenced_files: Vec<FileReference>,

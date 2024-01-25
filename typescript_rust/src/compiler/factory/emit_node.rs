@@ -9,6 +9,7 @@ use crate::{
     Node, NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement, SourceMapRange,
     StringOrNumber, SyntaxKind, SynthesizedComment,
     HasArena, InArena,
+    push_if_unique_eq,
 };
 
 pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> Gc<GcCell<EmitNode>> {
@@ -262,7 +263,7 @@ pub fn set_constant_value(
     node
 }
 
-pub fn add_emit_helper(node: Id<Node>, helper: Gc<EmitHelper>, arena: &impl HasArena) -> Id<Node> {
+pub fn add_emit_helper(node: Id<Node>, helper: Id<EmitHelper>, arena: &impl HasArena) -> Id<Node> {
     let emit_node = get_or_create_emit_node(node, arena);
     emit_node
         .borrow_mut()
@@ -272,18 +273,18 @@ pub fn add_emit_helper(node: Id<Node>, helper: Gc<EmitHelper>, arena: &impl HasA
     node
 }
 
-pub fn add_emit_helpers(node: Id<Node>, helpers: Option<&[Gc<EmitHelper>]>, arena: &impl HasArena) -> Id<Node> {
+pub fn add_emit_helpers(node: Id<Node>, helpers: Option<&[Id<EmitHelper>]>, arena: &impl HasArena) -> Id<Node> {
     if let Some(helpers) = helpers.non_empty() {
         let emit_node = get_or_create_emit_node(node, arena);
         let mut emit_node = emit_node.borrow_mut();
         for helper in helpers {
-            push_if_unique_gc(emit_node.helpers.get_or_insert_default_(), helper);
+            push_if_unique_eq(emit_node.helpers.get_or_insert_default_(), helper);
         }
     }
     node
 }
 
-pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {
+pub fn get_emit_helpers(node: &Node) -> Option<Vec<Id<EmitHelper>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().helpers.clone())
 }

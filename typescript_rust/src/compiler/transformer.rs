@@ -405,7 +405,7 @@ pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     block_scope_stack_offset: Cell<usize>,
     block_scoped_variable_declarations: GcCell<Option<Vec<Id<Node /*Identifier*/>>>>,
-    emit_helpers: GcCell<Option<Vec<Gc<EmitHelper>>>>,
+    emit_helpers: GcCell<Option<Vec<Id<EmitHelper>>>>,
     diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
     transformers_with_context: GcCell<Option<Vec<Transformer>>>,
@@ -427,7 +427,7 @@ impl TransformNodesTransformationResult {
         lexical_environment_function_declarations: Option<Vec<Id<Node>>>,
         lexical_environment_variable_declarations_stack: Vec<Option<Vec<Id<Node>>>>,
         lexical_environment_function_declarations_stack: Vec<Option<Vec<Id<Node>>>>,
-        emit_helpers: Option<Vec<Gc<EmitHelper>>>,
+        emit_helpers: Option<Vec<Id<EmitHelper>>>,
         diagnostics: Vec<Gc<Diagnostic>>,
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
@@ -620,15 +620,15 @@ impl TransformNodesTransformationResult {
         *self.block_scoped_variable_declarations.borrow_mut() = block_scoped_variable_declarations;
     }
 
-    fn emit_helpers(&self) -> Option<Vec<Gc<EmitHelper>>> {
+    fn emit_helpers(&self) -> Option<Vec<Id<EmitHelper>>> {
         self.emit_helpers.borrow().clone()
     }
 
-    fn emit_helpers_mut(&self) -> GcCellRefMut<Option<Vec<Gc<EmitHelper>>>> {
+    fn emit_helpers_mut(&self) -> GcCellRefMut<Option<Vec<Id<EmitHelper>>>> {
         self.emit_helpers.borrow_mut()
     }
 
-    fn set_emit_helpers(&self, emit_helpers: Option<Vec<Gc<EmitHelper>>>) {
+    fn set_emit_helpers(&self, emit_helpers: Option<Vec<Id<EmitHelper>>>) {
         *self.emit_helpers.borrow_mut() = emit_helpers;
     }
 
@@ -1087,7 +1087,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         created_emit_helper_factory.clone().unwrap()
     }
 
-    fn request_emit_helper(&self, helper: Gc<EmitHelper>) {
+    fn request_emit_helper(&self, helper: Id<EmitHelper>) {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the transformation context during initialization."),
@@ -1097,10 +1097,10 @@ impl TransformationContext for TransformNodesTransformationResult {
             Some("Cannot modify the transformation context after transformation has completed."),
         );
         Debug_.assert(
-            !helper.scoped(),
+            !helper.ref_(self).scoped(),
             Some("Cannot request a scoped emit helper."),
         );
-        if let Some(helper_dependencies) = helper.dependencies() {
+        if let Some(helper_dependencies) = helper.ref_(self).dependencies() {
             for h in helper_dependencies {
                 self.request_emit_helper(h.clone());
             }
@@ -1112,7 +1112,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         append(emit_helpers.as_mut().unwrap(), Some(helper));
     }
 
-    fn read_emit_helpers(&self) -> Option<Vec<Gc<EmitHelper>>> {
+    fn read_emit_helpers(&self) -> Option<Vec<Id<EmitHelper>>> {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the transformation context during initialization."),
@@ -1424,9 +1424,9 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn request_emit_helper(&self, _helper: Gc<EmitHelper>) {}
+    fn request_emit_helper(&self, _helper: Id<EmitHelper>) {}
 
-    fn read_emit_helpers(&self) -> Option<Vec<Gc<EmitHelper>>> {
+    fn read_emit_helpers(&self) -> Option<Vec<Id<EmitHelper>>> {
         not_implemented()
     }
 
