@@ -251,6 +251,7 @@ pub(super) fn parse_json_config_file_content_worker(
                 &mut errors.clone().borrow_mut(),
                 config_file_name,
                 &base_path_for_file_names,
+                arena,
             )?;
             value
         },
@@ -259,6 +260,7 @@ pub(super) fn parse_json_config_file_content_worker(
             source_file,
             &mut errors.clone().borrow_mut(),
             &base_path_for_file_names,
+            arena,
         ),
         type_acquisition: Some(
             parsed_config
@@ -299,12 +301,14 @@ pub(super) fn get_config_file_specs(
         "references",
         |element| matches!(element, serde_json::Value::Object(_)),
         "object",
+        arena,
     );
     let files_specs = to_prop_value(get_specs_from_raw(
         raw,
         source_file.clone(),
         errors,
         "files",
+        arena,
     ));
     if let Some(files_specs) = files_specs.as_ref() {
         let has_zero_or_no_references = match references_of_raw {
@@ -324,7 +328,7 @@ pub(super) fn get_config_file_specs(
                     get_ts_config_prop_array(Some(source_file), "files", arena),
                     |property, _| property.ref_(arena).as_property_assignment().maybe_initializer(),
                 );
-                let error: Id<Diagnostic> = Gc::new(if let Some(node_value) = node_value {
+                let error: Id<Diagnostic> = arena.alloc_diagnostic(if let Some(node_value) = node_value {
                     create_diagnostic_for_node_in_source_file(
                         source_file,
                         node_value,
@@ -344,6 +348,7 @@ pub(super) fn get_config_file_specs(
                     errors,
                     &Diagnostics::The_files_list_in_config_file_0_is_empty,
                     Some(vec![config_file_name.unwrap_or("tsconfig.json").to_owned()]),
+                    arena,
                 );
             }
         }
@@ -354,9 +359,10 @@ pub(super) fn get_config_file_specs(
         source_file.clone(),
         errors,
         "include",
+        arena,
     ));
 
-    let exclude_of_raw = get_specs_from_raw(raw, source_file.clone(), errors, "exclude");
+    let exclude_of_raw = get_specs_from_raw(raw, source_file.clone(), errors, "exclude", arena);
     let is_exclude_of_raw_no_prop = matches!(exclude_of_raw, PropOfRaw::NoProp);
     let mut exclude_specs = to_prop_value(exclude_of_raw);
     if is_exclude_of_raw_no_prop {
@@ -448,6 +454,7 @@ pub(super) fn get_file_names(
     errors: &mut Vec<Id<Diagnostic>>,
     config_file_name: Option<&str>,
     base_path: &str,
+    arena: &impl HasArena,
 ) -> io::Result<Vec<String>> {
     let file_names: Vec<String> = get_file_names_from_config_specs(
         config_file_specs,
@@ -464,6 +471,7 @@ pub(super) fn get_file_names(
         errors.push(get_error_for_no_input_files(
             config_file_specs,
             config_file_name,
+            arena,
         ));
     }
     Ok(file_names)
@@ -474,6 +482,7 @@ pub(super) fn get_project_references(
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Id<Diagnostic>>,
     base_path: &str,
+    arena: &impl HasArena,
 ) -> Option<Vec<Rc<ProjectReference>>> {
     let mut project_references: Option<Vec<Rc<ProjectReference>>> = None;
     let references_of_raw = get_prop_from_raw(
@@ -483,6 +492,7 @@ pub(super) fn get_project_references(
         "references",
         |element| matches!(element, serde_json::Value::Object(_)),
         "object",
+        arena,
     );
     if let PropOfRaw::Array(references_of_raw) = references_of_raw {
         for ref_ in references_of_raw {
@@ -525,6 +535,7 @@ pub(super) fn get_project_references(
                         errors,
                         &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                         Some(vec!["reference.path".to_owned(), "string".to_owned()]),
+                        arena,
                     );
                 }
             }
@@ -558,6 +569,7 @@ pub(super) fn get_specs_from_raw(
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Id<Diagnostic>>,
     prop: &str, /*"files" | "include" | "exclude"*/
+    arena: &impl HasArena,
 ) -> PropOfRaw {
     get_prop_from_raw(
         raw,
@@ -566,16 +578,18 @@ pub(super) fn get_specs_from_raw(
         prop,
         |value| matches!(value, serde_json::Value::String(_)),
         "string",
+        arena,
     )
 }
 
-pub(super) fn get_prop_from_raw<TValidateElement: Fn(&serde_json::Value) -> bool>(
+pub(super) fn get_prop_from_raw(
     raw: Option<&serde_json::Value>,
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Id<Diagnostic>>,
     prop: &str, /*"files" | "include" | "exclude" | "references"*/
-    validate_element: TValidateElement,
+    validate_element: impl Fn(&serde_json::Value) -> bool,
     element_type_name: &str,
+    arena: &impl HasArena,
 ) -> PropOfRaw {
     match raw {
         Some(serde_json::Value::Object(map)) => match map.get(prop) {
@@ -583,7 +597,7 @@ pub(super) fn get_prop_from_raw<TValidateElement: Fn(&serde_json::Value) -> bool
                 serde_json::Value::Null => PropOfRaw::NoProp,
                 serde_json::Value::Array(result) => {
                     if source_file.is_none() && !every(result, |item, _| validate_element(item)) {
-                        errors.push(Gc::new(
+                        errors.push(arena.alloc_diagnostic(
                             create_compiler_diagnostic(
                                 &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                                 Some(vec![prop.to_owned(), element_type_name.to_owned()]),
@@ -599,6 +613,7 @@ pub(super) fn get_prop_from_raw<TValidateElement: Fn(&serde_json::Value) -> bool
                         errors,
                         &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                         Some(vec![prop.to_owned(), "Array".to_owned()]),
+                        arena,
                     );
                     PropOfRaw::NotArray
                 }

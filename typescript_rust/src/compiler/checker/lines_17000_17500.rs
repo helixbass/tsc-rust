@@ -252,7 +252,7 @@ impl TypeChecker {
                 )?;
                 let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
                 add_related_info(
-                    &diagnostic,
+                    &diagnostic.ref_(self),
                     vec![create_diagnostic_for_node(
                         node,
                         if
@@ -355,7 +355,7 @@ impl TypeChecker {
                         .filter(|target_symbol_declarations| !target_symbol_declarations.is_empty())
                     {
                         add_related_info(
-                            &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
+                            &result_obj.get_error(result_obj.errors_len() - 1).unwrap().ref_(self),
                             vec![
                                 create_diagnostic_for_node(
                                     target_symbol_declarations[0],
@@ -382,7 +382,7 @@ impl TypeChecker {
                     )?
                 {
                     add_related_info(
-                        &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
+                        &result_obj.get_error(result_obj.errors_len() - 1).unwrap().ref_(self),
                         vec![create_diagnostic_for_node(
                             node,
                             &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
@@ -529,7 +529,7 @@ impl TypeChecker {
                             Some(target_prop_type),
                         )
                     {
-                        let diag: Id<Diagnostic> = create_diagnostic_for_node(
+                        let diag: Id<Diagnostic> = self.alloc_diagnostic(create_diagnostic_for_node(
                             prop,
                             &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target,
                             Some(vec![
@@ -547,7 +547,7 @@ impl TypeChecker {
                                 )?,
                             ]),
                             self,
-                        ).into();
+                        ).into());
                         self.diagnostics().add(diag.clone());
                         result_obj.set_errors(vec![diag]);
                     } else {
@@ -619,7 +619,7 @@ impl TypeChecker {
                                 {
                                     issued_elaboration = true;
                                     add_related_info(
-                                        &reported_diag,
+                                        &reported_diag.ref_(self),
                                         vec![
                                             create_diagnostic_for_node(
                                                 index_info_declaration,
@@ -668,7 +668,7 @@ impl TypeChecker {
                                 .has_no_default_lib()
                             {
                                 add_related_info(
-                                    &reported_diag,
+                                    &reported_diag.ref_(self),
                                     vec![
                                         create_diagnostic_for_node(
                                             target_node,

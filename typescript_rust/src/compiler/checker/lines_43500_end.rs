@@ -212,7 +212,7 @@ impl TypeChecker {
         let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(source_file) {
             let span = get_span_of_token_at_position(&source_file.ref_(self), node.ref_(self).pos().try_into().unwrap());
-            self.diagnostics().add(Gc::new(
+            self.diagnostics().add(self.alloc_diagnostic(
                 create_file_diagnostic(source_file, span.start, span.length, message, args).into(),
             ));
             return true;
@@ -230,7 +230,7 @@ impl TypeChecker {
     ) -> bool {
         let source_file = get_source_file_of_node(node_for_source_file, self);
         if !self.has_parse_diagnostics(source_file) {
-            self.diagnostics().add(Gc::new(
+            self.diagnostics().add(self.alloc_diagnostic(
                 create_file_diagnostic(source_file, start, length, message, args).into(),
             ));
             return true;
@@ -262,7 +262,7 @@ impl TypeChecker {
         let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(source_file) {
             self.diagnostics()
-                .add(create_diagnostic_for_node(node, message, args, self).into());
+                .add(self.alloc_diagnostic(create_diagnostic_for_node(node, message, args, self).into()));
             return true;
         }
         false
@@ -632,7 +632,7 @@ impl TypeChecker {
         let source_file = get_source_file_of_node(node, self);
         if !self.has_parse_diagnostics(source_file) {
             let span = get_span_of_token_at_position(&source_file.ref_(self), node.ref_(self).pos().try_into().unwrap());
-            self.diagnostics().add(Gc::new(
+            self.diagnostics().add(self.alloc_diagnostic(
                 create_file_diagnostic(source_file, text_span_end(&span), 0, message, args).into(),
             ));
             return true;

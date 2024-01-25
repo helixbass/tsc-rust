@@ -841,7 +841,7 @@ impl TypeChecker {
                                     type_name2,
                                 ])
                             );
-                            self.diagnostics().add(Gc::new(
+                            self.diagnostics().add(self.alloc_diagnostic(
                                 create_diagnostic_for_node_from_message_chain(
                                     type_node, error_info, None, self,
                                 )

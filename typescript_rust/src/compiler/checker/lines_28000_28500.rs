@@ -406,7 +406,7 @@ impl TypeChecker {
                     );
 
                     add_related_info(
-                        &diagnostic,
+                        &diagnostic.ref_(self),
                         vec![
                             Gc::new(
                                 create_diagnostic_for_node(
@@ -968,9 +968,9 @@ impl TypeChecker {
             ));
         }
 
-        if let Some(diagnostic_message) = diagnostic_message.as_ref() {
+        if let Some(diagnostic_message) = diagnostic_message {
             add_related_info(
-                diagnostic_message,
+                &diagnostic_message.ref_(self),
                 vec![Gc::new(
                     create_diagnostic_for_node(
                         value_declaration,
@@ -1236,11 +1236,11 @@ impl TypeChecker {
         }
         let error_info = error_info.unwrap();
         let error_info_code = error_info.code;
-        let result_diagnostic: Id<Diagnostic> = Gc::new(
+        let result_diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
             create_diagnostic_for_node_from_message_chain(prop_node, error_info, None, self).into(),
         );
         if let Some(related_info) = related_info {
-            add_related_info(&result_diagnostic, vec![related_info]);
+            add_related_info(&result_diagnostic.ref_(self), vec![related_info]);
         }
         self.add_error_or_suggestion(
             !is_unchecked_js

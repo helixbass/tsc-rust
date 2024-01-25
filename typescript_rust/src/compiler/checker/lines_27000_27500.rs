@@ -617,7 +617,7 @@ impl TypeChecker {
                         ])
                     );
                     add_related_info(
-                        &diagnostic,
+                        &diagnostic.ref_(self),
                         vec![Gc::new(
                             create_diagnostic_for_node(
                                 spread,

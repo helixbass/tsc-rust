@@ -131,9 +131,10 @@ impl From<Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>>
 pub(super) fn report_watch_mode_without_sys_support(
     sys: &dyn System,
     report_diagnostic: &dyn DiagnosticReporter,
+    arena: &impl HasArena,
 ) -> io::Result<bool> {
     if !sys.is_watch_file_supported() || !sys.is_watch_directory_supported() {
-        report_diagnostic.call(Gc::new(
+        report_diagnostic.call(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::The_current_host_does_not_support_the_0_option,
                 Some(vec!["--watch".to_owned()]),
@@ -163,7 +164,7 @@ pub(super) fn perform_build(
 
     if let Some(build_options_locale) = build_options.locale.as_ref() {
         if !build_options_locale.is_empty() {
-            validate_locale_and_set_language(build_options_locale, &**sys.ref_(arena), Some(&mut errors));
+            validate_locale_and_set_language(build_options_locale, &**sys.ref_(arena), Some(&mut errors), arena);
         }
     }
 
@@ -194,7 +195,7 @@ pub(super) fn perform_build(
         || !sys.ref_(arena).is_set_modified_time_supported()
         || matches!(build_options.clean, Some(true)) && !sys.ref_(arena).is_delete_file_supported()
     {
-        report_diagnostic.call(Gc::new(
+        report_diagnostic.call(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::The_current_host_does_not_support_the_0_option,
                 Some(vec!["--build".to_owned()]),
@@ -205,7 +206,7 @@ pub(super) fn perform_build(
     }
 
     if matches!(build_options.watch, Some(true)) {
-        if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic)? {
+        if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic, arena)? {
             return Ok(());
         }
         let mut build_host = create_solution_builder_with_watch_host(

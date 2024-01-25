@@ -548,7 +548,7 @@ impl TypeChecker {
                                     node.ref_(self).pos().try_into().unwrap(),
                                 ));
                             }
-                            let diagnostic: Id<Diagnostic> = Gc::new(
+                            let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
                                 create_file_diagnostic(
                                     source_file,
                                     span.unwrap().start,
@@ -573,7 +573,7 @@ impl TypeChecker {
                                 &source_file.ref_(self),
                                 node.ref_(self).pos().try_into().unwrap(),
                             ));
-                            let diagnostic: Id<Diagnostic> = Gc::new(
+                            let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
                                 create_file_diagnostic(
                                     source_file,
                                     span.unwrap().start,
@@ -592,7 +592,7 @@ impl TypeChecker {
                             &source_file.ref_(self),
                             node.ref_(self).pos().try_into().unwrap(),
                         );
-                        let diagnostic: Id<Diagnostic> = Gc::new(
+                        let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
                             create_file_diagnostic(
                                 source_file,
                                 span.start,
@@ -615,7 +615,7 @@ impl TypeChecker {
                                 )
                                 .into(),
                             );
-                            add_related_info(&diagnostic, vec![related_info]);
+                            add_related_info(&diagnostic.ref_(self), vec![related_info]);
                         }
                         self.diagnostics().add(diagnostic);
                     }
@@ -649,7 +649,7 @@ impl TypeChecker {
         {
             self.add_error_or_suggestion(
                 false,
-                Gc::new(
+                self.alloc_diagnostic(
                     create_diagnostic_for_node(
                         node,
                         &Diagnostics::await_has_no_effect_on_the_type_of_this_expression,

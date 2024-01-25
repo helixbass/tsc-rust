@@ -154,7 +154,7 @@ impl TypeChecker {
                         if !self.has_parse_diagnostics(source_file) {
                             if !is_effective_external_module(&source_file.ref_(self), &self.compiler_options.ref_(self)) {
                                 self.diagnostics().add(
-                                    Gc::new(
+                                    self.alloc_diagnostic(
                                         create_diagnostic_for_node(
                                             for_in_or_of_statement_await_modifier,
                                             &Diagnostics::for_await_loops_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module,
@@ -175,7 +175,7 @@ impl TypeChecker {
                                 || self.language_version < ScriptTarget::ES2017
                             {
                                 self.diagnostics().add(
-                                    Gc::new(
+                                    self.alloc_diagnostic(
                                         create_diagnostic_for_node(
                                             for_in_or_of_statement_await_modifier,
                                             &Diagnostics::Top_level_for_await_loops_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_or_nodenext_and_the_target_option_is_set_to_es2017_or_higher,
@@ -188,7 +188,7 @@ impl TypeChecker {
                         }
                     } else {
                         if !self.has_parse_diagnostics(source_file) {
-                            let diagnostic: Id<Diagnostic> = Gc::new(
+                            let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
                                 create_diagnostic_for_node(
                                     for_in_or_of_statement_await_modifier,
                                     &Diagnostics::for_await_loops_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,
@@ -214,7 +214,7 @@ impl TypeChecker {
                                     )
                                     .into(),
                                 );
-                                add_related_info(&diagnostic, vec![related_info]);
+                                add_related_info(&diagnostic.ref_(self), vec![related_info]);
                             }
                             self.diagnostics().add(diagnostic);
                             return true;

@@ -315,7 +315,7 @@ impl CheckTypeRelatedTo {
                     }
                 }
             }
-            let diag: Id<Diagnostic> = Gc::new(
+            let diag: Id<Diagnostic> = self.alloc_diagnostic(
                 create_diagnostic_for_node_from_message_chain(
                     self.maybe_error_node().unwrap(),
                     self.maybe_error_info().as_deref().cloned().unwrap(),
@@ -325,7 +325,7 @@ impl CheckTypeRelatedTo {
                 .into(),
             );
             if let Some(related_info) = self.maybe_related_info().clone() {
-                add_related_info(&diag, related_info.into_iter().map(Gc::new).collect());
+                add_related_info(&diag.ref_(self), related_info.into_iter().map(Gc::new).collect());
             }
             if let Some(error_output_container) = self.error_output_container.as_ref() {
                 error_output_container.push_error(diag.clone());

@@ -549,7 +549,7 @@ impl TypeChecker {
                                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
                         {
                             self.diagnostics().add(
-                                create_diagnostic_for_node(
+                                self.alloc_diagnostic(create_diagnostic_for_node(
                                     access_expression,
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                                     Some(vec![
@@ -571,7 +571,7 @@ impl TypeChecker {
                                     ]),
                                     self,
                                 )
-                                .into(),
+                                .into()),
                             );
                             return Ok(Some(self.undefined_type()));
                         } else if index_type
@@ -829,7 +829,7 @@ impl TypeChecker {
                                             self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
                                         ])
                                     ));
-                                    self.diagnostics().add(Gc::new(
+                                    self.diagnostics().add(self.alloc_diagnostic(
                                         create_diagnostic_for_node_from_message_chain(
                                             access_expression,
                                             error_info.unwrap(),

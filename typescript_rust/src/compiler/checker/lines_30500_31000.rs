@@ -39,12 +39,12 @@ impl TypeChecker {
             message_chain,
             related_message: related_info,
         } = self.invocation_error_details(error_target, apparent_type, kind)?;
-        let diagnostic: Id<Diagnostic> = Gc::new(
+        let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
             create_diagnostic_for_node_from_message_chain(error_target, message_chain, None, self).into(),
         );
         if let Some(related_info) = related_info {
             add_related_info(
-                &diagnostic,
+                &diagnostic.ref_(self),
                 vec![Gc::new(
                     create_diagnostic_for_node(error_target, related_info, None, self).into(),
                 )],
@@ -53,19 +53,19 @@ impl TypeChecker {
         if is_call_expression(&error_target.ref_(self).parent().ref_(self)) {
             let GetDiagnosticSpanForCallNodeReturn { start, length, .. } =
                 self.get_diagnostic_span_for_call_node(error_target.ref_(self).parent(), Some(true));
-            diagnostic.set_start(Some(start));
-            diagnostic.set_length(Some(length));
+            diagnostic.ref_(self).set_start(Some(start));
+            diagnostic.ref_(self).set_length(Some(length));
         }
         self.diagnostics().add(diagnostic.clone());
         self.invocation_error_recovery(
             apparent_type,
             kind,
-            &*if let Some(related_information) = related_information {
-                add_related_info(&diagnostic, vec![related_information]);
+            &if let Some(related_information) = related_information {
+                add_related_info(&diagnostic.ref_(self), vec![related_information]);
                 diagnostic
             } else {
                 diagnostic
-            },
+            }.ref_(self),
         )?;
 
         Ok(())
@@ -155,7 +155,7 @@ impl TypeChecker {
 
         if call_signatures.is_empty() {
             if is_array_literal_expression(&node.ref_(self).parent().ref_(self)) {
-                let diagnostic: Id<Diagnostic> = Gc::new(
+                let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
                     create_diagnostic_for_node(
                         node_as_tagged_template_expression.tag,
                         &Diagnostics::It_is_likely_that_you_are_missing_a_comma_to_separate_these_two_template_expressions_They_form_a_tagged_template_expression_which_cannot_be_invoked,
@@ -259,7 +259,7 @@ impl TypeChecker {
             } = error_details;
             let message_chain =
                 chain_diagnostic_messages(Some(error_details_message_chain), head_message, None);
-            let diag: Id<Diagnostic> = Gc::new(
+            let diag: Id<Diagnostic> = self.alloc_diagnostic(
                 create_diagnostic_for_node_from_message_chain(
                     node_as_decorator.expression,
                     message_chain,
@@ -270,7 +270,7 @@ impl TypeChecker {
             );
             if let Some(error_details_related_message) = error_details_related_message {
                 add_related_info(
-                    &diag,
+                    &diag.ref_(self),
                     vec![Gc::new(
                         create_diagnostic_for_node(
                             node_as_decorator.expression,
@@ -283,7 +283,7 @@ impl TypeChecker {
                 );
             }
             self.diagnostics().add(diag.clone());
-            self.invocation_error_recovery(apparent_type, SignatureKind::Call, &diag)?;
+            self.invocation_error_recovery(apparent_type, SignatureKind::Call, &diag.ref_(self))?;
             return self.resolve_error_call(node);
         }
 
@@ -406,7 +406,7 @@ impl TypeChecker {
                         Ok(None)
                     },
                 )?;
-                self.diagnostics().add(Gc::new(
+                self.diagnostics().add(self.alloc_diagnostic(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(node, self).ref_(self),
                         node_as_jsx_opening_like_element
@@ -866,7 +866,7 @@ impl TypeChecker {
                 );
                 self.get_type_of_dotted_name(
                     node_as_call_expression.expression,
-                    Some(&diagnostic),
+                    Some(&diagnostic.ref_(self)),
                 )?;
             }
         }

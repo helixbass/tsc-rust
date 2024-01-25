@@ -600,7 +600,7 @@ impl BinderType {
             self.file()
                 .ref_(self).as_source_file()
                 .bind_diagnostics_mut()
-                .push(Gc::new(
+                .push(self.alloc_diagnostic(
                     self.create_diagnostic_for_node(
                         symbol_export
                             .ref_(self)

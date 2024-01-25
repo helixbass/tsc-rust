@@ -899,7 +899,7 @@ impl TypeChecker {
                         .as_deref()
                     {
                         add_related_info(
-                            &err,
+                            &err.ref_(self),
                             vec![
                                 create_diagnostic_for_node(
                                     base_constructor_type_symbol_declarations[0],
@@ -1209,7 +1209,7 @@ impl TypeChecker {
                     self.type_to_string_(reduced_base_type, Option::<Id<Node>>::None, None, None)?
                 ])
             );
-            self.diagnostics().add(Gc::new(
+            self.diagnostics().add(self.alloc_diagnostic(
                 create_diagnostic_for_node_from_message_chain(
                     base_type_node
                         .ref_(self).as_expression_with_type_arguments()

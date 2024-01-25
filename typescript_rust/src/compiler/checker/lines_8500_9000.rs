@@ -1208,7 +1208,7 @@ impl TypeChecker {
                                             Some(s_value_declaration),
                                             &Diagnostics::Duplicate_identifier_0,
                                             Some(vec![unescaped_name.to_owned()]),
-                                        ),
+                                        ).ref_(self),
                                         vec![create_diagnostic_for_node(
                                             exported_member_name,
                                             &Diagnostics::_0_was_also_declared_here,
@@ -1222,7 +1222,7 @@ impl TypeChecker {
                                             Some(exported_member_name),
                                             &Diagnostics::Duplicate_identifier_0,
                                             Some(vec![unescaped_name.to_owned()]),
-                                        ),
+                                        ).ref_(self),
                                         vec![create_diagnostic_for_node(
                                             s_value_declaration,
                                             &Diagnostics::_0_was_also_declared_here,

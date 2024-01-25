@@ -515,7 +515,7 @@ impl TransformDeclarations {
                         args.push(symbol_accessibility_result_error_module_name);
                     }
                     self.context.ref_(self).add_diagnostic(
-                        create_diagnostic_for_node(
+                        self.alloc_diagnostic(create_diagnostic_for_node(
                             symbol_accessibility_result
                                 .error_node
                                 .unwrap_or(error_info.error_node),
@@ -523,7 +523,7 @@ impl TransformDeclarations {
                             Some(args),
                             self,
                         )
-                        .into(),
+                        .into()),
                     );
                 } else {
                     let mut args: Vec<String> = vec![];
@@ -538,7 +538,7 @@ impl TransformDeclarations {
                         args.push(symbol_accessibility_result_error_module_name);
                     }
                     self.context.ref_(self).add_diagnostic(
-                        create_diagnostic_for_node(
+                        self.alloc_diagnostic(create_diagnostic_for_node(
                             symbol_accessibility_result
                                 .error_node
                                 .unwrap_or(error_info.error_node),
@@ -546,7 +546,7 @@ impl TransformDeclarations {
                             Some(args),
                             self,
                         )
-                        .into(),
+                        .into()),
                     );
                 }
                 return true;
@@ -1372,7 +1372,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
             self.transform_declarations().context.ref_(self).add_diagnostic(
-                create_diagnostic_for_node(
+                self.alloc_diagnostic(create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
                     Some(vec![
@@ -1380,7 +1380,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                         "this".to_owned()
                     ]),
                     self,
-                ).into()
+                ).into())
             );
         }
     }
@@ -1396,7 +1396,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
             self.transform_declarations().context.ref_(self).add_diagnostic(
-                create_diagnostic_for_node(
+                self.alloc_diagnostic(create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
                     Some(vec![
@@ -1404,7 +1404,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                         "unique symbol".to_owned(),
                     ]),
                     self,
-                ).into()
+                ).into())
             );
         }
     }
@@ -1420,14 +1420,14 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
             self.transform_declarations().context.ref_(self).add_diagnostic(
-                create_diagnostic_for_node(
+                self.alloc_diagnostic(create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_references_a_type_with_a_cyclic_structure_which_cannot_be_trivially_serialized_A_type_annotation_is_necessary,
                     Some(vec![
                         self.error_declaration_name_with_fallback().into_owned(),
                     ]),
                     self,
-                ).into()
+                ).into())
         );
         }
     }
@@ -1443,14 +1443,14 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
             self.transform_declarations().context.ref_(self).add_diagnostic(
-                create_diagnostic_for_node(
+                self.alloc_diagnostic(create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::Property_0_of_exported_class_expression_may_not_be_private_or_protected,
                     Some(vec![
                         property_name.to_owned()
                     ]),
                     self,
-                ).into()
+                ).into())
             );
         }
     }
@@ -1466,7 +1466,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
             self.transform_declarations().context.ref_(self).add_diagnostic(
-                create_diagnostic_for_node(
+                self.alloc_diagnostic(create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_0_cannot_be_named_without_a_reference_to_1_This_is_likely_not_portable_A_type_annotation_is_necessary,
                     Some(vec![
@@ -1474,7 +1474,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                         specifier.to_owned(),
                     ]),
                     self,
-                ).into()
+                ).into())
             );
         }
     }
@@ -1490,12 +1490,12 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
             self.transform_declarations().context.ref_(self).add_diagnostic(
-                create_diagnostic_for_node(
+                self.alloc_diagnostic(create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_inferred_type_of_this_node_exceeds_the_maximum_length_the_compiler_will_serialize_An_explicit_type_annotation_is_needed,
                     None,
                     self,
-                ).into()
+                ).into())
             );
         }
     }
@@ -1573,12 +1573,12 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             for augmentations in augmenting_declarations {
                 self.transform_declarations().context.ref_(self).add_diagnostic(
                     add_related_info_rc(
-                        create_diagnostic_for_node(
+                        self.alloc_diagnostic(create_diagnostic_for_node(
                             augmentations,
                             &Diagnostics::Declaration_augments_declaration_in_another_file_This_cannot_be_serialized,
                             None,
                             self,
-                        ).into(),
+                        ).into()),
                         vec![
                             create_diagnostic_for_node(
                                 primary_declaration.unwrap(),
@@ -1586,7 +1586,8 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                                 None,
                                 self,
                             ).into(),
-                        ]
+                        ],
+                        self
                     )
                 );
             }
@@ -1604,14 +1605,14 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations().maybe_error_fallback_node())
         {
             self.transform_declarations().context.ref_(self).add_diagnostic(
-                create_diagnostic_for_node(
+                self.alloc_diagnostic(create_diagnostic_for_node(
                     error_name_node_or_error_fallback_node,
                     &Diagnostics::The_type_of_this_node_cannot_be_serialized_because_its_property_0_cannot_be_serialized,
                     Some(vec![
                         property_name.to_owned()
                     ]),
                     self,
-                ).into()
+                ).into())
             );
         }
     }

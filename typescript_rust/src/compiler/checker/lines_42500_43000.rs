@@ -270,7 +270,7 @@ impl TypeChecker {
                                     Some(parameter),
                                     &Diagnostics::This_parameter_is_not_allowed_with_use_strict_directive,
                                     None,
-                                ),
+                                ).ref_(self),
                                 vec![
                                     Gc::new(
                                         create_diagnostic_for_node(
@@ -309,7 +309,7 @@ impl TypeChecker {
                             Some(use_strict_directive),
                             &Diagnostics::use_strict_directive_cannot_be_used_with_non_simple_parameter_list,
                             None,
-                        ),
+                        ).ref_(self),
                         diagnostics
                     );
                     return true;

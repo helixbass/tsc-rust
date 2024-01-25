@@ -842,7 +842,7 @@ impl TypeChecker {
                                 && !is_node_descendant_of(current_node, Some(error_node), self)
                             {
                                 add_related_info(
-                                    &diagnostic,
+                                    &diagnostic.ref_(self),
                                     vec![
                                         create_diagnostic_for_node(
                                             current_node,

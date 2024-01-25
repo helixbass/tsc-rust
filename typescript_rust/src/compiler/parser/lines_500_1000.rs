@@ -883,7 +883,7 @@ impl ParserType {
         source_file_as_source_file.set_identifier_count(self.identifier_count());
         source_file_as_source_file.set_identifiers(self.identifiers_rc());
         source_file_as_source_file.set_parse_diagnostics(Gc::new(GcCell::new(
-            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self)),
+            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self), self),
         )));
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
@@ -891,6 +891,7 @@ impl ParserType {
                 source_file_as_source_file.set_js_doc_diagnostics(attach_file_to_diagnostics(
                     js_doc_diagnostics,
                     &source_file.ref_(self),
+                    self,
                 ));
             }
         }

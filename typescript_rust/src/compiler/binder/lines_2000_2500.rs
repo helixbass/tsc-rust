@@ -124,7 +124,7 @@ impl BinderType {
                     let file = self.file();
                     let span = get_error_span_for_node(file, identifier, self);
                     file.ref_(self).as_source_file().bind_diagnostics_mut().push(
-                        Gc::new(
+                        self.alloc_diagnostic(
                             create_file_diagnostic(
                                 file,
                                 span.start,
@@ -409,7 +409,7 @@ impl BinderType {
                 self.file()
                     .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Gc::new(
+                    .push(self.alloc_diagnostic(
                         self.create_diagnostic_for_node(
                             node,
                             self.get_strict_mode_identifier_message(node),
@@ -422,7 +422,7 @@ impl BinderType {
                     self.file()
                         .ref_(self).as_source_file()
                         .bind_diagnostics_mut()
-                        .push(Gc::new(
+                        .push(self.alloc_diagnostic(
                             self.create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Identifier_expected_0_is_a_reserved_word_at_the_top_level_of_a_module,
@@ -434,7 +434,7 @@ impl BinderType {
                     self.file()
                         .ref_(self).as_source_file()
                         .bind_diagnostics_mut()
-                        .push(Gc::new(
+                        .push(self.alloc_diagnostic(
                             self.create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
@@ -449,7 +449,7 @@ impl BinderType {
                 self.file()
                     .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Gc::new(
+                    .push(self.alloc_diagnostic(
                         self.create_diagnostic_for_node(
                             node,
                             &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
@@ -490,7 +490,7 @@ impl BinderType {
                 .borrow()
                 .is_empty()
             {
-                file_as_source_file.bind_diagnostics_mut().push(Gc::new(
+                file_as_source_file.bind_diagnostics_mut().push(self.alloc_diagnostic(
                     self.create_diagnostic_for_node(
                         node,
                         &Diagnostics::constructor_is_a_reserved_word,
@@ -546,7 +546,7 @@ impl BinderType {
                 self.file()
                     .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Gc::new(
+                    .push(self.alloc_diagnostic(
                         create_file_diagnostic(
                             self.file(),
                             span.start,
@@ -582,7 +582,7 @@ impl BinderType {
                 self.file()
                     .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Gc::new(
+                    .push(self.alloc_diagnostic(
                         create_file_diagnostic(
                             self.file(),
                             span.start,
@@ -665,7 +665,7 @@ impl BinderType {
                 self.file()
                     .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Gc::new(
+                    .push(self.alloc_diagnostic(
                         create_file_diagnostic(
                             self.file(),
                             error_span.start,
@@ -690,7 +690,7 @@ impl BinderType {
                 self.file()
                     .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Gc::new(
+                    .push(self.alloc_diagnostic(
                         self.create_diagnostic_for_node(
                             node,
                             &Diagnostics::Octal_literals_are_not_allowed_in_strict_mode,
@@ -774,7 +774,7 @@ impl BinderType {
         self.file()
             .ref_(self).as_source_file()
             .bind_diagnostics_mut()
-            .push(Gc::new(
+            .push(self.alloc_diagnostic(
                 create_file_diagnostic(self.file(), span.start, span.length, message, args).into(),
             ));
     }
@@ -811,7 +811,7 @@ impl BinderType {
         range: BaseTextRange,
         message: &DiagnosticMessage,
     ) {
-        let diag = Gc::new(
+        let diag = self.alloc_diagnostic(
             create_file_diagnostic(
                 self.file(),
                 range.pos(),

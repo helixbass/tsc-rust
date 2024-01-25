@@ -61,7 +61,7 @@ pub(super) fn convert_object_literal_expression_to_json(
     };
     for &element in &node.ref_(arena).as_object_literal_expression().properties {
         if element.ref_(arena).kind() != SyntaxKind::PropertyAssignment {
-            errors.borrow_mut().push(Gc::new(
+            errors.borrow_mut().push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element,
@@ -79,7 +79,7 @@ pub(super) fn convert_object_literal_expression_to_json(
         if let Some(element_as_property_assignment_question_token) =
             element_as_property_assignment.question_token
         {
-            errors.borrow_mut().push(Gc::new(
+            errors.borrow_mut().push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element_as_property_assignment_question_token,
@@ -91,7 +91,7 @@ pub(super) fn convert_object_literal_expression_to_json(
             ));
         }
         if !is_double_quoted_string(source_file, element_as_property_assignment.name(), arena) {
-            errors.borrow_mut().push(Gc::new(
+            errors.borrow_mut().push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element_as_property_assignment.name(),
@@ -125,7 +125,7 @@ pub(super) fn convert_object_literal_expression_to_json(
                             key_text,
                             extra_key_diagnostics,
                             |message, args| {
-                                Gc::new(
+                                arena.alloc_diagnostic(
                                     create_diagnostic_for_node_in_source_file(
                                         source_file,
                                         element_as_property_assignment.name(),
@@ -139,7 +139,7 @@ pub(super) fn convert_object_literal_expression_to_json(
                             None,
                         ))
                     } else {
-                        errors.borrow_mut().push(Gc::new(
+                        errors.borrow_mut().push(arena.alloc_diagnostic(
                             create_diagnostic_for_node_in_source_file(
                                 source_file,
                                 element_as_property_assignment.name(),
@@ -337,7 +337,7 @@ pub(super) fn convert_property_value_to_json(
 
         SyntaxKind::StringLiteral => {
             if !is_double_quoted_string(source_file, value_expression, arena) {
-                errors.borrow_mut().push(Gc::new(
+                errors.borrow_mut().push(arena.alloc_diagnostic(
                     create_diagnostic_for_node_in_source_file(
                         source_file,
                         value_expression,
@@ -374,7 +374,7 @@ pub(super) fn convert_property_value_to_json(
                             .push(create_diagnostic_for_invalid_custom_type(
                                 custom_option,
                                 |message, args| {
-                                    Gc::new(
+                                    arena.alloc_diagnostic(
                                         create_diagnostic_for_node_in_source_file(
                                             source_file,
                                             value_expression,
@@ -595,7 +595,7 @@ pub(super) fn convert_property_value_to_json(
             arena,
         );
     } else {
-        errors.borrow_mut().push(Gc::new(
+        errors.borrow_mut().push(arena.alloc_diagnostic(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 value_expression,
@@ -624,7 +624,7 @@ pub(super) fn validate_value(
             .and_then(|option| option.maybe_extra_validation())
             .and_then(|extra_validation| extra_validation(value.as_ref()));
         if let Some((diagnostic_message, args)) = diagnostic {
-            errors.borrow_mut().push(Gc::new(
+            errors.borrow_mut().push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     value_expression,
@@ -650,7 +650,7 @@ pub(super) fn report_invalid_option_value(
     arena: &impl HasArena,
 ) {
     if matches!(is_error, Some(true)) {
-        errors.borrow_mut().push(Gc::new(
+        errors.borrow_mut().push(arena.alloc_diagnostic(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 value_expression,

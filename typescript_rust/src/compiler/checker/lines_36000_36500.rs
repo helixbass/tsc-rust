@@ -320,7 +320,7 @@ impl TypeChecker {
         add_diagnostic(
             declaration,
             UnusedKind::Local,
-            Gc::new(create_diagnostic_for_node(node, message, Some(vec![name.to_owned()]), self).into()),
+            self.alloc_diagnostic(create_diagnostic_for_node(node, message, Some(vec![name.to_owned()]), self).into()),
         );
     }
 
@@ -358,7 +358,7 @@ impl TypeChecker {
                             add_diagnostic(
                                 member,
                                 UnusedKind::Local,
-                                Gc::new(
+                                self.alloc_diagnostic(
                                     create_diagnostic_for_node(
                                         member.ref_(self).as_named_declaration().name(),
                                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -389,7 +389,7 @@ impl TypeChecker {
                             add_diagnostic(
                                 parameter,
                                 UnusedKind::Local,
-                                Gc::new(
+                                self.alloc_diagnostic(
                                     create_diagnostic_for_node(
                                         parameter.ref_(self).as_parameter_declaration().name(),
                                         &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
@@ -425,7 +425,7 @@ impl TypeChecker {
             add_diagnostic(
                 node,
                 UnusedKind::Parameter,
-                Gc::new(
+                self.alloc_diagnostic(
                     create_diagnostic_for_node(
                         node,
                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -511,7 +511,7 @@ impl TypeChecker {
                     add_diagnostic(
                         type_parameter,
                         UnusedKind::Parameter,
-                        Gc::new(
+                        self.alloc_diagnostic(
                             create_file_diagnostic(
                                 source_file,
                                 range.pos(),
@@ -527,7 +527,7 @@ impl TypeChecker {
                 add_diagnostic(
                     type_parameter,
                     UnusedKind::Parameter,
-                    Gc::new(
+                    self.alloc_diagnostic(
                         create_diagnostic_for_node(
                             type_parameter,
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -716,7 +716,7 @@ impl TypeChecker {
                                     add_diagnostic(
                                         parameter,
                                         UnusedKind::Parameter,
-                                        Gc::new(
+                                        self.alloc_diagnostic(
                                             create_diagnostic_for_node(
                                                 name,
                                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -765,7 +765,7 @@ impl TypeChecker {
                 add_diagnostic(
                     import_decl,
                     UnusedKind::Local,
-                    Gc::new(if unuseds.len() == 1 {
+                    self.alloc_diagnostic(if unuseds.len() == 1 {
                         create_diagnostic_for_node(
                             import_decl,
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -821,7 +821,7 @@ impl TypeChecker {
                     add_diagnostic(
                         binding_pattern,
                         kind,
-                        Gc::new(if binding_elements.len() == 1 {
+                        self.alloc_diagnostic(if binding_elements.len() == 1 {
                             create_diagnostic_for_node(
                                 binding_pattern,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -848,7 +848,7 @@ impl TypeChecker {
                     add_diagnostic(
                         e,
                         kind,
-                        Gc::new(
+                        self.alloc_diagnostic(
                             create_diagnostic_for_node(
                                 e,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -873,7 +873,7 @@ impl TypeChecker {
                 add_diagnostic(
                     declaration_list,
                     UnusedKind::Local,
-                    Gc::new(if declarations.len() == 1 {
+                    self.alloc_diagnostic(if declarations.len() == 1 {
                         create_diagnostic_for_node(
                             first(declarations).ref_(self).as_variable_declaration().name(),
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -903,7 +903,7 @@ impl TypeChecker {
                     add_diagnostic(
                         decl,
                         UnusedKind::Local,
-                        Gc::new(
+                        self.alloc_diagnostic(
                             create_diagnostic_for_node(
                                 decl,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,

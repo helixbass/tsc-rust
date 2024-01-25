@@ -938,15 +938,15 @@ impl TypeChecker {
                         .borrow()
                         .iter()
                         .any(|diag| {
-                            if diag.code()
+                            if diag.ref_(self).code()
                                 != Diagnostics::JSX_expressions_must_have_one_parent_element.code
                             {
                                 return false;
                             }
                             text_span_contains_position(
                                 &TextSpan {
-                                    start: diag.start(),
-                                    length: diag.length(),
+                                    start: diag.ref_(self).start(),
+                                    length: diag.ref_(self).length(),
                                 },
                                 start,
                             )

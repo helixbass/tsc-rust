@@ -561,7 +561,7 @@ impl BinderType {
                 .ref_(self)
                 .as_source_file()
                 .bind_diagnostics_mut()
-                .push(Gc::new(
+                .push(self.alloc_diagnostic(
                     self.create_diagnostic_for_node(
                         node,
                         &Diagnostics::Modifiers_cannot_appear_here,
@@ -589,7 +589,7 @@ impl BinderType {
                 .ref_(self)
                 .as_source_file()
                 .bind_diagnostics_mut()
-                .push(Gc::new(
+                .push(self.alloc_diagnostic(
                     self.create_diagnostic_for_node(node, diag, None).into(),
                 ));
         } else {

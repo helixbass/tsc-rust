@@ -31,9 +31,10 @@ pub(super) fn create_compiler_diagnostic_only_if_json(
     errors: &mut Vec<Id<Diagnostic>>,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
+    arena: &impl HasArena,
 ) {
     if source_file.is_none() {
-        errors.push(Gc::new(create_compiler_diagnostic(message, args).into()));
+        errors.push(arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()));
     }
 }
 
@@ -44,11 +45,12 @@ pub(super) fn is_error_no_input_files(error: &Diagnostic) -> bool {
 pub(super) fn get_error_for_no_input_files(
     config_file_specs: &ConfigFileSpecs,
     config_file_name: Option<&str>,
+    arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     let include_specs = config_file_specs.include_specs.as_ref();
     let exclude_specs = config_file_specs.exclude_specs.as_ref();
     let default_specs_vec = vec![];
-    Gc::new(
+    arena.alloc_diagnostic(
         create_compiler_diagnostic(
             &Diagnostics::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2,
             Some(vec![
@@ -86,16 +88,18 @@ pub(crate) fn update_error_for_no_input_files(
     config_file_specs: &ConfigFileSpecs,
     config_parse_diagnostics: &mut Vec<Id<Diagnostic>>,
     can_json_report_no_input_files: bool,
+    arena: &impl HasArena,
 ) -> bool {
     let existing_errors = config_parse_diagnostics.len();
     if should_report_no_input_files(file_names, can_json_report_no_input_files, None) {
         config_parse_diagnostics.push(get_error_for_no_input_files(
             config_file_specs,
             Some(config_file_name),
+            arena,
         ));
     } else {
         filter_mutate(config_parse_diagnostics, |error| {
-            !is_error_no_input_files(error)
+            !is_error_no_input_files(&error.ref_(arena))
         });
     }
     existing_errors != config_parse_diagnostics.len()
@@ -130,7 +134,7 @@ pub(super) fn parse_config(
         get_normalized_absolute_path(config_file_name.unwrap_or(""), Some(&base_path));
 
     if index_of(resolution_stack, &&*resolved_path, |a, b| a == b) >= 0 {
-        errors.borrow_mut().push(Gc::new(
+        errors.borrow_mut().push(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::Circularity_detected_while_resolving_configuration_Colon_0,
                 Some(vec![[resolution_stack, &*vec![&*resolved_path]]
@@ -272,7 +276,7 @@ pub(super) fn parse_own_config_of_json(
         _ => panic!("Expected object"),
     };
     if json.contains_key("excludes") {
-        errors.push(Gc::new(
+        errors.push(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
                 None,
@@ -286,6 +290,7 @@ pub(super) fn parse_own_config_of_json(
         base_path,
         errors,
         config_file_name,
+        arena,
     );
     let type_acquisition = convert_type_acquisition_from_json_worker(
         json.get("typeAcquisition")
@@ -293,9 +298,10 @@ pub(super) fn parse_own_config_of_json(
         base_path,
         errors,
         config_file_name,
+        arena,
     );
     let watch_options =
-        convert_watch_options_from_json_worker(json.get("watchOptions"), base_path, errors);
+        convert_watch_options_from_json_worker(json.get("watchOptions"), base_path, errors, arena);
     json.insert(
         "compileOnSave".to_owned(),
         serde_json::Value::Bool(convert_compile_on_save_option_from_json(
@@ -317,12 +323,12 @@ pub(super) fn parse_own_config_of_json(
                     host,
                     &new_base,
                     errors,
-                    |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
+                    |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                     arena,
                 )?;
             }
             _ => {
-                errors.push(Gc::new(
+                errors.push(arena.alloc_diagnostic(
                     create_compiler_diagnostic(
                         &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                         Some(vec!["extends".to_owned(), "string".to_owned()]),
@@ -402,7 +408,7 @@ pub(super) fn parse_own_config_of_json_source_file(
             if !matches!(json, serde_json::Value::Object(map) if map.contains_key("compilerOptions"))
             {
                 errors.borrow_mut().push(
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         create_diagnostic_for_node_in_source_file(
                             source_file,
                             root_compiler_options[0],
@@ -556,7 +562,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                     &new_base,
                     &mut self.errors.borrow_mut(),
                     |message, args| {
-                        Gc::new(
+                        self.alloc_diagnostic(
                             create_diagnostic_for_node_in_source_file(
                                 self.source_file,
                                 value_node,
@@ -584,7 +590,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
         _value_node: Id<Node>, /*Expression*/
     ) {
         if key == "excludes" {
-            self.errors.borrow_mut().push(Gc::new(
+            self.errors.borrow_mut().push(self.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     self.source_file,
                     key_node,

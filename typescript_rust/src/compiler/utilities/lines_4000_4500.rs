@@ -1130,13 +1130,14 @@ pub fn write_file(
     data: &str,
     write_byte_order_mark: bool,
     source_files: Option<&[Id<Node /*SourceFile*/>]>,
+    arena: &impl HasArena,
 ) -> io::Result<()> {
     write_file.call(
         file_name,
         data,
         write_byte_order_mark,
         Some(&mut |host_error_message| {
-            diagnostics.add(Gc::new(
+            diagnostics.add(arena.alloc_diagnostic(
                 create_compiler_diagnostic(
                     &Diagnostics::Could_not_write_file_0_Colon_1,
                     Some(vec![file_name.to_owned(), host_error_message.to_owned()]),

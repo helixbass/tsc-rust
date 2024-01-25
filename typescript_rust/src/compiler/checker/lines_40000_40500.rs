@@ -756,7 +756,7 @@ impl TypeChecker {
                 let deferred_global_diagnostics = relative_complement(
                     &previous_global_diagnostics,
                     &current_global_diagnostics,
-                    |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&**a, &**b, self),
+                    |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&*a.ref_(self), &*b.ref_(self), self),
                 );
                 return Ok(concatenate(
                     deferred_global_diagnostics,

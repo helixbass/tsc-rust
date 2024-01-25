@@ -730,7 +730,7 @@ impl TypeChecker {
                 {
                     for &declaration in file_global_this_symbol_declarations {
                         self.diagnostics().add(
-                            Gc::new(
+                            self.alloc_diagnostic(
                                 create_diagnostic_for_node(
                                     declaration,
                                     &Diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
@@ -936,7 +936,7 @@ impl TypeChecker {
                     .join(", ");
                 self.diagnostics().add(
                     {
-                        let diagnostic: Id<Diagnostic> = Gc::new(
+                        let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
                             create_diagnostic_for_node(
                                 first_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
@@ -947,7 +947,7 @@ impl TypeChecker {
                             ).into()
                         );
                         add_related_info(
-                            &diagnostic,
+                            &diagnostic.ref_(self),
                             vec![
                                 Gc::new(
                                     create_diagnostic_for_node(
@@ -964,7 +964,7 @@ impl TypeChecker {
                 );
                 self.diagnostics().add(
                     {
-                        let diagnostic: Id<Diagnostic> = Gc::new(
+                        let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
                             create_diagnostic_for_node(
                                 second_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
@@ -975,7 +975,7 @@ impl TypeChecker {
                             ).into()
                         );
                         add_related_info(
-                            &diagnostic,
+                            &diagnostic.ref_(self),
                             vec![
                                 Gc::new(
                                     create_diagnostic_for_node(

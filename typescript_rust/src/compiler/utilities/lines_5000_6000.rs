@@ -932,12 +932,13 @@ pub fn attach_file_to_diagnostic(
 pub fn attach_file_to_diagnostics(
     diagnostics: &[Id<Diagnostic /*DiagnosticWithDetachedLocation*/>],
     file: &Node, /*SourceFile*/
+    arena: &impl HasArena,
 ) -> Vec<Id<Diagnostic /*DiagnosticWithLocation*/>> {
     diagnostics
         .iter()
         .map(|diagnostic| {
-            Gc::new(
-                attach_file_to_diagnostic(diagnostic.as_diagnostic_with_detached_location(), file)
+            arena.alloc_diagnostic(
+                attach_file_to_diagnostic(diagnostic.ref_(arena).as_diagnostic_with_detached_location(), file)
                     .into(),
             )
         })

@@ -1146,7 +1146,7 @@ impl TypeChecker {
                 .unwrap(),
         );
         self.diagnostics().add(
-            Gc::new(
+            self.alloc_diagnostic(
                 create_file_diagnostic(
                     source_file,
                     span.start,

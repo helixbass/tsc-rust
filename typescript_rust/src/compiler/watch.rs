@@ -116,7 +116,7 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
     fn call(&self, diagnostic: Id<Diagnostic>) -> io::Result<()> {
         if !self.pretty {
             self.system
-                .ref_(self).write(&format_diagnostic(&diagnostic, &*self.host, self)?);
+                .ref_(self).write(&format_diagnostic(&diagnostic.ref_(self), &*self.host, self)?);
             return Ok(());
         }
 
@@ -207,7 +207,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         _error_count: Option<usize>,
     ) {
         if self.pretty {
-            clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic, &options.ref_(self));
+            clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic.ref_(self), &options.ref_(self));
             let mut output = format!(
                 "[{}] ",
                 format_color_and_reset(
@@ -218,7 +218,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
             output.push_str(&format!(
                 "{}{}{}",
                 flatten_diagnostic_message_text(
-                    Some(diagnostic.message_text()),
+                    Some(diagnostic.ref_(self).message_text()),
                     self.system.ref_(self).new_line(),
                     None
                 ),
@@ -229,7 +229,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         } else {
             let mut output = "".to_owned();
 
-            if !clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic, &options.ref_(self))
+            if !clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic.ref_(self), &options.ref_(self))
             {
                 output.push_str(new_line);
             }
@@ -238,11 +238,11 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
             output.push_str(&format!(
                 "{}{}",
                 flatten_diagnostic_message_text(
-                    Some(diagnostic.message_text()),
+                    Some(diagnostic.ref_(self).message_text()),
                     self.system.ref_(self).new_line(),
                     None
                 ),
-                get_plain_diagnostic_following_new_lines(&diagnostic, new_line)
+                get_plain_diagnostic_following_new_lines(&diagnostic.ref_(self), new_line)
             ));
 
             self.system.ref_(self).write(&output);
@@ -347,9 +347,9 @@ impl HasArena for ParseConfigFileWithSystemHost {
     }
 }
 
-pub fn get_error_count_for_summary(diagnostics: &[Id<Diagnostic>]) -> usize {
+pub fn get_error_count_for_summary(diagnostics: &[Id<Diagnostic>], arena: &impl HasArena) -> usize {
     count_where(Some(diagnostics), |diagnostic, _| {
-        diagnostic.category() == DiagnosticCategory::Error
+        diagnostic.ref_(arena).category() == DiagnosticCategory::Error
     })
 }
 
@@ -952,7 +952,7 @@ fn emit_files_and_report_errors(
     }
 
     if let Some(report_summary) = report_summary {
-        report_summary.call(get_error_count_for_summary(&diagnostics));
+        report_summary.call(get_error_count_for_summary(&diagnostics, arena));
     }
 
     Ok(EmitFilesAndReportErrorsReturn {

@@ -77,7 +77,7 @@ impl ParserType {
 
         process_comment_pragmas(source_file_as_source_file, &self.source_text_as_chars());
         let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
-            self.parse_diagnostics().push(Gc::new(
+            self.parse_diagnostics().push(self.alloc_diagnostic(
                 create_detached_diagnostic(&self.file_name(), pos, end, diagnostic, None).into(),
             ));
         };
@@ -89,7 +89,7 @@ impl ParserType {
         source_file_as_source_file.set_identifier_count(self.identifier_count());
         source_file_as_source_file.set_identifiers(self.identifiers_rc());
         source_file_as_source_file.set_parse_diagnostics(Gc::new(GcCell::new(
-            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self)),
+            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self), self),
         )));
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
@@ -97,6 +97,7 @@ impl ParserType {
                 source_file_as_source_file.set_js_doc_diagnostics(attach_file_to_diagnostics(
                     js_doc_diagnostics,
                     &source_file.ref_(self),
+                    self,
                 ));
             }
         }
@@ -173,13 +174,13 @@ impl ParserType {
 
             let diagnostic_start = find_index(
                 &saved_parse_diagnostics,
-                |diagnostic, _| diagnostic.start() >= prev_statement.ref_(self).pos(),
+                |diagnostic, _| diagnostic.ref_(self).start() >= prev_statement.ref_(self).pos(),
                 None,
             );
             let diagnostic_end = diagnostic_start.and_then(|diagnostic_start| {
                 find_index(
                     &saved_parse_diagnostics,
-                    |diagnostic, _| diagnostic.start() >= next_statement.ref_(self).pos(),
+                    |diagnostic, _| diagnostic.ref_(self).start() >= next_statement.ref_(self).pos(),
                     Some(diagnostic_start),
                 )
             });
@@ -246,7 +247,7 @@ impl ParserType {
 
             let diagnostic_start = find_index(
                 &saved_parse_diagnostics,
-                |diagnostic, _| diagnostic.start() >= prev_statement.ref_(self).pos(),
+                |diagnostic, _| diagnostic.ref_(self).start() >= prev_statement.ref_(self).pos(),
                 None,
             );
             if let Some(diagnostic_start) = diagnostic_start {
@@ -502,9 +503,9 @@ impl ParserType {
         {
             let mut parse_diagnostics = self.parse_diagnostics();
             let last_error = last_or_undefined(&*parse_diagnostics);
-            if last_error.map_or(true, |last_error| last_error.start() != start) {
+            if last_error.map_or(true, |last_error| last_error.ref_(self).start() != start) {
                 let file_name = self.file_name().to_string();
-                parse_diagnostics.push(Gc::new(
+                parse_diagnostics.push(self.alloc_diagnostic(
                     create_detached_diagnostic(&file_name, start, length, message, args).into(),
                 ));
             }

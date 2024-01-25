@@ -904,7 +904,7 @@ impl TypeChecker {
         }
 
         if report_errors {
-            let diag: Id<Diagnostic> = Gc::new(
+            let diag: Id<Diagnostic> = self.alloc_diagnostic(
                 create_diagnostic_for_node(
                     node_as_jsx_opening_like_element.tag_name(),
                     &Diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
@@ -925,7 +925,7 @@ impl TypeChecker {
                 .and_then(|symbol| symbol.ref_(self).maybe_value_declaration());
             if let Some(tag_name_declaration) = tag_name_declaration {
                 add_related_info(
-                    &diag,
+                    &diag.ref_(self),
                     vec![Gc::new(
                         create_diagnostic_for_node(
                             tag_name_declaration,

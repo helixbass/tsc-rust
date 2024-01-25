@@ -738,7 +738,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         let last_error = last_or_undefined(&parse_diagnostics);
                         if let Some(last_error) = last_error {
                             add_related_info(
-                                last_error,
+                                &last_error.ref_(self),
                                 vec![Gc::new(
                                     create_detached_diagnostic(
                                         &self.parser.file_name(),

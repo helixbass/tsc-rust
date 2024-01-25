@@ -401,7 +401,7 @@ impl TypeChecker {
                         Some(outside_this) if outside_this != global_this_type
                     ) {
                         add_related_info(
-                            &diag,
+                            &diag.ref_(self),
                             vec![
                                 Gc::new(
                                     create_diagnostic_for_node(

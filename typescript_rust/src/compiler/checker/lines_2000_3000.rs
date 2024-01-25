@@ -76,7 +76,7 @@ impl TypeChecker {
         }
         let type_only_declaration = type_only_declaration.unwrap();
         add_related_info(
-            &diagnostic,
+            &diagnostic.ref_(self),
             vec![create_diagnostic_for_node(
                 type_only_declaration,
                 if type_only_declaration.ref_(self).kind() == SyntaxKind::ExportSpecifier {
@@ -661,7 +661,7 @@ impl TypeChecker {
 
             if let Some(diagnostic_message) = diagnostic_message {
                 add_related_info(
-                    &diagnostic_message,
+                    &diagnostic_message.ref_(self),
                     vec![create_diagnostic_for_node(
                         declaration,
                         &Diagnostics::_0_is_declared_here,
@@ -865,7 +865,7 @@ impl TypeChecker {
                     Some(node_as_import_equals_declaration.module_reference),
                     message,
                     None,
-                ),
+                ).ref_(self),
                 vec![create_diagnostic_for_node(
                     type_only_declaration,
                     related_message,
@@ -1092,7 +1092,7 @@ impl TypeChecker {
 
                 if let Some(export_assignment) = export_assignment {
                     add_related_info(
-                        &err,
+                        &err.ref_(self),
                         vec![
                             create_diagnostic_for_node(
                                 export_assignment,
@@ -1195,7 +1195,7 @@ impl TypeChecker {
                 })?;
                 if let Some(default_export) = default_export {
                     add_related_info(
-                        &diagnostic,
+                        &diagnostic.ref_(self),
                         vec![create_diagnostic_for_node(
                             default_export,
                             &Diagnostics::export_Asterisk_does_not_re_export_a_default,
@@ -1503,7 +1503,7 @@ impl TypeChecker {
                         suggestion.ref_(self).maybe_value_declaration()
                     {
                         add_related_info(
-                            &diagnostic,
+                            &diagnostic.ref_(self),
                             vec![create_diagnostic_for_node(
                                 suggestion_value_declaration,
                                 &Diagnostics::_0_is_declared_here,
@@ -1632,7 +1632,7 @@ impl TypeChecker {
                     local_symbol.ref_(self).maybe_declarations().as_deref()
                 {
                     add_related_info(
-                        &diagnostic,
+                        &diagnostic.ref_(self),
                         map(local_symbol_declarations, |&decl: &Id<Node>, index| {
                             create_diagnostic_for_node(
                                 decl,

@@ -150,6 +150,7 @@ pub fn convert_compiler_options_from_json(
     json_options: Option<&serde_json::Value>,
     base_path: &str,
     config_file_name: Option<&str>,
+    arena: &impl HasArena,
 ) -> CompilerOptionsAndErrors {
     let mut errors: Vec<Id<Diagnostic>> = vec![];
     let options = convert_compiler_options_from_json_worker(
@@ -157,6 +158,7 @@ pub fn convert_compiler_options_from_json(
         base_path,
         &mut errors,
         config_file_name,
+        arena,
     );
     CompilerOptionsAndErrors { options, errors }
 }
@@ -170,6 +172,7 @@ pub fn convert_type_acquisition_from_json(
     json_options: Option<&serde_json::Value>,
     base_path: &str,
     config_file_name: Option<&str>,
+    arena: &impl HasArena,
 ) -> TypeAcquisitionAndErrors {
     let mut errors: Vec<Id<Diagnostic>> = vec![];
     let options = convert_type_acquisition_from_json_worker(
@@ -177,6 +180,7 @@ pub fn convert_type_acquisition_from_json(
         base_path,
         &mut errors,
         config_file_name,
+        arena,
     );
     TypeAcquisitionAndErrors { options, errors }
 }
@@ -204,6 +208,7 @@ pub(crate) fn convert_compiler_options_from_json_worker(
     base_path: &str,
     errors: &mut Vec<Id<Diagnostic>>,
     config_file_name: Option<&str>,
+    arena: &impl HasArena,
 ) -> CompilerOptions {
     let mut options = get_default_compiler_options(config_file_name);
     convert_options_from_json_compiler_options(
@@ -213,6 +218,7 @@ pub(crate) fn convert_compiler_options_from_json_worker(
         &mut options,
         compiler_options_did_you_mean_diagnostics().as_did_you_mean_options_diagnostics(),
         errors,
+        arena,
     );
     if let Some(config_file_name) = config_file_name {
         options.config_file_path = Some(normalize_slashes(config_file_name));
@@ -237,6 +243,7 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
     base_path: &str,
     errors: &mut Vec<Id<Diagnostic>>,
     config_file_name: Option<&str>,
+    arena: &impl HasArena,
 ) -> TypeAcquisition {
     let mut options = get_default_type_acquisition(config_file_name);
     let type_acquisition = convert_enable_auto_discovery_to_enable(json_options);
@@ -248,6 +255,7 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
         &mut options,
         &*type_acquisition_did_you_mean_diagnostics(),
         errors,
+        arena,
     );
     options
 }
@@ -256,6 +264,7 @@ pub(crate) fn convert_watch_options_from_json_worker(
     json_options: Option<&serde_json::Value>,
     base_path: &str,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> Option<WatchOptions> {
     convert_options_from_json_watch_options(
         &get_command_line_watch_options_map(),
@@ -263,6 +272,7 @@ pub(crate) fn convert_watch_options_from_json_worker(
         base_path,
         watch_options_did_you_mean_diagnostics().as_did_you_mean_options_diagnostics(),
         errors,
+        arena,
     )
 }
 
@@ -273,6 +283,7 @@ pub(super) fn convert_options_from_json_compiler_options(
     default_options: &mut CompilerOptions,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) {
     if json_options.is_none() {
         return;
@@ -286,13 +297,13 @@ pub(super) fn convert_options_from_json_compiler_options(
                 if let Some(opt) = opt {
                     default_options.set_value_from_command_line_option(
                         opt,
-                        convert_json_option(opt, Some(map_value), base_path, errors),
+                        convert_json_option(opt, Some(map_value), base_path, errors, arena),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                         None,
                     ));
                 }
@@ -310,6 +321,7 @@ pub(super) fn convert_options_from_json_type_acquisition(
     default_options: &mut TypeAcquisition,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) {
     if json_options.is_none() {
         return;
@@ -324,13 +336,13 @@ pub(super) fn convert_options_from_json_type_acquisition(
                     set_type_acquisition_value(
                         default_options,
                         opt,
-                        convert_json_option(opt, Some(map_value), base_path, errors),
+                        convert_json_option(opt, Some(map_value), base_path, errors, arena),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                         None,
                     ));
                 }
@@ -348,6 +360,7 @@ pub(super) fn convert_options_from_json_watch_options(
     // default_options: &mut WatchOptions,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> Option<WatchOptions> {
     if json_options.is_none() {
         return None;
@@ -365,13 +378,13 @@ pub(super) fn convert_options_from_json_watch_options(
                     set_watch_option_value(
                         &mut default_options,
                         opt,
-                        convert_json_option(opt, Some(map_value), base_path, errors),
+                        convert_json_option(opt, Some(map_value), base_path, errors, arena),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                         None,
                     ));
                 }
@@ -391,6 +404,7 @@ pub(crate) fn convert_json_option(
     value: Option<&serde_json::Value>,
     base_path: &str,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
     if is_compiler_options_value(Some(opt), value) {
         let opt_type = opt.type_();
@@ -405,6 +419,7 @@ pub(crate) fn convert_json_option(
                 },
                 base_path,
                 errors,
+                arena,
             );
         } else if matches!(opt_type, CommandLineOptionType::Map(_)) {
             return convert_json_option_of_custom_type(
@@ -415,16 +430,17 @@ pub(crate) fn convert_json_option(
                     _ => unreachable!(),
                 }),
                 errors,
+                arena,
             );
         }
-        let validated_value = validate_json_option_value(opt, value, errors);
+        let validated_value = validate_json_option_value(opt, value, errors, arena);
         return if !validated_value.is_some() {
             validated_value
         } else {
             normalize_non_list_option_value_compiler_options_value(opt, base_path, validated_value)
         };
     } else {
-        errors.push(Gc::new(
+        errors.push(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                 Some(vec![
@@ -544,6 +560,7 @@ pub(super) fn validate_json_option_value_compiler_options_value(
     opt: &CommandLineOption,
     value: CompilerOptionsValue,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
     if !value.is_some() {
         return opt.to_compiler_options_value_none();
@@ -556,7 +573,7 @@ pub(super) fn validate_json_option_value_compiler_options_value(
     }
     let d = d.unwrap();
     let (diagnostic_message, args) = d;
-    errors.push(Gc::new(
+    errors.push(arena.alloc_diagnostic(
         create_compiler_diagnostic(diagnostic_message, args).into(),
     ));
     opt.to_compiler_options_value_none()
@@ -566,6 +583,7 @@ pub(super) fn validate_json_option_value(
     opt: &CommandLineOption,
     value: Option<&serde_json::Value>,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
     if value.is_none() {
         return opt.to_compiler_options_value_none();
@@ -579,7 +597,7 @@ pub(super) fn validate_json_option_value(
     }
     let d = d.unwrap();
     let (diagnostic_message, args) = d;
-    errors.push(Gc::new(
+    errors.push(arena.alloc_diagnostic(
         create_compiler_diagnostic(diagnostic_message, args).into(),
     ));
     opt.to_compiler_options_value_none()
@@ -589,6 +607,7 @@ pub(super) fn convert_json_option_of_custom_type(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     value: Option<&str>,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
     if value.is_none() {
         return opt
@@ -608,9 +627,10 @@ pub(super) fn convert_json_option_of_custom_type(
             opt,
             val.as_compiler_options_value(),
             errors,
+            arena,
         );
     } else {
-        errors.push(create_compiler_diagnostic_for_invalid_custom_type(opt));
+        errors.push(create_compiler_diagnostic_for_invalid_custom_type(opt, arena));
     }
     opt.type_()
         .as_map()
@@ -626,6 +646,7 @@ pub(super) fn convert_json_option_of_list_type(
     values: &[serde_json::Value],
     base_path: &str,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
     let option_as_command_line_option_of_list_type = option.as_command_line_option_of_list_type();
     CompilerOptionsValue::VecString(Some(
@@ -637,6 +658,7 @@ pub(super) fn convert_json_option_of_list_type(
                     Some(v),
                     base_path,
                     errors,
+                    arena,
                 ) {
                     CompilerOptionsValue::String(v) => v,
                     _ => panic!("Expected only vec of strings?"),
@@ -923,7 +945,7 @@ fn create_diagnostic(
     arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     let element = get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec, arena);
-    Gc::new(if let Some(element) = element {
+    arena.alloc_diagnostic(if let Some(element) = element {
         create_diagnostic_for_node_in_source_file(
             json_source_file.unwrap(),
             element,

@@ -54,7 +54,7 @@ pub fn sort_and_deduplicate_diagnostics(
 ) -> SortedArray<Id<Diagnostic>> {
     sort_and_deduplicate(
         diagnostics,
-        &|a, b| compare_diagnostics(&**a, &**b, arena),
+        &|a, b| compare_diagnostics(&*a.ref_(arena), &*b.ref_(arena), arena),
         Option::<&fn(&Id<Diagnostic>, &Id<Diagnostic>) -> bool>::None,
     )
 }
@@ -328,6 +328,7 @@ pub fn validate_locale_and_set_language(
     locale: &str,
     sys: &dyn System,
     mut errors: Option<&mut Push<Id<Diagnostic>>>,
+    arena: &impl HasArena,
 ) {
     let lower_case_locale = locale.to_lowercase();
     lazy_static! {
@@ -337,7 +338,17 @@ pub fn validate_locale_and_set_language(
 
     if match_result.is_none() {
         if let Some(errors) = errors {
-            errors.push(Gc::new(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into()));
+            errors.push(
+                arena.alloc_diagnostic(
+                    create_compiler_diagnostic(
+                        &Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1,
+                        Some(vec![
+                            "en".to_owned(),
+                            "ja-jp".to_owned()
+                        ]),
+                    ).into()
+                )
+            );
         }
         return;
     }
@@ -348,9 +359,9 @@ pub fn validate_locale_and_set_language(
 
     let lower_case_locale_str: &str = &lower_case_locale;
     if contains(Some(&supported_locale_directories), &lower_case_locale_str)
-        && !try_set_language_and_territory(sys, language, Some(territory), &mut errors)
+        && !try_set_language_and_territory(sys, language, Some(territory), &mut errors, arena)
     {
-        try_set_language_and_territory(sys, language, None, &mut errors);
+        try_set_language_and_territory(sys, language, None, &mut errors, arena);
     }
 
     set_ui_locale(Some(locale.to_owned()));
@@ -361,6 +372,7 @@ fn try_set_language_and_territory(
     language: &str,
     territory: Option<&str>,
     errors: &mut Option<&mut Push<Id<Diagnostic>>>,
+    arena: &impl HasArena,
 ) -> bool {
     let compiler_file_path = normalize_path(&sys.get_executing_file_path());
     let containing_directory_path = get_directory_path(&compiler_file_path);
@@ -386,7 +398,7 @@ fn try_set_language_and_territory(
     let file_contents = match sys.read_file(&file_path) {
         Err(_) => {
             if let Some(errors) = errors {
-                errors.push(Gc::new(
+                errors.push(arena.alloc_diagnostic(
                     create_compiler_diagnostic(
                         &Diagnostics::Unable_to_open_file_0,
                         Some(vec![file_path]),
@@ -405,7 +417,7 @@ fn try_set_language_and_territory(
         Some(parsed_file_contents) => parsed_file_contents.is_err(),
     } {
         if let Some(errors) = errors {
-            errors.push(Gc::new(
+            errors.push(arena.alloc_diagnostic(
                 create_compiler_diagnostic(
                     &Diagnostics::Corrupted_locale_file_0,
                     Some(vec![file_path]),

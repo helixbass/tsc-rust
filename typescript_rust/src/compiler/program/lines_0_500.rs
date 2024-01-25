@@ -964,7 +964,7 @@ pub fn format_diagnostics(
     let mut output = "".to_owned();
 
     for diagnostic in diagnostics {
-        output.push_str(&format_diagnostic(diagnostic, host, arena)?);
+        output.push_str(&format_diagnostic(&diagnostic.ref_(arena), host, arena)?);
     }
     Ok(output)
 }
@@ -1200,9 +1200,9 @@ pub fn format_diagnostics_with_color_and_context(
 ) -> io::Result<String> {
     let mut output = "".to_owned();
     for diagnostic in diagnostics {
-        if let Some(diagnostic_file) = diagnostic.maybe_file() {
+        if let Some(diagnostic_file) = diagnostic.ref_(arena).maybe_file() {
             let file = diagnostic_file;
-            let start = diagnostic.start();
+            let start = diagnostic.ref_(arena).start();
             output.push_str(&format_location(
                 file,
                 start,
@@ -1214,33 +1214,33 @@ pub fn format_diagnostics_with_color_and_context(
         }
 
         output.push_str(&format_color_and_reset(
-            &diagnostic_category_name(diagnostic.category(), None),
-            get_category_format(diagnostic.category()),
+            &diagnostic_category_name(diagnostic.ref_(arena).category(), None),
+            get_category_format(diagnostic.ref_(arena).category()),
         ));
         output.push_str(&format_color_and_reset(
-            &format!(" TS{}: ", diagnostic.code()),
+            &format!(" TS{}: ", diagnostic.ref_(arena).code()),
             ForegroundColorEscapeSequences::Grey,
         ));
         output.push_str(&flatten_diagnostic_message_text(
-            Some(diagnostic.message_text()),
+            Some(diagnostic.ref_(arena).message_text()),
             &host.get_new_line(),
             None,
         ));
 
-        if let Some(diagnostic_file) = diagnostic.maybe_file() {
+        if let Some(diagnostic_file) = diagnostic.ref_(arena).maybe_file() {
             output.push_str(&host.get_new_line());
             output.push_str(&format_code_span(
                 diagnostic_file,
-                diagnostic.start(),
-                diagnostic.length(),
+                diagnostic.ref_(arena).start(),
+                diagnostic.ref_(arena).length(),
                 "",
-                get_category_format(diagnostic.category()),
+                get_category_format(diagnostic.ref_(arena).category()),
                 host,
                 arena,
             ));
         }
-        if let Some(diagnostic_related_information) =
-            diagnostic.maybe_related_information().as_ref()
+        let diagnostic_ref = diagnostic.ref_(arena);
+        if let Some(diagnostic_related_information) = diagnostic_ref.maybe_related_information().as_ref()
         {
             output.push_str(&host.get_new_line());
             for related_information in diagnostic_related_information {

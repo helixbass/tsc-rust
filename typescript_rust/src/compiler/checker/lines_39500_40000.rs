@@ -1003,13 +1003,13 @@ impl TypeChecker {
                         for &declaration in declarations.as_ref().unwrap() {
                             if is_not_overload(&declaration.ref_(self)) {
                                 self.diagnostics().add(
-                                    create_diagnostic_for_node(
+                                    self.alloc_diagnostic(create_diagnostic_for_node(
                                         declaration,
                                         &Diagnostics::Cannot_redeclare_exported_variable_0,
                                         Some(vec![unescape_leading_underscores(id).to_owned()]),
                                         self,
                                     )
-                                    .into(),
+                                    .into()),
                                 );
                             }
                         }

@@ -157,7 +157,7 @@ impl ParserType {
             self.factory().create_token(SyntaxKind::EndOfFileToken),
             NodeFlags::None,
         );
-        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self));
+        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self), self);
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
             if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {
@@ -166,6 +166,7 @@ impl ParserType {
                     .set_js_doc_diagnostics(attach_file_to_diagnostics(
                         js_doc_diagnostics,
                         &source_file.ref_(self),
+                        self,
                     ));
             }
         }
@@ -262,7 +263,7 @@ impl ParserType {
         source_file
             .ref_(self).as_source_file()
             .set_language_variant(LanguageVariant::Standard);
-        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self));
+        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self), self);
         self.clear_state();
 
         js_doc.map(|js_doc| ParsedIsolatedJSDocComment {

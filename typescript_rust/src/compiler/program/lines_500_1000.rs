@@ -1392,7 +1392,7 @@ impl Program {
                         let pos = referenced_file_location_as_reference_file_location.pos;
                         let end = referenced_file_location_as_reference_file_location.end;
                         self.program_diagnostics_mut().add(
-                            Gc::new(
+                            self.alloc_diagnostic(
                                 create_file_diagnostic(
                                     file,
                                     /*Debug.checkDefined(*/pos.try_into().unwrap()/*)*/,

@@ -835,7 +835,7 @@ impl DiagnosticCollection {
 
     pub fn lookup(&self, diagnostic: Id<Diagnostic>) -> Option<Id<Diagnostic>> {
         let diagnostics: Option<&SortedArray<Id<Diagnostic>>>;
-        if let Some(diagnostic_file) = diagnostic.maybe_file() {
+        if let Some(diagnostic_file) = diagnostic.ref_(self).maybe_file() {
             diagnostics = self
                 .file_diagnostics
                 .get(&*diagnostic_file.ref_(self).as_source_file().file_name());
@@ -847,7 +847,7 @@ impl DiagnosticCollection {
             diagnostics,
             &diagnostic,
             |diagnostic, _| diagnostic,
-            |a, b| compare_diagnostics_skip_related_information(&**a, &**b, self),
+            |a, b| compare_diagnostics_skip_related_information(&*a.ref_(self), &*b.ref_(self), self),
             None,
         );
         if result >= 0 {
@@ -857,7 +857,7 @@ impl DiagnosticCollection {
     }
 
     pub fn add(&mut self, diagnostic: Id<Diagnostic>) {
-        if let Some(diagnostic_file) = diagnostic.maybe_file() {
+        if let Some(diagnostic_file) = diagnostic.ref_(self).maybe_file() {
             let file_name = diagnostic_file.ref_(self).as_source_file().file_name().clone();
             if self
                 .file_diagnostics
@@ -883,7 +883,7 @@ impl DiagnosticCollection {
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&**a, &**b, arena),
+                |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&*a.ref_(arena), &*b.ref_(arena), arena),
             );
         } else {
             if self.has_read_non_file_diagnostics() {
@@ -896,7 +896,7 @@ impl DiagnosticCollection {
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&**a, &**b, arena),
+                |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&*a.ref_(arena), &*b.ref_(arena), arena),
             );
         }
     }

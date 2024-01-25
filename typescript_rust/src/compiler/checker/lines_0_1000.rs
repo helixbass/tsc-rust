@@ -2721,7 +2721,7 @@ impl TypeChecker {
                         containing_node.ref_(self).flags().intersects(NodeFlags::Ambient),
                     )
                 {
-                    diag.set_category(DiagnosticCategory::Suggestion); // TODO: is it a problem that this is being mutated?
+                    diag.ref_(self).set_category(DiagnosticCategory::Suggestion); // TODO: is it a problem that this is being mutated?
                     diagnostics.as_mut().unwrap().push(diag);
                 }
             },

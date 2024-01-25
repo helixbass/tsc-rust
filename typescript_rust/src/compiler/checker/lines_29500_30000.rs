@@ -62,7 +62,7 @@ impl TypeChecker {
                     )?
                 ) {
                     add_related_info(
-                        &error_output_container.get_error(0).unwrap(),
+                        &error_output_container.get_error(0).unwrap().ref_(self),
                         vec![Gc::new(
                             create_diagnostic_for_node(
                                 error_node,
@@ -375,9 +375,9 @@ impl TypeChecker {
                 start,
                 length,
             } = self.get_diagnostic_span_for_call_node(node, None);
-            Gc::new(create_file_diagnostic(source_file, start, length, message, args).into())
+            self.alloc_diagnostic(create_file_diagnostic(source_file, start, length, message, args).into())
         } else {
-            Gc::new(create_diagnostic_for_node(node, message, args, self).into())
+            self.alloc_diagnostic(create_diagnostic_for_node(node, message, args, self).into())
         }
     }
 
@@ -440,7 +440,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Diagnostic>> {
         let spread_index = self.get_spread_argument_index(args);
         if let Some(spread_index) = spread_index {
-            return Ok(Gc::new(
+            return Ok(self.alloc_diagnostic(
                 create_diagnostic_for_node(
                     args[spread_index],
                     &Diagnostics::A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter,
@@ -573,7 +573,7 @@ impl TypeChecker {
                         },
                         self,
                     );
-                    add_related_info(&diagnostic, vec![Gc::new(parameter_error.into())]);
+                    add_related_info(&diagnostic.ref_(self), vec![Gc::new(parameter_error.into())]);
                 }
                 diagnostic
             } else {
@@ -592,7 +592,7 @@ impl TypeChecker {
                     end += 1;
                 }
                 set_text_range_pos_end(&*error_span, pos, end);
-                Gc::new(
+                self.alloc_diagnostic(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(node, self).ref_(self),
                         &error_span,
@@ -616,7 +616,7 @@ impl TypeChecker {
             let sig = &signatures[0];
             let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
             let max = length(sig.maybe_type_parameters().as_deref());
-            return Gc::new(
+            return self.alloc_diagnostic(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(node, self).ref_(self),
                     type_arguments,
@@ -665,7 +665,7 @@ impl TypeChecker {
                 );
             }
         }
-        Gc::new(
+        self.alloc_diagnostic(
             create_diagnostic_for_node_array(
                 &get_source_file_of_node(node, self).ref_(self),
                 type_arguments,
@@ -828,7 +828,7 @@ impl TypeChecker {
                             if let Some(last_declaration) = last.declaration {
                                 if candidates_for_argument_error_present.len() > 3 {
                                     add_related_info(
-                                        d,
+                                        &d.ref_(self),
                                         vec![Gc::new(
                                             create_diagnostic_for_node(
                                                 last_declaration,
@@ -850,7 +850,7 @@ impl TypeChecker {
                                 &args,
                                 &mut arg_check_mode,
                                 &last,
-                                d,
+                                &d.ref_(self),
                             )?;
                             self.diagnostics().add(d.clone());
                         }
@@ -904,12 +904,12 @@ impl TypeChecker {
                         Some("No errors reported for 3 or fewer overload signatures"),
                     );
                     let chain = chain_diagnostic_messages_multiple(
-                        map(&diags, |d: &Id<Diagnostic>, _| match d.message_text() {
+                        map(&diags, |d: &Id<Diagnostic>, _| match d.ref_(self).message_text() {
                             DiagnosticMessageText::String(d_message_text) => {
                                 DiagnosticMessageChain::new(
                                     d_message_text.clone(),
-                                    d.category(),
-                                    d.code(),
+                                    d.ref_(self).category(),
+                                    d.ref_(self).code(),
                                     None,
                                 )
                             }
@@ -922,24 +922,24 @@ impl TypeChecker {
                     );
                     let related: Vec<Gc<DiagnosticRelatedInformation>> =
                         flat_map(Some(&*diags), |d: &Id<Diagnostic>, _| {
-                            d.maybe_related_information()
+                            d.ref_(self).maybe_related_information()
                                 .clone()
                                 .unwrap_or_else(|| vec![])
                         });
                     let diag: Id<Diagnostic>;
                     if every(&diags, |d: &Id<Diagnostic>, _| {
-                        d.start() == diags[0].start()
-                            && d.length() == diags[0].length()
-                            && d.maybe_file() == diags[0].maybe_file()
+                        d.ref_(self).start() == diags[0].ref_(self).start()
+                            && d.ref_(self).length() == diags[0].ref_(self).length()
+                            && d.ref_(self).maybe_file() == diags[0].ref_(self).maybe_file()
                     }) {
-                        diag = Gc::new(
+                        diag = self.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformation::new(
                                     chain.category,
                                     chain.code,
-                                    diags[0].maybe_file(),
-                                    Some(diags[0].start()),
-                                    Some(diags[0].length()),
+                                    diags[0].ref_(self).maybe_file(),
+                                    Some(diags[0].ref_(self).start()),
+                                    Some(diags[0].ref_(self).length()),
                                     chain,
                                 ),
                                 Some(related),
@@ -947,7 +947,7 @@ impl TypeChecker {
                             .into(),
                         );
                     } else {
-                        diag = Gc::new(
+                        diag = self.alloc_diagnostic(
                             create_diagnostic_for_node_from_message_chain(
                                 node,
                                 chain,
@@ -966,7 +966,7 @@ impl TypeChecker {
                         &args,
                         &mut arg_check_mode,
                         &candidates_for_argument_error_present[0],
-                        &diag,
+                        &diag.ref_(self),
                     )?;
                     self.diagnostics().add(diag);
                 }

@@ -504,7 +504,7 @@ impl Program {
             && is_option_str_empty(self.options.ref_(self).config_file_path.as_deref())
         {
             self.program_diagnostics_mut().add(
-                Gc::new(
+                self.alloc_diagnostic(
                     create_compiler_diagnostic(
                         &Diagnostics::Option_incremental_can_only_be_specified_using_tsconfig_emitting_to_single_file_or_when_option_tsBuildInfoFile_is_specified,
                         None,
@@ -734,7 +734,7 @@ impl Program {
                     self,
                 );
                 self.program_diagnostics_mut().add(
-                    Gc::new(
+                    self.alloc_diagnostic(
                         create_file_diagnostic(
                             first_non_external_module_source_file,
                             span.start,
@@ -765,7 +765,7 @@ impl Program {
                     self,
                 );
                 self.program_diagnostics_mut().add(
-                    Gc::new(
+                    self.alloc_diagnostic(
                         create_file_diagnostic(
                             first_non_ambient_external_module_source_file,
                             span.start,
@@ -809,7 +809,7 @@ impl Program {
                         self,
                     );
                     self.program_diagnostics_mut().add(
-                        Gc::new(
+                        self.alloc_diagnostic(
                             create_file_diagnostic(
                                 first_non_ambient_external_module_source_file,
                                 span.start,
@@ -886,7 +886,7 @@ impl Program {
         }
 
         if self.options.ref_(self).check_js == Some(true) && !get_allow_js_compiler_option(&self.options.ref_(self)) {
-            self.program_diagnostics_mut().add(Gc::new(
+            self.program_diagnostics_mut().add(self.alloc_diagnostic(
                 create_compiler_diagnostic(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
                     Some(vec!["checkJs".to_owned(), "allowJs".to_owned()]),
@@ -1128,7 +1128,7 @@ impl Program {
                 ));
                 self.block_emitting_of_file(
                     emit_file_name,
-                    Gc::new(
+                    self.alloc_diagnostic(
                         create_compiler_diagnostic_from_message_chain(chain.unwrap(), None).into(),
                     ),
                 );
@@ -1142,7 +1142,7 @@ impl Program {
             if emit_files_seen.contains(&emit_file_key) {
                 self.block_emitting_of_file(
                     emit_file_name,
-                    Gc::new(create_compiler_diagnostic(
+                    self.alloc_diagnostic(create_compiler_diagnostic(
                         &Diagnostics::Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files,
                         Some(vec![
                             emit_file_name.to_owned()
@@ -1234,7 +1234,7 @@ impl Program {
         };
         if let Some(location) = location.filter(|location| is_reference_file_location(location)) {
             let location_as_reference_file_location = location.as_reference_file_location();
-            Gc::new(
+            self.alloc_diagnostic(
                 create_file_diagnostic_from_message_chain(
                     &location_as_reference_file_location.file.ref_(self),
                     location_as_reference_file_location.pos.try_into().unwrap(),
@@ -1248,7 +1248,7 @@ impl Program {
                 .into(),
             )
         } else {
-            Gc::new(create_compiler_diagnostic_from_message_chain(chain, related_info).into())
+            self.alloc_diagnostic(create_compiler_diagnostic_from_message_chain(chain, related_info).into())
         }
     }
 
@@ -1671,7 +1671,7 @@ impl Program {
                         let initializer_ref = initializer.ref_(self);
                         let initializer_as_array_literal_expression = initializer_ref.as_array_literal_expression();
                         if initializer_as_array_literal_expression.elements.len() > value_index {
-                            self.program_diagnostics_mut().add(Gc::new(
+                            self.program_diagnostics_mut().add(self.alloc_diagnostic(
                                 create_diagnostic_for_node_in_source_file(
                                     self.options.ref_(self).config_file.unwrap(),
                                     initializer_as_array_literal_expression.elements[value_index],
@@ -1689,7 +1689,7 @@ impl Program {
         }
         if need_compiler_diagnostic {
             self.program_diagnostics_mut()
-                .add(Gc::new(create_compiler_diagnostic(message, args).into()));
+                .add(self.alloc_diagnostic(create_compiler_diagnostic(message, args).into()));
         }
     }
 
@@ -1720,7 +1720,7 @@ impl Program {
         }
         if need_compiler_diagnostic {
             self.program_diagnostics_mut()
-                .add(Gc::new(create_compiler_diagnostic(message, args).into()));
+                .add(self.alloc_diagnostic(create_compiler_diagnostic(message, args).into()));
         }
     }
 
@@ -1809,7 +1809,7 @@ impl Program {
                 > index
         }) {
             self.program_diagnostics_mut().add(
-                create_diagnostic_for_node_in_source_file(
+                self.alloc_diagnostic(create_diagnostic_for_node_in_source_file(
                     source_file
                         .or(self.options.ref_(self).config_file)
                         .unwrap(),
@@ -1818,11 +1818,11 @@ impl Program {
                     args,
                     self,
                 )
-                .into(),
+                .into()),
             );
         } else {
             self.program_diagnostics_mut()
-                .add(create_compiler_diagnostic(message, args).into());
+                .add(self.alloc_diagnostic(create_compiler_diagnostic(message, args).into()));
         }
     }
 
@@ -1851,7 +1851,7 @@ impl Program {
 
         if need_compiler_diagnostic {
             self.program_diagnostics_mut()
-                .add(Gc::new(create_compiler_diagnostic(message, args).into()));
+                .add(self.alloc_diagnostic(create_compiler_diagnostic(message, args).into()));
         }
     }
 
@@ -1891,7 +1891,7 @@ impl Program {
     ) -> bool {
         let props = get_property_assignment(object_literal, key1, key2, self);
         for prop in props.clone() {
-            self.program_diagnostics_mut().add(Gc::new(
+            self.program_diagnostics_mut().add(self.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     self.options.ref_(self).config_file.unwrap(),
                     if on_key {
@@ -2363,10 +2363,11 @@ pub(crate) fn handle_no_emit_options(
 pub(super) fn filter_semantic_diagnostics(
     diagnostic: Vec<Id<Diagnostic>>,
     option: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> Vec<Id<Diagnostic>> {
     diagnostic
         .into_iter()
-        .filter(|d| match d.maybe_skipped_on().as_ref() {
+        .filter(|d| match d.ref_(arena).maybe_skipped_on().as_ref() {
             None => true,
             Some(d_skipped_on) => option.get_value(d_skipped_on).as_option_bool() != Some(true),
         })

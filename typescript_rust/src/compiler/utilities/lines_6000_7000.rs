@@ -2052,8 +2052,9 @@ pub fn add_related_info(
 pub fn add_related_info_rc(
     diagnostic: Id<Diagnostic>,
     related_information: Vec<Gc<DiagnosticRelatedInformation>>,
+    arena: &impl HasArena,
 ) -> Id<Diagnostic> {
-    add_related_info(&diagnostic, related_information);
+    add_related_info(&diagnostic.ref_(arena), related_information);
     diagnostic
 }
 

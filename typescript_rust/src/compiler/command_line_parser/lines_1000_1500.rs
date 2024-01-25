@@ -299,9 +299,10 @@ pub(crate) fn convert_enable_auto_discovery_to_enable(
 
 pub(crate) fn create_compiler_diagnostic_for_invalid_custom_type(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
+    arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     create_diagnostic_for_invalid_custom_type(opt, |message, args| {
-        Gc::new(create_compiler_diagnostic(message, args).into())
+        arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into())
     })
 }
 
@@ -326,14 +327,16 @@ pub fn parse_custom_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     value: Option<&str>,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
-    convert_json_option_of_custom_type(opt, Some(trim_string(value.unwrap_or(""))), errors)
+    convert_json_option_of_custom_type(opt, Some(trim_string(value.unwrap_or(""))), errors, arena)
 }
 
 pub fn parse_list_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfListType*/
     value: Option<&str>,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> Option<Vec<String>> {
     let value = value.unwrap_or("");
     if starts_with(value, "-") {
@@ -353,6 +356,7 @@ pub fn parse_list_type_option(
                         &opt_as_command_line_option_of_list_type.element,
                         Some(&serde_json::Value::String(v.to_owned())),
                         errors,
+                        arena,
                     ) {
                         CompilerOptionsValue::String(v) => v,
                         _ => panic!("Expected string"),
@@ -367,6 +371,7 @@ pub fn parse_list_type_option(
                         &opt_as_command_line_option_of_list_type.element,
                         Some(v),
                         errors,
+                        arena,
                     ) {
                         CompilerOptionsValue::String(v) => v,
                         _ => panic!("Expected string"),
@@ -1112,7 +1117,7 @@ pub(super) fn parse_strings(
                 Some(true),
             );
             if let Some(opt) = opt {
-                i = parse_option_value(args, i, diagnostics, &opt, options, errors);
+                i = parse_option_value(args, i, diagnostics, &opt, options, errors, arena);
             } else {
                 let watch_opt = get_option_declaration_from_name(
                     || watch_options_did_you_mean_diagnostics().get_options_name_map(),
@@ -1131,12 +1136,13 @@ pub(super) fn parse_strings(
                         &watch_opt,
                         watch_options.as_mut().unwrap(),
                         errors,
+                        arena,
                     );
                 } else {
                     errors.push(create_unknown_option_error(
                         &input_option_name,
                         diagnostics.as_did_you_mean_options_diagnostics(),
-                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                         Some(s),
                     ));
                 }

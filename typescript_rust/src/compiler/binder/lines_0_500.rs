@@ -1149,7 +1149,7 @@ impl BinderType {
                                 |&declaration: &Id<Node>, index| {
                                     let decl = get_name_of_declaration(Some(declaration), self)
                                         .unwrap_or(declaration);
-                                    let diag: Id<Diagnostic> = Gc::new(
+                                    let diag: Id<Diagnostic> = self.alloc_diagnostic(
                                         self.create_diagnostic_for_node(
                                             decl,
                                             message,
@@ -1166,7 +1166,7 @@ impl BinderType {
                                     self.file().ref_(self).as_source_file().bind_diagnostics_mut().push(
                                         if multiple_default_exports {
                                             add_related_info(
-                                                &diag,
+                                                &diag.ref_(self),
                                                 vec![Gc::new(
                                                 self.create_diagnostic_for_node(
                                                     declaration_name,
@@ -1199,7 +1199,7 @@ impl BinderType {
                                 },
                             );
 
-                            let diag: Id<Diagnostic> = Gc::new(
+                            let diag: Id<Diagnostic> = self.alloc_diagnostic(
                                 self.create_diagnostic_for_node(
                                     declaration_name,
                                     message,
@@ -1211,7 +1211,7 @@ impl BinderType {
                                 )
                                 .into(),
                             );
-                            add_related_info(&diag, related_information);
+                            add_related_info(&diag.ref_(self), related_information);
                             self.file()
                                 .ref_(self).as_source_file()
                                 .bind_diagnostics_mut()

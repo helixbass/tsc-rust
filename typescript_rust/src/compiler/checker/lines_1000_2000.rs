@@ -226,7 +226,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Id<Diagnostic> {
-        let diagnostic: Id<Diagnostic> = Gc::new(if let Some(location) = location {
+        let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(if let Some(location) = location {
             create_diagnostic_for_node(location, message, args, self).into()
         } else {
             create_compiler_diagnostic(message, args).into()
@@ -247,7 +247,7 @@ impl TypeChecker {
         args: Option<Vec<String>>,
     ) -> Id<Diagnostic> {
         let diagnostic = self.error(location, message, args);
-        *diagnostic.maybe_skipped_on_mut() = Some(key);
+        *diagnostic.ref_(self).maybe_skipped_on_mut() = Some(key);
         diagnostic
     }
 
@@ -257,7 +257,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Id<Diagnostic> {
-        Gc::new(if let Some(location) = location {
+        self.alloc_diagnostic(if let Some(location) = location {
             create_diagnostic_for_node(location, message, args, self).into()
         } else {
             create_compiler_diagnostic(message, args).into()
@@ -279,7 +279,7 @@ impl TypeChecker {
         if is_error {
             self.diagnostics().add(diagnostic);
         } else {
-            diagnostic.set_category(DiagnosticCategory::Suggestion); // TODO: (also commented on this elsewhere) is it ok that this mutates the diagnostic?
+            diagnostic.ref_(self).set_category(DiagnosticCategory::Suggestion); // TODO: (also commented on this elsewhere) is it ok that this mutates the diagnostic?
             self.suggestion_diagnostics().add(diagnostic);
         }
     }
@@ -299,7 +299,7 @@ impl TypeChecker {
             let file = get_source_file_of_node(location, self);
             self.add_error_or_suggestion(
                 is_error,
-                Gc::new(match message {
+                self.alloc_diagnostic(match message {
                     DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessage(message) => {
                         create_file_diagnostic(file, 0, 0, &message, args).into()
                     }
@@ -312,7 +312,7 @@ impl TypeChecker {
         }
         self.add_error_or_suggestion(
             is_error,
-            Gc::new(match message {
+            self.alloc_diagnostic(match message {
                 DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessage(message) => {
                     create_diagnostic_for_node(location, &message, args, self).into()
                 }
@@ -339,7 +339,7 @@ impl TypeChecker {
                 self,
             )
             .into();
-            add_related_info(&diagnostic, vec![related]);
+            add_related_info(&diagnostic.ref_(self), vec![related]);
         }
         diagnostic
     }
@@ -354,7 +354,7 @@ impl TypeChecker {
         });
         if let Some(deprecated_tag) = deprecated_tag {
             add_related_info(
-                &diagnostic,
+                &diagnostic.ref_(self),
                 vec![create_diagnostic_for_node(
                     deprecated_tag,
                     &Diagnostics::The_declaration_was_marked_as_deprecated_here,
@@ -374,13 +374,13 @@ impl TypeChecker {
         declarations: &[Id<Node>],
         deprecated_entity: &str,
     ) -> Id<Diagnostic> {
-        let diagnostic: Id<Diagnostic> = create_diagnostic_for_node(
+        let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(create_diagnostic_for_node(
             location,
             &Diagnostics::_0_is_deprecated,
             Some(vec![deprecated_entity.to_owned()]),
             self,
         )
-        .into();
+        .into());
         self.add_deprecated_suggestion_worker(declarations, diagnostic)
     }
 
@@ -392,7 +392,7 @@ impl TypeChecker {
         signature_string: &str,
     ) -> Id<Diagnostic> {
         let diagnostic: Id<Diagnostic> =
-            Gc::new(if let Some(deprecated_entity) = deprecated_entity {
+            self.alloc_diagnostic(if let Some(deprecated_entity) = deprecated_entity {
                 create_diagnostic_for_node(
                     location,
                     &Diagnostics::The_signature_0_of_1_is_deprecated,
@@ -806,7 +806,8 @@ impl TypeChecker {
                     continue;
                 }
                 {
-                    let mut err_related_information = err.maybe_related_information_mut();
+                    let err_ref = err.ref_(self);
+                    let mut err_related_information = err_ref.maybe_related_information_mut();
                     if err_related_information.is_none() {
                         *err_related_information = Some(vec![]);
                     }
@@ -820,9 +821,9 @@ impl TypeChecker {
                 .into();
                 let follow_on_message: Gc<DiagnosticRelatedInformation> =
                     create_diagnostic_for_node(adjusted_node, &Diagnostics::and_here, None, self).into();
-                if length(err.maybe_related_information().as_deref()) >= 5
+                if length(err.ref_(self).maybe_related_information().as_deref()) >= 5
                     || some(
-                        err.maybe_related_information().as_deref(),
+                        err.ref_(self).maybe_related_information().as_deref(),
                         Some(|r: &Gc<DiagnosticRelatedInformation>| {
                             compare_diagnostics(&**r, &*follow_on_message, self) == Comparison::EqualTo
                                 || compare_diagnostics(&**r, &*leading_message, self)
@@ -833,8 +834,8 @@ impl TypeChecker {
                     continue;
                 }
                 add_related_info(
-                    &err,
-                    vec![if length(err.maybe_related_information().as_deref()) == 0 {
+                    &err.ref_(self),
+                    vec![if length(err.ref_(self).maybe_related_information().as_deref()) == 0 {
                         leading_message
                     } else {
                         follow_on_message
@@ -1030,13 +1031,13 @@ impl TypeChecker {
                     target_symbol.ref_(self).maybe_declarations().as_deref(),
                     |&declaration: &Id<Node /*Declaration*/>, _| {
                         self.diagnostics().add(
-                            create_diagnostic_for_node(
+                            self.alloc_diagnostic(create_diagnostic_for_node(
                                 declaration,
                                 message,
                                 Some(vec![unescape_leading_underscores(id).to_owned()]),
                                 self,
                             )
-                            .into(),
+                            .into()),
                         );
                         Option::<()>::None
                     },
@@ -2112,7 +2113,7 @@ impl TypeChecker {
                                 suggestion.ref_(self).maybe_value_declaration()
                             {
                                 add_related_info(
-                                    &diagnostic,
+                                    &diagnostic.ref_(self),
                                     vec![create_diagnostic_for_node(
                                         suggestion_value_declaration,
                                         &Diagnostics::_0_is_declared_here,

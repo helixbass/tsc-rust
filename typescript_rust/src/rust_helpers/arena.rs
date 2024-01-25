@@ -7,7 +7,7 @@ use once_cell::unsync::Lazy;
 use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode,
+    FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
 };
 
 #[derive(Default)]
@@ -171,6 +171,14 @@ pub trait HasArena {
 
     fn alloc_flow_node(&self, flow_node: FlowNode) -> Id<FlowNode> {
         self.arena().alloc_flow_node(flow_node)
+    }
+
+    fn diagnostic(&self, diagnostic: Id<Diagnostic>) -> Ref<Diagnostic> {
+        self.arena().diagnostic(diagnostic)
+    }
+
+    fn alloc_diagnostic(&self, diagnostic: Diagnostic) -> Id<Diagnostic> {
+        self.arena().alloc_diagnostic(diagnostic)
     }
 }
 
@@ -357,6 +365,16 @@ impl HasArena for AllArenas {
         let id = self.flow_nodes.borrow_mut().alloc(flow_node);
         id
     }
+
+    #[track_caller]
+    fn diagnostic(&self, diagnostic: Id<Diagnostic>) -> Ref<Diagnostic> {
+        Ref::map(self.diagnostics.borrow(), |diagnostics| &diagnostics[diagnostic])
+    }
+
+    fn alloc_diagnostic(&self, diagnostic: Diagnostic) -> Id<Diagnostic> {
+        let id = self.diagnostics.borrow_mut().alloc(diagnostic);
+        id
+    }
 }
 
 pub trait InArena {
@@ -499,6 +517,14 @@ impl InArena for Id<FlowNode> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, FlowNode> {
         has_arena.flow_node(*self)
+    }
+}
+
+impl InArena for Id<Diagnostic> {
+    type Item = Diagnostic;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Diagnostic> {
+        has_arena.diagnostic(*self)
     }
 }
 

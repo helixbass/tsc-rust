@@ -1111,7 +1111,7 @@ impl TypeChecker {
                                 ),
                                 diagnostic,
                                 Some(vec![symbol_name(symbol, self)]),
-                            ),
+                            ).ref_(self),
                             related_diagnostics.clone(),
                         );
                     }
@@ -1173,7 +1173,7 @@ impl TypeChecker {
                                 signature.declaration,
                                 &Diagnostics::This_overload_signature_is_not_compatible_with_its_implementation_signature,
                                 None,
-                            ),
+                            ).ref_(self),
                             vec![
                                 Gc::new(
                                     create_diagnostic_for_node(
