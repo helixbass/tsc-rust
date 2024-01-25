@@ -5608,7 +5608,7 @@ fn set_compiler_options_from_harness_settings(
     for (&name, &value) in settings {
         let option = get_command_line_option(name);
         if let Some(option) = option.as_ref() {
-            let mut errors: Vec<Gc<Diagnostic>> = vec![];
+            let mut errors: Vec<Id<Diagnostic>> = vec![];
             options.set_value_from_command_line_option(
                 option,
                 option_value(option, value, &mut errors),
@@ -5625,7 +5625,7 @@ fn set_compiler_options_from_harness_settings(
 fn option_value(
     option: &CommandLineOption,
     value: &str,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> CompilerOptionsValue {
     match option.type_() {
         // CommandLineOptionType::Boolean => Some(value.to_lowercase() == "true").into(),
@@ -5688,7 +5688,7 @@ fn extract_compiler_settings(case_file_contents: &str) -> HashMap<&str, &str> {
 
 fn compare_baselines(
     name: &str,
-    diagnostics: &[Gc<Diagnostic>],
+    diagnostics: &[Id<Diagnostic>],
     case_file_contents: &str,
     pretty: Option<bool>,
 ) {

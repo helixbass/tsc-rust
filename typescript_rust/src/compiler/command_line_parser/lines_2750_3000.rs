@@ -28,7 +28,7 @@ use crate::{
 
 pub(super) fn create_compiler_diagnostic_only_if_json(
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) {
@@ -44,7 +44,7 @@ pub(super) fn is_error_no_input_files(error: &Diagnostic) -> bool {
 pub(super) fn get_error_for_no_input_files(
     config_file_specs: &ConfigFileSpecs,
     config_file_name: Option<&str>,
-) -> Gc<Diagnostic> {
+) -> Id<Diagnostic> {
     let include_specs = config_file_specs.include_specs.as_ref();
     let exclude_specs = config_file_specs.exclude_specs.as_ref();
     let default_specs_vec = vec![];
@@ -84,7 +84,7 @@ pub(crate) fn update_error_for_no_input_files(
     file_names: &[String],
     config_file_name: &str,
     config_file_specs: &ConfigFileSpecs,
-    config_parse_diagnostics: &mut Vec<Gc<Diagnostic>>,
+    config_parse_diagnostics: &mut Vec<Id<Diagnostic>>,
     can_json_report_no_input_files: bool,
 ) -> bool {
     let existing_errors = config_parse_diagnostics.len();
@@ -121,7 +121,7 @@ pub(super) fn parse_config(
     base_path: &str,
     config_file_name: Option<&str>,
     resolution_stack: &[&str],
-    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     arena: &impl HasArena,
 ) -> io::Result<ParsedTsconfig> {
@@ -264,7 +264,7 @@ pub(super) fn parse_own_config_of_json(
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     config_file_name: Option<&str>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     arena: &impl HasArena,
 ) -> io::Result<ParsedTsconfig> {
     let mut json = match json {
@@ -346,7 +346,7 @@ pub(super) fn parse_own_config_of_json_source_file(
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     config_file_name: Option<&str>,
-    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
     arena: &impl HasArena,
 ) -> io::Result<ParsedTsconfig> {
     let mut options = get_default_compiler_options(config_file_name);
@@ -441,7 +441,7 @@ struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost 
     typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
     extended_config_path: &'a RefCell<Option<String>>,
     host: &'a THost,
-    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
     source_file: Id<Node>,
     root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
 }
@@ -456,7 +456,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> ParseOwnConfigOfJsonSourceFileOptionsI
         typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
         extended_config_path: &'a RefCell<Option<String>>,
         host: &'a THost,
-        errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+        errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
         source_file: Id<Node>,
         root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
     ) -> Self {
@@ -621,8 +621,8 @@ pub(super) fn get_extends_config_path(
     extended_config: &str,
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
-    errors: &mut Vec<Gc<Diagnostic>>,
-    mut create_diagnostic: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
+    errors: &mut Vec<Id<Diagnostic>>,
+    mut create_diagnostic: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Id<Diagnostic>,
     arena: &impl HasArena,
 ) -> io::Result<Option<String>> {
     let extended_config = normalize_slashes(extended_config);

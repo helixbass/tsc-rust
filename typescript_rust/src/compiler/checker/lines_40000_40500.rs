@@ -726,7 +726,7 @@ impl TypeChecker {
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
         ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+    ) -> io::Result<Vec<Id<Diagnostic>>> {
         // try {
         self.set_cancellation_token(ct);
         let ret = self.get_diagnostics_worker(source_file)?;
@@ -740,7 +740,7 @@ impl TypeChecker {
     pub(super) fn get_diagnostics_worker(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+    ) -> io::Result<Vec<Id<Diagnostic>>> {
         self.throw_if_non_diagnostics_producing();
         if let Some(source_file) = source_file {
             let previous_global_diagnostics = self.diagnostics().get_global_diagnostics();
@@ -756,7 +756,7 @@ impl TypeChecker {
                 let deferred_global_diagnostics = relative_complement(
                     &previous_global_diagnostics,
                     &current_global_diagnostics,
-                    |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, self),
+                    |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&**a, &**b, self),
                 );
                 return Ok(concatenate(
                     deferred_global_diagnostics,

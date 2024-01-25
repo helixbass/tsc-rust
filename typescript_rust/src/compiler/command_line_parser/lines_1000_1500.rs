@@ -299,18 +299,16 @@ pub(crate) fn convert_enable_auto_discovery_to_enable(
 
 pub(crate) fn create_compiler_diagnostic_for_invalid_custom_type(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
-) -> Gc<Diagnostic> {
+) -> Id<Diagnostic> {
     create_diagnostic_for_invalid_custom_type(opt, |message, args| {
         Gc::new(create_compiler_diagnostic(message, args).into())
     })
 }
 
-pub(super) fn create_diagnostic_for_invalid_custom_type<
-    TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
->(
+pub(super) fn create_diagnostic_for_invalid_custom_type(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
-    mut create_diagnostic: TCreateDiagnostic,
-) -> Gc<Diagnostic> {
+    mut create_diagnostic: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Id<Diagnostic>,
+) -> Id<Diagnostic> {
     let names_of_type = opt
         .type_()
         .as_map()
@@ -327,7 +325,7 @@ pub(super) fn create_diagnostic_for_invalid_custom_type<
 pub fn parse_custom_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     value: Option<&str>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> CompilerOptionsValue {
     convert_json_option_of_custom_type(opt, Some(trim_string(value.unwrap_or(""))), errors)
 }
@@ -335,7 +333,7 @@ pub fn parse_custom_type_option(
 pub fn parse_list_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfListType*/
     value: Option<&str>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> Option<Vec<String>> {
     let value = value.unwrap_or("");
     if starts_with(value, "-") {
@@ -397,9 +395,9 @@ pub(super) fn get_option_name(option: &CommandLineOption) -> &str {
 pub(super) fn create_unknown_option_error(
     unknown_option: &str,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
-    mut create_diagnostics: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
+    mut create_diagnostics: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Id<Diagnostic>,
     unknown_option_error_text: Option<&str>,
-) -> Gc<Diagnostic> {
+) -> Id<Diagnostic> {
     if let Some(diagnostics_alternate_mode) = diagnostics.maybe_alternate_mode() {
         if (diagnostics_alternate_mode.get_options_name_map)()
             .options_name_map
@@ -1044,7 +1042,7 @@ pub fn parse_command_line_worker(
     let mut options: IndexMap<String, CompilerOptionsValue> = Default::default();
     let watch_options: RefCell<Option<IndexMap<String, CompilerOptionsValue>>> = Default::default();
     let mut file_names: Vec<String> = Default::default();
-    let mut errors: Vec<Gc<Diagnostic>> = Default::default();
+    let mut errors: Vec<Id<Diagnostic>> = Default::default();
 
     parse_strings(
         &mut file_names,
@@ -1077,7 +1075,7 @@ pub(super) fn parse_strings(
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut IndexMap<String, CompilerOptionsValue>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     watch_options: &RefCell<Option<IndexMap<String, CompilerOptionsValue>>>,
     read_file: Option<&impl Fn(&str) -> io::Result<Option<String>>>,
     args: &[String],

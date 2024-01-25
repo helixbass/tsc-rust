@@ -277,7 +277,7 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
     );
     fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>;
 
-    fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>);
+    fn add_diagnostic(&self, diag: Id<Diagnostic /*DiagnosticWithLocation*/>);
 }
 
 pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
@@ -296,7 +296,7 @@ pub trait TransformationContextOnSubstituteNodeOverrider: Trace + Finalize {
 pub trait TransformationResult {
     fn transformed(&self) -> Vec<Id<Node>>;
 
-    fn diagnostics(&self) -> Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>;
+    fn diagnostics(&self) -> Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>;
 
     fn substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>>;
 

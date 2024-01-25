@@ -406,7 +406,7 @@ pub struct TransformNodesTransformationResult {
     block_scope_stack_offset: Cell<usize>,
     block_scoped_variable_declarations: GcCell<Option<Vec<Id<Node /*Identifier*/>>>>,
     emit_helpers: GcCell<Option<Vec<Id<EmitHelper>>>>,
-    diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
+    diagnostics: GcCell<Vec<Id<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
     transformers_with_context: GcCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
@@ -428,7 +428,7 @@ impl TransformNodesTransformationResult {
         lexical_environment_variable_declarations_stack: Vec<Option<Vec<Id<Node>>>>,
         lexical_environment_function_declarations_stack: Vec<Option<Vec<Id<Node>>>>,
         emit_helpers: Option<Vec<Id<EmitHelper>>>,
-        diagnostics: Vec<Gc<Diagnostic>>,
+        diagnostics: Vec<Id<Diagnostic>>,
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
         options: Id<CompilerOptions>,
@@ -636,7 +636,7 @@ impl TransformNodesTransformationResult {
         self.state.set(state);
     }
 
-    fn diagnostics(&self) -> GcCellRefMut<Vec<Gc<Diagnostic>>> {
+    fn diagnostics(&self) -> GcCellRefMut<Vec<Id<Diagnostic>>> {
         self.diagnostics.borrow_mut()
     }
 
@@ -1243,7 +1243,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         current
     }
 
-    fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {
+    fn add_diagnostic(&self, diag: Id<Diagnostic /*DiagnosticWithLocation*/>) {
         self.diagnostics().push(diag);
     }
 }
@@ -1286,7 +1286,7 @@ impl TransformationResult for TransformNodesTransformationResult {
         self.transformed.borrow().clone()
     }
 
-    fn diagnostics(&self) -> Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+    fn diagnostics(&self) -> Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         Some(self.diagnostics.borrow().clone())
     }
 
@@ -1485,7 +1485,7 @@ impl TransformationContext for TransformationContextNull {
         unreachable!("maybe?")
     }
 
-    fn add_diagnostic(&self, _diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {}
+    fn add_diagnostic(&self, _diag: Id<Diagnostic /*DiagnosticWithLocation*/>) {}
 }
 
 impl HasArena for TransformationContextNull {

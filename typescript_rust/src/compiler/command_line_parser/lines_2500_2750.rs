@@ -176,7 +176,7 @@ pub(super) fn parse_json_config_file_content_worker(
         json.is_none() && source_file.is_some() || json.is_some() && source_file.is_none(),
         None,
     );
-    let errors: Gc<GcCell<Vec<Gc<Diagnostic>>>> = Default::default();
+    let errors: Gc<GcCell<Vec<Id<Diagnostic>>>> = Default::default();
 
     let parsed_config = parse_config(
         json,
@@ -288,7 +288,7 @@ pub(super) fn parse_json_config_file_content_worker(
 pub(super) fn get_config_file_specs(
     raw: Option<&serde_json::Value>,
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     config_file_name: Option<&str>,
     arena: &impl HasArena,
 ) -> ConfigFileSpecs {
@@ -324,7 +324,7 @@ pub(super) fn get_config_file_specs(
                     get_ts_config_prop_array(Some(source_file), "files", arena),
                     |property, _| property.ref_(arena).as_property_assignment().maybe_initializer(),
                 );
-                let error: Gc<Diagnostic> = Gc::new(if let Some(node_value) = node_value {
+                let error: Id<Diagnostic> = Gc::new(if let Some(node_value) = node_value {
                     create_diagnostic_for_node_in_source_file(
                         source_file,
                         node_value,
@@ -445,7 +445,7 @@ pub(super) fn get_file_names(
     extra_file_extensions: &[FileExtensionInfo],
     raw: Option<&serde_json::Value>,
     resolution_stack: &[Path],
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     config_file_name: Option<&str>,
     base_path: &str,
 ) -> io::Result<Vec<String>> {
@@ -472,7 +472,7 @@ pub(super) fn get_file_names(
 pub(super) fn get_project_references(
     raw: Option<&serde_json::Value>,
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     base_path: &str,
 ) -> Option<Vec<Rc<ProjectReference>>> {
     let mut project_references: Option<Vec<Rc<ProjectReference>>> = None;
@@ -556,7 +556,7 @@ pub(super) fn to_prop_value(spec_result: PropOfRaw) -> Option<Vec<String>> {
 pub(super) fn get_specs_from_raw(
     raw: Option<&serde_json::Value>,
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     prop: &str, /*"files" | "include" | "exclude"*/
 ) -> PropOfRaw {
     get_prop_from_raw(
@@ -572,7 +572,7 @@ pub(super) fn get_specs_from_raw(
 pub(super) fn get_prop_from_raw<TValidateElement: Fn(&serde_json::Value) -> bool>(
     raw: Option<&serde_json::Value>,
     source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     prop: &str, /*"files" | "include" | "exclude" | "references"*/
     validate_element: TValidateElement,
     element_type_name: &str,

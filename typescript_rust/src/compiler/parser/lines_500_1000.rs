@@ -318,9 +318,9 @@ pub struct ParserType {
     #[unsafe_ignore_trace]
     pub(super) language_variant: Cell<Option<LanguageVariant>>,
     pub(super) parse_diagnostics:
-        GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+        GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) js_doc_diagnostics:
-        GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+        GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) syntax_cursor: GcCell<Option<IncrementalParserSyntaxCursor>>,
     #[unsafe_ignore_trace]
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
@@ -532,21 +532,21 @@ impl ParserType {
 
     pub(super) fn parse_diagnostics(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>, Vec<Gc<Diagnostic>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>, Vec<Id<Diagnostic>>> {
         GcCellRefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
 
-    pub(super) fn set_parse_diagnostics(&self, parse_diagnostics: Option<Vec<Gc<Diagnostic>>>) {
+    pub(super) fn set_parse_diagnostics(&self, parse_diagnostics: Option<Vec<Id<Diagnostic>>>) {
         *self.parse_diagnostics.borrow_mut() = parse_diagnostics;
     }
 
-    pub(super) fn maybe_js_doc_diagnostics(&self) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>> {
+    pub(super) fn maybe_js_doc_diagnostics(&self) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>> {
         self.js_doc_diagnostics.borrow_mut()
     }
 
-    pub(super) fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Option<Vec<Gc<Diagnostic>>>) {
+    pub(super) fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Option<Vec<Id<Diagnostic>>>) {
         *self.js_doc_diagnostics.borrow_mut() = js_doc_diagnostics;
     }
 

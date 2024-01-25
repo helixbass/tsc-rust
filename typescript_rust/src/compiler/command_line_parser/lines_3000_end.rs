@@ -42,7 +42,7 @@ pub(crate) fn get_extended_config(
     extended_config_path: &str,
     host: &(impl ParseConfigHost + ?Sized),
     resolution_stack: &[&str],
-    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Rc<ParsedTsconfig>>> {
@@ -128,7 +128,7 @@ pub(crate) fn get_extended_config(
 pub(super) fn convert_compile_on_save_option_from_json(
     json_option: &serde_json::Map<String, serde_json::Value>,
     base_path: &str,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> bool {
     let compile_on_save_command_line_option = compile_on_save_command_line_option();
     if !json_option.contains_key(compile_on_save_command_line_option.name()) {
@@ -151,7 +151,7 @@ pub fn convert_compiler_options_from_json(
     base_path: &str,
     config_file_name: Option<&str>,
 ) -> CompilerOptionsAndErrors {
-    let mut errors: Vec<Gc<Diagnostic>> = vec![];
+    let mut errors: Vec<Id<Diagnostic>> = vec![];
     let options = convert_compiler_options_from_json_worker(
         json_options,
         base_path,
@@ -163,7 +163,7 @@ pub fn convert_compiler_options_from_json(
 
 pub struct CompilerOptionsAndErrors {
     pub options: CompilerOptions,
-    pub errors: Vec<Gc<Diagnostic>>,
+    pub errors: Vec<Id<Diagnostic>>,
 }
 
 pub fn convert_type_acquisition_from_json(
@@ -171,7 +171,7 @@ pub fn convert_type_acquisition_from_json(
     base_path: &str,
     config_file_name: Option<&str>,
 ) -> TypeAcquisitionAndErrors {
-    let mut errors: Vec<Gc<Diagnostic>> = vec![];
+    let mut errors: Vec<Id<Diagnostic>> = vec![];
     let options = convert_type_acquisition_from_json_worker(
         json_options,
         base_path,
@@ -183,7 +183,7 @@ pub fn convert_type_acquisition_from_json(
 
 pub struct TypeAcquisitionAndErrors {
     pub options: TypeAcquisition,
-    pub errors: Vec<Gc<Diagnostic>>,
+    pub errors: Vec<Id<Diagnostic>>,
 }
 
 pub(super) fn get_default_compiler_options(config_file_name: Option<&str>) -> CompilerOptions {
@@ -202,7 +202,7 @@ pub(super) fn get_default_compiler_options(config_file_name: Option<&str>) -> Co
 pub(crate) fn convert_compiler_options_from_json_worker(
     json_options: Option<&serde_json::Value>,
     base_path: &str,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     config_file_name: Option<&str>,
 ) -> CompilerOptions {
     let mut options = get_default_compiler_options(config_file_name);
@@ -235,7 +235,7 @@ pub(super) fn get_default_type_acquisition(config_file_name: Option<&str>) -> Ty
 pub(crate) fn convert_type_acquisition_from_json_worker(
     json_options: Option<&serde_json::Value>,
     base_path: &str,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     config_file_name: Option<&str>,
 ) -> TypeAcquisition {
     let mut options = get_default_type_acquisition(config_file_name);
@@ -255,7 +255,7 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
 pub(crate) fn convert_watch_options_from_json_worker(
     json_options: Option<&serde_json::Value>,
     base_path: &str,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> Option<WatchOptions> {
     convert_options_from_json_watch_options(
         &get_command_line_watch_options_map(),
@@ -272,7 +272,7 @@ pub(super) fn convert_options_from_json_compiler_options(
     base_path: &str,
     default_options: &mut CompilerOptions,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) {
     if json_options.is_none() {
         return;
@@ -309,7 +309,7 @@ pub(super) fn convert_options_from_json_type_acquisition(
     base_path: &str,
     default_options: &mut TypeAcquisition,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) {
     if json_options.is_none() {
         return;
@@ -347,7 +347,7 @@ pub(super) fn convert_options_from_json_watch_options(
     base_path: &str,
     // default_options: &mut WatchOptions,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> Option<WatchOptions> {
     if json_options.is_none() {
         return None;
@@ -390,7 +390,7 @@ pub(crate) fn convert_json_option(
     opt: &CommandLineOption,
     value: Option<&serde_json::Value>,
     base_path: &str,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> CompilerOptionsValue {
     if is_compiler_options_value(Some(opt), value) {
         let opt_type = opt.type_();
@@ -543,7 +543,7 @@ pub(super) fn normalize_non_list_option_value_compiler_options_value(
 pub(super) fn validate_json_option_value_compiler_options_value(
     opt: &CommandLineOption,
     value: CompilerOptionsValue,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> CompilerOptionsValue {
     if !value.is_some() {
         return opt.to_compiler_options_value_none();
@@ -565,7 +565,7 @@ pub(super) fn validate_json_option_value_compiler_options_value(
 pub(super) fn validate_json_option_value(
     opt: &CommandLineOption,
     value: Option<&serde_json::Value>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> CompilerOptionsValue {
     if value.is_none() {
         return opt.to_compiler_options_value_none();
@@ -588,7 +588,7 @@ pub(super) fn validate_json_option_value(
 pub(super) fn convert_json_option_of_custom_type(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     value: Option<&str>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> CompilerOptionsValue {
     if value.is_none() {
         return opt
@@ -625,7 +625,7 @@ pub(super) fn convert_json_option_of_list_type(
     option: &CommandLineOption, /*CommandLineOptionOfListType*/
     values: &[serde_json::Value],
     base_path: &str,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> CompilerOptionsValue {
     let option_as_command_line_option_of_list_type = option.as_command_line_option_of_list_type();
     CompilerOptionsValue::VecString(Some(
@@ -888,7 +888,7 @@ pub(super) fn matches_exclude_worker(
 
 pub(super) fn validate_specs(
     specs: &[String],
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     disallow_trailing_recursion: bool,
     json_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     spec_key: &str,
@@ -921,7 +921,7 @@ fn create_diagnostic(
     message: &DiagnosticMessage,
     spec: String,
     arena: &impl HasArena,
-) -> Gc<Diagnostic> {
+) -> Id<Diagnostic> {
     let element = get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec, arena);
     Gc::new(if let Some(element) = element {
         create_diagnostic_for_node_in_source_file(

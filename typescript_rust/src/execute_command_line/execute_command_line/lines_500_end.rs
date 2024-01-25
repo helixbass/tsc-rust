@@ -151,7 +151,7 @@ pub(super) fn perform_build(
     build_options: Rc<BuildOptions>,
     watch_options: Option<&WatchOptions>,
     projects: &[String],
-    mut errors: Vec<Gc<Diagnostic>>,
+    mut errors: Vec<Id<Diagnostic>>,
     arena: &impl HasArena,
 ) -> io::Result<()> {
     let report_diagnostic = update_report_diagnostic(

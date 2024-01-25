@@ -93,7 +93,7 @@ pub fn create_diagnostic_reporter(
 struct DiagnosticReporterConcrete {
     host: Gc<SysFormatDiagnosticsHost>,
     pretty: bool,
-    diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
+    diagnostics: GcCell<Vec<Id<Diagnostic>>>,
     system: Id<Box<dyn System>>,
 }
 
@@ -113,7 +113,7 @@ impl DiagnosticReporterConcrete {
 }
 
 impl DiagnosticReporter for DiagnosticReporterConcrete {
-    fn call(&self, diagnostic: Gc<Diagnostic>) -> io::Result<()> {
+    fn call(&self, diagnostic: Id<Diagnostic>) -> io::Result<()> {
         if !self.pretty {
             self.system
                 .ref_(self).write(&format_diagnostic(&diagnostic, &*self.host, self)?);
@@ -201,7 +201,7 @@ impl WatchStatusReporterConcrete {
 impl WatchStatusReporter for WatchStatusReporterConcrete {
     fn call(
         &self,
-        diagnostic: Gc<Diagnostic>,
+        diagnostic: Id<Diagnostic>,
         new_line: &str,
         options: Id<CompilerOptions>,
         _error_count: Option<usize>,
@@ -336,7 +336,7 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 }
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>) {
         report_unrecoverable_diagnostic(&**self.system.ref_(self), &**self.report_diagnostic, diagnostic)
     }
 }
@@ -347,7 +347,7 @@ impl HasArena for ParseConfigFileWithSystemHost {
     }
 }
 
-pub fn get_error_count_for_summary(diagnostics: &[Gc<Diagnostic>]) -> usize {
+pub fn get_error_count_for_summary(diagnostics: &[Id<Diagnostic>]) -> usize {
     count_where(Some(diagnostics), |diagnostic, _| {
         diagnostic.category() == DiagnosticCategory::Error
     })
@@ -861,7 +861,7 @@ fn to_file_name(
 
 struct EmitFilesAndReportErrorsReturn {
     emit_result: EmitResult,
-    diagnostics: SortedArray<Gc<Diagnostic>>,
+    diagnostics: SortedArray<Id<Diagnostic>>,
 }
 
 fn emit_files_and_report_errors(
@@ -878,7 +878,7 @@ fn emit_files_and_report_errors(
     let arena = &**program;
     let is_list_files_only = matches!(program.get_compiler_options().ref_(arena).list_files_only, Some(true));
 
-    let mut all_diagnostics: Vec<Gc<Diagnostic>> =
+    let mut all_diagnostics: Vec<Id<Diagnostic>> =
         program.get_config_file_parsing_diagnostics().clone();
     let config_file_parsing_diagnostics_length = all_diagnostics.len();
     add_range(
@@ -999,7 +999,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status(
 fn report_unrecoverable_diagnostic(
     _system: &dyn System,
     _report_diagnostic: &dyn DiagnosticReporter,
-    _diagnostic: Gc<Diagnostic>,
+    _diagnostic: Id<Diagnostic>,
 ) {
     unimplemented!()
 }
@@ -1057,7 +1057,7 @@ impl<TBuilderProgram: BuilderProgram> WatchHost
 impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
     for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
 {
-    fn on_un_recoverable_config_file_diagnostic(&self, _diagnostic: Gc<Diagnostic>) {
+    fn on_un_recoverable_config_file_diagnostic(&self, _diagnostic: Id<Diagnostic>) {
         unimplemented!()
     }
 }
@@ -1065,7 +1065,7 @@ impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
 pub struct IncrementalCompilationOptions<'a> {
     pub root_names: &'a [String],
     pub options: &'a CompilerOptions,
-    pub config_file_parsing_diagnostics: Option<&'a [Gc<Diagnostic>]>,
+    pub config_file_parsing_diagnostics: Option<&'a [Id<Diagnostic>]>,
     pub project_references: Option<&'a [Rc<ProjectReference>]>,
     pub host: Option<Gc<Box<dyn CompilerHost>>>,
     pub report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,

@@ -315,7 +315,7 @@ impl CheckTypeRelatedTo {
                     }
                 }
             }
-            let diag: Gc<Diagnostic> = Gc::new(
+            let diag: Id<Diagnostic> = Gc::new(
                 create_diagnostic_for_node_from_message_chain(
                     self.maybe_error_node().unwrap(),
                     self.maybe_error_info().as_deref().cloned().unwrap(),

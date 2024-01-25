@@ -2680,7 +2680,7 @@ impl TypeChecker {
         &self,
         file_in: Id<Node>, /*SourceFile*/
         ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+    ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))), self)
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
         if skip_type_checking(&file.ref_(self), &self.compiler_options.ref_(self), |file_name| {
@@ -2689,7 +2689,7 @@ impl TypeChecker {
             return Ok(vec![]);
         }
 
-        let mut diagnostics: Option<Vec<Gc<Diagnostic>>>;
+        let mut diagnostics: Option<Vec<Id<Diagnostic>>>;
         self.set_cancellation_token(ct);
 
         self.check_source_file(file)?;

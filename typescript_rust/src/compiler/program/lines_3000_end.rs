@@ -1161,7 +1161,7 @@ impl Program {
         mut file_processing_reason: Option<Id<FileIncludeReason>>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Gc<Diagnostic> {
+    ) -> Id<Diagnostic> {
         let mut file_include_reasons: Option<Vec<DiagnosticMessageChain>> = None;
         let mut related_info: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
         let mut location_reason = if is_referenced_file(file_processing_reason.refed(self).as_deref()) {
@@ -1909,7 +1909,7 @@ impl Program {
         !props.peekable().is_empty_()
     }
 
-    pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Gc<Diagnostic>) {
+    pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Id<Diagnostic>) {
         self.has_emit_blocking_diagnostics_mut()
             .insert(self.to_path(emit_file_name), true);
         self.program_diagnostics_mut().add(diag);
@@ -2315,7 +2315,7 @@ pub(crate) fn handle_no_emit_options(
     if options.ref_(arena).no_emit_on_error != Some(true) {
         return Ok(None);
     }
-    let mut diagnostics: Vec<Gc<Diagnostic>> = [
+    let mut diagnostics: Vec<Id<Diagnostic>> = [
         program
             .get_options_diagnostics(cancellation_token.clone())
             .into(),
@@ -2361,9 +2361,9 @@ pub(crate) fn handle_no_emit_options(
 }
 
 pub(super) fn filter_semantic_diagnostics(
-    diagnostic: Vec<Gc<Diagnostic>>,
+    diagnostic: Vec<Id<Diagnostic>>,
     option: &CompilerOptions,
-) -> Vec<Gc<Diagnostic>> {
+) -> Vec<Id<Diagnostic>> {
     diagnostic
         .into_iter()
         .filter(|d| match d.maybe_skipped_on().as_ref() {
@@ -2390,7 +2390,7 @@ pub trait CompilerHostLike: Trace + Finalize {
     }
     fn trace(&self, _s: &str) {}
     fn is_trace_supported(&self) -> bool;
-    fn on_un_recoverable_config_file_diagnostic(&self, _diagnostic: Gc<Diagnostic>) {}
+    fn on_un_recoverable_config_file_diagnostic(&self, _diagnostic: Id<Diagnostic>) {}
 
     // These exist to allow "forwarding" CompilerHost -> CompilerHostLike -> DirectoryStructureHost
     fn is_read_directory_implemented(&self) -> bool;
@@ -2454,7 +2454,7 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
         self.host.is_trace_supported()
     }
 
-    // fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {}
+    // fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>) {}
     fn is_read_directory_implemented(&self) -> bool {
         self.host.is_read_directory_implemented()
     }
@@ -2631,7 +2631,7 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
 }
 
 impl ConfigFileDiagnosticsReporter for ParseConfigHostFromCompilerHostLike {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>) {
         self.host
             .on_un_recoverable_config_file_diagnostic(diagnostic)
     }

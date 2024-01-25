@@ -2050,9 +2050,9 @@ pub fn add_related_info(
 }
 
 pub fn add_related_info_rc(
-    diagnostic: Gc<Diagnostic>,
+    diagnostic: Id<Diagnostic>,
     related_information: Vec<Gc<DiagnosticRelatedInformation>>,
-) -> Gc<Diagnostic> {
+) -> Id<Diagnostic> {
     add_related_info(&diagnostic, related_information);
     diagnostic
 }

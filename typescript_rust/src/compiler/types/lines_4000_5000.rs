@@ -137,7 +137,7 @@ impl ExitStatus {
 #[allow(dead_code)]
 pub struct EmitResult {
     pub emit_skipped: bool,
-    pub diagnostics: Vec<Gc<Diagnostic>>,
+    pub diagnostics: Vec<Id<Diagnostic>>,
     pub emitted_files: Option<Vec<String>>,
     pub source_maps: Option<Vec<SourceMapEmitResult>>,
     pub(crate) exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit>,

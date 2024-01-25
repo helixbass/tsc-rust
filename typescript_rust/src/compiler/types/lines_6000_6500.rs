@@ -2044,7 +2044,7 @@ pub struct ParsedCommandLineWithBaseOptions {
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub raw: Option<serde_json::Value>,
-    pub errors: Vec<Gc<Diagnostic>>,
+    pub errors: Vec<Id<Diagnostic>>,
     pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
     pub compile_on_save: Option<bool>,
 }
@@ -2089,7 +2089,7 @@ mod _ParsedCommandLineDeriveTraceScope {
         #[builder(default)]
         pub raw: Option<serde_json::Value>,
         #[builder(default, setter(custom))]
-        pub errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+        pub errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
         #[unsafe_ignore_trace]
         #[builder(default)]
         pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
@@ -2098,7 +2098,7 @@ mod _ParsedCommandLineDeriveTraceScope {
     }
 
     impl ParsedCommandLineBuilder {
-        pub fn errors(&mut self, value: impl Into<Vec<Gc<Diagnostic>>>) -> &mut Self {
+        pub fn errors(&mut self, value: impl Into<Vec<Id<Diagnostic>>>) -> &mut Self {
             self.errors = Some(Gc::new(GcCell::new(value.into())));
             self
         }
@@ -2152,7 +2152,7 @@ mod _CreateProgramOptionsDeriveTraceScope {
         #[builder(default, setter(strip_option))]
         pub old_program: Option<Gc<Box<Program>>>,
         #[builder(default, setter(strip_option))]
-        pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
+        pub config_file_parsing_diagnostics: Option<Vec<Id<Diagnostic>>>,
     }
 }
 pub use _CreateProgramOptionsDeriveTraceScope::{

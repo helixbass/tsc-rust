@@ -44,7 +44,7 @@ pub(super) fn is_root_option_map(
 
 pub(super) fn convert_object_literal_expression_to_json(
     return_value: bool,
-    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
@@ -209,7 +209,7 @@ pub(super) fn convert_object_literal_expression_to_json(
 }
 
 pub(super) fn convert_array_literal_expression_to_json(
-    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
@@ -257,7 +257,7 @@ pub(super) fn convert_array_literal_expression_to_json(
 }
 
 pub(super) fn convert_property_value_to_json(
-    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
@@ -613,7 +613,7 @@ pub(super) fn convert_property_value_to_json(
 pub(super) fn validate_value(
     invalid_reported: Option<bool>,
     option: Option<&CommandLineOption>,
-    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
     source_file: Id<Node>,      /*JsonSourceFile*/
     value_expression: Id<Node>, /*Expression*/
     value: Option<serde_json::Value>,
@@ -641,7 +641,7 @@ pub(super) fn validate_value(
 }
 
 pub(super) fn report_invalid_option_value(
-    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
     invalid_reported: &mut Option<bool>,
     source_file: Id<Node>,      /*JsonSourceFile*/
     value_expression: Id<Node>, /*Expression*/

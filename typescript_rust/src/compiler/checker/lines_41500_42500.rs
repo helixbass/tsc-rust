@@ -936,7 +936,7 @@ impl TypeChecker {
                     .join(", ");
                 self.diagnostics().add(
                     {
-                        let diagnostic: Gc<Diagnostic> = Gc::new(
+                        let diagnostic: Id<Diagnostic> = Gc::new(
                             create_diagnostic_for_node(
                                 first_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
@@ -964,7 +964,7 @@ impl TypeChecker {
                 );
                 self.diagnostics().add(
                     {
-                        let diagnostic: Gc<Diagnostic> = Gc::new(
+                        let diagnostic: Id<Diagnostic> = Gc::new(
                             create_diagnostic_for_node(
                                 second_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,

@@ -284,7 +284,7 @@ impl TypeChecker {
         maybe_missing_await: bool,
         left_str: &str,
         right_str: &str,
-    ) -> Option<Gc<Diagnostic>> {
+    ) -> Option<Id<Diagnostic>> {
         let mut type_name: Option<&'static str> = None;
         match operator_token.ref_(self).kind() {
             SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::EqualsEqualsToken => {

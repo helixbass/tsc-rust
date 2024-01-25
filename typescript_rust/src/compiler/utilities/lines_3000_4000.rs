@@ -816,9 +816,9 @@ pub fn create_diagnostic_collection(arena: *const AllArenas) -> DiagnosticCollec
 impl DiagnosticCollection {
     pub fn new(arena: *const AllArenas) -> Self {
         DiagnosticCollection {
-            non_file_diagnostics: SortedArray::<Gc<Diagnostic>>::new(vec![]),
+            non_file_diagnostics: SortedArray::<Id<Diagnostic>>::new(vec![]),
             files_with_diagnostics: SortedArray::<String>::new(vec![]),
-            file_diagnostics: HashMap::<String, SortedArray<Gc<Diagnostic>>>::new(),
+            file_diagnostics: HashMap::<String, SortedArray<Id<Diagnostic>>>::new(),
             has_read_non_file_diagnostics: Cell::new(false),
             arena,
         }
@@ -833,8 +833,8 @@ impl DiagnosticCollection {
             .set(has_read_non_file_diagnostics);
     }
 
-    pub fn lookup(&self, diagnostic: Gc<Diagnostic>) -> Option<Gc<Diagnostic>> {
-        let diagnostics: Option<&SortedArray<Gc<Diagnostic>>>;
+    pub fn lookup(&self, diagnostic: Id<Diagnostic>) -> Option<Id<Diagnostic>> {
+        let diagnostics: Option<&SortedArray<Id<Diagnostic>>>;
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
             diagnostics = self
                 .file_diagnostics
@@ -856,7 +856,7 @@ impl DiagnosticCollection {
         None
     }
 
-    pub fn add(&mut self, diagnostic: Gc<Diagnostic>) {
+    pub fn add(&mut self, diagnostic: Id<Diagnostic>) {
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
             let file_name = diagnostic_file.ref_(self).as_source_file().file_name().clone();
             if self
@@ -883,7 +883,7 @@ impl DiagnosticCollection {
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, arena),
+                |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&**a, &**b, arena),
             );
         } else {
             if self.has_read_non_file_diagnostics() {
@@ -896,17 +896,17 @@ impl DiagnosticCollection {
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b, arena),
+                |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&**a, &**b, arena),
             );
         }
     }
 
-    pub fn get_global_diagnostics(&self) -> Vec<Gc<Diagnostic>> {
+    pub fn get_global_diagnostics(&self) -> Vec<Id<Diagnostic>> {
         self.set_has_read_non_file_diagnostics(true);
         self.non_file_diagnostics.to_vec()
     }
 
-    pub fn get_diagnostics(&self, file_name: Option<&str>) -> Vec<Gc<Diagnostic>> {
+    pub fn get_diagnostics(&self, file_name: Option<&str>) -> Vec<Id<Diagnostic>> {
         if let Some(file_name) = file_name {
             return self
                 .file_diagnostics
@@ -915,7 +915,7 @@ impl DiagnosticCollection {
                 .unwrap_or(vec![]);
         }
 
-        let mut file_diags: Vec<Gc<Diagnostic>> =
+        let mut file_diags: Vec<Id<Diagnostic>> =
             flat_map_to_mutable(Some(&*self.files_with_diagnostics), |f, _| {
                 self.file_diagnostics
                     .get(f)

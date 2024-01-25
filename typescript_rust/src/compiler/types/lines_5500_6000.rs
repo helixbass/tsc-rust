@@ -1324,7 +1324,7 @@ impl From<BaseDiagnostic> for Diagnostic {
     }
 }
 
-impl From<BaseDiagnostic> for Gc<Diagnostic> {
+impl From<BaseDiagnostic> for Id<Diagnostic> {
     fn from(value: BaseDiagnostic) -> Self {
         Gc::new(value.into())
     }
@@ -1862,7 +1862,7 @@ impl From<DiagnosticWithLocation> for Diagnostic {
     }
 }
 
-impl From<DiagnosticWithLocation> for Gc<Diagnostic> {
+impl From<DiagnosticWithLocation> for Id<Diagnostic> {
     fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
         Gc::new(diagnostic_with_location.into())
     }
@@ -1975,7 +1975,7 @@ impl From<DiagnosticWithDetachedLocation> for Diagnostic {
     }
 }
 
-impl From<DiagnosticWithDetachedLocation> for Gc<Diagnostic> {
+impl From<DiagnosticWithDetachedLocation> for Id<Diagnostic> {
     fn from(value: DiagnosticWithDetachedLocation) -> Self {
         Gc::new(value.into())
     }

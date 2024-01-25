@@ -904,7 +904,7 @@ impl TypeChecker {
         }
 
         if report_errors {
-            let diag: Gc<Diagnostic> = Gc::new(
+            let diag: Id<Diagnostic> = Gc::new(
                 create_diagnostic_for_node(
                     node_as_jsx_opening_like_element.tag_name(),
                     &Diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
@@ -962,7 +962,7 @@ impl TypeChecker {
         check_mode: CheckMode,
         report_errors: bool,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-    ) -> io::Result<Option<Vec<Gc<Diagnostic>>>> {
+    ) -> io::Result<Option<Vec<Id<Diagnostic>>>> {
         let error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>> = Gc::new(Box::new(
             CheckTypeErrorOutputContainerConcrete::new(Some(true)),
         ));

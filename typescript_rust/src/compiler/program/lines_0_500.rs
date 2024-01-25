@@ -891,12 +891,12 @@ pub fn get_pre_emit_diagnostics(
     source_file: Option<Id<Node>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     arena: &impl HasArena,
-) -> io::Result<Vec<Gc<Diagnostic>>> {
+) -> io::Result<Vec<Id<Diagnostic>>> {
     let program = match program {
         ProgramOrBuilderProgram::Program(program) => program,
         _ => unimplemented!(),
     };
-    let mut diagnostics: Vec<Gc<Diagnostic>> = vec![];
+    let mut diagnostics: Vec<Id<Diagnostic>> = vec![];
     add_range(
         &mut diagnostics,
         Some(&program.get_config_file_parsing_diagnostics()),
@@ -957,7 +957,7 @@ pub trait FormatDiagnosticsHost {
 }
 
 pub fn format_diagnostics(
-    diagnostics: &[Gc<Diagnostic>],
+    diagnostics: &[Id<Diagnostic>],
     host: &impl FormatDiagnosticsHost,
     arena: &impl HasArena,
 ) -> io::Result<String> {
@@ -1194,7 +1194,7 @@ pub fn format_location(
 }
 
 pub fn format_diagnostics_with_color_and_context(
-    diagnostics: &[Gc<Diagnostic>],
+    diagnostics: &[Id<Diagnostic>],
     host: &impl FormatDiagnosticsHost,
     arena: &impl HasArena,
 ) -> io::Result<String> {

@@ -67,10 +67,10 @@ impl TypeChecker {
 
     pub(super) fn add_type_only_declaration_related_info(
         &self,
-        diagnostic: Gc<Diagnostic>,
+        diagnostic: Id<Diagnostic>,
         type_only_declaration: Option<Id<Node>>,
         unescaped_name: &str,
-    ) -> Gc<Diagnostic> {
+    ) -> Id<Diagnostic> {
         if type_only_declaration.is_none() {
             return diagnostic;
         }
@@ -615,7 +615,7 @@ impl TypeChecker {
         if !declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
             && !self.is_block_scoped_name_declared_before_use(declaration, error_location)?
         {
-            let mut diagnostic_message: Option<Gc<Diagnostic>> = None;
+            let mut diagnostic_message: Option<Id<Diagnostic>> = None;
             let declaration_name =
                 declaration_name_to_string(get_name_of_declaration(Some(declaration), self), self)
                     .into_owned();

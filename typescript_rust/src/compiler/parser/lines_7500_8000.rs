@@ -1064,12 +1064,12 @@ bitflags! {
 #[derive(Debug)]
 pub struct ParsedJSDocTypeExpression {
     pub js_doc_type_expression: Id<Node /*JSDocTypeExpression*/>,
-    pub diagnostics: Vec<Gc<Diagnostic>>,
+    pub diagnostics: Vec<Id<Diagnostic>>,
 }
 
 pub struct ParsedIsolatedJSDocComment {
     pub js_doc: Id<Node /*JSDoc*/>,
-    pub diagnostics: Vec<Gc<Diagnostic>>,
+    pub diagnostics: Vec<Id<Diagnostic>>,
 }
 
 impl BaseNodeFactory for ParserType {

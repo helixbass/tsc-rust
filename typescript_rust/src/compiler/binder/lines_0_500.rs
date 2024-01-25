@@ -1149,7 +1149,7 @@ impl BinderType {
                                 |&declaration: &Id<Node>, index| {
                                     let decl = get_name_of_declaration(Some(declaration), self)
                                         .unwrap_or(declaration);
-                                    let diag: Gc<Diagnostic> = Gc::new(
+                                    let diag: Id<Diagnostic> = Gc::new(
                                         self.create_diagnostic_for_node(
                                             decl,
                                             message,
@@ -1199,7 +1199,7 @@ impl BinderType {
                                 },
                             );
 
-                            let diag: Gc<Diagnostic> = Gc::new(
+                            let diag: Id<Diagnostic> = Gc::new(
                                 self.create_diagnostic_for_node(
                                     declaration_name,
                                     message,

@@ -20,7 +20,7 @@ pub fn create_incremental_compiler_host(
 pub trait WatchStatusReporter {
     fn call(
         &self,
-        diagnostic: Gc<Diagnostic>,
+        diagnostic: Id<Diagnostic>,
         new_line: &str,
         options: Id<CompilerOptions>,
         error_count: Option<usize>,

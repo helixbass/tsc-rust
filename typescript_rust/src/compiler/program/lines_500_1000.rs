@@ -570,8 +570,8 @@ pub(crate) const inferred_types_containing_file: &str = "__inferred type names__
 
 #[derive(Trace, Finalize)]
 pub(crate) struct DiagnosticCache {
-    pub per_file: Option<HashMap<Path, Vec<Gc<Diagnostic>>>>,
-    pub all_diagnostics: Option<Vec<Gc<Diagnostic>>>,
+    pub per_file: Option<HashMap<Path, Vec<Id<Diagnostic>>>>,
+    pub all_diagnostics: Option<Vec<Id<Diagnostic>>>,
 }
 
 impl Default for DiagnosticCache {
@@ -752,7 +752,7 @@ pub(crate) fn get_referenced_file_location(
 pub fn get_config_file_parsing_diagnostics(
     config_file_parse_result: &ParsedCommandLine,
     arena: &impl HasArena,
-) -> Vec<Gc<Diagnostic>> {
+) -> Vec<Id<Diagnostic>> {
     if let Some(config_file_parse_result_options_config_file) =
         config_file_parse_result.options.ref_(arena).config_file.as_ref()
     {
@@ -1431,7 +1431,7 @@ impl Program {
 
     pub(super) fn maybe_config_file_parsing_diagnostics(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<Diagnostic>>>> {
+    ) -> GcCellRef<Option<Vec<Id<Diagnostic>>>> {
         self.config_file_parsing_diagnostics.borrow()
     }
 

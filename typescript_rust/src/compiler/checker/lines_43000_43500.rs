@@ -188,7 +188,7 @@ impl TypeChecker {
                         }
                     } else {
                         if !self.has_parse_diagnostics(source_file) {
-                            let diagnostic: Gc<Diagnostic> = Gc::new(
+                            let diagnostic: Id<Diagnostic> = Gc::new(
                                 create_diagnostic_for_node(
                                     for_in_or_of_statement_await_modifier,
                                     &Diagnostics::for_await_loops_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,

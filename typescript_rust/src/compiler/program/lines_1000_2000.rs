@@ -261,7 +261,7 @@ impl Program {
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
+    ) -> Vec<Id<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(
             source_file,
             |source_file, cancellation_token| {
@@ -275,7 +275,7 @@ impl Program {
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+    ) -> io::Result<Vec<Id<Diagnostic>>> {
         self.try_get_diagnostics_helper(
             source_file,
             |source_file, cancellation_token| {
@@ -1257,9 +1257,9 @@ impl Program {
         mut get_diagnostics: impl FnMut(
             Id<Node>, /*SourceFile*/
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-        ) -> Vec<Gc<Diagnostic>>,
+        ) -> Vec<Id<Diagnostic>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
+    ) -> Vec<Id<Diagnostic>> {
         self.try_get_diagnostics_helper(
             source_file,
             |a, b| Ok(get_diagnostics(a, b)),
@@ -1274,9 +1274,9 @@ impl Program {
         mut get_diagnostics: impl FnMut(
             Id<Node>, /*SourceFile*/
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-        ) -> io::Result<Vec<Gc<Diagnostic>>>,
+        ) -> io::Result<Vec<Id<Diagnostic>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+    ) -> io::Result<Vec<Id<Diagnostic>>> {
         if let Some(source_file) = source_file {
             return get_diagnostics(source_file, cancellation_token);
         }
@@ -1295,7 +1295,7 @@ impl Program {
     pub(super) fn get_program_diagnostics(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-    ) -> Vec<Gc<Diagnostic>> {
+    ) -> Vec<Id<Diagnostic>> {
         if skip_type_checking(&source_file.ref_(self), &self.options.ref_(self), |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
         }) {
@@ -1330,7 +1330,7 @@ impl Program {
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+    ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         let options = self.get_compiler_options();
         Ok(
             if source_file.is_none() || out_file(&options.ref_(self)).is_non_empty() {
@@ -1360,7 +1360,7 @@ impl Program {
         // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
         // refactor eg get_diagnostics_helper() to use closures instead?
         _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
+    ) -> Vec<Id<Diagnostic>> {
         let source_file_ref = source_file.ref_(self);
         let source_file_as_source_file = source_file_ref.as_source_file();
         if is_source_file_js(&source_file.ref_(self)) {
@@ -1385,7 +1385,7 @@ impl Program {
         &self,
         source_file: Id<Node>, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+    ) -> io::Result<Vec<Id<Diagnostic>>> {
         Ok(concatenate(
             filter_semantic_diagnostics(
                 self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token)?,

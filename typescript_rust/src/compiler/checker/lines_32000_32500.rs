@@ -548,7 +548,7 @@ impl TypeChecker {
                                     node.ref_(self).pos().try_into().unwrap(),
                                 ));
                             }
-                            let diagnostic: Gc<Diagnostic> = Gc::new(
+                            let diagnostic: Id<Diagnostic> = Gc::new(
                                 create_file_diagnostic(
                                     source_file,
                                     span.unwrap().start,
@@ -573,7 +573,7 @@ impl TypeChecker {
                                 &source_file.ref_(self),
                                 node.ref_(self).pos().try_into().unwrap(),
                             ));
-                            let diagnostic: Gc<Diagnostic> = Gc::new(
+                            let diagnostic: Id<Diagnostic> = Gc::new(
                                 create_file_diagnostic(
                                     source_file,
                                     span.unwrap().start,
@@ -592,7 +592,7 @@ impl TypeChecker {
                             &source_file.ref_(self),
                             node.ref_(self).pos().try_into().unwrap(),
                         );
-                        let diagnostic: Gc<Diagnostic> = Gc::new(
+                        let diagnostic: Id<Diagnostic> = Gc::new(
                             create_file_diagnostic(
                                 source_file,
                                 span.start,

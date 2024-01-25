@@ -251,7 +251,7 @@ impl TypeChecker {
     pub(super) fn check_unused_identifiers(
         &self,
         potentially_unused_identifiers: &[Id<Node /*PotentiallyUnusedIdentifier*/>],
-        mut add_diagnostic: impl FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>), /*AddUnusedDiagnostic*/
+        mut add_diagnostic: impl FnMut(Id<Node>, UnusedKind, Id<Diagnostic>), /*AddUnusedDiagnostic*/
     ) -> io::Result<()> {
         for &node in potentially_unused_identifiers {
             match node.ref_(self).kind() {
@@ -303,7 +303,7 @@ impl TypeChecker {
     }
 
     pub(super) fn error_unused_local<
-        TAddDiagnostic: FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
+        TAddDiagnostic: FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
     >(
         &self,
         declaration: Id<Node>, /*Declaration*/
@@ -331,7 +331,7 @@ impl TypeChecker {
     pub(super) fn check_unused_class_members(
         &self,
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
-        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
+        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
     ) -> io::Result<()> {
         for &member in &node.ref_(self).as_class_like_declaration().members() {
             match member.ref_(self).kind() {
@@ -414,7 +414,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_infer_type_parameter<
-        TAddDiagnostic: FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
+        TAddDiagnostic: FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
     >(
         &self,
         node: Id<Node>, /*InferTypeNode*/
@@ -444,7 +444,7 @@ impl TypeChecker {
     pub(super) fn check_unused_type_parameters(
         &self,
         node: Id<Node>, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
-        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
+        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
     ) -> io::Result<()> {
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let symbol_ref = symbol.ref_(self);
@@ -604,7 +604,7 @@ impl TypeChecker {
     pub(super) fn check_unused_locals_and_parameters(
         &self,
         node_with_locals: Id<Node>,
-        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Gc<Diagnostic>),
+        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
     ) {
         let mut unused_imports: HashMap<
             String,

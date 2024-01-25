@@ -33,7 +33,7 @@ use crate::{
 
 pub(super) fn parse_response_file(
     read_file: Option<&impl Fn(&str) -> io::Result<Option<String>>>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut IndexMap<String, CompilerOptionsValue>,
@@ -111,7 +111,7 @@ pub(super) fn parse_option_value(
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     opt: &CommandLineOption,
     options: &mut IndexMap<String, CompilerOptionsValue>,
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: &mut Vec<Id<Diagnostic>>,
 ) -> usize {
     if opt.is_tsconfig_only() {
         let opt_value = args.get(i).map(|opt_value| &**opt_value);
@@ -326,7 +326,7 @@ pub(crate) struct ParsedBuildCommand {
     pub build_options: BuildOptions,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub projects: Vec<String>,
-    pub errors: Vec<Gc<Diagnostic>>,
+    pub errors: Vec<Id<Diagnostic>>,
 }
 
 thread_local! {
@@ -482,11 +482,11 @@ pub(crate) fn get_diagnostic_text(
 }
 
 pub trait DiagnosticReporter: Trace + Finalize {
-    fn call(&self, diagnostic: Gc<Diagnostic>) -> io::Result<()>;
+    fn call(&self, diagnostic: Id<Diagnostic>) -> io::Result<()>;
 }
 
 pub trait ConfigFileDiagnosticsReporter {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>);
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>);
 }
 
 pub trait ParseConfigFileHost:
@@ -555,7 +555,7 @@ pub fn read_config_file(
 
 pub struct ReadConfigFileReturn {
     pub config: Option<serde_json::Value>,
-    pub error: Option<Gc<Diagnostic>>,
+    pub error: Option<Id<Diagnostic>>,
 }
 
 pub fn parse_config_file_text_to_json(
@@ -632,7 +632,7 @@ pub fn read_json_config_file(
 
 pub(crate) enum StringOrRcDiagnostic {
     String(String),
-    RcDiagnostic(Gc<Diagnostic>),
+    RcDiagnostic(Id<Diagnostic>),
 }
 
 impl From<String> for StringOrRcDiagnostic {
@@ -641,8 +641,8 @@ impl From<String> for StringOrRcDiagnostic {
     }
 }
 
-impl From<Gc<Diagnostic>> for StringOrRcDiagnostic {
-    fn from(value: Gc<Diagnostic>) -> Self {
+impl From<Id<Diagnostic>> for StringOrRcDiagnostic {
+    fn from(value: Id<Diagnostic>) -> Self {
         Self::RcDiagnostic(value)
     }
 }
@@ -1031,7 +1031,7 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
 
 pub(super) fn convert_config_file_to_object(
     source_file: Id<Node>, /*JsonSourceFile*/
-    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
     report_options_errors: bool,
     options_iterator: Option<&impl JsonConversionNotifier>,
     arena: &impl HasArena,
@@ -1100,7 +1100,7 @@ pub(super) fn convert_config_file_to_object(
 
 pub fn convert_to_object(
     source_file: Id<Node>, /*JsonSourceFile*/
-    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     convert_to_object_worker(
@@ -1121,7 +1121,7 @@ pub fn convert_to_object(
 pub(crate) fn convert_to_object_worker(
     source_file: Id<Node>, /*JsonSourceFile*/
     root_expression: Option<Id<Node>>,
-    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
+    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,

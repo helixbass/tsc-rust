@@ -200,15 +200,15 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     symbol_count: Cell<Option<usize>>,
 
-    parse_diagnostics: GcCell<Option<Gc<GcCell<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>>>,
+    parse_diagnostics: GcCell<Option<Gc<GcCell<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>>>,
 
-    bind_diagnostics: GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
-    bind_suggestion_diagnostics: GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    bind_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    bind_suggestion_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
-    js_doc_diagnostics: GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    js_doc_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     additional_syntactic_diagnostics:
-        GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+        GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     #[unsafe_ignore_trace]
     line_map: RefCell<Option<Vec<usize>>>,
@@ -565,19 +565,19 @@ impl SourceFile {
         self.contents.symbol_count.set(Some(symbol_count))
     }
 
-    pub fn parse_diagnostics(&self) -> Gc<GcCell<Vec<Gc<Diagnostic>>>> {
+    pub fn parse_diagnostics(&self) -> Gc<GcCell<Vec<Id<Diagnostic>>>> {
         self.contents.parse_diagnostics.borrow().clone().unwrap()
     }
 
-    pub fn set_parse_diagnostics(&self, parse_diagnostics: Gc<GcCell<Vec<Gc<Diagnostic>>>>) {
+    pub fn set_parse_diagnostics(&self, parse_diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>) {
         *self.contents.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
     }
 
-    pub fn maybe_bind_diagnostics(&self) -> GcCellRef<Option<Vec<Gc<Diagnostic>>>> {
+    pub fn maybe_bind_diagnostics(&self) -> GcCellRef<Option<Vec<Id<Diagnostic>>>> {
         self.contents.bind_diagnostics.borrow()
     }
 
-    pub fn bind_diagnostics(&self) -> GcCellRef<Vec<Gc<Diagnostic>>> {
+    pub fn bind_diagnostics(&self) -> GcCellRef<Vec<Id<Diagnostic>>> {
         GcCellRef::map(self.contents.bind_diagnostics.borrow(), |option| {
             option.as_ref().unwrap()
         })
@@ -585,38 +585,38 @@ impl SourceFile {
 
     pub fn bind_diagnostics_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>, Vec<Gc<Diagnostic>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>, Vec<Id<Diagnostic>>> {
         GcCellRefMut::map(self.contents.bind_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
 
-    pub fn set_bind_diagnostics(&self, bind_diagnostics: Option<Vec<Gc<Diagnostic>>>) {
+    pub fn set_bind_diagnostics(&self, bind_diagnostics: Option<Vec<Id<Diagnostic>>>) {
         *self.contents.bind_diagnostics.borrow_mut() = bind_diagnostics;
     }
 
-    pub fn maybe_bind_suggestion_diagnostics(&self) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>> {
+    pub fn maybe_bind_suggestion_diagnostics(&self) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>> {
         self.contents.bind_suggestion_diagnostics.borrow_mut()
     }
 
     pub fn set_bind_suggestion_diagnostics(
         &self,
-        bind_suggestion_diagnostics: Option<Vec<Gc<Diagnostic>>>,
+        bind_suggestion_diagnostics: Option<Vec<Id<Diagnostic>>>,
     ) {
         *self.contents.bind_suggestion_diagnostics.borrow_mut() = bind_suggestion_diagnostics;
     }
 
-    pub fn maybe_js_doc_diagnostics(&self) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>> {
+    pub fn maybe_js_doc_diagnostics(&self) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>> {
         self.contents.js_doc_diagnostics.borrow_mut()
     }
 
-    pub fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Vec<Gc<Diagnostic>>) {
+    pub fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Vec<Id<Diagnostic>>) {
         *self.contents.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
     }
 
     pub fn maybe_additional_syntactic_diagnostics_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>> {
         self.contents.additional_syntactic_diagnostics.borrow_mut()
     }
 
@@ -1611,7 +1611,7 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) root_names: RefCell<Option<Vec<String>>>,
     pub(crate) options: Id<CompilerOptions>,
-    pub(crate) config_file_parsing_diagnostics: GcCell<Option<Vec<Gc<Diagnostic>>>>,
+    pub(crate) config_file_parsing_diagnostics: GcCell<Option<Vec<Id<Diagnostic>>>>,
     #[unsafe_ignore_trace]
     pub(crate) project_references: RefCell<Option<Vec<Rc<ProjectReference>>>>,
     pub(crate) processing_default_lib_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,

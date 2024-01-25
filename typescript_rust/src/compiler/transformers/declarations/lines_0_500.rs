@@ -48,7 +48,7 @@ pub fn get_declaration_diagnostics(
     resolver: Gc<Box<dyn EmitResolver>>,
     file: Option<Id<Node> /*SourceFile*/>,
     arena: &impl HasArena,
-) -> io::Result<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>> {
+) -> io::Result<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>> {
     let compiler_options = ScriptReferenceHost::get_compiler_options(&**host.ref_(arena));
     let result = transform_nodes(
         Some(resolver),

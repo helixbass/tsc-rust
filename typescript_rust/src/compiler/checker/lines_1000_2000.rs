@@ -225,8 +225,8 @@ impl TypeChecker {
         location: Option<Id<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Gc<Diagnostic> {
-        let diagnostic: Gc<Diagnostic> = Gc::new(if let Some(location) = location {
+    ) -> Id<Diagnostic> {
+        let diagnostic: Id<Diagnostic> = Gc::new(if let Some(location) = location {
             create_diagnostic_for_node(location, message, args, self).into()
         } else {
             create_compiler_diagnostic(message, args).into()
@@ -245,7 +245,7 @@ impl TypeChecker {
         location: Option<Id<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Gc<Diagnostic> {
+    ) -> Id<Diagnostic> {
         let diagnostic = self.error(location, message, args);
         *diagnostic.maybe_skipped_on_mut() = Some(key);
         diagnostic
@@ -256,7 +256,7 @@ impl TypeChecker {
         location: Option<Id<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Gc<Diagnostic> {
+    ) -> Id<Diagnostic> {
         Gc::new(if let Some(location) = location {
             create_diagnostic_for_node(location, message, args, self).into()
         } else {
@@ -269,13 +269,13 @@ impl TypeChecker {
         location: Option<Id<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Gc<Diagnostic> {
+    ) -> Id<Diagnostic> {
         let diagnostic = self.create_error(location, message, args);
         self.diagnostics().add(diagnostic.clone());
         diagnostic
     }
 
-    pub(super) fn add_error_or_suggestion(&self, is_error: bool, diagnostic: Gc<Diagnostic>) {
+    pub(super) fn add_error_or_suggestion(&self, is_error: bool, diagnostic: Id<Diagnostic>) {
         if is_error {
             self.diagnostics().add(diagnostic);
         } else {
@@ -329,7 +329,7 @@ impl TypeChecker {
         maybe_missing_await: bool,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Gc<Diagnostic> {
+    ) -> Id<Diagnostic> {
         let diagnostic = self.error(Some(location), message, args);
         if maybe_missing_await {
             let related: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
@@ -347,8 +347,8 @@ impl TypeChecker {
     pub(super) fn add_deprecated_suggestion_worker(
         &self,
         declarations: &[Id<Node>],
-        diagnostic: Gc<Diagnostic /*DiagnosticWithLocation*/>,
-    ) -> Gc<Diagnostic> {
+        diagnostic: Id<Diagnostic /*DiagnosticWithLocation*/>,
+    ) -> Id<Diagnostic> {
         let deprecated_tag = for_each(declarations, |&declaration, _| {
             get_jsdoc_deprecated_tag(declaration, self)
         });
@@ -373,8 +373,8 @@ impl TypeChecker {
         location: Id<Node>,
         declarations: &[Id<Node>],
         deprecated_entity: &str,
-    ) -> Gc<Diagnostic> {
-        let diagnostic: Gc<Diagnostic> = create_diagnostic_for_node(
+    ) -> Id<Diagnostic> {
+        let diagnostic: Id<Diagnostic> = create_diagnostic_for_node(
             location,
             &Diagnostics::_0_is_deprecated,
             Some(vec![deprecated_entity.to_owned()]),
@@ -390,8 +390,8 @@ impl TypeChecker {
         declaration: Id<Node>,
         deprecated_entity: Option<&str>,
         signature_string: &str,
-    ) -> Gc<Diagnostic> {
-        let diagnostic: Gc<Diagnostic> =
+    ) -> Id<Diagnostic> {
+        let diagnostic: Id<Diagnostic> =
             Gc::new(if let Some(deprecated_entity) = deprecated_entity {
                 create_diagnostic_for_node(
                     location,

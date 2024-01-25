@@ -49,13 +49,13 @@ pub fn is_external_module_name_relative(module_name: &str) -> bool {
 }
 
 pub fn sort_and_deduplicate_diagnostics(
-    diagnostics: &[Gc<Diagnostic>],
+    diagnostics: &[Id<Diagnostic>],
     arena: &impl HasArena,
-) -> SortedArray<Gc<Diagnostic>> {
+) -> SortedArray<Id<Diagnostic>> {
     sort_and_deduplicate(
         diagnostics,
         &|a, b| compare_diagnostics(&**a, &**b, arena),
-        Option::<&fn(&Gc<Diagnostic>, &Gc<Diagnostic>) -> bool>::None,
+        Option::<&fn(&Id<Diagnostic>, &Id<Diagnostic>) -> bool>::None,
     )
 }
 
@@ -327,7 +327,7 @@ lazy_static! {
 pub fn validate_locale_and_set_language(
     locale: &str,
     sys: &dyn System,
-    mut errors: Option<&mut Push<Gc<Diagnostic>>>,
+    mut errors: Option<&mut Push<Id<Diagnostic>>>,
 ) {
     let lower_case_locale = locale.to_lowercase();
     lazy_static! {
@@ -360,7 +360,7 @@ fn try_set_language_and_territory(
     sys: &dyn System,
     language: &str,
     territory: Option<&str>,
-    errors: &mut Option<&mut Push<Gc<Diagnostic>>>,
+    errors: &mut Option<&mut Push<Id<Diagnostic>>>,
 ) -> bool {
     let compiler_file_path = normalize_path(&sys.get_executing_file_path());
     let containing_directory_path = get_directory_path(&compiler_file_path);
