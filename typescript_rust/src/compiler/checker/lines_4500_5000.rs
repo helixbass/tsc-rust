@@ -32,7 +32,7 @@ use crate::{
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
     append_if_unique_eq,
     static_arena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    Program,
+    Program, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -1536,8 +1536,8 @@ impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
     for DefaultNodeBuilderContextSymbolTrackerModuleResolverHost
 {
     fn get_common_source_directory(&self) -> String {
-        self.host
-            .ref_(self).get_common_source_directory()
+        TypeCheckerHost::get_common_source_directory(
+            &*self.host.ref_(self))
             .unwrap_or_else(|| "".to_owned())
     }
 
