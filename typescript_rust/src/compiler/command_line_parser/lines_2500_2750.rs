@@ -197,7 +197,8 @@ pub(super) fn parse_json_config_file_content_worker(
         &existing_options.ref_(arena),
         &parsed_config
             .options
-            .map_or_else(|| arena.alloc_compiler_options(Default::default()), |options| options.clone()),
+            .map_or_else(|| arena.alloc_compiler_options(Default::default()), |options| options.clone())
+            .ref_(arena),
     );
     let watch_options: Option<Rc<WatchOptions>> =
         if existing_watch_options.is_some() && parsed_config.watch_options.is_some() {
@@ -242,7 +243,7 @@ pub(super) fn parse_json_config_file_content_worker(
         file_names: {
             let value = get_file_names(
                 &config_file_specs,
-                &options,
+                &options.ref_(arena),
                 host,
                 extra_file_extensions,
                 raw,

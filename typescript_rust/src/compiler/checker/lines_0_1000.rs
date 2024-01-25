@@ -571,16 +571,16 @@ pub fn create_type_checker(
             &compiler_options.ref_(arena_ref),
             "useUnknownInCatchVariables",
         ),
-        keyof_strings_only: matches!(compiler_options.keyof_strings_only.ref_(arena_ref), Some(true)),
+        keyof_strings_only: matches!(compiler_options.ref_(arena_ref).keyof_strings_only.ref_(arena_ref), Some(true)),
         fresh_object_literal_flag: if matches!(
-            compiler_options.suppress_excess_property_errors.ref_(arena_ref),
+            compiler_options.ref_(arena_ref).suppress_excess_property_errors.ref_(arena_ref),
             Some(true)
         ) {
             ObjectFlags::None
         } else {
             ObjectFlags::FreshLiteral
         },
-        exact_optional_property_types: compiler_options.exact_optional_property_types.ref_(arena_ref),
+        exact_optional_property_types: compiler_options.ref_(arena_ref).exact_optional_property_types.ref_(arena_ref),
 
         check_binary_expression: Default::default(),
         emit_resolver: Default::default(),
@@ -833,7 +833,7 @@ pub fn create_type_checker(
             (".mjs", ".mjs"),
             (".js", ".js"),
             (".cjs", ".cjs"),
-            (".tsx", if matches!(compiler_options.jsx.ref_(arena_ref), Some(JsxEmit::Preserve)) {
+            (".tsx", if matches!(compiler_options.ref_(arena_ref).jsx, Some(JsxEmit::Preserve)) {
                 ".jsx"
             } else {
                 ".js"

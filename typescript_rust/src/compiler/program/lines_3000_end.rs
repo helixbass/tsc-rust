@@ -51,7 +51,7 @@ use crate::{
     ReadFileCallback, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedProjectReferenceBuilder, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
     SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
-    InArena, OptionInArena,
+    InArena, OptionInArena, AllArenas,
 };
 
 impl Program {
@@ -2256,6 +2256,12 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
 
     fn create_directory(&self, _directory: &str) -> io::Result<()> {
         unreachable!()
+    }
+}
+
+impl HasArena for UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

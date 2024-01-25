@@ -1929,6 +1929,12 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
     }
 }
 
+impl HasArena for ActualResolveModuleNamesWorkerHost {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 #[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
     loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>>>,
@@ -2007,6 +2013,12 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
                 &self.options.ref_(self),
             )
             .unwrap())
+    }
+}
+
+impl HasArena for ActualResolveTypeReferenceDirectiveNamesWorkerHost {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
