@@ -274,12 +274,12 @@ impl TypeChecker {
         compare_types: Option<Gc<Box<dyn TypeComparer>>>,
     ) -> io::Result<Id<Signature>> {
         let context = self.create_inference_context(
-            &signature.maybe_type_parameters().clone().unwrap(),
+            &signature.ref_(self).maybe_type_parameters().clone().unwrap(),
             Some(signature.clone()),
             InferenceFlags::None,
             compare_types,
         );
-        let rest_type = self.get_effective_rest_type(&contextual_signature)?;
+        let rest_type = self.get_effective_rest_type(&contextual_signature.ref_(self))?;
         let mapper = inference_context.map(|inference_context| {
             if matches!(
                 rest_type,
@@ -291,13 +291,13 @@ impl TypeChecker {
             }
         });
         let source_signature = if let Some(mapper) = mapper {
-            Gc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None)?)
+            self.alloc_signature(self.instantiate_signature(contextual_signature.clone(), mapper, None)?)
         } else {
             contextual_signature.clone()
         };
         self.apply_to_parameter_types(
-            &source_signature,
-            &signature,
+            &source_signature.ref_(self),
+            &signature.ref_(self),
             |source: Id<Type>, target: Id<Type>| {
                 self.infer_types(&context.inferences(), source, target, None, None)
             },
@@ -322,7 +322,7 @@ impl TypeChecker {
         self.get_signature_instantiation(
             signature.clone(),
             Some(&*self.get_inferred_types(&context)?),
-            is_in_js_file(contextual_signature.declaration.refed(self).as_deref()),
+            is_in_js_file(contextual_signature.ref_(self).declaration.refed(self).as_deref()),
             None,
         )
     }

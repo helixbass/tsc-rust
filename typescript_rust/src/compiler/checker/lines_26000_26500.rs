@@ -1003,7 +1003,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         Ok(
             if self.get_jsx_reference_kind(node)? != JsxReferenceKind::Component {
-                self.get_jsx_props_type_from_call_signature(&signature, node)?
+                self.get_jsx_props_type_from_call_signature(&signature.ref_(self), node)?
             } else {
                 self.get_jsx_props_type_from_class_type(signature, node)?
             },
@@ -1036,7 +1036,7 @@ impl TypeChecker {
         sig: Id<Signature>,
         forced_lookup_location: &str, /*__String*/
     ) -> io::Result<Option<Id<Type>>> {
-        if let Some(sig_composite_signatures) = sig.composite_signatures.as_ref() {
+        if let Some(sig_composite_signatures) = sig.ref_(self).composite_signatures.as_ref() {
             let mut results: Vec<Id<Type>> = vec![];
             for signature in sig_composite_signatures {
                 let instance = self.get_return_type_of_signature(signature.clone())?;

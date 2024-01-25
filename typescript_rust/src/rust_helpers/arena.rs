@@ -8,7 +8,7 @@ use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
-    Program,
+    Program, Signature,
 };
 
 #[derive(Default)]
@@ -35,6 +35,7 @@ pub struct AllArenas {
     pub flow_nodes: RefCell<Arena<FlowNode>>,
     pub diagnostics: RefCell<Arena<Diagnostic>>,
     pub programs: RefCell<Arena<Program>>,
+    pub signatures: RefCell<Arena<Signature>>,
 }
 
 pub trait HasArena {
@@ -190,6 +191,14 @@ pub trait HasArena {
 
     fn alloc_program(&self, program: Program) -> Id<Program> {
         self.arena().alloc_program(program)
+    }
+
+    fn signature(&self, signature: Id<Signature>) -> Ref<Signature> {
+        self.arena().signature(signature)
+    }
+
+    fn alloc_signature(&self, signature: Signature) -> Id<Signature> {
+        self.arena().alloc_signature(signature)
     }
 }
 
@@ -396,6 +405,16 @@ impl HasArena for AllArenas {
         let id = self.programs.borrow_mut().alloc(program);
         id
     }
+
+    #[track_caller]
+    fn signature(&self, signature: Id<Signature>) -> Ref<Signature> {
+        Ref::map(self.signatures.borrow(), |signatures| &signatures[signature])
+    }
+
+    fn alloc_signature(&self, signature: Signature) -> Id<Signature> {
+        let id = self.signatures.borrow_mut().alloc(signature);
+        id
+    }
 }
 
 pub trait InArena {
@@ -554,6 +573,14 @@ impl InArena for Id<Program> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Program> {
         has_arena.program(*self)
+    }
+}
+
+impl InArena for Id<Signature> {
+    type Item = Signature;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Signature> {
+        has_arena.signature(*self)
     }
 }
 

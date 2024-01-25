@@ -346,8 +346,8 @@ impl TypeChecker {
             let s = self.get_single_call_signature(self.get_type_of_symbol(prop)?)?;
             return Ok(matches!(
                 s.as_ref(),
-                Some(s) if self.get_min_argument_count(s, None)? >= 1 &&
-                    self.is_type_assignable_to(keyed_type, self.get_type_at_position(s, 0)?)?
+                Some(s) if self.get_min_argument_count(&s.ref_(self), None)? >= 1 &&
+                    self.is_type_assignable_to(keyed_type, self.get_type_at_position(&s.ref_(self), 0)?)?
             ));
         }
         Ok(false)
@@ -847,12 +847,12 @@ impl TypeChecker {
         Debug_.assert(result.is_empty(), None);
         for signature in signatures {
             let symbol = signature
-                .declaration
+                .ref_(self).declaration
                 .try_and_then(|signature_declaration| {
                     self.get_symbol_of_node(signature_declaration)
                 })?;
             let parent = signature
-                .declaration
+                .ref_(self).declaration
                 .and_then(|signature_declaration| signature_declaration.ref_(self).maybe_parent());
             if match last_symbol {
                 None => true,
@@ -877,7 +877,7 @@ impl TypeChecker {
             }
             last_symbol = symbol.clone();
 
-            if signature_has_literal_types(signature) {
+            if signature_has_literal_types(&signature.ref_(self)) {
                 specialized_index += 1;
                 splice_index = specialized_index.try_into().unwrap();
                 cutoff_index += 1;

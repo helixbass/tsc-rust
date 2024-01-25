@@ -653,7 +653,7 @@ impl InferTypes {
     ) -> io::Result<()> {
         if !skip_parameters {
             let save_bivariant = self.bivariant();
-            let kind = if let Some(target_declaration) = target.declaration {
+            let kind = if let Some(target_declaration) = target.ref_(self).declaration {
                 target_declaration.ref_(self).kind()
             } else {
                 SyntaxKind::Unknown
@@ -668,8 +668,8 @@ impl InferTypes {
                     ),
             );
             self.type_checker.apply_to_parameter_types(
-                &source,
-                &target,
+                &source.ref_(self),
+                &target.ref_(self),
                 |s: Id<Type>, t: Id<Type>| self.infer_from_contravariant_types(s, t),
             )?;
             self.set_bivariant(save_bivariant);

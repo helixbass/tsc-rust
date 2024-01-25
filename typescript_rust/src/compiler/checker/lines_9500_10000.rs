@@ -680,12 +680,12 @@ impl TypeChecker {
     pub(super) fn is_mixin_constructor_type(&self, type_: Id<Type>) -> io::Result<bool> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if signatures.len() == 1 {
-            let s = &signatures[0];
-            if s.maybe_type_parameters().is_none()
-                && s.parameters().len() == 1
-                && signature_has_rest_parameter(s)
+            let s = signatures[0];
+            if s.ref_(self).maybe_type_parameters().is_none()
+                && s.ref_(self).parameters().len() == 1
+                && signature_has_rest_parameter(&s.ref_(self))
             {
-                let param_type = self.get_type_of_parameter(s.parameters()[0])?;
+                let param_type = self.get_type_of_parameter(s.ref_(self).parameters()[0])?;
                 return Ok(self.is_type_any(Some(param_type))
                     || matches!(
                         self.get_element_type_of_array_type(param_type)?,
@@ -741,8 +741,8 @@ impl TypeChecker {
             |sig: &Id<Signature>| {
                 (is_javascript
                     || type_arg_count
-                        >= self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref()))
-                    && type_arg_count <= length(sig.maybe_type_parameters().as_deref())
+                        >= self.get_min_type_argument_count(sig.ref_(self).maybe_type_parameters().as_deref()))
+                    && type_arg_count <= length(sig.ref_(self).maybe_type_parameters().as_deref())
             },
         ))
     }
@@ -763,7 +763,7 @@ impl TypeChecker {
         try_map(&signatures, |sig: &Id<Signature>, _| -> io::Result<_> {
             Ok(
                 if some(
-                    sig.maybe_type_parameters().as_deref(),
+                    sig.ref_(self).maybe_type_parameters().as_deref(),
                     Option::<fn(&Id<Type>) -> bool>::None,
                 ) {
                     self.get_signature_instantiation(

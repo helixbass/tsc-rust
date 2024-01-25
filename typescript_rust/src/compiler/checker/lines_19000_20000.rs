@@ -1242,10 +1242,10 @@ impl CheckTypeRelatedTo {
             && !target_signatures.is_empty()
         {
             let source_is_abstract = source_signatures[0]
-                .flags
+                .ref_(self).flags
                 .intersects(SignatureFlags::Abstract);
             let target_is_abstract = target_signatures[0]
-                .flags
+                .ref_(self).flags
                 .intersects(SignatureFlags::Abstract);
             if source_is_abstract && !target_is_abstract {
                 if report_errors {
@@ -1257,8 +1257,8 @@ impl CheckTypeRelatedTo {
                 return Ok(Ternary::False);
             }
             if !self.constructor_visibilities_are_compatible(
-                &source_signatures[0],
-                &target_signatures[0],
+                &source_signatures[0].ref_(self),
+                &target_signatures[0].ref_(self),
                 report_errors,
             )? {
                 return Ok(Ternary::False);
@@ -1288,7 +1288,7 @@ impl CheckTypeRelatedTo {
                     target_signatures[i].clone(),
                     true,
                     report_errors,
-                    incompatible_reporter(self, &source_signatures[i], &target_signatures[i]),
+                    incompatible_reporter(self, &source_signatures[i].ref_(self), &target_signatures[i].ref_(self)),
                 )?;
                 if related == Ternary::False {
                     return Ok(Ternary::False);
@@ -1308,17 +1308,17 @@ impl CheckTypeRelatedTo {
                 target_signature.clone(),
                 erase_generics,
                 report_errors,
-                incompatible_reporter(self, source_signature, target_signature),
+                incompatible_reporter(self, &source_signature.ref_(self), &target_signature.ref_(self)),
             )?;
             if result == Ternary::False
                 && report_errors
                 && kind == SignatureKind::Construct
                 && source_object_flags & target_object_flags != ObjectFlags::None
                 && (matches!(
-                    target_signature.declaration,
+                    target_signature.ref_(self).declaration,
                     Some(target_signature_declaration) if target_signature_declaration.ref_(self).kind() == SyntaxKind::Constructor
                 ) || matches!(
-                    source_signature.declaration,
+                    source_signature.ref_(self).declaration,
                     Some(source_signature_declaration) if source_signature_declaration.ref_(self).kind() == SyntaxKind::Constructor
                 ))
             {
@@ -1354,7 +1354,7 @@ impl CheckTypeRelatedTo {
                         t.clone(),
                         true,
                         should_elaborate_errors,
-                        incompatible_reporter(self, s, t),
+                        incompatible_reporter(self, &s.ref_(self), &t.ref_(self)),
                     )?;
                     if related != Ternary::False {
                         result &= related;

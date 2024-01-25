@@ -1057,12 +1057,12 @@ impl TypeChecker {
                 SignatureKind::Call,
             )?;
             let candidate =
-                if signatures.len() == 1 && signatures[0].maybe_type_parameters().is_none() {
+                if signatures.len() == 1 && signatures[0].ref_(self).maybe_type_parameters().is_none() {
                     Some(signatures[0].clone())
                 } else if try_some(
                     Some(&signatures),
                     Some(|signature: &Id<Signature>| {
-                        self.has_type_predicate_or_never_return_type(signature)
+                        self.has_type_predicate_or_never_return_type(&signature.ref_(self))
                     }),
                 )? {
                     Some(self.get_resolved_signature_(node, None, None)?)
@@ -1071,7 +1071,7 @@ impl TypeChecker {
                 };
             signature = Some(
                 if let Some(candidate) = candidate.try_filter(|candidate| {
-                    self.has_type_predicate_or_never_return_type(candidate)
+                    self.has_type_predicate_or_never_return_type(&candidate.ref_(self))
                 })? {
                     candidate
                 } else {
@@ -1081,7 +1081,7 @@ impl TypeChecker {
             links.borrow_mut().effects_signature = signature.clone();
         }
         let signature = signature.unwrap();
-        Ok(if Gc::ptr_eq(&signature, &self.unknown_signature()) {
+        Ok(if signature == self.unknown_signature() {
             None
         } else {
             Some(signature)
@@ -1214,7 +1214,7 @@ impl TypeChecker {
                 let flow_as_flow_call = flow_ref.as_flow_call();
                 let signature = self.get_effects_signature(flow_as_flow_call.node)?;
                 if let Some(signature) = signature.as_ref() {
-                    let predicate = self.get_type_predicate_of_signature(signature)?;
+                    let predicate = self.get_type_predicate_of_signature(&signature.ref_(self))?;
                     if let Some(predicate) = predicate.as_ref().filter(|predicate| {
                         predicate.kind == TypePredicateKind::AssertsIdentifier
                             && predicate.type_.is_none()

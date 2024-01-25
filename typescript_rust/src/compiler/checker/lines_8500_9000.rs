@@ -436,7 +436,7 @@ impl TypeChecker {
                                 None,
                             );
                             return Ok(Some(self.get_type_of_symbol(
-                                getter_signature.maybe_this_parameter().unwrap(),
+                                getter_signature.ref_(self).maybe_this_parameter().unwrap(),
                             )?));
                         }
                     }
@@ -460,9 +460,9 @@ impl TypeChecker {
                                 .dot_dot_dot_token
                                 .is_some()
                             {
-                                self.get_rest_type_at_position(&signature, pos)?
+                                self.get_rest_type_at_position(&signature.ref_(self), pos)?
                             } else {
-                                self.get_type_at_position(&signature, pos)?
+                                self.get_type_at_position(&signature.ref_(self), pos)?
                             },
                         ));
                     }
@@ -1133,7 +1133,7 @@ impl TypeChecker {
             if let Some(set_func) = set_func {
                 let set_sig = self.get_single_call_signature(set_func)?;
                 if let Some(set_sig) = set_sig {
-                    return self.get_type_of_first_parameter_of_signature(&set_sig);
+                    return self.get_type_of_first_parameter_of_signature(&set_sig.ref_(self));
                 }
             }
             return Ok(self.any_type());

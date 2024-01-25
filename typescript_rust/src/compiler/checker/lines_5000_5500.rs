@@ -564,7 +564,7 @@ impl NodeBuilder {
                 .ref_(self)
                 .as_resolved_type()
                 .construct_signatures(),
-            |signature: &Id<Signature>| signature.flags.intersects(SignatureFlags::Abstract),
+            |signature: &Id<Signature>| signature.ref_(self).flags.intersects(SignatureFlags::Abstract),
         );
         if some(
             Some(&abstract_signatures),
@@ -1013,7 +1013,7 @@ impl NodeBuilder {
             .as_resolved_type()
             .construct_signatures()
         {
-            if signature.flags.intersects(SignatureFlags::Abstract) {
+            if signature.ref_(self).flags.intersects(SignatureFlags::Abstract) {
                 continue;
             }
             type_elements.push(self.signature_to_signature_declaration_helper(

@@ -129,7 +129,7 @@ impl TypeChecker {
         if self.is_context_sensitive_function_or_object_literal_method(func)? {
             let contextual_signature = self.get_contextual_signature(func)?;
             if let Some(contextual_signature) = contextual_signature.as_ref() {
-                let this_parameter = *contextual_signature.maybe_this_parameter();
+                let this_parameter = *contextual_signature.ref_(self).maybe_this_parameter();
                 if let Some(this_parameter) = this_parameter {
                     return Ok(Some(self.get_type_of_symbol(this_parameter)?));
                 }
@@ -277,9 +277,9 @@ impl TypeChecker {
                         Some(&last) if last == parameter
                     )
                 {
-                    Some(self.get_rest_type_at_position(contextual_signature, index)?)
+                    Some(self.get_rest_type_at_position(&contextual_signature.ref_(self), index)?)
                 } else {
-                    self.try_get_type_at_position(contextual_signature, index)?
+                    self.try_get_type_at_position(&contextual_signature.ref_(self), index)?
                 },
             );
         }
@@ -614,13 +614,7 @@ impl TypeChecker {
             });
         }
 
-        let signature = if matches!(
-            (*self.get_node_links(call_target)).borrow().resolved_signature.as_ref(),
-            Some(resolved_signature) if Gc::ptr_eq(
-                resolved_signature,
-                &self.resolving_signature()
-            )
-        ) {
+        let signature = if (*self.get_node_links(call_target)).borrow().resolved_signature == Some(self.resolving_signature()) {
             self.resolving_signature()
         } else {
             self.get_resolved_signature_(call_target, None, None)?
@@ -630,14 +624,14 @@ impl TypeChecker {
             return self
                 .get_effective_first_argument_for_jsx_signature(signature.clone(), call_target);
         }
-        let rest_index = TryInto::<isize>::try_into(signature.parameters().len()).unwrap() - 1;
+        let rest_index = TryInto::<isize>::try_into(signature.ref_(self).parameters().len()).unwrap() - 1;
         Ok(
-            if signature_has_rest_parameter(&signature)
+            if signature_has_rest_parameter(&signature.ref_(self))
                 && TryInto::<isize>::try_into(arg_index).unwrap() >= rest_index
             {
                 let rest_index: usize = rest_index.try_into().unwrap();
                 self.get_indexed_access_type(
-                    self.get_type_of_symbol(signature.parameters()[rest_index])?,
+                    self.get_type_of_symbol(signature.ref_(self).parameters()[rest_index])?,
                     self.get_number_literal_type(Number::new((arg_index - rest_index) as f64)),
                     Some(AccessFlags::Contextual),
                     Option::<Id<Node>>::None,
@@ -645,7 +639,7 @@ impl TypeChecker {
                     None,
                 )?
             } else {
-                self.get_type_at_position(&signature, arg_index)?
+                self.get_type_at_position(&signature.ref_(self), arg_index)?
             },
         )
     }

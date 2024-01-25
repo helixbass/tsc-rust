@@ -335,7 +335,7 @@ impl TypeChecker {
         }
         let construct_signatures =
             filter(&*type_construct_signatures, |signature: &Id<Signature>| {
-                !signature.flags.intersects(SignatureFlags::Abstract)
+                !signature.ref_(self).flags.intersects(SignatureFlags::Abstract)
             });
         if type_construct_signatures.len() == construct_signatures.len() {
             return Ok(type_);

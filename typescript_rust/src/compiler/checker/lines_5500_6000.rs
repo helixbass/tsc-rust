@@ -251,10 +251,10 @@ impl NodeBuilder {
             .intersects(NodeBuilderFlags::WriteTypeArgumentsOfSignature)
         {
             if let (Some(signature_target), Some(signature_mapper)) =
-                (signature.target.as_ref(), signature.mapper.clone())
+                (signature.ref_(self).target, signature.ref_(self).mapper.clone())
             {
                 if let Some(signature_target_type_parameters) =
-                    signature_target.maybe_type_parameters().as_ref()
+                    signature_target.ref_(self).maybe_type_parameters().as_ref()
                 {
                     passed_if_condition = true;
                     _type_arguments = Some(
@@ -277,7 +277,7 @@ impl NodeBuilder {
             }
         }
         if !passed_if_condition {
-            type_parameters = signature.maybe_type_parameters().as_ref().try_map(
+            type_parameters = signature.ref_(self).maybe_type_parameters().as_ref().try_map(
                 |signature_type_parameters| {
                     signature_type_parameters
                         .into_iter()
@@ -291,7 +291,7 @@ impl NodeBuilder {
 
         let expanded_params = self
             .type_checker
-            .get_expanded_parameters(&signature, Some(true))?
+            .get_expanded_parameters(&signature.ref_(self), Some(true))?
             .into_iter()
             .next()
             .unwrap();
@@ -302,7 +302,7 @@ impl NodeBuilder {
                     && get_check_flags(&p.ref_(self)).intersects(CheckFlags::RestParameter)
             }),
         ) {
-            signature.parameters()
+            signature.ref_(self).parameters()
         } else {
             &*expanded_params
         }
@@ -319,7 +319,7 @@ impl NodeBuilder {
             )
         })
         .collect::<io::Result<Vec<_>>>()?;
-        if let Some(signature_this_parameter) = *signature.maybe_this_parameter() {
+        if let Some(signature_this_parameter) = *signature.ref_(self).maybe_this_parameter() {
             let this_parameter = self.symbol_to_parameter_declaration_(
                 signature_this_parameter,
                 context,
@@ -333,7 +333,7 @@ impl NodeBuilder {
         let mut return_type_node: Option<Id<Node /*TypeNode*/>> = None;
         let type_predicate = self
             .type_checker
-            .get_type_predicate_of_signature(&signature)?;
+            .get_type_predicate_of_signature(&signature.ref_(self))?;
         if let Some(type_predicate) = type_predicate.as_ref() {
             let asserts_modifier: Option<Id<Node>> = if matches!(
                 type_predicate.kind,
@@ -375,7 +375,7 @@ impl NodeBuilder {
                     self.serialize_return_type_for_signature(
                         context,
                         return_type,
-                        &signature,
+                        &signature.ref_(self),
                         options
                             .as_ref()
                             .and_then(|options| options.private_symbol_visitor.as_ref()),
@@ -391,7 +391,7 @@ impl NodeBuilder {
             .as_ref()
             .and_then(|options| options.modifiers.clone());
         if kind == SyntaxKind::ConstructorType
-            && signature.flags.intersects(SignatureFlags::Abstract)
+            && signature.ref_(self).flags.intersects(SignatureFlags::Abstract)
         {
             let flags = modifiers_to_flags(modifiers.as_deref(), self);
             modifiers = Some(

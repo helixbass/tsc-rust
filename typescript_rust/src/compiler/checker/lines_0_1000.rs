@@ -307,9 +307,9 @@ impl TypeSystemEntity {
         }
     }
 
-    pub fn as_signature(&self) -> &Signature {
+    pub fn as_signature(&self) -> Id<Signature> {
         match self {
-            Self::Signature(signature) => &*signature,
+            Self::Signature(signature) => *signature,
             _ => panic!("Expected signature"),
         }
     }
@@ -321,7 +321,7 @@ impl PartialEq for TypeSystemEntity {
             (Self::Node(a), Self::Node(b)) => a == b,
             (Self::Symbol(a), Self::Symbol(b)) => a == b,
             (Self::Type(a), Self::Type(b)) => a == b,
-            (Self::Signature(a), Self::Signature(b)) => Gc::ptr_eq(a, b),
+            (Self::Signature(a), Self::Signature(b)) => a == b,
             _ => false,
         }
     }
@@ -1368,7 +1368,7 @@ pub fn create_type_checker(
         Some(type_checker.any_type()),
     )));
 
-    type_checker.any_signature = Some(Gc::new(type_checker.create_signature(
+    type_checker.any_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,
@@ -1378,7 +1378,7 @@ pub fn create_type_checker(
         0,
         SignatureFlags::None,
     )));
-    type_checker.unknown_signature = Some(Gc::new(type_checker.create_signature(
+    type_checker.unknown_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,
@@ -1388,7 +1388,7 @@ pub fn create_type_checker(
         0,
         SignatureFlags::None,
     )));
-    type_checker.resolving_signature = Some(Gc::new(type_checker.create_signature(
+    type_checker.resolving_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,
@@ -1398,7 +1398,7 @@ pub fn create_type_checker(
         0,
         SignatureFlags::None,
     )));
-    type_checker.silent_never_signature = Some(Gc::new(type_checker.create_signature(
+    type_checker.silent_never_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,

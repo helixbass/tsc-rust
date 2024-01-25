@@ -344,14 +344,14 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<Vec<Id<Node>>> {
         let signatures = self.type_checker.get_signatures_of_type(input, kind)?;
         if kind == SignatureKind::Construct {
-            if base_type.is_none() && signatures.iter().all(|s| s.parameters().is_empty()) {
+            if base_type.is_none() && signatures.iter().all(|s| s.ref_(self).parameters().is_empty()) {
                 return Ok(vec![]);
             }
             if let Some(base_type) = base_type {
                 let base_sigs = self
                     .type_checker
                     .get_signatures_of_type(base_type, SignatureKind::Construct)?;
-                if base_sigs.is_empty() && signatures.iter().all(|s| s.parameters().is_empty()) {
+                if base_sigs.is_empty() && signatures.iter().all(|s| s.ref_(self).parameters().is_empty()) {
                     return Ok(vec![]);
                 }
                 if base_sigs.len() == signatures.len() {
@@ -379,7 +379,7 @@ impl SymbolTableToDeclarationStatements {
             }
             let mut private_protected = ModifierFlags::None;
             for s in &signatures {
-                if let Some(s_declaration) = s.declaration {
+                if let Some(s_declaration) = s.ref_(self).declaration {
                     private_protected |= get_selected_effective_modifier_flags(
                         s_declaration,
                         ModifierFlags::Private | ModifierFlags::Protected,
@@ -395,7 +395,7 @@ impl SymbolTableToDeclarationStatements {
                         Some(vec![]),
                         None,
                     ),
-                    signatures[0].declaration.refed(self).as_deref(),
+                    signatures[0].ref_(self).declaration.refed(self).as_deref(),
                     self,
                 )]);
             }
@@ -411,7 +411,7 @@ impl SymbolTableToDeclarationStatements {
                     &self.context(),
                     Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
                 )?;
-            results.push(set_text_range_id_node(decl, sig.declaration.refed(self).as_deref(), self));
+            results.push(set_text_range_id_node(decl, sig.ref_(self).declaration.refed(self).as_deref(), self));
         }
         Ok(results)
     }
@@ -973,7 +973,7 @@ impl MakeSerializePropertySymbol {
                                 .or_else(|| {
                                     signatures
                                         .get(0)
-                                        .and_then(|signatures_0| signatures_0.declaration)
+                                        .and_then(|signatures_0| signatures_0.ref_(self).declaration)
                                 })
                                 .or_else(|| {
                                     p.ref_(self)
@@ -1009,13 +1009,13 @@ impl MakeSerializePropertySymbol {
                         }),
                     )?;
                 let location = sig
-                    .declaration
+                    .ref_(self).declaration
                     .as_ref()
                     .filter(|sig_declaration| {
                         is_prototype_property_assignment(sig_declaration.ref_(self).parent(), self)
                     })
                     .map(|sig_declaration| sig_declaration.ref_(self).parent())
-                    .or(sig.declaration);
+                    .or_else(|| sig.ref_(self).declaration);
                 results.push(set_text_range_id_node(decl, location.refed(self).as_deref(), self));
             }
             return Ok(results);

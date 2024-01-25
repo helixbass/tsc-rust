@@ -26,19 +26,19 @@ impl TypeChecker {
         ignore_return_types: bool,
         mut compare_types: impl FnMut(Id<Type>, Id<Type>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
-        if Gc::ptr_eq(&source, &target) {
+        if source == target {
             return Ok(Ternary::True);
         }
-        if !self.is_matching_signature(&source, &target, partial_match)? {
+        if !self.is_matching_signature(&source.ref_(self), &target.ref_(self), partial_match)? {
             return Ok(Ternary::False);
         }
-        if length(source.maybe_type_parameters().as_deref())
-            != length(target.maybe_type_parameters().as_deref())
+        if length(source.ref_(self).maybe_type_parameters().as_deref())
+            != length(target.ref_(self).maybe_type_parameters().as_deref())
         {
             return Ok(Ternary::False);
         }
-        if let Some(ref target_type_parameters) = target.maybe_type_parameters().clone() {
-            let source_type_parameters = source.maybe_type_parameters().clone().unwrap();
+        if let Some(ref target_type_parameters) = target.ref_(self).maybe_type_parameters().clone() {
+            let source_type_parameters = source.ref_(self).maybe_type_parameters().clone().unwrap();
             let mapper = self.create_type_mapper(
                 source_type_parameters.clone(),
                 Some(target_type_parameters.clone()),
@@ -69,13 +69,13 @@ impl TypeChecker {
                     return Ok(Ternary::False);
                 }
             }
-            source = Gc::new(self.instantiate_signature(source, mapper, Some(true))?);
+            source = self.alloc_signature(self.instantiate_signature(source, mapper, Some(true))?);
         }
         let mut result = Ternary::True;
         if !ignore_this_types {
-            let source_this_type = self.get_this_type_of_signature(&source)?;
+            let source_this_type = self.get_this_type_of_signature(&source.ref_(self))?;
             if let Some(source_this_type) = source_this_type {
-                let target_this_type = self.get_this_type_of_signature(&target)?;
+                let target_this_type = self.get_this_type_of_signature(&target.ref_(self))?;
                 if let Some(target_this_type) = target_this_type {
                     let related = compare_types(source_this_type, target_this_type)?;
                     if related == Ternary::False {
@@ -85,10 +85,10 @@ impl TypeChecker {
                 }
             }
         }
-        let target_len = self.get_parameter_count(&target)?;
+        let target_len = self.get_parameter_count(&target.ref_(self))?;
         for i in 0..target_len {
-            let s = self.get_type_at_position(&source, i)?;
-            let t = self.get_type_at_position(&target, i)?;
+            let s = self.get_type_at_position(&source.ref_(self), i)?;
+            let t = self.get_type_at_position(&target.ref_(self), i)?;
             let related = compare_types(t, s)?;
             if related == Ternary::False {
                 return Ok(Ternary::False);
@@ -96,8 +96,8 @@ impl TypeChecker {
             result &= related;
         }
         if !ignore_return_types {
-            let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
-            let target_type_predicate = self.get_type_predicate_of_signature(&target)?;
+            let source_type_predicate = self.get_type_predicate_of_signature(&source.ref_(self))?;
+            let target_type_predicate = self.get_type_predicate_of_signature(&target.ref_(self))?;
             result &= if source_type_predicate.is_some() || target_type_predicate.is_some() {
                 self.try_compare_type_predicates_identical(
                     source_type_predicate,

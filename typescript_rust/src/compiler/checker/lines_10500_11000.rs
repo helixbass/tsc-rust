@@ -23,6 +23,7 @@ use crate::{
     Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
     SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
     Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
+    append_if_unique_eq,
 };
 
 impl TypeChecker {
@@ -749,11 +750,11 @@ impl TypeChecker {
         signature: Id<Signature>,
         call_chain_flags: SignatureFlags,
     ) -> Id<Signature> {
-        if signature.flags & SignatureFlags::CallChainFlags == call_chain_flags {
+        if signature.ref_(self).flags & SignatureFlags::CallChainFlags == call_chain_flags {
             return signature;
         }
-        if signature.maybe_optional_call_signature_cache().is_none() {
-            *signature.maybe_optional_call_signature_cache() =
+        if signature.ref_(self).maybe_optional_call_signature_cache().is_none() {
+            *signature.ref_(self).maybe_optional_call_signature_cache() =
                 Some(SignatureOptionalCallSignatureCache::new());
         }
         let key = if call_chain_flags == SignatureFlags::IsInnerCallChain {
@@ -763,14 +764,14 @@ impl TypeChecker {
         };
         let existing = if key == "inner" {
             signature
-                .maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache()
                 .as_ref()
                 .unwrap()
                 .inner
                 .clone()
         } else {
             signature
-                .maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache()
                 .as_ref()
                 .unwrap()
                 .outer
@@ -779,16 +780,16 @@ impl TypeChecker {
         if let Some(existing) = existing {
             return existing;
         }
-        let ret = Gc::new(self.create_optional_call_signature(&signature, call_chain_flags));
+        let ret = self.alloc_signature(self.create_optional_call_signature(&signature.ref_(self), call_chain_flags));
         if key == "inner" {
             signature
-                .maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache()
                 .as_mut()
                 .unwrap()
                 .inner = Some(ret.clone());
         } else {
             signature
-                .maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache()
                 .as_mut()
                 .unwrap()
                 .outer = Some(ret.clone());
@@ -911,7 +912,7 @@ impl TypeChecker {
             Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract, self)
         );
         if base_signatures.is_empty() {
-            return Ok(vec![Gc::new(
+            return Ok(vec![self.alloc_signature(
                 self.create_signature(
                     None,
                     class_type
@@ -939,8 +940,8 @@ impl TypeChecker {
         let mut result: Vec<Id<Signature>> = vec![];
         for base_sig in base_signatures {
             let min_type_argument_count =
-                self.get_min_type_argument_count(base_sig.maybe_type_parameters().as_deref());
-            let type_param_count = length(base_sig.maybe_type_parameters().as_deref());
+                self.get_min_type_argument_count(base_sig.ref_(self).maybe_type_parameters().as_deref());
+            let type_param_count = length(base_sig.ref_(self).maybe_type_parameters().as_deref());
             if is_java_script
                 || type_arg_count >= min_type_argument_count && type_arg_count <= type_param_count
             {
@@ -949,14 +950,14 @@ impl TypeChecker {
                         base_sig.clone(),
                         self.fill_missing_type_arguments(
                             type_arguments.clone(),
-                            base_sig.maybe_type_parameters().as_deref(),
+                            base_sig.ref_(self).maybe_type_parameters().as_deref(),
                             min_type_argument_count,
                             is_java_script,
                         )?
                         .as_deref(),
                     )?
                 } else {
-                    self.clone_signature(&base_sig)
+                    self.clone_signature(&base_sig.ref_(self))
                 };
                 *sig.maybe_type_parameters_mut() = class_type
                     .ref_(self)
@@ -969,7 +970,7 @@ impl TypeChecker {
                 } else {
                     sig.flags & !SignatureFlags::Abstract
                 };
-                result.push(Gc::new(sig));
+                result.push(self.alloc_signature(sig));
             }
         }
         Ok(result)
@@ -1011,7 +1012,7 @@ impl TypeChecker {
         signature: Id<Signature>,
         list_index: usize,
     ) -> io::Result<Option<Vec<Id<Signature>>>> {
-        if signature.maybe_type_parameters().is_some() {
+        if signature.ref_(self).maybe_type_parameters().is_some() {
             if list_index > 0 {
                 return Ok(None);
             }
@@ -1041,7 +1042,7 @@ impl TypeChecker {
             if result.is_none() {
                 result = Some(vec![]);
             }
-            append_if_unique_gc(result.as_mut().unwrap(), &match_);
+            append_if_unique_eq(result.as_mut().unwrap(), &match_);
         }
         Ok(result)
     }
@@ -1075,10 +1076,10 @@ impl TypeChecker {
                     if let Some(union_signatures) = union_signatures {
                         let mut s = signature.clone();
                         if union_signatures.len() > 1 {
-                            let mut this_parameter = signature.maybe_this_parameter().clone();
+                            let mut this_parameter = signature.ref_(self).maybe_this_parameter().clone();
                             let first_this_parameter_of_union_signatures =
                                 for_each(&union_signatures, |sig: &Id<Signature>, _| {
-                                    sig.maybe_this_parameter().clone()
+                                    sig.ref_(self).maybe_this_parameter().clone()
                                 });
                             if let Some(first_this_parameter_of_union_signatures) =
                                 first_this_parameter_of_union_signatures
@@ -1087,7 +1088,7 @@ impl TypeChecker {
                                     &try_map_defined(
                                         Some(&union_signatures),
                                         |sig: &Id<Signature>, _| {
-                                            sig.maybe_this_parameter().try_map(|this_parameter| {
+                                            sig.ref_(self).maybe_this_parameter().try_map(|this_parameter| {
                                                 self.get_type_of_symbol(this_parameter)
                                             })
                                         },
@@ -1101,9 +1102,9 @@ impl TypeChecker {
                                 ));
                             }
                             let s_not_wrapped =
-                                self.create_union_signature(signature, union_signatures);
+                                self.create_union_signature(&signature.ref_(self), union_signatures);
                             *s_not_wrapped.maybe_this_parameter_mut() = this_parameter;
-                            s = Gc::new(s_not_wrapped);
+                            s = self.alloc_signature(s_not_wrapped);
                         }
                         if result.is_none() {
                             result = Some(vec![]);
@@ -1128,13 +1129,13 @@ impl TypeChecker {
                     Debug_.assert(signature.is_some(), Some("getUnionSignatures bails early on empty signature lists and should not have empty lists on second pass"));
                     let signature = signature.unwrap();
                     results = if matches!(
-                        signature.maybe_type_parameters().as_ref(),
+                        signature.ref_(self).maybe_type_parameters().as_ref(),
                         Some(signature_type_parameters) if try_some(
                             results.as_deref(),
                             Some(|s: &Id<Signature>| -> io::Result<bool> {
                                 Ok(
                                     matches!(
-                                        s.maybe_type_parameters().as_ref(),
+                                        s.ref_(self).maybe_type_parameters().as_ref(),
                                         Some(s_type_parameters) if !self.compare_type_parameters_identical(
                                             Some(signature_type_parameters),
                                             Some(s_type_parameters),
@@ -1149,7 +1150,7 @@ impl TypeChecker {
                         try_maybe_map(
                             results.as_ref(),
                             |sig: &Id<Signature>, _| -> io::Result<_> {
-                                Ok(Gc::new(self.combine_signatures_of_union_members(
+                                Ok(self.alloc_signature(self.combine_signatures_of_union_members(
                                     sig.clone(),
                                     signature.clone(),
                                 )?))

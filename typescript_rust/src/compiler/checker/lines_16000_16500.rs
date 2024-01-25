@@ -730,11 +730,11 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<Vec<Id<Signature>>> {
         Ok(self
-            .try_instantiate_list(
+            .try_instantiate_list_non_gc(
                 Some(signatures),
                 Some(mapper),
                 |signature: &Id<Signature>, mapper| {
-                    Ok(Gc::new(self.instantiate_signature(
+                    Ok(self.alloc_signature(self.instantiate_signature(
                         signature.clone(),
                         mapper.unwrap(),
                         None,
@@ -990,7 +990,7 @@ impl TypeChecker {
     ) -> io::Result<Signature> {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
         let mut fresh_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
-        if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
+        if let Some(signature_type_parameters) = signature.ref_(self).maybe_type_parameters().clone() {
             if !erase_type_parameters {
                 fresh_type_parameters =
                     Some(map(&signature_type_parameters, |&type_parameter, _| {
@@ -1009,21 +1009,21 @@ impl TypeChecker {
             }
         }
         let mut result = self.create_signature(
-            signature.declaration.clone(),
+            signature.ref_(self).declaration.clone(),
             fresh_type_parameters,
-            signature.maybe_this_parameter().try_map(|this_parameter| {
+            signature.ref_(self).maybe_this_parameter().try_map(|this_parameter| {
                 self.instantiate_symbol(this_parameter, mapper.clone())
             })?,
             self.try_instantiate_list_non_gc(
-                Some(signature.parameters()),
+                Some(signature.ref_(self).parameters()),
                 Some(mapper.clone()),
                 |&parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
             )?
             .unwrap(),
             None,
             None,
-            signature.min_argument_count(),
-            signature.flags & SignatureFlags::PropagatingFlags,
+            signature.ref_(self).min_argument_count(),
+            signature.ref_(self).flags & SignatureFlags::PropagatingFlags,
         );
         result.target = Some(signature);
         result.mapper = Some(mapper);
