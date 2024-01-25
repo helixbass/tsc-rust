@@ -860,7 +860,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions, arena: &impl 
 impl Program {
     pub fn new(
         create_program_options: CreateProgramOptions,
-        arena: &impl AllArenas,
+        arena: &impl HasArena,
         // options: Gc<CompilerOptions>,
         // files: Vec<Id<Node>>,
         // current_directory: String,
@@ -1174,7 +1174,7 @@ impl Program {
                                                         got_common_source_directory.get_or_insert_with(|| {
                                                             get_common_source_directory_of_config(
                                                                 &parsed_ref.command_line,
-                                                                !CompilerHost::use_case_sensitive_file_names(&**self.host())
+                                                                !CompilerHost::use_case_sensitive_file_names(&**self.host()),
                                                                 self,
                                                             )
                                                         }).clone()
