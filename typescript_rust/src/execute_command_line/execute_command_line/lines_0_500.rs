@@ -1014,7 +1014,7 @@ pub(super) fn execute_command_line_worker(
                     &config_file_name,
                     sys.ref_(arena).as_convert_to_tsconfig_host(),
                     arena,
-                )?)
+                )?.into_serializable(arena))
                 .unwrap(),
                 sys.ref_(arena).new_line()
             ));
@@ -1060,7 +1060,7 @@ pub(super) fn execute_command_line_worker(
                     &combine_paths(&current_directory, &vec![Some("tsconfig.json")]),
                     sys.ref_(arena).as_convert_to_tsconfig_host(),
                     arena,
-                )?)
+                )?.into_serializable(arena))
                 .unwrap(),
                 sys.ref_(arena).new_line()
             ));

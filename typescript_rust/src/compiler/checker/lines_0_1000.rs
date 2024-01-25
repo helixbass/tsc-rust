@@ -571,16 +571,16 @@ pub fn create_type_checker(
             &compiler_options.ref_(arena_ref),
             "useUnknownInCatchVariables",
         ),
-        keyof_strings_only: matches!(compiler_options.ref_(arena_ref).keyof_strings_only.ref_(arena_ref), Some(true)),
+        keyof_strings_only: matches!(compiler_options.ref_(arena_ref).keyof_strings_only, Some(true)),
         fresh_object_literal_flag: if matches!(
-            compiler_options.ref_(arena_ref).suppress_excess_property_errors.ref_(arena_ref),
+            compiler_options.ref_(arena_ref).suppress_excess_property_errors,
             Some(true)
         ) {
             ObjectFlags::None
         } else {
             ObjectFlags::FreshLiteral
         },
-        exact_optional_property_types: compiler_options.ref_(arena_ref).exact_optional_property_types.ref_(arena_ref),
+        exact_optional_property_types: compiler_options.ref_(arena_ref).exact_optional_property_types,
 
         check_binary_expression: Default::default(),
         emit_resolver: Default::default(),

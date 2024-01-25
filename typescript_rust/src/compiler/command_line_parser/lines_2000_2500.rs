@@ -716,9 +716,31 @@ pub(super) fn is_compiler_options_value(
     false
 }
 
-#[derive(Serialize)]
 pub(crate) struct TSConfig {
     pub compiler_options: Id<CompilerOptions>,
+    pub compile_on_save: Option<bool>,
+    pub exclude: Option<Vec<String>>,
+    pub files: Option<Vec<String>>,
+    pub include: Option<Vec<String>>,
+    pub references: Option<Vec<Rc<ProjectReference>>>,
+}
+
+impl TSConfig {
+    pub fn into_serializable(self, arena: &impl HasArena) -> TSConfigSerializable {
+        TSConfigSerializable {
+            compiler_options: self.compiler_options.ref_(arena).clone(),
+            compile_on_save: self.compile_on_save,
+            exclude: self.exclude,
+            files: self.files,
+            include: self.include,
+            references: self.references,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub(crate) struct TSConfigSerializable {
+    pub compiler_options: CompilerOptions,
     pub compile_on_save: Option<bool>,
     pub exclude: Option<Vec<String>>,
     pub files: Option<Vec<String>>,
