@@ -1035,7 +1035,6 @@ pub fn get_source_files_to_emit(
         let module_emit_enabled = matches!(options.ref_(arena).emit_declaration_only, Some(true))
             || matches!(module_kind, ModuleKind::AMD | ModuleKind::System);
         host.get_source_files()
-            .clone()
             .into_iter()
             .filter(|source_file| {
                 (module_emit_enabled || !is_external_module(&source_file.ref_(arena)))
@@ -1049,7 +1048,7 @@ pub fn get_source_files_to_emit(
             .collect()
     } else {
         let source_files = match target_source_file {
-            None => host.get_source_files().to_owned(),
+            None => host.get_source_files(),
             Some(target_source_file) => vec![target_source_file],
         };
         source_files
