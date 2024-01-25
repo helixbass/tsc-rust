@@ -7,7 +7,7 @@ use once_cell::unsync::Lazy;
 use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions,
+    FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode,
 };
 
 #[derive(Default)]
@@ -31,6 +31,7 @@ pub struct AllArenas {
     pub source_map_ranges: RefCell<Arena<SourceMapRange>>,
     pub emit_helpers: RefCell<Arena<EmitHelper>>,
     pub compiler_options: RefCell<Arena<CompilerOptions>>,
+    pub flow_nodes: RefCell<Arena<FlowNode>>,
 }
 
 pub trait HasArena {
@@ -162,6 +163,14 @@ pub trait HasArena {
 
     fn alloc_compiler_options(&self, compiler_options: CompilerOptions) -> Id<CompilerOptions> {
         self.arena().alloc_compiler_options(compiler_options)
+    }
+
+    fn flow_node(&self, flow_node: Id<FlowNode>) -> Ref<FlowNode> {
+        self.arena().flow_node(flow_node)
+    }
+
+    fn alloc_flow_node(&self, flow_node: FlowNode) -> Id<FlowNode> {
+        self.arena().alloc_flow_node(flow_node)
     }
 }
 
@@ -338,6 +347,16 @@ impl HasArena for AllArenas {
         let id = self.compiler_options.borrow_mut().alloc(compiler_options);
         id
     }
+
+    #[track_caller]
+    fn flow_node(&self, flow_node: Id<FlowNode>) -> Ref<FlowNode> {
+        Ref::map(self.flow_nodes.borrow(), |flow_nodes| &flow_nodes[flow_node])
+    }
+
+    fn alloc_flow_node(&self, flow_node: FlowNode) -> Id<FlowNode> {
+        let id = self.flow_nodes.borrow_mut().alloc(flow_node);
+        id
+    }
 }
 
 pub trait InArena {
@@ -472,6 +491,14 @@ impl InArena for Id<CompilerOptions> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CompilerOptions> {
         has_arena.compiler_options(*self)
+    }
+}
+
+impl InArena for Id<FlowNode> {
+    type Item = FlowNode;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, FlowNode> {
+        has_arena.flow_node(*self)
     }
 }
 

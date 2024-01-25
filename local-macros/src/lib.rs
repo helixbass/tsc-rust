@@ -256,15 +256,15 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_inference_context()
                     }
 
-                    fn maybe_flow_node(&self) -> ::gc::GcCellRef<::std::option::Option<::gc::Gc<crate::FlowNode>>> {
+                    fn maybe_flow_node(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::FlowNode>>> {
                         self.#first_field_name.maybe_flow_node()
                     }
 
-                    fn maybe_flow_node_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::FlowNode>>> {
+                    fn maybe_flow_node_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::FlowNode>>> {
                         self.#first_field_name.maybe_flow_node_mut()
                     }
 
-                    fn set_flow_node(&self, flow_node: ::std::option::Option<::gc::Gc<crate::FlowNode>>) {
+                    fn set_flow_node(&self, flow_node: ::std::option::Option<::id_arena::Id<crate::FlowNode>>) {
                         self.#first_field_name.set_flow_node(flow_node)
                     }
 
@@ -452,19 +452,19 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_exclamation_token()
                     }
 
-                    fn maybe_end_flow_node(&self) -> ::std::option::Option<::gc::Gc<crate::FlowNode>> {
+                    fn maybe_end_flow_node(&self) -> ::std::option::Option<::id_arena::Id<crate::FlowNode>> {
                         self.#first_field_name.maybe_end_flow_node()
                     }
 
-                    fn set_end_flow_node(&self, end_flow_node: ::std::option::Option<::gc::Gc<crate::FlowNode>>) {
+                    fn set_end_flow_node(&self, end_flow_node: ::std::option::Option<::id_arena::Id<crate::FlowNode>>) {
                         self.#first_field_name.set_end_flow_node(end_flow_node)
                     }
 
-                    fn maybe_return_flow_node(&self) -> ::std::option::Option<::gc::Gc<crate::FlowNode>> {
+                    fn maybe_return_flow_node(&self) -> ::std::option::Option<::id_arena::Id<crate::FlowNode>> {
                         self.#first_field_name.maybe_return_flow_node()
                     }
 
-                    fn set_return_flow_node(&self, return_flow_node: ::std::option::Option<::gc::Gc<crate::FlowNode>>) {
+                    fn set_return_flow_node(&self, return_flow_node: ::std::option::Option<::id_arena::Id<crate::FlowNode>>) {
                         self.#first_field_name.set_return_flow_node(return_flow_node)
                     }
                 }
@@ -797,19 +797,19 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_flow_node(&self) -> ::gc::GcCellRef<::std::option::Option<::gc::Gc<crate::FlowNode>>> {
+                    fn maybe_flow_node(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::FlowNode>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_flow_node()),*
                         }
                     }
 
-                    fn maybe_flow_node_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::FlowNode>>> {
+                    fn maybe_flow_node_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::FlowNode>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_flow_node_mut()),*
                         }
                     }
 
-                    fn set_flow_node(&self, flow_node: ::std::option::Option<::gc::Gc<crate::FlowNode>>) {
+                    fn set_flow_node(&self, flow_node: ::std::option::Option<::id_arena::Id<crate::FlowNode>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_flow_node(flow_node)),*
                         }
@@ -1017,25 +1017,25 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_end_flow_node(&self) -> ::std::option::Option<::gc::Gc<crate::FlowNode>> {
+                    fn maybe_end_flow_node(&self) -> ::std::option::Option<::id_arena::Id<crate::FlowNode>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_end_flow_node()),*
                         }
                     }
 
-                    fn set_end_flow_node(&self, end_flow_node: ::std::option::Option<::gc::Gc<crate::FlowNode>>) {
+                    fn set_end_flow_node(&self, end_flow_node: ::std::option::Option<::id_arena::Id<crate::FlowNode>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_end_flow_node(end_flow_node)),*
                         }
                     }
 
-                    fn maybe_return_flow_node(&self) -> ::std::option::Option<::gc::Gc<crate::FlowNode>> {
+                    fn maybe_return_flow_node(&self) -> ::std::option::Option<::id_arena::Id<crate::FlowNode>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_return_flow_node()),*
                         }
                     }
 
-                    fn set_return_flow_node(&self, return_flow_node: ::std::option::Option<::gc::Gc<crate::FlowNode>>) {
+                    fn set_return_flow_node(&self, return_flow_node: ::std::option::Option<::id_arena::Id<crate::FlowNode>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_return_flow_node(return_flow_node)),*
                         }

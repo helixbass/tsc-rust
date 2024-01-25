@@ -262,7 +262,7 @@ impl BinderType {
             self.set_block_scope_container(Some(
                 get_enclosing_block_scope_container(host, self).unwrap_or_else(|| self.file()),
             ));
-            self.set_current_flow(Some(Gc::new(init_flow_node(
+            self.set_current_flow(Some(self.alloc_flow_node(init_flow_node(
                 FlowStart::new(FlowFlags::Start, None).into(),
             ))));
             self.set_parent(Some(type_alias.clone()));

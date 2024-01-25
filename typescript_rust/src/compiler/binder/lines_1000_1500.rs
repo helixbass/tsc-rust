@@ -10,7 +10,8 @@ use crate::{
     is_parenthesized_expression, is_prefix_unary_expression, skip_parentheses,
     unused_label_is_error, Diagnostics, FlowArrayMutation, FlowAssignment, FlowCall, FlowFlags,
     FlowNode, FlowNodeBase, FlowSwitchClause, HasInitializerInterface, NamedDeclarationInterface,
-    Node, NodeInterface, SyntaxKind, InArena,
+    Node, NodeInterface, SyntaxKind,
+    HasArena, InArena,
 };
 
 impl BinderType {
@@ -21,8 +22,8 @@ impl BinderType {
         clause_start: usize,
         clause_end: usize,
     ) -> Id<FlowNode> {
-        self.set_flow_node_referenced(&antecedent);
-        Gc::new(init_flow_node(
+        self.set_flow_node_referenced(&antecedent.ref_(self));
+        self.alloc_flow_node(init_flow_node(
             FlowSwitchClause::new(
                 FlowFlags::SwitchClause,
                 antecedent,
@@ -40,8 +41,8 @@ impl BinderType {
         antecedent: Id<FlowNode>,
         node: Id<Node>, /*Expression | VariableDeclaration | ArrayBindingElement*/
     ) -> Id<FlowNode> {
-        self.set_flow_node_referenced(&antecedent);
-        let result: Id<FlowNode> = Gc::new(init_flow_node(
+        self.set_flow_node_referenced(&antecedent.ref_(self));
+        let result: Id<FlowNode> = self.alloc_flow_node(init_flow_node(
             if flags.intersects(FlowFlags::ArrayMutation) {
                 FlowArrayMutation::new(flags, antecedent, node).into()
             } else {
@@ -49,7 +50,7 @@ impl BinderType {
             },
         ));
         if let Some(current_exception_target) = self.maybe_current_exception_target() {
-            self.add_antecedent(&current_exception_target, result.clone());
+            self.add_antecedent(&current_exception_target.ref_(self), result.clone());
         }
         result
     }
@@ -59,14 +60,15 @@ impl BinderType {
         antecedent: Id<FlowNode>,
         node: Id<Node>, /*CallExpression*/
     ) -> Id<FlowNode> {
-        self.set_flow_node_referenced(&antecedent);
-        Gc::new(init_flow_node(
+        self.set_flow_node_referenced(&antecedent.ref_(self));
+        self.alloc_flow_node(init_flow_node(
             FlowCall::new(FlowFlags::Call, antecedent, node).into(),
         ))
     }
 
     pub(super) fn finish_flow_label(&self, flow: Id<FlowNode /*FlowLabel*/>) -> Id<FlowNode> {
-        let antecedents = flow.as_flow_label().maybe_antecedents();
+        let flow_ref = flow.ref_(self);
+        let antecedents = flow_ref.as_flow_label().maybe_antecedents();
         let antecedents = antecedents.as_ref();
         if antecedents.is_none() {
             return self.unreachable_flow();
@@ -171,7 +173,7 @@ impl BinderType {
             }
         } {
             self.add_antecedent(
-                &true_target,
+                &true_target.ref_(self),
                 self.create_flow_condition(
                     FlowFlags::TrueCondition,
                     self.current_flow(),
@@ -179,7 +181,7 @@ impl BinderType {
                 ),
             );
             self.add_antecedent(
-                &false_target,
+                &false_target.ref_(self),
                 self.create_flow_condition(
                     FlowFlags::FalseCondition,
                     self.current_flow(),
@@ -225,7 +227,7 @@ impl BinderType {
         let pre_while_label = self.set_continue_target(node, self.create_loop_label());
         let pre_body_label = self.create_branch_label();
         let post_while_label = self.create_branch_label();
-        self.add_antecedent(&pre_while_label, self.current_flow());
+        self.add_antecedent(&pre_while_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(pre_while_label.clone()));
         self.bind_condition(
             Some(node_as_while_statement.expression),
@@ -238,7 +240,7 @@ impl BinderType {
             post_while_label.clone(),
             pre_while_label.clone(),
         );
-        self.add_antecedent(&pre_while_label, self.current_flow());
+        self.add_antecedent(&pre_while_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_while_label)));
     }
 
@@ -248,14 +250,14 @@ impl BinderType {
         let pre_do_label = self.create_loop_label();
         let pre_condition_label = self.set_continue_target(node, self.create_branch_label());
         let post_do_label = self.create_branch_label();
-        self.add_antecedent(&pre_do_label, self.current_flow());
+        self.add_antecedent(&pre_do_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(pre_do_label.clone()));
         self.bind_iterative_statement(
             node_as_do_statement.statement,
             post_do_label.clone(),
             pre_condition_label.clone(),
         );
-        self.add_antecedent(&pre_condition_label, self.current_flow());
+        self.add_antecedent(&pre_condition_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(pre_condition_label)));
         self.bind_condition(
             Some(node_as_do_statement.expression),
@@ -272,7 +274,7 @@ impl BinderType {
         let pre_body_label = self.create_branch_label();
         let post_loop_label = self.create_branch_label();
         self.bind(node_as_for_statement.initializer);
-        self.add_antecedent(&pre_loop_label, self.current_flow());
+        self.add_antecedent(&pre_loop_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(pre_loop_label.clone()));
         self.bind_condition(
             node_as_for_statement.condition,
@@ -286,7 +288,7 @@ impl BinderType {
             pre_loop_label.clone(),
         );
         self.bind(node_as_for_statement.incrementor);
-        self.add_antecedent(&pre_loop_label, self.current_flow());
+        self.add_antecedent(&pre_loop_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_loop_label)));
     }
 
@@ -297,12 +299,12 @@ impl BinderType {
         let pre_loop_label = self.set_continue_target(node, self.create_loop_label());
         let post_loop_label = self.create_branch_label();
         self.bind(Some(node.ref_(self).as_has_expression().expression()));
-        self.add_antecedent(&pre_loop_label, self.current_flow());
+        self.add_antecedent(&pre_loop_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(pre_loop_label.clone()));
         if node.ref_(self).kind() == SyntaxKind::ForOfStatement {
             self.bind(node.ref_(self).as_for_of_statement().await_modifier);
         }
-        self.add_antecedent(&post_loop_label, self.current_flow());
+        self.add_antecedent(&post_loop_label.ref_(self), self.current_flow());
         let node_initializer = node.ref_(self).as_has_initializer().maybe_initializer().unwrap();
         self.bind(Some(node_initializer));
         if node_initializer.ref_(self).kind() != SyntaxKind::VariableDeclarationList {
@@ -313,7 +315,7 @@ impl BinderType {
             post_loop_label.clone(),
             pre_loop_label.clone(),
         );
-        self.add_antecedent(&pre_loop_label, self.current_flow());
+        self.add_antecedent(&pre_loop_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_loop_label)));
     }
 
@@ -330,10 +332,10 @@ impl BinderType {
         );
         self.set_current_flow(Some(self.finish_flow_label(then_label)));
         self.bind(Some(node_as_if_statement.then_statement));
-        self.add_antecedent(&post_if_label, self.current_flow());
+        self.add_antecedent(&post_if_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(else_label)));
         self.bind(node_as_if_statement.else_statement);
-        self.add_antecedent(&post_if_label, self.current_flow());
+        self.add_antecedent(&post_if_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_if_label)));
     }
 
@@ -342,7 +344,7 @@ impl BinderType {
         if node.ref_(self).kind() == SyntaxKind::ReturnStatement {
             self.set_has_explicit_return(Some(true));
             if let Some(current_return_target) = self.maybe_current_return_target() {
-                self.add_antecedent(&current_return_target, self.current_flow());
+                self.add_antecedent(&current_return_target.ref_(self), self.current_flow());
             }
         }
         self.set_current_flow(Some(self.unreachable_flow()));
@@ -374,7 +376,7 @@ impl BinderType {
             continue_target
         };
         if let Some(flow_label) = flow_label {
-            self.add_antecedent(&flow_label, self.current_flow());
+            self.add_antecedent(&flow_label.ref_(self), self.current_flow());
             self.set_current_flow(Some(self.unreachable_flow()));
         }
     }
@@ -415,39 +417,39 @@ impl BinderType {
         if node_as_try_statement.finally_block.is_some() {
             self.set_current_return_target(Some(return_label.clone()));
         }
-        self.add_antecedent(&exception_label, self.current_flow());
+        self.add_antecedent(&exception_label.ref_(self), self.current_flow());
         self.set_current_exception_target(Some(exception_label.clone()));
         self.bind(Some(node_as_try_statement.try_block));
-        self.add_antecedent(&normal_exit_label, self.current_flow());
+        self.add_antecedent(&normal_exit_label.ref_(self), self.current_flow());
         if node_as_try_statement.catch_clause.is_some() {
             self.set_current_flow(Some(self.finish_flow_label(exception_label.clone())));
             exception_label = self.create_branch_label();
-            self.add_antecedent(&exception_label, self.current_flow());
+            self.add_antecedent(&exception_label.ref_(self), self.current_flow());
             self.set_current_exception_target(Some(exception_label.clone()));
             self.bind(node_as_try_statement.catch_clause);
-            self.add_antecedent(&normal_exit_label, self.current_flow());
+            self.add_antecedent(&normal_exit_label.ref_(self), self.current_flow());
         }
         self.set_current_return_target(save_return_target);
         self.set_current_exception_target(save_exception_target);
         if node_as_try_statement.finally_block.is_some() {
             let finally_label = self.create_branch_label();
             finally_label
-                .as_flow_label()
+                .ref_(self).as_flow_label()
                 .set_antecedents(Some(concatenate(
                     concatenate(
                         normal_exit_label
-                            .as_flow_label()
+                            .ref_(self).as_flow_label()
                             .maybe_antecedents()
                             .clone()
                             .unwrap_or_else(|| vec![]),
                         exception_label
-                            .as_flow_label()
+                            .ref_(self).as_flow_label()
                             .maybe_antecedents()
                             .clone()
                             .unwrap_or_else(|| vec![]),
                     ),
                     return_label
-                        .as_flow_label()
+                        .ref_(self).as_flow_label()
                         .maybe_antecedents()
                         .clone()
                         .unwrap_or_else(|| vec![]),
@@ -456,17 +458,17 @@ impl BinderType {
             self.bind(node_as_try_statement.finally_block);
             if self
                 .current_flow()
-                .flags()
+                .ref_(self).flags()
                 .intersects(FlowFlags::Unreachable)
             {
                 self.set_current_flow(Some(self.unreachable_flow()));
             } else {
                 if let Some(current_return_target) = self.maybe_current_return_target() {
                     if let Some(return_label_antecedents) =
-                        return_label.as_flow_label().maybe_antecedents().clone()
+                        return_label.ref_(self).as_flow_label().maybe_antecedents().clone()
                     {
                         self.add_antecedent(
-                            &current_return_target,
+                            &current_return_target.ref_(self),
                             self.create_reduce_label(
                                 finally_label.clone(),
                                 return_label_antecedents,
@@ -477,10 +479,10 @@ impl BinderType {
                 }
                 if let Some(current_exception_target) = self.maybe_current_exception_target() {
                     if let Some(exception_label_antecedents) =
-                        exception_label.as_flow_label().maybe_antecedents().clone()
+                        exception_label.ref_(self).as_flow_label().maybe_antecedents().clone()
                     {
                         self.add_antecedent(
-                            &current_exception_target,
+                            &current_exception_target.ref_(self),
                             self.create_reduce_label(
                                 finally_label.clone(),
                                 exception_label_antecedents,
@@ -491,7 +493,7 @@ impl BinderType {
                 }
                 self.set_current_flow(Some(
                     match normal_exit_label
-                        .as_flow_label()
+                        .ref_(self).as_flow_label()
                         .maybe_antecedents()
                         .clone()
                     {
@@ -519,7 +521,7 @@ impl BinderType {
         self.set_current_break_target(Some(post_switch_label.clone()));
         self.set_pre_switch_case_flow(Some(self.current_flow()));
         self.bind(Some(node_as_switch_statement.case_block));
-        self.add_antecedent(&post_switch_label, self.current_flow());
+        self.add_antecedent(&post_switch_label.ref_(self), self.current_flow());
         let has_default = for_each_bool(
             &node_as_switch_statement.case_block.ref_(self).as_case_block().clauses,
             |c, _| c.ref_(self).kind() == SyntaxKind::DefaultClause,
@@ -527,13 +529,13 @@ impl BinderType {
         node_as_switch_statement.set_possibly_exhaustive(Some(
             !has_default
                 && post_switch_label
-                    .as_flow_label()
+                    .ref_(self).as_flow_label()
                     .maybe_antecedents()
                     .is_none(),
         ));
         if !has_default {
             self.add_antecedent(
-                &post_switch_label,
+                &post_switch_label.ref_(self),
                 self.create_flow_switch_clause(self.pre_switch_case_flow(), node, 0, 0),
             );
         }
@@ -563,7 +565,7 @@ impl BinderType {
             }
             let pre_case_label = self.create_branch_label();
             self.add_antecedent(
-                &pre_case_label,
+                &pre_case_label.ref_(self),
                 if is_narrowing_switch {
                     self.create_flow_switch_clause(
                         self.pre_switch_case_flow(),
@@ -575,14 +577,14 @@ impl BinderType {
                     self.pre_switch_case_flow()
                 },
             );
-            self.add_antecedent(&pre_case_label, fallthrough_flow);
+            self.add_antecedent(&pre_case_label.ref_(self), fallthrough_flow);
             self.set_current_flow(Some(self.finish_flow_label(pre_case_label.clone())));
             let clause = clauses[i];
             self.bind(Some(clause));
             fallthrough_flow = self.current_flow();
             if !self
                 .current_flow()
-                .flags()
+                .ref_(self).flags()
                 .intersects(FlowFlags::Unreachable)
                 && i != clauses.len() - 1
                 && matches!(self.options().ref_(self).no_fallthrough_cases_in_switch, Some(true))
@@ -652,7 +654,7 @@ impl BinderType {
             );
         }
         self.set_active_label_list(self.active_label_list().next());
-        self.add_antecedent(&post_statement_label, self.current_flow());
+        self.add_antecedent(&post_statement_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_statement_label)));
     }
 
@@ -736,7 +738,7 @@ impl BinderType {
             self.bind_assignment_target_flow(node_as_binary_expression.left);
 
             self.add_antecedent(
-                &true_target,
+                &true_target.ref_(self),
                 self.create_flow_condition(
                     FlowFlags::TrueCondition,
                     self.current_flow(),
@@ -744,7 +746,7 @@ impl BinderType {
                 ),
             );
             self.add_antecedent(
-                &false_target,
+                &false_target.ref_(self),
                 self.create_flow_condition(
                     FlowFlags::FalseCondition,
                     self.current_flow(),

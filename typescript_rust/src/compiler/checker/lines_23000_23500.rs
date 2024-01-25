@@ -1187,19 +1187,13 @@ impl TypeChecker {
         mut no_cache_check: bool,
     ) -> io::Result<bool> {
         loop {
-            if matches!(
-                self.maybe_last_flow_node().as_ref(),
-                Some(last_flow_node) if Gc::ptr_eq(
-                    &flow,
-                    last_flow_node
-                )
-            ) {
+            if self.maybe_last_flow_node() == Some(flow) {
                 return Ok(self.last_flow_node_reachable());
             }
-            let flags = flow.flags();
+            let flags = flow.ref_(self).flags();
             if flags.intersects(FlowFlags::Shared) {
                 if !no_cache_check {
-                    let id = self.get_flow_node_id(&flow);
+                    let id = self.get_flow_node_id(&flow.ref_(self));
                     let reachable = self.flow_node_reachable().get(&id).copied();
                     return Ok(if let Some(reachable) = reachable {
                         reachable
@@ -1214,9 +1208,10 @@ impl TypeChecker {
             if flags
                 .intersects(FlowFlags::Assignment | FlowFlags::Condition | FlowFlags::ArrayMutation)
             {
-                flow = flow.as_has_antecedent().antecedent();
+                flow = flow.ref_(self).as_has_antecedent().antecedent();
             } else if flags.intersects(FlowFlags::Call) {
-                let flow_as_flow_call = flow.as_flow_call();
+                let flow_ref = flow.ref_(self);
+                let flow_as_flow_call = flow_ref.as_flow_call();
                 let signature = self.get_effects_signature(flow_as_flow_call.node)?;
                 if let Some(signature) = signature.as_ref() {
                     let predicate = self.get_type_predicate_of_signature(signature)?;
@@ -1245,11 +1240,11 @@ impl TypeChecker {
                 flow = flow_as_flow_call.antecedent.clone();
             } else if flags.intersects(FlowFlags::BranchLabel) {
                 return try_some(
-                    flow.as_flow_label().maybe_antecedents().as_deref(),
+                    flow.ref_(self).as_flow_label().maybe_antecedents().as_deref(),
                     Some(|f: &Id<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
                 );
             } else if flags.intersects(FlowFlags::LoopLabel) {
-                let antecedents = flow.as_flow_label().maybe_antecedents().clone();
+                let antecedents = flow.ref_(self).as_flow_label().maybe_antecedents().clone();
                 if antecedents.is_none() {
                     return Ok(false);
                 }
@@ -1259,7 +1254,8 @@ impl TypeChecker {
                 }
                 flow = antecedents[0].clone();
             } else if flags.intersects(FlowFlags::SwitchClause) {
-                let flow_as_flow_switch_clause = flow.as_flow_switch_clause();
+                let flow_ref = flow.ref_(self);
+                let flow_as_flow_switch_clause = flow_ref.as_flow_switch_clause();
                 if flow_as_flow_switch_clause.clause_start == flow_as_flow_switch_clause.clause_end
                     && self.is_exhaustive_switch_statement(
                         flow_as_flow_switch_clause.switch_statement,
@@ -1270,7 +1266,8 @@ impl TypeChecker {
                 flow = flow_as_flow_switch_clause.antecedent.clone();
             } else if flags.intersects(FlowFlags::ReduceLabel) {
                 *self.maybe_last_flow_node() = None;
-                let flow_as_flow_reduce_label = flow.as_flow_reduce_label();
+                let flow_ref = flow.ref_(self);
+                let flow_as_flow_reduce_label = flow_ref.as_flow_reduce_label();
                 let target = &flow_as_flow_reduce_label.target;
                 let target_as_flow_label = target.as_flow_label();
                 let save_antecedents = target_as_flow_label.maybe_antecedents().clone();

@@ -904,12 +904,12 @@ impl BinderType {
     pub(super) fn check_unreachable(&self, node: Id<Node>) -> bool {
         if !self
             .current_flow()
-            .flags()
+            .ref_(self).flags()
             .intersects(FlowFlags::Unreachable)
         {
             return false;
         }
-        if Gc::ptr_eq(&self.current_flow(), &self.unreachable_flow()) {
+        if self.current_flow() == self.unreachable_flow() {
             let report_error = is_statement_but_not_declaration(&node.ref_(self))
                 && node.ref_(self).kind() != SyntaxKind::EmptyStatement
                 || node.ref_(self).kind() == SyntaxKind::ClassDeclaration

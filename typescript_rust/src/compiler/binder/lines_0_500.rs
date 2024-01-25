@@ -359,6 +359,7 @@ pub struct BinderType {
 }
 
 pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
+    let arena_ref = unsafe { &*arena };
     let wrapped = Gc::new(BinderType {
         arena,
         _rc_wrapper: Default::default(),
@@ -389,8 +390,8 @@ pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
         symbol_count: Default::default(),
         Symbol: Default::default(),
         classifiable_names: Default::default(),
-        unreachable_flow: GcCell::new(Gc::new(FlowStart::new(FlowFlags::Unreachable, None).into())),
-        reported_unreachable_flow: GcCell::new(Gc::new(
+        unreachable_flow: GcCell::new(arena_ref.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into())),
+        reported_unreachable_flow: GcCell::new(arena_ref.alloc_flow_node(
             FlowStart::new(FlowFlags::Unreachable, None).into(),
         )),
         bind_binary_expression_flow: Default::default(),

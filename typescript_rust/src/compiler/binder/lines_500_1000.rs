@@ -17,6 +17,7 @@ use crate::{
     FlowNodeBase, FlowReduceLabel, FlowStart, HasArena, HasStatementsInterface, InArena,
     ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, OptionInArena,
+    contains,
 };
 
 impl BinderType {
@@ -189,7 +190,7 @@ impl BinderType {
                     .is_none()
                 && get_immediately_invoked_function_expression(node, self).is_some();
             if !is_iife {
-                self.set_current_flow(Some(Gc::new(init_flow_node(
+                self.set_current_flow(Some(self.alloc_flow_node(init_flow_node(
                     FlowStart::new(FlowFlags::Start, None).into(),
                 ))));
                 if container_flags.intersects(
@@ -197,7 +198,7 @@ impl BinderType {
                         | ContainerFlags::IsObjectLiteralOrClassExpressionMethodOrAccessor,
                 ) {
                     self.current_flow()
-                        .as_flow_start()
+                        .ref_(self).as_flow_start()
                         .set_node(Some(node));
                 }
             }
@@ -227,7 +228,7 @@ impl BinderType {
             node.ref_(self).set_flags(node.ref_(self).flags() & !NodeFlags::ReachabilityAndEmitFlags);
             if !self
                 .current_flow()
-                .flags()
+                .ref_(self).flags()
                 .intersects(FlowFlags::Unreachable)
                 && container_flags.intersects(ContainerFlags::IsFunctionLike)
                 && node_is_present(match node.ref_(self).kind() {
@@ -259,7 +260,7 @@ impl BinderType {
             }
 
             if let Some(current_return_target) = self.maybe_current_return_target() {
-                self.add_antecedent(&current_return_target, self.current_flow());
+                self.add_antecedent(&current_return_target.ref_(self), self.current_flow());
                 self.set_current_flow(Some(self.finish_flow_label(current_return_target)));
                 if matches!(
                     node.ref_(self).kind(),
@@ -587,13 +588,13 @@ impl BinderType {
     }
 
     pub(super) fn create_branch_label(&self) -> Id<FlowNode /*FlowLabel*/> {
-        Gc::new(init_flow_node(
+        self.alloc_flow_node(init_flow_node(
             FlowLabel::new(FlowFlags::BranchLabel, None).into(),
         ))
     }
 
     pub(super) fn create_loop_label(&self) -> Id<FlowNode /*FlowLabel*/> {
-        Gc::new(init_flow_node(
+        self.alloc_flow_node(init_flow_node(
             FlowLabel::new(FlowFlags::LoopLabel, None).into(),
         ))
     }
@@ -604,7 +605,7 @@ impl BinderType {
         antecedents: Vec<Id<FlowNode>>,
         antecedent: Id<FlowNode>,
     ) -> Id<FlowNode /*FlowReduceLabel*/> {
-        Gc::new(init_flow_node(
+        self.alloc_flow_node(init_flow_node(
             FlowReduceLabel::new(FlowFlags::ReduceLabel, target, antecedents, antecedent).into(),
         ))
     }
@@ -626,8 +627,8 @@ impl BinderType {
         antecedent: Id<FlowNode>,
     ) {
         let label_as_flow_label = label.as_flow_label();
-        if !antecedent.flags().intersects(FlowFlags::Unreachable)
-            && !contains_gc(
+        if !antecedent.ref_(self).flags().intersects(FlowFlags::Unreachable)
+            && !contains(
                 label_as_flow_label.maybe_antecedents().as_deref(),
                 &antecedent,
             )
@@ -637,7 +638,7 @@ impl BinderType {
                 *label_antecedents = Some(vec![]);
             }
             label_antecedents.as_mut().unwrap().push(antecedent.clone());
-            self.set_flow_node_referenced(&antecedent);
+            self.set_flow_node_referenced(&antecedent.ref_(self));
         }
     }
 
@@ -647,7 +648,7 @@ impl BinderType {
         antecedent: Id<FlowNode>,
         expression: Option<Id<Node>>,
     ) -> Id<FlowNode> {
-        if antecedent.flags().intersects(FlowFlags::Unreachable) {
+        if antecedent.ref_(self).flags().intersects(FlowFlags::Unreachable) {
             return antecedent;
         }
         let Some(expression) = expression else {
@@ -669,8 +670,8 @@ impl BinderType {
         if !self.is_narrowing_expression(expression) {
             return antecedent;
         }
-        self.set_flow_node_referenced(&antecedent);
-        Gc::new(init_flow_node(
+        self.set_flow_node_referenced(&antecedent.ref_(self));
+        self.alloc_flow_node(init_flow_node(
             FlowCondition::new(flags, antecedent, expression).into(),
         ))
     }
