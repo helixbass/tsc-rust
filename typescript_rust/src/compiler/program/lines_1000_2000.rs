@@ -167,7 +167,8 @@ impl Program {
             return None;
         }
         self.for_each_resolved_project_reference(|resolved_ref: Gc<ResolvedProjectReference>| {
-            let out = out_file(&resolved_ref.command_line.options.ref_(self))?;
+            let resolved_ref_command_line_options_ref = resolved_ref.command_line.options.ref_(self);
+            let out = out_file(&resolved_ref_command_line_options_ref)?;
             if out.is_empty() {
                 return None;
             }

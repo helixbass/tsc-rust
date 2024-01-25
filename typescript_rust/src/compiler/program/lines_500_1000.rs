@@ -1133,8 +1133,9 @@ impl Program {
                                 return Ok(());
                             }
                             let parsed_ref = parsed_ref.as_ref().unwrap();
+                            let parsed_ref_command_line_options_ref = parsed_ref.command_line.options.ref_(self);
                             let out = out_file(
-                                &parsed_ref.command_line.options.ref_(self),
+                                &parsed_ref_command_line_options_ref,
                             );
                             if self.use_source_of_project_reference_redirect() {
                                 if out.is_non_empty() || get_emit_module_kind(&parsed_ref.command_line.options.ref_(self)) == ModuleKind::None {

@@ -488,7 +488,8 @@ impl Program {
             }
         }
 
-        let output_file = out_file(&self.options.ref_(self));
+        let options_ref = self.options.ref_(self);
+        let output_file = out_file(&options_ref);
         if !is_option_str_empty(self.options.ref_(self).ts_build_info_file.as_deref()) {
             if !is_incremental_compilation(&self.options.ref_(self)) {
                 self.create_diagnostic_for_option_name(
@@ -1596,7 +1597,8 @@ impl Program {
                     }
                 }
                 if ref_.prepend == Some(true) {
-                    let out = out_file(&options.ref_(self));
+                    let options_ref = options.ref_(self);
+                    let out = out_file(&options_ref);
                     if let Some(out) = out.filter(|out| !out.is_empty()) {
                         if !self.host().file_exists(out) {
                             self.create_diagnostic_for_reference(
@@ -1923,7 +1925,8 @@ impl Program {
             return false;
         }
 
-        let out = out_file(&self.options.ref_(self));
+        let options_ref = self.options.ref_(self);
+        let out = out_file(&options_ref);
         if let Some(out) = out {
             return self.is_same_file(&*file_path, out)
                 || self.is_same_file(
@@ -2189,17 +2192,16 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             let set_of_declaration_directories = set_of_declaration_directories.as_mut().unwrap();
             self.host_for_each_resolved_project_reference
                 .call(&mut |ref_| {
-                    let out = out_file(&ref_.command_line.options.ref_(self));
+                    let ref_command_line_options_ref = ref_.command_line.options.ref_(self);
+                    let out = out_file(&ref_command_line_options_ref);
                     if let Some(out) = out {
                         set_of_declaration_directories
                             .insert(get_directory_path(&self.host_to_path.call(out)).into());
                     } else {
-                        let declaration_dir = ref_
-                            .command_line
-                            .options
-                            .ref_(self).declaration_dir
+                        let declaration_dir = ref_command_line_options_ref
+                            .declaration_dir
                             .as_ref()
-                            .or_else(|| ref_.command_line.options.ref_(self).out_dir.as_ref());
+                            .or_else(|| ref_command_line_options_ref.out_dir.as_ref());
                         if let Some(declaration_dir) = declaration_dir {
                             set_of_declaration_directories
                                 .insert(self.host_to_path.call(declaration_dir));
@@ -2652,7 +2654,8 @@ pub(crate) fn create_prepend_nodes(
             if let Some(resolved_ref_opts) = resolved_ref_opts
             /*&& resolvedRefOpts.options*/
             {
-                let out = out_file(&resolved_ref_opts.options.ref_(arena));
+                let resolved_ref_opts_options_ref = resolved_ref_opts.options.ref_(arena);
+                let out = out_file(&resolved_ref_opts_options_ref);
                 if out.filter(|out| !out.is_empty()).is_none() {
                     continue;
                 }

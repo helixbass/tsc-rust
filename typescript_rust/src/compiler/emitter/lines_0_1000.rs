@@ -428,17 +428,17 @@ pub(crate) fn get_output_declaration_file_name(
     get_common_source_directory: Option<&mut impl FnMut() -> String>,
     arena: &impl HasArena,
 ) -> String {
+    let config_file_options_ref = config_file.options.ref_(arena);
     change_extension(
         &get_output_path_without_changing_ext(
             input_file_name,
             config_file,
             ignore_case,
-            config_file
-                .options
-                .ref_(arena).declaration_dir
+            config_file_options_ref
+                .declaration_dir
                 .as_deref()
                 .non_empty()
-                .or_else(|| config_file.options.ref_(arena).out_dir.as_deref()),
+                .or_else(|| config_file_options_ref.out_dir.as_deref()),
             get_common_source_directory,
             arena,
         ),

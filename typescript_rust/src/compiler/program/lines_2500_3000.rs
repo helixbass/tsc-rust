@@ -652,7 +652,8 @@ impl Program {
         referenced_project: &ResolvedProjectReference,
         file_name: &str,
     ) -> String {
-        let out = out_file(&referenced_project.command_line.options.ref_(self));
+        let referenced_project_command_line_options_ref = referenced_project.command_line.options.ref_(self);
+        let out = out_file(&referenced_project_command_line_options_ref);
         out.non_empty().map_or_else(
             || {
                 get_output_declaration_file_name(
@@ -742,7 +743,8 @@ impl Program {
                 let mut map_from_to_project_reference_redirect_source = HashMap::new();
                 self.for_each_resolved_project_reference(
                     |resolved_ref: Gc<ResolvedProjectReference>| -> Option<()> {
-                        let out = out_file(&resolved_ref.command_line.options.ref_(self));
+                        let resolved_ref_command_line_options_ref = resolved_ref.command_line.options.ref_(self);
+                        let out = out_file(&resolved_ref_command_line_options_ref);
                         if let Some(out) = out {
                             let output_dts = change_extension(out, Extension::Dts.to_str());
                             map_from_to_project_reference_redirect_source.insert(

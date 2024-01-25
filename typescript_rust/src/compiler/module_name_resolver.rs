@@ -1841,9 +1841,10 @@ fn try_load_module_using_paths_if_eligible(
     state: &ModuleResolutionState,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
-    let base_url = state.compiler_options.ref_(arena).base_url.as_ref();
-    let paths = state.compiler_options.ref_(arena).paths.as_ref();
-    let config_file = state.compiler_options.ref_(arena).config_file.as_ref();
+    let state_compiler_options_ref = state.compiler_options.ref_(arena);
+    let base_url = state_compiler_options_ref.base_url.as_ref();
+    let paths = state_compiler_options_ref.paths.as_ref();
+    let config_file = state_compiler_options_ref.config_file.as_ref();
     if let Some(paths) = paths {
         if !path_is_relative(module_name) {
             if state.trace_enabled {
@@ -2041,7 +2042,8 @@ fn try_load_module_using_base_url(
     state: &ModuleResolutionState,
     arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {
-    let base_url = state.compiler_options.ref_(arena).base_url.as_ref();
+    let state_compiler_options_ref = state.compiler_options.ref_(arena);
+    let base_url = state_compiler_options_ref.base_url.as_ref();
     if base_url.is_none() {
         return Ok(None);
     }
@@ -3927,6 +3929,7 @@ fn load_module_from_specific_node_modules_directory(
         let cache = cache.clone();
         let arena_raw: *const AllArenas = arena.arena();
         move |extensions, candidate, only_record_failures, state| {
+            let arena = unsafe { &*arena_raw };
             if let Some(package_info) = (*package_info).borrow().as_ref().filter(|package_info| {
                 matches!(
                     package_info.package_json_content.as_object(),
@@ -3962,7 +3965,7 @@ fn load_module_from_specific_node_modules_directory(
                                 .as_ref()
                                 .and_then(|package_info| package_info.version_paths.clone())
                                 .as_deref(),
-                            unsafe { &*arena_raw },
+                            arena,
                         )
                     })?;
             Ok(with_package_id(
@@ -4282,20 +4285,22 @@ fn classic_name_resolver_try_resolve(
         extensions,
         module_name,
         containing_directory,
-        Rc::new(
-            |extensions: Extensions,
+        Rc::new({
+            let arena_raw: *const AllArenas = arena.arena();
+            move |extensions: Extensions,
              candidate: &str,
              only_record_failures: bool,
              state: &ModuleResolutionState| {
+                let arena_ref = unsafe { &*arena };
                 Ok(load_module_from_file_no_package_id(
                     extensions,
                     candidate,
                     only_record_failures,
                     state,
-                    arena,
+                    arena_ref,
                 ))
-            },
-        ),
+            }
+        }),
         state,
         arena,
     )?;

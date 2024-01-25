@@ -809,11 +809,10 @@ impl Program {
     }
 
     pub fn get_options_diagnostics_of_config_file(&self) -> Vec<Gc<Diagnostic>> {
-        let options_config_file = self.options.ref_(self).config_file.as_ref();
-        if options_config_file.is_none() {
+        let options_ref = self.options.ref_(self);
+        let Some(options_config_file) = options_ref.config_file.as_ref() else {
             return vec![];
-        }
-        let options_config_file = options_config_file.unwrap();
+        };
         let mut diagnostics = self
             .program_diagnostics()
             .get_diagnostics(Some(&**options_config_file.ref_(self).as_source_file().file_name()));
