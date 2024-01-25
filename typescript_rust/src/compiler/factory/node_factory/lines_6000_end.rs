@@ -871,7 +871,7 @@ pub(super) fn merge_emit_node(
         dest_emit_node.comment_range = comment_range.map(Clone::clone);
     }
     if source_map_range.is_some() {
-        dest_emit_node.source_map_range = source_map_range.map(Clone::clone);
+        dest_emit_node.source_map_range = source_map_range;
     }
     if let Some(token_source_map_ranges) = token_source_map_ranges {
         dest_emit_node.token_source_map_ranges = Some(merge_token_source_map_ranges(

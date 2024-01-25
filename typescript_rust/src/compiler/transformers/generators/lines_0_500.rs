@@ -1158,7 +1158,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                             .clone_node(name)
                             .set_text_range(Some(&*name.ref_(self)), self)
                             .and_set_parent(name.ref_(self).maybe_parent(), self)
-                            .set_source_map_range(Some((&*node.ref_(self)).into()), self)
+                            .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
                             .set_comment_range((&*node.ref_(self)), self));
                     }
                 }

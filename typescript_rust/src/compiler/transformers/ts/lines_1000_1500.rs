@@ -14,7 +14,7 @@ use crate::{
     GetOrInsertDefault, HasTypeInterface, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayOrVec, NodeExt, NodeInterface, OptionTry, ScriptTarget, SignatureDeclarationInterface,
     SyntaxKind,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl TransformTypeScript {
@@ -276,7 +276,7 @@ impl TransformTypeScript {
                     ),
                 )
                 .set_emit_flags(EmitFlags::NoComments, self)
-                .set_source_map_range(Some((&move_range_past_decorators(&node.ref_(self))).into()), self),
+                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())), self),
         ))
     }
 

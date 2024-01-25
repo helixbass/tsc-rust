@@ -18,7 +18,7 @@ use crate::{
     ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
     NodeFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
     SignatureDeclarationInterface, SourceFileLike, SyntaxKind, TextRange, TransformFlags,
-    VisitResult, InArena,
+    VisitResult, HasArena, InArena,
     CoreTransformationContext,
 };
 
@@ -231,7 +231,7 @@ impl TransformTypeScript {
                 )
                 .set_original_node(Some(node), self)
                 .set_comment_range(&*node.ref_(self), self)
-                .set_source_map_range(Some((&move_range_past_decorators(&node.ref_(self))).into()), self)
+                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())), self)
                 .start_on_new_line(self);
             statements = vec![var_statement];
         }

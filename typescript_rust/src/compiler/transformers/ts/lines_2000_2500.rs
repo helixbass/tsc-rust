@@ -21,7 +21,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty,
     OuterExpressionKinds, ReadonlyTextRange, SignatureDeclarationInterface, StringOrNumber,
     SyntaxKind, VisitResult,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
     CoreTransformationContext,
 };
 
@@ -68,7 +68,7 @@ impl TransformTypeScript {
             set_comment_range(updated, &*node.ref_(self), self);
             set_source_map_range(
                 updated,
-                Some((&move_range_past_decorators(&node.ref_(self))).into()),
+                Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())),
                 self,
             );
         }
@@ -125,7 +125,7 @@ impl TransformTypeScript {
             set_comment_range(updated, &*node.ref_(self), self);
             set_source_map_range(
                 updated,
-                Some((&move_range_past_decorators(&node.ref_(self))).into()),
+                Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())),
                 self,
             );
         }
@@ -173,7 +173,7 @@ impl TransformTypeScript {
             set_comment_range(updated, &*node.ref_(self), self);
             set_source_map_range(
                 updated,
-                Some((&move_range_past_decorators(&node.ref_(self))).into()),
+                Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())),
                 self,
             );
         }
@@ -346,7 +346,7 @@ impl TransformTypeScript {
             );
             set_source_map_range(
                 updated,
-                Some((&move_range_past_modifiers(&node.ref_(self))).into()),
+                Some(self.alloc_source_map_range((&move_range_past_modifiers(&node.ref_(self))).into())),
                 self,
             );
             set_emit_flags(

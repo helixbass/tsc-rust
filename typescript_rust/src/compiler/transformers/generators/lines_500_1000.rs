@@ -12,7 +12,7 @@ use crate::{
     is_logical_operator, map, maybe_visit_node, reduce_left, visit_node, visit_nodes,
     Associativity, EmitFlags, IntoA, NamedDeclarationInterface, NodeArray, NodeArrayOrVec,
     ReadonlyTextRange, SyntaxKind, TransformFlags, VecExt,
-    InArena,
+    HasArena, InArena,
     CoreTransformationContext,
 };
 
@@ -148,7 +148,7 @@ impl TransformGenerators {
                                 self.transform_initialized_variable(variable)
                             })),
                     )
-                    .set_source_map_range(Some((&*node.ref_(self)).into()), self),
+                    .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self),
             )
         }
     }

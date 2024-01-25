@@ -8,7 +8,7 @@ use crate::{
     create_range, get_original_node_id, has_syntactic_modifier, id_text, is_static, ModifierFlags,
     NamedDeclarationInterface, Node, NodeCheckFlags, NodeExt, NodeInterface, ReadonlyTextRange,
     SyntaxKind,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
     CoreTransformationContext, TransformationContext,
 };
 
@@ -53,19 +53,19 @@ impl TransformTypeScript {
                 self.factory.get_local_name(node, None, None),
             )
             .set_source_map_range(Some(
-                (&create_range(
+                self.alloc_source_map_range((&create_range(
                     node.ref_(self).as_named_declaration()
                         .maybe_name()
                         .map_or_else(|| node.ref_(self).pos(), |node_name| node_name.ref_(self).pos()),
                     Some(node.ref_(self).end()),
                 ))
-                    .into(),
+                    .into()),
             ), self);
 
         let statement = self
             .factory
             .create_expression_statement(expression)
-            .set_source_map_range(Some((&create_range(-1, Some(node.ref_(self).end()))).into()), self);
+            .set_source_map_range(Some(self.alloc_source_map_range((&create_range(-1, Some(node.ref_(self).end()))).into())), self);
         statements.push(statement);
     }
 
@@ -124,7 +124,7 @@ impl TransformTypeScript {
                 node.ref_(self).as_named_declaration()
                     .maybe_name()
                     .refed(self).as_deref()
-                    .map(Into::into),
+                    .map(|node| self.alloc_source_map_range(node.into())),
                 self,
             )
     }

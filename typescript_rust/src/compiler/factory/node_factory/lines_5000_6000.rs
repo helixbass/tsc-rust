@@ -922,7 +922,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         is_parenthesized_expression(&node.ref_(self))
             && node_is_synthesized(&*node.ref_(self))
             && node_is_synthesized(&ReadonlyTextRangeConcrete::from_text_range(
-                &*get_source_map_range(&node.ref_(self), self),
+                &*get_source_map_range(&node.ref_(self), self).ref_(self),
             ))
             && node_is_synthesized(&ReadonlyTextRangeConcrete::from(get_comment_range(&node.ref_(self))))
             && !get_synthetic_leading_comments(&node.ref_(self)).is_non_empty()

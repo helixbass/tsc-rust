@@ -10,7 +10,7 @@ use crate::{
     start_on_new_line, visit_each_child, visit_iteration_body, visit_node, visit_nodes,
     CallBinding, HasInitializerInterface, NamedDeclarationInterface, NodeArray, NodeExt,
     NodeInterface, SyntaxKind,
-    InArena,
+    HasArena, InArena,
     CoreTransformationContext,
 };
 
@@ -420,7 +420,7 @@ impl TransformGenerators {
             .create_assignment(
                 self.factory
                     .clone_node(node_as_variable_declaration.name())
-                    .set_source_map_range(Some((&*node_as_variable_declaration.name().ref_(self)).into()), self),
+                    .set_source_map_range(Some(self.alloc_source_map_range((&*node_as_variable_declaration.name().ref_(self)).into())), self),
                 visit_node(
                     node_as_variable_declaration.maybe_initializer().unwrap(),
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -428,7 +428,7 @@ impl TransformGenerators {
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             )
-            .set_source_map_range(Some((&*node.ref_(self)).into()), self)
+            .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
     }
 
     pub(super) fn transform_and_emit_if_statement(&self, node: Id<Node> /*IfStatement*/) {

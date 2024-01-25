@@ -380,19 +380,19 @@ impl Printer {
             }
         } else {
             let source = source_map_range
-                .source
+                .ref_(self).source
                 .clone()
                 .unwrap_or_else(|| self.source_map_source());
             if node.ref_(self).kind() != SyntaxKind::NotEmittedStatement
                 && !emit_flags.intersects(EmitFlags::NoLeadingSourceMap)
-                && source_map_range.pos() >= 0
+                && source_map_range.ref_(self).pos() >= 0
             {
                 self.emit_source_pos(
                     source_map_range
-                        .source
+                        .ref_(self).source
                         .clone()
                         .unwrap_or_else(|| self.source_map_source()),
-                    self.skip_source_trivia(&source, source_map_range.pos()),
+                    self.skip_source_trivia(&source, source_map_range.ref_(self).pos()),
                 );
             }
             if emit_flags.intersects(EmitFlags::NoNestedSourceMaps) {
@@ -411,14 +411,14 @@ impl Printer {
             }
             if node.ref_(self).kind() != SyntaxKind::NotEmittedStatement
                 && !emit_flags.intersects(EmitFlags::NoTrailingSourceMap)
-                && source_map_range.end() >= 0
+                && source_map_range.ref_(self).end() >= 0
             {
                 self.emit_source_pos(
                     source_map_range
-                        .source
+                        .ref_(self).source
                         .clone()
                         .unwrap_or_else(|| self.source_map_source()),
-                    source_map_range.end(),
+                    source_map_range.ref_(self).end(),
                 );
             }
         }
@@ -469,12 +469,12 @@ impl Printer {
         });
         let source = range
             .as_ref()
-            .and_then(|range| range.source.clone())
+            .and_then(|range| range.ref_(self).source.clone())
             .unwrap_or_else(|| self.source_map_source());
 
         token_pos = self.skip_source_trivia(
             &source,
-            range.as_ref().map_or(token_pos, |range| range.pos()),
+            range.as_ref().map_or(token_pos, |range| range.ref_(self).pos()),
         );
         if !emit_flags.intersects(EmitFlags::NoTokenLeadingSourceMaps) && token_pos >= 0 {
             self.emit_source_pos(source.clone(), token_pos);
@@ -483,7 +483,7 @@ impl Printer {
         token_pos = emit_callback(token, writer, token_pos);
 
         if let Some(range) = range {
-            token_pos = range.end();
+            token_pos = range.ref_(self).end();
         }
         if !emit_flags.intersects(EmitFlags::NoTokenTrailingSourceMaps) && token_pos >= 0 {
             self.emit_source_pos(source, token_pos);

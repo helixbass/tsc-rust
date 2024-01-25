@@ -912,7 +912,7 @@ impl TransformES2017 {
                     .convert_to_assignment_element_target(node_as_variable_declaration.name()),
                 node_as_variable_declaration.maybe_initializer().unwrap(),
             ),
-            Some((&*node.ref_(self)).into()),
+            Some(self.alloc_source_map_range((&*node.ref_(self)).into())),
             self,
         );
         Ok(try_visit_node(

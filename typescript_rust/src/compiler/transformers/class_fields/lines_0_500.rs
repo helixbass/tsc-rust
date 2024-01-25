@@ -1466,7 +1466,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                             self.transform_class_fields()
                                 .factory
                                 .clone_node(class_alias)
-                                .set_source_map_range(Some((&*node.ref_(self)).into()), self)
+                                .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
                                 .set_comment_range(&*node.ref_(self), self),
                         ));
                     }

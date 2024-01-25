@@ -16,7 +16,7 @@ use crate::{
     try_visit_each_child, try_visit_node, try_visit_nodes, BoolExt, Debug_, EmitFlags,
     GetOrInsertDefault, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface,
     NodeArray, NodeExt, NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
     CoreTransformationContext,
 };
 
@@ -121,11 +121,11 @@ impl TransformTypeScript {
             if node.ref_(self).kind() == SyntaxKind::EnumDeclaration {
                 set_source_map_range(
                     statement.ref_(self).as_variable_statement().declaration_list,
-                    Some((&*node.ref_(self)).into()),
+                    Some(self.alloc_source_map_range((&*node.ref_(self)).into())),
                     self,
                 );
             } else {
-                set_source_map_range(statement, Some((&*node.ref_(self)).into()), self);
+                set_source_map_range(statement, Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self);
             }
 
             set_comment_range(statement, &*node.ref_(self), self);

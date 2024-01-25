@@ -798,8 +798,8 @@ impl TransformES2015 {
                     .create_variable_declaration_list(declarations.clone(), None)
                     .set_text_range(Some(&*node_as_for_of_statement.initializer.ref_(self)), self)
                     .set_source_map_range(Some(
-                        (&create_range(declarations[0].ref_(self).pos(), Some(last(&declarations).ref_(self).end())))
-                            .into(),
+                        self.alloc_source_map_range((&create_range(declarations[0].ref_(self).pos(), Some(last(&declarations).ref_(self).end())))
+                            .into()),
                     ), self);
 
                 statements.push(

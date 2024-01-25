@@ -19,7 +19,7 @@ use crate::{
     NodeExt, NodeInterface, PropertyDescriptorAttributesBuilder, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
     CoreTransformationContext,
 };
 
@@ -69,7 +69,7 @@ impl TransformES2015 {
                 ),
             )
             .set_emit_flags(EmitFlags::NoComments | EmitFlags::CustomPrologue, self)
-            .set_source_map_range(Some((&*node.ref_(self)).into()), self);
+            .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self);
         insert_statement_after_custom_prologue(statements, Some(capture_this_statement), self);
     }
 
@@ -333,7 +333,7 @@ impl TransformES2015 {
                     .ref_(self).as_named_declaration()
                     .maybe_name()
                     .refed(self).as_deref()
-                    .map(Into::into),
+                    .map(|node| self.alloc_source_map_range(node.into())),
                 self,
             );
 
@@ -357,7 +357,7 @@ impl TransformES2015 {
                         .ref_(self).as_named_declaration()
                         .maybe_name()
                         .refed(self).as_deref()
-                        .map(Into::into),
+                        .map(|node| self.alloc_source_map_range(node.into())),
                     self,
                 );
 
@@ -812,7 +812,7 @@ impl TransformES2015 {
             set_token_source_map_range(
                 block,
                 SyntaxKind::CloseBraceToken,
-                Some((&*close_brace_location.ref_(self)).into()),
+                Some(self.alloc_source_map_range((&*close_brace_location.ref_(self)).into())),
                 self,
             );
         }

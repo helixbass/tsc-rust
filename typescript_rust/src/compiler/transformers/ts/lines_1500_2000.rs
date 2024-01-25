@@ -18,7 +18,7 @@ use crate::{
     HasInitializerInterface, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, NonEmpty, PeekableExt, ScriptTarget, SignatureDeclarationInterface,
     SyntaxKind, TypeReferenceSerializationKind, VisitResult,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
     CoreTransformationContext,
 };
 
@@ -396,7 +396,7 @@ impl TransformTypeScript {
             set_comment_range(updated, &*node.ref_(self), self);
             set_source_map_range(
                 updated,
-                Some((&move_range_past_decorators(&node.ref_(self))).into()),
+                Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())),
                 self,
             );
         }
