@@ -1187,7 +1187,7 @@ impl TypeChecker {
         mut no_cache_check: bool,
     ) -> io::Result<bool> {
         loop {
-            if self.maybe_last_flow_node() == Some(flow) {
+            if *self.maybe_last_flow_node() == Some(flow) {
                 return Ok(self.last_flow_node_reachable());
             }
             let flags = flow.ref_(self).flags();
@@ -1269,7 +1269,8 @@ impl TypeChecker {
                 let flow_ref = flow.ref_(self);
                 let flow_as_flow_reduce_label = flow_ref.as_flow_reduce_label();
                 let target = &flow_as_flow_reduce_label.target;
-                let target_as_flow_label = target.as_flow_label();
+                let target_ref = target.ref_(self);
+                let target_as_flow_label = target_ref.as_flow_label();
                 let save_antecedents = target_as_flow_label.maybe_antecedents().clone();
                 *target_as_flow_label.maybe_antecedents_mut() =
                     Some(flow_as_flow_reduce_label.antecedents.clone());

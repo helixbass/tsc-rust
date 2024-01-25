@@ -73,7 +73,8 @@ impl TypeChecker {
             } else if flags.intersects(FlowFlags::ReduceLabel) {
                 let flow_ref = flow.ref_(self);
                 let flow_as_flow_reduce_label = flow_ref.as_flow_reduce_label();
-                let target_as_flow_label = flow_as_flow_reduce_label.target.as_flow_label();
+                let flow_target_ref = flow_as_flow_reduce_label.target.ref_(self);
+                let target_as_flow_label = flow_target_ref.as_flow_label();
                 let save_antecedents = target_as_flow_label.maybe_antecedents().clone();
                 *target_as_flow_label.maybe_antecedents_mut() =
                     Some(flow_as_flow_reduce_label.antecedents.clone());
@@ -333,7 +334,8 @@ impl GetFlowTypeOfReference {
             } else if flags.intersects(FlowFlags::ReduceLabel) {
                 let flow_ref = flow.ref_(self);
                 let flow_as_flow_reduce_label = flow_ref.as_flow_reduce_label();
-                let target = &flow_as_flow_reduce_label.target.as_flow_label();
+                let flow_target_ref = flow_as_flow_reduce_label.target.ref_(self);
+                let target = flow_target_ref.as_flow_label();
                 let save_antecedents = target.maybe_antecedents().clone();
                 *target.maybe_antecedents_mut() =
                     Some(flow_as_flow_reduce_label.antecedents.clone());
@@ -797,8 +799,9 @@ impl GetFlowTypeOfReference {
         let flow_ref = flow.ref_(self);
         let flow_as_flow_label = flow_ref.as_flow_label();
         for antecedent in flow_as_flow_label.maybe_antecedents().as_ref().unwrap() {
-            if bypass_flow.is_none() && antecedent.flags().intersects(FlowFlags::SwitchClause) && {
-                let antecendent_as_flow_switch_clause = antecedent.as_flow_switch_clause();
+            if bypass_flow.is_none() && antecedent.ref_(self).flags().intersects(FlowFlags::SwitchClause) && {
+                let antecedent_ref = antecedent.ref_(self);
+                let antecendent_as_flow_switch_clause = antecedent_ref.as_flow_switch_clause();
                 antecendent_as_flow_switch_clause.clause_start
                     == antecendent_as_flow_switch_clause.clause_end
             } {
