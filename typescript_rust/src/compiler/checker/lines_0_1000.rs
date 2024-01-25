@@ -39,6 +39,7 @@ use crate::{
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeMapperCallback,
     TypePredicate, TypePredicateKind, VarianceFlags,
     static_arena,
+    Program,
 };
 
 lazy_static! {
@@ -523,7 +524,7 @@ pub fn is_instantiated_module(
 
 pub fn create_type_checker(
     arena: *const AllArenas,
-    host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
+    host: Id<Program /*TypeCheckerHostDebuggable*/>,
     produce_diagnostics: bool,
 ) -> io::Result<Gc<TypeChecker>> {
     let arena_ref = unsafe { &*arena };

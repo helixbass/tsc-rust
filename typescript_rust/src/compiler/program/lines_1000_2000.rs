@@ -1244,7 +1244,7 @@ impl Program {
         if diagnostics_producing_type_checker.is_none() {
             *diagnostics_producing_type_checker = Some(create_type_checker(
                 &*static_arena(),
-                self.as_dyn_type_checker_host_debuggable(),
+                self.arena_id(),
                 true,
             )?);
         }
@@ -1399,11 +1399,11 @@ impl Program {
 
 #[derive(Debug, Trace, Finalize)]
 struct GetPrependNodesReadFileCallback {
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
 }
 
 impl GetPrependNodesReadFileCallback {
-    fn new(program: Gc<Box<Program>>) -> Self {
+    fn new(program: Id<Program>) -> Self {
         Self { program }
     }
 }
@@ -1430,13 +1430,13 @@ impl HasArena for GetPrependNodesReadFileCallback {
 
 #[derive(Trace, Finalize)]
 pub struct ProgramEmitHost {
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
     write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
 }
 
 impl ProgramEmitHost {
     pub fn new(
-        program: Gc<Box<Program>>,
+        program: Id<Program>,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
     ) -> Self {
         Self {
@@ -1699,11 +1699,11 @@ pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
 
 #[derive(Trace, Finalize)]
 pub struct ProgramToPath {
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
 }
 
 impl ProgramToPath {
-    pub fn new(program: Gc<Box<Program>>) -> Self {
+    pub fn new(program: Id<Program>) -> Self {
         Self { program }
     }
 }

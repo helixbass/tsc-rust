@@ -8,6 +8,7 @@ use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
+    Program,
 };
 
 #[derive(Default)]
@@ -33,6 +34,7 @@ pub struct AllArenas {
     pub compiler_options: RefCell<Arena<CompilerOptions>>,
     pub flow_nodes: RefCell<Arena<FlowNode>>,
     pub diagnostics: RefCell<Arena<Diagnostic>>,
+    pub programs: RefCell<Arena<Program>>,
 }
 
 pub trait HasArena {
@@ -180,6 +182,14 @@ pub trait HasArena {
 
     fn alloc_diagnostic(&self, diagnostic: Diagnostic) -> Id<Diagnostic> {
         self.arena().alloc_diagnostic(diagnostic)
+    }
+
+    fn program(&self, program: Id<Program>) -> Ref<Program> {
+        self.arena().program(program)
+    }
+
+    fn alloc_program(&self, program: Program) -> Id<Program> {
+        self.arena().alloc_program(program)
     }
 }
 
@@ -376,6 +386,16 @@ impl HasArena for AllArenas {
         let id = self.diagnostics.borrow_mut().alloc(diagnostic);
         id
     }
+
+    #[track_caller]
+    fn program(&self, program: Id<Program>) -> Ref<Program> {
+        Ref::map(self.programs.borrow(), |programs| &programs[program])
+    }
+
+    fn alloc_program(&self, program: Program) -> Id<Program> {
+        let id = self.programs.borrow_mut().alloc(program);
+        id
+    }
 }
 
 pub trait InArena {
@@ -526,6 +546,14 @@ impl InArena for Id<Diagnostic> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Diagnostic> {
         has_arena.diagnostic(*self)
+    }
+}
+
+impl InArena for Id<Program> {
+    type Item = Program;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Program> {
+        has_arena.program(*self)
     }
 }
 

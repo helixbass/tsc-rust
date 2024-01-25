@@ -1169,11 +1169,11 @@ impl HasArena for RedirectSourceFileSymbolOverride {
 
 #[derive(Trace, Finalize)]
 struct ProgramForEachResolvedProjectReference {
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
 }
 
 impl ProgramForEachResolvedProjectReference {
-    pub fn new(program: Gc<Box<Program>>) -> Self {
+    pub fn new(program: Id<Program>) -> Self {
         Self { program }
     }
 }

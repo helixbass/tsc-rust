@@ -386,7 +386,7 @@ pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
 
 #[derive(Trace, Finalize)]
 pub enum ProgramOrBuilderProgram {
-    Program(Gc<Box<Program>>),
+    Program(Id<Program>),
     BuilderProgram(Gc<Box<dyn BuilderProgram>>),
 }
 
@@ -406,8 +406,8 @@ impl ProgramOrBuilderProgram {
     }
 }
 
-impl From<Gc<Box<Program>>> for ProgramOrBuilderProgram {
-    fn from(value: Gc<Box<Program>>) -> Self {
+impl From<Id<Program>> for ProgramOrBuilderProgram {
+    fn from(value: Id<Program>) -> Self {
         Self::Program(value)
     }
 }
@@ -865,7 +865,7 @@ struct EmitFilesAndReportErrorsReturn {
 }
 
 fn emit_files_and_report_errors(
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     write: Option<impl FnMut(&str)>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
@@ -962,7 +962,7 @@ fn emit_files_and_report_errors(
 }
 
 pub fn emit_files_and_report_errors_and_get_exit_status(
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     write: Option<impl FnMut(&str)>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,

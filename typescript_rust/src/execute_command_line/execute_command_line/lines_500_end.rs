@@ -107,15 +107,15 @@ pub fn execute_command_line(
 }
 
 pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
-    Program(Gc<Box<Program>>),
+    Program(Id<Program>),
     EmitAndSemanticDiagnosticsBuilderProgram(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>),
     ParsedCommandLine(Rc<ParsedCommandLine>),
 }
 
-impl From<Gc<Box<Program>>>
+impl From<Id<Program>>
     for ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine
 {
-    fn from(value: Gc<Box<Program>>) -> Self {
+    fn from(value: Id<Program>) -> Self {
         Self::Program(value)
     }
 }
@@ -269,7 +269,7 @@ pub(super) fn perform_build(
 struct BuilderProgramDummy {}
 
 impl BuilderProgram for BuilderProgramDummy {
-    fn get_program(&self) -> Gc<Box<Program>> {
+    fn get_program(&self) -> Id<Program> {
         unimplemented!()
     }
 

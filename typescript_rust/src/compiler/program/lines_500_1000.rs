@@ -850,7 +850,7 @@ fn should_program_create_new_source_files(
     })
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions, arena: &impl HasArena) -> io::Result<Gc<Box<Program>>> {
+pub fn create_program(root_names_or_options: CreateProgramOptions, arena: &impl HasArena) -> io::Result<Id<Program>> {
     let create_program_options = root_names_or_options;
     let program = Program::new(create_program_options, arena);
     program.create()?;
@@ -865,13 +865,12 @@ impl Program {
         // files: Vec<Id<Node>>,
         // current_directory: String,
         // host: Gc<Box<dyn CompilerHost>>,
-    ) -> Gc<Box<Self>> {
+    ) -> Id<Self> {
         let options = create_program_options.options.clone();
         let max_node_module_js_depth = options.ref_(arena).max_node_module_js_depth.unwrap_or(0);
-        let dyn_type_checker_host_debuggable_wrapper: Gc<Box<dyn TypeCheckerHostDebuggable>> =
-            Gc::new(Box::new(Self {
-                _rc_wrapper: Default::default(),
-                _dyn_type_checker_host_debuggable_wrapper: Default::default(),
+        let ret =
+            arena.alloc_program(Self {
+                _arena_id: Default::default(),
                 create_program_options: GcCell::new(Some(create_program_options)),
                 root_names: Default::default(),
                 options,
@@ -934,21 +933,9 @@ impl Program {
                 should_create_new_source_file: Default::default(),
                 structure_is_reused: Default::default(),
                 get_program_build_info: Default::default(),
-            }));
-        let downcasted: Gc<Box<Self>> =
-            unsafe { mem::transmute(dyn_type_checker_host_debuggable_wrapper.clone()) };
-        *downcasted
-            ._dyn_type_checker_host_debuggable_wrapper
-            .borrow_mut() = Some(dyn_type_checker_host_debuggable_wrapper);
-        downcasted.set_rc_wrapper(Some(downcasted.clone()));
-        downcasted
-    }
-
-    pub fn as_dyn_type_checker_host_debuggable(&self) -> Gc<Box<dyn TypeCheckerHostDebuggable>> {
-        self._dyn_type_checker_host_debuggable_wrapper
-            .borrow()
-            .clone()
-            .unwrap()
+            });
+        ret.ref_(arena).set_arena_id(ret);
+        ret
     }
 
     pub fn create(&self) -> io::Result<()> {
@@ -1415,12 +1402,12 @@ impl Program {
         Ok(())
     }
 
-    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Gc<Box<Program>>>) {
-        *self._rc_wrapper.borrow_mut() = rc_wrapper;
+    pub fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
-    pub fn rc_wrapper(&self) -> Gc<Box<Program>> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
     pub(super) fn root_names(&self) -> Ref<Vec<String>> {
@@ -1505,11 +1492,11 @@ impl Program {
         self.source_files_found_searching_node_modules.borrow_mut()
     }
 
-    pub(super) fn maybe_old_program(&self) -> Option<Gc<Box<Program>>> {
+    pub(super) fn maybe_old_program(&self) -> Option<Id<Program>> {
         self.old_program.borrow().clone()
     }
 
-    pub(super) fn set_old_program(&self, old_program: Option<Gc<Box<Program>>>) {
+    pub(super) fn set_old_program(&self, old_program: Option<Id<Program>>) {
         *self.old_program.borrow_mut() = old_program;
     }
 
@@ -1827,11 +1814,11 @@ impl HasArena for Program {
 
 #[derive(Trace, Finalize)]
 struct ProgramGetResolvedProjectReferences {
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
 }
 
 impl ProgramGetResolvedProjectReferences {
-    pub fn new(program: Gc<Box<Program>>) -> Self {
+    pub fn new(program: Id<Program>) -> Self {
         Self { program }
     }
 }

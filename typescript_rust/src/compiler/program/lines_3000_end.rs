@@ -2034,11 +2034,11 @@ impl GetCanonicalFileName for HostGetCanonicalFileName {
 
 #[derive(Trace, Finalize)]
 pub struct ProgramGetSymlinkCache {
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
 }
 
 impl ProgramGetSymlinkCache {
-    pub fn new(program: Gc<Box<Program>>) -> Self {
+    pub fn new(program: Id<Program>) -> Self {
         Self { program }
     }
 }
@@ -2290,7 +2290,7 @@ pub(crate) fn emit_skipped_with_no_diagnostics() -> EmitResult {
 }
 
 pub(crate) fn handle_no_emit_options(
-    program: Gc<Box<Program>>,
+    program: Id<Program>,
     source_file: Option<Id<Node> /*SourceFile*/>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,

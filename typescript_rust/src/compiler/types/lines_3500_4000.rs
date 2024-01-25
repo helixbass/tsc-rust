@@ -1604,9 +1604,7 @@ impl FilePreprocessingDiagnostics {
 
 #[derive(Trace, Finalize)]
 pub struct Program {
-    pub(crate) _rc_wrapper: GcCell<Option<Gc<Box<Program>>>>,
-    pub(crate) _dyn_type_checker_host_debuggable_wrapper:
-        GcCell<Option<Gc<Box<dyn TypeCheckerHostDebuggable>>>>,
+    pub(crate) _arena_id: GcCell<Option<Id<Program>>>,
     pub(crate) create_program_options: GcCell<Option<CreateProgramOptions>>,
     #[unsafe_ignore_trace]
     pub(crate) root_names: RefCell<Option<Vec<String>>>,
@@ -1645,7 +1643,7 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
 
-    pub(crate) old_program: GcCell<Option<Gc<Box<Program>>>>,
+    pub(crate) old_program: GcCell<Option<Id<Program>>>,
     pub(crate) host: GcCell<Option<Gc<Box<dyn CompilerHost>>>>,
     pub(crate) config_parsing_host: GcCell<Option<Gc<Box<dyn ParseConfigFileHost>>>>,
 

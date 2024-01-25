@@ -2150,7 +2150,7 @@ mod _CreateProgramOptionsDeriveTraceScope {
         #[builder(default, setter(strip_option))]
         pub host: Option<Gc<Box<dyn CompilerHost>>>,
         #[builder(default, setter(strip_option))]
-        pub old_program: Option<Gc<Box<Program>>>,
+        pub old_program: Option<Id<Program>>,
         #[builder(default, setter(strip_option))]
         pub config_file_parsing_diagnostics: Option<Vec<Id<Diagnostic>>>,
     }
