@@ -2301,8 +2301,8 @@ impl From<&'static DiagnosticMessage> for StringOrDiagnosticMessage {
 }
 
 pub trait CommandLineOptionInterface {
-    fn command_line_option_wrapper(&self) -> Gc<CommandLineOption>;
-    fn set_command_line_option_wrapper(&self, wrapper: Gc<CommandLineOption>);
+    fn arena_id(&self) -> Id<CommandLineOption>;
+    fn set_arena_id(&self, id: Id<CommandLineOption>);
     fn name(&self) -> &str;
     fn type_(&self) -> &CommandLineOptionType;
     fn is_file_path(&self) -> bool;
@@ -2347,7 +2347,7 @@ pub trait CommandLineOptionInterface {
 #[builder(setter(strip_option))]
 pub struct CommandLineOptionBase {
     #[builder(setter(skip), default)]
-    pub _command_line_option_wrapper: RefCell<Option<Gc<CommandLineOption>>>,
+    pub _arena_id: RefCell<Option<Id<CommandLineOption>>>,
     #[builder(setter(into))]
     pub name: String,
     pub type_: CommandLineOptionType,
@@ -2404,12 +2404,12 @@ pub struct CommandLineOptionBase {
 }
 
 impl CommandLineOptionInterface for CommandLineOptionBase {
-    fn command_line_option_wrapper(&self) -> Gc<CommandLineOption> {
-        self._command_line_option_wrapper.borrow().clone().unwrap()
+    fn arena_id(&self) -> Id<CommandLineOption> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
-    fn set_command_line_option_wrapper(&self, wrapper: Gc<CommandLineOption>) {
-        *self._command_line_option_wrapper.borrow_mut() = Some(wrapper);
+    fn set_arena_id(&self, wrapper: Id<CommandLineOption>) {
+        *self._arena_id.borrow_mut() = Some(wrapper);
     }
 
     fn name(&self) -> &str {
@@ -2517,8 +2517,8 @@ impl fmt::Debug for CommandLineOptionBase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CommandLineOptionBase")
             // .field(
-            //     "_command_line_option_wrapper",
-            //     &self._command_line_option_wrapper,
+            //     "_arena_id",
+            //     &self._arena_id,
             // )
             .field("name", &self.name)
             .field("type_", &self.type_)
@@ -2617,7 +2617,7 @@ pub struct AlternateModeDiagnostics {
 
 pub trait DidYouMeanOptionsDiagnostics {
     fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>>;
-    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>>;
+    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>>;
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
 }
@@ -2625,7 +2625,7 @@ pub trait DidYouMeanOptionsDiagnostics {
 #[command_line_option_type]
 pub struct TsConfigOnlyOption {
     _command_line_option_base: CommandLineOptionBase,
-    pub element_options: Option<Rc<HashMap<String, Gc<CommandLineOption>>>>,
+    pub element_options: Option<Rc<HashMap<String, Id<CommandLineOption>>>>,
     pub extra_key_diagnostics:
         Option<RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics>,
 }
@@ -2633,7 +2633,7 @@ pub struct TsConfigOnlyOption {
 impl TsConfigOnlyOption {
     pub(crate) fn new(
         command_line_option_base: CommandLineOptionBase,
-        element_options: Option<Rc<HashMap<String, Gc<CommandLineOption>>>>,
+        element_options: Option<Rc<HashMap<String, Id<CommandLineOption>>>>,
         extra_key_diagnostics: Option<
             RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics,
         >,
@@ -2692,13 +2692,13 @@ impl From<Rc<dyn ParseCommandLineWorkerDiagnostics>>
 #[derive(Debug)]
 pub struct CommandLineOptionOfListType {
     _command_line_option_base: CommandLineOptionBase,
-    pub element: Gc<CommandLineOption>,
+    pub element: Id<CommandLineOption>,
 }
 
 impl CommandLineOptionOfListType {
     pub(crate) fn new(
         command_line_option_base: CommandLineOptionBase,
-        element: Gc<CommandLineOption>,
+        element: Id<CommandLineOption>,
     ) -> Self {
         Self {
             _command_line_option_base: command_line_option_base,
@@ -2856,7 +2856,7 @@ impl CommandLineOption {
     }
 }
 
-impl TryFrom<CommandLineOptionBase> for Gc<CommandLineOption> {
+impl TryFrom<CommandLineOptionBase> for CommandLineOption {
     type Error = &'static str;
 
     fn try_from(value: CommandLineOptionBase) -> Result<Self, Self::Error> {

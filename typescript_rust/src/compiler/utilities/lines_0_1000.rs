@@ -451,7 +451,7 @@ pub fn changes_affecting_program_structure(
 pub fn options_have_changes(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
-    option_declarations: &[Gc<CommandLineOption>],
+    option_declarations: &[Id<CommandLineOption>],
 ) -> bool {
     !ptr::eq(old_options, new_options)
         && option_declarations.iter().any(|o| {

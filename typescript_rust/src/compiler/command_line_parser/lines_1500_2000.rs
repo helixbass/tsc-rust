@@ -277,7 +277,7 @@ impl DidYouMeanOptionsDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
         Some(compiler_options_alternate_mode())
     }
 
-    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>> {
+    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>> {
         option_declarations.with(|option_declarations_| option_declarations_.clone())
     }
 
@@ -322,7 +322,7 @@ pub fn parse_command_line(
 pub(crate) fn get_option_from_name(
     option_name: &str,
     allow_short: Option<bool>,
-) -> Option<Gc<CommandLineOption>> {
+) -> Option<Id<CommandLineOption>> {
     get_option_declaration_from_name(get_options_name_map, option_name, allow_short)
 }
 
@@ -330,7 +330,7 @@ pub(super) fn get_option_declaration_from_name(
     mut get_option_name_map: impl FnMut() -> Rc<OptionsNameMap>,
     option_name: &str,
     allow_short: Option<bool>,
-) -> Option<Gc<CommandLineOption>> {
+) -> Option<Id<CommandLineOption>> {
     let allow_short = allow_short.unwrap_or(false);
     let mut option_name = option_name.to_lowercase();
     let option_name_map = get_option_name_map();
@@ -398,7 +398,7 @@ impl DidYouMeanOptionsDiagnostics for BuildOptionsDidYouMeanDiagnostics {
         Some(build_options_alternate_mode())
     }
 
-    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>> {
+    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>> {
         build_opts.with(|build_opts_| build_opts_.clone())
     }
 
@@ -695,8 +695,8 @@ pub(crate) fn try_read_file(
 }
 
 pub(super) fn command_line_options_to_map(
-    options: &[Gc<CommandLineOption>],
-) -> HashMap<String, Gc<CommandLineOption>> {
+    options: &[Id<CommandLineOption>],
+) -> HashMap<String, Id<CommandLineOption>> {
     array_to_map(
         options,
         |option| Some(get_option_name(option).to_owned()),
@@ -721,7 +721,7 @@ impl DidYouMeanOptionsDiagnostics for TypeAcquisitionDidYouMeanDiagnostics {
         None
     }
 
-    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>> {
+    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>> {
         type_acquisition_declarations
             .with(|type_acquisition_declarations_| type_acquisition_declarations_.clone())
     }
@@ -775,7 +775,7 @@ impl DidYouMeanOptionsDiagnostics for WatchOptionsDidYouMeanDiagnostics {
         None
     }
 
-    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>> {
+    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>> {
         options_for_watch.with(|options_for_watch_| options_for_watch_.clone())
     }
 
@@ -810,10 +810,10 @@ pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLin
 }
 
 thread_local! {
-    static command_line_compiler_options_map_cache: RefCell<Option<Rc<HashMap<String, Gc<CommandLineOption>>>>> = RefCell::new(None);
+    static command_line_compiler_options_map_cache: RefCell<Option<Rc<HashMap<String, Id<CommandLineOption>>>>> = RefCell::new(None);
 }
 
-pub(super) fn get_command_line_compiler_options_map() -> Rc<HashMap<String, Gc<CommandLineOption>>>
+pub(super) fn get_command_line_compiler_options_map() -> Rc<HashMap<String, Id<CommandLineOption>>>
 {
     command_line_compiler_options_map_cache.with(|command_line_compiler_options_map_cache_| {
         let mut command_line_compiler_options_map_cache_ =
@@ -832,10 +832,10 @@ pub(super) fn get_command_line_compiler_options_map() -> Rc<HashMap<String, Gc<C
 }
 
 thread_local! {
-    static command_line_watch_options_map_cache: RefCell<Option<Rc<HashMap<String, Gc<CommandLineOption>>>>> = RefCell::new(None);
+    static command_line_watch_options_map_cache: RefCell<Option<Rc<HashMap<String, Id<CommandLineOption>>>>> = RefCell::new(None);
 }
 
-pub(super) fn get_command_line_watch_options_map() -> Rc<HashMap<String, Gc<CommandLineOption>>> {
+pub(super) fn get_command_line_watch_options_map() -> Rc<HashMap<String, Id<CommandLineOption>>> {
     command_line_watch_options_map_cache.with(|command_line_watch_options_map_cache_| {
         let mut command_line_watch_options_map_cache_ =
             command_line_watch_options_map_cache_.borrow_mut();
@@ -853,10 +853,10 @@ pub(super) fn get_command_line_watch_options_map() -> Rc<HashMap<String, Gc<Comm
 }
 
 thread_local! {
-    static command_line_type_acquisition_map_cache: RefCell<Option<Rc<HashMap<String, Gc<CommandLineOption>>>>> = RefCell::new(None);
+    static command_line_type_acquisition_map_cache: RefCell<Option<Rc<HashMap<String, Id<CommandLineOption>>>>> = RefCell::new(None);
 }
 
-pub(super) fn get_command_line_type_acquisition_map() -> Rc<HashMap<String, Gc<CommandLineOption>>>
+pub(super) fn get_command_line_type_acquisition_map() -> Rc<HashMap<String, Id<CommandLineOption>>>
 {
     command_line_type_acquisition_map_cache.with(|command_line_type_acquisition_map_cache_| {
         let mut command_line_type_acquisition_map_cache_ =
@@ -877,9 +877,9 @@ pub(super) fn get_command_line_type_acquisition_map() -> Rc<HashMap<String, Gc<C
 
 pub(super) const tsconfig_root_options_dummy_name: &str = "TSCONFIG ROOT OPTIONS";
 thread_local! {
-    static _tsconfig_root_options: RefCell<Option<Gc<CommandLineOption>>> = RefCell::new(None);
+    static _tsconfig_root_options: RefCell<Option<Id<CommandLineOption>>> = RefCell::new(None);
 }
-pub(super) fn get_tsconfig_root_options_map() -> Gc<CommandLineOption> {
+pub(super) fn get_tsconfig_root_options_map() -> Id<CommandLineOption> {
     _tsconfig_root_options.with(|tsconfig_root_options| {
         let mut tsconfig_root_options = tsconfig_root_options.borrow_mut();
         if tsconfig_root_options.is_none() {
@@ -1066,7 +1066,7 @@ pub(super) fn convert_config_file_to_object(
         .statements()
         .get(0)
         .map(|statement| statement.ref_(arena).as_expression_statement().expression);
-    let known_root_options: Option<Gc<CommandLineOption>> = if report_options_errors {
+    let known_root_options: Option<Id<CommandLineOption>> = if report_options_errors {
         Some(get_tsconfig_root_options_map())
     } else {
         None

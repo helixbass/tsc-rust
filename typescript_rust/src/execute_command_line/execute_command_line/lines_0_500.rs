@@ -154,7 +154,7 @@ pub(super) fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuild
     options.pretty(arena).unwrap()
 }
 
-pub(super) fn get_options_for_help(command_line: &ParsedCommandLine, arena: &impl HasArena) -> Vec<Gc<CommandLineOption>> {
+pub(super) fn get_options_for_help(command_line: &ParsedCommandLine, arena: &impl HasArena) -> Vec<Id<CommandLineOption>> {
     option_declarations.with(|option_declarations_| {
         if matches!(command_line.options.ref_(arena).all, Some(true)) {
             sort(option_declarations_, |a, b| {
@@ -162,7 +162,7 @@ pub(super) fn get_options_for_help(command_line: &ParsedCommandLine, arena: &imp
             })
             .to_vec()
         } else {
-            filter(option_declarations_, |v: &Gc<CommandLineOption>| {
+            filter(option_declarations_, |v: &Id<CommandLineOption>| {
                 v.show_in_simplified_help_view()
             })
         }
@@ -515,7 +515,7 @@ pub(super) fn get_possible_values(option: &CommandLineOption) -> String {
 
 pub(super) fn generate_group_option_output(
     sys: &dyn System,
-    options_list: &[Gc<CommandLineOption>],
+    options_list: &[Id<CommandLineOption>],
 ) -> Vec<String> {
     let mut max_length = 0;
     for option in options_list {
@@ -548,7 +548,7 @@ pub(super) fn generate_group_option_output(
 pub(super) fn generate_section_options_output(
     sys: &dyn System,
     section_name: &str,
-    options: &[Gc<CommandLineOption>],
+    options: &[Id<CommandLineOption>],
     sub_category: bool,
     before_options_description: Option<&str>,
     after_options_description: Option<&str>,
@@ -604,7 +604,7 @@ pub(super) fn generate_section_options_output(
     res
 }
 
-pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Gc<CommandLineOption>]) {
+pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Id<CommandLineOption>]) {
     let colors = create_colors(sys);
     let mut output = get_header(
         sys,
@@ -713,9 +713,9 @@ pub(super) fn example(
 
 pub(super) fn print_all_help(
     sys: &dyn System,
-    compiler_options: &[Gc<CommandLineOption>],
-    build_options: &[Gc<CommandLineOption>],
-    watch_options: &[Gc<CommandLineOption>],
+    compiler_options: &[Id<CommandLineOption>],
+    build_options: &[Id<CommandLineOption>],
+    watch_options: &[Id<CommandLineOption>],
 ) {
     let mut output = get_header(
         sys,
@@ -762,7 +762,7 @@ pub(super) fn print_all_help(
     }
 }
 
-pub(super) fn print_build_help(sys: &dyn System, build_options: &[Gc<CommandLineOption>]) {
+pub(super) fn print_build_help(sys: &dyn System, build_options: &[Id<CommandLineOption>]) {
     let mut output = get_header(
         sys,
         &format!(

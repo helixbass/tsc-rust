@@ -13,7 +13,7 @@ use crate::{
 };
 
 thread_local! {
-    pub(crate) static compile_on_save_command_line_option_: Gc<CommandLineOption> =
+    pub(crate) static compile_on_save_command_line_option_: Id<CommandLineOption> =
         CommandLineOptionBaseBuilder::default()
             .name("compileOnSave".to_string())
             .type_(CommandLineOptionType::Boolean)
@@ -21,7 +21,7 @@ thread_local! {
         .build().unwrap().try_into().unwrap();
 }
 
-pub(crate) fn compile_on_save_command_line_option() -> Gc<CommandLineOption> {
+pub(crate) fn compile_on_save_command_line_option() -> Id<CommandLineOption> {
     compile_on_save_command_line_option_
         .with(|compile_on_save_command_line_option| compile_on_save_command_line_option.clone())
 }
@@ -128,7 +128,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static options_for_watch: GcVec<Gc<CommandLineOption>> = vec![
+    pub(crate) static options_for_watch: GcVec<Id<CommandLineOption>> = vec![
         CommandLineOptionBaseBuilder::default()
             .name("watchFile".to_string())
             .type_(CommandLineOptionType::Map(
@@ -211,7 +211,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static common_options_with_build: Vec<Gc<CommandLineOption>> = vec![
+    pub(crate) static common_options_with_build: Vec<Id<CommandLineOption>> = vec![
     CommandLineOptionBaseBuilder::default()
             .name("help".to_string())
             .type_(CommandLineOptionType::Boolean)
@@ -342,7 +342,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static target_option_declaration: Gc<CommandLineOption /*CommandLineOptionOfCustomType*/> =
+    pub(crate) static target_option_declaration: Id<CommandLineOption /*CommandLineOptionOfCustomType*/> =
     CommandLineOptionBaseBuilder::default()
             .name("target".to_string())
             .type_(CommandLineOptionType::Map(
@@ -373,7 +373,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static command_options_without_build: Vec<Gc<CommandLineOption>> = vec![
+    pub(crate) static command_options_without_build: Vec<Id<CommandLineOption>> = vec![
     CommandLineOptionBaseBuilder::default()
             .name("all".to_string())
             .type_(CommandLineOptionType::Boolean)

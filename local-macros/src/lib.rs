@@ -3185,12 +3185,12 @@ fn get_command_line_option_struct_interface_impl(
         "CommandLineOptionInterface" => {
             quote! {
                 impl crate::CommandLineOptionInterface for #command_line_option_type_name {
-                    fn command_line_option_wrapper(&self) -> ::gc::Gc<crate::CommandLineOption> {
-                        self.#first_field_name.command_line_option_wrapper()
+                    fn arena_id(&self) -> ::id_arena::Id<crate::CommandLineOption> {
+                        self.#first_field_name.arena_id()
                     }
 
-                    fn set_command_line_option_wrapper(&self, wrapper: ::gc::Gc<crate::CommandLineOption>) {
-                        self.#first_field_name.set_command_line_option_wrapper(wrapper)
+                    fn set_arena_id(&self, id: ::id_arena::Id<crate::CommandLineOption>) {
+                        self.#first_field_name.set_arena_id(id)
                     }
 
                     fn name(&self) -> &str {
@@ -3300,15 +3300,15 @@ fn get_command_line_option_enum_interface_impl(
         "CommandLineOptionInterface" => {
             quote! {
                 impl crate::CommandLineOptionInterface for #command_line_option_type_name {
-                    fn command_line_option_wrapper(&self) -> ::gc::Gc<crate::CommandLineOption> {
+                    fn arena_id(&self) -> ::id_arena::Id<crate::CommandLineOption> {
                         match self {
-                            #(#command_line_option_type_name::#variant_names(nested) => nested.command_line_option_wrapper()),*
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.arena_id()),*
                         }
                     }
 
-                    fn set_command_line_option_wrapper(&self, wrapper: ::gc::Gc<crate::CommandLineOption>) {
+                    fn set_arena_id(&self, id: ::id_arena::Id<crate::CommandLineOption>) {
                         match self {
-                            #(#command_line_option_type_name::#variant_names(nested) => nested.set_command_line_option_wrapper(wrapper)),*
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.set_arena_id(id)),*
                         }
                     }
 
@@ -3548,14 +3548,6 @@ pub fn command_line_option_type(attr: TokenStream, item: TokenStream) -> TokenSt
 
         quote! {
             #into_implementations
-
-            impl ::std::convert::From<#command_line_option_type_name> for ::gc::Gc<crate::CommandLineOption> {
-                fn from(concrete: #command_line_option_type_name) -> Self {
-                    let rc = ::gc::Gc::new(#construct_variant);
-                    crate::CommandLineOptionInterface::set_command_line_option_wrapper(&*rc, rc.clone());
-                    rc
-                }
-            }
         }
     } else {
         quote! {}
