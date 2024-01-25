@@ -594,21 +594,9 @@ impl From<&Node> for SourceMapRange {
     }
 }
 
-impl From<&Node> for Gc<SourceMapRange> {
-    fn from(value: &Node) -> Self {
-        Gc::new(value.into())
-    }
-}
-
 impl From<&BaseTextRange> for SourceMapRange {
     fn from(value: &BaseTextRange) -> Self {
         Self::new(value.pos(), value.end(), None)
-    }
-}
-
-impl From<&BaseTextRange> for Gc<SourceMapRange> {
-    fn from(value: &BaseTextRange) -> Self {
-        Gc::new(value.into())
     }
 }
 
@@ -796,8 +784,8 @@ pub struct EmitNode {
     pub trailing_comments: Option<Vec<Rc<SynthesizedComment>>>,
     #[unsafe_ignore_trace]
     pub comment_range: Option<BaseTextRange>,
-    pub source_map_range: Option<Gc<SourceMapRange>>,
-    pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Gc<SourceMapRange>>>>,
+    pub source_map_range: Option<Id<SourceMapRange>>,
+    pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Id<SourceMapRange>>>>,
     #[unsafe_ignore_trace]
     pub constant_value: Option<StringOrNumber>,
     pub external_helpers_module_name: Option<Id<Node /*Identifier*/>>,

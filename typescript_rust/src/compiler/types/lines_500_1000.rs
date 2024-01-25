@@ -2106,7 +2106,7 @@ pub trait NodeExt {
     fn add_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self;
     fn set_original_node(self, original: Option<Id<Node>>, arena: &impl HasArena) -> Self;
     fn set_comment_range(self, range: &impl ReadonlyTextRange, arena: &impl HasArena) -> Self;
-    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>, arena: &impl HasArena) -> Self;
+    fn set_source_map_range(self, range: Option<Id<SourceMapRange>>, arena: &impl HasArena) -> Self;
     fn start_on_new_line(self, arena: &impl HasArena) -> Self;
     fn and_set_parent(self, parent: Option<Id<Node>>, arena: &impl HasArena) -> Self;
     fn set_parent_recursive(self, incremental: bool, arena: &impl HasArena) -> Self;
@@ -2167,7 +2167,7 @@ impl NodeExt for Id<Node> {
         set_comment_range(self, range, arena)
     }
 
-    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>, arena: &impl HasArena) -> Self {
+    fn set_source_map_range(self, range: Option<Id<SourceMapRange>>, arena: &impl HasArena) -> Self {
         set_source_map_range(self, range, arena)
     }
 

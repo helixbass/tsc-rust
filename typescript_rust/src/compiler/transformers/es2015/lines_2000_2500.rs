@@ -15,7 +15,7 @@ use crate::{
     HasInitializerInterface, Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayExt, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, Number, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, SourceMapRange, SyntaxKind, TransformFlags, VisitResult,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl TransformES2015 {
@@ -352,7 +352,7 @@ impl TransformES2015 {
     pub(super) fn get_range_union(
         &self,
         declarations: &[Id<Node>],
-    ) -> Gc<SourceMapRange /*TextRange*/> {
+    ) -> Id<SourceMapRange /*TextRange*/> {
         let mut pos = -1;
         let mut end = -1;
         for node in declarations {
@@ -365,7 +365,7 @@ impl TransformES2015 {
             };
             end = cmp::max(end, node.ref_(self).end());
         }
-        (&create_range(pos, Some(end))).into()
+        self.alloc_source_map_range((&create_range(pos, Some(end))).into())
     }
 
     pub(super) fn should_emit_explicit_initializer_for_let_declaration(

@@ -101,15 +101,15 @@ pub fn add_emit_flags(node: Id<Node>, emit_flags: EmitFlags, arena: &impl HasAre
     node
 }
 
-pub fn get_source_map_range(node: &Node) -> Gc<SourceMapRange> {
+pub fn get_source_map_range(node: &Node, arena: &impl HasArena) -> Id<SourceMapRange> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().source_map_range.clone())
-        .unwrap_or_else(|| node.into())
+        .unwrap_or_else(|| arena.alloc_source_map_range(node.into()))
 }
 
 pub fn set_source_map_range(
     node: Id<Node>,
-    range: Option<Gc<SourceMapRange>>,
+    range: Option<Id<SourceMapRange>>,
     arena: &impl HasArena,
 ) -> Id<Node> {
     get_or_create_emit_node(node, arena)
@@ -121,7 +121,7 @@ pub fn set_source_map_range(
 pub fn set_token_source_map_range(
     node: Id<Node>,
     token: SyntaxKind,
-    range: Option<Gc<SourceMapRange>>,
+    range: Option<Id<SourceMapRange>>,
     arena: &impl HasArena,
 ) -> Id<Node> {
     let emit_node = get_or_create_emit_node(node, arena);

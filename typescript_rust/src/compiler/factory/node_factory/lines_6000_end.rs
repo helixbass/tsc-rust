@@ -838,7 +838,7 @@ pub(super) fn merge_emit_node(
     let leading_comments = source_emit_node.leading_comments.as_ref();
     let trailing_comments = source_emit_node.trailing_comments.as_ref();
     let comment_range = source_emit_node.comment_range.as_ref();
-    let source_map_range = source_emit_node.source_map_range.as_ref();
+    let source_map_range = source_emit_node.source_map_range;
     let token_source_map_ranges = source_emit_node.token_source_map_ranges.as_ref();
     let constant_value = source_emit_node.constant_value.as_ref();
     let helpers = source_emit_node.helpers.as_ref();
@@ -897,9 +897,9 @@ pub(super) fn merge_emit_node(
 }
 
 pub(super) fn merge_token_source_map_ranges(
-    source_ranges: &HashMap<SyntaxKind, Option<Gc<SourceMapRange>>>,
-    dest_ranges: Option<&HashMap<SyntaxKind, Option<Gc<SourceMapRange>>>>,
-) -> HashMap<SyntaxKind, Option<Gc<SourceMapRange>>> {
+    source_ranges: &HashMap<SyntaxKind, Option<Id<SourceMapRange>>>,
+    dest_ranges: Option<&HashMap<SyntaxKind, Option<Id<SourceMapRange>>>>,
+) -> HashMap<SyntaxKind, Option<Id<SourceMapRange>>> {
     let mut dest_ranges =
         dest_ranges.map_or_else(|| HashMap::new(), |dest_ranges| dest_ranges.clone());
     for (key, value) in source_ranges {

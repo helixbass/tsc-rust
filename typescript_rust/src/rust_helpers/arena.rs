@@ -7,7 +7,7 @@ use once_cell::unsync::Lazy;
 use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    FileIncludeReason, System,
+    FileIncludeReason, System, SourceMapRange,
 };
 
 #[derive(Default)]
@@ -28,6 +28,7 @@ pub struct AllArenas {
     pub module_specifier_resolution_host_and_get_common_source_directories: RefCell<Arena<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
     pub file_include_reasons: RefCell<Arena<FileIncludeReason>>,
     pub systems: RefCell<Arena<Box<dyn System>>>,
+    pub source_map_ranges: RefCell<Arena<SourceMapRange>>,
 }
 
 pub trait HasArena {
@@ -135,6 +136,14 @@ pub trait HasArena {
 
     fn alloc_system(&self, system: Box<dyn System>) -> Id<Box<dyn System>> {
         self.arena().alloc_system(system)
+    }
+
+    fn source_map_range(&self, source_map_range: Id<SourceMapRange>) -> Ref<SourceMapRange> {
+        self.arena().source_map_range(source_map_range)
+    }
+
+    fn alloc_source_map_range(&self, source_map_range: SourceMapRange) -> Id<SourceMapRange> {
+        self.arena().alloc_source_map_range(source_map_range)
     }
 }
 
@@ -281,6 +290,16 @@ impl HasArena for AllArenas {
         let id = self.systems.borrow_mut().alloc(system);
         id
     }
+
+    #[track_caller]
+    fn source_map_range(&self, source_map_range: Id<SourceMapRange>) -> Ref<SourceMapRange> {
+        Ref::map(self.source_map_ranges.borrow(), |source_map_ranges| &source_map_ranges[source_map_range])
+    }
+
+    fn alloc_source_map_range(&self, source_map_range: SourceMapRange) -> Id<SourceMapRange> {
+        let id = self.source_map_ranges.borrow_mut().alloc(source_map_range);
+        id
+    }
 }
 
 pub trait InArena {
@@ -391,6 +410,14 @@ impl InArena for Id<Box<dyn System>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn System>> {
         has_arena.system(*self)
+    }
+}
+
+impl InArena for Id<SourceMapRange> {
+    type Item = SourceMapRange;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SourceMapRange> {
+        has_arena.source_map_range(*self)
     }
 }
 

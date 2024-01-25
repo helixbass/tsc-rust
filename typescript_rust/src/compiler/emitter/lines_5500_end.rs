@@ -346,7 +346,7 @@ impl Printer {
 
     pub(super) fn emit_source_maps_before_node(&self, node: Id<Node>) {
         let emit_flags = get_emit_flags(&node.ref_(self));
-        let source_map_range = get_source_map_range(&node.ref_(self));
+        let source_map_range = get_source_map_range(&node.ref_(self), self);
 
         if is_unparsed_source(&node.ref_(self)) {
             Debug_.assert_is_defined(
@@ -403,7 +403,7 @@ impl Printer {
 
     pub(super) fn emit_source_maps_after_node(&self, node: Id<Node>) {
         let emit_flags = get_emit_flags(&node.ref_(self));
-        let source_map_range = get_source_map_range(&node.ref_(self));
+        let source_map_range = get_source_map_range(&node.ref_(self), self);
 
         if !is_unparsed_source(&node.ref_(self)) {
             if emit_flags.intersects(EmitFlags::NoNestedSourceMaps) {

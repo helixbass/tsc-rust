@@ -232,7 +232,7 @@ impl TransformES2015 {
         let member_ref = member.ref_(self);
         let member_as_method_declaration = member_ref.as_method_declaration();
         let comment_range: ReadonlyTextRangeConcrete = get_comment_range(&member.ref_(self)).into();
-        let source_map_range = get_source_map_range(&member.ref_(self));
+        let source_map_range = get_source_map_range(&member.ref_(self), self);
         let member_function = self.transform_function_like_to_expression(
             member,
             Some(&*member.ref_(self)),
@@ -309,7 +309,7 @@ impl TransformES2015 {
                 self.transform_accessors_to_expression(receiver, accessors, container, false)?,
             )
             .set_emit_flags(EmitFlags::NoComments, self)
-            .set_source_map_range(Some(get_source_map_range(&accessors.first_accessor.ref_(self))), self))
+            .set_source_map_range(Some(get_source_map_range(&accessors.first_accessor.ref_(self), self)), self))
     }
 
     pub(super) fn transform_accessors_to_expression(
@@ -370,7 +370,7 @@ impl TransformES2015 {
                     Option::<Id<Node>>::None,
                     Some(container),
                 )?
-                .set_source_map_range(Some(get_source_map_range(&get_accessor.ref_(self))), self)
+                .set_source_map_range(Some(get_source_map_range(&get_accessor.ref_(self), self)), self)
                 .set_emit_flags(EmitFlags::NoLeadingComments, self);
             let getter = self
                 .factory
@@ -389,7 +389,7 @@ impl TransformES2015 {
                     Option::<Id<Node>>::None,
                     Some(container),
                 )?
-                .set_source_map_range(Some(get_source_map_range(&set_accessor.ref_(self))), self)
+                .set_source_map_range(Some(get_source_map_range(&set_accessor.ref_(self), self)), self)
                 .set_emit_flags(EmitFlags::NoLeadingComments, self);
             let setter = self
                 .factory
