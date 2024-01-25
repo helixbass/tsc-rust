@@ -35,7 +35,7 @@ impl TypeChecker {
     pub(super) fn infer_from_annotated_parameters(
         &self,
         signature: &Signature,
-        context: Gc<Signature>,
+        context: Id<Signature>,
         inference_context: &InferenceContext,
     ) -> io::Result<()> {
         let len = signature.parameters().len()

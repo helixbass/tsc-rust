@@ -508,8 +508,8 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let mut mapper: Option<Id<TypeMapper>> = None;
         let mut members: Gc<GcCell<SymbolTable>>;
-        let mut call_signatures: Vec<Gc<Signature>>;
-        let mut construct_signatures: Vec<Gc<Signature>>;
+        let mut call_signatures: Vec<Id<Signature>>;
+        let mut construct_signatures: Vec<Id<Signature>>;
         let mut index_infos: Vec<Gc<IndexInfo>>;
         if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.ref_(self).maybe_symbol() {
@@ -734,7 +734,7 @@ impl TypeChecker {
     pub(super) fn create_union_signature(
         &self,
         signature: &Signature,
-        union_signatures: Vec<Gc<Signature>>,
+        union_signatures: Vec<Id<Signature>>,
     ) -> Signature {
         let mut result = self.clone_signature(signature);
         result.composite_signatures = Some(union_signatures);
@@ -746,9 +746,9 @@ impl TypeChecker {
 
     pub(super) fn get_optional_call_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         call_chain_flags: SignatureFlags,
-    ) -> Gc<Signature> {
+    ) -> Id<Signature> {
         if signature.flags & SignatureFlags::CallChainFlags == call_chain_flags {
             return signature;
         }
@@ -900,7 +900,7 @@ impl TypeChecker {
     pub(super) fn get_default_construct_signatures(
         &self,
         class_type: Id<Type>, /*InterfaceType*/
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
         let base_signatures =
             self.get_signatures_of_type(base_constructor_type, SignatureKind::Construct)?;
@@ -936,7 +936,7 @@ impl TypeChecker {
         let is_java_script = is_in_js_file(Some(&base_type_node.ref_(self)));
         let type_arguments = self.type_arguments_from_type_reference_node(base_type_node)?;
         let type_arg_count = length(type_arguments.as_deref());
-        let mut result: Vec<Gc<Signature>> = vec![];
+        let mut result: Vec<Id<Signature>> = vec![];
         for base_sig in base_signatures {
             let min_type_argument_count =
                 self.get_min_type_argument_count(base_sig.maybe_type_parameters().as_deref());
@@ -977,12 +977,12 @@ impl TypeChecker {
 
     pub(super) fn find_matching_signature(
         &self,
-        signature_list: &[Gc<Signature>],
-        signature: Gc<Signature>,
+        signature_list: &[Id<Signature>],
+        signature: Id<Signature>,
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         for s in signature_list {
             if self.compare_signatures_identical(
                 s.clone(),
@@ -1007,10 +1007,10 @@ impl TypeChecker {
 
     pub(super) fn find_matching_signatures(
         &self,
-        signature_lists: &[Vec<Gc<Signature>>],
-        signature: Gc<Signature>,
+        signature_lists: &[Vec<Id<Signature>>],
+        signature: Id<Signature>,
         list_index: usize,
-    ) -> io::Result<Option<Vec<Gc<Signature>>>> {
+    ) -> io::Result<Option<Vec<Id<Signature>>>> {
         if signature.maybe_type_parameters().is_some() {
             if list_index > 0 {
                 return Ok(None);
@@ -1031,7 +1031,7 @@ impl TypeChecker {
             }
             return Ok(Some(vec![signature]));
         }
-        let mut result: Option<Vec<Gc<Signature>>> = None;
+        let mut result: Option<Vec<Id<Signature>>> = None;
         for (i, signature_list) in signature_lists.iter().enumerate() {
             let match_ = return_ok_default_if_none!(if i == list_index {
                 Some(signature.clone())
@@ -1048,9 +1048,9 @@ impl TypeChecker {
 
     pub(super) fn get_union_signatures(
         &self,
-        signature_lists: &[Vec<Gc<Signature>>],
-    ) -> io::Result<Vec<Gc<Signature>>> {
-        let mut result: Option<Vec<Gc<Signature>>> = None;
+        signature_lists: &[Vec<Id<Signature>>],
+    ) -> io::Result<Vec<Id<Signature>>> {
+        let mut result: Option<Vec<Id<Signature>>> = None;
         let mut index_with_length_over_one: Option<isize> = None;
         for (i, signature_list) in signature_lists.iter().enumerate() {
             if signature_list.is_empty() {
@@ -1077,7 +1077,7 @@ impl TypeChecker {
                         if union_signatures.len() > 1 {
                             let mut this_parameter = signature.maybe_this_parameter().clone();
                             let first_this_parameter_of_union_signatures =
-                                for_each(&union_signatures, |sig: &Gc<Signature>, _| {
+                                for_each(&union_signatures, |sig: &Id<Signature>, _| {
                                     sig.maybe_this_parameter().clone()
                                 });
                             if let Some(first_this_parameter_of_union_signatures) =
@@ -1086,7 +1086,7 @@ impl TypeChecker {
                                 let this_type = self.get_intersection_type(
                                     &try_map_defined(
                                         Some(&union_signatures),
-                                        |sig: &Gc<Signature>, _| {
+                                        |sig: &Id<Signature>, _| {
                                             sig.maybe_this_parameter().try_map(|this_parameter| {
                                                 self.get_type_of_symbol(this_parameter)
                                             })
@@ -1121,7 +1121,7 @@ impl TypeChecker {
             } else {
                 0
             }];
-            let mut results: Option<Vec<Gc<Signature>>> = Some(master_list.clone());
+            let mut results: Option<Vec<Id<Signature>>> = Some(master_list.clone());
             for signatures in signature_lists {
                 if !ptr::eq(signatures, master_list) {
                     let signature = signatures.get(0);
@@ -1131,7 +1131,7 @@ impl TypeChecker {
                         signature.maybe_type_parameters().as_ref(),
                         Some(signature_type_parameters) if try_some(
                             results.as_deref(),
-                            Some(|s: &Gc<Signature>| -> io::Result<bool> {
+                            Some(|s: &Id<Signature>| -> io::Result<bool> {
                                 Ok(
                                     matches!(
                                         s.maybe_type_parameters().as_ref(),
@@ -1148,7 +1148,7 @@ impl TypeChecker {
                     } else {
                         try_maybe_map(
                             results.as_ref(),
-                            |sig: &Gc<Signature>, _| -> io::Result<_> {
+                            |sig: &Id<Signature>, _| -> io::Result<_> {
                                 Ok(Gc::new(self.combine_signatures_of_union_members(
                                     sig.clone(),
                                     signature.clone(),

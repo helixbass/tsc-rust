@@ -304,10 +304,10 @@ pub struct TypeChecker {
 
     pub(crate) no_type_predicate: Option<Gc<TypePredicate>>,
 
-    pub(crate) any_signature: Option<Gc<Signature>>,
-    pub(crate) unknown_signature: Option<Gc<Signature>>,
-    pub(crate) resolving_signature: Option<Gc<Signature>>,
-    pub(crate) silent_never_signature: Option<Gc<Signature>>,
+    pub(crate) any_signature: Option<Id<Signature>>,
+    pub(crate) unknown_signature: Option<Id<Signature>>,
+    pub(crate) resolving_signature: Option<Id<Signature>>,
+    pub(crate) silent_never_signature: Option<Id<Signature>>,
 
     pub(crate) enum_number_index_info: Option<Gc<IndexInfo>>,
 

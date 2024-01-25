@@ -231,7 +231,7 @@ impl NodeBuilder {
 
     pub(super) fn signature_to_signature_declaration_helper(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         kind: SyntaxKind,
         context: &NodeBuilderContext,
         options: Option<SignatureToSignatureDeclarationOptions<impl Fn(Id<Symbol>)>>,

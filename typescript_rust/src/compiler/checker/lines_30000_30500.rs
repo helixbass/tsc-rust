@@ -24,10 +24,10 @@ impl TypeChecker {
     pub(super) fn get_candidate_for_overload_failure(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates: &mut Vec<Gc<Signature>>,
+        candidates: &mut Vec<Id<Signature>>,
         args: &[Id<Node /*Expression*/>],
         has_candidates_out_array: bool,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         Debug_.assert(!candidates.is_empty(), None);
         self.check_node_deferred(node);
         Ok(
@@ -46,9 +46,9 @@ impl TypeChecker {
 
     pub(super) fn create_union_of_signatures_for_overload_failure(
         &self,
-        candidates: &[Gc<Signature>],
-    ) -> io::Result<Gc<Signature>> {
-        let this_parameters = map_defined(Some(candidates), |c: &Gc<Signature>, _| {
+        candidates: &[Id<Signature>],
+    ) -> io::Result<Id<Signature>> {
+        let this_parameters = map_defined(Some(candidates), |c: &Id<Signature>, _| {
             c.maybe_this_parameter().clone()
         });
         let mut this_parameter: Option<Id<Symbol>> = None;
@@ -66,12 +66,12 @@ impl TypeChecker {
         let MinAndMax {
             min: min_argument_count,
             max: max_non_rest_param,
-        } = min_and_max(candidates, |candidate: &Gc<Signature>| {
+        } = min_and_max(candidates, |candidate: &Id<Signature>| {
             self.get_num_non_rest_parameters(candidate)
         });
         let mut parameters: Vec<Id<Symbol>> = vec![];
         for i in 0..max_non_rest_param {
-            let symbols = map_defined(Some(candidates), |s: &Gc<Signature>, _| {
+            let symbols = map_defined(Some(candidates), |s: &Id<Signature>, _| {
                 if signature_has_rest_parameter(s) {
                     if i < s.parameters().len() - 1 {
                         Some(s.parameters()[i].clone())
@@ -89,12 +89,12 @@ impl TypeChecker {
             Debug_.assert(!symbols.is_empty(), None);
             parameters.push(self.create_combined_symbol_from_types(
                 &symbols,
-                &try_map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
+                &try_map_defined(Some(candidates), |candidate: &Id<Signature>, _| {
                     self.try_get_type_at_position(candidate, i)
                 })?,
             )?);
         }
-        let rest_parameter_symbols = map_defined(Some(candidates), |c: &Gc<Signature>, _| {
+        let rest_parameter_symbols = map_defined(Some(candidates), |c: &Id<Signature>, _| {
             if signature_has_rest_parameter(c) {
                 Some(last(c.parameters()).clone())
             } else {
@@ -105,7 +105,7 @@ impl TypeChecker {
         if !rest_parameter_symbols.is_empty() {
             let type_ = self.create_array_type(
                 self.get_union_type(
-                    &try_map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
+                    &try_map_defined(Some(candidates), |candidate: &Id<Signature>, _| {
                         self.try_get_rest_type_of_signature(candidate)
                     })?,
                     Some(UnionReduction::Subtype),
@@ -122,7 +122,7 @@ impl TypeChecker {
         }
         if candidates
             .into_iter()
-            .any(|candidate: &Gc<Signature>| signature_has_literal_types(candidate))
+            .any(|candidate: &Id<Signature>| signature_has_literal_types(candidate))
         {
             flags |= SignatureFlags::HasLiteralTypes;
         }
@@ -186,9 +186,9 @@ impl TypeChecker {
     pub(super) fn pick_longest_candidate_signature(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates: &mut Vec<Gc<Signature>>,
+        candidates: &mut Vec<Id<Signature>>,
         args: &[Id<Node /*Expression*/>],
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let best_index = self.get_longest_candidate_index(
             candidates,
             match self.apparent_argument_count() {
@@ -256,9 +256,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
         type_parameters: &[Id<Type /*TypeParameter*/>],
-        candidate: Gc<Signature>,
+        candidate: Id<Signature>,
         args: &[Id<Node /*Expression*/>],
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let inference_context = self.create_inference_context(
             type_parameters,
             Some(candidate.clone()),
@@ -284,7 +284,7 @@ impl TypeChecker {
 
     pub(super) fn get_longest_candidate_index(
         &self,
-        candidates: &[Gc<Signature>],
+        candidates: &[Id<Signature>],
         args_count: usize,
     ) -> io::Result<usize> {
         let mut max_params_index: Option<usize> = None;
@@ -311,9 +311,9 @@ impl TypeChecker {
     pub(super) fn resolve_call_expression(
         &self,
         node: Id<Node>, /*CallExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
         if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
@@ -494,7 +494,7 @@ impl TypeChecker {
 
     pub(super) fn is_generic_function_returning_function(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
     ) -> io::Result<bool> {
         let signature_type_parameters_is_some = signature.maybe_type_parameters().is_some();
         Ok(signature_type_parameters_is_some
@@ -531,9 +531,9 @@ impl TypeChecker {
     pub(super) fn resolve_new_expression(
         &self,
         node: Id<Node>, /*NewExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_new_expression = node_ref.as_new_expression();
         if let Some(node_arguments) = node_as_new_expression.arguments.as_ref() {

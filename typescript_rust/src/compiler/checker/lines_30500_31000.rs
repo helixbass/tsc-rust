@@ -126,9 +126,9 @@ impl TypeChecker {
     pub(super) fn resolve_tagged_template_expression(
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         let tag_type =
@@ -209,9 +209,9 @@ impl TypeChecker {
     pub(super) fn resolve_decorator(
         &self,
         node: Id<Node>, /*Decorator*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_decorator = node_ref.as_decorator();
         let func_type = self.check_expression(node_as_decorator.expression, None, None)?;
@@ -301,7 +301,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
         result: Id<Type>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let namespace = self.get_jsx_namespace_at(Some(node))?;
         let exports = namespace.try_map(|namespace| self.get_exports_of_symbol(namespace))?;
         let type_symbol = exports.as_ref().try_and_then(|exports| {
@@ -367,9 +367,9 @@ impl TypeChecker {
     pub(super) fn resolve_jsx_opening_like_element(
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(node_as_jsx_opening_like_element.tag_name()) {
@@ -468,10 +468,10 @@ impl TypeChecker {
     pub(super) fn is_potentially_uncalled_decorator(
         &self,
         decorator: Id<Node>, /*Decorator*/
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
     ) -> bool {
         !signatures.is_empty()
-            && every(signatures, |signature: &Gc<Signature>, _| {
+            && every(signatures, |signature: &Id<Signature>, _| {
                 signature.min_argument_count() == 0
                     && !signature_has_rest_parameter(signature)
                     && signature.parameters().len()
@@ -482,9 +482,9 @@ impl TypeChecker {
     pub(super) fn resolve_signature(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         Ok(match node.ref_(self).kind() {
             SyntaxKind::CallExpression => {
                 self.resolve_call_expression(node, candidates_out_array, check_mode)?
@@ -511,9 +511,9 @@ impl TypeChecker {
     pub(super) fn get_resolved_signature_(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let links = self.get_node_links(node);
         let cached = (*links).borrow().resolved_signature.clone();
         if let Some(cached) = cached.as_ref().filter(|cached| {
@@ -906,7 +906,7 @@ impl TypeChecker {
 
     pub(super) fn check_deprecated_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<()> {
         if let Some(signature_declaration) =

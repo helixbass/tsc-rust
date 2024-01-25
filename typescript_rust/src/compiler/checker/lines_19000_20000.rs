@@ -1323,7 +1323,7 @@ impl CheckTypeRelatedTo {
                 ))
             {
                 let construct_signature_to_string =
-                    |signature: Gc<Signature>| -> io::Result<String> {
+                    |signature: Id<Signature>| -> io::Result<String> {
                         self.type_checker.signature_to_string_(
                             signature,
                             Option::<Id<Node>>::None,
@@ -1488,8 +1488,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn signature_related_to(
         &self,
-        source: Gc<Signature>,
-        target: Gc<Signature>,
+        source: Id<Signature>,
+        target: Id<Signature>,
         erase: bool,
         report_errors: bool,
         incompatible_reporter: fn(&Self, Id<Type>, Id<Type>) -> io::Result<()>,

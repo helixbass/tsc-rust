@@ -128,7 +128,7 @@ impl TypeChecker {
         &self,
         element_type: Id<Type>,
         caller: Id<Node>, /*JsxOpeningLikeElement*/
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         if element_type
             .ref_(self)
             .flags()

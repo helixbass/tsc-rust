@@ -435,7 +435,7 @@ impl TypeChecker {
     pub(super) fn get_argument_arity_error(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
         args: &[Id<Node /*Expression*/>],
     ) -> io::Result<Id<Diagnostic>> {
         let spread_index = self.get_spread_argument_index(args);
@@ -454,7 +454,7 @@ impl TypeChecker {
         let mut max_below = UsizeOrNegativeInfinity::NegativeInfinity;
         let mut min_above = usize::MAX;
 
-        let mut closest_signature: Option<Gc<Signature>> = None;
+        let mut closest_signature: Option<Id<Signature>> = None;
         for sig in signatures {
             let min_parameter = self.get_min_argument_count(sig, None)?;
             let max_parameter = self.get_parameter_count(sig)?;
@@ -480,7 +480,7 @@ impl TypeChecker {
         }
         let has_rest_parameter = try_some(
             Some(signatures),
-            Some(|signature: &Gc<Signature>| self.has_effective_rest_parameter(signature)),
+            Some(|signature: &Id<Signature>| self.has_effective_rest_parameter(signature)),
         )?;
         let parameter_range = if has_rest_parameter {
             min.to_string()
@@ -608,7 +608,7 @@ impl TypeChecker {
     pub(super) fn get_type_argument_arity_error(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
         type_arguments: &NodeArray, /*<TypeNode>*/
     ) -> Id<Diagnostic> {
         let arg_count = type_arguments.len();
@@ -686,12 +686,12 @@ impl TypeChecker {
     pub(super) fn resolve_call(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        signatures: &[Gc<Signature>],
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        signatures: &[Id<Signature>],
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
         fallback_error: Option<&'static DiagnosticMessage>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let is_tagged_template = node.ref_(self).kind() == SyntaxKind::TaggedTemplateExpression;
         let is_decorator = node.ref_(self).kind() == SyntaxKind::Decorator;
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(&node.ref_(self));
@@ -746,10 +746,10 @@ impl TypeChecker {
             CheckMode::Normal
         };
 
-        let mut candidates_for_argument_error: Option<Vec<Gc<Signature>>> = None;
-        let mut candidate_for_argument_arity_error: Option<Gc<Signature>> = None;
-        let mut candidate_for_type_argument_error: Option<Gc<Signature>> = None;
-        let mut result: Option<Gc<Signature>> = None;
+        let mut candidates_for_argument_error: Option<Vec<Id<Signature>>> = None;
+        let mut candidate_for_argument_arity_error: Option<Id<Signature>> = None;
+        let mut candidate_for_type_argument_error: Option<Id<Signature>> = None;
+        let mut result: Option<Id<Signature>> = None;
 
         let signature_help_trailing_comma = check_mode.intersects(CheckMode::IsForSignatureHelp)
             && node.ref_(self).kind() == SyntaxKind::CallExpression
@@ -992,7 +992,7 @@ impl TypeChecker {
                 )?;
             } else {
                 let signatures_with_correct_type_argument_arity =
-                    filter(signatures, |s: &Gc<Signature>| {
+                    filter(signatures, |s: &Id<Signature>| {
                         self.has_correct_type_argument_arity(s, type_arguments.as_deref())
                     });
                 if signatures_with_correct_type_argument_arity.is_empty() {
@@ -1027,9 +1027,9 @@ impl TypeChecker {
 
     pub(super) fn add_implementation_success_elaboration(
         &self,
-        candidates_for_argument_error: &mut Option<Vec<Gc<Signature>>>,
-        candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
-        candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
+        candidates_for_argument_error: &mut Option<Vec<Id<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Id<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Id<Signature>>,
         type_arguments: Option<&NodeArray>,
         node: Id<Node>,
         args: &[Id<Node>],
@@ -1106,18 +1106,18 @@ impl TypeChecker {
 
     pub(super) fn choose_overload(
         &self,
-        candidates_for_argument_error: &mut Option<Vec<Gc<Signature>>>,
-        candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
-        candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
+        candidates_for_argument_error: &mut Option<Vec<Id<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Id<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Id<Signature>>,
         type_arguments: Option<&NodeArray>,
         node: Id<Node>,
         args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
-        candidates: &mut Vec<Gc<Signature>>,
+        candidates: &mut Vec<Id<Signature>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         is_single_non_generic_candidate: bool,
         signature_help_trailing_comma: Option<bool>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
         *candidates_for_argument_error = None;
         *candidate_for_argument_arity_error = None;
@@ -1167,7 +1167,7 @@ impl TypeChecker {
                 continue;
             }
 
-            let mut check_candidate: Gc<Signature>;
+            let mut check_candidate: Id<Signature>;
             let mut inference_context: Option<Gc<InferenceContext>> = None;
 
             if let Some(ref candidate_type_parameters) = candidate.maybe_type_parameters().clone() {
@@ -1348,7 +1348,7 @@ struct ResolveCallOverloadContainingMessageChain {
     #[unsafe_ignore_trace]
     i: Rc<Cell<usize>>,
     candidates_len: usize,
-    c: Gc<Signature>,
+    c: Id<Signature>,
 }
 
 impl ResolveCallOverloadContainingMessageChain {
@@ -1356,7 +1356,7 @@ impl ResolveCallOverloadContainingMessageChain {
         type_checker: Gc<TypeChecker>,
         i: Rc<Cell<usize>>,
         candidates_len: usize,
-        c: Gc<Signature>,
+        c: Id<Signature>,
     ) -> Self {
         Self {
             type_checker,

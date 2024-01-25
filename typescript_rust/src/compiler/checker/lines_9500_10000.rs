@@ -733,12 +733,12 @@ impl TypeChecker {
         type_: Id<Type>,
         type_argument_nodes: Option<&[Id<Node /*TypeNode*/>]>,
         location: Id<Node>,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         let type_arg_count = length(type_argument_nodes);
         let is_javascript = is_in_js_file(Some(&location.ref_(self)));
         Ok(filter(
             &self.get_signatures_of_type(type_, SignatureKind::Construct)?,
-            |sig: &Gc<Signature>| {
+            |sig: &Id<Signature>| {
                 (is_javascript
                     || type_arg_count
                         >= self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref()))
@@ -752,7 +752,7 @@ impl TypeChecker {
         type_: Id<Type>,
         type_argument_nodes: Option<&[Id<Node /*TypeNode*/>]>,
         location: Id<Node>,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         let signatures =
             self.get_constructors_for_type_arguments(type_, type_argument_nodes, location)?;
         let type_arguments =
@@ -760,7 +760,7 @@ impl TypeChecker {
                 self.get_type_from_type_node_(type_argument_node)
             })
             .transpose()?;
-        try_map(&signatures, |sig: &Gc<Signature>, _| -> io::Result<_> {
+        try_map(&signatures, |sig: &Id<Signature>, _| -> io::Result<_> {
             Ok(
                 if some(
                     sig.maybe_type_parameters().as_deref(),

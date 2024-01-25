@@ -674,8 +674,8 @@ impl TypeChecker {
 
     pub(super) fn apply_to_return_types(
         &self,
-        source: Gc<Signature>,
-        target: Gc<Signature>,
+        source: Id<Signature>,
+        target: Id<Signature>,
         mut callback: impl FnMut(Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<()> {
         let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
@@ -706,7 +706,7 @@ impl TypeChecker {
     pub(super) fn create_inference_context(
         &self,
         type_parameters: &[Id<Type /*TypeParameter*/>],
-        signature: Option<Gc<Signature>>,
+        signature: Option<Id<Signature>>,
         flags: InferenceFlags,
         compare_types: Option<Gc<Box<dyn TypeComparer>>>,
     ) -> Gc<InferenceContext> {
@@ -751,7 +751,7 @@ impl TypeChecker {
     pub(super) fn create_inference_context_worker(
         &self,
         inferences: Vec<Gc<InferenceInfo>>,
-        signature: Option<Gc<Signature>>,
+        signature: Option<Id<Signature>>,
         flags: InferenceFlags,
         compare_types: Gc<Box<dyn TypeComparer>>,
     ) -> Gc<InferenceContext> {

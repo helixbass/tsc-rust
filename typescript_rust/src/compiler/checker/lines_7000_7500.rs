@@ -971,7 +971,7 @@ impl SymbolTableToDeclarationStatements {
                         .type_checker
                         .get_signatures_of_type(static_type, SignatureKind::Construct)?,
                 ),
-                Option::<fn(&Gc<Signature>) -> bool>::None,
+                Option::<fn(&Id<Signature>) -> bool>::None,
             );
         let constructors = if is_non_constructable_class_like_in_js_file {
             vec![get_factory().create_constructor_declaration(

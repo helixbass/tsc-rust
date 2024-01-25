@@ -647,8 +647,8 @@ impl InferTypes {
 
     pub(super) fn infer_from_signature(
         &self,
-        source: Gc<Signature>,
-        target: Gc<Signature>,
+        source: Id<Signature>,
+        target: Id<Signature>,
         skip_parameters: bool,
     ) -> io::Result<()> {
         if !skip_parameters {
@@ -879,7 +879,7 @@ impl TypeChecker {
     pub(super) fn get_covariant_inference(
         &self,
         inference: &InferenceInfo,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
     ) -> io::Result<Id<Type>> {
         let inference_candidates = inference.maybe_candidates();
         let candidates = self

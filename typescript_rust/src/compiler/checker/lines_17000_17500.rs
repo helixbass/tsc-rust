@@ -222,7 +222,7 @@ impl TypeChecker {
         {
             if try_some(
                 Some(&signatures),
-                Some(|s: &Gc<Signature>| -> io::Result<_> {
+                Some(|s: &Id<Signature>| -> io::Result<_> {
                     let return_type = self.get_return_type_of_signature(s.clone())?;
                     Ok(!return_type
                         .ref_(self)
@@ -305,7 +305,7 @@ impl TypeChecker {
         let return_expression = node_as_arrow_function.maybe_body().unwrap();
         let source_return = self.get_return_type_of_signature(source_sig)?;
         let target_return = self.get_union_type(
-            &try_map(&target_signatures, |signature: &Gc<Signature>, _| {
+            &try_map(&target_signatures, |signature: &Id<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             })?,
             None,
@@ -1191,8 +1191,8 @@ impl TypeChecker {
 
     pub(super) fn is_signature_assignable_to(
         &self,
-        source: Gc<Signature>,
-        target: Gc<Signature>,
+        source: Id<Signature>,
+        target: Id<Signature>,
         ignore_return_types: bool,
     ) -> io::Result<bool> {
         Ok(self.compare_signatures_related(
@@ -1213,7 +1213,7 @@ impl TypeChecker {
         )? != Ternary::False)
     }
 
-    pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> io::Result<bool> {
+    pub(super) fn is_any_signature(&self, s: Id<Signature>) -> io::Result<bool> {
         let s_type_parameters_is_none = s.maybe_type_parameters().is_none();
         Ok(s_type_parameters_is_none
             && match *s.maybe_this_parameter() {
@@ -1231,8 +1231,8 @@ impl TypeChecker {
 
     pub(super) fn compare_signatures_related(
         &self,
-        mut source: Gc<Signature>,
-        mut target: Gc<Signature>,
+        mut source: Id<Signature>,
+        mut target: Id<Signature>,
         check_mode: SignatureCheckMode,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,

@@ -249,8 +249,8 @@ impl TypeChecker {
         &self,
         type_: &(impl ResolvableTypeInterface + ResolvedTypeInterface),
         members: Gc<GcCell<SymbolTable>>,
-        call_signatures: Vec<Gc<Signature>>,
-        construct_signatures: Vec<Gc<Signature>>,
+        call_signatures: Vec<Id<Signature>>,
+        construct_signatures: Vec<Id<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
     ) -> io::Result<()> /*-> BaseObjectType*/ {
         type_.resolve(
@@ -276,8 +276,8 @@ impl TypeChecker {
         &self,
         symbol: Option<Id<Symbol>>,
         members: Gc<GcCell<SymbolTable>>,
-        call_signatures: Vec<Gc<Signature>>,
-        construct_signatures: Vec<Gc<Signature>>,
+        call_signatures: Vec<Id<Signature>>,
+        construct_signatures: Vec<Id<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
     ) -> io::Result<BaseObjectType> {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
@@ -295,8 +295,8 @@ impl TypeChecker {
         &self,
         symbol: Option<Id<Symbol>>,
         members: Gc<GcCell<SymbolTable>>,
-        call_signatures: Vec<Gc<Signature>>,
-        construct_signatures: Vec<Gc<Signature>>,
+        call_signatures: Vec<Id<Signature>>,
+        construct_signatures: Vec<Id<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
     ) -> io::Result<Id<Type>> {
         Ok(self.alloc_type(
@@ -334,7 +334,7 @@ impl TypeChecker {
             return Ok(type_object_type_without_abstract_construct_signatures);
         }
         let construct_signatures =
-            filter(&*type_construct_signatures, |signature: &Gc<Signature>| {
+            filter(&*type_construct_signatures, |signature: &Id<Signature>| {
                 !signature.flags.intersects(SignatureFlags::Abstract)
             });
         if type_construct_signatures.len() == construct_signatures.len() {

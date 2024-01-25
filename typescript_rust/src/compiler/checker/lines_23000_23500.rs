@@ -1026,7 +1026,7 @@ impl TypeChecker {
     pub(super) fn get_effects_signature(
         &self,
         node: Id<Node>, /*CallExpression*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let links = self.get_node_links(node);
         let mut signature = (*links).borrow().effects_signature.clone();
         if signature.is_none() {
@@ -1061,7 +1061,7 @@ impl TypeChecker {
                     Some(signatures[0].clone())
                 } else if try_some(
                     Some(&signatures),
-                    Some(|signature: &Gc<Signature>| {
+                    Some(|signature: &Id<Signature>| {
                         self.has_type_predicate_or_never_return_type(signature)
                     }),
                 )? {

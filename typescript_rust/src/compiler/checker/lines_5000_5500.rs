@@ -564,13 +564,13 @@ impl NodeBuilder {
                 .ref_(self)
                 .as_resolved_type()
                 .construct_signatures(),
-            |signature: &Gc<Signature>| signature.flags.intersects(SignatureFlags::Abstract),
+            |signature: &Id<Signature>| signature.flags.intersects(SignatureFlags::Abstract),
         );
         if some(
             Some(&abstract_signatures),
-            Option::<fn(&Gc<Signature>) -> bool>::None,
+            Option::<fn(&Id<Signature>) -> bool>::None,
         ) {
-            let mut types = map(&abstract_signatures, |signature: &Gc<Signature>, _| {
+            let mut types = map(&abstract_signatures, |signature: &Id<Signature>, _| {
                 self.type_checker
                     .get_or_create_type_from_signature(signature.clone())
             });

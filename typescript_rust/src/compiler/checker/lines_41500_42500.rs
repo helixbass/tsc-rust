@@ -1038,7 +1038,7 @@ impl TypeChecker {
                                     {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                            Some(|signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 3)
                                             }),
                                         )? {
@@ -1057,7 +1057,7 @@ impl TypeChecker {
                                     {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                            Some(|signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 4)
                                             }),
                                         )? {
@@ -1074,7 +1074,7 @@ impl TypeChecker {
                                     } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                            Some(|signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 2)
                                             }),
                                         )? {

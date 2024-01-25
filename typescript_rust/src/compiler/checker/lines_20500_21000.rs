@@ -19,8 +19,8 @@ use crate::{
 impl TypeChecker {
     pub(super) fn compare_signatures_identical(
         &self,
-        mut source: Gc<Signature>,
-        target: Gc<Signature>,
+        mut source: Id<Signature>,
+        target: Id<Signature>,
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,

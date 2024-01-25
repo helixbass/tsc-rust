@@ -911,7 +911,7 @@ impl TypeChecker {
 
     pub(super) fn get_union_or_intersection_type_predicate(
         &self,
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
         kind: Option<TypeFlags>,
     ) -> io::Result<Option<TypePredicate>> {
         let mut first: Option<Gc<TypePredicate>> = None;

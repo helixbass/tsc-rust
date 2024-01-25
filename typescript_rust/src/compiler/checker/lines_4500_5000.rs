@@ -326,7 +326,7 @@ impl TypeChecker {
 
     pub(super) fn signature_to_string_(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -357,7 +357,7 @@ impl TypeChecker {
 
     pub(super) fn signature_to_string_worker(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         enclosing_declaration: Option<Id<Node>>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
@@ -606,7 +606,7 @@ impl NodeBuilder {
 
     pub fn signature_to_signature_declaration(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         kind: SyntaxKind,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,

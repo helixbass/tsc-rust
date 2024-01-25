@@ -159,9 +159,9 @@ pub struct NodeLinks {
     pub flags: NodeCheckFlags,
     pub resolved_type: Option<Id<Type>>,
     pub resolved_enum_type: Option<Id<Type>>,
-    pub resolved_signature: Option<Gc<Signature>>,
+    pub resolved_signature: Option<Id<Signature>>,
     pub resolved_symbol: Option<Id<Symbol>>,
-    pub effects_signature: Option<Gc<Signature>>,
+    pub effects_signature: Option<Id<Signature>>,
     #[unsafe_ignore_trace]
     pub enum_member_value: Option<StringOrNumber>,
     pub is_visible: Option<bool>,

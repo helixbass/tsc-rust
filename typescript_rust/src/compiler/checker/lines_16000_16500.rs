@@ -726,14 +726,14 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signatures(
         &self,
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
         mapper: Id<TypeMapper>,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         Ok(self
             .try_instantiate_list(
                 Some(signatures),
                 Some(mapper),
-                |signature: &Gc<Signature>, mapper| {
+                |signature: &Id<Signature>, mapper| {
                     Ok(Gc::new(self.instantiate_signature(
                         signature.clone(),
                         mapper.unwrap(),
@@ -984,7 +984,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         mut mapper: Id<TypeMapper>,
         erase_type_parameters: Option<bool>,
     ) -> io::Result<Signature> {

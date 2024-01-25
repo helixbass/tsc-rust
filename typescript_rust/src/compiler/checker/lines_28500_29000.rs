@@ -797,7 +797,7 @@ impl TypeChecker {
     pub(super) fn resolve_untyped_call(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         if self.call_like_expression_may_have_type_arguments(node) {
             try_maybe_for_each(
                 node.ref_(self).as_has_type_arguments().maybe_type_arguments().as_ref(),
@@ -827,15 +827,15 @@ impl TypeChecker {
     pub(super) fn resolve_error_call(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         self.resolve_untyped_call(node)?;
         Ok(self.unknown_signature())
     }
 
     pub(super) fn reorder_candidates(
         &self,
-        signatures: &[Gc<Signature>],
-        result: &mut Vec<Gc<Signature>>,
+        signatures: &[Id<Signature>],
+        result: &mut Vec<Id<Signature>>,
         call_chain_flags: SignatureFlags,
     ) -> io::Result<()> {
         let mut last_parent: Option<Id<Node>> = None;

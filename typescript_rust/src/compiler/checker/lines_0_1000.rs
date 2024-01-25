@@ -282,7 +282,7 @@ pub(crate) enum TypeSystemEntity {
     Node(Id<Node>),
     Symbol(Id<Symbol>),
     Type(Id<Type>),
-    Signature(Gc<Signature>),
+    Signature(Id<Signature>),
 }
 
 impl TypeSystemEntity {
@@ -347,8 +347,8 @@ impl From<Id<Type>> for TypeSystemEntity {
     }
 }
 
-impl From<Gc<Signature>> for TypeSystemEntity {
-    fn from(value: Gc<Signature>) -> Self {
+impl From<Id<Signature>> for TypeSystemEntity {
+    fn from(value: Id<Signature>) -> Self {
         Self::Signature(value)
     }
 }
@@ -1933,7 +1933,7 @@ impl TypeChecker {
 
     pub fn signature_to_signature_declaration(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         kind: SyntaxKind,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
@@ -2127,7 +2127,7 @@ impl TypeChecker {
 
     pub fn signature_to_string(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -2187,7 +2187,7 @@ impl TypeChecker {
 
     pub fn write_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -2261,7 +2261,7 @@ impl TypeChecker {
         ));
         let containing_call =
             find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(&node.ref_(self)), self);
-        let containing_call_resolved_signature: Option<Gc<Signature>> =
+        let containing_call_resolved_signature: Option<Id<Signature>> =
             containing_call.and_then(|containing_call| {
                 (*self.get_node_links(containing_call))
                     .borrow()
@@ -2348,9 +2348,9 @@ impl TypeChecker {
     pub fn get_resolved_signature(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         argument_count: Option<usize>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2362,9 +2362,9 @@ impl TypeChecker {
     pub fn get_resolved_signature_for_signature_help(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         argument_count: Option<usize>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2423,7 +2423,7 @@ impl TypeChecker {
     pub fn get_signature_from_declaration(
         &self,
         declaration_in: Id<Node>, /*SignatureDeclaration*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let declaration = return_ok_none_if_none!(get_parse_tree_node(
             Some(declaration_in),
             Some(|node: Id<Node>| is_function_like(Some(&node.ref_(self)))),
@@ -2747,10 +2747,10 @@ impl TypeChecker {
     pub(super) fn get_resolved_signature_worker(
         &self,
         node_in: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         argument_count: Option<usize>,
         check_mode: CheckMode,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_call_like_expression(&node.ref_(self))),
@@ -3048,19 +3048,19 @@ impl TypeChecker {
         self.no_type_predicate.as_ref().unwrap().clone()
     }
 
-    pub(super) fn any_signature(&self) -> Gc<Signature> {
+    pub(super) fn any_signature(&self) -> Id<Signature> {
         self.any_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unknown_signature(&self) -> Gc<Signature> {
+    pub(super) fn unknown_signature(&self) -> Id<Signature> {
         self.unknown_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn resolving_signature(&self) -> Gc<Signature> {
+    pub(super) fn resolving_signature(&self) -> Id<Signature> {
         self.resolving_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn silent_never_signature(&self) -> Gc<Signature> {
+    pub(super) fn silent_never_signature(&self) -> Id<Signature> {
         self.silent_never_signature.as_ref().unwrap().clone()
     }
 

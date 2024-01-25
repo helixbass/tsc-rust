@@ -81,7 +81,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_from_class_type(
         &self,
-        sig: Gc<Signature>,
+        sig: Id<Signature>,
         context: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         let ns = self.get_jsx_namespace_at(Some(context))?;
@@ -175,13 +175,13 @@ impl TypeChecker {
 
     pub(super) fn get_intersected_signatures(
         &self,
-        signatures: &[Gc<Signature>],
-    ) -> io::Result<Option<Gc<Signature>>> {
+        signatures: &[Id<Signature>],
+    ) -> io::Result<Option<Id<Signature>>> {
         Ok(
             if get_strict_option_value(&self.compiler_options.ref_(self), "noImplicitAny") {
                 try_reduce_left_no_initial_value_optional(
                     signatures,
-                    |left: Option<Gc<Signature>>, right: &Gc<Signature>, _| -> io::Result<_> {
+                    |left: Option<Id<Signature>>, right: &Id<Signature>, _| -> io::Result<_> {
                         Ok(
                             if match left.as_ref() {
                                 None => true,
@@ -354,9 +354,9 @@ impl TypeChecker {
 
     pub(super) fn combine_signatures_of_intersection_members(
         &self,
-        left: Gc<Signature>,
-        right: Gc<Signature>,
-    ) -> io::Result<Gc<Signature>> {
+        left: Id<Signature>,
+        right: Id<Signature>,
+    ) -> io::Result<Id<Signature>> {
         let type_params = left
             .maybe_type_parameters()
             .clone()
@@ -415,7 +415,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         node: Id<Node>, /*SignatureDeclaration*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
         let applicable_by_arity = try_filter(&signatures, |s| -> io::Result<_> {
             Ok(!self.is_arity_smaller(s, node)?)
@@ -460,7 +460,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_signature_for_function_like_declaration(
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         Ok(
             if is_function_expression_or_arrow_function(&node.ref_(self)) || is_object_literal_method(node, self) {
                 self.get_contextual_signature(node)?
@@ -473,7 +473,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_signature(
         &self,
         node: Id<Node>, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         Debug_.assert(
             node.ref_(self).kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
             None,
@@ -488,7 +488,7 @@ impl TypeChecker {
         if !type_.ref_(self).flags().intersects(TypeFlags::Union) {
             return self.get_contextual_call_signature(type_, node);
         }
-        let mut signature_list: Option<Vec<Gc<Signature>>> = None;
+        let mut signature_list: Option<Vec<Id<Signature>>> = None;
         let types = type_
             .ref_(self)
             .as_union_or_intersection_type_interface()

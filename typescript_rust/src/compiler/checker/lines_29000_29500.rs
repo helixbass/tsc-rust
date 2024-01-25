@@ -191,14 +191,14 @@ impl TypeChecker {
     pub(super) fn get_single_call_signature(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         self.get_single_signature(type_, SignatureKind::Call, false)
     }
 
     pub(super) fn get_single_call_or_construct_signature(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         self.get_single_signature(type_, SignatureKind::Call, false)?
             .try_or_else(|| self.get_single_signature(type_, SignatureKind::Construct, false))
     }
@@ -208,7 +208,7 @@ impl TypeChecker {
         type_: Id<Type>,
         kind: SignatureKind,
         allow_members: bool,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
             if allow_members
@@ -268,11 +268,11 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signature_in_context_of(
         &self,
-        signature: Gc<Signature>,
-        contextual_signature: Gc<Signature>,
+        signature: Id<Signature>,
+        contextual_signature: Id<Signature>,
         inference_context: Option<&InferenceContext>,
         compare_types: Option<Gc<Box<dyn TypeComparer>>>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let context = self.create_inference_context(
             &signature.maybe_type_parameters().clone().unwrap(),
             Some(signature.clone()),
@@ -330,7 +330,7 @@ impl TypeChecker {
     pub(super) fn infer_jsx_type_arguments(
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
@@ -372,7 +372,7 @@ impl TypeChecker {
     pub(super) fn infer_type_arguments(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         args: &[Id<Node /*Expression*/>],
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
@@ -785,7 +785,7 @@ impl TypeChecker {
     pub(super) fn check_applicable_signature_for_jsx_opening_like_element(
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
@@ -957,7 +957,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
         args: &[Id<Node /*Expression*/>],
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,

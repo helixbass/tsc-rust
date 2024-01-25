@@ -998,7 +998,7 @@ impl TypeChecker {
 
     pub(super) fn get_effective_first_argument_for_jsx_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         node: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         Ok(
@@ -1033,7 +1033,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_for_signature_from_member(
         &self,
-        sig: Gc<Signature>,
+        sig: Id<Signature>,
         forced_lookup_location: &str, /*__String*/
     ) -> io::Result<Option<Id<Type>>> {
         if let Some(sig_composite_signatures) = sig.composite_signatures.as_ref() {

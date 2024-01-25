@@ -172,10 +172,10 @@ pub trait ResolvedTypeInterface:
     fn properties(&self) -> GcVec<Id<Symbol>>;
     fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Id<Symbol>>>, GcVec<Id<Symbol>>>;
     fn set_properties(&self, properties: GcVec<Id<Symbol>>);
-    fn call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
-    fn set_call_signatures(&self, call_signatures: Vec<Gc<Signature>>);
-    fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
-    fn set_construct_signatures(&self, construct_signatures: Vec<Gc<Signature>>);
+    fn call_signatures(&self) -> GcCellRef<Vec<Id<Signature>>>;
+    fn set_call_signatures(&self, call_signatures: Vec<Id<Signature>>);
+    fn construct_signatures(&self) -> GcCellRef<Vec<Id<Signature>>>;
+    fn set_construct_signatures(&self, construct_signatures: Vec<Id<Signature>>);
     fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>>;
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Id<Type>>;
     fn set_object_type_without_abstract_construct_signatures(
@@ -589,17 +589,17 @@ pub struct Signature {
     min_argument_count: Option<usize>,
     #[unsafe_ignore_trace]
     resolved_min_argument_count: Cell<Option<usize>>,
-    pub target: Option<Gc<Signature>>,
+    pub target: Option<Id<Signature>>,
     pub mapper: Option<Id<TypeMapper>>,
-    pub composite_signatures: Option<Vec<Gc<Signature>>>,
+    pub composite_signatures: Option<Vec<Id<Signature>>>,
     #[unsafe_ignore_trace]
     pub composite_kind: Option<TypeFlags>,
-    erased_signature_cache: GcCell<Option<Gc<Signature>>>,
-    canonical_signature_cache: GcCell<Option<Gc<Signature>>>,
-    base_signature_cache: GcCell<Option<Gc<Signature>>>,
+    erased_signature_cache: GcCell<Option<Id<Signature>>>,
+    canonical_signature_cache: GcCell<Option<Id<Signature>>>,
+    base_signature_cache: GcCell<Option<Id<Signature>>>,
     optional_call_signature_cache: GcCell<Option<SignatureOptionalCallSignatureCache>>,
     isolated_signature_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
-    instantiations: GcCell<Option<HashMap<String, Gc<Signature>>>>,
+    instantiations: GcCell<Option<HashMap<String, Id<Signature>>>>,
 }
 
 impl Signature {
@@ -688,15 +688,15 @@ impl Signature {
             .set(Some(min_argument_count));
     }
 
-    pub fn maybe_erased_signature_cache(&self) -> GcCellRefMut<Option<Gc<Signature>>> {
+    pub fn maybe_erased_signature_cache(&self) -> GcCellRefMut<Option<Id<Signature>>> {
         self.erased_signature_cache.borrow_mut()
     }
 
-    pub fn maybe_canonical_signature_cache(&self) -> GcCellRefMut<Option<Gc<Signature>>> {
+    pub fn maybe_canonical_signature_cache(&self) -> GcCellRefMut<Option<Id<Signature>>> {
         self.canonical_signature_cache.borrow_mut()
     }
 
-    pub fn maybe_base_signature_cache(&self) -> GcCellRefMut<Option<Gc<Signature>>> {
+    pub fn maybe_base_signature_cache(&self) -> GcCellRefMut<Option<Id<Signature>>> {
         self.base_signature_cache.borrow_mut()
     }
 
@@ -710,15 +710,15 @@ impl Signature {
         self.isolated_signature_type.borrow_mut()
     }
 
-    pub fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Gc<Signature>>>> {
+    pub fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Signature>>>> {
         self.instantiations.borrow_mut()
     }
 }
 
 #[derive(Debug, Trace, Finalize)]
 pub struct SignatureOptionalCallSignatureCache {
-    pub inner: Option<Gc<Signature>>,
-    pub outer: Option<Gc<Signature>>,
+    pub inner: Option<Id<Signature>>,
+    pub outer: Option<Id<Signature>>,
 }
 
 impl SignatureOptionalCallSignatureCache {
@@ -1009,7 +1009,7 @@ pub trait TypeComparer: Trace + Finalize {
 #[derive(Trace, Finalize)]
 pub struct InferenceContext {
     inferences: GcCell<Vec<Gc<InferenceInfo>>>,
-    pub signature: Option<Gc<Signature>>,
+    pub signature: Option<Id<Signature>>,
     #[unsafe_ignore_trace]
     flags: Cell<InferenceFlags>,
     pub compare_types: Gc<Box<dyn TypeComparer>>,
@@ -1022,7 +1022,7 @@ pub struct InferenceContext {
 impl InferenceContext {
     pub fn new(
         inferences: Vec<Gc<InferenceInfo>>,
-        signature: Option<Gc<Signature>>,
+        signature: Option<Id<Signature>>,
         flags: InferenceFlags,
         compare_types: Gc<Box<dyn TypeComparer>>,
         mapper: Option<Id<TypeMapper>>,

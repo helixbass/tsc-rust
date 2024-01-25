@@ -655,7 +655,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         kind: SignatureKind,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         if type_
             .ref_(self)
             .flags()
@@ -683,7 +683,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         kind: SignatureKind,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         self.get_signatures_of_structured_type(self.get_reduced_apparent_type(type_)?, kind)
     }
 

@@ -120,8 +120,8 @@ impl TypeChecker {
 
     pub(super) fn is_implementation_compatible_with_overload(
         &self,
-        implementation: Gc<Signature>,
-        overload: Gc<Signature>,
+        implementation: Id<Signature>,
+        overload: Id<Signature>,
     ) -> io::Result<bool> {
         let erased_source = self.get_erased_signature(implementation.clone())?;
         let erased_target = self.get_erased_signature(overload.clone())?;

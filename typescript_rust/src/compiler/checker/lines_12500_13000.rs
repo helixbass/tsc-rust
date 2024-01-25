@@ -86,7 +86,7 @@ impl TypeChecker {
     pub(super) fn get_signature_from_declaration_(
         &self,
         declaration: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let links = self.get_node_links(declaration);
         if (*links).borrow().resolved_signature.is_none() {
             let mut parameters: Vec<Id<Symbol>> = vec![];
@@ -304,7 +304,7 @@ impl TypeChecker {
     pub(super) fn get_signature_of_type_tag(
         &self,
         node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         if !(is_in_js_file(Some(&node.ref_(self))) && is_function_like_declaration(&node.ref_(self))) {
             return Ok(None);
         }
@@ -398,7 +398,7 @@ impl TypeChecker {
     pub(super) fn get_signatures_of_symbol(
         &self,
         symbol: Option<Id<Symbol>>,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         let symbol = return_ok_default_if_none!(symbol);
         let symbol_ref = symbol.ref_(self);
         let symbol_declarations = symbol_ref.maybe_declarations();
@@ -406,7 +406,7 @@ impl TypeChecker {
             return Ok(vec![]);
         }
         let symbol_declarations = symbol_declarations.as_ref().unwrap();
-        let mut result: Vec<Gc<Signature>> = vec![];
+        let mut result: Vec<Id<Signature>> = vec![];
         for (i, &decl) in symbol_declarations.iter().enumerate() {
             if !is_function_like(Some(&decl.ref_(self))) {
                 continue;
@@ -585,7 +585,7 @@ impl TypeChecker {
 
     pub(super) fn get_return_type_of_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
     ) -> io::Result<Id<Type>> {
         if signature.maybe_resolved_return_type().is_none() {
             if !self.push_type_resolution(
@@ -606,7 +606,7 @@ impl TypeChecker {
                     self.get_union_or_intersection_type(
                         &try_map(
                             signature_composite_signatures,
-                            |signature: &Gc<Signature>, _| {
+                            |signature: &Id<Signature>, _| {
                                 self.get_return_type_of_signature(signature.clone())
                             },
                         )?,
@@ -724,7 +724,7 @@ impl TypeChecker {
         self.get_return_type_of_type_tag(declaration)
     }
 
-    pub(super) fn is_resolving_return_type_of_signature(&self, signature: Gc<Signature>) -> bool {
+    pub(super) fn is_resolving_return_type_of_signature(&self, signature: Id<Signature>) -> bool {
         signature.maybe_resolved_return_type().is_none()
             && self.find_resolution_cycle_start_index(
                 &signature.clone().into(),
@@ -761,11 +761,11 @@ impl TypeChecker {
 
     pub(super) fn get_signature_instantiation(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         type_arguments: Option<&[Id<Type>]>,
         is_javascript: bool,
         inferred_type_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let instantiated_signature = self
             .get_signature_instantiation_without_filling_in_type_arguments(
                 signature.clone(),
@@ -796,9 +796,9 @@ impl TypeChecker {
 
     pub(super) fn get_signature_instantiation_without_filling_in_type_arguments(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         type_arguments: Option<&[Id<Type>]>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         if signature.maybe_instantiations().is_none() {
             *signature.maybe_instantiations() = Some(HashMap::new());
         }
@@ -817,7 +817,7 @@ impl TypeChecker {
 
     pub(super) fn create_signature_instantiation(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Signature> {
         self.instantiate_signature(
@@ -840,8 +840,8 @@ impl TypeChecker {
 
     pub(super) fn get_erased_signature(
         &self,
-        signature: Gc<Signature>,
-    ) -> io::Result<Gc<Signature>> {
+        signature: Id<Signature>,
+    ) -> io::Result<Id<Signature>> {
         Ok(if signature.maybe_type_parameters().is_some() {
             if signature.maybe_erased_signature_cache().is_none() {
                 *signature.maybe_erased_signature_cache() =
@@ -855,7 +855,7 @@ impl TypeChecker {
 
     pub(super) fn create_erased_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
     ) -> io::Result<Signature> {
         self.instantiate_signature(
             signature.clone(),
@@ -866,8 +866,8 @@ impl TypeChecker {
 
     pub(super) fn get_canonical_signature(
         &self,
-        signature: Gc<Signature>,
-    ) -> io::Result<Gc<Signature>> {
+        signature: Id<Signature>,
+    ) -> io::Result<Id<Signature>> {
         Ok(if signature.maybe_type_parameters().is_some() {
             if signature.maybe_canonical_signature_cache().is_none() {
                 *signature.maybe_canonical_signature_cache() =
@@ -881,8 +881,8 @@ impl TypeChecker {
 
     pub(super) fn create_canonical_signature(
         &self,
-        signature: Gc<Signature>,
-    ) -> io::Result<Gc<Signature>> {
+        signature: Id<Signature>,
+    ) -> io::Result<Id<Signature>> {
         self.get_signature_instantiation(
             signature.clone(),
             try_maybe_map(
@@ -905,7 +905,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_base_signature(&self, signature: Gc<Signature>) -> io::Result<Gc<Signature>> {
+    pub(super) fn get_base_signature(&self, signature: Id<Signature>) -> io::Result<Id<Signature>> {
         let type_parameters = signature.maybe_type_parameters().clone();
         if let Some(ref type_parameters) = type_parameters {
             if let Some(signature_base_signature_cache) =
@@ -955,7 +955,7 @@ impl TypeChecker {
 
     pub(super) fn get_or_create_type_from_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
     ) -> Id<Type /*ObjectType*/> {
         if signature.maybe_isolated_signature_type().is_none() {
             let kind = signature

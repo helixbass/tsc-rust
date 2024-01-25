@@ -279,7 +279,7 @@ impl TypeChecker {
             .try_map(|method_type| self.get_signatures_of_type(method_type, SignatureKind::Call))?;
         if !some(
             signatures.as_deref(),
-            Option::<fn(&Gc<Signature>) -> bool>::None,
+            Option::<fn(&Id<Signature>) -> bool>::None,
         ) {
             return Ok(self.set_cached_iteration_types(
                 type_,
@@ -290,7 +290,7 @@ impl TypeChecker {
         let signatures = signatures.unwrap();
 
         let iterator_type = self.get_intersection_type(
-            &try_map(&signatures, |signature: &Gc<Signature>, _| {
+            &try_map(&signatures, |signature: &Id<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             })?,
             Option::<Id<Symbol>>::None,

@@ -164,8 +164,8 @@ impl TypeChecker {
 
     pub(super) fn combine_signatures_of_union_members(
         &self,
-        left: Gc<Signature>,
-        right: Gc<Signature>,
+        left: Id<Signature>,
+        right: Id<Signature>,
     ) -> io::Result<Signature> {
         let type_params = left
             .maybe_type_parameters()
@@ -366,8 +366,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*IntersectionType*/
     ) -> io::Result<()> {
-        let mut call_signatures: Vec<Gc<Signature>> = vec![];
-        let mut construct_signatures: Vec<Gc<Signature>> = vec![];
+        let mut call_signatures: Vec<Id<Signature>> = vec![];
+        let mut construct_signatures: Vec<Id<Signature>> = vec![];
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         let types = &type_.ref_(self).as_intersection_type().types().to_owned();
         let mixin_flags = self.find_mixins(types)?;
@@ -377,7 +377,7 @@ impl TypeChecker {
             if !mixin_flags[i] {
                 let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct)?;
                 if !signatures.is_empty() && mixin_count > 0 {
-                    signatures = try_map(&signatures, |s: &Gc<Signature>, _| -> io::Result<_> {
+                    signatures = try_map(&signatures, |s: &Id<Signature>, _| -> io::Result<_> {
                         let clone = self.clone_signature(s);
                         *clone.maybe_resolved_return_type_mut() = Some(self.include_mixin_type(
                             self.get_return_type_of_signature(s.clone())?,
@@ -418,13 +418,13 @@ impl TypeChecker {
 
     pub(super) fn append_signatures(
         &self,
-        signatures: &mut Vec<Gc<Signature>>,
-        new_signatures: &[Gc<Signature>],
+        signatures: &mut Vec<Id<Signature>>,
+        new_signatures: &[Id<Signature>],
     ) -> io::Result<()> {
         for sig in new_signatures {
             if
             /* !signatures ||*/
-            try_every(signatures, |s: &Gc<Signature>, _| -> io::Result<_> {
+            try_every(signatures, |s: &Id<Signature>, _| -> io::Result<_> {
                 Ok(self.compare_signatures_identical(
                     s.clone(),
                     sig.clone(),
@@ -679,7 +679,7 @@ impl TypeChecker {
                                 .as_object_type()
                                 .maybe_call_signatures()
                                 .as_deref(),
-                            |sig: &Gc<Signature>, _| -> io::Result<_> {
+                            |sig: &Id<Signature>, _| -> io::Result<_> {
                                 Ok(if self.is_js_constructor(sig.declaration)? {
                                     Some(Gc::new(self.create_signature(
                                         sig.declaration.clone(),
