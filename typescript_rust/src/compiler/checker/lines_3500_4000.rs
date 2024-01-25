@@ -633,7 +633,7 @@ impl TypeChecker {
                 let exports_with_duplicate = exports_with_duplicate.unwrap();
                 for &node in exports_with_duplicate {
                     self.diagnostics().add(
-                        self.alloz_diagnostic(create_diagnostic_for_node(
+                        self.alloc_diagnostic(create_diagnostic_for_node(
                             node,
                             &Diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity,
                             Some(vec![

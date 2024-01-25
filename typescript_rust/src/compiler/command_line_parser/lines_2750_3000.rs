@@ -305,7 +305,7 @@ pub(super) fn parse_own_config_of_json(
     json.insert(
         "compileOnSave".to_owned(),
         serde_json::Value::Bool(convert_compile_on_save_option_from_json(
-            &json, base_path, errors,
+            &json, base_path, errors, arena,
         )),
     );
     let mut extended_config_path: Option<String> = None;

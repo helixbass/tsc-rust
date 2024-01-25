@@ -827,7 +827,7 @@ impl BinderType {
                 .bind_diagnostics_mut()
                 .push(diag);
         } else {
-            diag.set_category(DiagnosticCategory::Suggestion);
+            diag.ref_(self).set_category(DiagnosticCategory::Suggestion);
             let file = self.file();
             let file_ref = file.ref_(self);
             let mut file_bind_suggestion_diagnostics =

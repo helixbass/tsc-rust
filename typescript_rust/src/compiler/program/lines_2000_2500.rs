@@ -23,7 +23,7 @@ use crate::{
     HasStatementsInterface, LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeFlags,
     NodeInterface, Program, ReadonlyTextRange, ResolvedProjectReference, ScriptKind, SortedArray,
     SourceFileLike, SyntaxKind,
-    InArena,
+    HasArena, InArena,
 };
 
 impl Program {

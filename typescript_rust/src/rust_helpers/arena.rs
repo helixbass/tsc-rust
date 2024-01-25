@@ -32,6 +32,7 @@ pub struct AllArenas {
     pub emit_helpers: RefCell<Arena<EmitHelper>>,
     pub compiler_options: RefCell<Arena<CompilerOptions>>,
     pub flow_nodes: RefCell<Arena<FlowNode>>,
+    pub diagnostics: RefCell<Arena<Diagnostic>>,
 }
 
 pub trait HasArena {

@@ -129,6 +129,7 @@ pub(super) fn convert_compile_on_save_option_from_json(
     json_option: &serde_json::Map<String, serde_json::Value>,
     base_path: &str,
     errors: &mut Vec<Id<Diagnostic>>,
+    arena: &impl HasArena,
 ) -> bool {
     let compile_on_save_command_line_option = compile_on_save_command_line_option();
     if !json_option.contains_key(compile_on_save_command_line_option.name()) {
@@ -139,6 +140,7 @@ pub(super) fn convert_compile_on_save_option_from_json(
         json_option.get(compile_on_save_command_line_option.name()),
         base_path,
         errors,
+        arena,
     );
     match result {
         CompilerOptionsValue::Bool(Some(true)) => true,

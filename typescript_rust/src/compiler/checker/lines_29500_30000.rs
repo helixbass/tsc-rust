@@ -651,7 +651,7 @@ impl TypeChecker {
         }
         if let UsizeOrNegativeInfinity::Usize(below_arg_count) = below_arg_count {
             if above_arg_count != usize::MAX {
-                return Gc::new(
+                return self.alloc_diagnostic(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(node, self).ref_(self),
                         type_arguments,

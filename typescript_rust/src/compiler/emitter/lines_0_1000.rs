@@ -834,7 +834,7 @@ fn emit_build_info(
         }),
         false,
         None,
-        self,
+        arena,
     )?;
 
     Ok(())
@@ -1338,7 +1338,7 @@ fn print_source_file_or_bundle(
                 &source_map,
                 false,
                 Some(&source_files),
-                self,
+                arena,
             )?;
         }
     } else {
@@ -1352,7 +1352,7 @@ fn print_source_file_or_bundle(
         &writer.ref_(arena).get_text(),
         compiler_options.emit_bom == Some(true),
         Some(&source_files),
-        self,
+        arena,
     )?;
 
     writer.ref_(arena).clear();
