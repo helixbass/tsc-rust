@@ -879,7 +879,7 @@ pub(super) const tsconfig_root_options_dummy_name: &str = "TSCONFIG ROOT OPTIONS
 thread_local! {
     static _tsconfig_root_options: RefCell<Option<Id<CommandLineOption>>> = RefCell::new(None);
 }
-pub(super) fn get_tsconfig_root_options_map() -> Id<CommandLineOption> {
+pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<CommandLineOption> {
     _tsconfig_root_options.with(|tsconfig_root_options| {
         let mut tsconfig_root_options = tsconfig_root_options.borrow_mut();
         if tsconfig_root_options.is_none() {
@@ -986,7 +986,7 @@ pub(super) fn get_tsconfig_root_options_map() -> Id<CommandLineOption> {
                                 .build().unwrap().try_into().unwrap(),
                         )
                         .into(),
-                        compile_on_save_command_line_option(),
+                        compile_on_save_command_line_option(arena),
                     ]))),
                     None,
                 )
@@ -1067,7 +1067,7 @@ pub(super) fn convert_config_file_to_object(
         .get(0)
         .map(|statement| statement.ref_(arena).as_expression_statement().expression);
     let known_root_options: Option<Id<CommandLineOption>> = if report_options_errors {
-        Some(get_tsconfig_root_options_map())
+        Some(get_tsconfig_root_options_map(arena))
     } else {
         None
     };

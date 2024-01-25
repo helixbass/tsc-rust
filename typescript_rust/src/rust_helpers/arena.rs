@@ -8,7 +8,7 @@ use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
-    Program,
+    Program, CommandLineOption, CommandLineOptionInterface,
 };
 
 #[derive(Default)]
@@ -35,6 +35,7 @@ pub struct AllArenas {
     pub flow_nodes: RefCell<Arena<FlowNode>>,
     pub diagnostics: RefCell<Arena<Diagnostic>>,
     pub programs: RefCell<Arena<Program>>,
+    pub command_line_options: RefCell<Arena<CommandLineOption>>,
 }
 
 pub trait HasArena {
@@ -190,6 +191,14 @@ pub trait HasArena {
 
     fn alloc_program(&self, program: Program) -> Id<Program> {
         self.arena().alloc_program(program)
+    }
+
+    fn command_line_option(&self, command_line_option: Id<CommandLineOption>) -> Ref<CommandLineOption> {
+        self.arena().command_line_option(command_line_option)
+    }
+
+    fn alloc_command_line_option(&self, command_line_option: CommandLineOption) -> Id<CommandLineOption> {
+        self.arena().alloc_command_line_option(command_line_option)
     }
 }
 
@@ -396,6 +405,17 @@ impl HasArena for AllArenas {
         let id = self.programs.borrow_mut().alloc(program);
         id
     }
+
+    #[track_caller]
+    fn command_line_option(&self, command_line_option: Id<CommandLineOption>) -> Ref<CommandLineOption> {
+        Ref::map(self.command_line_options.borrow(), |command_line_options| &command_line_options[command_line_option])
+    }
+
+    fn alloc_command_line_option(&self, command_line_option: CommandLineOption) -> Id<CommandLineOption> {
+        let id = self.command_line_options.borrow_mut().alloc(command_line_option);
+        id.ref_(self).set_arena_id(id);
+        id
+    }
 }
 
 pub trait InArena {
@@ -554,6 +574,14 @@ impl InArena for Id<Program> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Program> {
         has_arena.program(*self)
+    }
+}
+
+impl InArena for Id<CommandLineOption> {
+    type Item = CommandLineOption;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CommandLineOption> {
+        has_arena.command_line_option(*self)
     }
 }
 

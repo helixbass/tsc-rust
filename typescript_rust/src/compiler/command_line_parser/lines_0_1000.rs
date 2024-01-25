@@ -1,6 +1,7 @@
 use std::{collections::HashMap, iter::FromIterator, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 use indexmap::IndexMap;
 
 use super::spec_to_diagnostic;
@@ -10,20 +11,41 @@ use crate::{
     ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind,
     PollingWatchKind, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
     WatchDirectoryKind, WatchFileKind,
+    HasArena,
 };
 
-thread_local! {
-    pub(crate) static compile_on_save_command_line_option_: Id<CommandLineOption> =
+macro_rules! command_line_option_per_arena {
+    ($builder:expr, $arena:expr $(,)?) => {{
+        use std::cell::RefCell;
+        use std::collections::HashMap;
+        use id_arena::Id;
+        use crate::AllArenas;
+
+        thread_local! {
+            static PER_ARENA: RefCell<HashMap<*const AllArenas, Id<CommandLineOption>>> = RefCell::new(HashMap::new());
+        }
+
+        PER_ARENA.with(|per_arena| {
+            let mut per_arena = per_arena.borrow_mut();
+            let arena_ptr: *const AllArenas = $arena.arena();
+            *per_arena.entry(arena_ptr).or_insert_with(|| {
+                $arena.alloc_command_line_option(
+                    $builder
+                        .build().unwrap().try_into().unwrap()
+                )
+            })
+        })
+    }}
+}
+
+pub(crate) fn compile_on_save_command_line_option(arena: &impl HasArena) -> Id<CommandLineOption> {
+    command_line_option_per_arena!(
         CommandLineOptionBaseBuilder::default()
             .name("compileOnSave".to_string())
             .type_(CommandLineOptionType::Boolean)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-        .build().unwrap().try_into().unwrap();
-}
-
-pub(crate) fn compile_on_save_command_line_option() -> Id<CommandLineOption> {
-    compile_on_save_command_line_option_
-        .with(|compile_on_save_command_line_option| compile_on_save_command_line_option.clone())
+            .default_value_description(StringOrDiagnosticMessage::String("false".to_string())),
+        arena,
+    )
 }
 
 thread_local! {

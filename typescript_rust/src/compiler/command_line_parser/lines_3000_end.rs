@@ -131,7 +131,7 @@ pub(super) fn convert_compile_on_save_option_from_json(
     errors: &mut Vec<Id<Diagnostic>>,
     arena: &impl HasArena,
 ) -> bool {
-    let compile_on_save_command_line_option = compile_on_save_command_line_option();
+    let compile_on_save_command_line_option = compile_on_save_command_line_option(arena);
     if !json_option.contains_key(compile_on_save_command_line_option.name()) {
         return false;
     }
