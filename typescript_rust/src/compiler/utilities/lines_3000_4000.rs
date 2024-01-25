@@ -857,7 +857,10 @@ impl DiagnosticCollection {
     }
 
     pub fn add(&mut self, diagnostic: Id<Diagnostic>) {
-        if let Some(diagnostic_file) = diagnostic.ref_(self).maybe_file() {
+        if let Some(diagnostic_file) = {
+            let diagnostic_file = diagnostic.ref_(self).maybe_file();
+            diagnostic_file
+        } {
             let file_name = diagnostic_file.ref_(self).as_source_file().file_name().clone();
             if self
                 .file_diagnostics
