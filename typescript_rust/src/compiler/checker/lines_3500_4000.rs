@@ -744,7 +744,8 @@ impl TypeChecker {
         if let Some(links_extended_containers) = (*links).borrow().extended_containers.as_ref() {
             return Ok(links_extended_containers.clone());
         }
-        let other_files = self.host.get_source_files();
+        let host_ref = self.host.ref_(self);
+        let other_files = host_ref.get_source_files();
         for &file in &*other_files {
             if !is_external_module(&file.ref_(self)) {
                 continue;

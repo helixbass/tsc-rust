@@ -326,7 +326,7 @@ impl Program {
     ) -> io::Result<EmitResult> {
         if force_dts_emit != Some(true) {
             let result = handle_no_emit_options(
-                self.rc_wrapper(),
+                self.arena_id(),
                 source_file,
                 write_file_callback.clone(),
                 cancellation_token.clone(),
@@ -380,7 +380,7 @@ impl Program {
     }
 
     pub fn to_path_rc(&self) -> Gc<Box<dyn ToPath>> {
-        Gc::new(Box::new(ProgramToPath::new(self.rc_wrapper())))
+        Gc::new(Box::new(ProgramToPath::new(self.arena_id())))
     }
 
     pub fn get_common_source_directory(&self) -> String {
@@ -435,7 +435,7 @@ impl Program {
         let old_source_file = self
             .maybe_old_program()
             .as_ref()
-            .and_then(|old_program| old_program.get_source_file_(&file_as_source_file.file_name()));
+            .and_then(|old_program| old_program.ref_(self).get_source_file_(&file_as_source_file.file_name()));
         if old_source_file != Some(file) {
             if let Some(file_resolved_modules) =
                 file_as_source_file.maybe_resolved_modules().as_ref()
@@ -629,7 +629,7 @@ impl Program {
         let resolved_file = resolution_to_file.as_ref().and_then(|resolution_to_file| {
             self.maybe_old_program()
                 .unwrap()
-                .get_source_file_(&resolution_to_file.resolved_file_name)
+                .ref_(self).get_source_file_(&resolution_to_file.resolved_file_name)
         });
         if resolution_to_file.is_some() && resolved_file.is_some() {
             return false;
@@ -663,12 +663,12 @@ impl Program {
             self.maybe_old_program()
                 .as_ref()
                 .unwrap()
-                .get_project_references()
+                .ref_(self).get_project_references()
                 .as_deref(),
             self.maybe_old_program()
                 .as_ref()
                 .unwrap()
-                .get_resolved_project_references()
+                .ref_(self).get_resolved_project_references()
                 .as_deref(),
             |old_resolved_ref: Option<Gc<ResolvedProjectReference>>,
              parent: Option<&ResolvedProjectReference>,
@@ -728,12 +728,13 @@ impl Program {
         }
         let old_program = old_program.unwrap();
 
-        let old_options = old_program.get_compiler_options();
+        let old_options = old_program.ref_(self).get_compiler_options();
         if changes_affect_module_resolution(&old_options.ref_(self), &self.options.ref_(self)) {
             return Ok(StructureIsReused::Not);
         }
 
-        let old_root_names = old_program.get_root_file_names();
+        let old_program_ref = old_program.ref_(self);
+        let old_root_names = old_program_ref.get_root_file_names();
         if &*old_root_names != &*self.root_names() {
             return Ok(StructureIsReused::Not);
         }
@@ -761,14 +762,15 @@ impl Program {
         self.set_structure_is_reused(StructureIsReused::Completely);
 
         if old_program
-            .get_missing_file_paths()
+            .ref_(self).get_missing_file_paths()
             .iter()
             .any(|missing_file_path| self.host().file_exists(missing_file_path))
         {
             return Ok(StructureIsReused::Not);
         }
 
-        let old_source_files = old_program.get_source_files();
+        let old_program_ref = old_program.ref_(self);
+        let old_source_files = old_program_ref.get_source_files();
         #[derive(Copy, Clone, Debug, Eq, PartialEq)]
         enum SeenPackageName {
             Exists,
@@ -822,7 +824,7 @@ impl Program {
                 file_changed = false;
                 new_source_file = old_source_file;
                 new_source_file_as_source_file = old_source_file_ref.as_source_file();
-            } else if (*old_program.redirect_targets_map())
+            } else if (*old_program.ref_(self).redirect_targets_map())
                 .borrow()
                 .contains_key(&*old_source_file_as_source_file.path())
             {
@@ -859,7 +861,7 @@ impl Program {
             new_source_file_as_source_file.set_file_name(old_source_file_file_name);
 
             let package_name = old_program
-                .source_file_to_package_name()
+                .ref_(self).source_file_to_package_name()
                 .get(&*old_source_file_as_source_file.path())
                 .cloned();
             if let Some(ref package_name) = package_name {
@@ -1096,10 +1098,10 @@ impl Program {
             return Ok(StructureIsReused::SafeModules);
         }
 
-        *self.maybe_missing_file_paths() = Some(old_program.get_missing_file_paths().clone());
+        *self.maybe_missing_file_paths() = Some(old_program.ref_(self).get_missing_file_paths().clone());
 
         Debug_.assert(
-            new_source_files.len() == old_program.get_source_files().len(),
+            new_source_files.len() == old_program.ref_(self).get_source_files().len(),
             None,
         );
         for new_source_file in &new_source_files {
@@ -1108,7 +1110,8 @@ impl Program {
                 new_source_file.clone().into(),
             );
         }
-        let old_files_by_name_map = old_program.get_files_by_name_map();
+        let old_program_ref = old_program.ref_(self);
+        let old_files_by_name_map = old_program_ref.get_files_by_name_map();
         for (path, old_file) in &*old_files_by_name_map {
             if !matches!(old_file, FilesByNameValue::SourceFile(_)) {
                 self.files_by_name_mut()
@@ -1119,7 +1122,7 @@ impl Program {
             let old_file_ref = old_file.ref_(self);
             let old_file_as_source_file = old_file_ref.as_source_file();
             if &**old_file_as_source_file.path() == &**path {
-                if old_program.is_source_file_from_external_library(old_file) {
+                if old_program.ref_(self).is_source_file_from_external_library(old_file) {
                     self.source_files_found_searching_node_modules_mut()
                         .insert((&**old_file_as_source_file.path()).to_owned(), true);
                 }
@@ -1137,17 +1140,17 @@ impl Program {
         }
 
         self.set_files(Some(new_source_files));
-        self.set_file_reasons(old_program.get_file_include_reasons());
+        self.set_file_reasons(old_program.ref_(self).get_file_include_reasons());
         *self.maybe_file_processing_diagnostics() =
-            old_program.maybe_file_processing_diagnostics().clone();
+            old_program.ref_(self).maybe_file_processing_diagnostics().clone();
         self.set_resolved_type_reference_directives(
-            old_program.resolved_type_reference_directives(),
+            old_program.ref_(self).resolved_type_reference_directives(),
         );
 
         *self.source_file_to_package_name.borrow_mut() =
-            Some(old_program.source_file_to_package_name().clone());
-        self.set_redirect_targets_map(old_program.redirect_targets_map());
-        self.set_uses_uri_style_node_core_modules(old_program.uses_uri_style_node_core_modules());
+            Some(old_program.ref_(self).source_file_to_package_name().clone());
+        self.set_redirect_targets_map(old_program.ref_(self).redirect_targets_map());
+        self.set_uses_uri_style_node_core_modules(old_program.ref_(self).uses_uri_style_node_core_modules());
 
         Ok(StructureIsReused::Completely)
     }
@@ -1157,7 +1160,7 @@ impl Program {
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
     ) -> Id<Box<dyn EmitHost>> {
         self.alloc_emit_host(Box::new(ProgramEmitHost::new(
-            self.rc_wrapper(),
+            self.arena_id(),
             write_file_callback,
         )))
     }
@@ -1212,7 +1215,7 @@ impl Program {
                     })
             },
             Gc::new(Box::new(GetPrependNodesReadFileCallback::new(
-                self.rc_wrapper(),
+                self.arena_id(),
             ))),
             self,
         )
@@ -1410,14 +1413,14 @@ impl GetPrependNodesReadFileCallback {
 
 impl ReadFileCallback for GetPrependNodesReadFileCallback {
     fn call(&self, file_name: &str) -> Option<String> {
-        let path = self.program.to_path(file_name);
-        let source_file = self.program.get_source_file_by_path(&path);
+        let path = self.program.ref_(self).to_path(file_name);
+        let source_file = self.program.ref_(self).get_source_file_by_path(&path);
         if let Some(source_file) = source_file {
             Some(source_file.ref_(self).as_source_file().text().clone())
-        } else if self.program.files_by_name().contains_key(&*path) {
+        } else if self.program.ref_(self).files_by_name().contains_key(&*path) {
             None
         } else {
-            self.program.host().read_file(&path).ok().flatten()
+            self.program.ref_(self).host().read_file(&path).ok().flatten()
         }
     }
 }
@@ -1448,19 +1451,19 @@ impl ProgramEmitHost {
 
 impl EmitHost for ProgramEmitHost {
     fn get_prepend_nodes(&self) -> Vec<Id<Node /*InputFiles | UnparsedSource*/>> {
-        self.program.get_prepend_nodes()
+        self.program.ref_(self).get_prepend_nodes()
     }
 
     fn get_new_line(&self) -> String {
-        self.program.host().get_new_line()
+        self.program.ref_(self).host().get_new_line()
     }
 
     fn get_source_files(&self) -> GcCellRef<Vec<Id<Node /*SourceFile*/>>> {
-        self.program.get_source_files()
+        self.program.ref_(self).get_source_files()
     }
 
     fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Id<Node /*SourceFile*/>> {
-        self.program.get_lib_file_from_reference(ref_)
+        self.program.ref_(self).get_lib_file_from_reference(ref_)
     }
 
     fn write_file(
@@ -1480,7 +1483,7 @@ impl EmitHost for ProgramEmitHost {
                 source_files,
             )?;
         } else {
-            self.program.host().write_file(
+            self.program.ref_(self).host().write_file(
                 file_name,
                 data,
                 write_byte_order_mark,
@@ -1492,16 +1495,16 @@ impl EmitHost for ProgramEmitHost {
     }
 
     fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
-        self.program.is_emit_blocked(emit_file_name)
+        self.program.ref_(self).is_emit_blocked(emit_file_name)
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
-        CompilerHost::use_case_sensitive_file_names(&**self.program.host())
+        CompilerHost::use_case_sensitive_file_names(&**self.program.ref_(self).host())
     }
 
     fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>> {
         self.program
-            .maybe_get_program_build_info_rc()
+            .ref_(self).maybe_get_program_build_info_rc()
             .and_then(|get_program_build_info| get_program_build_info.call())
     }
 
@@ -1510,11 +1513,11 @@ impl EmitHost for ProgramEmitHost {
         file: Id<Node>, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
-        self.program.get_source_file_from_reference(file, ref_)
+        self.program.ref_(self).get_source_file_from_reference(file, ref_)
     }
 
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
-        self.program.redirect_targets_map()
+        self.program.ref_(self).redirect_targets_map()
     }
 
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost {
@@ -1530,25 +1533,25 @@ impl EmitHost for ProgramEmitHost {
 
 impl ScriptReferenceHost for ProgramEmitHost {
     fn get_compiler_options(&self) -> Id<CompilerOptions> {
-        self.program.get_compiler_options()
+        self.program.ref_(self).get_compiler_options()
     }
 
     fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>> {
-        self.program.get_source_file_(file_name)
+        self.program.ref_(self).get_source_file_(file_name)
     }
 
     fn get_source_file_by_path(&self, path: &Path) -> Option<Id<Node /*SourceFile*/>> {
-        self.program.get_source_file_by_path(path)
+        self.program.ref_(self).get_source_file_by_path(path)
     }
 
     fn get_current_directory(&self) -> String {
-        self.program.current_directory().clone()
+        self.program.ref_(self).current_directory().clone()
     }
 }
 
 impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory for ProgramEmitHost {
     fn get_common_source_directory(&self) -> String {
-        self.program.get_common_source_directory()
+        self.program.ref_(self).get_common_source_directory()
     }
 
     fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost {
@@ -1559,21 +1562,21 @@ impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory for ProgramEmitHos
 impl ModuleSpecifierResolutionHost for ProgramEmitHost {
     fn use_case_sensitive_file_names(&self) -> Option<bool> {
         Some(CompilerHost::use_case_sensitive_file_names(
-            &**self.program.host(),
+            &**self.program.ref_(self).host(),
         ))
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
-        self.program.get_project_reference_redirect_(file_name)
+        self.program.ref_(self).get_project_reference_redirect_(file_name)
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
         self.program
-            .is_source_of_project_reference_redirect_(file_name)
+            .ref_(self).is_source_of_project_reference_redirect_(file_name)
     }
 
     fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
-        Some(self.program.get_symlink_cache())
+        Some(self.program.ref_(self).get_symlink_cache())
     }
 
     fn is_read_file_supported(&self) -> bool {
@@ -1581,30 +1584,30 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
     }
 
     fn read_file(&self, f: &str) -> Option<io::Result<Option<String>>> {
-        Some(self.program.host().read_file(f))
+        Some(self.program.ref_(self).host().read_file(f))
     }
 
     fn file_exists(&self, f: &str) -> bool {
-        let path = self.program.to_path(f);
-        if self.program.get_source_file_by_path(&path).is_some() {
+        let path = self.program.ref_(self).to_path(f);
+        if self.program.ref_(self).get_source_file_by_path(&path).is_some() {
             return true;
         }
-        if contains(self.program.maybe_missing_file_paths().as_deref(), &path) {
+        if contains(self.program.ref_(self).maybe_missing_file_paths().as_deref(), &path) {
             return false;
         }
-        self.program.host().file_exists(f)
+        self.program.ref_(self).host().file_exists(f)
     }
 
     fn get_current_directory(&self) -> String {
-        self.program.current_directory().clone()
+        self.program.ref_(self).current_directory().clone()
     }
 
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
-        self.program.redirect_targets_map()
+        self.program.ref_(self).redirect_targets_map()
     }
 
     fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
-        self.program.get_file_include_reasons()
+        self.program.ref_(self).get_file_include_reasons()
     }
 
     fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
@@ -1614,11 +1617,11 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
 
 impl SourceFileMayBeEmittedHost for ProgramEmitHost {
     fn get_compiler_options(&self) -> Id<CompilerOptions> {
-        self.program.get_compiler_options()
+        self.program.ref_(self).get_compiler_options()
     }
 
     fn is_source_file_from_external_library(&self, file: Id<Node> /*SourceFile*/) -> bool {
-        self.program.is_source_file_from_external_library(file)
+        self.program.ref_(self).is_source_file_from_external_library(file)
     }
 
     fn get_resolved_project_reference_to_redirect(
@@ -1626,26 +1629,26 @@ impl SourceFileMayBeEmittedHost for ProgramEmitHost {
         file_name: &str,
     ) -> Option<Gc<ResolvedProjectReference>> {
         self.program
-            .get_resolved_project_reference_to_redirect(file_name)
+            .ref_(self).get_resolved_project_reference_to_redirect(file_name)
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
         self.program
-            .is_source_of_project_reference_redirect_(file_name)
+            .ref_(self).is_source_of_project_reference_redirect_(file_name)
     }
 }
 
 impl ResolveModuleNameResolutionHost for ProgramEmitHost {
     fn get_canonical_file_name(&self, file_name: &str) -> String {
-        self.program.get_canonical_file_name(file_name)
+        self.program.ref_(self).get_canonical_file_name(file_name)
     }
 
     fn get_common_source_directory(&self) -> String {
-        self.program.get_common_source_directory()
+        self.program.ref_(self).get_common_source_directory()
     }
 
     fn get_current_directory(&self) -> String {
-        self.program.current_directory().clone()
+        self.program.ref_(self).current_directory().clone()
     }
 }
 
@@ -1710,6 +1713,12 @@ impl ProgramToPath {
 
 impl ToPath for ProgramToPath {
     fn call(&self, file_name: &str) -> Path {
-        self.program.to_path(file_name)
+        self.program.ref_(self).to_path(file_name)
+    }
+}
+
+impl HasArena for ProgramToPath {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

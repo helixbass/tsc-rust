@@ -595,7 +595,7 @@ impl TypeChecker {
             .intersects(NodeCheckFlags::TypeChecked)
         {
             if skip_type_checking(&node.ref_(self), &self.compiler_options.ref_(self), |file_name| {
-                TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
+                TypeCheckerHost::is_source_of_project_reference_redirect(&*self.host.ref_(self), file_name)
             }) {
                 return Ok(());
             }
@@ -773,7 +773,7 @@ impl TypeChecker {
         }
 
         try_for_each(
-            &*self.host.get_source_files(),
+            &*self.host.ref_(self).get_source_files(),
             |&source_file: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_file(source_file)?;
                 Ok(None)

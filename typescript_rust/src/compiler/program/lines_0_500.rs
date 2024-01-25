@@ -899,27 +899,27 @@ pub fn get_pre_emit_diagnostics(
     let mut diagnostics: Vec<Id<Diagnostic>> = vec![];
     add_range(
         &mut diagnostics,
-        Some(&program.get_config_file_parsing_diagnostics()),
+        Some(&program.ref_(arena).get_config_file_parsing_diagnostics()),
         None,
         None,
     );
     add_range(
         &mut diagnostics,
-        Some(&program.get_options_diagnostics(cancellation_token.clone())),
+        Some(&program.ref_(arena).get_options_diagnostics(cancellation_token.clone())),
         None,
         None,
     );
     add_range(
         &mut diagnostics,
         Some(
-            &program.get_syntactic_diagnostics(source_file, cancellation_token.clone()),
+            &program.ref_(arena).get_syntactic_diagnostics(source_file, cancellation_token.clone()),
         ),
         None,
         None,
     );
     add_range(
         &mut diagnostics,
-        Some(&program.get_global_diagnostics(cancellation_token.clone())?),
+        Some(&program.ref_(arena).get_global_diagnostics(cancellation_token.clone())?),
         None,
         None,
     );
@@ -927,17 +927,17 @@ pub fn get_pre_emit_diagnostics(
         &mut diagnostics,
         Some(
             &program
-                .get_semantic_diagnostics(source_file, cancellation_token.clone())?,
+                .ref_(arena).get_semantic_diagnostics(source_file, cancellation_token.clone())?,
         ),
         None,
         None,
     );
 
-    if get_emit_declarations(&program.get_compiler_options().ref_(arena)) {
+    if get_emit_declarations(&program.ref_(arena).get_compiler_options().ref_(arena)) {
         add_range(
             &mut diagnostics,
             Some(
-                &program.get_declaration_diagnostics(
+                &program.ref_(arena).get_declaration_diagnostics(
                     source_file,
                     cancellation_token.clone(),
                 )?,

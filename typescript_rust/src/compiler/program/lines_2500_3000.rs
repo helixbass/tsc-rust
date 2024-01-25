@@ -727,7 +727,7 @@ impl Program {
         &self,
     ) -> Gc<Box<dyn ForEachResolvedProjectReference>> {
         Gc::new(Box::new(ProgramForEachResolvedProjectReference::new(
-            self.rc_wrapper(),
+            self.arena_id(),
         )))
     }
 
@@ -1182,7 +1182,7 @@ impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference 
     fn call(&self, cb: &mut dyn FnMut(Gc<ResolvedProjectReference>)) {
         for_each_resolved_project_reference(
             self.program
-                .maybe_resolved_project_references_mut()
+                .ref_(self).maybe_resolved_project_references_mut()
                 .as_deref(),
             |resolved_project_reference, _parent| -> Option<()> {
                 cb(resolved_project_reference);

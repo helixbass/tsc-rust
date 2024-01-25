@@ -587,6 +587,14 @@ impl OptionInArena for Option<Id<CompilerOptions>> {
     }
 }
 
+impl OptionInArena for Option<Id<Program>> {
+    type Item = Program;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, Program>> {
+        self.map(|program| has_arena.program(program))
+    }
+}
+
 thread_local! {
     static ARENA: Lazy<Rc<AllArenas>> = Lazy::new(Default::default);
 }

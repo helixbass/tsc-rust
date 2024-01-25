@@ -29,6 +29,7 @@ use crate::{
     SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
     TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
     OptionInArena,
+    TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -972,9 +973,9 @@ impl HasArena for EmitResolverCreateResolver {
 }
 
 impl EmitResolverCreateResolver {
-    pub(super) fn new(type_checker: Gc<TypeChecker>) -> Self {
+    pub(super) fn new(type_checker: Gc<TypeChecker>, arena: &impl HasArena) -> Self {
         let resolved_type_reference_directives =
-            type_checker.host.get_resolved_type_reference_directives();
+            type_checker.host.ref_(arena).get_resolved_type_reference_directives();
         let mut ret = Self {
             type_checker: type_checker.clone(),
             file_to_directive: Default::default(),
@@ -998,7 +999,7 @@ impl EmitResolverCreateResolver {
                     resolved_directive_resolved_file_name.unwrap();
                 let file = type_checker
                     .host
-                    .get_source_file(resolved_directive_resolved_file_name);
+                    .ref_(arena).get_source_file(resolved_directive_resolved_file_name);
                 if let Some(file) = file {
                     ret.add_referenced_files_to_type_directive(file, key);
                 }
@@ -1090,7 +1091,7 @@ impl EmitResolverCreateResolver {
             let file_name = &file_reference.file_name;
             let resolved_file =
                 resolve_tripleslash_reference(file_name, &file.ref_(self).as_source_file().file_name());
-            let referenced_file = self.type_checker.host.get_source_file(&resolved_file);
+            let referenced_file = self.type_checker.host.ref_(self).get_source_file(&resolved_file);
             if let Some(referenced_file) = referenced_file {
                 self.add_referenced_files_to_type_directive(referenced_file, key);
             }

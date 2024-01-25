@@ -1438,7 +1438,7 @@ struct DefaultNodeBuilderContextSymbolTracker {
 
 impl DefaultNodeBuilderContextSymbolTracker {
     pub fn new(
-        host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
+        host: Id<Program /*TypeCheckerHostDebuggable*/>,
         flags: Option<NodeBuilderFlags>,
         arena: &impl HasArena,
     ) -> Id<Box<dyn SymbolTracker>> {

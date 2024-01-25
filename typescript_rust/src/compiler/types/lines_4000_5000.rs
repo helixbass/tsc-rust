@@ -25,6 +25,7 @@ use crate::{
     PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
     TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
     TransformNodesTransformationResult,
+    Program,
 };
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
@@ -167,7 +168,7 @@ pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug + Trace + Fina
 pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,
-    pub(crate) host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
+    pub(crate) host: Id<Program /*TypeCheckerHostDebuggable*/>,
     pub(crate) produce_diagnostics: bool,
     pub(crate) _rc_wrapper: GcCell<Option<Gc<TypeChecker>>>,
     #[unsafe_ignore_trace]

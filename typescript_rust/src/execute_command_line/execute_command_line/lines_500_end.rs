@@ -375,7 +375,7 @@ pub(super) fn perform_compilation(
         None,
         arena,
     )?;
-    report_statistics(sys, &program, arena);
+    report_statistics(sys, &program.ref_(arena), arena);
     cb(program.into());
     sys.ref_(arena).exit(Some(exit_status));
 }
@@ -434,7 +434,7 @@ pub(super) fn perform_incremental_compilation(
         after_program_emit_and_diagnostics: Some(&|builder_program: Rc<
             dyn EmitAndSemanticDiagnosticsBuilderProgram,
         >| {
-            report_statistics(sys, &builder_program.get_program(), arena);
+            report_statistics(sys, &builder_program.get_program().ref_(arena), arena);
             cb(builder_program.into());
         }),
     });

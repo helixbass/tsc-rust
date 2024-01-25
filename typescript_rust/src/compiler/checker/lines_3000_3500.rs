@@ -948,7 +948,7 @@ impl TypeChecker {
         let source_file = resolved_module.as_ref().and_then(|resolved_module| {
             if resolution_diagnostic.is_none() {
                 self.host
-                    .get_source_file(&resolved_module.resolved_file_name)
+                    .ref_(self).get_source_file(&resolved_module.resolved_file_name)
             } else {
                 None
             }
@@ -1060,7 +1060,7 @@ impl TypeChecker {
         if let Some(module_not_found_error) = module_not_found_error {
             if let Some(resolved_module) = resolved_module.as_ref() {
                 let redirect = TypeCheckerHost::get_project_reference_redirect(
-                    &**self.host,
+                    &*self.host.ref_(self),
                     &resolved_module.resolved_file_name,
                 );
                 if let Some(redirect) = redirect {
@@ -1142,7 +1142,7 @@ impl TypeChecker {
                         .iter()
                         .find(|(actual_ext, _import_ext)| {
                             self.host
-                                .file_exists(&format!("{}{}", absolute_ref, actual_ext))
+                                .ref_(self).file_exists(&format!("{}{}", absolute_ref, actual_ext))
                         })
                         .map(|(_, import_ext)| import_ext);
                     if let Some(suggested_ext) = suggested_ext {

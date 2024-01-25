@@ -528,7 +528,7 @@ pub fn create_type_checker(
     produce_diagnostics: bool,
 ) -> io::Result<Gc<TypeChecker>> {
     let arena_ref = unsafe { &*arena };
-    let compiler_options = host.get_compiler_options();
+    let compiler_options = host.ref_(arena_ref).get_compiler_options();
     let mut type_checker = TypeChecker {
         arena,
         host,
@@ -1556,7 +1556,7 @@ impl TypeChecker {
                 *packages_map = Some(HashMap::new());
             }
             let map = packages_map.as_mut().unwrap();
-            self.host.get_source_files().iter().for_each(|&sf| {
+            self.host.ref_(self).get_source_files().iter().for_each(|&sf| {
                 let sf_ref = sf.ref_(self);
                 let sf_as_source_file = sf_ref.as_source_file();
                 let sf_resolved_modules = sf_as_source_file.maybe_resolved_modules();
@@ -1733,19 +1733,19 @@ impl TypeChecker {
     }
 
     pub fn get_node_count(&self) -> usize {
-        sum(&*self.host.get_source_files(), |&source_file| {
+        sum(&*self.host.ref_(self).get_source_files(), |&source_file| {
             source_file.ref_(self).as_source_file().node_count()
         })
     }
 
     pub fn get_identifier_count(&self) -> usize {
-        sum(&*self.host.get_source_files(), |&source_file| {
+        sum(&*self.host.ref_(self).get_source_files(), |&source_file| {
             source_file.ref_(self).as_source_file().identifier_count()
         })
     }
 
     pub fn get_symbol_count(&self) -> usize {
-        sum(&*self.host.get_source_files(), |&source_file| {
+        sum(&*self.host.ref_(self).get_source_files(), |&source_file| {
             source_file.ref_(self).as_source_file().symbol_count()
         }) + self.symbol_count()
     }
@@ -2685,7 +2685,7 @@ impl TypeChecker {
         let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))), self)
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
         if skip_type_checking(&file.ref_(self), &self.compiler_options.ref_(self), |file_name| {
-            TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
+            TypeCheckerHost::is_source_of_project_reference_redirect(&*self.host.ref_(self), file_name)
         }) {
             return Ok(vec![]);
         }

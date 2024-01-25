@@ -40,7 +40,8 @@ use crate::{
     ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
     TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    VecExt, HasArena, AllArenas, InArena, static_arena,
+    VecExt,
+    HasArena, AllArenas, InArena, static_arena, OptionInArena,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
@@ -853,7 +854,7 @@ fn should_program_create_new_source_files(
 pub fn create_program(root_names_or_options: CreateProgramOptions, arena: &impl HasArena) -> io::Result<Id<Program>> {
     let create_program_options = root_names_or_options;
     let program = Program::new(create_program_options, arena);
-    program.create()?;
+    program.ref_(arena).create()?;
     Ok(program)
 }
 
@@ -1079,7 +1080,7 @@ impl Program {
                     .use_source_of_project_reference_redirect(),
                 to_path: self.to_path_rc(),
                 get_resolved_project_references: Gc::new(Box::new(
-                    ProgramGetResolvedProjectReferences::new(self.rc_wrapper()),
+                    ProgramGetResolvedProjectReferences::new(self.arena_id()),
                 )),
                 for_each_resolved_project_reference: self.for_each_resolved_project_reference_rc(),
             },
@@ -1090,7 +1091,7 @@ impl Program {
         // tracing?.push(tracing.Phase.Program, "shouldProgramCreateNewSourceFiles", { hasOldProgram: !!oldProgram });
         self.should_create_new_source_file
             .set(Some(should_program_create_new_source_files(
-                self.maybe_old_program().as_double_deref(),
+                self.maybe_old_program().refed(self).as_deref(),
                 &self.options.ref_(self),
             )));
         // tracing?.pop();
@@ -1825,7 +1826,13 @@ impl ProgramGetResolvedProjectReferences {
 
 impl GetResolvedProjectReferences for ProgramGetResolvedProjectReferences {
     fn call(&self) -> Option<Vec<Option<Gc<ResolvedProjectReference>>>> {
-        self.program.get_resolved_project_references().clone()
+        self.program.ref_(self).get_resolved_project_references().clone()
+    }
+}
+
+impl HasArena for ProgramGetResolvedProjectReferences {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

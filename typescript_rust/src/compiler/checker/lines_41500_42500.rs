@@ -675,7 +675,7 @@ impl TypeChecker {
     }
 
     pub(super) fn create_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
-        Gc::new(Box::new(EmitResolverCreateResolver::new(self.rc_wrapper())))
+        Gc::new(Box::new(EmitResolverCreateResolver::new(self.rc_wrapper(), self)))
     }
 
     pub(super) fn get_external_module_file_from_declaration(
@@ -704,7 +704,7 @@ impl TypeChecker {
     }
 
     pub(super) fn initialize_type_checker(&self) -> io::Result<()> {
-        for file in &*self.host.get_source_files() {
+        for file in &*self.host.ref_(self).get_source_files() {
             bind_source_file(&file.ref_(self), self.compiler_options.clone());
             // println!("post-binding: {:#?}", file);
         }
@@ -712,7 +712,7 @@ impl TypeChecker {
         *self.maybe_amalgamated_duplicates() = Some(HashMap::new());
 
         let mut augmentations: Option<Vec<Vec<Id<Node /*StringLiteral | Identifier*/>>>> = None;
-        for file in &*self.host.get_source_files() {
+        for file in &*self.host.ref_(self).get_source_files() {
             let file_ref = file.ref_(self);
             let file_as_source_file = file_ref.as_source_file();
             if file_as_source_file.maybe_redirect_info().is_some() {

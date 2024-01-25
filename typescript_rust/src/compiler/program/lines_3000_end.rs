@@ -2011,7 +2011,7 @@ impl Program {
     }
 
     pub fn get_symlink_cache_rc(&self) -> Gc<Box<dyn GetSymlinkCache>> {
-        Gc::new(Box::new(ProgramGetSymlinkCache::new(self.rc_wrapper())))
+        Gc::new(Box::new(ProgramGetSymlinkCache::new(self.arena_id())))
     }
 }
 
@@ -2045,7 +2045,13 @@ impl ProgramGetSymlinkCache {
 
 impl GetSymlinkCache for ProgramGetSymlinkCache {
     fn call(&self) -> Gc<SymlinkCache> {
-        self.program.get_symlink_cache()
+        self.program.ref_(self).get_symlink_cache()
+    }
+}
+
+impl HasArena for ProgramGetSymlinkCache {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -2296,9 +2302,9 @@ pub(crate) fn handle_no_emit_options(
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<EmitResult>> {
-    let options = program.get_compiler_options();
+    let options = program.ref_(arena).get_compiler_options();
     if options.ref_(arena).no_emit == Some(true) {
-        program.get_semantic_diagnostics(source_file, cancellation_token.clone())?;
+        program.ref_(arena).get_semantic_diagnostics(source_file, cancellation_token.clone())?;
         return Ok(Some(
             if source_file.is_some()
                 || out_file(&options.ref_(arena))
@@ -2307,7 +2313,7 @@ pub(crate) fn handle_no_emit_options(
             {
                 emit_skipped_with_no_diagnostics()
             } else {
-                program.emit_build_info(write_file, cancellation_token)?
+                program.ref_(arena).emit_build_info(write_file, cancellation_token)?
             },
         ));
     }
@@ -2317,18 +2323,18 @@ pub(crate) fn handle_no_emit_options(
     }
     let mut diagnostics: Vec<Id<Diagnostic>> = [
         program
-            .get_options_diagnostics(cancellation_token.clone())
+            .ref_(arena).get_options_diagnostics(cancellation_token.clone())
             .into(),
-        program.get_syntactic_diagnostics(source_file, cancellation_token.clone()),
+        program.ref_(arena).get_syntactic_diagnostics(source_file, cancellation_token.clone()),
         program
-            .get_global_diagnostics(cancellation_token.clone())?
+            .ref_(arena).get_global_diagnostics(cancellation_token.clone())?
             .into(),
-        program.get_semantic_diagnostics(source_file, cancellation_token.clone())?,
+        program.ref_(arena).get_semantic_diagnostics(source_file, cancellation_token.clone())?,
     ]
     .concat();
 
-    if diagnostics.is_empty() && get_emit_declarations(&program.get_compiler_options().ref_(arena)) {
-        diagnostics = program.get_declaration_diagnostics(None, cancellation_token.clone())?;
+    if diagnostics.is_empty() && get_emit_declarations(&program.ref_(arena).get_compiler_options().ref_(arena)) {
+        diagnostics = program.ref_(arena).get_declaration_diagnostics(None, cancellation_token.clone())?;
     }
 
     if diagnostics.is_empty() {
@@ -2340,7 +2346,7 @@ pub(crate) fn handle_no_emit_options(
             .filter(|out_file| !out_file.is_empty())
             .is_none()
     {
-        let emit_result = program.emit_build_info(write_file, cancellation_token)?;
+        let emit_result = program.ref_(arena).emit_build_info(write_file, cancellation_token)?;
         let EmitResult {
             diagnostics: mut emit_result_diagnostics,
             emitted_files: emit_result_emitted_files,

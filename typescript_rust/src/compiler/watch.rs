@@ -391,16 +391,16 @@ pub enum ProgramOrBuilderProgram {
 }
 
 impl ProgramOrBuilderProgram {
-    fn get_compiler_options(&self) -> Id<CompilerOptions> {
+    fn get_compiler_options(&self, arena: &impl HasArena) -> Id<CompilerOptions> {
         match self {
-            Self::Program(program) => program.get_compiler_options(),
+            Self::Program(program) => program.ref_(arena).get_compiler_options(),
             Self::BuilderProgram(program) => program.get_compiler_options(),
         }
     }
 
-    fn get_source_files(&self) -> Vec<Id<Node>> {
+    fn get_source_files(&self, arena: &impl HasArena) -> Vec<Id<Node>> {
         match self {
-            Self::Program(program) => program.get_source_files().clone(),
+            Self::Program(program) => program.ref_(arena).get_source_files().clone(),
             Self::BuilderProgram(program) => program.get_source_files().to_owned(),
         }
     }
@@ -423,20 +423,20 @@ pub fn is_builder_program(program: &ProgramOrBuilderProgram) -> bool {
 }
 
 pub fn list_files(program: ProgramOrBuilderProgram, mut write: impl FnMut(&str), arena: &impl HasArena) {
-    let options = program.get_compiler_options();
+    let options = program.get_compiler_options(arena);
     if matches!(options.ref_(arena).explain_files, Some(true)) {
         explain_files(
-            &*if is_builder_program(&program) {
+            &if is_builder_program(&program) {
                 enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram]).get_program()
             } else {
                 enum_unwrapped!(&program, [ProgramOrBuilderProgram, Program]).clone()
-            },
+            }.ref_(arena),
             write,
         );
     } else if matches!(options.ref_(arena).list_files, Some(true))
         || matches!(options.ref_(arena).list_files_only, Some(true))
     {
-        for_each(program.get_source_files(), |file, _| {
+        for_each(program.get_source_files(arena), |file, _| {
             write(&file.ref_(arena).as_source_file().file_name());
             Option::<()>::None
         });
@@ -875,15 +875,14 @@ fn emit_files_and_report_errors(
     custom_transformers: Option<&CustomTransformers>,
     arena: &impl HasArena,
 ) -> io::Result<EmitFilesAndReportErrorsReturn> {
-    let arena = &**program;
-    let is_list_files_only = matches!(program.get_compiler_options().ref_(arena).list_files_only, Some(true));
+    let is_list_files_only = program.ref_(arena).get_compiler_options().ref_(arena).list_files_only == Some(true);
 
     let mut all_diagnostics: Vec<Id<Diagnostic>> =
-        program.get_config_file_parsing_diagnostics().clone();
+        program.ref_(arena).get_config_file_parsing_diagnostics().clone();
     let config_file_parsing_diagnostics_length = all_diagnostics.len();
     add_range(
         &mut all_diagnostics,
-        Some(&program.get_syntactic_diagnostics(None, cancellation_token.clone())),
+        Some(&program.ref_(arena).get_syntactic_diagnostics(None, cancellation_token.clone())),
         None,
         None,
     );
@@ -891,7 +890,7 @@ fn emit_files_and_report_errors(
     if all_diagnostics.len() == config_file_parsing_diagnostics_length {
         add_range(
             &mut all_diagnostics,
-            Some(&program.get_options_diagnostics(cancellation_token.clone())),
+            Some(&program.ref_(arena).get_options_diagnostics(cancellation_token.clone())),
             None,
             None,
         );
@@ -899,7 +898,7 @@ fn emit_files_and_report_errors(
         if !is_list_files_only {
             add_range(
                 &mut all_diagnostics,
-                Some(&program.get_global_diagnostics(cancellation_token.clone())?),
+                Some(&program.ref_(arena).get_global_diagnostics(cancellation_token.clone())?),
                 None,
                 None,
             );
@@ -907,7 +906,7 @@ fn emit_files_and_report_errors(
             if all_diagnostics.len() == config_file_parsing_diagnostics_length {
                 add_range(
                     &mut all_diagnostics,
-                    Some(&program.get_semantic_diagnostics(None, cancellation_token.clone())?),
+                    Some(&program.ref_(arena).get_semantic_diagnostics(None, cancellation_token.clone())?),
                     None,
                     None,
                 );
@@ -924,7 +923,7 @@ fn emit_files_and_report_errors(
             exported_modules_from_declaration_emit: None,
         }
     } else {
-        program.emit(
+        program.ref_(arena).emit(
             None,
             write_file,
             cancellation_token,
@@ -942,7 +941,7 @@ fn emit_files_and_report_errors(
         report_diagnostic.call(diagnostic.clone())?;
     }
     if let Some(mut write) = write {
-        let current_dir = program.get_current_directory();
+        let current_dir = program.ref_(arena).get_current_directory();
         maybe_for_each(emitted_files, |file, _| {
             let filepath = get_normalized_absolute_path(file, Some(&current_dir));
             write(&format!("TSFILE: {}", filepath));
