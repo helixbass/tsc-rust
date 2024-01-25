@@ -4291,13 +4291,13 @@ fn classic_name_resolver_try_resolve(
              candidate: &str,
              only_record_failures: bool,
              state: &ModuleResolutionState| {
-                let arena_ref = unsafe { &*arena };
+                let arena = unsafe { &*arena_raw };
                 Ok(load_module_from_file_no_package_id(
                     extensions,
                     candidate,
                     only_record_failures,
                     state,
-                    arena_ref,
+                    arena,
                 ))
             }
         }),
