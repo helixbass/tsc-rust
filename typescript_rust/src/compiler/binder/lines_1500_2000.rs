@@ -144,8 +144,8 @@ impl BinderType {
     pub(super) fn bind_optional_expression(
         &self,
         node: Id<Node>, /*expression*/
-        true_target: Gc<FlowNode /*FlowLabel*/>,
-        false_target: Gc<FlowNode /*FlowLabel*/>,
+        true_target: Id<FlowNode /*FlowLabel*/>,
+        false_target: Id<FlowNode /*FlowLabel*/>,
     ) {
         self.do_with_conditional_branches(
             |node| self.bind(Some(node)),
@@ -211,8 +211,8 @@ impl BinderType {
     pub(super) fn bind_optional_chain(
         &self,
         node: Id<Node>, /*OptionalChain*/
-        true_target: Gc<FlowNode /*FlowLabel*/>,
-        false_target: Gc<FlowNode /*FlowLabel*/>,
+        true_target: Id<FlowNode /*FlowLabel*/>,
+        false_target: Id<FlowNode /*FlowLabel*/>,
     ) {
         let pre_chain_label = if is_optional_chain_root(&node.ref_(self)) {
             Some(self.create_branch_label())

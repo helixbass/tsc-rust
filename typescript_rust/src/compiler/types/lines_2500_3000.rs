@@ -960,7 +960,7 @@ pub struct CaseClause {
     _node: BaseNode,
     pub expression: Id<Node /*Expression*/>,
     pub statements: Gc<NodeArray>, /*<Statement>*/
-    fallthrough_flow_node: GcCell<Option<Gc<FlowNode>>>,
+    fallthrough_flow_node: GcCell<Option<Id<FlowNode>>>,
 }
 
 impl CaseClause {
@@ -981,16 +981,16 @@ impl HasStatementsInterface for CaseClause {
 }
 
 pub trait CaseOrDefaultClauseInterface: HasStatementsInterface {
-    fn maybe_fallthrough_flow_node(&self) -> Option<Gc<FlowNode>>;
-    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Gc<FlowNode>>);
+    fn maybe_fallthrough_flow_node(&self) -> Option<Id<FlowNode>>;
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Id<FlowNode>>);
 }
 
 impl CaseOrDefaultClauseInterface for CaseClause {
-    fn maybe_fallthrough_flow_node(&self) -> Option<Gc<FlowNode>> {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Id<FlowNode>> {
         self.fallthrough_flow_node.borrow().clone()
     }
 
-    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Gc<FlowNode>>) {
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Id<FlowNode>>) {
         *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
     }
 }
@@ -1006,7 +1006,7 @@ impl HasExpressionInterface for CaseClause {
 pub struct DefaultClause {
     _node: BaseNode,
     pub statements: Gc<NodeArray>, /*<Statement>*/
-    fallthrough_flow_node: GcCell<Option<Gc<FlowNode>>>,
+    fallthrough_flow_node: GcCell<Option<Id<FlowNode>>>,
 }
 
 impl DefaultClause {
@@ -1026,11 +1026,11 @@ impl HasStatementsInterface for DefaultClause {
 }
 
 impl CaseOrDefaultClauseInterface for DefaultClause {
-    fn maybe_fallthrough_flow_node(&self) -> Option<Gc<FlowNode>> {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Id<FlowNode>> {
         self.fallthrough_flow_node.borrow().clone()
     }
 
-    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Gc<FlowNode>>) {
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Id<FlowNode>>) {
         *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
     }
 }

@@ -392,7 +392,7 @@ pub struct TypeChecker {
     pub(crate) flow_analysis_disabled: Cell<bool>,
     #[unsafe_ignore_trace]
     pub(crate) flow_invocation_count: Cell<usize>,
-    pub(crate) last_flow_node: GcCell<Option<Gc<FlowNode>>>,
+    pub(crate) last_flow_node: GcCell<Option<Id<FlowNode>>>,
     #[unsafe_ignore_trace]
     pub(crate) last_flow_node_reachable: Cell<bool>,
     pub(crate) flow_type_cache: GcCell<Option<HashMap<NodeId, Id<Type>>>>,
@@ -414,11 +414,11 @@ pub struct TypeChecker {
     pub(crate) symbol_links: GcCell<HashMap<SymbolId, Gc<GcCell<SymbolLinks>>>>,
     pub(crate) node_links: GcCell<HashMap<NodeId, Gc<GcCell<NodeLinks>>>>,
     pub(crate) flow_loop_caches: GcCell<HashMap<usize, Gc<GcCell<HashMap<String, Id<Type>>>>>>,
-    pub(crate) flow_loop_nodes: GcCell<HashMap<usize, Gc<FlowNode>>>,
+    pub(crate) flow_loop_nodes: GcCell<HashMap<usize, Id<FlowNode>>>,
     #[unsafe_ignore_trace]
     pub(crate) flow_loop_keys: RefCell<HashMap<usize, String>>,
     pub(crate) flow_loop_types: GcCell<HashMap<usize, Vec<Id<Type>>>>,
-    pub(crate) shared_flow_nodes: GcCell<HashMap<usize, Gc<FlowNode>>>,
+    pub(crate) shared_flow_nodes: GcCell<HashMap<usize, Id<FlowNode>>>,
     pub(crate) shared_flow_types: GcCell<HashMap<usize, FlowType>>,
     #[unsafe_ignore_trace]
     pub(crate) flow_node_reachable: RefCell<HashMap<usize, bool>>,

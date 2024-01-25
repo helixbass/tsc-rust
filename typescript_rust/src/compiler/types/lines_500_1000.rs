@@ -212,9 +212,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_next_container(&self, next_container: Option<Id<Node>>);
     fn maybe_local_symbol(&self) -> Option<Id<Symbol>>;
     fn set_local_symbol(&self, local_symbol: Option<Id<Symbol>>);
-    fn maybe_flow_node(&self) -> GcCellRef<Option<Gc<FlowNode>>>;
-    fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Gc<FlowNode>>>;
-    fn set_flow_node(&self, emit_node: Option<Gc<FlowNode>>);
+    fn maybe_flow_node(&self) -> GcCellRef<Option<Id<FlowNode>>>;
+    fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Id<FlowNode>>>;
+    fn set_flow_node(&self, emit_node: Option<Id<FlowNode>>);
     fn maybe_emit_node(&self) -> Option<Gc<GcCell<EmitNode>>>;
     fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<EmitNode>>>>;
     fn set_emit_node(&self, emit_node: Option<Gc<GcCell<EmitNode>>>);
@@ -1736,7 +1736,7 @@ pub struct BaseNode {
     emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
     contextual_type: GcCell<Option<Id<Type>>>,
     inference_context: GcCell<Option<Gc<InferenceContext>>>,
-    flow_node: GcCell<Option<Gc<FlowNode>>>,
+    flow_node: GcCell<Option<Id<FlowNode>>>,
     js_doc: GcCell<Option<Vec<Id<Node>>>>,
     js_doc_cache: GcCell<Option<GcVec<Id<Node>>>>,
     #[unsafe_ignore_trace]
@@ -2004,15 +2004,15 @@ impl NodeInterface for BaseNode {
         self.inference_context.borrow_mut()
     }
 
-    fn maybe_flow_node(&self) -> GcCellRef<Option<Gc<FlowNode>>> {
+    fn maybe_flow_node(&self) -> GcCellRef<Option<Id<FlowNode>>> {
         self.flow_node.borrow()
     }
 
-    fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Gc<FlowNode>>> {
+    fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Id<FlowNode>>> {
         self.flow_node.borrow_mut()
     }
 
-    fn set_flow_node(&self, flow_node: Option<Gc<FlowNode>>) {
+    fn set_flow_node(&self, flow_node: Option<Id<FlowNode>>) {
         *self.flow_node.borrow_mut() = flow_node;
     }
 

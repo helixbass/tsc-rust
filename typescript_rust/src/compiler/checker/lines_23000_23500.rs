@@ -1158,7 +1158,7 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn is_reachable_flow_node(&self, flow: Gc<FlowNode>) -> io::Result<bool> {
+    pub(super) fn is_reachable_flow_node(&self, flow: Id<FlowNode>) -> io::Result<bool> {
         let result = self.is_reachable_flow_node_worker(flow.clone(), false)?;
         *self.maybe_last_flow_node() = Some(flow);
         self.set_last_flow_node_reachable(result);
@@ -1183,7 +1183,7 @@ impl TypeChecker {
 
     pub(super) fn is_reachable_flow_node_worker(
         &self,
-        mut flow: Gc<FlowNode>,
+        mut flow: Id<FlowNode>,
         mut no_cache_check: bool,
     ) -> io::Result<bool> {
         loop {
@@ -1246,7 +1246,7 @@ impl TypeChecker {
             } else if flags.intersects(FlowFlags::BranchLabel) {
                 return try_some(
                     flow.as_flow_label().maybe_antecedents().as_deref(),
-                    Some(|f: &Gc<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
+                    Some(|f: &Id<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
                 );
             } else if flags.intersects(FlowFlags::LoopLabel) {
                 let antecedents = flow.as_flow_label().maybe_antecedents().clone();

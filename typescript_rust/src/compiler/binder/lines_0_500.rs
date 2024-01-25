@@ -42,8 +42,8 @@ pub enum ModuleInstanceState {
 pub(super) struct ActiveLabel {
     pub next: Option<Gc<ActiveLabel>>,
     pub name: __String,
-    break_target: Gc<FlowNode /*FlowLabel*/>,
-    continue_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
+    break_target: Id<FlowNode /*FlowLabel*/>,
+    continue_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
     #[unsafe_ignore_trace]
     referenced: Cell<bool>,
 }
@@ -52,8 +52,8 @@ impl ActiveLabel {
     pub fn new(
         next: Option<Gc<ActiveLabel>>,
         name: __String,
-        break_target: Gc<FlowNode>,
-        continue_target: Option<Gc<FlowNode>>,
+        break_target: Id<FlowNode>,
+        continue_target: Option<Id<FlowNode>>,
         referenced: bool,
     ) -> Self {
         Self {
@@ -69,15 +69,15 @@ impl ActiveLabel {
         self.next.clone()
     }
 
-    pub fn break_target(&self) -> Gc<FlowNode> {
+    pub fn break_target(&self) -> Id<FlowNode> {
         self.break_target.clone()
     }
 
-    pub fn maybe_continue_target(&self) -> Option<Gc<FlowNode>> {
+    pub fn maybe_continue_target(&self) -> Option<Id<FlowNode>> {
         self.continue_target.borrow().clone()
     }
 
-    pub fn set_continue_target(&self, continue_target: Option<Gc<FlowNode>>) {
+    pub fn set_continue_target(&self, continue_target: Option<Id<FlowNode>>) {
         *self.continue_target.borrow_mut() = continue_target;
     }
 
@@ -324,14 +324,14 @@ pub struct BinderType {
     #[unsafe_ignore_trace]
     pub(super) seen_this_keyword: Cell<Option<bool>>,
 
-    pub(super) current_flow: GcCell<Option<Gc<FlowNode>>>,
-    pub(super) current_break_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_continue_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_return_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_true_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_false_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_exception_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
-    pub(super) pre_switch_case_flow: GcCell<Option<Gc<FlowNode>>>,
+    pub(super) current_flow: GcCell<Option<Id<FlowNode>>>,
+    pub(super) current_break_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_continue_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_return_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_true_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_false_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_exception_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) pre_switch_case_flow: GcCell<Option<Id<FlowNode>>>,
     pub(super) active_label_list: GcCell<Option<Gc<ActiveLabel>>>,
     #[unsafe_ignore_trace]
     pub(super) has_explicit_return: Cell<Option<bool>>,
@@ -353,8 +353,8 @@ pub struct BinderType {
     #[unsafe_ignore_trace]
     pub(super) classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
 
-    pub(super) unreachable_flow: GcCell<Gc<FlowNode>>,
-    pub(super) reported_unreachable_flow: GcCell<Gc<FlowNode>>,
+    pub(super) unreachable_flow: GcCell<Id<FlowNode>>,
+    pub(super) reported_unreachable_flow: GcCell<Id<FlowNode>>,
     pub(super) bind_binary_expression_flow: GcCell<Option<Gc<BindBinaryExpressionFlow>>>,
 }
 
@@ -520,89 +520,89 @@ impl BinderType {
         self.seen_this_keyword.set(seen_this_keyword);
     }
 
-    pub(super) fn current_flow(&self) -> Gc<FlowNode> {
+    pub(super) fn current_flow(&self) -> Id<FlowNode> {
         self.current_flow.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_flow(&self) -> Option<Gc<FlowNode>> {
+    pub(super) fn maybe_current_flow(&self) -> Option<Id<FlowNode>> {
         self.current_flow.borrow().clone()
     }
 
-    pub(super) fn set_current_flow(&self, current_flow: Option<Gc<FlowNode>>) {
+    pub(super) fn set_current_flow(&self, current_flow: Option<Id<FlowNode>>) {
         *self.current_flow.borrow_mut() = current_flow;
     }
 
-    pub(super) fn maybe_current_break_target(&self) -> Option<Gc<FlowNode>> {
+    pub(super) fn maybe_current_break_target(&self) -> Option<Id<FlowNode>> {
         self.current_break_target.borrow().clone()
     }
 
-    pub(super) fn set_current_break_target(&self, current_break_target: Option<Gc<FlowNode>>) {
+    pub(super) fn set_current_break_target(&self, current_break_target: Option<Id<FlowNode>>) {
         *self.current_break_target.borrow_mut() = current_break_target;
     }
 
-    pub(super) fn maybe_current_continue_target(&self) -> Option<Gc<FlowNode>> {
+    pub(super) fn maybe_current_continue_target(&self) -> Option<Id<FlowNode>> {
         self.current_continue_target.borrow().clone()
     }
 
     pub(super) fn set_current_continue_target(
         &self,
-        current_continue_target: Option<Gc<FlowNode>>,
+        current_continue_target: Option<Id<FlowNode>>,
     ) {
         *self.current_continue_target.borrow_mut() = current_continue_target;
     }
 
-    pub(super) fn maybe_current_return_target(&self) -> Option<Gc<FlowNode>> {
+    pub(super) fn maybe_current_return_target(&self) -> Option<Id<FlowNode>> {
         self.current_return_target.borrow().clone()
     }
 
-    pub(super) fn set_current_return_target(&self, current_return_target: Option<Gc<FlowNode>>) {
+    pub(super) fn set_current_return_target(&self, current_return_target: Option<Id<FlowNode>>) {
         *self.current_return_target.borrow_mut() = current_return_target;
     }
 
-    pub(super) fn current_true_target(&self) -> Gc<FlowNode> {
+    pub(super) fn current_true_target(&self) -> Id<FlowNode> {
         self.current_true_target.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_true_target(&self) -> Option<Gc<FlowNode>> {
+    pub(super) fn maybe_current_true_target(&self) -> Option<Id<FlowNode>> {
         self.current_true_target.borrow().clone()
     }
 
-    pub(super) fn set_current_true_target(&self, current_true_target: Option<Gc<FlowNode>>) {
+    pub(super) fn set_current_true_target(&self, current_true_target: Option<Id<FlowNode>>) {
         *self.current_true_target.borrow_mut() = current_true_target;
     }
 
-    pub(super) fn current_false_target(&self) -> Gc<FlowNode> {
+    pub(super) fn current_false_target(&self) -> Id<FlowNode> {
         self.current_false_target.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_false_target(&self) -> Option<Gc<FlowNode>> {
+    pub(super) fn maybe_current_false_target(&self) -> Option<Id<FlowNode>> {
         self.current_false_target.borrow().clone()
     }
 
-    pub(super) fn set_current_false_target(&self, current_false_target: Option<Gc<FlowNode>>) {
+    pub(super) fn set_current_false_target(&self, current_false_target: Option<Id<FlowNode>>) {
         *self.current_false_target.borrow_mut() = current_false_target;
     }
 
-    pub(super) fn maybe_current_exception_target(&self) -> Option<Gc<FlowNode>> {
+    pub(super) fn maybe_current_exception_target(&self) -> Option<Id<FlowNode>> {
         self.current_exception_target.borrow().clone()
     }
 
     pub(super) fn set_current_exception_target(
         &self,
-        current_exception_target: Option<Gc<FlowNode>>,
+        current_exception_target: Option<Id<FlowNode>>,
     ) {
         *self.current_exception_target.borrow_mut() = current_exception_target;
     }
 
-    pub(super) fn pre_switch_case_flow(&self) -> Gc<FlowNode> {
+    pub(super) fn pre_switch_case_flow(&self) -> Id<FlowNode> {
         self.pre_switch_case_flow.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_pre_switch_case_flow(&self) -> Option<Gc<FlowNode>> {
+    pub(super) fn maybe_pre_switch_case_flow(&self) -> Option<Id<FlowNode>> {
         self.pre_switch_case_flow.borrow().clone()
     }
 
-    pub(super) fn set_pre_switch_case_flow(&self, pre_switch_case_flow: Option<Gc<FlowNode>>) {
+    pub(super) fn set_pre_switch_case_flow(&self, pre_switch_case_flow: Option<Id<FlowNode>>) {
         *self.pre_switch_case_flow.borrow_mut() = pre_switch_case_flow;
     }
 
@@ -683,11 +683,11 @@ impl BinderType {
         *self.classifiable_names.borrow_mut() = classifiable_names;
     }
 
-    pub(super) fn unreachable_flow(&self) -> Gc<FlowNode> {
+    pub(super) fn unreachable_flow(&self) -> Id<FlowNode> {
         self.unreachable_flow.borrow().clone()
     }
 
-    pub(super) fn reported_unreachable_flow(&self) -> Gc<FlowNode> {
+    pub(super) fn reported_unreachable_flow(&self) -> Id<FlowNode> {
         self.reported_unreachable_flow.borrow().clone()
     }
 

@@ -16,11 +16,11 @@ use crate::{
 impl BinderType {
     pub(super) fn create_flow_switch_clause(
         &self,
-        antecedent: Gc<FlowNode>,
+        antecedent: Id<FlowNode>,
         switch_statement: Id<Node>, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
-    ) -> Gc<FlowNode> {
+    ) -> Id<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
         Gc::new(init_flow_node(
             FlowSwitchClause::new(
@@ -37,11 +37,11 @@ impl BinderType {
     pub(super) fn create_flow_mutation(
         &self,
         flags: FlowFlags,
-        antecedent: Gc<FlowNode>,
+        antecedent: Id<FlowNode>,
         node: Id<Node>, /*Expression | VariableDeclaration | ArrayBindingElement*/
-    ) -> Gc<FlowNode> {
+    ) -> Id<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
-        let result: Gc<FlowNode> = Gc::new(init_flow_node(
+        let result: Id<FlowNode> = Gc::new(init_flow_node(
             if flags.intersects(FlowFlags::ArrayMutation) {
                 FlowArrayMutation::new(flags, antecedent, node).into()
             } else {
@@ -56,16 +56,16 @@ impl BinderType {
 
     pub(super) fn create_flow_call(
         &self,
-        antecedent: Gc<FlowNode>,
+        antecedent: Id<FlowNode>,
         node: Id<Node>, /*CallExpression*/
-    ) -> Gc<FlowNode> {
+    ) -> Id<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
         Gc::new(init_flow_node(
             FlowCall::new(FlowFlags::Call, antecedent, node).into(),
         ))
     }
 
-    pub(super) fn finish_flow_label(&self, flow: Gc<FlowNode /*FlowLabel*/>) -> Gc<FlowNode> {
+    pub(super) fn finish_flow_label(&self, flow: Id<FlowNode /*FlowLabel*/>) -> Id<FlowNode> {
         let antecedents = flow.as_flow_label().maybe_antecedents();
         let antecedents = antecedents.as_ref();
         if antecedents.is_none() {
@@ -138,8 +138,8 @@ impl BinderType {
         &self,
         mut action: TAction,
         value: TArgument,
-        true_target: Gc<FlowNode /*FlowLabel*/>,
-        false_target: Gc<FlowNode /*FlowLabel*/>,
+        true_target: Id<FlowNode /*FlowLabel*/>,
+        false_target: Id<FlowNode /*FlowLabel*/>,
     ) {
         let saved_true_target = self.maybe_current_true_target();
         let saved_false_target = self.maybe_current_false_target();
@@ -153,8 +153,8 @@ impl BinderType {
     pub(super) fn bind_condition(
         &self,
         node: Option<Id<Node>>,
-        true_target: Gc<FlowNode /*FlowLabel*/>,
-        false_target: Gc<FlowNode /*FlowLabel*/>,
+        true_target: Id<FlowNode /*FlowLabel*/>,
+        false_target: Id<FlowNode /*FlowLabel*/>,
     ) {
         self.do_with_conditional_branches(
             |node| self.bind(node),
@@ -192,8 +192,8 @@ impl BinderType {
     pub(super) fn bind_iterative_statement(
         &self,
         node: Id<Node>, /*Statement*/
-        break_target: Gc<FlowNode /*FlowLabel*/>,
-        continue_target: Gc<FlowNode /*FlowLabel*/>,
+        break_target: Id<FlowNode /*FlowLabel*/>,
+        continue_target: Id<FlowNode /*FlowLabel*/>,
     ) {
         let save_break_target = self.maybe_current_break_target();
         let save_continue_target = self.maybe_current_continue_target();
@@ -207,8 +207,8 @@ impl BinderType {
     pub(super) fn set_continue_target(
         &self,
         mut node: Id<Node>,
-        target: Gc<FlowNode /*FlowLabel*/>,
-    ) -> Gc<FlowNode> {
+        target: Id<FlowNode /*FlowLabel*/>,
+    ) -> Id<FlowNode> {
         let mut label = self.maybe_active_label_list();
         while label.is_some() && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::LabeledStatement {
             let label_present = label.unwrap();
@@ -365,8 +365,8 @@ impl BinderType {
     pub(super) fn bind_break_or_continue_flow(
         &self,
         node: Id<Node>, /*BreakOrContinueStatement*/
-        break_target: Option<Gc<FlowNode /*FlowLabel*/>>,
-        continue_target: Option<Gc<FlowNode /*FlowLabel*/>>,
+        break_target: Option<Id<FlowNode /*FlowLabel*/>>,
+        continue_target: Option<Id<FlowNode /*FlowLabel*/>>,
     ) {
         let flow_label = if node.ref_(self).kind() == SyntaxKind::BreakStatement {
             break_target
@@ -699,8 +699,8 @@ impl BinderType {
     pub(super) fn bind_logical_like_expression(
         &self,
         node: Id<Node>, /*BinaryExpression*/
-        true_target: Gc<FlowNode /*FlowLabel*/>,
-        false_target: Gc<FlowNode /*FlowLabel*/>,
+        true_target: Id<FlowNode /*FlowLabel*/>,
+        false_target: Id<FlowNode /*FlowLabel*/>,
     ) {
         let pre_right_label = self.create_branch_label();
         let node_ref = node.ref_(self);

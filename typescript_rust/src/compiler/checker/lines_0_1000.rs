@@ -3393,7 +3393,7 @@ impl TypeChecker {
         self.flow_invocation_count.set(flow_invocation_count);
     }
 
-    pub(super) fn maybe_last_flow_node(&self) -> GcCellRefMut<Option<Gc<FlowNode>>> {
+    pub(super) fn maybe_last_flow_node(&self) -> GcCellRefMut<Option<Id<FlowNode>>> {
         self.last_flow_node.borrow_mut()
     }
 
@@ -3455,7 +3455,7 @@ impl TypeChecker {
         self.flow_loop_caches.borrow_mut()
     }
 
-    pub(super) fn flow_loop_nodes(&self) -> GcCellRefMut<HashMap<usize, Gc<FlowNode>>> {
+    pub(super) fn flow_loop_nodes(&self) -> GcCellRefMut<HashMap<usize, Id<FlowNode>>> {
         self.flow_loop_nodes.borrow_mut()
     }
 
@@ -3467,7 +3467,7 @@ impl TypeChecker {
         self.flow_loop_types.borrow_mut()
     }
 
-    pub(super) fn shared_flow_nodes(&self) -> GcCellRefMut<HashMap<usize, Gc<FlowNode>>> {
+    pub(super) fn shared_flow_nodes(&self) -> GcCellRefMut<HashMap<usize, Id<FlowNode>>> {
         self.shared_flow_nodes.borrow_mut()
     }
 

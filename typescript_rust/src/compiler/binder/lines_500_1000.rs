@@ -586,13 +586,13 @@ impl BinderType {
         self.contains_narrowable_reference(expr)
     }
 
-    pub(super) fn create_branch_label(&self) -> Gc<FlowNode /*FlowLabel*/> {
+    pub(super) fn create_branch_label(&self) -> Id<FlowNode /*FlowLabel*/> {
         Gc::new(init_flow_node(
             FlowLabel::new(FlowFlags::BranchLabel, None).into(),
         ))
     }
 
-    pub(super) fn create_loop_label(&self) -> Gc<FlowNode /*FlowLabel*/> {
+    pub(super) fn create_loop_label(&self) -> Id<FlowNode /*FlowLabel*/> {
         Gc::new(init_flow_node(
             FlowLabel::new(FlowFlags::LoopLabel, None).into(),
         ))
@@ -600,10 +600,10 @@ impl BinderType {
 
     pub(super) fn create_reduce_label(
         &self,
-        target: Gc<FlowNode /*FlowLabel*/>,
-        antecedents: Vec<Gc<FlowNode>>,
-        antecedent: Gc<FlowNode>,
-    ) -> Gc<FlowNode /*FlowReduceLabel*/> {
+        target: Id<FlowNode /*FlowLabel*/>,
+        antecedents: Vec<Id<FlowNode>>,
+        antecedent: Id<FlowNode>,
+    ) -> Id<FlowNode /*FlowReduceLabel*/> {
         Gc::new(init_flow_node(
             FlowReduceLabel::new(FlowFlags::ReduceLabel, target, antecedents, antecedent).into(),
         ))
@@ -623,7 +623,7 @@ impl BinderType {
     pub(super) fn add_antecedent(
         &self,
         label: &FlowNode, /*FlowLabel*/
-        antecedent: Gc<FlowNode>,
+        antecedent: Id<FlowNode>,
     ) {
         let label_as_flow_label = label.as_flow_label();
         if !antecedent.flags().intersects(FlowFlags::Unreachable)
@@ -644,9 +644,9 @@ impl BinderType {
     pub(super) fn create_flow_condition(
         &self,
         flags: FlowFlags,
-        antecedent: Gc<FlowNode>,
+        antecedent: Id<FlowNode>,
         expression: Option<Id<Node>>,
-    ) -> Gc<FlowNode> {
+    ) -> Id<FlowNode> {
         if antecedent.flags().intersects(FlowFlags::Unreachable) {
             return antecedent;
         }

@@ -1500,11 +1500,11 @@ pub struct FlowLabel {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    antecedents: GcCell<Option<Vec<Gc<FlowNode>>>>,
+    antecedents: GcCell<Option<Vec<Id<FlowNode>>>>,
 }
 
 impl FlowLabel {
-    pub fn new(flags: FlowFlags, antecedents: Option<Vec<Gc<FlowNode>>>) -> Self {
+    pub fn new(flags: FlowFlags, antecedents: Option<Vec<Id<FlowNode>>>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1512,15 +1512,15 @@ impl FlowLabel {
         }
     }
 
-    pub fn maybe_antecedents(&self) -> GcCellRef<Option<Vec<Gc<FlowNode>>>> {
+    pub fn maybe_antecedents(&self) -> GcCellRef<Option<Vec<Id<FlowNode>>>> {
         self.antecedents.borrow()
     }
 
-    pub fn maybe_antecedents_mut(&self) -> GcCellRefMut<Option<Vec<Gc<FlowNode>>>> {
+    pub fn maybe_antecedents_mut(&self) -> GcCellRefMut<Option<Vec<Id<FlowNode>>>> {
         self.antecedents.borrow_mut()
     }
 
-    pub fn set_antecedents(&self, antecedents: Option<Vec<Gc<FlowNode>>>) {
+    pub fn set_antecedents(&self, antecedents: Option<Vec<Id<FlowNode>>>) {
         *self.antecedents.borrow_mut() = antecedents;
     }
 }
@@ -1550,7 +1550,7 @@ impl From<FlowLabel> for FlowNode {
 }
 
 pub trait HasAntecedentInterface {
-    fn antecedent(&self) -> Gc<FlowNode>;
+    fn antecedent(&self) -> Id<FlowNode>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -1560,11 +1560,11 @@ pub struct FlowAssignment {
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub node: Id<Node /*Expression | VariableDeclaration | BindingElement*/>,
-    pub antecedent: Gc<FlowNode>,
+    pub antecedent: Id<FlowNode>,
 }
 
 impl FlowAssignment {
-    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Id<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Id<FlowNode>, node: Id<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1593,7 +1593,7 @@ impl FlowNodeBase for FlowAssignment {
 }
 
 impl HasAntecedentInterface for FlowAssignment {
-    fn antecedent(&self) -> Gc<FlowNode> {
+    fn antecedent(&self) -> Id<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1611,11 +1611,11 @@ pub struct FlowCall {
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub node: Id<Node /*CallExpression*/>,
-    pub antecedent: Gc<FlowNode>,
+    pub antecedent: Id<FlowNode>,
 }
 
 impl FlowCall {
-    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Id<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Id<FlowNode>, node: Id<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1644,7 +1644,7 @@ impl FlowNodeBase for FlowCall {
 }
 
 impl HasAntecedentInterface for FlowCall {
-    fn antecedent(&self) -> Gc<FlowNode> {
+    fn antecedent(&self) -> Id<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1662,11 +1662,11 @@ pub struct FlowCondition {
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub node: Id<Node /*Expression*/>,
-    pub antecedent: Gc<FlowNode>,
+    pub antecedent: Id<FlowNode>,
 }
 
 impl FlowCondition {
-    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Id<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Id<FlowNode>, node: Id<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             antecedent,
@@ -1695,7 +1695,7 @@ impl FlowNodeBase for FlowCondition {
 }
 
 impl HasAntecedentInterface for FlowCondition {
-    fn antecedent(&self) -> Gc<FlowNode> {
+    fn antecedent(&self) -> Id<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1715,13 +1715,13 @@ pub struct FlowSwitchClause {
     pub switch_statement: Id<Node /*SwitchStatement*/>,
     pub clause_start: usize,
     pub clause_end: usize,
-    pub antecedent: Gc<FlowNode>,
+    pub antecedent: Id<FlowNode>,
 }
 
 impl FlowSwitchClause {
     pub fn new(
         flags: FlowFlags,
-        antecedent: Gc<FlowNode>,
+        antecedent: Id<FlowNode>,
         switch_statement: Id<Node>,
         clause_start: usize,
         clause_end: usize,
@@ -1756,7 +1756,7 @@ impl FlowNodeBase for FlowSwitchClause {
 }
 
 impl HasAntecedentInterface for FlowSwitchClause {
-    fn antecedent(&self) -> Gc<FlowNode> {
+    fn antecedent(&self) -> Id<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1774,11 +1774,11 @@ pub struct FlowArrayMutation {
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub node: Id<Node /*CallExpression | BinaryExpression*/>,
-    pub antecedent: Gc<FlowNode>,
+    pub antecedent: Id<FlowNode>,
 }
 
 impl FlowArrayMutation {
-    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Id<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Id<FlowNode>, node: Id<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1807,7 +1807,7 @@ impl FlowNodeBase for FlowArrayMutation {
 }
 
 impl HasAntecedentInterface for FlowArrayMutation {
-    fn antecedent(&self) -> Gc<FlowNode> {
+    fn antecedent(&self) -> Id<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1824,17 +1824,17 @@ pub struct FlowReduceLabel {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    pub target: Gc<FlowNode /*FlowLabel*/>,
-    pub antecedents: Vec<Gc<FlowNode>>,
-    pub antecedent: Gc<FlowNode>,
+    pub target: Id<FlowNode /*FlowLabel*/>,
+    pub antecedents: Vec<Id<FlowNode>>,
+    pub antecedent: Id<FlowNode>,
 }
 
 impl FlowReduceLabel {
     pub fn new(
         flags: FlowFlags,
-        target: Gc<FlowNode>,
-        antecedents: Vec<Gc<FlowNode>>,
-        antecedent: Gc<FlowNode>,
+        target: Id<FlowNode>,
+        antecedents: Vec<Id<FlowNode>>,
+        antecedent: Id<FlowNode>,
     ) -> Self {
         Self {
             flags: Cell::new(flags),
@@ -1865,7 +1865,7 @@ impl FlowNodeBase for FlowReduceLabel {
 }
 
 impl HasAntecedentInterface for FlowReduceLabel {
-    fn antecedent(&self) -> Gc<FlowNode> {
+    fn antecedent(&self) -> Id<FlowNode> {
         self.antecedent.clone()
     }
 }

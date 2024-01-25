@@ -237,7 +237,7 @@ pub struct SourceFileContents {
     local_jsx_fragment_factory: GcCell<Option<Id<Node>>>,
 
     exported_modules_from_declaration_emit: GcCell<Option<ExportedModulesFromDeclarationEmit>>,
-    end_flow_node: GcCell<Option<Gc<FlowNode>>>,
+    end_flow_node: GcCell<Option<Id<FlowNode>>>,
 
     // TsConfigSourceFile
     #[unsafe_ignore_trace]
@@ -729,7 +729,7 @@ impl SourceFile {
         self.contents.local_jsx_fragment_factory.borrow_mut()
     }
 
-    pub fn set_end_flow_node(&self, end_flow_node: Option<Gc<FlowNode>>) {
+    pub fn set_end_flow_node(&self, end_flow_node: Option<Id<FlowNode>>) {
         *self.contents.end_flow_node.borrow_mut() = end_flow_node;
     }
 
@@ -753,7 +753,7 @@ impl SourceFile {
             .borrow_mut()
     }
 
-    pub fn maybe_end_flow_node(&self) -> GcCellRefMut<Option<Gc<FlowNode>>> {
+    pub fn maybe_end_flow_node(&self) -> GcCellRefMut<Option<Id<FlowNode>>> {
         self.contents.end_flow_node.borrow_mut()
     }
 }
