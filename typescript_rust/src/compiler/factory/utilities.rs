@@ -728,8 +728,9 @@ pub fn create_external_helpers_import_declaration_if_needed<
             if let Some(helpers) = helpers {
                 let mut helper_names: Vec<String> = _d();
                 for helper in helpers {
-                    if !helper.scoped() {
-                        let import_name = helper.as_unscoped_emit_helper().import_name.as_ref();
+                    if !helper.ref_(node_factory).scoped() {
+                        let helper_ref = helper.ref_(node_factory);
+                        let import_name = helper_ref.as_unscoped_emit_helper().import_name.as_ref();
                         if let Some(import_name) = import_name.non_empty() {
                             push_if_unique_eq(&mut helper_names, import_name);
                         }
@@ -835,7 +836,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
             let helpers = get_emit_helpers(&node.ref_(factory));
             if let Some(helpers) = helpers {
                 for helper in helpers {
-                    if !helper.scoped() {
+                    if !helper.ref_(factory).scoped() {
                         create = true;
                         break;
                     }

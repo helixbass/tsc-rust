@@ -69,14 +69,14 @@ impl Printer {
                 continue;
             };
             for helper in &*helpers {
-                if !helper.scoped()
+                if !helper.ref_(self).scoped()
                     && !should_skip
-                    && bundled_helpers.get(helper.name()).copied() != Some(true)
+                    && bundled_helpers.get(helper.ref_(self).name()).copied() != Some(true)
                 {
-                    bundled_helpers.insert(helper.name().to_owned(), true);
+                    bundled_helpers.insert(helper.ref_(self).name().to_owned(), true);
                     result
                         .get_or_insert_default_()
-                        .push(helper.name().to_owned());
+                        .push(helper.ref_(self).name().to_owned());
                 }
             }
         }
@@ -133,24 +133,24 @@ impl Printer {
             };
             if let Some(helpers) = helpers {
                 for helper in &helpers {
-                    if !helper.scoped() {
+                    if !helper.ref_(self).scoped() {
                         if should_skip {
                             continue;
                         }
 
                         if should_bundle {
-                            if self.bundled_helpers().get(helper.name()).copied() == Some(true) {
+                            if self.bundled_helpers().get(helper.ref_(self).name()).copied() == Some(true) {
                                 continue;
                             }
 
                             self.bundled_helpers_mut()
-                                .insert(helper.name().to_owned(), true);
+                                .insert(helper.ref_(self).name().to_owned(), true);
                         }
                     } else if bundle.is_some() {
                         continue;
                     }
                     let pos = self.get_text_pos_with_write_line();
-                    match helper.text() {
+                    match helper.ref_(self).text() {
                         EmitHelperText::String(ref helper_text) => {
                             self.write_lines(helper_text);
                         }
@@ -163,7 +163,7 @@ impl Printer {
                     if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
                         bundle_file_info.borrow_mut().sections.push(Gc::new(
                             BundleFileSection::new_emit_helpers(
-                                helper.name().to_owned(),
+                                helper.ref_(self).name().to_owned(),
                                 pos.try_into().unwrap(),
                                 self.writer().get_text_pos().try_into().unwrap(),
                             ),

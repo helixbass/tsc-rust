@@ -310,7 +310,7 @@ pub fn move_emit_helpers(
     let mut helpers_removed = 0;
     for i in 0..source_emit_helpers.len() {
         let helper = source_emit_helpers[i].clone();
-        if predicate(&helper) {
+        if predicate(&helper.ref_(arena)) {
             helpers_removed += 1;
             target_emit_node
                 .helpers
