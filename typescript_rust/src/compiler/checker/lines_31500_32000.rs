@@ -973,7 +973,7 @@ impl TypeChecker {
                 &Diagnostics::Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined,
                 None,
             );
-        } else if self.compiler_options.no_implicit_returns == Some(true) {
+        } else if self.compiler_options.ref_(self).no_implicit_returns == Some(true) {
             if type_.is_none() {
                 if !has_explicit_return {
                     return Ok(());

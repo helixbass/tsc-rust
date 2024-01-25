@@ -729,7 +729,7 @@ impl TransformES2015 {
 
         if segments.len() == 1 {
             let first_segment = &segments[0];
-            if is_argument_list && self.compiler_options.downlevel_iteration != Some(true)
+            if is_argument_list && self.compiler_options.ref_(self).downlevel_iteration != Some(true)
                 || is_packed_array_literal(first_segment.expression)
                 || is_call_to_helper(first_segment.expression, "___spreadArray", self)
             {

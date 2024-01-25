@@ -239,8 +239,8 @@ impl TransformDeclarations {
             libs: Default::default(),
             emitted_imports: Default::default(),
             resolver: context.ref_(arena_ref).get_emit_resolver(),
-            no_resolve: options.no_resolve,
-            strip_internal: options.strip_internal,
+            no_resolve: options.ref_(arena_ref).no_resolve,
+            strip_internal: options.ref_(arena_ref).strip_internal,
             options,
             context,
         }));

@@ -184,7 +184,7 @@ impl TypeChecker {
                     )?;
                 }
             }
-        } else if self.compiler_options.downlevel_iteration == Some(true)
+        } else if self.compiler_options.ref_(self).downlevel_iteration == Some(true)
             && self.language_version < ScriptTarget::ES2015
         {
             self.check_external_emit_helpers(node, ExternalEmitHelpers::ForOfIncludes)?;
@@ -396,9 +396,9 @@ impl TypeChecker {
         let downlevel_iteration = if uplevel_iteration {
             Some(true)
         } else {
-            self.compiler_options.downlevel_iteration
+            self.compiler_options.ref_(self).downlevel_iteration
         };
-        let possible_out_of_bounds = self.compiler_options.no_unchecked_indexed_access
+        let possible_out_of_bounds = self.compiler_options.ref_(self).no_unchecked_indexed_access
             == Some(true)
             && use_.intersects(IterationUse::PossiblyOutOfBounds);
 
@@ -554,7 +554,7 @@ impl TypeChecker {
                     .ref_(self)
                     .flags()
                     .intersects(TypeFlags::StringLike)
-                    && self.compiler_options.no_unchecked_indexed_access != Some(true)
+                    && self.compiler_options.ref_(self).no_unchecked_indexed_access != Some(true)
                 {
                     return Ok(Some(self.string_type()));
                 }

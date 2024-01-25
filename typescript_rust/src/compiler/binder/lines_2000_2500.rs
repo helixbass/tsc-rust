@@ -748,7 +748,7 @@ impl BinderType {
         node: Id<Node>, /*LabeledStatement*/
     ) {
         if self.maybe_in_strict_mode() == Some(true)
-            && get_emit_script_target(&self.options()) >= ScriptTarget::ES2015
+            && get_emit_script_target(&self.options().ref_(self)) >= ScriptTarget::ES2015
         {
             let node_ref = node.ref_(self);
             let node_as_labeled_statement = node_ref.as_labeled_statement();

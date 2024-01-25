@@ -423,7 +423,7 @@ impl TypeChecker {
         if is_in_js_file(Some(&declaration.ref_(self)))
             && !is_check_js_enabled_for_file(
                 &get_source_file_of_node(declaration, self).ref_(self),
-                &self.compiler_options,
+                &self.compiler_options.ref_(self),
             )
         {
             return Ok(());

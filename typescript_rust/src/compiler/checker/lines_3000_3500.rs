@@ -829,7 +829,7 @@ impl TypeChecker {
         module_reference_expression: Id<Node>, /*Expression*/
         ignore_errors: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
+        let is_classic = get_emit_module_resolution_kind(&self.compiler_options.ref_(self))
             == ModuleResolutionKind::Classic;
         let error_message = if is_classic {
             &*Diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_node_or_to_add_aliases_to_the_paths_option
@@ -943,7 +943,7 @@ impl TypeChecker {
         let resolved_module =
             get_resolved_module(Some(&current_source_file.ref_(self)), module_reference, mode);
         let resolution_diagnostic = resolved_module.as_ref().and_then(|resolved_module| {
-            get_resolution_diagnostic(&self.compiler_options, resolved_module)
+            get_resolution_diagnostic(&self.compiler_options.ref_(self), resolved_module)
         });
         let source_file = resolved_module.as_ref().and_then(|resolved_module| {
             if resolution_diagnostic.is_none() {
@@ -967,7 +967,7 @@ impl TypeChecker {
                     );
                 }
                 if matches!(
-                    get_emit_module_resolution_kind(&self.compiler_options),
+                    get_emit_module_resolution_kind(&self.compiler_options.ref_(self)),
                     ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext
                 ) {
                     let is_sync_import = 
@@ -988,7 +988,7 @@ impl TypeChecker {
                         );
                     }
                     if mode == Some(ModuleKind::ESNext)
-                        && matches!(self.compiler_options.resolve_json_module, Some(true))
+                        && matches!(self.compiler_options.ref_(self).resolve_json_module, Some(true))
                         && resolved_module.extension() == Extension::Json
                     {
                         self.error(
@@ -1087,7 +1087,7 @@ impl TypeChecker {
                 let is_extensionless_relative_path_import =
                     path_is_relative(module_reference) && !has_extension(module_reference);
                 let module_resolution_kind =
-                    get_emit_module_resolution_kind(&self.compiler_options);
+                    get_emit_module_resolution_kind(&self.compiler_options.ref_(self));
                 let resolution_is_node_12_or_next = matches!(
                     module_resolution_kind,
                     ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext
@@ -1114,11 +1114,11 @@ impl TypeChecker {
                             replaced_import_source,
                         ]),
                     );
-                } else if !matches!(self.compiler_options.resolve_json_module, Some(true))
+                } else if !matches!(self.compiler_options.ref_(self).resolve_json_module, Some(true))
                     && file_extension_is(module_reference, Extension::Json.to_str())
-                    && get_emit_module_resolution_kind(&self.compiler_options)
+                    && get_emit_module_resolution_kind(&self.compiler_options.ref_(self))
                         != ModuleResolutionKind::Classic
-                    && has_json_module_emit_enabled(&self.compiler_options)
+                    && has_json_module_emit_enabled(&self.compiler_options.ref_(self))
                 {
                     self.error(
                         Some(error_node),

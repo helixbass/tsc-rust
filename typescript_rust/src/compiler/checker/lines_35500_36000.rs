@@ -389,7 +389,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        if self.compiler_options.experimental_decorators != Some(true) {
+        if self.compiler_options.ref_(self).experimental_decorators != Some(true) {
             self.error(
                 Some(node),
                 &Diagnostics::Experimental_support_for_decorators_is_a_feature_that_is_subject_to_change_in_a_future_release_Set_the_experimentalDecorators_option_in_your_tsconfig_or_jsconfig_to_remove_this_warning,
@@ -403,7 +403,7 @@ impl TypeChecker {
             self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Param)?;
         }
 
-        if self.compiler_options.emit_decorator_metadata == Some(true) {
+        if self.compiler_options.ref_(self).emit_decorator_metadata == Some(true) {
             self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Metadata)?;
 
             match node.ref_(self).kind() {

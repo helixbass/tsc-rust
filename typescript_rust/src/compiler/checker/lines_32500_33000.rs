@@ -151,7 +151,7 @@ impl TypeChecker {
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         let elements = &node_as_array_literal_expression.elements;
         if self.language_version < ScriptTarget::ES2015
-            && self.compiler_options.downlevel_iteration == Some(true)
+            && self.compiler_options.ref_(self).downlevel_iteration == Some(true)
         {
             self.check_external_emit_helpers(node, ExternalEmitHelpers::Read)?;
         }
@@ -161,7 +161,7 @@ impl TypeChecker {
             self.undefined_type(),
             Some(node)
         )? /*|| errorType*/;
-        let mut in_bounds_type = if self.compiler_options.no_unchecked_indexed_access == Some(true)
+        let mut in_bounds_type = if self.compiler_options.ref_(self).no_unchecked_indexed_access == Some(true)
         {
             None
         } else {
@@ -925,7 +925,7 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::CommaToken => {
-                if self.compiler_options.allow_unreachable_code != Some(true)
+                if self.compiler_options.ref_(self).allow_unreachable_code != Some(true)
                     && self.is_side_effect_free(left)
                     && !self.is_eval_node(right)
                 {

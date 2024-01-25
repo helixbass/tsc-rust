@@ -541,7 +541,7 @@ impl TypeChecker {
                     let source_file = get_source_file_of_node(node, self);
                     if !self.has_parse_diagnostics(source_file) {
                         let mut span: Option<TextSpan> = None;
-                        if !is_effective_external_module(&source_file.ref_(self), &self.compiler_options) {
+                        if !is_effective_external_module(&source_file.ref_(self), &self.compiler_options.ref_(self)) {
                             if span.is_none() {
                                 span = Some(get_span_of_token_at_position(
                                     &source_file.ref_(self),

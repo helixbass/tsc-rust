@@ -64,8 +64,8 @@ impl TransformModule {
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
             host: context_ref.get_emit_host(),
-            language_version: get_emit_script_target(&compiler_options),
-            module_kind: get_emit_module_kind(&compiler_options),
+            language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
+            module_kind: get_emit_module_kind(&compiler_options.ref_(arena_ref)),
             compiler_options,
             context: context.clone(),
             module_info_map: _d(),
@@ -172,13 +172,13 @@ impl TransformModule {
         let node_ref = node.ref_(self);
         let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file()
-            || !(is_effective_external_module(&node.ref_(self), &self.compiler_options)
+            || !(is_effective_external_module(&node.ref_(self), &self.compiler_options.ref_(self))
                 || node
                     .ref_(self).transform_flags()
                     .intersects(TransformFlags::ContainsDynamicImport)
                 || is_json_source_file(&node.ref_(self))
-                    && has_json_module_emit_enabled(&self.compiler_options)
-                    && out_file(&self.compiler_options).is_non_empty())
+                    && has_json_module_emit_enabled(&self.compiler_options.ref_(self))
+                    && out_file(&self.compiler_options.ref_(self)).is_non_empty())
         {
             return Ok(node);
         }
@@ -188,7 +188,7 @@ impl TransformModule {
             &*self.context.ref_(self),
             node,
             &**self.resolver,
-            &self.compiler_options,
+            &self.compiler_options.ref_(self),
             self,
         )?)));
         self.module_info_map_mut()
@@ -223,8 +223,8 @@ impl TransformModule {
         self.context.ref_(self).start_lexical_environment();
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
-        let ensure_use_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
-            || self.compiler_options.no_implicit_use_strict != Some(true)
+        let ensure_use_strict = get_strict_option_value(&self.compiler_options.ref_(self), "alwaysStrict")
+            || self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)
                 && is_external_module(&self.current_source_file().ref_(self));
         let statement_offset = self.factory.try_copy_prologue(
             &node_as_source_file.statements(),
@@ -319,7 +319,7 @@ impl TransformModule {
             &self.factory,
             Some(node),
             &**self.host.ref_(self),
-            &self.compiler_options,
+            &self.compiler_options.ref_(self),
         );
         let json_source_file = is_json_source_file(&node.ref_(self)).then_some(node);
 
@@ -450,7 +450,7 @@ impl TransformModule {
             &self.factory,
             Some(node),
             &**self.host.ref_(self),
-            &self.compiler_options,
+            &self.compiler_options.ref_(self),
         );
         let umd_header = self.factory.create_function_expression(
             Option::<Gc<NodeArray>>::None,
@@ -684,7 +684,7 @@ impl TransformModule {
                 self.current_source_file(),
                 &**self.host.ref_(self),
                 &**self.resolver,
-                &self.compiler_options,
+                &self.compiler_options.ref_(self),
             )?;
 
             let import_alias_name = get_local_name_for_external_import(
@@ -732,7 +732,7 @@ impl TransformModule {
                 self.current_source_file(),
                 &**self.host.ref_(self),
                 &**self.resolver,
-                &self.compiler_options,
+                &self.compiler_options.ref_(self),
             )?
             .is_none()
         {
@@ -762,7 +762,7 @@ impl TransformModule {
         let statement_offset = self.factory.try_copy_prologue(
             &node_as_source_file.statements(),
             &mut statements,
-            Some(self.compiler_options.no_implicit_use_strict != Some(true)),
+            Some(self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
         )?;
 

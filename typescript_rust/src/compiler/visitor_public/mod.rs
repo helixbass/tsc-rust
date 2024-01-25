@@ -510,7 +510,7 @@ pub fn visit_parameter_list_full(
         if context
             .get_lexical_environment_flags()
             .intersects(LexicalEnvironmentFlags::VariablesHoistedInParameters)
-            && get_emit_script_target(&context.get_compiler_options()) >= ScriptTarget::ES2015
+            && get_emit_script_target(&context.get_compiler_options().ref_(arena)) >= ScriptTarget::ES2015
         {
             updated = Some(add_default_value_assignments_if_needed(
                 updated.as_ref().unwrap(),
@@ -596,7 +596,7 @@ pub fn try_visit_parameter_list_full(
         if context
             .get_lexical_environment_flags()
             .intersects(LexicalEnvironmentFlags::VariablesHoistedInParameters)
-            && get_emit_script_target(&context.get_compiler_options()) >= ScriptTarget::ES2015
+            && get_emit_script_target(&context.get_compiler_options().ref_(arena)) >= ScriptTarget::ES2015
         {
             updated = Some(add_default_value_assignments_if_needed(
                 updated.as_ref().unwrap(),

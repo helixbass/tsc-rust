@@ -379,7 +379,7 @@ impl TransformModule {
             self.current_source_file(),
             &**self.host.ref_(self),
             &**self.resolver,
-            &self.compiler_options,
+            &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
             first_or_undefined(&node_as_call_expression.arguments).cloned(),
@@ -400,7 +400,7 @@ impl TransformModule {
         let contains_lexical_this = node
             .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsLexicalThis);
-        Ok(match self.compiler_options.module {
+        Ok(match self.compiler_options.ref_(self).module {
             Some(ModuleKind::AMD) => {
                 self.create_import_call_expression_amd(argument, contains_lexical_this)
             }
@@ -537,7 +537,7 @@ impl TransformModule {
             Option::<Gc<NodeArray>>::None,
             Some(vec![func]),
         );
-        if get_es_module_interop(&self.compiler_options) == Some(true) {
+        if get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true) {
             return self.factory.create_call_expression(
                 self.factory.create_property_access_expression(
                     promise,
@@ -570,7 +570,7 @@ impl TransformModule {
             Option::<Gc<NodeArray>>::None,
             Some(arg.map_or_default(|arg| vec![arg]))
         );
-        if get_es_module_interop(&self.compiler_options) == Some(true) {
+        if get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true) {
             require_call = self.emit_helpers().create_import_star_helper(require_call);
         }
 
@@ -616,7 +616,7 @@ impl TransformModule {
         node: Id<Node>, /*ExportDeclaration*/
         inner_expr: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        if get_es_module_interop(&self.compiler_options) != Some(true)
+        if get_es_module_interop(&self.compiler_options.ref_(self)) != Some(true)
             || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NeverApplyImportHelper)
         {
             return inner_expr;
@@ -632,7 +632,7 @@ impl TransformModule {
         node: Id<Node>, /*ImportDeclaration*/
         inner_expr: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        if get_es_module_interop(&self.compiler_options) != Some(true)
+        if get_es_module_interop(&self.compiler_options.ref_(self)) != Some(true)
             || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NeverApplyImportHelper)
         {
             return inner_expr;
@@ -778,7 +778,7 @@ impl TransformModule {
             self.current_source_file(),
             &**self.host.ref_(self),
             &**self.resolver,
-            &self.compiler_options,
+            &self.compiler_options.ref_(self),
         )?;
         let mut args: Vec<Id<Node /*Expression*/>> = _d();
         if let Some(module_name) = module_name {

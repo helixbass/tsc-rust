@@ -145,7 +145,7 @@ impl TypeChecker {
         let is_js = is_in_js_file(Some(&node.ref_(self)));
         let node_in_ambient_context = node.ref_(self).flags().intersects(NodeFlags::Ambient);
         if let Some(base_with_this) = base_with_this.filter(|_| {
-            member_has_override_modifier || self.compiler_options.no_implicit_override == Some(true)
+            member_has_override_modifier || self.compiler_options.ref_(self).no_implicit_override == Some(true)
         }) {
             let member_escaped_name = escape_leading_underscores(member_name);
             let this_type = if member_is_static {
@@ -174,7 +174,7 @@ impl TypeChecker {
                     .and_then(|base_prop| base_prop.ref_(self).maybe_declarations().clone())
                     .as_ref()
                     .filter(|_| {
-                        self.compiler_options.no_implicit_override == Some(true)
+                        self.compiler_options.ref_(self).no_implicit_override == Some(true)
                             && !node_in_ambient_context
                     }),
             ) {

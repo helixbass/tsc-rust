@@ -45,7 +45,7 @@ impl TypeChecker {
             return Ok(true);
         }
         Ok(target.ref_(self).flags().intersects(SymbolFlags::Value)
-            && (should_preserve_const_enums(&self.compiler_options)
+            && (should_preserve_const_enums(&self.compiler_options.ref_(self))
                 || !self.is_const_enum_or_const_enum_only_module(target)))
     }
 
@@ -75,7 +75,7 @@ impl TypeChecker {
                 target,
                 Some(target) if get_effective_modifier_flags(node, self).intersects(ModifierFlags::Export) &&
                     target.ref_(self).flags().intersects(SymbolFlags::Value) && (
-                        should_preserve_const_enums(&self.compiler_options) ||
+                        should_preserve_const_enums(&self.compiler_options.ref_(self)) ||
                         !self.is_const_enum_or_const_enum_only_module(target)
                     )
             ) {
@@ -664,7 +664,7 @@ impl TypeChecker {
         // }
 
         if let Some(compiler_options_jsx_fragment_factory) =
-            self.compiler_options.jsx_fragment_factory.as_ref()
+            self.compiler_options.ref_(self).jsx_fragment_factory.as_ref()
         {
             return parse_isolated_entity_name(
                 compiler_options_jsx_fragment_factory.clone(),
@@ -1003,10 +1003,10 @@ impl TypeChecker {
         helpers: ExternalEmitHelpers,
     ) -> io::Result<()> {
         if self.requested_external_emit_helpers() & helpers != helpers
-            && self.compiler_options.import_helpers == Some(true)
+            && self.compiler_options.ref_(self).import_helpers == Some(true)
         {
             let source_file = get_source_file_of_node(location, self);
-            if is_effective_external_module(&source_file.ref_(self), &self.compiler_options)
+            if is_effective_external_module(&source_file.ref_(self), &self.compiler_options.ref_(self))
                 && !location.ref_(self).flags().intersects(NodeFlags::Ambient)
             {
                 let helpers_module = self.resolve_helpers_module(source_file, location)?;

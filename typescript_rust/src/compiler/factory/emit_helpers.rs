@@ -125,7 +125,7 @@ impl EmitHelperFactory {
         attributes_segments: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         let attributes_segments = attributes_segments.into();
-        if get_emit_script_target(&self.context.ref_(self).get_compiler_options()) >= ScriptTarget::ES2015 {
+        if get_emit_script_target(&self.context.ref_(self).get_compiler_options().ref_(self)) >= ScriptTarget::ES2015 {
             return self.factory.create_call_expression(
                 self.factory.create_property_access_expression(
                     self.factory.create_identifier("Object"),

@@ -898,7 +898,7 @@ impl BinderType {
         let instance_state = get_module_instance_state(node, None, self);
         instance_state == ModuleInstanceState::Instantiated
             || instance_state == ModuleInstanceState::ConstEnumOnly
-                && should_preserve_const_enums(&self.options())
+                && should_preserve_const_enums(&self.options().ref_(self))
     }
 
     pub(super) fn check_unreachable(&self, node: Id<Node>) -> bool {
@@ -919,8 +919,8 @@ impl BinderType {
             if report_error {
                 self.set_current_flow(Some(self.reported_unreachable_flow()));
 
-                if !matches!(self.options().allow_unreachable_code, Some(true)) {
-                    let is_error = unreachable_code_is_error(&self.options())
+                if !matches!(self.options().ref_(self).allow_unreachable_code, Some(true)) {
+                    let is_error = unreachable_code_is_error(&self.options().ref_(self))
                         && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
                         && (!is_variable_statement(&node.ref_(self))
                             || get_combined_node_flags(

@@ -367,7 +367,7 @@ impl BinderType {
         }
         if node.ref_(self).kind() >= SyntaxKind::FirstStatement
             && node.ref_(self).kind() <= SyntaxKind::LastStatement
-            && self.options().allow_unreachable_code != Some(true)
+            && self.options().ref_(self).allow_unreachable_code != Some(true)
         {
             node.ref_(self).set_flow_node(self.maybe_current_flow());
         }

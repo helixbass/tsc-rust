@@ -422,7 +422,7 @@ impl TypeChecker {
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
         let writer = writer.unwrap_or_else(|| create_text_writer("", self));
-        let no_truncation = matches!(self.compiler_options.no_error_truncation, Some(true))
+        let no_truncation = matches!(self.compiler_options.ref_(self).no_error_truncation, Some(true))
             || flags.intersects(TypeFormatFlags::NoTruncation);
         let type_node = self.node_builder().type_to_type_node(
             type_,

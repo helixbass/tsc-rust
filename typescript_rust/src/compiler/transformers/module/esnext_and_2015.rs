@@ -53,7 +53,7 @@ impl TransformEcmascriptModule {
             factory: context_ref.factory(),
             host: context_ref.get_emit_host(),
             resolver: context_ref.get_emit_resolver(),
-            language_version: get_emit_script_target(&compiler_options),
+            language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
             compiler_options,
             context: context.clone(),
             helper_name_substitutions: _d(),
@@ -154,7 +154,7 @@ impl TransformEcmascriptModule {
             return Ok(node);
         }
 
-        if is_external_module(&node.ref_(self)) || self.compiler_options.isolated_modules == Some(true) {
+        if is_external_module(&node.ref_(self)) || self.compiler_options.ref_(self).isolated_modules == Some(true) {
             self.set_current_source_file(Some(node));
             self.set_import_require_statements(None);
             let mut result = self.update_external_module(node)?;
@@ -228,7 +228,7 @@ impl TransformEcmascriptModule {
                 &self.factory,
                 &self.emit_helpers(),
                 node,
-                &self.compiler_options,
+                &self.compiler_options.ref_(self),
                 None,
                 None,
                 None,
@@ -273,7 +273,7 @@ impl TransformEcmascriptModule {
 
     fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(match node.ref_(self).kind() {
-            SyntaxKind::ImportEqualsDeclaration => (get_emit_script_target(&self.compiler_options)
+            SyntaxKind::ImportEqualsDeclaration => (get_emit_script_target(&self.compiler_options.ref_(self))
                 // TODO: this definitely looks like an upstream bug of using ModuleKind instead
                 // of ScriptTarget - technically should say ScriptTarget::ES2019 here to be using
                 // the same exact enum int value but let's see if this causes any problems
@@ -298,7 +298,7 @@ impl TransformEcmascriptModule {
             Debug_.check_defined(self.maybe_current_source_file(), None),
             &**self.host.ref_(self),
             &**self.resolver,
-            &self.compiler_options,
+            &self.compiler_options.ref_(self),
         )?;
         let mut args: Vec<Id<Node /*Expression*/>> = _d();
         if let Some(module_name) = module_name {
@@ -461,7 +461,7 @@ impl TransformEcmascriptModule {
         let node_as_export_declaration = node_ref.as_export_declaration();
         if self
             .compiler_options
-            .module
+            .ref_(self).module
             .matches(|compiler_options_module| compiler_options_module > ModuleKind::ES2015)
         {
             return Some(node.into());
@@ -572,12 +572,12 @@ impl TransformationContextOnEmitNodeOverrider for TransformEcmascriptModuleOnEmi
                 || self
                     .transform_ecmascript_module()
                     .compiler_options
-                    .isolated_modules
+                    .ref_(self).isolated_modules
                     == Some(true))
                 && self
                     .transform_ecmascript_module()
                     .compiler_options
-                    .import_helpers
+                    .ref_(self).import_helpers
                     == Some(true)
             {
                 self.transform_ecmascript_module()

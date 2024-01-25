@@ -1043,21 +1043,21 @@ impl TypeChecker {
         match &*node.ref_(self).as_identifier().escaped_text {
             "document" | "console" => &Diagnostics::Cannot_find_name_0_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_include_dom,
             "$" => {
-                if self.compiler_options.types.is_some() {
+                if self.compiler_options.ref_(self).types.is_some() {
                     &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_jQuery_Try_npm_i_save_dev_types_Slashjquery_and_then_add_jquery_to_the_types_field_in_your_tsconfig
                 } else {
                     &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_jQuery_Try_npm_i_save_dev_types_Slashjquery
                 }
             }
             "describe" | "suite" | "it" | "test" => {
-                if self.compiler_options.types.is_some() {
+                if self.compiler_options.ref_(self).types.is_some() {
                     &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_a_test_runner_Try_npm_i_save_dev_types_Slashjest_or_npm_i_save_dev_types_Slashmocha_and_then_add_jest_or_mocha_to_the_types_field_in_your_tsconfig
                 } else {
                     &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_a_test_runner_Try_npm_i_save_dev_types_Slashjest_or_npm_i_save_dev_types_Slashmocha
                 }
             }
             "process" | "require" | "Buffer" | "module" => {
-                if self.compiler_options.types.is_some() {
+                if self.compiler_options.ref_(self).types.is_some() {
                     &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_Slashnode_and_then_add_node_to_the_types_field_in_your_tsconfig
                 } else {
                     &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_Slashnode

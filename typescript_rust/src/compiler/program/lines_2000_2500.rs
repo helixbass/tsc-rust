@@ -51,7 +51,7 @@ impl Program {
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
         // self.run_with_cancellation_token(|| {
-        if skip_type_checking(&source_file.ref_(self), &self.options, |file_name: &str| {
+        if skip_type_checking(&source_file.ref_(self), &self.options.ref_(self), |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
         }) {
             return Ok(vec![]);
@@ -68,7 +68,7 @@ impl Program {
             None,
         );
 
-        let is_check_js = is_check_js_enabled_for_file(&source_file.ref_(self), &self.options);
+        let is_check_js = is_check_js_enabled_for_file(&source_file.ref_(self), &self.options.ref_(self));
         let is_ts_no_check = matches!(
             source_file_as_source_file.maybe_check_js_directive().as_ref(),
             Some(source_file_check_js_directive) if source_file_check_js_directive.enabled == false
@@ -501,7 +501,7 @@ impl Program {
         if matches!(
             parent.ref_(self).maybe_decorators().as_deref(),
             Some(parent_decorators) if ptr::eq(parent_decorators, nodes)
-        ) && self.options.experimental_decorators != Some(true)
+        ) && self.options.ref_(self).experimental_decorators != Some(true)
         {
             diagnostics.borrow_mut().push(
                 Gc::new(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
@@ -809,7 +809,7 @@ impl Program {
     }
 
     pub fn get_options_diagnostics_of_config_file(&self) -> Vec<Gc<Diagnostic>> {
-        let options_config_file = self.options.config_file.as_ref();
+        let options_config_file = self.options.ref_(self).config_file.as_ref();
         if options_config_file.is_none() {
             return vec![];
         }
@@ -923,10 +923,10 @@ impl Program {
         let mut module_augmentations: Option<Vec<Id<Node /*StringLiteral | Identifier*/>>> = None;
         let mut ambient_modules: Option<Vec<String>> = None;
 
-        if (self.options.isolated_modules == Some(true) || is_external_module_file)
+        if (self.options.ref_(self).isolated_modules == Some(true) || is_external_module_file)
             && !file_as_source_file.is_declaration_file()
         {
-            if self.options.import_helpers == Some(true) {
+            if self.options.ref_(self).import_helpers == Some(true) {
                 imports =
                     Some(vec![self.create_synthetic_import(
                         external_helpers_module_name_text,
@@ -934,8 +934,8 @@ impl Program {
                     )]);
             }
             let jsx_import = get_jsx_runtime_import(
-                get_jsx_implicit_import_base(&self.options, Some(&file.ref_(self))).as_deref(),
-                &self.options,
+                get_jsx_implicit_import_base(&self.options.ref_(self), Some(&file.ref_(self))).as_deref(),
+                &self.options.ref_(self),
             );
             if let Some(jsx_import) = jsx_import
                 .as_ref()

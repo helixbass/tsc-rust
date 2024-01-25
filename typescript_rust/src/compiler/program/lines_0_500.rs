@@ -933,7 +933,7 @@ pub fn get_pre_emit_diagnostics(
         None,
     );
 
-    if get_emit_declarations(&program.get_compiler_options()) {
+    if get_emit_declarations(&program.get_compiler_options().ref_(arena)) {
         add_range(
             &mut diagnostics,
             Some(

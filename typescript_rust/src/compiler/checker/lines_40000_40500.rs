@@ -83,7 +83,7 @@ impl TypeChecker {
             )
         {
             self.error_or_suggestion(
-                self.compiler_options.allow_unreachable_code == Some(false),
+                self.compiler_options.ref_(self).allow_unreachable_code == Some(false),
                 node,
                 &*Diagnostics::Unreachable_code_detected,
                 None,
@@ -568,8 +568,8 @@ impl TypeChecker {
             return false;
         }
         match kind {
-            UnusedKind::Local => self.compiler_options.no_unused_locals == Some(true),
-            UnusedKind::Parameter => self.compiler_options.no_unused_parameters == Some(true),
+            UnusedKind::Local => self.compiler_options.ref_(self).no_unused_locals == Some(true),
+            UnusedKind::Parameter => self.compiler_options.ref_(self).no_unused_parameters == Some(true),
             // _ => Debug_.assert_never(kind, None),
         }
     }
@@ -594,7 +594,7 @@ impl TypeChecker {
             .flags
             .intersects(NodeCheckFlags::TypeChecked)
         {
-            if skip_type_checking(&node.ref_(self), &self.compiler_options, |file_name| {
+            if skip_type_checking(&node.ref_(self), &self.compiler_options.ref_(self), |file_name| {
                 TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
             }) {
                 return Ok(());
@@ -625,8 +625,8 @@ impl TypeChecker {
             }
 
             if !node_as_source_file.is_declaration_file()
-                && (self.compiler_options.no_unused_locals == Some(true)
-                    || self.compiler_options.no_unused_parameters == Some(true))
+                && (self.compiler_options.ref_(self).no_unused_locals == Some(true)
+                    || self.compiler_options.ref_(self).no_unused_parameters == Some(true))
             {
                 self.check_unused_identifiers(
                     &self.get_potentially_unused_identifiers(node),
@@ -643,7 +643,7 @@ impl TypeChecker {
                 )?;
             }
 
-            if self.compiler_options.imports_not_used_as_values
+            if self.compiler_options.ref_(self).imports_not_used_as_values
                 == Some(ImportsNotUsedAsValues::Error)
                 && !node_as_source_file.is_declaration_file()
                 && is_external_module(&node.ref_(self))

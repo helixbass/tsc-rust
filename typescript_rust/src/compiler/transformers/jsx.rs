@@ -134,7 +134,7 @@ impl TransformJsx {
 
     fn get_jsx_factory_callee_primitive(&self, is_static_children: bool) -> &'static str /*"jsx" | "jsxs" | "jsxDEV"*/
     {
-        if self.compiler_options.jsx == Some(JsxEmit::ReactJSXDev) {
+        if self.compiler_options.ref_(self).jsx == Some(JsxEmit::ReactJSXDev) {
             "jsxDEV"
         } else if is_static_children {
             "jsxs"
@@ -158,7 +158,7 @@ impl TransformJsx {
         } else {
             get_jsx_runtime_import(
                 self.current_file_state().import_specifier.as_deref(),
-                &self.compiler_options,
+                &self.compiler_options.ref_(self),
             )
             .unwrap()
         };
@@ -215,7 +215,7 @@ impl TransformJsx {
         self.set_current_file_state(Some(
             PerFileStateBuilder::default()
                 .import_specifier(get_jsx_implicit_import_base(
-                    &self.compiler_options,
+                    &self.compiler_options.ref_(self),
                     Some(&node.ref_(self)),
                 ))
                 .build()
@@ -595,7 +595,7 @@ impl TransformJsx {
                 }
             )
         ];
-        if self.compiler_options.jsx == Some(JsxEmit::ReactJSXDev) {
+        if self.compiler_options.ref_(self).jsx == Some(JsxEmit::ReactJSXDev) {
             let original_file = maybe_get_original_node(self.maybe_current_source_file(), self);
             if let Some(original_file) =
                 original_file.filter(|original_file| is_source_file(&original_file.ref_(self)))
@@ -678,7 +678,7 @@ impl TransformJsx {
                 self.context
                     .ref_(self).get_emit_resolver()
                     .get_jsx_factory_entity(self.maybe_current_source_file()),
-                self.compiler_options.react_namespace.as_deref(),
+                self.compiler_options.ref_(self).react_namespace.as_deref(),
                 node,
             )
         } else {
@@ -747,7 +747,7 @@ impl TransformJsx {
             self.context
                 .ref_(self).get_emit_resolver()
                 .get_jsx_fragment_factory_entity(self.maybe_current_source_file()),
-            self.compiler_options.react_namespace.as_deref().unwrap(),
+            self.compiler_options.ref_(self).react_namespace.as_deref().unwrap(),
             &map_defined(Some(children), |&child: &Id<Node>, _| {
                 self.transform_jsx_child_to_expression(child)
             }),
@@ -781,7 +781,7 @@ impl TransformJsx {
         attrs: &[Id<Node /*JsxSpreadAttribute | JsxAttribute*/>],
         children: Option<Id<Node /*PropertyAssignment*/>>,
     ) -> Id<Node> {
-        let target = get_emit_script_target(&self.compiler_options);
+        let target = get_emit_script_target(&self.compiler_options.ref_(self));
         if
         /*target &&*/
         target >= ScriptTarget::ES2018 {

@@ -207,7 +207,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         _error_count: Option<usize>,
     ) {
         if self.pretty {
-            clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic, &options);
+            clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic, &options.ref_(self));
             let mut output = format!(
                 "[{}] ",
                 format_color_and_reset(
@@ -229,7 +229,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         } else {
             let mut output = "".to_owned();
 
-            if !clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic, &options)
+            if !clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic, &options.ref_(self))
             {
                 output.push_str(new_line);
             }
@@ -424,7 +424,7 @@ pub fn is_builder_program(program: &ProgramOrBuilderProgram) -> bool {
 
 pub fn list_files(program: ProgramOrBuilderProgram, mut write: impl FnMut(&str), arena: &impl HasArena) {
     let options = program.get_compiler_options();
-    if matches!(options.explain_files, Some(true)) {
+    if matches!(options.ref_(arena).explain_files, Some(true)) {
         explain_files(
             &*if is_builder_program(&program) {
                 enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram]).get_program()
@@ -433,8 +433,8 @@ pub fn list_files(program: ProgramOrBuilderProgram, mut write: impl FnMut(&str),
             },
             write,
         );
-    } else if matches!(options.list_files, Some(true))
-        || matches!(options.list_files_only, Some(true))
+    } else if matches!(options.ref_(arena).list_files, Some(true))
+        || matches!(options.ref_(arena).list_files_only, Some(true))
     {
         for_each(program.get_source_files(), |file, _| {
             write(&file.ref_(arena).as_source_file().file_name());
@@ -520,9 +520,9 @@ pub fn explain_if_file_is_redirect(
     result
 }
 
-pub fn get_matched_file_spec(program: &Program, file_name: &str) -> Option<String> {
+pub fn get_matched_file_spec(program: &Program, file_name: &str, arena: &impl HasArena) -> Option<String> {
     let program_compiler_options = program.get_compiler_options();
-    let config_file = program_compiler_options.config_file;
+    let config_file = program_compiler_options.ref_(arena).config_file;
     let config_file_config_file_specs_validated_files_spec = config_file
         .and_then(|config_file| {
             config_file
@@ -552,9 +552,9 @@ pub fn get_matched_file_spec(program: &Program, file_name: &str) -> Option<Strin
     .map(Clone::clone)
 }
 
-pub fn get_matched_include_spec(program: &Program, file_name: &str) -> Option<String> {
+pub fn get_matched_include_spec(program: &Program, file_name: &str, arena: &impl HasArena) -> Option<String> {
     let program_compiler_options = program.get_compiler_options();
-    let config_file = program_compiler_options.config_file;
+    let config_file = program_compiler_options.ref_(arena).config_file;
     let config_file_config_file_specs_validated_include_specs = config_file
         .and_then(|config_file| {
             config_file
@@ -689,7 +689,7 @@ pub fn file_include_reason_to_diagnostics(
     }
     match reason {
         FileIncludeReason::RootFile(reason) => {
-            if !options.config_file.matches(|config_file| {
+            if !options.ref_(arena).config_file.matches(|config_file| {
                 config_file
                     .ref_(program).as_source_file()
                     .maybe_config_file_specs()
@@ -705,7 +705,7 @@ pub fn file_include_reason_to_diagnostics(
                 &program.get_root_file_names()[reason.index],
                 Some(&program.get_current_directory()),
             );
-            let matched_by_files = get_matched_file_spec(program, &file_name);
+            let matched_by_files = get_matched_file_spec(program, &file_name, arena);
             if matched_by_files.is_some() {
                 return chain_diagnostic_messages(
                     None,
@@ -713,7 +713,7 @@ pub fn file_include_reason_to_diagnostics(
                     None,
                 );
             }
-            let matched_by_include = get_matched_include_spec(program, &file_name);
+            let matched_by_include = get_matched_include_spec(program, &file_name, arena);
             if let Some(matched_by_include) = matched_by_include {
                 chain_diagnostic_messages(
                     None,
@@ -721,7 +721,7 @@ pub fn file_include_reason_to_diagnostics(
                     Some(vec![
                         matched_by_include,
                         to_file_name(
-                            options.config_file.clone().unwrap(),
+                            options.ref_(arena).config_file.clone().unwrap(),
                             file_name_convertor.as_ref(),
                             program,
                         ),
@@ -749,7 +749,7 @@ pub fn file_include_reason_to_diagnostics(
             );
             chain_diagnostic_messages(
                 None,
-                if out_file(&options).is_some() {
+                if out_file(&options.ref_(arena)).is_some() {
                     if is_output {
                         &Diagnostics::Output_from_referenced_project_0_included_because_1_specified
                     } else {
@@ -775,7 +775,7 @@ pub fn file_include_reason_to_diagnostics(
                         file_name_convertor.as_ref(),
                         program,
                     ),
-                    if options.out_file.is_some() {
+                    if options.ref_(arena).out_file.is_some() {
                         "--outFile"
                     } else {
                         "--out"
@@ -786,7 +786,7 @@ pub fn file_include_reason_to_diagnostics(
         }
         FileIncludeReason::AutomaticTypeDirectiveFile(reason) => chain_diagnostic_messages(
             None,
-            if options.types.is_some() {
+            if options.ref_(arena).types.is_some() {
                 if reason.package_id.is_some() {
                     &Diagnostics::Entry_point_of_type_library_0_specified_in_compilerOptions_with_packageId_1
                 } else {
@@ -812,13 +812,13 @@ pub fn file_include_reason_to_diagnostics(
                 return chain_diagnostic_messages(
                     None,
                     &Diagnostics::Library_0_specified_in_compilerOptions,
-                    Some(vec![options.lib.as_ref().unwrap()[reason_index].clone()]),
+                    Some(vec![options.ref_(arena).lib.as_ref().unwrap()[reason_index].clone()]),
                 );
             }
             let target = target_option_declaration.with(|target_option_declaration_| {
                 for_each_entry(target_option_declaration_.type_().as_map(), |value, key| {
                     if enum_unwrapped!(value, [CommandLineOptionMapTypeValue, ScriptTarget])
-                        == &get_emit_script_target(&options)
+                        == &get_emit_script_target(&options.ref_(arena))
                     {
                         Some(key.to_string())
                     } else {
@@ -873,9 +873,10 @@ fn emit_files_and_report_errors(
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
+    arena: &impl HasArena,
 ) -> io::Result<EmitFilesAndReportErrorsReturn> {
     let arena = &**program;
-    let is_list_files_only = matches!(program.get_compiler_options().list_files_only, Some(true));
+    let is_list_files_only = matches!(program.get_compiler_options().ref_(arena).list_files_only, Some(true));
 
     let mut all_diagnostics: Vec<Gc<Diagnostic>> =
         program.get_config_file_parsing_diagnostics().clone();
@@ -983,6 +984,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status(
         cancellation_token,
         emit_only_dts_files,
         custom_transformers,
+        arena,
     )?;
     // println!("diagnostics: {:#?}", diagnostics);
 

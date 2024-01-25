@@ -912,10 +912,11 @@ pub fn get_own_emit_output_file_path(
     file_name: &str,
     host: &dyn EmitHost,
     extension: &str,
+    arena: &impl HasArena,
 ) -> String {
     let compiler_options = ScriptReferenceHost::get_compiler_options(host);
     let emit_output_file_path_without_extension: String;
-    if let Some(compiler_options_out_dir) = compiler_options.out_dir.as_ref() {
+    if let Some(compiler_options_out_dir) = compiler_options.ref_(arena).out_dir.as_ref() {
         emit_output_file_path_without_extension = remove_file_extension(
             &get_source_file_path_in_new_dir(file_name, host, compiler_options_out_dir),
         )
@@ -927,10 +928,10 @@ pub fn get_own_emit_output_file_path(
     format!("{}{}", emit_output_file_path_without_extension, extension)
 }
 
-pub fn get_declaration_emit_output_file_path(file_name: &str, host: &dyn EmitHost) -> String {
+pub fn get_declaration_emit_output_file_path(file_name: &str, host: &dyn EmitHost, arena: &impl HasArena) -> String {
     get_declaration_emit_output_file_path_worker(
         file_name,
-        &ScriptReferenceHost::get_compiler_options(host),
+        &ScriptReferenceHost::get_compiler_options(host).ref_(arena),
         &ScriptReferenceHost::get_current_directory(host),
         &ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(
             host,
@@ -1027,11 +1028,11 @@ pub fn get_source_files_to_emit(
 ) -> Vec<Id<Node /*SourceFile*/>> {
     let options = ScriptReferenceHost::get_compiler_options(host);
     if matches!(
-        out_file(&options),
+        out_file(&options.ref_(arena)),
         Some(out_file) if !out_file.is_empty()
     ) {
-        let module_kind = get_emit_module_kind(&options);
-        let module_emit_enabled = matches!(options.emit_declaration_only, Some(true))
+        let module_kind = get_emit_module_kind(&options.ref_(arena));
+        let module_emit_enabled = matches!(options.ref_(arena).emit_declaration_only, Some(true))
             || matches!(module_kind, ModuleKind::AMD | ModuleKind::System);
         host.get_source_files()
             .clone()
@@ -1042,6 +1043,7 @@ pub fn get_source_files_to_emit(
                         &source_file.ref_(arena),
                         host.as_source_file_may_be_emitted_host(),
                         force_dts_emit,
+                        arena,
                     )
             })
             .collect()
@@ -1057,6 +1059,7 @@ pub fn get_source_files_to_emit(
                     &source_file.ref_(arena),
                     host.as_source_file_may_be_emitted_host(),
                     force_dts_emit,
+                    arena,
                 )
             })
             .collect()
@@ -1067,10 +1070,11 @@ pub fn source_file_may_be_emitted(
     source_file: &Node, /*SourceFile*/
     host: &dyn SourceFileMayBeEmittedHost,
     force_dts_emit: Option<bool>,
+    arena: &impl HasArena,
 ) -> bool {
     let options = host.get_compiler_options();
     let source_file_as_source_file = source_file.as_source_file();
-    !(matches!(options.no_emit_for_js_files, Some(true)) && is_source_file_js(source_file))
+    !(matches!(options.ref_(arena).no_emit_for_js_files, Some(true)) && is_source_file_js(source_file))
         && !source_file_as_source_file.is_declaration_file()
         && !host.is_source_file_from_external_library(source_file.arena_id())
         && (matches!(force_dts_emit, Some(true))

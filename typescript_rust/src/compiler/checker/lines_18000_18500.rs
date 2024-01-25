@@ -420,7 +420,7 @@ impl CheckTypeRelatedTo {
                 let str = &args[0];
                 if path.is_empty() {
                     path = str.clone();
-                } else if is_identifier_text(str, Some(get_emit_script_target(&self.type_checker.compiler_options)), None) {
+                } else if is_identifier_text(str, Some(get_emit_script_target(&self.type_checker.compiler_options.ref_(self))), None) {
                     path = format!("{}.{}", path, str);
                 } else if {
                     let str_chars: Vec<char> = str.chars().collect();

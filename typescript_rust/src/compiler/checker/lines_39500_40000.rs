@@ -154,7 +154,7 @@ impl TypeChecker {
                 );
             }
 
-            if self.compiler_options.isolated_modules == Some(true)
+            if self.compiler_options.ref_(self).isolated_modules == Some(true)
                 && !is_type_only_import_or_export_declaration(node, self)
                 && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
             {
@@ -165,7 +165,7 @@ impl TypeChecker {
                         SyntaxKind::ImportClause
                         | SyntaxKind::ImportSpecifier
                         | SyntaxKind::ImportEqualsDeclaration => {
-                            if self.compiler_options.preserve_value_imports == Some(true) {
+                            if self.compiler_options.ref_(self).preserve_value_imports == Some(true) {
                                 let node_name = node.ref_(self).as_named_declaration().maybe_name();
                                 Debug_.assert_is_defined(
                                     &node_name,
@@ -268,7 +268,7 @@ impl TypeChecker {
                     .unwrap_or(node_as_import_specifier.name)
                     .ref_(self),
             ) == "default"
-                && get_es_module_interop(&self.compiler_options) == Some(true)
+                && get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true)
                 && self.module_kind != ModuleKind::System
                 && (self.module_kind < ModuleKind::ES2015
                     || get_source_file_of_node(node, self)
@@ -357,7 +357,7 @@ impl TypeChecker {
                                     .ref_(self).as_source_file()
                                     .maybe_implied_node_format()
                                     == Some(ModuleKind::CommonJS))
-                            && get_es_module_interop(&self.compiler_options) == Some(true)
+                            && get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true)
                         {
                             self.check_external_emit_helpers(
                                 node,
@@ -574,7 +574,7 @@ impl TypeChecker {
                             == Some(ModuleKind::CommonJS))
                 {
                     if node_as_export_declaration.export_clause.is_some() {
-                        if get_es_module_interop(&self.compiler_options) == Some(true) {
+                        if get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true) {
                             self.check_external_emit_helpers(
                                 node,
                                 ExternalEmitHelpers::ImportStar,
@@ -723,7 +723,7 @@ impl TypeChecker {
         self.check_alias_symbol(node)?;
         let node_ref = node.ref_(self);
         let node_as_export_specifier = node_ref.as_export_specifier();
-        if get_emit_declarations(&self.compiler_options) {
+        if get_emit_declarations(&self.compiler_options.ref_(self)) {
             self.collect_linked_aliases(
                 node_as_export_specifier
                     .property_name
@@ -800,7 +800,7 @@ impl TypeChecker {
                 }
             }
         } else {
-            if get_es_module_interop(&self.compiler_options) == Some(true)
+            if get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true)
                 && self.module_kind != ModuleKind::System
                 && (self.module_kind < ModuleKind::ES2015
                     || get_source_file_of_node(node, self)
@@ -897,7 +897,7 @@ impl TypeChecker {
                 self.check_expression_cached(node_as_export_assignment.expression, None)?;
             }
 
-            if get_emit_declarations(&self.compiler_options) {
+            if get_emit_declarations(&self.compiler_options.ref_(self)) {
                 self.collect_linked_aliases(node_as_export_assignment.expression, Some(true))?;
             }
         } else {

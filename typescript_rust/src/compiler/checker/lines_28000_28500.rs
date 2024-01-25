@@ -581,12 +581,12 @@ impl TypeChecker {
         }
         if is_identifier(&left.ref_(self)) {
             if let Some(parent_symbol) = parent_symbol {
-                if self.compiler_options.isolated_modules == Some(true)
+                if self.compiler_options.ref_(self).isolated_modules == Some(true)
                     || !matches!(
                         prop,
                         Some(prop) if self.is_const_enum_or_const_enum_only_module(prop)
                     )
-                    || should_preserve_const_enums(&self.compiler_options)
+                    || should_preserve_const_enums(&self.compiler_options.ref_(self))
                         && self.is_export_or_export_expression(node)
                 {
                     self.mark_alias_referenced(parent_symbol, node)?;
@@ -703,7 +703,7 @@ impl TypeChecker {
                     );
                 }
 
-                prop_type = if self.compiler_options.no_unchecked_indexed_access == Some(true)
+                prop_type = if self.compiler_options.ref_(self).no_unchecked_indexed_access == Some(true)
                     && !is_assignment_target(node, self)
                 {
                     self.get_union_type(
@@ -718,7 +718,7 @@ impl TypeChecker {
                 };
                 if self
                     .compiler_options
-                    .no_property_access_from_index_signature
+                    .ref_(self).no_property_access_from_index_signature
                     == Some(true)
                     && is_property_access_expression(&node.ref_(self))
                 {
@@ -793,7 +793,7 @@ impl TypeChecker {
         if let Some(file) = file {
             let file_ref = file.ref_(self);
             let file_as_source_file = file_ref.as_source_file();
-            if self.compiler_options.check_js.is_none()
+            if self.compiler_options.ref_(self).check_js.is_none()
                 && file_as_source_file.maybe_check_js_directive().is_none()
                 && matches!(
                     file_as_source_file.script_kind(),
@@ -948,7 +948,7 @@ impl TypeChecker {
             && !(is_access_expression(&node.ref_(self))
                 && is_access_expression(&node.ref_(self).as_has_expression().expression().ref_(self)))
             && !self.is_block_scoped_name_declared_before_use(value_declaration, right)?
-            && (self.compiler_options.use_define_for_class_fields == Some(true)
+            && (self.compiler_options.ref_(self).use_define_for_class_fields == Some(true)
                 || !self.is_property_declared_in_ancestor_class(prop)?)
         {
             diagnostic_message = Some(self.error(

@@ -185,11 +185,11 @@ impl Program {
                 let elide_import = is_js_file_from_node_modules
                     && self.current_node_modules_depth() > self.max_node_module_js_depth;
                 let should_add_file = !resolved_file_name.is_empty()
-                    && get_resolution_diagnostic(&options_for_file, resolution).is_none()
-                    && options_for_file.no_resolve != Some(true)
+                    && get_resolution_diagnostic(&options_for_file.ref_(self), resolution).is_none()
+                    && options_for_file.ref_(self).no_resolve != Some(true)
                     && index < file_as_source_file.maybe_imports().as_ref().unwrap().len()
                     && !elide_import
-                    && !(is_js_file && !get_allow_js_compiler_option(&options_for_file))
+                    && !(is_js_file && !get_allow_js_compiler_option(&options_for_file.ref_(self)))
                     && (is_in_js_file(Some(
                         &file_as_source_file.maybe_imports().as_ref().unwrap()[index].ref_(self),
                     )) || !file_as_source_file.maybe_imports().as_ref().unwrap()[index]
@@ -295,7 +295,7 @@ impl Program {
             }
             let command_line = command_line.as_ref().unwrap();
             source_file =
-                Some(Debug_.check_defined(command_line.options.config_file.clone(), None));
+                Some(Debug_.check_defined(command_line.options.ref_(self).config_file.clone(), None));
             let source_file = source_file.unwrap();
             Debug_.assert(
                 match source_file.ref_(self).as_source_file().maybe_path().as_ref() {
@@ -367,7 +367,7 @@ impl Program {
     pub fn verify_compiler_options(&self) {
         let is_nightly = string_contains(version, "dev");
         if !is_nightly {
-            if get_emit_module_kind(&self.options) == ModuleKind::Node12 {
+            if get_emit_module_kind(&self.options.ref_(self)) == ModuleKind::Node12 {
                 self.create_option_value_diagnostic(
                     "module",
                     &Diagnostics::Compiler_option_0_of_value_1_is_unstable_Use_nightly_TypeScript_to_silence_this_error_Try_updating_with_npm_install_D_typescript_next,
@@ -376,7 +376,7 @@ impl Program {
                         "node12".to_owned(),
                     ])
                 );
-            } else if get_emit_module_kind(&self.options) == ModuleKind::NodeNext {
+            } else if get_emit_module_kind(&self.options.ref_(self)) == ModuleKind::NodeNext {
                 self.create_option_value_diagnostic(
                     "module",
                     &Diagnostics::Compiler_option_0_of_value_1_is_unstable_Use_nightly_TypeScript_to_silence_this_error_Try_updating_with_npm_install_D_typescript_next,
@@ -385,7 +385,7 @@ impl Program {
                         "nodenext".to_owned(),
                     ])
                 );
-            } else if get_emit_module_resolution_kind(&self.options) == ModuleResolutionKind::Node12
+            } else if get_emit_module_resolution_kind(&self.options.ref_(self)) == ModuleResolutionKind::Node12
             {
                 self.create_option_value_diagnostic(
                     "moduleResolution",
@@ -395,7 +395,7 @@ impl Program {
                         "node12".to_owned(),
                     ])
                 );
-            } else if get_emit_module_resolution_kind(&self.options)
+            } else if get_emit_module_resolution_kind(&self.options.ref_(self))
                 == ModuleResolutionKind::NodeNext
             {
                 self.create_option_value_diagnostic(
@@ -408,8 +408,8 @@ impl Program {
                 );
             }
         }
-        if self.options.strict_property_initialization == Some(true)
-            && !get_strict_option_value(&self.options, "strictNullChecks")
+        if self.options.ref_(self).strict_property_initialization == Some(true)
+            && !get_strict_option_value(&self.options.ref_(self), "strictNullChecks")
         {
             self.create_diagnostic_for_option_name(
                 &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
@@ -418,8 +418,8 @@ impl Program {
                 None,
             );
         }
-        if self.options.exact_optional_property_types == Some(true)
-            && !get_strict_option_value(&self.options, "strictNullChecks")
+        if self.options.ref_(self).exact_optional_property_types == Some(true)
+            && !get_strict_option_value(&self.options.ref_(self), "strictNullChecks")
         {
             self.create_diagnostic_for_option_name(
                 &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
@@ -429,8 +429,8 @@ impl Program {
             );
         }
 
-        if self.options.isolated_modules == Some(true) {
-            if !is_option_str_empty(self.options.out.as_deref()) {
+        if self.options.ref_(self).isolated_modules == Some(true) {
+            if !is_option_str_empty(self.options.ref_(self).out.as_deref()) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_with_option_1,
                     "out",
@@ -439,7 +439,7 @@ impl Program {
                 );
             }
 
-            if !is_option_str_empty(self.options.out_file.as_deref()) {
+            if !is_option_str_empty(self.options.ref_(self).out_file.as_deref()) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_with_option_1,
                     "outFile",
@@ -449,8 +449,8 @@ impl Program {
             }
         }
 
-        if self.options.inline_source_map == Some(true) {
-            if self.options.source_map == Some(true) {
+        if self.options.ref_(self).inline_source_map == Some(true) {
+            if self.options.ref_(self).source_map == Some(true) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_with_option_1,
                     "sourceMap",
@@ -459,7 +459,7 @@ impl Program {
                 );
             }
 
-            if !is_option_str_empty(self.options.map_root.as_deref()) {
+            if !is_option_str_empty(self.options.ref_(self).map_root.as_deref()) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_with_option_1,
                     "mapRoot",
@@ -469,8 +469,8 @@ impl Program {
             }
         }
 
-        if self.options.composite == Some(true) {
-            if self.options.declaration == Some(false) {
+        if self.options.ref_(self).composite == Some(true) {
+            if self.options.ref_(self).declaration == Some(false) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Composite_projects_may_not_disable_declaration_emit,
                     "declaration",
@@ -478,7 +478,7 @@ impl Program {
                     None,
                 );
             }
-            if self.options.incremental == Some(false) {
+            if self.options.ref_(self).incremental == Some(false) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Composite_projects_may_not_disable_incremental_compilation,
                     "declaration",
@@ -488,9 +488,9 @@ impl Program {
             }
         }
 
-        let output_file = out_file(&self.options);
-        if !is_option_str_empty(self.options.ts_build_info_file.as_deref()) {
-            if !is_incremental_compilation(&self.options) {
+        let output_file = out_file(&self.options.ref_(self));
+        if !is_option_str_empty(self.options.ref_(self).ts_build_info_file.as_deref()) {
+            if !is_incremental_compilation(&self.options.ref_(self)) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                     "tsBuildInfoFile",
@@ -498,9 +498,9 @@ impl Program {
                     Some("composite"),
                 );
             }
-        } else if self.options.incremental == Some(true)
+        } else if self.options.ref_(self).incremental == Some(true)
             && is_option_str_empty(output_file)
-            && is_option_str_empty(self.options.config_file_path.as_deref())
+            && is_option_str_empty(self.options.ref_(self).config_file_path.as_deref())
         {
             self.program_diagnostics_mut().add(
                 Gc::new(
@@ -514,14 +514,14 @@ impl Program {
 
         self.verify_project_references();
 
-        if self.options.composite == Some(true) {
+        if self.options.ref_(self).composite == Some(true) {
             let root_paths: HashSet<Path> = HashSet::from_iter(
                 self.root_names()
                     .iter()
                     .map(|root_name| self.to_path(root_name)),
             );
             for &file in &*self.files() {
-                if source_file_may_be_emitted(&file.ref_(self), self, None)
+                if source_file_may_be_emitted(&file.ref_(self), self, None, self)
                     && !root_paths.contains(&*file.ref_(self).as_source_file().path())
                 {
                     self.add_program_diagnostic_explaining_file(
@@ -529,14 +529,14 @@ impl Program {
                         &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern,
                         Some(vec![
                             file.ref_(self).as_source_file().file_name().clone(),
-                            self.options.config_file_path.clone().unwrap_or_else(|| "".to_owned())
+                            self.options.ref_(self).config_file_path.clone().unwrap_or_else(|| "".to_owned())
                         ])
                     );
                 }
             }
         }
 
-        if let Some(options_paths) = self.options.paths.as_ref() {
+        if let Some(options_paths) = self.options.ref_(self).paths.as_ref() {
             for key in options_paths.keys() {
                 // if (!hasProperty(options.paths, key)) {
                 //     continue;
@@ -576,7 +576,7 @@ impl Program {
                             ])
                         );
                     }
-                    if is_option_str_empty(self.options.base_url.as_deref())
+                    if is_option_str_empty(self.options.ref_(self).base_url.as_deref())
                         && !path_is_relative(subst)
                         && !path_is_absolute(subst)
                     {
@@ -597,15 +597,15 @@ impl Program {
             }
         }
 
-        if self.options.source_map != Some(true) && self.options.inline_source_map != Some(true) {
-            if self.options.inline_sources == Some(true) {
+        if self.options.ref_(self).source_map != Some(true) && self.options.ref_(self).inline_source_map != Some(true) {
+            if self.options.ref_(self).inline_sources == Some(true) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_can_only_be_used_when_either_option_inlineSourceMap_or_option_sourceMap_is_provided,
                     "inlineSources",
                     None, None,
                 );
             }
-            if !is_option_str_empty(self.options.source_root.as_deref()) {
+            if !is_option_str_empty(self.options.ref_(self).source_root.as_deref()) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_can_only_be_used_when_either_option_inlineSourceMap_or_option_sourceMap_is_provided,
                     "sourceRoot",
@@ -614,8 +614,8 @@ impl Program {
             }
         }
 
-        if !is_option_str_empty(self.options.out.as_deref())
-            && !is_option_str_empty(self.options.out_file.as_deref())
+        if !is_option_str_empty(self.options.ref_(self).out.as_deref())
+            && !is_option_str_empty(self.options.ref_(self).out_file.as_deref())
         {
             self.create_diagnostic_for_option_name(
                 &Diagnostics::Option_0_cannot_be_specified_with_option_1,
@@ -625,9 +625,9 @@ impl Program {
             );
         }
 
-        if !is_option_str_empty(self.options.map_root.as_deref())
-            && !(self.options.source_map == Some(true)
-                || self.options.declaration_map == Some(true))
+        if !is_option_str_empty(self.options.ref_(self).map_root.as_deref())
+            && !(self.options.ref_(self).source_map == Some(true)
+                || self.options.ref_(self).declaration_map == Some(true))
         {
             self.create_diagnostic_for_option_name(
                 &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
@@ -637,8 +637,8 @@ impl Program {
             );
         }
 
-        if !is_option_str_empty(self.options.declaration_dir.as_deref()) {
-            if !get_emit_declarations(&self.options) {
+        if !is_option_str_empty(self.options.ref_(self).declaration_dir.as_deref()) {
+            if !get_emit_declarations(&self.options.ref_(self)) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                     "declarationDir",
@@ -650,7 +650,7 @@ impl Program {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
                     "declarationDir",
-                    Some(if !is_option_str_empty(self.options.out.as_deref()) {
+                    Some(if !is_option_str_empty(self.options.ref_(self).out.as_deref()) {
                         "out"
                     } else {
                         "outFile"
@@ -660,7 +660,7 @@ impl Program {
             }
         }
 
-        if self.options.declaration_map == Some(true) && !get_emit_declarations(&self.options) {
+        if self.options.ref_(self).declaration_map == Some(true) && !get_emit_declarations(&self.options.ref_(self)) {
             self.create_diagnostic_for_option_name(
                 &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                 "declarationMap",
@@ -669,7 +669,7 @@ impl Program {
             );
         }
 
-        if self.options.lib.is_some() && self.options.no_lib == Some(true) {
+        if self.options.ref_(self).lib.is_some() && self.options.ref_(self).no_lib == Some(true) {
             self.create_diagnostic_for_option_name(
                 &Diagnostics::Option_0_cannot_be_specified_with_option_1,
                 "lib",
@@ -678,8 +678,8 @@ impl Program {
             );
         }
 
-        if self.options.no_implicit_use_strict == Some(true)
-            && get_strict_option_value(&self.options, "alwaysStrict")
+        if self.options.ref_(self).no_implicit_use_strict == Some(true)
+            && get_strict_option_value(&self.options.ref_(self), "alwaysStrict")
         {
             self.create_diagnostic_for_option_name(
                 &Diagnostics::Option_0_cannot_be_specified_with_option_1,
@@ -689,15 +689,15 @@ impl Program {
             );
         }
 
-        let language_version = get_emit_script_target(&self.options);
+        let language_version = get_emit_script_target(&self.options.ref_(self));
 
         let first_non_ambient_external_module_source_file =
             find(&**self.files(), |f: &Id<Node>, _| {
                 is_external_module(&f.ref_(self)) && !f.ref_(self).as_source_file().is_declaration_file()
             })
             .cloned();
-        if self.options.isolated_modules == Some(true) {
-            if self.options.module == Some(ModuleKind::None)
+        if self.options.ref_(self).isolated_modules == Some(true) {
+            if self.options.ref_(self).module == Some(ModuleKind::None)
                 && language_version < ScriptTarget::ES2015
             {
                 self.create_diagnostic_for_option_name(
@@ -708,7 +708,7 @@ impl Program {
                 );
             }
 
-            if self.options.preserve_const_enums == Some(false) {
+            if self.options.ref_(self).preserve_const_enums == Some(false) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_preserveConstEnums_cannot_be_disabled_when_isolatedModules_is_enabled,
                     "preserveConstEnums",
@@ -753,7 +753,7 @@ impl Program {
             first_non_ambient_external_module_source_file
         {
             if language_version < ScriptTarget::ES2015
-                && self.options.module == Some(ModuleKind::None)
+                && self.options.ref_(self).module == Some(ModuleKind::None)
             {
                 let span = get_error_span_for_node(
                     first_non_ambient_external_module_source_file,
@@ -777,9 +777,9 @@ impl Program {
             }
         }
 
-        if !is_option_str_empty(output_file) && self.options.emit_declaration_only != Some(true) {
+        if !is_option_str_empty(output_file) && self.options.ref_(self).emit_declaration_only != Some(true) {
             if matches!(
-                self.options.module.filter(|options_module| *options_module != ModuleKind::None),
+                self.options.ref_(self).module.filter(|options_module| *options_module != ModuleKind::None),
                 Some(options_module) if !matches!(
                     options_module,
                     ModuleKind::AMD | ModuleKind::System
@@ -787,7 +787,7 @@ impl Program {
             ) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Only_amd_and_system_modules_are_supported_alongside_0,
-                    if !is_option_str_empty(self.options.out.as_deref()) {
+                    if !is_option_str_empty(self.options.ref_(self).out.as_deref()) {
                         "out"
                     } else {
                         "outFile"
@@ -795,7 +795,7 @@ impl Program {
                     Some("module"),
                     None,
                 );
-            } else if self.options.module.is_none() {
+            } else if self.options.ref_(self).module.is_none() {
                 if let Some(first_non_ambient_external_module_source_file) =
                     first_non_ambient_external_module_source_file
                 {
@@ -815,7 +815,7 @@ impl Program {
                                 span.length,
                                 &Diagnostics::Cannot_compile_modules_using_option_0_unless_the_module_flag_is_amd_or_system,
                                 Some(vec![
-                                    if !is_option_str_empty(self.options.out.as_deref()) {
+                                    if !is_option_str_empty(self.options.ref_(self).out.as_deref()) {
                                         "out"
                                     } else {
                                         "outFile"
@@ -828,9 +828,9 @@ impl Program {
             }
         }
 
-        if self.options.resolve_json_module == Some(true) {
+        if self.options.ref_(self).resolve_json_module == Some(true) {
             if !matches!(
-                get_emit_module_resolution_kind(&self.options),
+                get_emit_module_resolution_kind(&self.options.ref_(self)),
                 ModuleResolutionKind::NodeJs
                     | ModuleResolutionKind::Node12
                     | ModuleResolutionKind::NodeNext
@@ -840,7 +840,7 @@ impl Program {
                     "resolveJsonModule",
                     None, None,
                 );
-            } else if !has_json_module_emit_enabled(&self.options) {
+            } else if !has_json_module_emit_enabled(&self.options.ref_(self)) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_resolveJsonModule_can_only_be_specified_when_module_code_generation_is_commonjs_amd_es2015_or_esNext,
                     "resolveJsonModule",
@@ -850,14 +850,14 @@ impl Program {
             }
         }
 
-        if !is_option_str_empty(self.options.out_dir.as_deref())
-            || !is_option_str_empty(self.options.root_dir.as_deref())
-            || !is_option_str_empty(self.options.source_root.as_deref())
-            || !is_option_str_empty(self.options.map_root.as_deref())
+        if !is_option_str_empty(self.options.ref_(self).out_dir.as_deref())
+            || !is_option_str_empty(self.options.ref_(self).root_dir.as_deref())
+            || !is_option_str_empty(self.options.ref_(self).source_root.as_deref())
+            || !is_option_str_empty(self.options.ref_(self).map_root.as_deref())
         {
             let dir = self.get_common_source_directory();
 
-            if !is_option_str_empty(self.options.out_dir.as_deref())
+            if !is_option_str_empty(self.options.ref_(self).out_dir.as_deref())
                 && dir.is_empty()
                 && self
                     .files()
@@ -873,7 +873,7 @@ impl Program {
             }
         }
 
-        if self.options.use_define_for_class_fields == Some(true)
+        if self.options.ref_(self).use_define_for_class_fields == Some(true)
             && language_version == ScriptTarget::ES3
         {
             self.create_diagnostic_for_option_name(
@@ -884,7 +884,7 @@ impl Program {
             );
         }
 
-        if self.options.check_js == Some(true) && !get_allow_js_compiler_option(&self.options) {
+        if self.options.ref_(self).check_js == Some(true) && !get_allow_js_compiler_option(&self.options.ref_(self)) {
             self.program_diagnostics_mut().add(Gc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
@@ -894,8 +894,8 @@ impl Program {
             ));
         }
 
-        if self.options.emit_declaration_only == Some(true) {
-            if !get_emit_declarations(&self.options) {
+        if self.options.ref_(self).emit_declaration_only == Some(true) {
+            if !get_emit_declarations(&self.options.ref_(self)) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                     "emitDeclarationOnly",
@@ -904,7 +904,7 @@ impl Program {
                 );
             }
 
-            if self.options.no_emit == Some(true) {
+            if self.options.ref_(self).no_emit == Some(true) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_with_option_1,
                     "emitDeclarationOnly",
@@ -914,8 +914,8 @@ impl Program {
             }
         }
 
-        if self.options.emit_decorator_metadata == Some(true)
-            && self.options.experimental_decorators != Some(true)
+        if self.options.ref_(self).emit_decorator_metadata == Some(true)
+            && self.options.ref_(self).experimental_decorators != Some(true)
         {
             self.create_diagnostic_for_option_name(
                 &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
@@ -927,11 +927,11 @@ impl Program {
 
         if let Some(options_jsx_factory) = self
             .options
-            .jsx_factory
+            .ref_(self).jsx_factory
             .as_ref()
             .filter(|options_jsx_factory| !options_jsx_factory.is_empty())
         {
-            if !is_option_str_empty(self.options.react_namespace.as_deref()) {
+            if !is_option_str_empty(self.options.ref_(self).react_namespace.as_deref()) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_with_option_1,
                     "reactNamespace",
@@ -940,7 +940,7 @@ impl Program {
                 );
             }
             if matches!(
-                self.options.jsx,
+                self.options.ref_(self).jsx,
                 Some(JsxEmit::ReactJSX) | Some(JsxEmit::ReactJSXDev)
             ) {
                 self.create_diagnostic_for_option_name(
@@ -948,7 +948,7 @@ impl Program {
                     "jsxFactory",
                     inverse_jsx_option_map.with(|inverse_jsx_option_map_| {
                         inverse_jsx_option_map_
-                            .get(&self.options.jsx.unwrap())
+                            .get(&self.options.ref_(self).jsx.unwrap())
                             .copied()
                     }),
                     None,
@@ -965,7 +965,7 @@ impl Program {
             }
         } else if let Some(options_react_namespace) =
             self.options
-                .react_namespace
+                .ref_(self).react_namespace
                 .as_ref()
                 .filter(|options_react_namespace| {
                     !options_react_namespace.is_empty()
@@ -985,11 +985,11 @@ impl Program {
 
         if let Some(options_jsx_fragment_factory) = self
             .options
-            .jsx_fragment_factory
+            .ref_(self).jsx_fragment_factory
             .as_ref()
             .filter(|options_jsx_fragment_factory| !options_jsx_fragment_factory.is_empty())
         {
-            if is_option_str_empty(self.options.jsx_factory.as_deref()) {
+            if is_option_str_empty(self.options.ref_(self).jsx_factory.as_deref()) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
                     "jsxFragmentFactory",
@@ -998,7 +998,7 @@ impl Program {
                 );
             }
             if matches!(
-                self.options.jsx,
+                self.options.ref_(self).jsx,
                 Some(JsxEmit::ReactJSX) | Some(JsxEmit::ReactJSXDev)
             ) {
                 self.create_diagnostic_for_option_name(
@@ -1006,7 +1006,7 @@ impl Program {
                     "jsxFragmentFactory",
                     inverse_jsx_option_map.with(|inverse_jsx_option_map_| {
                         inverse_jsx_option_map_
-                            .get(&self.options.jsx.unwrap())
+                            .get(&self.options.ref_(self).jsx.unwrap())
                             .copied()
                     }),
                     None,
@@ -1025,9 +1025,9 @@ impl Program {
             }
         }
 
-        if !is_option_str_empty(self.options.react_namespace.as_deref()) {
+        if !is_option_str_empty(self.options.ref_(self).react_namespace.as_deref()) {
             if matches!(
-                self.options.jsx,
+                self.options.ref_(self).jsx,
                 Some(JsxEmit::ReactJSX) | Some(JsxEmit::ReactJSXDev)
             ) {
                 self.create_diagnostic_for_option_name(
@@ -1035,7 +1035,7 @@ impl Program {
                     "reactNamespace",
                     inverse_jsx_option_map.with(|inverse_jsx_option_map_| {
                         inverse_jsx_option_map_
-                            .get(&self.options.jsx.unwrap())
+                            .get(&self.options.ref_(self).jsx.unwrap())
                             .copied()
                     }),
                     None,
@@ -1043,14 +1043,14 @@ impl Program {
             }
         }
 
-        if !is_option_str_empty(self.options.jsx_import_source.as_deref()) {
-            if self.options.jsx == Some(JsxEmit::React) {
+        if !is_option_str_empty(self.options.ref_(self).jsx_import_source.as_deref()) {
+            if self.options.ref_(self).jsx == Some(JsxEmit::React) {
                 self.create_diagnostic_for_option_name(
                     &Diagnostics::Option_0_cannot_be_specified_when_option_jsx_is_1,
                     "jsxImportSource",
                     inverse_jsx_option_map.with(|inverse_jsx_option_map_| {
                         inverse_jsx_option_map_
-                            .get(&self.options.jsx.unwrap())
+                            .get(&self.options.ref_(self).jsx.unwrap())
                             .copied()
                     }),
                     None,
@@ -1058,8 +1058,8 @@ impl Program {
             }
         }
 
-        if self.options.preserve_value_imports == Some(true)
-            && get_emit_module_kind(&self.options) < ModuleKind::ES2015
+        if self.options.ref_(self).preserve_value_imports == Some(true)
+            && get_emit_module_kind(&self.options.ref_(self)) < ModuleKind::ES2015
         {
             self.create_option_value_diagnostic(
                 "importsNotUsedAsValues",
@@ -1068,15 +1068,15 @@ impl Program {
             );
         }
 
-        if self.options.no_emit != Some(true)
-            && self.options.suppress_output_path_check != Some(true)
+        if self.options.ref_(self).no_emit != Some(true)
+            && self.options.ref_(self).suppress_output_path_check != Some(true)
         {
             let emit_host = self.get_emit_host(None);
             let mut emit_files_seen: HashSet<String> = Default::default();
             for_each_emitted_file(
                 &**emit_host.ref_(self),
                 |emit_file_names, _| {
-                    if self.options.emit_declaration_only != Some(true) {
+                    if self.options.ref_(self).emit_declaration_only != Some(true) {
                         self.verify_emit_file_path(
                             emit_file_names.js_file_path.as_deref(),
                             &mut emit_files_seen,
@@ -1109,7 +1109,7 @@ impl Program {
                 let mut chain: Option<DiagnosticMessageChain> = None;
                 if self
                     .options
-                    .config_file_path
+                    .ref_(self).config_file_path
                     .as_ref()
                     .filter(|options_config_file_path| !options_config_file_path.is_empty())
                     .is_none()
@@ -1364,7 +1364,7 @@ impl Program {
             };
         }
 
-        let options_config_file = self.options.config_file?;
+        let options_config_file = self.options.ref_(self).config_file?;
         let config_file_node: Option<Id<Node>>;
         let message: &DiagnosticMessage;
         match reason.kind() {
@@ -1381,7 +1381,7 @@ impl Program {
                     &self.root_names()[reason_as_root_file.index],
                     Some(&**self.current_directory()),
                 );
-                let matched_by_files = get_matched_file_spec(self, &file_name);
+                let matched_by_files = get_matched_file_spec(self, &file_name, self);
                 if let Some(matched_by_files) =
                     matched_by_files.filter(|matched_by_files| !matched_by_files.is_empty())
                 {
@@ -1393,7 +1393,7 @@ impl Program {
                     );
                     message = &*Diagnostics::File_is_matched_by_files_list_specified_here;
                 } else {
-                    let matched_by_include = get_matched_include_spec(self, &file_name)
+                    let matched_by_include = get_matched_include_spec(self, &file_name, self)
                         .filter(|matched_by_include| !matched_by_include.is_empty())?;
                     config_file_node = get_ts_config_prop_array_element_value(
                         Some(options_config_file),
@@ -1482,7 +1482,7 @@ impl Program {
                     });
             }
             FileIncludeKind::AutomaticTypeDirectiveFile => {
-                if self.options.types.is_none() {
+                if self.options.ref_(self).types.is_none() {
                     return None;
                 }
                 config_file_node = self.get_options_syntax_by_array_element_value(
@@ -1496,7 +1496,7 @@ impl Program {
                 if let Some(reason_index) = reason_as_lib_file.index {
                     config_file_node = self.get_options_syntax_by_array_element_value(
                         "lib",
-                        &self.options.lib.as_ref().unwrap()[reason_index],
+                        &self.options.ref_(self).lib.as_ref().unwrap()[reason_index],
                     );
                     message = &Diagnostics::File_is_library_specified_here;
                 } else {
@@ -1504,7 +1504,7 @@ impl Program {
                         for_each_entry(target_option_declaration_.type_().as_map(), |value, key| {
                             if value
                                 == &CommandLineOptionMapTypeValue::ScriptTarget(
-                                    get_emit_script_target(&self.options),
+                                    get_emit_script_target(&self.options.ref_(self)),
                                 )
                             {
                                 Some((*key).to_owned())
@@ -1538,8 +1538,8 @@ impl Program {
     }
 
     pub fn verify_project_references(&self) {
-        let build_info_path = if self.options.suppress_output_path_check != Some(true) {
-            get_ts_build_info_emit_output_file_path(&self.options)
+        let build_info_path = if self.options.ref_(self).suppress_output_path_check != Some(true) {
+            get_ts_build_info_emit_output_file_path(&self.options.ref_(self))
         } else {
             None
         };
@@ -1567,15 +1567,15 @@ impl Program {
                     return None;
                 }
                 let resolved_ref = resolved_ref.unwrap();
-                let options = &resolved_ref.command_line.options;
-                if options.composite != Some(true) || options.no_emit == Some(true) {
+                let options = resolved_ref.command_line.options;
+                if options.ref_(self).composite != Some(true) || options.ref_(self).no_emit == Some(true) {
                     let inputs = if let Some(parent) = parent {
                         parent.command_line.file_names.clone()
                     } else {
                         self.root_names().clone()
                     };
                     if !inputs.is_empty() {
-                        if options.composite != Some(true) {
+                        if options.ref_(self).composite != Some(true) {
                             self.create_diagnostic_for_reference(
                                 parent_file,
                                 index,
@@ -1585,7 +1585,7 @@ impl Program {
                                 ])
                             );
                         }
-                        if options.no_emit == Some(true) {
+                        if options.ref_(self).no_emit == Some(true) {
                             self.create_diagnostic_for_reference(
                                 parent_file,
                                 index,
@@ -1596,7 +1596,7 @@ impl Program {
                     }
                 }
                 if ref_.prepend == Some(true) {
-                    let out = out_file(options);
+                    let out = out_file(&options.ref_(self));
                     if let Some(out) = out.filter(|out| !out.is_empty()) {
                         if !self.host().file_exists(out) {
                             self.create_diagnostic_for_reference(
@@ -1621,7 +1621,7 @@ impl Program {
                     if let Some(build_info_path) =
                         build_info_path.as_ref().filter(|build_info_path| {
                             Some(*build_info_path)
-                                == get_ts_build_info_emit_output_file_path(options).as_ref()
+                                == get_ts_build_info_emit_output_file_path(&options.ref_(self)).as_ref()
                         })
                     {
                         self.create_diagnostic_for_reference(
@@ -1671,7 +1671,7 @@ impl Program {
                         if initializer_as_array_literal_expression.elements.len() > value_index {
                             self.program_diagnostics_mut().add(Gc::new(
                                 create_diagnostic_for_node_in_source_file(
-                                    self.options.config_file.unwrap(),
+                                    self.options.ref_(self).config_file.unwrap(),
                                     initializer_as_array_literal_expression.elements[value_index],
                                     message,
                                     args.clone(),
@@ -1788,7 +1788,7 @@ impl Program {
             get_ts_config_prop_array(
                 source_file
                     .clone()
-                    .or_else(|| self.options.config_file.clone()),
+                    .or_else(|| self.options.ref_(self).config_file.clone()),
                 "references",
                 self,
             ),
@@ -1809,7 +1809,7 @@ impl Program {
             self.program_diagnostics_mut().add(
                 create_diagnostic_for_node_in_source_file(
                     source_file
-                        .or(self.options.config_file)
+                        .or(self.options.ref_(self).config_file)
                         .unwrap(),
                     references_syntax.ref_(self).as_array_literal_expression().elements[index],
                     message,
@@ -1860,7 +1860,7 @@ impl Program {
         {
             self.set_compiler_options_object_literal_syntax(Some(None));
             let json_object_literal =
-                get_ts_config_object_literal_expression(self.options.config_file, self);
+                get_ts_config_object_literal_expression(self.options.ref_(self).config_file, self);
             if let Some(json_object_literal) = json_object_literal {
                 for prop in get_property_assignment(json_object_literal, "compilerOptions", None, self) {
                     let prop_ref = prop.ref_(self);
@@ -1891,7 +1891,7 @@ impl Program {
         for prop in props.clone() {
             self.program_diagnostics_mut().add(Gc::new(
                 create_diagnostic_for_node_in_source_file(
-                    self.options.config_file.unwrap(),
+                    self.options.ref_(self).config_file.unwrap(),
                     if on_key {
                         prop.ref_(self).as_property_assignment().name()
                     } else {
@@ -1914,7 +1914,7 @@ impl Program {
     }
 
     pub fn is_emitted_file(&self, file: &str) -> bool {
-        if self.options.no_emit == Some(true) {
+        if self.options.ref_(self).no_emit == Some(true) {
             return false;
         }
 
@@ -1923,7 +1923,7 @@ impl Program {
             return false;
         }
 
-        let out = out_file(&self.options);
+        let out = out_file(&self.options.ref_(self));
         if let Some(out) = out {
             return self.is_same_file(&*file_path, out)
                 || self.is_same_file(
@@ -1933,7 +1933,7 @@ impl Program {
         }
 
         if matches!(
-            self.options.declaration_dir.as_ref(),
+            self.options.ref_(self).declaration_dir.as_ref(),
             Some(options_declaration_dir) if contains_path(
                 options_declaration_dir,
                 &*file_path,
@@ -1944,7 +1944,7 @@ impl Program {
             return true;
         }
 
-        if let Some(options_out_dir) = self.options.out_dir.as_ref() {
+        if let Some(options_out_dir) = self.options.ref_(self).out_dir.as_ref() {
             return contains_path(
                 options_out_dir,
                 &*file_path,
@@ -2189,7 +2189,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             let set_of_declaration_directories = set_of_declaration_directories.as_mut().unwrap();
             self.host_for_each_resolved_project_reference
                 .call(&mut |ref_| {
-                    let out = out_file(&ref_.command_line.options);
+                    let out = out_file(&ref_.command_line.options.ref_(self));
                     if let Some(out) = out {
                         set_of_declaration_directories
                             .insert(get_directory_path(&self.host_to_path.call(out)).into());
@@ -2197,9 +2197,9 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
                         let declaration_dir = ref_
                             .command_line
                             .options
-                            .declaration_dir
+                            .ref_(self).declaration_dir
                             .as_ref()
-                            .or_else(|| ref_.command_line.options.out_dir.as_ref());
+                            .or_else(|| ref_.command_line.options.ref_(self).out_dir.as_ref());
                         if let Some(declaration_dir) = declaration_dir {
                             set_of_declaration_directories
                                 .insert(self.host_to_path.call(declaration_dir));
@@ -2286,13 +2286,14 @@ pub(crate) fn handle_no_emit_options(
     source_file: Option<Id<Node> /*SourceFile*/>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<EmitResult>> {
     let options = program.get_compiler_options();
-    if options.no_emit == Some(true) {
+    if options.ref_(arena).no_emit == Some(true) {
         program.get_semantic_diagnostics(source_file, cancellation_token.clone())?;
         return Ok(Some(
             if source_file.is_some()
-                || out_file(&options)
+                || out_file(&options.ref_(arena))
                     .filter(|out_file| !out_file.is_empty())
                     .is_some()
             {
@@ -2303,7 +2304,7 @@ pub(crate) fn handle_no_emit_options(
         ));
     }
 
-    if options.no_emit_on_error != Some(true) {
+    if options.ref_(arena).no_emit_on_error != Some(true) {
         return Ok(None);
     }
     let mut diagnostics: Vec<Gc<Diagnostic>> = [
@@ -2318,7 +2319,7 @@ pub(crate) fn handle_no_emit_options(
     ]
     .concat();
 
-    if diagnostics.is_empty() && get_emit_declarations(&program.get_compiler_options()) {
+    if diagnostics.is_empty() && get_emit_declarations(&program.get_compiler_options().ref_(arena)) {
         diagnostics = program.get_declaration_diagnostics(None, cancellation_token.clone())?;
     }
 
@@ -2327,7 +2328,7 @@ pub(crate) fn handle_no_emit_options(
     }
     let mut emitted_files: Option<Vec<String>> = None;
     if source_file.is_none()
-        && out_file(&options)
+        && out_file(&options.ref_(arena))
             .filter(|out_file| !out_file.is_empty())
             .is_none()
     {
@@ -2632,6 +2633,7 @@ pub(crate) fn create_prepend_nodes(
     project_references: Option<&[Rc<ProjectReference>]>,
     mut get_command_line: impl FnMut(&ProjectReference, usize) -> Option<Gc<ParsedCommandLine>>,
     read_file: Gc<Box<dyn ReadFileCallback>>,
+    arena: &impl HasArena,
 ) -> Vec<Id<Node /*InputFiles*/>> {
     if project_references.is_none() {
         return vec![];
@@ -2644,7 +2646,7 @@ pub(crate) fn create_prepend_nodes(
             if let Some(resolved_ref_opts) = resolved_ref_opts
             /*&& resolvedRefOpts.options*/
             {
-                let out = out_file(&resolved_ref_opts.options);
+                let out = out_file(&resolved_ref_opts.options.ref_(arena));
                 if out.filter(|out| !out.is_empty()).is_none() {
                     continue;
                 }
@@ -2655,7 +2657,7 @@ pub(crate) fn create_prepend_nodes(
                     declaration_file_path,
                     declaration_map_path,
                     build_info_path,
-                } = get_output_paths_for_bundle(&resolved_ref_opts.options, true);
+                } = get_output_paths_for_bundle(&resolved_ref_opts.options.ref_(arena), true);
                 let node = create_input_files(
                     read_file.clone(),
                     js_file_path.clone().unwrap(),

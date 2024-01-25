@@ -248,7 +248,7 @@ impl TypeChecker {
                     )?));
                 }
 
-                if matches!(get_es_module_interop(&self.compiler_options), Some(true)) {
+                if matches!(get_es_module_interop(&self.compiler_options.ref_(self)), Some(true)) {
                     let mut sigs =
                         self.get_signatures_of_structured_type(type_, SignatureKind::Call)?;
                     if

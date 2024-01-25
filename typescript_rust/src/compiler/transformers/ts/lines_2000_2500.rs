@@ -671,7 +671,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*EnumDeclaration*/
     ) -> bool {
-        !is_enum_const(node, self) || should_preserve_const_enums(&self.compiler_options)
+        !is_enum_const(node, self) || should_preserve_const_enums(&self.compiler_options.ref_(self))
     }
 
     pub(super) fn visit_enum_declaration(
@@ -863,6 +863,6 @@ impl TransformTypeScript {
         let Some(node) = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_module_declaration(&node.ref_(self))), self) else {
             return true;
         };
-        is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options), self)
+        is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options.ref_(self)), self)
     }
 }

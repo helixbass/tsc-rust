@@ -171,7 +171,7 @@ pub(super) fn parse_config(
     {
         // own_config.options.as_mut().unwrap().paths_base_path = Some(base_path.clone());
         own_config.options = {
-            let mut options = maybe_extend_compiler_options(None, own_config.options.as_deref());
+            let mut options = maybe_extend_compiler_options(None, own_config.options.refed(arena).as_deref());
             options.paths_base_path = Some(base_path.clone());
             Some(arena.alloc_compiler_options(options))
         };

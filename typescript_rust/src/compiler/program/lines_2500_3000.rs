@@ -86,7 +86,7 @@ impl Program {
     ) -> io::Result<Option<Id<Node>>> {
         Ok(if has_extension(file_name) {
             let canonical_file_name = self.host().get_canonical_file_name(file_name);
-            if self.options.allow_non_ts_extensions != Some(true)
+            if self.options.ref_(self).allow_non_ts_extensions != Some(true)
                 && !for_each_bool(
                     &flatten(&self.supported_extensions_with_json_if_resolve_json_module()),
                     |extension: &Extension, _| {
@@ -139,7 +139,7 @@ impl Program {
             }
             source_file
         } else {
-            let source_file_no_extension = if self.options.allow_non_ts_extensions == Some(true) {
+            let source_file_no_extension = if self.options.ref_(self).allow_non_ts_extensions == Some(true) {
                 get_source_file(file_name)?
             } else {
                 None
@@ -149,7 +149,7 @@ impl Program {
             }
 
             if let Some(fail) = fail.as_mut() {
-                if self.options.allow_non_ts_extensions == Some(true) {
+                if self.options.ref_(self).allow_non_ts_extensions == Some(true) {
                     fail(
                         &Diagnostics::File_0_not_found,
                         Some(vec![file_name.to_owned()]),
@@ -335,7 +335,7 @@ impl Program {
             let mut source = self.get_source_of_project_reference_redirect(&path);
             if source.is_none()
                 && self.host().is_realpath_supported()
-                && self.options.preserve_symlinks == Some(true)
+                && self.options.ref_(self).preserve_symlinks == Some(true)
                 && is_declaration_file_name(file_name)
                 && string_contains(file_name, node_modules_path_part)
             {
@@ -371,7 +371,7 @@ impl Program {
             };
             self.add_file_include_reason(file, reason.clone());
             if let Some(file) = file {
-                if self.options.force_consistent_casing_in_file_names == Some(true) {
+                if self.options.ref_(self).force_consistent_casing_in_file_names == Some(true) {
                     let file_ref = file.ref_(self);
                     let ref checked_name = file_ref.as_source_file().file_name();
                     let is_redirect = self.to_path(checked_name) != self.to_path(&file_name);
@@ -408,11 +408,11 @@ impl Program {
             }) {
                 self.source_files_found_searching_node_modules_mut()
                     .insert(file.ref_(self).as_source_file().path().to_string(), false);
-                if self.options.no_resolve != Some(true) {
+                if self.options.ref_(self).no_resolve != Some(true) {
                     self.process_referenced_files(file, is_default_lib)?;
                     self.process_type_reference_directives(file)?;
                 }
-                if self.options.no_lib != Some(true) {
+                if self.options.ref_(self).no_lib != Some(true) {
                     self.process_lib_reference_directives(file)?;
                 }
 
@@ -442,7 +442,7 @@ impl Program {
             let redirect_project = self.get_project_reference_redirect_project(&file_name);
             if let Some(redirect_project) = redirect_project.as_ref() {
                 if matches!(
-                    out_file(&redirect_project.command_line.options),
+                    out_file(&redirect_project.command_line.options.ref_(self)),
                     Some(out_file) if !out_file.is_empty()
                 ) {
                     return Ok(None);
@@ -455,7 +455,7 @@ impl Program {
 
         let file = self.host().get_source_file(
             &file_name,
-            get_emit_script_target(&self.options),
+            get_emit_script_target(&self.options.ref_(self)),
             Some(&mut |host_error_message| {
                 self.add_file_preprocessing_file_explaining_diagnostic(
                     Option::<Id<Node>>::None,
@@ -551,11 +551,11 @@ impl Program {
                     || file_as_source_file.has_no_default_lib() && !ignore_no_default_lib,
             ));
 
-            if self.options.no_resolve != Some(true) {
+            if self.options.ref_(self).no_resolve != Some(true) {
                 self.process_referenced_files(file, is_default_lib)?;
                 self.process_type_reference_directives(file)?;
             }
-            if self.options.no_lib != Some(true) {
+            if self.options.ref_(self).no_lib != Some(true) {
                 self.process_lib_reference_directives(file)?;
             }
 
@@ -652,7 +652,7 @@ impl Program {
         referenced_project: &ResolvedProjectReference,
         file_name: &str,
     ) -> String {
-        let out = out_file(&referenced_project.command_line.options);
+        let out = out_file(&referenced_project.command_line.options.ref_(self));
         out.non_empty().map_or_else(
             || {
                 get_output_declaration_file_name(
@@ -660,6 +660,7 @@ impl Program {
                     &referenced_project.command_line,
                     !CompilerHost::use_case_sensitive_file_names(&**self.host()),
                     Option::<&mut fn() -> String>::None,
+                    self,
                 )
             },
             |out| change_extension(out, Extension::Dts.to_str()),
@@ -680,7 +681,7 @@ impl Program {
                         let referenced_project_source_file_ref = referenced_project.source_file.ref_(self);
                         let referenced_project_source_file_path =
                             referenced_project_source_file_ref.as_source_file().path();
-                        if &self.to_path(self.options.config_file_path.as_ref().unwrap())
+                        if &self.to_path(self.options.ref_(self).config_file_path.as_ref().unwrap())
                             != &*referenced_project_source_file_path
                         {
                             referenced_project
@@ -741,7 +742,7 @@ impl Program {
                 let mut map_from_to_project_reference_redirect_source = HashMap::new();
                 self.for_each_resolved_project_reference(
                     |resolved_ref: Gc<ResolvedProjectReference>| -> Option<()> {
-                        let out = out_file(&resolved_ref.command_line.options);
+                        let out = out_file(&resolved_ref.command_line.options.ref_(self));
                         if let Some(out) = out {
                             let output_dts = change_extension(out, Extension::Dts.to_str());
                             map_from_to_project_reference_redirect_source.insert(
@@ -762,6 +763,7 @@ impl Program {
                                         !CompilerHost::use_case_sensitive_file_names(
                                             &**self.host(),
                                         ),
+                                        self,
                                     ));
                                 got_common_source_directory.clone().unwrap()
                             };
@@ -778,6 +780,7 @@ impl Program {
                                                 &**self.host(),
                                             ),
                                             Some(&mut get_common_source_directory),
+                                            self,
                                         );
                                         map_from_to_project_reference_redirect_source.insert(
                                             self.to_path(&output_dts),
@@ -1054,7 +1057,7 @@ impl Program {
         let local_override_module_result = resolve_module_name(
             &format!("@typescript/lib-{}", path),
             &resolve_from,
-            Gc::new(
+            self.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::NodeJs)
                     .build()

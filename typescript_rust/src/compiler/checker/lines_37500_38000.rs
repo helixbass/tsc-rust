@@ -949,7 +949,7 @@ impl TypeChecker {
                 // }
             }
         } else if container.ref_(self).kind() != SyntaxKind::Constructor
-            && self.compiler_options.no_implicit_returns == Some(true)
+            && self.compiler_options.ref_(self).no_implicit_returns == Some(true)
             && !self.is_unwrapped_return_type_void_or_any(container, return_type)?
         {
             self.error(

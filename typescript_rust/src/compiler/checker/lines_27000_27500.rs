@@ -189,19 +189,19 @@ impl TypeChecker {
         let node_source_file = get_source_file_of_node(node, self);
         let node_source_file_ref = node_source_file.ref_(self);
         let node_source_file_as_source_file = node_source_file_ref.as_source_file();
-        if get_jsx_transform_enabled(&self.compiler_options)
-            && (self.compiler_options.jsx_factory.is_some()
+        if get_jsx_transform_enabled(&self.compiler_options.ref_(self))
+            && (self.compiler_options.ref_(self).jsx_factory.is_some()
                 || node_source_file_as_source_file
                     .pragmas()
                     .contains_key(&PragmaName::Jsx))
-            && self.compiler_options.jsx_fragment_factory.is_none()
+            && self.compiler_options.ref_(self).jsx_fragment_factory.is_none()
             && !node_source_file_as_source_file
                 .pragmas()
                 .contains_key(&PragmaName::Jsxfrag)
         {
             self.error(
                 Some(node),
-                if self.compiler_options.jsx_factory.is_some() {
+                if self.compiler_options.ref_(self).jsx_factory.is_some() {
                     &Diagnostics::The_jsxFragmentFactory_compiler_option_must_be_provided_to_use_JSX_fragments_with_the_jsxFactory_compiler_option
                 } else {
                     &Diagnostics::An_jsxFrag_pragma_is_required_when_using_an_jsx_pragma_with_JSX_fragments
@@ -747,14 +747,14 @@ impl TypeChecker {
             return Ok(Some(links_jsx_implicit_import_container));
         }
         let runtime_import_specifier = get_jsx_runtime_import(
-            get_jsx_implicit_import_base(&self.compiler_options, file.refed(self).as_deref()).as_deref(),
-            &self.compiler_options,
+            get_jsx_implicit_import_base(&self.compiler_options.ref_(self), file.refed(self).as_deref()).as_deref(),
+            &self.compiler_options.ref_(self),
         );
         if runtime_import_specifier.is_none() {
             return Ok(None);
         }
         let runtime_import_specifier = runtime_import_specifier.unwrap();
-        let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
+        let is_classic = get_emit_module_resolution_kind(&self.compiler_options.ref_(self))
             == ModuleResolutionKind::Classic;
         let error_message = if is_classic {
             &*Diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_node_or_to_add_aliases_to_the_paths_option

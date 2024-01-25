@@ -334,7 +334,7 @@ impl TransformTypeScript {
         container: Id<Node>, /*ClassLikeDeclaration*/
         decorator_expressions: &mut Vec<Id<Node /*Expression*/>>,
     ) -> io::Result<()> {
-        if self.compiler_options.emit_decorator_metadata == Some(true) {
+        if self.compiler_options.ref_(self).emit_decorator_metadata == Some(true) {
             if self.should_add_type_metadata(node) {
                 decorator_expressions.push(
                     self.emit_helpers()
@@ -364,7 +364,7 @@ impl TransformTypeScript {
         container: Id<Node>, /*ClassLikeDeclaration*/
         decorator_expressions: &mut Vec<Id<Node /*Expression*/>>,
     ) -> io::Result<()> {
-        if self.compiler_options.emit_decorator_metadata == Some(true) {
+        if self.compiler_options.ref_(self).emit_decorator_metadata == Some(true) {
             let mut properties: Option<Vec<Id<Node /*ObjectLiteralElementLike*/>>> =
                 Default::default();
             if self.should_add_type_metadata(node) {

@@ -733,7 +733,7 @@ impl TypeChecker {
             );
         }
 
-        if self.compiler_options.isolated_modules == Some(true) {
+        if self.compiler_options.ref_(self).isolated_modules == Some(true) {
             Debug_.assert(
                 type_
                     .ref_(self)

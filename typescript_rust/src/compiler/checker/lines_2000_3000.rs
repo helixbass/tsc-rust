@@ -650,7 +650,7 @@ impl TypeChecker {
                     result.ref_(self).flags().intersects(SymbolFlags::ConstEnum),
                     None,
                 );
-                if should_preserve_const_enums(&self.compiler_options) {
+                if should_preserve_const_enums(&self.compiler_options.ref_(self)) {
                     diagnostic_message = Some(self.error(
                         Some(error_location),
                         &Diagnostics::Enum_0_used_before_its_declaration,
@@ -1386,9 +1386,9 @@ impl TypeChecker {
         let name_as_identifier = name_ref.as_identifier();
         let suppress_interop_error = name_as_identifier.escaped_text == InternalSymbolName::Default
             && (matches!(
-                self.compiler_options.allow_synthetic_default_imports,
+                self.compiler_options.ref_(self).allow_synthetic_default_imports,
                 Some(true)
-            ) || matches!(get_es_module_interop(&self.compiler_options), Some(true)));
+            ) || matches!(get_es_module_interop(&self.compiler_options.ref_(self)), Some(true)));
         let target_symbol = self.resolve_es_module_symbol(
             module_symbol,
             module_specifier,
@@ -1668,7 +1668,7 @@ impl TypeChecker {
         module_name: String,
     ) {
         if self.module_kind >= ModuleKind::ES2015 {
-            let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true)) {
+            let message = if matches!(get_es_module_interop(&self.compiler_options.ref_(self)), Some(true)) {
                 &*Diagnostics::_0_can_only_be_imported_by_using_a_default_import
             } else {
                 &*Diagnostics::_0_can_only_be_imported_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
@@ -1676,7 +1676,7 @@ impl TypeChecker {
             self.error(Some(name), message, Some(vec![declaration_name]));
         } else {
             if is_in_js_file(Some(&node.ref_(self))) {
-                let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true))
+                let message = if matches!(get_es_module_interop(&self.compiler_options.ref_(self)), Some(true))
                 {
                     &*Diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import
                 } else {
@@ -1684,7 +1684,7 @@ impl TypeChecker {
                 };
                 self.error(Some(name), message, Some(vec![declaration_name]));
             } else {
-                let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true))
+                let message = if matches!(get_es_module_interop(&self.compiler_options.ref_(self)), Some(true))
                 {
                     &*Diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_a_default_import
                 } else {

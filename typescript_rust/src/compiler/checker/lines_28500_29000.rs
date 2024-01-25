@@ -36,7 +36,7 @@ impl TypeChecker {
         containing_type: Id<Type>,
     ) -> io::Result<bool> {
         Ok(matches!(
-            self.compiler_options.lib.as_ref(),
+            self.compiler_options.ref_(self).lib.as_ref(),
             Some(compiler_options_lib) if compiler_options_lib.into_iter().position(|lib_item| lib_item == "dom").is_none()
         ) &&
             self.every_contained_type(

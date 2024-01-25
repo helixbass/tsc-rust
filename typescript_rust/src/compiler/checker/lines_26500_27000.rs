@@ -178,7 +178,7 @@ impl TypeChecker {
         signatures: &[Gc<Signature>],
     ) -> io::Result<Option<Gc<Signature>>> {
         Ok(
-            if get_strict_option_value(&self.compiler_options, "noImplicitAny") {
+            if get_strict_option_value(&self.compiler_options.ref_(self), "noImplicitAny") {
                 try_reduce_left_no_initial_value_optional(
                     signatures,
                     |left: Option<Gc<Signature>>, right: &Gc<Signature>, _| -> io::Result<_> {
@@ -537,7 +537,7 @@ impl TypeChecker {
         if self.language_version < ScriptTarget::ES2015 {
             self.check_external_emit_helpers(
                 node,
-                if self.compiler_options.downlevel_iteration == Some(true) {
+                if self.compiler_options.ref_(self).downlevel_iteration == Some(true) {
                     ExternalEmitHelpers::SpreadIncludes
                 } else {
                     ExternalEmitHelpers::SpreadArray
@@ -606,7 +606,7 @@ impl TypeChecker {
                 if self.language_version < ScriptTarget::ES2015 {
                     self.check_external_emit_helpers(
                         e,
-                        if self.compiler_options.downlevel_iteration == Some(true) {
+                        if self.compiler_options.ref_(self).downlevel_iteration == Some(true) {
                             ExternalEmitHelpers::SpreadIncludes
                         } else {
                             ExternalEmitHelpers::SpreadArray
@@ -1136,7 +1136,7 @@ impl TypeChecker {
                             prop.ref_(self).flags()
                                 | (implied_prop.ref_(self).flags() & SymbolFlags::Optional),
                         );
-                    } else if self.compiler_options.suppress_excess_property_errors != Some(true)
+                    } else if self.compiler_options.ref_(self).suppress_excess_property_errors != Some(true)
                         && self
                             .get_index_info_of_type_(contextual_type.unwrap(), self.string_type())?
                             .is_none()

@@ -430,8 +430,8 @@ impl TransformClassFields {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
-        let language_version = get_emit_script_target(&compiler_options);
-        let use_define_for_class_fields = get_use_define_for_class_fields(&compiler_options);
+        let language_version = get_emit_script_target(&compiler_options.ref_(arena_ref));
+        let use_define_for_class_fields = get_use_define_for_class_fields(&compiler_options.ref_(arena_ref));
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
             factory: context_ref.factory(),
@@ -636,10 +636,10 @@ impl TransformClassFields {
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_source_file = node_ref.as_source_file();
-        let ref options = self.context.ref_(self).get_compiler_options();
+        let options = self.context.ref_(self).get_compiler_options();
         if node_as_source_file.is_declaration_file()
             || self.use_define_for_class_fields
-                && get_emit_script_target(options) == ScriptTarget::ESNext
+                && get_emit_script_target(&options.ref_(self)) == ScriptTarget::ESNext
         {
             return node;
         }

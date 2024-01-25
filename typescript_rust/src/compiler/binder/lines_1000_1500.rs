@@ -585,7 +585,7 @@ impl BinderType {
                 .flags()
                 .intersects(FlowFlags::Unreachable)
                 && i != clauses.len() - 1
-                && matches!(self.options().no_fallthrough_cases_in_switch, Some(true))
+                && matches!(self.options().ref_(self).no_fallthrough_cases_in_switch, Some(true))
             {
                 clause
                     .ref_(self).as_case_or_default_clause()
@@ -643,10 +643,10 @@ impl BinderType {
         self.bind(Some(node_as_labeled_statement.label));
         self.bind(Some(node_as_labeled_statement.statement));
         if !self.active_label_list().referenced()
-            && !matches!(self.options().allow_unused_labels, Some(true))
+            && !matches!(self.options().ref_(self).allow_unused_labels, Some(true))
         {
             self.error_or_suggestion_on_node(
-                unused_label_is_error(&self.options()),
+                unused_label_is_error(&self.options().ref_(self)),
                 node_as_labeled_statement.label,
                 &Diagnostics::Unused_label,
             );

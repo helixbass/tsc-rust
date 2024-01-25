@@ -85,7 +85,7 @@ impl TransformES2017 {
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
-            language_version: get_emit_script_target(&compiler_options),
+            language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
             compiler_options,
             enabled_substitutions: Default::default(),
             enclosing_super_container_flags: Cell::new(NodeCheckFlags::None),
@@ -194,7 +194,7 @@ impl TransformES2017 {
         self.set_context_flag(ContextFlags::NonTopLevel, false);
         self.set_context_flag(
             ContextFlags::HasLexicalThis,
-            !is_effective_strict_mode_source_file(node, &self.compiler_options, self),
+            !is_effective_strict_mode_source_file(node, &self.compiler_options.ref_(self), self),
         );
         let visited =
             try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?;

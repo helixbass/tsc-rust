@@ -355,7 +355,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     let flatten_context = FlattenDestructuringAssignmentFlattenContext::new(
         context.clone(),
         level,
-        context.ref_(arena).get_compiler_options().downlevel_iteration == Some(true),
+        context.ref_(arena).get_compiler_options().ref_(arena).downlevel_iteration == Some(true),
         expressions.clone(),
         create_assignment_callback.clone(),
         visitor.clone(),
@@ -530,7 +530,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     let flatten_context = FlattenDestructuringBindingFlattenContext::new(
         context.clone(),
         level,
-        context.ref_(arena).get_compiler_options().downlevel_iteration == Some(true),
+        context.ref_(arena).get_compiler_options().ref_(arena).downlevel_iteration == Some(true),
         hoist_temp_variables,
         pending_expressions.clone(),
         pending_declarations.clone(),

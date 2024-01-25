@@ -2050,9 +2050,9 @@ pub struct ParsedCommandLineWithBaseOptions {
 }
 
 impl ParsedCommandLineWithBaseOptions {
-    pub fn into_parsed_command_line(self) -> ParsedCommandLine {
+    pub fn into_parsed_command_line(self, arena: &impl HasArena) -> ParsedCommandLine {
         ParsedCommandLine {
-            options: Gc::new(hash_map_to_compiler_options(&self.options)),
+            options: arena.alloc_compiler_options(hash_map_to_compiler_options(&self.options)),
             type_acquisition: self.type_acquisition,
             file_names: self.file_names,
             project_references: self.project_references,
@@ -2070,23 +2070,30 @@ mod _ParsedCommandLineDeriveTraceScope {
 
     use super::*;
 
-    #[derive(Builder, Debug, Default, Trace, Finalize)]
-    #[builder(default, setter(into, strip_option))]
+    #[derive(Builder, Debug, Trace, Finalize)]
+    #[builder(setter(into, strip_option))]
     pub struct ParsedCommandLine {
         pub options: Id<CompilerOptions>,
         #[unsafe_ignore_trace]
+        #[builder(default)]
         pub type_acquisition: Option<Rc<TypeAcquisition>>,
+        #[builder(default)]
         pub file_names: Vec<String>,
         #[unsafe_ignore_trace]
+        #[builder(default)]
         pub project_references: Option<Vec<Rc<ProjectReference>>>,
         #[unsafe_ignore_trace]
+        #[builder(default)]
         pub watch_options: Option<Rc<WatchOptions>>,
         #[unsafe_ignore_trace]
+        #[builder(default)]
         pub raw: Option<serde_json::Value>,
-        #[builder(setter(custom))]
+        #[builder(default, setter(custom))]
         pub errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
         #[unsafe_ignore_trace]
+        #[builder(default)]
         pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
+        #[builder(default)]
         pub compile_on_save: Option<bool>,
     }
 
@@ -2130,19 +2137,21 @@ mod _CreateProgramOptionsDeriveTraceScope {
 
     use super::*;
 
-    #[derive(Builder, Default, Trace, Finalize)]
-    #[builder(default, setter(into))]
+    #[derive(Builder, Trace, Finalize)]
+    #[builder(setter(into))]
     pub struct CreateProgramOptions {
         #[unsafe_ignore_trace]
+        #[builder(default)]
         pub root_names: Vec<String>,
         pub options: Id<CompilerOptions>,
         #[unsafe_ignore_trace]
+        #[builder(default)]
         pub project_references: Option<Vec<Rc<ProjectReference>>>,
-        #[builder(setter(strip_option))]
+        #[builder(default, setter(strip_option))]
         pub host: Option<Gc<Box<dyn CompilerHost>>>,
-        #[builder(setter(strip_option))]
+        #[builder(default, setter(strip_option))]
         pub old_program: Option<Gc<Box<Program>>>,
-        #[builder(setter(strip_option))]
+        #[builder(default, setter(strip_option))]
         pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
     }
 }

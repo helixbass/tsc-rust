@@ -38,7 +38,7 @@ impl TransformES5 {
             no_substitution: Default::default(),
         }));
         if matches!(
-            compiler_options.jsx,
+            compiler_options.ref_(arena_ref).jsx,
             Some(JsxEmit::Preserve) | Some(JsxEmit::ReactNative)
         ) {
             context_ref.override_on_emit_node(&mut |previous_on_emit_node| {

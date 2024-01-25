@@ -254,7 +254,7 @@ impl TransformSystemModule {
         let node_ref = node.ref_(self);
         let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file()
-            || !(is_effective_external_module(&node.ref_(self), &self.compiler_options)
+            || !(is_effective_external_module(&node.ref_(self), &self.compiler_options.ref_(self))
                 || node
                     .ref_(self).transform_flags()
                     .intersects(TransformFlags::ContainsDynamicImport))
@@ -269,7 +269,7 @@ impl TransformSystemModule {
             &*self.context.ref_(self),
             node,
             &**self.resolver,
-            &self.compiler_options,
+            &self.compiler_options.ref_(self),
             self,
         )?);
         self.module_info_map_mut().insert(id, module_info.clone());
@@ -319,7 +319,7 @@ impl TransformSystemModule {
             &self.factory,
             Some(node),
             &**self.host.ref_(self),
-            &self.compiler_options,
+            &self.compiler_options.ref_(self),
         );
         let dependencies = self.factory.create_array_literal_expression(
             Some(map(
@@ -364,7 +364,7 @@ impl TransformSystemModule {
             )
             .set_emit_flags(EmitFlags::NoTrailingComments, self);
 
-        if !out_file(&self.compiler_options).is_non_empty() {
+        if !out_file(&self.compiler_options.ref_(self)).is_non_empty() {
             move_emit_helpers(updated, module_body_block, |helper: &EmitHelper| {
                 !helper.scoped()
             }, self);
@@ -399,7 +399,7 @@ impl TransformSystemModule {
                 self.current_source_file(),
                 &**self.host.ref_(self),
                 &**self.resolver,
-                &self.compiler_options,
+                &self.compiler_options.ref_(self),
             )?;
             if let Some(external_module_name) = external_module_name {
                 let external_module_name_ref = external_module_name.ref_(self);
@@ -433,8 +433,8 @@ impl TransformSystemModule {
 
         self.context.ref_(self).start_lexical_environment();
 
-        let ensure_use_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
-            || self.compiler_options.no_implicit_use_strict != Some(true)
+        let ensure_use_strict = get_strict_option_value(&self.compiler_options.ref_(self), "alwaysStrict")
+            || self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)
                 && is_external_module(&self.current_source_file().ref_(self));
         let statement_offset = self.factory.try_copy_prologue(
             &node_as_source_file.statements(),

@@ -117,7 +117,7 @@ impl TypeChecker {
         let mut _jsx_namespace = self._jsx_namespace.borrow_mut();
         if _jsx_namespace.is_none() {
             *_jsx_namespace = Some("React".to_owned());
-            if let Some(compiler_options_jsx_factory) = self.compiler_options.jsx_factory.as_ref() {
+            if let Some(compiler_options_jsx_factory) = self.compiler_options.ref_(self).jsx_factory.as_ref() {
                 let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
                 *_jsx_factory_entity = parse_isolated_entity_name(
                     compiler_options_jsx_factory.clone(),
@@ -138,7 +138,7 @@ impl TypeChecker {
                     );
                 }
             } else if let Some(compiler_options_react_namespace) =
-                self.compiler_options.react_namespace.as_ref()
+                self.compiler_options.ref_(self).react_namespace.as_ref()
             {
                 *_jsx_namespace =
                     Some(escape_leading_underscores(compiler_options_react_namespace).into_owned());
@@ -1149,7 +1149,7 @@ impl TypeChecker {
                         .maybe_external_module_indicator()
                         .is_some())
                 || !matches!(
-                    out_file(&self.compiler_options),
+                    out_file(&self.compiler_options.ref_(self)),
                     Some(out_file) if !out_file.is_empty()
                 )
                 || self.is_in_type_query(usage)
@@ -1209,7 +1209,7 @@ impl TypeChecker {
                     false,
                 ));
             } else if is_parameter_property_declaration(declaration, declaration.ref_(self).parent(), self) {
-                return Ok(!(get_emit_script_target(&self.compiler_options)
+                return Ok(!(get_emit_script_target(&self.compiler_options.ref_(self))
                     == ScriptTarget::ESNext
                     && self.use_define_for_class_fields
                     && get_containing_class(declaration, self) == get_containing_class(usage, self)
@@ -1241,7 +1241,7 @@ impl TypeChecker {
             return Ok(true);
         }
         if self.is_used_in_function_or_instance_property(decl_container, usage, declaration)? {
-            if get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
+            if get_emit_script_target(&self.compiler_options.ref_(self)) == ScriptTarget::ESNext
                 && self.use_define_for_class_fields
                 && get_containing_class(declaration, self).is_some()
                 && (is_property_declaration(&declaration.ref_(self))
@@ -1414,7 +1414,7 @@ impl TypeChecker {
         location: Id<Node>,
         last_location: Id<Node>,
     ) -> bool {
-        let target = get_emit_script_target(&self.compiler_options);
+        let target = get_emit_script_target(&self.compiler_options.ref_(self));
         let location_ref = location.ref_(self);
         let function_location = location_ref.maybe_as_function_like_declaration();
         if is_parameter(&last_location.ref_(self))
@@ -1864,7 +1864,7 @@ impl TypeChecker {
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::FunctionDeclaration => {
                     if !(location_unwrapped.ref_(self).kind() == SyntaxKind::ArrowFunction
-                        && get_emit_script_target(&self.compiler_options) >= ScriptTarget::ES2015)
+                        && get_emit_script_target(&self.compiler_options.ref_(self)) >= ScriptTarget::ES2015)
                     {
                         if meaning.intersects(SymbolFlags::Variable) && name == "arguments" {
                             result = Some(self.arguments_symbol());
@@ -2155,7 +2155,7 @@ impl TypeChecker {
             if let Some(property_with_invalid_initializer) =
                 property_with_invalid_initializer.as_ref()
             {
-                if !(get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
+                if !(get_emit_script_target(&self.compiler_options.ref_(self)) == ScriptTarget::ESNext
                     && self.use_define_for_class_fields)
                 {
                     let property_name = property_with_invalid_initializer
@@ -2221,7 +2221,7 @@ impl TypeChecker {
                     )
                 {
                     self.error_or_suggestion(
-                        !matches!(self.compiler_options.allow_umd_global_access, Some(true)),
+                        !matches!(self.compiler_options.ref_(self).allow_umd_global_access, Some(true)),
                         error_location.unwrap(),
                         &*Diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead,
                         Some(vec![unescape_leading_underscores(name).to_owned()])

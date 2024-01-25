@@ -1090,11 +1090,11 @@ impl SymbolTableToDeclarationStatements {
                 unescape_leading_underscores(target.ref_(self).escaped_name()).to_owned()
             });
         if verbatim_target_name == InternalSymbolName::ExportEquals
-            && (get_es_module_interop(&self.type_checker.compiler_options) == Some(true)
+            && (get_es_module_interop(&self.type_checker.compiler_options.ref_(self)) == Some(true)
                 || self
                     .type_checker
                     .compiler_options
-                    .allow_synthetic_default_imports
+                    .ref_(self).allow_synthetic_default_imports
                     == Some(true))
         {
             verbatim_target_name = InternalSymbolName::Default.to_owned();

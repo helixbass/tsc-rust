@@ -96,9 +96,9 @@ impl TransformTypeScript {
             factory: context_ref.factory(),
             base_factory: context_ref.base_factory(),
             resolver: context_ref.get_emit_resolver(),
-            strict_null_checks: get_strict_option_value(&compiler_options, "strictNullChecks"),
-            language_version: get_emit_script_target(&compiler_options),
-            module_kind: get_emit_module_kind(&compiler_options),
+            strict_null_checks: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictNullChecks"),
+            language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
+            module_kind: get_emit_module_kind(&compiler_options.ref_(arena_ref)),
             compiler_options,
             current_source_file: Default::default(),
             context: context.clone(),
@@ -939,7 +939,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                     .factory
                     .create_numeric_literal(constant_value, None),
             };
-            if self.transform_type_script().compiler_options.remove_comments != Some(true) {
+            if self.transform_type_script().compiler_options.ref_(self).remove_comments != Some(true) {
                 let original_node = maybe_get_original_node_full(
                     Some(node),
                     Some(|node: Option<Id<Node>>| is_access_expression(&node.unwrap().ref_(self))),
@@ -980,7 +980,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     }
 
     fn try_get_const_enum_value(&self, node: Id<Node>) -> io::Result<Option<StringOrNumber>> {
-        if self.transform_type_script().compiler_options.isolated_modules == Some(true) {
+        if self.transform_type_script().compiler_options.ref_(self).isolated_modules == Some(true) {
             return Ok(None);
         }
 

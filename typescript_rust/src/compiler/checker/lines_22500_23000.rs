@@ -1001,7 +1001,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let type_ = return_ok_default_if_none!(type_);
         Ok(Some(
-            if self.compiler_options.no_unchecked_indexed_access == Some(true) {
+            if self.compiler_options.ref_(self).no_unchecked_indexed_access == Some(true) {
                 self.get_union_type(
                     &[type_, self.undefined_type()],
                     None,

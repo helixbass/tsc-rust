@@ -115,7 +115,7 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
         None => get_source_files_to_emit(host, Option::<Id<Node>>::None, Some(force_dts_emit), arena),
     };
     let options = ScriptReferenceHost::get_compiler_options(host);
-    if out_file(&options)
+    if out_file(&options.ref_(arena))
         .filter(|out_file| !out_file.is_empty())
         .is_some()
     {
@@ -146,7 +146,7 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
             }
         }
         if include_build_info == Some(true) {
-            let build_info_path = get_ts_build_info_emit_output_file_path(&options);
+            let build_info_path = get_ts_build_info_emit_output_file_path(&options.ref_(arena));
             if let Some(build_info_path) =
                 build_info_path.filter(|build_info_path| !build_info_path.is_empty())
             {
@@ -310,14 +310,15 @@ pub(crate) fn get_output_paths_for(
 ) -> EmitFileNames {
     let options = ScriptReferenceHost::get_compiler_options(host);
     if source_file.ref_(arena).kind() == SyntaxKind::Bundle {
-        get_output_paths_for_bundle(&options, force_dts_paths)
+        get_output_paths_for_bundle(&options.ref_(arena), force_dts_paths)
     } else {
         let source_file_ref = source_file.ref_(arena);
         let source_file_as_source_file = source_file_ref.as_source_file();
         let own_output_file_path = get_own_emit_output_file_path(
             &source_file_as_source_file.file_name(),
             host,
-            get_output_extension(&source_file_as_source_file.file_name(), &options).to_str(),
+            get_output_extension(&source_file_as_source_file.file_name(), &options.ref_(arena)).to_str(),
+            arena,
         );
         let is_json_file = is_json_source_file(&source_file.ref_(arena));
         let is_json_emitted_to_same_location = is_json_file
@@ -328,7 +329,7 @@ pub(crate) fn get_output_paths_for(
                 Some(!EmitHost::use_case_sensitive_file_names(host)),
             ) == Comparison::EqualTo;
         let js_file_path =
-            if options.emit_declaration_only == Some(true) || is_json_emitted_to_same_location {
+            if options.ref_(arena).emit_declaration_only == Some(true) || is_json_emitted_to_same_location {
                 None
             } else {
                 Some(own_output_file_path)
@@ -341,13 +342,14 @@ pub(crate) fn get_output_paths_for(
         {
             None
         } else {
-            get_source_map_file_path(js_file_path.as_ref().unwrap(), &options)
+            get_source_map_file_path(js_file_path.as_ref().unwrap(), &options.ref_(arena))
         };
         let declaration_file_path =
-            if force_dts_paths || get_emit_declarations(&options) && !is_json_file {
+            if force_dts_paths || get_emit_declarations(&options.ref_(arena)) && !is_json_file {
                 Some(get_declaration_emit_output_file_path(
                     &source_file_as_source_file.file_name(),
                     host,
+                    arena,
                 ))
             } else {
                 None
@@ -355,7 +357,7 @@ pub(crate) fn get_output_paths_for(
         let declaration_map_path = declaration_file_path
             .as_ref()
             .filter(|declaration_file_path| {
-                !declaration_file_path.is_empty() && get_are_declaration_maps_enabled(&options)
+                !declaration_file_path.is_empty() && get_are_declaration_maps_enabled(&options.ref_(arena))
             })
             .map(|declaration_file_path| format!("{declaration_file_path}.map"));
         EmitFileNames {
@@ -398,6 +400,7 @@ fn get_output_path_without_changing_ext(
     ignore_case: bool,
     output_dir: Option<&str>,
     get_common_source_directory: Option<&mut impl FnMut() -> String>,
+    arena: &impl HasArena,
 ) -> String {
     output_dir.non_empty().map_or_else(
         || input_file_name.to_owned(),
@@ -406,7 +409,7 @@ fn get_output_path_without_changing_ext(
                 output_dir,
                 &[Some(&get_relative_path_from_directory(
                     &get_common_source_directory.map_or_else(
-                        || get_common_source_directory_of_config(config_file, ignore_case),
+                        || get_common_source_directory_of_config(config_file, ignore_case, arena),
                         |get_common_source_directory| get_common_source_directory(),
                     ),
                     input_file_name,
@@ -423,6 +426,7 @@ pub(crate) fn get_output_declaration_file_name(
     config_file: &ParsedCommandLine,
     ignore_case: bool,
     get_common_source_directory: Option<&mut impl FnMut() -> String>,
+    arena: &impl HasArena,
 ) -> String {
     change_extension(
         &get_output_path_without_changing_ext(
@@ -431,11 +435,12 @@ pub(crate) fn get_output_declaration_file_name(
             ignore_case,
             config_file
                 .options
-                .declaration_dir
+                .ref_(arena).declaration_dir
                 .as_deref()
                 .non_empty()
-                .or_else(|| config_file.options.out_dir.as_deref()),
+                .or_else(|| config_file.options.ref_(arena).out_dir.as_deref()),
             get_common_source_directory,
+            arena,
         ),
         get_declaration_emit_extension_for_path(input_file_name),
     )
@@ -490,20 +495,21 @@ pub(crate) fn get_common_source_directory(
 pub(crate) fn get_common_source_directory_of_config(
     command_line: &ParsedCommandLine,
     ignore_case: bool,
+    arena: &impl HasArena,
 ) -> String {
-    let options = &command_line.options;
+    let options = command_line.options;
     let file_names = &command_line.file_names;
     get_common_source_directory(
-        options,
+        &options.ref_(arena),
         || {
             filter(file_names, |file: &String| {
-                !(options.no_emit_for_js_files == Some(true)
+                !(options.ref_(arena).no_emit_for_js_files == Some(true)
                     && file_extension_is_one_of(file, &supported_js_extensions_flat))
                     && !file_extension_is(file, Extension::Dts.to_str())
             })
         },
         &get_directory_path(&normalize_slashes(
-            Debug_.check_defined(options.config_file_path.as_deref(), None),
+            Debug_.check_defined(options.ref_(arena).config_file_path.as_deref(), None),
         )),
         create_get_canonical_file_name(!ignore_case),
         Option::<fn(&str)>::None,
@@ -524,23 +530,23 @@ pub(crate) fn emit_files(
     arena: &impl HasArena,
 ) -> io::Result<EmitResult> {
     let compiler_options = ScriptReferenceHost::get_compiler_options(&**host.ref_(arena));
-    let mut source_map_data_list: Option<Vec<SourceMapEmitResult>> = if compiler_options.source_map
+    let mut source_map_data_list: Option<Vec<SourceMapEmitResult>> = if compiler_options.ref_(arena).source_map
         == Some(true)
-        || compiler_options.inline_source_map == Some(true)
-        || get_are_declaration_maps_enabled(&compiler_options)
+        || compiler_options.ref_(arena).inline_source_map == Some(true)
+        || get_are_declaration_maps_enabled(&compiler_options.ref_(arena))
     {
         Some(vec![])
     } else {
         None
     };
     let mut emitted_files_list: Option<Vec<String>> =
-        if compiler_options.list_emitted_files == Some(true) {
+        if compiler_options.ref_(arena).list_emitted_files == Some(true) {
             Some(vec![])
         } else {
             None
         };
     let mut emitter_diagnostics = create_diagnostic_collection(&*static_arena());
-    let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.ref_(arena).get_new_line()), arena);
+    let new_line = get_new_line_character(compiler_options.ref_(arena).new_line, Some(|| host.ref_(arena).get_new_line()), arena);
     let writer = create_text_writer(&new_line, arena);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
     let mut bundle_build_info: Option<Gc<GcCell<BundleBuildInfo>>> = None;

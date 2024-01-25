@@ -27,7 +27,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let always_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
+        let always_strict = get_strict_option_value(&self.compiler_options.ref_(self), "alwaysStrict")
             && !(is_external_module(&node.ref_(self)) && self.module_kind >= ModuleKind::ES2015)
             && !is_json_source_file(&node.ref_(self));
 

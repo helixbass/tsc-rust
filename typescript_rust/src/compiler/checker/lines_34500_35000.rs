@@ -83,7 +83,7 @@ impl TypeChecker {
                     );
                 }
 
-                let super_call_should_be_first = (get_emit_script_target(&self.compiler_options)
+                let super_call_should_be_first = (get_emit_script_target(&self.compiler_options.ref_(self))
                     != ScriptTarget::ESNext
                     || !self.use_define_for_class_fields)
                     && (some(

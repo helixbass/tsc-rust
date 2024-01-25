@@ -636,7 +636,7 @@ impl TypeChecker {
                     if !took_if_branch
                         && self.no_implicit_any
                         && !matches!(
-                            self.compiler_options.suppress_implicit_any_index_errors,
+                            self.compiler_options.ref_(self).suppress_implicit_any_index_errors,
                             Some(true)
                         )
                         && !access_flags.intersects(AccessFlags::SuppressNoImplicitAnyError)
@@ -1449,7 +1449,7 @@ impl TypeChecker {
             index_type = self.string_type();
         }
         if matches!(
-            self.compiler_options.no_unchecked_indexed_access,
+            self.compiler_options.ref_(self).no_unchecked_indexed_access,
             Some(true)
         ) && access_flags.intersects(AccessFlags::ExpressionPosition)
         {

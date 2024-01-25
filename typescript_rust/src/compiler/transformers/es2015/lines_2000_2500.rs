@@ -732,7 +732,7 @@ impl TransformES2015 {
                  outermost_labeled_statement: Option<Id<Node>>,
                  converted_loop_body_statements: Option<&[Id<Node>]>,
                  ancestor_facts: Option<HierarchyFacts>| {
-                    Ok(if self.compiler_options.downlevel_iteration == Some(true) {
+                    Ok(if self.compiler_options.ref_(self).downlevel_iteration == Some(true) {
                         self.convert_for_of_statement_for_iterable(
                             node,
                             outermost_labeled_statement,

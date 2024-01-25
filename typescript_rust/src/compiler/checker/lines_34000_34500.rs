@@ -788,7 +788,7 @@ impl TypeChecker {
         if is_private_identifier(&node_as_named_declaration.name().ref_(self)) && has_static_modifier(node, self) {
             if let Some(node_initializer) = node.ref_(self).as_has_initializer().maybe_initializer() {
                 if self.language_version == ScriptTarget::ESNext
-                    && self.compiler_options.use_define_for_class_fields != Some(true)
+                    && self.compiler_options.ref_(self).use_define_for_class_fields != Some(true)
                 {
                     self.error(
                         Some(node_initializer),

@@ -1298,7 +1298,7 @@ impl CheckTypeRelatedTo {
         } else if source_signatures.len() == 1 && target_signatures.len() == 1 {
             let erase_generics = Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
                 || matches!(
-                    self.type_checker.compiler_options.no_strict_generic_checks,
+                    self.type_checker.compiler_options.ref_(self).no_strict_generic_checks,
                     Some(true)
                 );
             let source_signature = &source_signatures[0];

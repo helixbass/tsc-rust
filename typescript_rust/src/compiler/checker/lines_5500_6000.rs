@@ -1208,7 +1208,7 @@ impl NodeBuilder {
                 });
         if specifier.is_none() {
             let is_bundle = matches!(
-                out_file(&self.type_checker.compiler_options),
+                out_file(&self.type_checker.compiler_options.ref_(self)),
                 Some(out_file) if !out_file.is_empty()
             );
             let context_tracker = context.tracker_ref();
@@ -1216,7 +1216,7 @@ impl NodeBuilder {
             let specifier_compiler_options = if is_bundle {
                 self.alloc_compiler_options(CompilerOptions {
                     base_url: Some(module_resolver_host.ref_(self).get_common_source_directory()),
-                    ..(*self.type_checker.compiler_options).clone()
+                    ..(*self.type_checker.compiler_options.ref_(self)).clone()
                 })
             } else {
                 self.type_checker.compiler_options.clone()
@@ -1313,7 +1313,7 @@ impl NodeBuilder {
             if !context
                 .flags()
                 .intersects(NodeBuilderFlags::AllowNodeModulesRelativePaths)
-                && get_emit_module_resolution_kind(&self.type_checker.compiler_options)
+                && get_emit_module_resolution_kind(&self.type_checker.compiler_options.ref_(self))
                     != ModuleResolutionKind::Classic
                 && specifier.contains("/node_modules/")
             {

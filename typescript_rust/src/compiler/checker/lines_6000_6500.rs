@@ -538,7 +538,7 @@ impl NodeBuilder {
             };
             if !is_identifier_text(
                 &name,
-                Some(get_emit_script_target(&self.type_checker.compiler_options)),
+                Some(get_emit_script_target(&self.type_checker.compiler_options.ref_(self))),
                 None,
             ) && !self.type_checker.is_numeric_literal_name(&name)
             {
@@ -581,7 +581,7 @@ impl NodeBuilder {
     ) -> Id<Node> {
         if is_identifier_text(
             &name,
-            Some(get_emit_script_target(&self.type_checker.compiler_options)),
+            Some(get_emit_script_target(&self.type_checker.compiler_options.ref_(self))),
             None,
         ) {
             get_factory().create_identifier(&name)

@@ -247,7 +247,7 @@ impl TransformES2015 {
         )?;
         let e: Id<Node /*Expression*/>;
         if !is_private_identifier(&property_name.ref_(self))
-            && get_use_define_for_class_fields(&self.context.ref_(self).get_compiler_options())
+            && get_use_define_for_class_fields(&self.context.ref_(self).get_compiler_options().ref_(self))
         {
             let name = if is_computed_property_name(&property_name.ref_(self)) {
                 property_name.ref_(self).as_computed_property_name().expression

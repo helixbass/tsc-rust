@@ -108,7 +108,7 @@ impl TransformES2018 {
             factory: context_ref.factory(),
             base_factory: context_ref.base_factory(),
             resolver: context_ref.get_emit_resolver(),
-            language_version: get_emit_script_target(&compiler_options),
+            language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
             compiler_options,
             context: context.clone(),
             exported_variable_statement: Default::default(),
@@ -811,7 +811,7 @@ impl TransformES2018 {
     fn visit_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node /*SourceFile*/> {
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::SourceFileExcludes,
-            if is_effective_strict_mode_source_file(node, &self.compiler_options, self) {
+            if is_effective_strict_mode_source_file(node, &self.compiler_options.ref_(self), self) {
                 HierarchyFacts::StrictModeSourceFileIncludes
             } else {
                 HierarchyFacts::SourceFileIncludes

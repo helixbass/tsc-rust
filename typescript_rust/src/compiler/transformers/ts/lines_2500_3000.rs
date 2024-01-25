@@ -389,7 +389,7 @@ impl TransformTypeScript {
         Ok(
             if import_clause.is_some()
                 || matches!(
-                    self.compiler_options.imports_not_used_as_values,
+                    self.compiler_options.ref_(self).imports_not_used_as_values,
                     Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
                 )
             {
@@ -451,9 +451,9 @@ impl TransformTypeScript {
                 None
             }
         } else {
-            let allow_empty = self.compiler_options.preserve_value_imports == Some(true)
+            let allow_empty = self.compiler_options.ref_(self).preserve_value_imports == Some(true)
                 && matches!(
-                    self.compiler_options.imports_not_used_as_values,
+                    self.compiler_options.ref_(self).imports_not_used_as_values,
                     Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
                 );
             let elements = try_visit_nodes(
@@ -516,7 +516,7 @@ impl TransformTypeScript {
 
         let allow_empty = node_as_export_declaration.module_specifier.is_some()
             && matches!(
-                self.compiler_options.imports_not_used_as_values,
+                self.compiler_options.ref_(self).imports_not_used_as_values,
                 Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
             );
         let export_clause = try_maybe_visit_node(
@@ -626,7 +626,7 @@ impl TransformTypeScript {
         if is_external_module_import_equals_declaration(node, self) {
             let is_referenced = self.should_emit_alias_declaration(node)?;
             if !is_referenced
-                && self.compiler_options.imports_not_used_as_values
+                && self.compiler_options.ref_(self).imports_not_used_as_values
                     == Some(ImportsNotUsedAsValues::Preserve)
             {
                 return Ok(Some(

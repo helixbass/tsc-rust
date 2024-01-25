@@ -132,7 +132,7 @@ impl Program {
         }
 
         if !self.host().is_realpath_supported()
-            || self.options.preserve_symlinks != Some(true)
+            || self.options.ref_(self).preserve_symlinks != Some(true)
             || !string_contains(
                 &file_as_source_file.original_file_name(),
                 node_modules_path_part,
@@ -167,7 +167,7 @@ impl Program {
             return None;
         }
         self.for_each_resolved_project_reference(|resolved_ref: Gc<ResolvedProjectReference>| {
-            let out = out_file(&resolved_ref.command_line.options)?;
+            let out = out_file(&resolved_ref.command_line.options.ref_(self))?;
             if out.is_empty() {
                 return None;
             }
@@ -329,6 +329,7 @@ impl Program {
                 source_file,
                 write_file_callback.clone(),
                 cancellation_token.clone(),
+                self,
             )?;
             if let Some(result) = result {
                 return Ok(result);
@@ -339,7 +340,7 @@ impl Program {
             .get_diagnostics_producing_type_checker()?
             .get_emit_resolver(
                 if matches!(
-                    out_file(&self.options),
+                    out_file(&self.options.ref_(self)),
                     Some(out_file) if !out_file.is_empty()
                 ) {
                     None
@@ -355,7 +356,7 @@ impl Program {
             emit_resolver,
             self.get_emit_host(write_file_callback),
             source_file,
-            get_transformers(&self.options, custom_transformers, emit_only_dts_files, self),
+            get_transformers(&self.options.ref_(self), custom_transformers, emit_only_dts_files, self),
             emit_only_dts_files,
             Some(false),
             force_dts_emit,
@@ -385,10 +386,10 @@ impl Program {
         self.maybe_common_source_directory_mut()
             .get_or_insert_with(|| {
                 let emitted_files = filter(&**self.files(), |&file: &Id<Node>| {
-                    source_file_may_be_emitted(&file.ref_(self), self, None)
+                    source_file_may_be_emitted(&file.ref_(self), self, None, self)
                 });
                 get_common_source_directory(
-                    &self.options,
+                    &self.options.ref_(self),
                     || {
                         map_defined(Some(&emitted_files), |file: &Id<Node>, _| {
                             let file_ref = file.ref_(self);
@@ -472,7 +473,7 @@ impl Program {
                     );
                     if let Some(old_resolved_module) = old_resolved_module.as_ref() {
                         if is_trace_enabled(
-                            &self.options,
+                            &self.options.ref_(self),
                             self.host().as_dyn_module_resolution_host(),
                         ) {
                             trace(
@@ -524,7 +525,7 @@ impl Program {
                 module_name,
             ) {
                 resolves_to_ambient_module_in_non_modified_file = true;
-                if is_trace_enabled(&self.options, self.host().as_dyn_module_resolution_host()) {
+                if is_trace_enabled(&self.options.ref_(self), self.host().as_dyn_module_resolution_host()) {
                     trace(
                         self.host().as_dyn_module_resolution_host(),
                         &Diagnostics::Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1,
@@ -643,7 +644,7 @@ impl Program {
         }
         let unmodified_file = unmodified_file.unwrap();
 
-        if is_trace_enabled(&self.options, self.host().as_dyn_module_resolution_host()) {
+        if is_trace_enabled(&self.options.ref_(self), self.host().as_dyn_module_resolution_host()) {
             trace(
                 self.host().as_dyn_module_resolution_host(),
                 &Diagnostics::Module_0_was_resolved_as_ambient_module_declared_in_1_since_this_file_was_not_modified,
@@ -727,7 +728,7 @@ impl Program {
         let old_program = old_program.unwrap();
 
         let old_options = old_program.get_compiler_options();
-        if changes_affect_module_resolution(&old_options, &self.options) {
+        if changes_affect_module_resolution(&old_options.ref_(self), &self.options.ref_(self)) {
             return Ok(StructureIsReused::Not);
         }
 
@@ -784,14 +785,14 @@ impl Program {
                         .maybe_resolved_path()
                         .as_ref()
                         .unwrap(),
-                    get_emit_script_target(&self.options),
+                    get_emit_script_target(&self.options.ref_(self)),
                     None,
                     Some(self.should_create_new_source_file()),
                 )
             } else {
                 self.host().get_source_file(
                     &old_source_file_as_source_file.file_name(),
-                    get_emit_script_target(&self.options),
+                    get_emit_script_target(&self.options.ref_(self)),
                     None,
                     Some(self.should_create_new_source_file()),
                 )?
@@ -1088,7 +1089,7 @@ impl Program {
             return Ok(self.structure_is_reused());
         }
 
-        if changes_affecting_program_structure(&old_options, &self.options)
+        if changes_affecting_program_structure(&old_options.ref_(self), &self.options.ref_(self))
             || self.host().has_changed_automatic_type_directive_names() == Some(true)
         {
             return Ok(StructureIsReused::SafeModules);
@@ -1165,7 +1166,7 @@ impl Program {
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<EmitResult> {
-        Debug_.assert(out_file(&self.options).non_empty().is_none(), None);
+        Debug_.assert(out_file(&self.options.ref_(self)).non_empty().is_none(), None);
         // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeEmit");
         let emit_result = emit_files(
@@ -1212,6 +1213,7 @@ impl Program {
             Gc::new(Box::new(GetPrependNodesReadFileCallback::new(
                 self.rc_wrapper(),
             ))),
+            self,
         )
     }
 
@@ -1293,7 +1295,7 @@ impl Program {
         &self,
         source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Gc<Diagnostic>> {
-        if skip_type_checking(&source_file.ref_(self), &self.options, |file_name: &str| {
+        if skip_type_checking(&source_file.ref_(self), &self.options.ref_(self), |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
         }) {
             return vec![];
@@ -1328,9 +1330,9 @@ impl Program {
         source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
-        let ref options = self.get_compiler_options();
+        let options = self.get_compiler_options();
         Ok(
-            if source_file.is_none() || out_file(options).is_non_empty() {
+            if source_file.is_none() || out_file(&options.ref_(self)).is_non_empty() {
                 self.get_declaration_diagnostics_worker(source_file, cancellation_token)?
             } else {
                 self.try_get_diagnostics_helper(
@@ -1386,7 +1388,7 @@ impl Program {
         Ok(concatenate(
             filter_semantic_diagnostics(
                 self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token)?,
-                &self.options,
+                &self.options.ref_(self),
             ),
             self.get_program_diagnostics(source_file),
         ))

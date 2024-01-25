@@ -742,7 +742,7 @@ pub(crate) fn convert_to_tsconfig(
     let maybe_config_file_specs =
         config_parse_result
             .options
-            .config_file
+            .ref_(arena).config_file
             .as_ref()
             .and_then(|config_file| {
                 config_file
@@ -785,7 +785,7 @@ pub(crate) fn convert_to_tsconfig(
         })
         .collect::<Result<Vec<String>, _>>()?;
     let option_map = serialize_compiler_options(
-        &config_parse_result.options,
+        &config_parse_result.options.ref_(arena),
         Some(SerializeOptionBaseObjectPathOptions {
             config_file_path: get_normalized_absolute_path(
                 config_file_name,
@@ -836,7 +836,7 @@ pub(crate) fn convert_to_tsconfig(
     if let Some(config_file_specs) =
         config_parse_result
             .options
-            .config_file
+            .ref_(arena).config_file
             .and_then(|config_file| {
                 config_file
                     .ref_(arena).as_source_file()

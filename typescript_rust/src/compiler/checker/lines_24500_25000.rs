@@ -800,8 +800,8 @@ impl TypeChecker {
         {
             let target = self.resolve_alias(symbol)?;
             if target.ref_(self).flags().intersects(SymbolFlags::Value) {
-                if self.compiler_options.isolated_modules == Some(true)
-                    || should_preserve_const_enums(&self.compiler_options)
+                if self.compiler_options.ref_(self).isolated_modules == Some(true)
+                    || should_preserve_const_enums(&self.compiler_options.ref_(self))
                         && self.is_export_or_export_expression(location)
                     || !self.is_const_enum_or_const_enum_only_module(target)
                 {

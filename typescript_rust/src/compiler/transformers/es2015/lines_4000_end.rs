@@ -48,7 +48,7 @@ impl TransformES2015 {
             SpreadSegmentKind::UnpackedSpread
         };
 
-        if self.compiler_options.downlevel_iteration == Some(true)
+        if self.compiler_options.ref_(self).downlevel_iteration == Some(true)
             && kind == SpreadSegmentKind::UnpackedSpread
             && !is_array_literal_expression(&expression.ref_(self))
             && !is_call_to_read_helper

@@ -167,7 +167,7 @@ impl TransformModule {
                         );
                     } else {
                         let export_needs_import_default =
-                            get_es_module_interop(&self.compiler_options) == Some(true)
+                            get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true)
                                 && !get_emit_flags(&node.ref_(self))
                                     .intersects(EmitFlags::NeverApplyImportHelper)
                                 && id_text(

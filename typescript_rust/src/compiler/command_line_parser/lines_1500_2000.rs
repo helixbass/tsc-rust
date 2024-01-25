@@ -292,7 +292,7 @@ pub fn parse_command_line(
         read_file,
         arena,
     )
-    .into_parsed_command_line()
+    .into_parsed_command_line(arena)
 }
 
 #[allow(dead_code)]

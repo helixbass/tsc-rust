@@ -96,7 +96,7 @@ pub fn execute_command_line(
     let mut command_line =
         parse_command_line(command_line_args, Some(|path: &str| system.ref_(arena).read_file(path)), arena);
     if let Some(command_line_options_generate_cpu_profile) =
-        command_line.options.generate_cpu_profile.clone()
+        command_line.options.ref_(arena).generate_cpu_profile.clone()
     {
         system.ref_(arena).enable_cpu_profiler(&command_line_options_generate_cpu_profile, &mut || {
             execute_command_line_worker(system.clone(), &mut cb, &mut command_line, arena)
@@ -214,7 +214,7 @@ pub(super) fn perform_build(
             Some(report_diagnostic.clone()),
             Some(create_builder_status_reporter(
                 &**sys.ref_(arena),
-                Some(should_be_pretty(&**sys.ref_(arena), build_options.clone().into())),
+                Some(should_be_pretty(&**sys.ref_(arena), build_options.clone().into(), arena)),
             )),
             Some(create_watch_status_reporter(
                 sys.clone(),
@@ -244,7 +244,7 @@ pub(super) fn perform_build(
         Some(report_diagnostic.clone()),
         Some(create_builder_status_reporter(
             &**sys.ref_(arena),
-            Some(should_be_pretty(&**sys.ref_(arena), build_options.clone().into())),
+            Some(should_be_pretty(&**sys.ref_(arena), build_options.clone().into(), arena)),
         )),
         create_report_error_summary(sys.clone(), build_options.clone().into(), arena),
     );
@@ -294,7 +294,7 @@ pub(super) fn create_report_error_summary(
     options: CompilerOptionsOrBuildOptions,
     arena: &impl HasArena,
 ) -> Option<Rc<dyn ReportEmitErrorSummary>> {
-    if should_be_pretty(&**sys.ref_(arena), options) {
+    if should_be_pretty(&**sys.ref_(arena), options, arena) {
         Some(Rc::new(ReportEmitErrorSummaryConcrete::new(sys)))
     } else {
         None
@@ -352,7 +352,7 @@ pub(super) fn perform_compilation(
         None,
     );
 
-    enable_statistics_and_tracing(sys, &options, false, arena);
+    enable_statistics_and_tracing(sys, &options.ref_(arena), false, arena);
 
     let program_options = CreateProgramOptions {
         root_names: file_names.clone(),
@@ -362,7 +362,7 @@ pub(super) fn perform_compilation(
         config_file_parsing_diagnostics: Some(get_config_file_parsing_diagnostics(config, arena)),
         old_program: None,
     };
-    let program = create_program(program_options)?;
+    let program = create_program(program_options, arena)?;
     let exit_status = emit_files_and_report_errors_and_get_exit_status(
         program.clone(),
         report_diagnostic,
@@ -415,7 +415,7 @@ pub(super) fn perform_incremental_compilation(
     let options = config.options.clone();
     let file_names = &config.file_names;
     let project_references = &config.project_references;
-    enable_statistics_and_tracing(sys, &options, false, arena);
+    enable_statistics_and_tracing(sys, &options.ref_(arena), false, arena);
     let host: Gc<Box<dyn CompilerHost>> = Gc::new(Box::new(create_incremental_compiler_host(
         options.clone(),
         Some(sys.clone()),
@@ -425,7 +425,7 @@ pub(super) fn perform_incremental_compilation(
         host: Some(host),
         system: Some(&**sys.ref_(arena)),
         root_names: file_names,
-        options: &options.clone(),
+        options: &options.ref_(arena),
         config_file_parsing_diagnostics: Some(&get_config_file_parsing_diagnostics(config, arena)),
         project_references: project_references.as_deref(),
         report_diagnostic: Some(report_diagnostic),
@@ -495,7 +495,7 @@ pub(super) fn create_watch_status_reporter(
 ) -> Rc<dyn WatchStatusReporter> {
     Rc::new(create_watch_status_reporter_(
         sys.clone(),
-        Some(should_be_pretty(&**sys.ref_(arena), options)),
+        Some(should_be_pretty(&**sys.ref_(arena), options, arena)),
     ))
 }
 
@@ -513,10 +513,10 @@ pub(super) fn create_watch_of_config_file(
         create_watch_compiler_host_of_config_file(CreateWatchCompilerHostOfConfigFileInput {
             config_file_name: config_parse_result
                 .options
-                .config_file_path
+                .ref_(arena).config_file_path
                 .as_ref()
                 .unwrap(),
-            options_to_extend: Some(&options_to_extend),
+            options_to_extend: Some(&options_to_extend.ref_(arena)),
             watch_options_to_extend,
             system: &**system.ref_(arena),
             report_diagnostic: Some(&**report_diagnostic),
@@ -586,12 +586,12 @@ pub(super) fn enable_statistics_and_tracing(
 pub(super) fn report_statistics(sys: Id<Box<dyn System>>, program: &Program, arena: &impl HasArena) {
     let compiler_options = program.get_compiler_options();
 
-    if can_trace(sys, &compiler_options, arena) {
+    if can_trace(sys, &compiler_options.ref_(arena), arena) {
         // tracing?.stopTracing();
     }
 
     let /*mut*/ _statistics: Vec<Statistic> = vec![];
-    if can_report_diagnostics(sys, &compiler_options, arena) {
+    if can_report_diagnostics(sys, &compiler_options.ref_(arena), arena) {
         unimplemented!()
     }
 }

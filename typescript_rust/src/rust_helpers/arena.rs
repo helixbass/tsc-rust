@@ -330,11 +330,11 @@ impl HasArena for AllArenas {
     }
 
     #[track_caller]
-    fn compiler_options(&self, compiler_options: Id<EmitHelper>) -> Ref<EmitHelper> {
+    fn compiler_options(&self, compiler_options: Id<CompilerOptions>) -> Ref<CompilerOptions> {
         Ref::map(self.compiler_options.borrow(), |compiler_options_| &compiler_options_[compiler_options])
     }
 
-    fn alloc_compiler_options(&self, compiler_options: EmitHelper) -> Id<EmitHelper> {
+    fn alloc_compiler_options(&self, compiler_options: CompilerOptions) -> Id<CompilerOptions> {
         let id = self.compiler_options.borrow_mut().alloc(compiler_options);
         id
     }

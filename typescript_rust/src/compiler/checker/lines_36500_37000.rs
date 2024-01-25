@@ -467,7 +467,7 @@ impl TypeChecker {
         if is_binding_pattern(Some(&node_name.ref_(self))) {
             if node_name.ref_(self).kind() == SyntaxKind::ArrayBindingPattern
                 && self.language_version < ScriptTarget::ES2015
-                && self.compiler_options.downlevel_iteration == Some(true)
+                && self.compiler_options.ref_(self).downlevel_iteration == Some(true)
             {
                 self.check_external_emit_helpers(node, ExternalEmitHelpers::Read)?;
             }

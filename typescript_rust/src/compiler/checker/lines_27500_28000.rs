@@ -393,7 +393,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_jsx_preconditions(&self, error_node: Id<Node>) {
-        if self.compiler_options.jsx.unwrap_or(JsxEmit::None) == JsxEmit::None {
+        if self.compiler_options.ref_(self).jsx.unwrap_or(JsxEmit::None) == JsxEmit::None {
             self.error(
                 Some(error_node),
                 &Diagnostics::Cannot_use_JSX_unless_the_jsx_flag_is_provided,
@@ -426,7 +426,7 @@ impl TypeChecker {
         {
             let jsx_factory_ref_err = if
             /*diagnostics &&*/
-            self.compiler_options.jsx == Some(JsxEmit::React) {
+            self.compiler_options.ref_(self).jsx == Some(JsxEmit::React) {
                 Some(&*Diagnostics::Cannot_find_name_0)
             } else {
                 None

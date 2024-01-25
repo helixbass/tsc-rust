@@ -194,10 +194,10 @@ pub(super) fn parse_json_config_file_content_worker(
     )?;
     let raw = parsed_config.raw.as_ref();
     let mut options: CompilerOptions = extend_compiler_options(
-        &existing_options,
+        &existing_options.ref_(arena),
         &parsed_config
             .options
-            .map_or_else(|| Gc::new(Default::default()), |options| options.clone()),
+            .map_or_else(|| arena.alloc_compiler_options(Default::default()), |options| options.clone()),
     );
     let watch_options: Option<Rc<WatchOptions>> =
         if existing_watch_options.is_some() && parsed_config.watch_options.is_some() {
@@ -235,7 +235,7 @@ pub(super) fn parse_json_config_file_content_worker(
         } else {
             base_path.to_owned()
         });
-    let options = Gc::new(options);
+    let options = arena.alloc_compiler_options(options);
     Ok(ParsedCommandLine {
         options: options.clone(),
         watch_options,

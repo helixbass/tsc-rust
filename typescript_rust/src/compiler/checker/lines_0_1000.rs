@@ -526,6 +526,7 @@ pub fn create_type_checker(
     host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
     produce_diagnostics: bool,
 ) -> io::Result<Gc<TypeChecker>> {
+    let arena_ref = unsafe { &*arena };
     let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
         arena,
@@ -550,36 +551,36 @@ pub fn create_type_checker(
         inline_level: Default::default(),
         current_node: Default::default(),
 
-        empty_symbols: Gc::new(GcCell::new(create_symbol_table(unsafe { &*arena }, Option::<&[Id<Symbol>]>::None))),
+        empty_symbols: Gc::new(GcCell::new(create_symbol_table(arena_ref, Option::<&[Id<Symbol>]>::None))),
 
         compiler_options: compiler_options.clone(),
-        language_version: get_emit_script_target(&compiler_options),
-        module_kind: get_emit_module_kind(&compiler_options),
-        use_define_for_class_fields: get_use_define_for_class_fields(&compiler_options),
-        allow_synthetic_default_imports: get_allow_synthetic_default_imports(&compiler_options),
-        strict_null_checks: get_strict_option_value(&compiler_options, "strictNullChecks"),
-        strict_function_types: get_strict_option_value(&compiler_options, "strictFunctionTypes"),
-        strict_bind_call_apply: get_strict_option_value(&compiler_options, "strictBindCallApply"),
+        language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
+        module_kind: get_emit_module_kind(&compiler_options.ref_(arena_ref)),
+        use_define_for_class_fields: get_use_define_for_class_fields(&compiler_options.ref_(arena_ref)),
+        allow_synthetic_default_imports: get_allow_synthetic_default_imports(&compiler_options.ref_(arena_ref)),
+        strict_null_checks: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictNullChecks"),
+        strict_function_types: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictFunctionTypes"),
+        strict_bind_call_apply: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictBindCallApply"),
         strict_property_initialization: get_strict_option_value(
-            &compiler_options,
+            &compiler_options.ref_(arena_ref),
             "strictPropertyInitialization",
         ),
-        no_implicit_any: get_strict_option_value(&compiler_options, "noImplicitAny"),
-        no_implicit_this: get_strict_option_value(&compiler_options, "noImplicitThis"),
+        no_implicit_any: get_strict_option_value(&compiler_options.ref_(arena_ref), "noImplicitAny"),
+        no_implicit_this: get_strict_option_value(&compiler_options.ref_(arena_ref), "noImplicitThis"),
         use_unknown_in_catch_variables: get_strict_option_value(
-            &compiler_options,
+            &compiler_options.ref_(arena_ref),
             "useUnknownInCatchVariables",
         ),
-        keyof_strings_only: matches!(compiler_options.keyof_strings_only, Some(true)),
+        keyof_strings_only: matches!(compiler_options.keyof_strings_only.ref_(arena_ref), Some(true)),
         fresh_object_literal_flag: if matches!(
-            compiler_options.suppress_excess_property_errors,
+            compiler_options.suppress_excess_property_errors.ref_(arena_ref),
             Some(true)
         ) {
             ObjectFlags::None
         } else {
             ObjectFlags::FreshLiteral
         },
-        exact_optional_property_types: compiler_options.exact_optional_property_types,
+        exact_optional_property_types: compiler_options.exact_optional_property_types.ref_(arena_ref),
 
         check_binary_expression: Default::default(),
         emit_resolver: Default::default(),
@@ -832,7 +833,7 @@ pub fn create_type_checker(
             (".mjs", ".mjs"),
             (".js", ".js"),
             (".cjs", ".cjs"),
-            (".tsx", if matches!(compiler_options.jsx, Some(JsxEmit::Preserve)) {
+            (".tsx", if matches!(compiler_options.jsx.ref_(arena_ref), Some(JsxEmit::Preserve)) {
                 ".jsx"
             } else {
                 ".js"
@@ -2682,7 +2683,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))), self)
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
-        if skip_type_checking(&file.ref_(self), &self.compiler_options, |file_name| {
+        if skip_type_checking(&file.ref_(self), &self.compiler_options.ref_(self), |file_name| {
             TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
         }) {
             return Ok(vec![]);

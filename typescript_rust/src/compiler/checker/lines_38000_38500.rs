@@ -123,7 +123,7 @@ impl TypeChecker {
                         Ok(None)
                     },
                 )?;
-                if self.compiler_options.no_fallthrough_cases_in_switch == Some(true)
+                if self.compiler_options.ref_(self).no_fallthrough_cases_in_switch == Some(true)
                     && matches!(
                         clause_as_case_or_default_clause.maybe_fallthrough_flow_node().as_ref(),
                         Some(clause_fallthrough_flow_node) if self.is_reachable_flow_node(

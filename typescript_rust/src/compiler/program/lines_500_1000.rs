@@ -754,7 +754,7 @@ pub fn get_config_file_parsing_diagnostics(
     arena: &impl HasArena,
 ) -> Vec<Gc<Diagnostic>> {
     if let Some(config_file_parse_result_options_config_file) =
-        config_file_parse_result.options.config_file.as_ref()
+        config_file_parse_result.options.ref_(arena).config_file.as_ref()
     {
         (*config_file_parse_result_options_config_file
             .ref_(arena).as_source_file()
@@ -774,7 +774,7 @@ pub fn get_implied_node_format_for_file(
     options: Id<CompilerOptions>,
     arena: &impl HasArena,
 ) -> Option<ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/> {
-    match get_emit_module_resolution_kind(&options) {
+    match get_emit_module_resolution_kind(&options.ref_(arena)) {
         ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext => {
             if file_extension_is_one_of(
                 file_name,
@@ -838,22 +838,21 @@ fn should_program_create_new_source_files(
     program: Option<&Program>,
     new_options: &CompilerOptions,
 ) -> bool {
-    if program.is_none() {
+    let Some(program) = program else {
         return false;
-    }
-    let program = program.unwrap();
+    };
     source_file_affecting_compiler_options.with(|source_file_affecting_compiler_options_| {
         options_have_changes(
-            &program.get_compiler_options(),
+            &program.get_compiler_options().ref_(program),
             new_options,
             source_file_affecting_compiler_options_,
         )
     })
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions) -> io::Result<Gc<Box<Program>>> {
+pub fn create_program(root_names_or_options: CreateProgramOptions, arena: &impl HasArena) -> io::Result<Gc<Box<Program>>> {
     let create_program_options = root_names_or_options;
-    let program = Program::new(create_program_options);
+    let program = Program::new(create_program_options, arena);
     program.create()?;
     Ok(program)
 }
@@ -861,13 +860,14 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> io::Result
 impl Program {
     pub fn new(
         create_program_options: CreateProgramOptions,
+        arena: &impl AllArenas,
         // options: Gc<CompilerOptions>,
         // files: Vec<Id<Node>>,
         // current_directory: String,
         // host: Gc<Box<dyn CompilerHost>>,
     ) -> Gc<Box<Self>> {
         let options = create_program_options.options.clone();
-        let max_node_module_js_depth = options.max_node_module_js_depth.unwrap_or(0);
+        let max_node_module_js_depth = options.ref_(arena).max_node_module_js_depth.unwrap_or(0);
         let dyn_type_checker_host_debuggable_wrapper: Gc<Box<dyn TypeCheckerHostDebuggable>> =
             Gc::new(Box::new(Self {
                 _rc_wrapper: Default::default(),
@@ -980,7 +980,7 @@ impl Program {
             ),
         )));
 
-        self.skip_default_lib.set(self.options.no_lib);
+        self.skip_default_lib.set(self.options.ref_(self).no_lib);
         *self.default_library_path.borrow_mut() =
             Some(self.host().get_default_lib_location()?.try_unwrap_or_else(
                 || -> io::Result<_> {
@@ -991,11 +991,11 @@ impl Program {
         *self.current_directory.borrow_mut() =
             Some(CompilerHost::get_current_directory(&**self.host())?);
         *self.supported_extensions.borrow_mut() =
-            Some(get_supported_extensions(Some(&self.options), None));
+            Some(get_supported_extensions(Some(&self.options.ref_(self)), None));
         *self
             .supported_extensions_with_json_if_resolve_json_module
             .borrow_mut() = Some(get_supported_extensions_with_json_if_resolve_json_module(
-            Some(&self.options),
+            Some(&self.options.ref_(self)),
             &self.supported_extensions(),
         ));
 
@@ -1078,7 +1078,7 @@ impl Program {
 
         self.use_source_of_project_reference_redirect.set(Some(
             self.host().use_source_of_project_reference_redirect() == Some(true)
-                && self.options.disable_source_of_project_reference_redirect != Some(true),
+                && self.options.ref_(self).disable_source_of_project_reference_redirect != Some(true),
         ));
         let UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
             on_program_create_complete,
@@ -1104,7 +1104,7 @@ impl Program {
         self.should_create_new_source_file
             .set(Some(should_program_create_new_source_files(
                 self.maybe_old_program().as_double_deref(),
-                &self.options,
+                &self.options.ref_(self),
             )));
         // tracing?.pop();
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
@@ -1134,10 +1134,10 @@ impl Program {
                             }
                             let parsed_ref = parsed_ref.as_ref().unwrap();
                             let out = out_file(
-                                &parsed_ref.command_line.options,
+                                &parsed_ref.command_line.options.ref_(self),
                             );
                             if self.use_source_of_project_reference_redirect() {
-                                if out.is_non_empty() || get_emit_module_kind(&parsed_ref.command_line.options) == ModuleKind::None {
+                                if out.is_non_empty() || get_emit_module_kind(&parsed_ref.command_line.options.ref_(self)) == ModuleKind::None {
                                     for file_name in &parsed_ref.command_line.file_names {
                                         self.process_project_reference_file(
                                             file_name,
@@ -1161,7 +1161,7 @@ impl Program {
                                             }
                                         ))
                                     )?;
-                                } else if get_emit_module_kind(&parsed_ref.command_line.options) == ModuleKind::None {
+                                } else if get_emit_module_kind(&parsed_ref.command_line.options.ref_(self)) == ModuleKind::None {
                                     let mut got_common_source_directory: Option<String> = Default::default();
                                     for file_name in &parsed_ref.command_line.file_names {
                                         if !file_extension_is(file_name, Extension::Dts.to_str()) && !file_extension_is(file_name, Extension::Json.to_str()) {
@@ -1175,9 +1175,11 @@ impl Program {
                                                             get_common_source_directory_of_config(
                                                                 &parsed_ref.command_line,
                                                                 !CompilerHost::use_case_sensitive_file_names(&**self.host())
+                                                                self,
                                                             )
                                                         }).clone()
-                                                    })
+                                                    }),
+                                                    self,
                                                 ),
                                                 self.alloc_file_include_reason(FileIncludeReason::ProjectReferenceFile(
                                                     ProjectReferenceFile {
@@ -1216,7 +1218,7 @@ impl Program {
 
             let type_references = if !self.root_names().is_empty() {
                 get_automatic_type_directive_names(
-                    &self.options,
+                    &self.options.ref_(self),
                     self.host().as_dyn_module_resolution_host(),
                     self,
                 )?
@@ -1227,7 +1229,7 @@ impl Program {
             if !type_references.is_empty() {
                 // tracing?.push(tracing.Phase.Program, "processTypeReferences", { count: typeReferences.length });
                 let containing_directory = if let Some(options_config_file_path) =
-                    self.options.config_file_path.as_ref()
+                    self.options.ref_(self).config_file_path.as_ref()
                 {
                     get_directory_path(options_config_file_path)
                 } else {
@@ -1263,7 +1265,7 @@ impl Program {
 
             if !self.root_names().is_empty() && self.maybe_skip_default_lib() != Some(true) {
                 let default_library_file_name = self.get_default_library_file_name()?;
-                if self.options.lib.is_none() && *default_library_file_name != "" {
+                if self.options.ref_(self).lib.is_none() && *default_library_file_name != "" {
                     self.process_root_file(
                         &default_library_file_name,
                         true,
@@ -1275,7 +1277,7 @@ impl Program {
                     )?;
                 } else {
                     try_maybe_for_each(
-                        self.options.lib.as_ref(),
+                        self.options.ref_(self).lib.as_ref(),
                         |lib_file_name: &String, index| -> io::Result<Option<()>> {
                             self.process_root_file(
                                 &self.path_for_lib_file(lib_file_name)?,
@@ -1455,7 +1457,7 @@ impl Program {
             .is_none()
         {
             *self.get_default_library_file_name_memoized.borrow_mut() =
-                Some(self.host().get_default_lib_file_name(&self.options)?);
+                Some(self.host().get_default_lib_file_name(&self.options.ref_(self))?);
         }
         Ok(Ref::map(
             self.get_default_library_file_name_memoized.borrow(),
@@ -1906,7 +1908,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
                 containing_file_name,
                 reused_names,
                 redirected_reference.as_deref(),
-                &self.options,
+                &self.options.ref_(self),
                 Some(containing_file),
             )
             .unwrap()
@@ -2002,7 +2004,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
                 /*Debug.checkEachDefined(*/ type_directive_names, /*)*/
                 containing_file,
                 redirected_reference.as_deref(),
-                &self.options,
+                &self.options.ref_(self),
             )
             .unwrap())
     }

@@ -235,7 +235,7 @@ impl TypeChecker {
             };
             if !is_identifier_text(
                 &name,
-                Some(get_emit_script_target(&self.compiler_options)),
+                Some(get_emit_script_target(&self.compiler_options.ref_(self))),
                 None,
             ) && !self.is_numeric_literal_name(&name)
             {
