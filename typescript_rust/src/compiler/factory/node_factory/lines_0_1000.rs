@@ -98,16 +98,16 @@ impl NodeFactory {
 
     pub(crate) fn set_parenthesizer_rules(
         &self,
-        parenthesizer_rules: Gc<Box<dyn ParenthesizerRules>>,
+        parenthesizer_rules: Id<Box<dyn ParenthesizerRules>>,
     ) {
         *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
     }
 
-    pub(crate) fn parenthesizer_rules(&self) -> Gc<Box<dyn ParenthesizerRules>> {
+    pub(crate) fn parenthesizer_rules(&self) -> Id<Box<dyn ParenthesizerRules>> {
         self.parenthesizer_rules.borrow().clone().unwrap()
     }
 
-    pub fn parenthesizer(&self) -> Gc<Box<dyn ParenthesizerRules>> {
+    pub fn parenthesizer(&self) -> Id<Box<dyn ParenthesizerRules>> {
         self.parenthesizer_rules()
     }
 

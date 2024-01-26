@@ -190,7 +190,7 @@ pub struct NodeFactory {
     pub base_factory: Id<Box<dyn BaseNodeFactory>>,
     #[unsafe_ignore_trace]
     pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: GcCell<Option<Gc<Box<dyn ParenthesizerRules>>>>,
+    pub parenthesizer_rules: GcCell<Option<Id<Box<dyn ParenthesizerRules>>>>,
     pub converters: GcCell<Option<Box<dyn NodeConverters>>>,
 }
 
