@@ -1009,7 +1009,7 @@ impl SymlinkCache {
         {
             return;
         }
-        let resolved_file_name = resolution.maybe_resolved_file_name(self).unwrap();
+        let ref resolved_file_name = resolution.maybe_resolved_file_name(self).unwrap();
         let ref original_path = resolution.maybe_original_path(self).unwrap();
         self.set_symlinked_file(
             &to_path(original_path, Some(&self.cwd), |file_name| {
