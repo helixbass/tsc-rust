@@ -302,7 +302,7 @@ pub struct ParserType {
     pub(super) TokenConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
     #[unsafe_ignore_trace]
     pub(super) SourceFileConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
-    pub(super) factory: GcCell<Option<Gc<NodeFactory<ParserType>>>>,
+    pub(super) factory: GcCell<Option<Gc<NodeFactory>>>,
     #[unsafe_ignore_trace]
     pub(super) file_name: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
@@ -397,7 +397,7 @@ impl ParserType {
         ret
     }
 
-    pub(super) fn factory(&self) -> GcCellRef<Gc<NodeFactory<ParserType>>> {
+    pub(super) fn factory(&self) -> GcCellRef<Gc<NodeFactory>> {
         gc_cell_ref_unwrapped(&self.factory)
     }
 
