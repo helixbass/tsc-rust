@@ -744,7 +744,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_list(
             Some(lit),
-            Some(&get_factory().create_node_array(
+            Some(&get_factory(self).create_node_array(
                 lit.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.clone(),
                 None,
             )),
@@ -766,7 +766,7 @@ impl Printer {
         if let Some(sig_type_parameters) = sig_as_jsdoc_signature.maybe_type_parameters().as_ref() {
             self.emit_list(
                 Some(sig),
-                Some(&get_factory().create_node_array(Some(sig_type_parameters.clone()), None)),
+                Some(&get_factory(self).create_node_array(Some(sig_type_parameters.clone()), None)),
                 ListFormat::JSDocComment,
                 None,
                 None,
@@ -776,7 +776,7 @@ impl Printer {
         // if (sig.parameters) {
         self.emit_list(
             Some(sig),
-            Some(&get_factory().create_node_array(Some(sig_as_jsdoc_signature.parameters.clone()), None)),
+            Some(&get_factory(self).create_node_array(Some(sig_as_jsdoc_signature.parameters.clone()), None)),
             ListFormat::JSDocComment,
             None,
             None,

@@ -22,7 +22,7 @@ impl ParserType {
         );
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         self.finish_node(
-            self.factory().create_object_binding_pattern_raw(elements),
+            self.factory().ref_(self).create_object_binding_pattern_raw(elements),
             pos,
             None,
         )
@@ -38,7 +38,7 @@ impl ParserType {
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory().create_array_binding_pattern_raw(elements),
+            self.factory().ref_(self).create_array_binding_pattern_raw(elements),
             pos,
             None,
         )
@@ -97,7 +97,7 @@ impl ParserType {
         } else {
             self.parse_initializer()
         };
-        let node = self.factory().create_variable_declaration_raw(
+        let node = self.factory().ref_(self).create_variable_declaration_raw(
             Some(name),
             exclamation_token,
             type_,
@@ -152,7 +152,7 @@ impl ParserType {
 
         self.finish_node(
             self.factory()
-                .create_variable_declaration_list_raw(declarations, Some(flags)),
+                .ref_(self).create_variable_declaration_list_raw(declarations, Some(flags)),
             pos,
             None,
         )
@@ -173,7 +173,7 @@ impl ParserType {
         self.parse_semicolon();
         let node = self
             .factory()
-            .create_variable_statement_raw(modifiers, declaration_list.alloc(self.arena()));
+            .ref_(self).create_variable_statement_raw(modifiers, declaration_list.alloc(self.arena()));
         node.set_decorators(decorators);
         self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
@@ -216,7 +216,7 @@ impl ParserType {
             Some(&Diagnostics::or_expected),
         );
         self.set_await_context(saved_await_context);
-        let node = self.factory().create_function_declaration_raw(
+        let node = self.factory().ref_(self).create_function_declaration_raw(
             decorators,
             modifiers,
             asterisk_token.map(|node| node.alloc(self.arena())),
@@ -261,7 +261,7 @@ impl ParserType {
                     SignatureFlags::None,
                     Some(&Diagnostics::or_expected),
                 );
-                let mut node = self.factory().create_constructor_declaration_raw(
+                let mut node = self.factory().ref_(self).create_constructor_declaration_raw(
                     decorators,
                     modifiers,
                     Some(parameters),
@@ -305,7 +305,7 @@ impl ParserType {
         let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
         let body =
             self.parse_function_block_or_semicolon(is_generator | is_async, diagnostic_message);
-        let node = self.factory().create_method_declaration_raw(
+        let node = self.factory().ref_(self).create_method_declaration_raw(
             decorators,
             modifiers,
             asterisk_token,
@@ -342,7 +342,7 @@ impl ParserType {
             || self.parse_initializer(),
         );
         self.parse_semicolon_after_property_name(name, type_, initializer);
-        let node: Id<Node> = self.factory().create_property_declaration(
+        let node: Id<Node> = self.factory().ref_(self).create_property_declaration(
             decorators,
             modifiers,
             name,
@@ -405,14 +405,14 @@ impl ParserType {
             self.parse_function_block_or_semicolon(SignatureFlags::None, None);
         let node: Node = if kind == SyntaxKind::GetAccessor {
             self.factory()
-                .create_get_accessor_declaration_raw(
+                .ref_(self).create_get_accessor_declaration_raw(
                     decorators, modifiers, name, parameters, type_, body,
                 )
                 .into()
         } else {
             let mut node_as_set_accessor_declaration = self
                 .factory()
-                .create_set_accessor_declaration_raw(decorators, modifiers, name, parameters, body);
+                .ref_(self).create_set_accessor_declaration_raw(decorators, modifiers, name, parameters, body);
             if let Some(type_) = type_ {
                 node_as_set_accessor_declaration.set_type(Some(type_));
             }
@@ -488,7 +488,7 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .create_class_static_block_declaration_raw(decorators, modifiers, body),
+                    .ref_(self).create_class_static_block_declaration_raw(decorators, modifiers, body),
                 pos,
                 None,
             )
@@ -531,7 +531,7 @@ impl ParserType {
             return None;
         }
         let expression = self.do_in_decorator_context(|| self.parse_decorator_expression());
-        Some(self.finish_node(self.factory().create_decorator_raw(expression), pos, None))
+        Some(self.finish_node(self.factory().ref_(self).create_decorator_raw(expression), pos, None))
     }
 
     pub(super) fn parse_decorators(&self) -> Option<Gc<NodeArray> /*<Decorator>*/> {
@@ -583,7 +583,7 @@ impl ParserType {
         }
 
         Some(
-            self.finish_node(self.factory().create_token_raw(kind), pos, None)
+            self.finish_node(self.factory().ref_(self).create_token_raw(kind), pos, None)
                 .into(),
         )
     }
@@ -627,7 +627,7 @@ impl ParserType {
             self.next_token();
             let modifier = self
                 .finish_node(
-                    self.factory().create_token_raw(SyntaxKind::AsyncKeyword),
+                    self.factory().ref_(self).create_token_raw(SyntaxKind::AsyncKeyword),
                     pos,
                     None,
                 )
@@ -643,7 +643,7 @@ impl ParserType {
             self.next_token();
             return self
                 .finish_node(
-                    self.factory().create_semicolon_class_element_raw(),
+                    self.factory().ref_(self).create_semicolon_class_element_raw(),
                     pos,
                     None,
                 )

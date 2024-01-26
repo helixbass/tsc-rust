@@ -847,14 +847,14 @@ impl ParserType {
                 Some(expressions) if expressions.len() > 1 => self
                     .finish_node(
                         self.factory()
-                            .create_array_literal_expression_raw(Some(expressions), None),
+                            .ref_(self).create_array_literal_expression_raw(Some(expressions), None),
                         pos,
                         None,
                     )
                     .alloc(self.arena()),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
-            let statement = self.factory().create_expression_statement_raw(expression);
+            let statement = self.factory().ref_(self).create_expression_statement_raw(expression);
             let statement = self.finish_node(statement, pos, None);
             statements = self.create_node_array(vec![statement.alloc(self.arena())], pos, None, None);
             end_of_file_token = self

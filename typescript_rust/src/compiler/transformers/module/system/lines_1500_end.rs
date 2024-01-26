@@ -36,7 +36,7 @@ impl TransformSystemModule {
         let node_as_expression_statement = node_ref.as_expression_statement();
         Ok(Some(
             self.factory
-                .update_expression_statement(
+                .ref_(self).update_expression_statement(
                     node,
                     try_visit_node(
                         node_as_expression_statement.expression,
@@ -58,7 +58,7 @@ impl TransformSystemModule {
         let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         Ok(Some(
             self.factory
-                .update_parenthesized_expression(
+                .ref_(self).update_parenthesized_expression(
                     node,
                     try_visit_node(
                         node_as_parenthesized_expression.expression,
@@ -86,7 +86,7 @@ impl TransformSystemModule {
         let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();
         Ok(Some(
             self.factory
-                .update_partially_emitted_expression(
+                .ref_(self).update_partially_emitted_expression(
                     node,
                     try_visit_node(
                         node_as_partially_emitted_expression.expression,
@@ -112,7 +112,7 @@ impl TransformSystemModule {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
         let external_module_name = get_external_module_name_literal(
-            &self.factory,
+            &self.factory.ref_(self),
             node,
             self.current_source_file(),
             &**self.host.ref_(self),
@@ -134,10 +134,10 @@ impl TransformSystemModule {
                 })
             })
             .or(first_argument);
-        Ok(self.factory.create_call_expression(
-            self.factory.create_property_access_expression(
+        Ok(self.factory.ref_(self).create_call_expression(
+            self.factory.ref_(self).create_property_access_expression(
                 self.context_object(),
-                self.factory.create_identifier("import"),
+                self.factory.ref_(self).create_identifier("import"),
             ),
             Option::<Gc<NodeArray>>::None,
             Some(argument.map_or_default(|argument| vec![argument])),
@@ -246,13 +246,13 @@ impl TransformSystemModule {
                 if is_prefix_unary_expression(&node.ref_(self)) {
                     expression = self
                         .factory
-                        .update_prefix_unary_expression(node, expression);
+                        .ref_(self).update_prefix_unary_expression(node, expression);
                 } else {
                     expression = self
                         .factory
-                        .update_postfix_unary_expression(node, expression);
+                        .ref_(self).update_postfix_unary_expression(node, expression);
                     if !value_is_discarded {
-                        temp = Some(self.factory.create_temp_variable(
+                        temp = Some(self.factory.ref_(self).create_temp_variable(
                             Some(|node: Id<Node>| {
                                 self.context.ref_(self).hoist_variable_declaration(node);
                             }),
@@ -260,12 +260,12 @@ impl TransformSystemModule {
                         ));
                         expression = self
                             .factory
-                            .create_assignment(temp.clone().unwrap(), expression)
+                            .ref_(self).create_assignment(temp.clone().unwrap(), expression)
                             .set_text_range(Some(&*node.ref_(self)), self);
                     }
                     expression = self
                         .factory
-                        .create_comma(expression, self.factory.clone_node(node_operand))
+                        .ref_(self).create_comma(expression, self.factory.ref_(self).clone_node(node_operand))
                         .set_text_range(Some(&*node.ref_(self)), self);
                 }
 
@@ -279,7 +279,7 @@ impl TransformSystemModule {
                 if let Some(temp) = temp {
                     expression = self
                         .factory
-                        .create_comma(expression, temp)
+                        .ref_(self).create_comma(expression, temp)
                         .set_text_range(Some(&*node.ref_(self)), self);
                 }
 
@@ -323,7 +323,7 @@ impl TransformSystemModule {
                 {
                     exported_names.get_or_insert_default_().push(
                         self.factory
-                            .get_declaration_name(Some(value_declaration), None, None),
+                            .ref_(self).get_declaration_name(Some(value_declaration), None, None),
                     );
                 }
 

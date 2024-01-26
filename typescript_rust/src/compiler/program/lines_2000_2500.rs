@@ -891,8 +891,8 @@ impl Program {
         file: Id<Node>, /*SourceFile*/
     ) -> Id<Node> {
         let external_helpers_module_reference =
-            get_factory().create_string_literal(text.to_owned(), None, None);
-        let import_decl = get_factory().create_import_declaration(
+            get_factory(self).create_string_literal(text.to_owned(), None, None);
+        let import_decl = get_factory(self).create_import_declaration(
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             None,

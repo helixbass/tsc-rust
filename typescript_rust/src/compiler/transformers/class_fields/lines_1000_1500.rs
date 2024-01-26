@@ -49,7 +49,7 @@ impl TransformClassFields {
 
         let mut pending_class_reference_assignment: Option<Id<Node /*BinaryExpression*/>> = _d();
         if facts.intersects(ClassFacts::NeedsClassConstructorReference) {
-            let temp = self.factory.create_temp_variable(
+            let temp = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 }),
@@ -57,10 +57,10 @@ impl TransformClassFields {
             );
             self.get_class_lexical_environment()
                 .borrow_mut()
-                .class_constructor = Some(self.factory.clone_node(temp));
+                .class_constructor = Some(self.factory.ref_(self).clone_node(temp));
             pending_class_reference_assignment = Some(
                 self.factory
-                    .create_assignment(temp, self.factory.get_internal_name(node, None, None)),
+                    .ref_(self).create_assignment(temp, self.factory.ref_(self).get_internal_name(node, None, None)),
             );
         }
 
@@ -78,7 +78,7 @@ impl TransformClassFields {
         });
 
         let mut statements: Vec<Id<Node /*Statement*/>> =
-            vec![self.factory.update_class_declaration(
+            vec![self.factory.ref_(self).update_class_declaration(
                 node,
                 Option::<Gc<NodeArray>>::None,
                 node.ref_(self).maybe_modifiers(),
@@ -104,8 +104,8 @@ impl TransformClassFields {
 
         if let Some(pending_expressions) = self.maybe_pending_expressions().as_ref().non_empty() {
             statements.push(
-                self.factory.create_expression_statement(
-                    self.factory.inline_expressions(pending_expressions),
+                self.factory.ref_(self).create_expression_statement(
+                    self.factory.ref_(self).inline_expressions(pending_expressions),
                 ),
             );
         }
@@ -114,7 +114,7 @@ impl TransformClassFields {
             self.add_property_or_class_static_block_statements(
                 &mut statements,
                 &static_properties,
-                self.factory.get_internal_name(node, None, None),
+                self.factory.ref_(self).get_internal_name(node, None, None),
             );
         }
 
@@ -164,10 +164,10 @@ impl TransformClassFields {
             temp = Some(self.create_class_temp_var(node));
             self.get_class_lexical_environment()
                 .borrow_mut()
-                .class_constructor = Some(self.factory.clone_node(temp.unwrap()));
+                .class_constructor = Some(self.factory.ref_(self).clone_node(temp.unwrap()));
         }
 
-        let class_expression = self.factory.update_class_expression(
+        let class_expression = self.factory.ref_(self).update_class_expression(
             node,
             maybe_visit_nodes(
                 node.ref_(self).maybe_decorators().as_deref(),
@@ -211,8 +211,8 @@ impl TransformClassFields {
                 /*pendingStatements &&*/
                 let Some(pending_expressions) = self.maybe_pending_expressions().as_ref() {
                     self.pending_statements_mut()
-                        .push(self.factory.create_expression_statement(
-                            self.factory.inline_expressions(pending_expressions),
+                        .push(self.factory.ref_(self).create_expression_statement(
+                            self.factory.ref_(self).inline_expressions(pending_expressions),
                         ));
                 }
 
@@ -222,13 +222,13 @@ impl TransformClassFields {
                     self.add_property_or_class_static_block_statements(
                         &mut self.pending_statements_mut(),
                         &static_properties_or_class_static_blocks,
-                        self.factory.get_internal_name(node, None, None),
+                        self.factory.ref_(self).get_internal_name(node, None, None),
                     );
                 }
                 if let Some(temp) = temp {
-                    return self.factory.inline_expressions(&[
+                    return self.factory.ref_(self).inline_expressions(&[
                         self.factory
-                            .create_assignment(temp.clone(), class_expression),
+                            .ref_(self).create_assignment(temp.clone(), class_expression),
                         temp,
                     ]);
                 }
@@ -239,7 +239,7 @@ impl TransformClassFields {
                 let temp = temp.unwrap();
                 if is_class_with_constructor_reference {
                     self.enable_substitution_for_class_aliases();
-                    let alias = self.factory.clone_node(temp);
+                    let alias = self.factory.ref_(self).clone_node(temp);
                     alias.ref_(self).as_identifier().set_auto_generate_flags(Some(
                         alias
                             .ref_(self).as_identifier()
@@ -258,7 +258,7 @@ impl TransformClassFields {
                 );
                 expressions.push(
                     self.factory
-                        .create_assignment(temp, class_expression)
+                        .ref_(self).create_assignment(temp, class_expression)
                         .start_on_new_line(self),
                 );
                 add_range(
@@ -286,7 +286,7 @@ impl TransformClassFields {
                 );
                 expressions.push(temp.start_on_new_line(self));
 
-                return self.factory.inline_expressions(&expressions);
+                return self.factory.ref_(self).inline_expressions(&expressions);
             }
         }
 
@@ -299,7 +299,7 @@ impl TransformClassFields {
             class_check_flags.intersects(NodeCheckFlags::ClassWithConstructorReference);
         let requires_block_scoped_var =
             class_check_flags.intersects(NodeCheckFlags::BlockScopedBindingInLoop);
-        self.factory.create_temp_variable(
+        self.factory.ref_(self).create_temp_variable(
             Some(|node: Id<Node>| {
                 if requires_block_scoped_var {
                     self.context.ref_(self).add_block_scoped_variable(node);
@@ -370,7 +370,7 @@ impl TransformClassFields {
             None,
         );
         self.factory
-            .create_node_array(Some(members), None)
+            .ref_(self).create_node_array(Some(members), None)
             .set_text_range(Some(&*node_as_class_like_declaration.members()))
     }
 
@@ -385,10 +385,10 @@ impl TransformClassFields {
         let weak_set_name = weak_set_name.unwrap();
 
         self.get_pending_expressions()
-            .push(self.factory.create_assignment(
+            .push(self.factory.ref_(self).create_assignment(
                 weak_set_name.clone(),
-                self.factory.create_new_expression(
-                    self.factory.create_identifier("WeakSet"),
+                self.factory.ref_(self).create_new_expression(
+                    self.factory.ref_(self).create_identifier("WeakSet"),
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![]),
                 ),
@@ -445,7 +445,7 @@ impl TransformClassFields {
             self.transform_constructor_body(node, constructor, is_derived_class)?;
         Some(
             self.factory
-                .create_constructor_declaration(
+                .ref_(self).create_constructor_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     Some(parameters.map_or_else(|| vec![].into(), NodeArrayOrVec::from)),
@@ -491,12 +491,12 @@ impl TransformClassFields {
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
 
         if constructor.is_none() && is_derived_class {
-            statements.push(self.factory.create_expression_statement(
-                self.factory.create_call_expression(
-                    self.factory.create_super(),
+            statements.push(self.factory.ref_(self).create_expression_statement(
+                self.factory.ref_(self).create_call_expression(
+                    self.factory.ref_(self).create_super(),
                     Option::<Gc<NodeArray>>::None,
-                    Some(vec![self.factory.create_spread_element(
-                        self.factory.create_identifier("arguments"),
+                    Some(vec![self.factory.ref_(self).create_spread_element(
+                        self.factory.ref_(self).create_identifier("arguments"),
                     )]),
                 ),
             ));
@@ -504,7 +504,7 @@ impl TransformClassFields {
 
         if let Some(constructor) = constructor {
             index_of_first_statement = add_prologue_directives_and_initial_super_call(
-                &self.factory,
+                &self.factory.ref_(self),
                 constructor,
                 &mut statements,
                 |node: Id<Node>| self.visitor(node),
@@ -544,7 +544,7 @@ impl TransformClassFields {
                 }
             }
         }
-        let receiver = self.factory.create_this();
+        let receiver = self.factory.ref_(self).create_this();
         self.add_method_statements(&mut statements, &private_methods_and_accessors, receiver);
         self.add_property_or_class_static_block_statements(&mut statements, &properties, receiver);
 
@@ -571,7 +571,7 @@ impl TransformClassFields {
 
         statements = self
             .factory
-            .merge_lexical_environment(
+            .ref_(self).merge_lexical_environment(
                 statements,
                 self.context.ref_(self).end_lexical_environment().as_deref(),
             )
@@ -579,9 +579,9 @@ impl TransformClassFields {
 
         Some(
             self.factory
-                .create_block(
+                .ref_(self).create_block(
                     self.factory
-                        .create_node_array(Some(statements), None)
+                        .ref_(self).create_node_array(Some(statements), None)
                         .set_text_range(Some(&*constructor.as_ref().map_or_else(
                             || node_as_class_like_declaration.members(),
                             |constructor| {
@@ -621,7 +621,7 @@ impl TransformClassFields {
             });
             let statement = self
                 .factory
-                .create_expression_statement(expression)
+                .ref_(self).create_expression_statement(expression)
                 .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_modifiers(&property.ref_(self))).into())), self)
                 .set_comment_range(&*property.ref_(self), self)
                 .set_original_node(Some(property), self);
@@ -701,9 +701,9 @@ impl TransformClassFields {
                         .expression.ref_(self),
                 )
             {
-                self.factory.update_computed_property_name(
+                self.factory.ref_(self).update_computed_property_name(
                     property_as_property_declaration.name(),
-                    self.factory.get_generated_name_for_node(
+                    self.factory.ref_(self).get_generated_name_for_node(
                         Some(property_as_property_declaration.name()),
                         None,
                     ),
@@ -735,6 +735,7 @@ impl TransformClassFields {
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             private_identifier_info.brand_check_identifier(),
+                            self,
                         ));
                     } else {
                         return Some(create_private_static_field_initializer(
@@ -745,6 +746,7 @@ impl TransformClassFields {
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
+                            self,
                         ));
                     }
                 } else {
@@ -778,7 +780,7 @@ impl TransformClassFields {
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )
-            .unwrap_or_else(|| self.factory.create_void_zero())
+            .unwrap_or_else(|| self.factory.ref_(self).create_void_zero())
         } else if is_parameter_property_declaration(
             property_original_node,
             property_original_node.ref_(self).parent(),
@@ -787,22 +789,22 @@ impl TransformClassFields {
         {
             property_name
         } else {
-            self.factory.create_void_zero()
+            self.factory.ref_(self).create_void_zero()
         };
 
         Some(if emit_assignment || is_private_identifier(&property_name.ref_(self)) {
             let member_access = create_member_access_for_property_name(
-                &self.factory,
+                &self.factory.ref_(self),
                 receiver,
                 property_name,
                 Some(&*property_name.ref_(self)),
             );
-            self.factory.create_assignment(member_access, initializer)
+            self.factory.ref_(self).create_assignment(member_access, initializer)
         } else {
             let name = if is_computed_property_name(&property_name.ref_(self)) {
                 property_name.ref_(self).as_computed_property_name().expression
             } else if is_identifier(&property_name.ref_(self)) {
-                self.factory.create_string_literal(
+                self.factory.ref_(self).create_string_literal(
                     unescape_leading_underscores(&property_name.ref_(self).as_identifier().escaped_text)
                         .to_owned(),
                     None,
@@ -811,7 +813,7 @@ impl TransformClassFields {
             } else {
                 property_name
             };
-            let descriptor = self.factory.create_property_descriptor(
+            let descriptor = self.factory.ref_(self).create_property_descriptor(
                 PropertyDescriptorAttributesBuilder::default()
                     .value(initializer)
                     .configurable(true)
@@ -821,7 +823,7 @@ impl TransformClassFields {
                     .unwrap(),
                 None,
             );
-            self.factory.create_object_define_property_call(
+            self.factory.ref_(self).create_object_define_property_call(
                 receiver,
                 name,
                 descriptor,
@@ -898,10 +900,11 @@ impl TransformClassFields {
             Some("weakSetName should be set in private identifier environment"),
         );
         let weak_set_name = weak_set_name.unwrap();
-        statements.push(self.factory.create_expression_statement(
+        statements.push(self.factory.ref_(self).create_expression_statement(
             create_private_instance_method_initializer(
                 receiver,
                 weak_set_name,
+                self,
             ),
         ));
     }

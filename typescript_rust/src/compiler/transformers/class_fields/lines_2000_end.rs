@@ -18,7 +18,7 @@ impl TransformClassFields {
             let node_as_array_literal_expression = node_ref.as_array_literal_expression();
             Some(
                 self.factory
-                    .update_array_literal_expression(
+                    .ref_(self).update_array_literal_expression(
                         node,
                         visit_nodes(
                             &node_as_array_literal_expression.elements,
@@ -36,7 +36,7 @@ impl TransformClassFields {
             let node_as_object_literal_expression = node_ref.as_object_literal_expression();
             Some(
                 self.factory
-                    .update_object_literal_expression(
+                    .ref_(self).update_object_literal_expression(
                         node,
                         visit_nodes(
                             &node_as_object_literal_expression.properties,
@@ -56,13 +56,14 @@ impl TransformClassFields {
 pub(super) fn create_private_static_field_initializer(
     variable_name: Id<Node /*Identifier*/>,
     initializer: Option<Id<Node /*Expression*/>>,
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    get_factory().create_assignment(
+    get_factory(arena).create_assignment(
         variable_name,
-        get_factory().create_object_literal_expression(
-            Some(vec![get_factory().create_property_assignment(
+        get_factory(arena).create_object_literal_expression(
+            Some(vec![get_factory(arena).create_property_assignment(
                 "value",
-                initializer.unwrap_or_else(|| get_factory().create_void_zero()),
+                initializer.unwrap_or_else(|| get_factory(arena).create_void_zero()),
             )]),
             None,
         ),
@@ -73,13 +74,14 @@ pub(super) fn create_private_instance_field_initializer(
     receiver: Id<Node /*LeftHandSideExpression*/>,
     initializer: Option<Id<Node /*Expression*/>>,
     weak_map_name: Id<Node /*Identifier*/>,
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    get_factory().create_call_expression(
-        get_factory().create_property_access_expression(weak_map_name, "set"),
+    get_factory(arena).create_call_expression(
+        get_factory(arena).create_property_access_expression(weak_map_name, "set"),
         Option::<Gc<NodeArray>>::None,
         Some(vec![
             receiver,
-            initializer.unwrap_or_else(|| get_factory().create_void_zero()),
+            initializer.unwrap_or_else(|| get_factory(arena).create_void_zero()),
         ]),
     )
 }
@@ -87,9 +89,10 @@ pub(super) fn create_private_instance_field_initializer(
 pub(super) fn create_private_instance_method_initializer(
     receiver: Id<Node /*LeftHandSideExpression*/>,
     weak_set_name: Id<Node /*Identifier*/>,
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    get_factory().create_call_expression(
-        get_factory().create_property_access_expression(weak_set_name, "add"),
+    get_factory(arena).create_call_expression(
+        get_factory(arena).create_property_access_expression(weak_set_name, "add"),
         Option::<Gc<NodeArray>>::None,
         Some(vec![receiver]),
     )

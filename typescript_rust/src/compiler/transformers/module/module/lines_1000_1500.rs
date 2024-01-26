@@ -38,7 +38,7 @@ impl TransformModule {
             if has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 statements.get_or_insert_default_().push(
                     self.factory
-                        .create_expression_statement(self.create_export_expression(
+                        .ref_(self).create_expression_statement(self.create_export_expression(
                             node_as_import_equals_declaration.name(),
                             self.create_require_call(node)?,
                             Option::<&Node>::None,
@@ -50,13 +50,13 @@ impl TransformModule {
             } else {
                 statements.get_or_insert_default_().push(
                     self.factory
-                        .create_variable_statement(
+                        .ref_(self).create_variable_statement(
                             Option::<Gc<NodeArray>>::None,
-                            self.factory.create_variable_declaration_list(
-                                vec![self.factory.create_variable_declaration(
+                            self.factory.ref_(self).create_variable_declaration_list(
+                                vec![self.factory.ref_(self).create_variable_declaration(
                                     Some(
                                         self.factory
-                                            .clone_node(node_as_import_equals_declaration.name()),
+                                            .ref_(self).clone_node(node_as_import_equals_declaration.name()),
                                     ),
                                     None,
                                     None,
@@ -77,9 +77,9 @@ impl TransformModule {
             if has_syntactic_modifier(node, ModifierFlags::Export, self) {
                 statements.get_or_insert_default_().push(
                     self.factory
-                        .create_expression_statement(self.create_export_expression(
-                            self.factory.get_export_name(node, None, None),
-                            self.factory.get_local_name(node, None, None),
+                        .ref_(self).create_expression_statement(self.create_export_expression(
+                            self.factory.ref_(self).get_export_name(node, None, None),
+                            self.factory.ref_(self).get_local_name(node, None, None),
                             Option::<&Node>::None,
                             None,
                         ))
@@ -112,7 +112,7 @@ impl TransformModule {
             return Ok(None);
         }
 
-        let generated_name = self.factory.get_generated_name_for_node(Some(node), None);
+        let generated_name = self.factory.ref_(self).get_generated_name_for_node(Some(node), None);
 
         Ok(
             if let Some(node_export_clause) = node_as_export_declaration
@@ -123,10 +123,10 @@ impl TransformModule {
                 if self.module_kind != ModuleKind::AMD {
                     statements.push(
                         self.factory
-                            .create_variable_statement(
+                            .ref_(self).create_variable_statement(
                                 Option::<Gc<NodeArray>>::None,
-                                self.factory.create_variable_declaration_list(
-                                    vec![self.factory.create_variable_declaration(
+                                self.factory.ref_(self).create_variable_declaration_list(
+                                    vec![self.factory.ref_(self).create_variable_declaration(
                                         Some(generated_name.clone()),
                                         None,
                                         None,
@@ -145,17 +145,17 @@ impl TransformModule {
                     if self.language_version == ScriptTarget::ES3 {
                         statements.push(
                             self.factory
-                                .create_expression_statement(
+                                .ref_(self).create_expression_statement(
                                     self.emit_helpers().create_create_binding_helper(
                                         generated_name.clone(),
-                                        self.factory.create_string_literal_from_node(
+                                        self.factory.ref_(self).create_string_literal_from_node(
                                             specifier_as_export_specifier
                                                 .property_name
                                                 .unwrap_or(specifier_as_export_specifier.name),
                                         ),
                                         specifier_as_export_specifier.property_name.map(
                                             |_| {
-                                                self.factory.create_string_literal_from_node(
+                                                self.factory.ref_(self).create_string_literal_from_node(
                                                     specifier_as_export_specifier.name,
                                                 )
                                             },
@@ -175,7 +175,7 @@ impl TransformModule {
                                         .property_name
                                         .unwrap_or(specifier_as_export_specifier.name).ref_(self),
                                 ) == "default";
-                        let exported_value = self.factory.create_property_access_expression(
+                        let exported_value = self.factory.ref_(self).create_property_access_expression(
                             if export_needs_import_default {
                                 self.emit_helpers()
                                     .create_import_default_helper(generated_name.clone())
@@ -189,8 +189,8 @@ impl TransformModule {
                         );
                         statements.push(
                             self.factory
-                                .create_expression_statement(self.create_export_expression(
-                                    self.factory.get_export_name(specifier, None, None),
+                                .ref_(self).create_expression_statement(self.create_export_expression(
+                                    self.factory.ref_(self).get_export_name(specifier, None, None),
                                     exported_value,
                                     Option::<&Node>::None,
                                     Some(true),
@@ -210,11 +210,11 @@ impl TransformModule {
                 let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 statements.push(
                     self.factory
-                        .create_expression_statement(
+                        .ref_(self).create_expression_statement(
                             self.create_export_expression(
                                 self
                                     .factory
-                                    .clone_node(node_export_clause_as_namespace_export.name),
+                                    .ref_(self).clone_node(node_export_clause_as_namespace_export.name),
                                 self.get_helper_expression_for_export(
                                     node,
                                     if self.module_kind != ModuleKind::AMD {
@@ -222,7 +222,7 @@ impl TransformModule {
                                     } else if is_export_namespace_as_default_declaration(node, self) {
                                         generated_name
                                     } else {
-                                        self.factory.create_identifier(id_text(
+                                        self.factory.ref_(self).create_identifier(id_text(
                                             &node_export_clause_as_namespace_export.name.ref_(self),
                                         ))
                                     },
@@ -239,7 +239,7 @@ impl TransformModule {
             } else {
                 Some(
                     self.factory
-                        .create_expression_statement(self.emit_helpers().create_export_star_helper(
+                        .ref_(self).create_expression_statement(self.emit_helpers().create_export_star_helper(
                             if self.module_kind != ModuleKind::AMD {
                                 self.create_require_call(node)?
                             } else {
@@ -273,7 +273,7 @@ impl TransformModule {
             let id = get_original_node_id(node, self);
             self.append_export_statement(
                 self.deferred_exports_mut().entry(id).or_default(),
-                self.factory.create_identifier("default"),
+                self.factory.ref_(self).create_identifier("default"),
                 try_visit_node(
                     node_as_export_assignment.expression,
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -287,7 +287,7 @@ impl TransformModule {
         } else {
             self.append_export_statement(
                 &mut statements,
-                self.factory.create_identifier("default"),
+                self.factory.ref_(self).create_identifier("default"),
                 try_visit_node(
                     node_as_export_assignment.expression,
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -313,7 +313,7 @@ impl TransformModule {
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             statements.get_or_insert_default_().push(
                 self.factory
-                    .create_function_declaration(
+                    .ref_(self).create_function_declaration(
                         Option::<Gc<NodeArray>>::None,
                         maybe_visit_nodes(
                             node.ref_(self).maybe_modifiers().as_deref(),
@@ -326,7 +326,7 @@ impl TransformModule {
                         node_as_function_declaration.maybe_asterisk_token(),
                         Some(
                             self.factory
-                                .get_declaration_name(Some(node), Some(true), Some(true)),
+                                .ref_(self).get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
                         Option::<Gc<NodeArray>>::None,
                         try_visit_nodes(
@@ -382,7 +382,7 @@ impl TransformModule {
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             statements.get_or_insert_default_().push(
                 self.factory
-                    .create_class_declaration(
+                    .ref_(self).create_class_declaration(
                         Option::<Gc<NodeArray>>::None,
                         maybe_visit_nodes(
                             node.ref_(self).maybe_modifiers().as_deref(),
@@ -394,7 +394,7 @@ impl TransformModule {
                         ),
                         Some(
                             self.factory
-                                .get_declaration_name(Some(node), Some(true), Some(true)),
+                                .ref_(self).get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
                         Option::<Gc<NodeArray>>::None,
                         try_maybe_visit_nodes(
@@ -485,19 +485,19 @@ impl TransformModule {
                             || is_function_expression(&variable_initializer.ref_(self))
                             || is_class_expression(&variable_initializer.ref_(self)))
                     {
-                        let expression = self.factory.create_assignment(
+                        let expression = self.factory.ref_(self).create_assignment(
                             self.factory
-                                .create_property_access_expression(
-                                    self.factory.create_identifier("exports"),
+                                .ref_(self).create_property_access_expression(
+                                    self.factory.ref_(self).create_identifier("exports"),
                                     variable_as_variable_declaration.name(),
                                 )
                                 .set_text_range(Some(&*variable_as_variable_declaration.name().ref_(self)), self),
                             self.factory
-                                .create_identifier(&get_text_of_identifier_or_literal(
+                                .ref_(self).create_identifier(&get_text_of_identifier_or_literal(
                                     &variable_as_variable_declaration.name().ref_(self),
                                 )),
                         );
-                        let updated_variable = self.factory.create_variable_declaration(
+                        let updated_variable = self.factory.ref_(self).create_variable_declaration(
                             Some(variable_as_variable_declaration.name()),
                             variable_as_variable_declaration.exclamation_token.clone(),
                             variable_as_variable_declaration.maybe_type(),
@@ -523,10 +523,10 @@ impl TransformModule {
             if let Some(variables) = variables {
                 statements
                     .get_or_insert_default_()
-                    .push(self.factory.update_variable_statement(
+                    .push(self.factory.ref_(self).update_variable_statement(
                         node,
                         modifiers,
-                        self.factory.update_variable_declaration_list(
+                        self.factory.ref_(self).update_variable_declaration_list(
                             node_as_variable_statement.declaration_list,
                             variables,
                         ),
@@ -536,7 +536,7 @@ impl TransformModule {
             if let Some(expressions) = expressions {
                 let statement = self
                     .factory
-                    .create_expression_statement(self.factory.inline_expressions(&expressions))
+                    .ref_(self).create_expression_statement(self.factory.ref_(self).inline_expressions(&expressions))
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .set_original_node(Some(node), self);
                 if remove_comments_on_expressions {
@@ -579,7 +579,7 @@ impl TransformModule {
             let mut expression/*: Expression*/ = if is_export_name(&name.ref_(self)) {
                 value
             } else {
-                self.factory.create_assignment(
+                self.factory.ref_(self).create_assignment(
                     name,
                     value,
                 )
@@ -592,7 +592,7 @@ impl TransformModule {
 
             return Ok(expression);
         }
-        Ok(self.factory.create_assignment(name, value))
+        Ok(self.factory.ref_(self).create_assignment(name, value))
     }
 
     pub(super) fn transform_initialized_variable(
@@ -624,17 +624,17 @@ impl TransformModule {
                     self,
                 )?
             } else {
-                self.factory.create_assignment(
+                self.factory.ref_(self).create_assignment(
                     self.factory
-                        .create_property_access_expression(
-                            self.factory.create_identifier("exports"),
+                        .ref_(self).create_property_access_expression(
+                            self.factory.ref_(self).create_identifier("exports"),
                             node_as_variable_declaration.name(),
                         )
                         .set_text_range(Some(&*node_as_variable_declaration.name().ref_(self)), self),
                     node_as_variable_declaration
                         .maybe_initializer()
                         .try_map_or_else(
-                            || Ok(self.factory.create_void_zero()),
+                            || Ok(self.factory.ref_(self).create_void_zero()),
                             |node_initializer| {
                                 try_visit_node(
                                     node_initializer,

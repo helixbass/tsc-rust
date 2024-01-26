@@ -43,7 +43,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 name = Some(
                     self.parser
                         .finish_node(
-                            self.parser.factory().create_jsdoc_member_name_raw(
+                            self.parser.factory().ref_(self).create_jsdoc_member_name_raw(
                                 name.clone().unwrap(),
                                 self.parser.parse_identifier(None, None).alloc(self.arena()),
                             ),
@@ -66,17 +66,17 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             if link_type == "link" {
                 self.parser
                     .factory()
-                    .create_jsdoc_link_raw(name, text)
+                    .ref_(self).create_jsdoc_link_raw(name, text)
                     .into()
             } else if link_type == "linkcode" {
                 self.parser
                     .factory()
-                    .create_jsdoc_link_code_raw(name, text)
+                    .ref_(self).create_jsdoc_link_code_raw(name, text)
                     .into()
             } else {
                 self.parser
                     .factory()
-                    .create_jsdoc_link_plain_raw(name, text)
+                    .ref_(self).create_jsdoc_link_plain_raw(name, text)
                     .into()
             }
         };
@@ -110,7 +110,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         indent_text: &str,
     ) -> BaseJSDocTag /*JSDocAuthorTag*/ {
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_unknown_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_unknown_tag_raw(
                 tag_name,
                 self.parse_trailing_tag_comments(
                     start,
@@ -244,7 +244,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             is_name_first = true;
         }
         let result = if target == PropertyLikeParse::Property {
-            self.parser.factory().create_jsdoc_property_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_property_tag_raw(
                 Some(tag_name),
                 name,
                 is_bracketed,
@@ -253,7 +253,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 comment,
             )
         } else {
-            self.parser.factory().create_jsdoc_parameter_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_parameter_tag_raw(
                 Some(tag_name),
                 name,
                 is_bracketed,
@@ -299,7 +299,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             }
             if let Some(children) = children {
                 let literal = self.parser.finish_node(
-                    self.parser.factory().create_jsdoc_type_literal_raw(
+                    self.parser.factory().ref_(self).create_jsdoc_type_literal_raw(
                         Some(children),
                         Some(
                             type_expression.ref_(self).as_jsdoc_type_expression().type_.ref_(self).kind()
@@ -313,7 +313,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parser.finish_node(
                         self.parser
                             .factory()
-                            .create_jsdoc_type_expression_raw(literal.alloc(self.arena())),
+                            .ref_(self).create_jsdoc_type_expression_raw(literal.alloc(self.arena())),
                         pos,
                         None,
                     ),
@@ -344,7 +344,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
 
         let type_expression = self.try_parse_type_expression();
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_return_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_return_tag_raw(
                 Some(tag_name),
                 type_expression,
                 self.parse_trailing_tag_comments(
@@ -391,7 +391,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             _ => None,
         };
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_type_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_type_tag_raw(
                 Some(tag_name),
                 Some(type_expression),
                 comments,
@@ -429,7 +429,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             _ => None,
         };
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_see_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_see_tag_raw(
                 Some(tag_name),
                 name_expression,
                 comments,
@@ -499,7 +499,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         self.parser.finish_node(
             self.parser
                 .factory()
-                .create_jsdoc_author_tag_raw(Some(tag_name), Some(all_parts)),
+                .ref_(self).create_jsdoc_author_tag_raw(Some(tag_name), Some(all_parts)),
             start.try_into().unwrap(),
             None,
         )
@@ -529,7 +529,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
 
         self.parser
             .factory()
-            .create_jsdoc_text_raw(comments.join(""))
+            .ref_(self).create_jsdoc_text_raw(comments.join(""))
     }
 
     pub(super) fn parse_implements_tag(
@@ -541,7 +541,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     ) -> JSDocImplementsTag {
         let class_name = self.parse_expression_with_type_arguments_for_augments();
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_implements_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_implements_tag_raw(
                 Some(tag_name),
                 class_name.alloc(self.arena()),
                 self.parse_trailing_tag_comments(
@@ -565,7 +565,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     ) -> JSDocAugmentsTag {
         let class_name = self.parse_expression_with_type_arguments_for_augments();
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_augments_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_augments_tag_raw(
                 Some(tag_name),
                 class_name.alloc(self.arena()),
                 self.parse_trailing_tag_comments(
@@ -591,7 +591,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let node = self
             .parser
             .factory()
-            .create_expression_with_type_arguments_raw(expression.alloc(self.arena()), type_arguments);
+            .ref_(self).create_expression_with_type_arguments_raw(expression.alloc(self.arena()), type_arguments);
         let res = self.parser.finish_node(node, pos, None);
         if used_brace {
             self.parser
@@ -611,7 +611,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 .finish_node(
                     self.parser
                         .factory()
-                        .create_property_access_expression_raw(node.alloc(self.arena()), name),
+                        .ref_(self).create_property_access_expression_raw(node.alloc(self.arena()), name),
                     pos,
                     None,
                 )
@@ -657,7 +657,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             .JSDocParser_parse_jsdoc_type_expression(Some(true));
         self.skip_whitespace();
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_this_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_this_tag_raw(
                 Some(tag_name),
                 Some(type_expression),
                 self.parse_trailing_tag_comments(
@@ -684,7 +684,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             .JSDocParser_parse_jsdoc_type_expression(Some(true));
         self.skip_whitespace();
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_enum_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_enum_tag_raw(
                 Some(tag_name),
                 Some(type_expression),
                 self.parse_trailing_tag_comments(
@@ -770,7 +770,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 let jsdoc_type_literal = self
                     .parser
                     .factory()
-                    .create_jsdoc_type_literal_raw(js_doc_property_tags, Some(is_array_type));
+                    .ref_(self).create_jsdoc_type_literal_raw(js_doc_property_tags, Some(is_array_type));
                 type_expression = Some(match child_type_tag {
                     Some(child_type_tag)
                         if matches!(
@@ -812,7 +812,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             );
         }
 
-        let typedef_tag = self.parser.factory().create_jsdoc_typedef_tag_raw(
+        let typedef_tag = self.parser.factory().ref_(self).create_jsdoc_typedef_tag_raw(
             Some(tag_name),
             type_expression,
             full_name,
@@ -834,7 +834,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let type_name_or_namespace_name = self.parse_jsdoc_identifier_name(None);
         if self.parser.parse_optional(SyntaxKind::DotToken) {
             let body = self.parse_jsdoc_type_name_with_namespace(Some(true));
-            let js_doc_namespace_node = self.parser.factory().create_module_declaration_raw(
+            let js_doc_namespace_node = self.parser.factory().ref_(self).create_module_declaration_raw(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 type_name_or_namespace_name.alloc(self.arena()),
@@ -906,7 +906,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             None
         });
         let type_expression = self.parser.finish_node(
-            self.parser.factory().create_jsdoc_signature_raw(
+            self.parser.factory().ref_(self).create_jsdoc_signature_raw(
                 Option::<Gc<NodeArray>>::None,
                 parameters,
                 return_tag,
@@ -923,7 +923,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             );
         }
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_callback_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_callback_tag_raw(
                 Some(tag_name),
                 type_expression.alloc(self.arena()),
                 full_name,
@@ -1081,7 +1081,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         }
         Some(
             self.parser.finish_node(
-                self.parser.factory().create_type_parameter_declaration_raw(
+                self.parser.factory().ref_(self).create_type_parameter_declaration_raw(
                     name,
                     None,
                     default_type,
@@ -1125,7 +1125,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         };
         let type_parameters = self.parse_template_tag_type_parameters();
         self.parser.finish_node(
-            self.parser.factory().create_jsdoc_template_tag_raw(
+            self.parser.factory().ref_(self).create_jsdoc_template_tag_raw(
                 Some(tag_name),
                 constraint,
                 type_parameters,
@@ -1189,7 +1189,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let result: Node = self
             .parser
             .finish_node(
-                self.parser.factory().create_identifier_raw(
+                self.parser.factory().ref_(self).create_identifier_raw(
                     &text,
                     Option::<Gc<NodeArray>>::None,
                     Some(original_keyword_kind),

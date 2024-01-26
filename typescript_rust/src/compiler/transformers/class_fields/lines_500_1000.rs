@@ -56,7 +56,7 @@ impl TransformClassFields {
                     if let Some(super_class_reference) = super_class_reference {
                         return Some(
                             self.factory
-                                .create_reflect_get_call(
+                                .ref_(self).create_reflect_get_call(
                                     super_class_reference.clone(),
                                     visit_node(
                                         node_as_element_access_expression.argument_expression,
@@ -116,7 +116,7 @@ impl TransformClassFields {
                         self.create_private_identifier_access(&info, read_expression);
                     let temp =
                         (!(is_prefix_unary_expression(&node.ref_(self)) || value_is_discarded)).then(|| {
-                            self.factory.create_temp_variable(
+                            self.factory.ref_(self).create_temp_variable(
                                 Some(|node: Id<Node>| {
                                     self.context.ref_(self).hoist_variable_declaration(node);
                                 }),
@@ -124,7 +124,7 @@ impl TransformClassFields {
                             )
                         });
                     expression = expand_pre_or_postfix_increment_or_decrement_expression(
-                        &self.factory,
+                        &self.factory.ref_(self),
                         node,
                         expression,
                         |node: Id<Node>| {
@@ -145,7 +145,7 @@ impl TransformClassFields {
                     if let Some(temp) = temp {
                         expression = self
                             .factory
-                            .create_comma(expression, temp)
+                            .ref_(self).create_comma(expression, temp)
                             .set_text_range(Some(&*node.ref_(self)), self);
                     }
                     return Some(expression.into());
@@ -171,9 +171,9 @@ impl TransformClassFields {
                         let operand = self.visit_invalid_super_property(node_operand);
                         return Some(
                             if is_prefix_unary_expression(&node.ref_(self)) {
-                                self.factory.update_prefix_unary_expression(node, operand)
+                                self.factory.ref_(self).update_prefix_unary_expression(node, operand)
                             } else {
-                                self.factory.update_postfix_unary_expression(node, operand)
+                                self.factory.ref_(self).update_postfix_unary_expression(node, operand)
                             }
                             .into(),
                         );
@@ -188,7 +188,7 @@ impl TransformClassFields {
                                 if is_identifier(&node_operand_as_property_access_expression.name().ref_(self))
                                 {
                                     setter_name =
-                                        Some(self.factory.create_string_literal_from_node(
+                                        Some(self.factory.ref_(self).create_string_literal_from_node(
                                             node_operand_as_property_access_expression.name(),
                                         ));
                                     getter_name = setter_name.clone();
@@ -206,14 +206,14 @@ impl TransformClassFields {
                                     );
                                     getter_name = setter_name.clone();
                                 } else {
-                                    getter_name = Some(self.factory.create_temp_variable(
+                                    getter_name = Some(self.factory.ref_(self).create_temp_variable(
                                         Some(|node: Id<Node>| {
                                             self.context.ref_(self).hoist_variable_declaration(node);
                                         }),
                                         None,
                                     ));
                                     setter_name = Some(
-                                        self.factory.create_assignment(
+                                        self.factory.ref_(self).create_assignment(
                                             getter_name.clone().unwrap(),
                                             visit_node(
                                                 node_operand_as_element_access_expression
@@ -231,7 +231,7 @@ impl TransformClassFields {
                             {
                                 let mut expression: Id<Node /*Expression*/> = self
                                     .factory
-                                    .create_reflect_get_call(
+                                    .ref_(self).create_reflect_get_call(
                                         super_class_reference.clone(),
                                         getter_name,
                                         Some(class_constructor.clone()),
@@ -239,7 +239,7 @@ impl TransformClassFields {
                                     .set_text_range(Some(&*node_operand.ref_(self)), self);
 
                                 let temp = (!value_is_discarded).then(|| {
-                                    self.factory.create_temp_variable(
+                                    self.factory.ref_(self).create_temp_variable(
                                         Some(|node: Id<Node>| {
                                             self.context.ref_(self).hoist_variable_declaration(node);
                                         }),
@@ -248,7 +248,7 @@ impl TransformClassFields {
                                 });
                                 expression =
                                     expand_pre_or_postfix_increment_or_decrement_expression(
-                                        &self.factory,
+                                        &self.factory.ref_(self),
                                         node,
                                         expression,
                                         |node: Id<Node>| {
@@ -258,7 +258,7 @@ impl TransformClassFields {
                                     );
                                 expression = self
                                     .factory
-                                    .create_reflect_set_call(
+                                    .ref_(self).create_reflect_set_call(
                                         super_class_reference.clone(),
                                         setter_name,
                                         expression,
@@ -269,7 +269,7 @@ impl TransformClassFields {
                                 if let Some(temp) = temp {
                                     expression = self
                                         .factory
-                                        .create_comma(expression, temp)
+                                        .ref_(self).create_comma(expression, temp)
                                         .set_text_range(Some(&*node.ref_(self)), self);
                                 }
                                 return Some(expression.into());
@@ -287,7 +287,7 @@ impl TransformClassFields {
         let node_as_for_statement = node_ref.as_for_statement();
         Some(
             self.factory
-                .update_for_statement(
+                .ref_(self).update_for_statement(
                     node,
                     maybe_visit_node(
                         node_as_for_statement.initializer,
@@ -326,7 +326,7 @@ impl TransformClassFields {
         let node_as_expression_statement = node_ref.as_expression_statement();
         Some(
             self.factory
-                .update_expression_statement(
+                .ref_(self).update_expression_statement(
                     node,
                     visit_node(
                         node_as_expression_statement.expression,
@@ -346,7 +346,7 @@ impl TransformClassFields {
         let clone = if node_is_synthesized(&*receiver.ref_(self)) {
             receiver
         } else {
-            self.factory.clone_node(receiver)
+            self.factory.ref_(self).clone_node(receiver)
         };
         if is_simple_inlineable_expression(&receiver.ref_(self)) {
             return CopiableReceiverExpr {
@@ -354,7 +354,7 @@ impl TransformClassFields {
                 initialize_expression: None,
             };
         }
-        let read_expression = self.factory.create_temp_variable(
+        let read_expression = self.factory.ref_(self).create_temp_variable(
             Some(|node: Id<Node>| {
                 self.context.ref_(self).hoist_variable_declaration(node);
             }),
@@ -362,7 +362,7 @@ impl TransformClassFields {
         );
         let initialize_expression = self
             .factory
-            .create_assignment(read_expression.clone(), clone);
+            .ref_(self).create_assignment(read_expression.clone(), clone);
         CopiableReceiverExpr {
             read_expression,
             initialize_expression: Some(initialize_expression),
@@ -378,7 +378,7 @@ impl TransformClassFields {
         if self.should_transform_private_elements_or_class_static_blocks
             && is_private_identifier_property_access_expression(node_as_call_expression.expression, self)
         {
-            let CallBinding { this_arg, target } = self.factory.create_call_binding(
+            let CallBinding { this_arg, target } = self.factory.ref_(self).create_call_binding(
                 node_as_call_expression.expression,
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
@@ -389,9 +389,9 @@ impl TransformClassFields {
             if is_call_chain(&node.ref_(self)) {
                 return Some(
                     self.factory
-                        .update_call_chain(
+                        .ref_(self).update_call_chain(
                             node,
-                            self.factory.create_property_access_chain(
+                            self.factory.ref_(self).create_property_access_chain(
                                 visit_node(
                                     target,
                                     Some(|node: Id<Node>| self.visitor(node)),
@@ -426,9 +426,9 @@ impl TransformClassFields {
             }
             return Some(
                 self.factory
-                    .update_call_expression(
+                    .ref_(self).update_call_expression(
                         node,
-                        self.factory.create_property_access_expression(
+                        self.factory.ref_(self).create_property_access_expression(
                             visit_node(
                                 target,
                                 Some(|node: Id<Node>| self.visitor(node)),
@@ -477,7 +477,7 @@ impl TransformClassFields {
             {
                 return Some(
                     self.factory
-                        .create_function_call_call(
+                        .ref_(self).create_function_call_call(
                             visit_node(
                                 node_as_call_expression.expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
@@ -516,7 +516,7 @@ impl TransformClassFields {
                 self,
             )
         {
-            let CallBinding { this_arg, target } = self.factory.create_call_binding(
+            let CallBinding { this_arg, target } = self.factory.ref_(self).create_call_binding(
                 node_as_tagged_template_expression.tag,
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
@@ -526,10 +526,10 @@ impl TransformClassFields {
             );
             return Some(
                 self.factory
-                    .update_tagged_template_expression(
+                    .ref_(self).update_tagged_template_expression(
                         node,
-                        self.factory.create_call_expression(
-                            self.factory.create_property_access_expression(
+                        self.factory.ref_(self).create_call_expression(
+                            self.factory.ref_(self).create_property_access_expression(
                                 visit_node(
                                     target,
                                     Some(|node: Id<Node>| self.visitor(node)),
@@ -574,7 +574,7 @@ impl TransformClassFields {
             {
                 let invocation = self
                     .factory
-                    .create_function_bind_call(
+                    .ref_(self).create_function_bind_call(
                         visit_node(
                             node_as_tagged_template_expression.tag,
                             Some(|node: Id<Node>| self.visitor(node)),
@@ -588,7 +588,7 @@ impl TransformClassFields {
                     .set_text_range(Some(&*node.ref_(self)), self);
                 return Some(
                     self.factory
-                        .update_tagged_template_expression(
+                        .ref_(self).update_tagged_template_expression(
                             node,
                             invocation,
                             Option::<Gc<NodeArray>>::None,
@@ -640,7 +640,7 @@ impl TransformClassFields {
             );
             statements = self
                 .factory
-                .merge_lexical_environment(
+                .ref_(self).merge_lexical_environment(
                     statements,
                     self.context.ref_(self).end_lexical_environment().as_deref(),
                 )
@@ -651,7 +651,7 @@ impl TransformClassFields {
 
             return Some(
                 self.factory
-                    .create_immediately_invoked_arrow_function(statements, None, None)
+                    .ref_(self).create_immediately_invoked_arrow_function(statements, None, None)
                     .set_original_node(Some(node), self)
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .add_emit_flags(EmitFlags::AdviseOnEmitNode, self),
@@ -668,7 +668,7 @@ impl TransformClassFields {
         if is_destructuring_assignment(node, self) {
             let saved_pending_expressions = self.maybe_pending_expressions().clone();
             self.set_pending_expressions(None);
-            node = self.factory.update_binary_expression(
+            node = self.factory.ref_(self).update_binary_expression(
                 node,
                 visit_node(
                     node.ref_(self).as_binary_expression().left,
@@ -685,7 +685,7 @@ impl TransformClassFields {
                 ),
             );
             let expr = if self.maybe_pending_expressions().as_ref().is_non_empty() {
-                self.factory.inline_expressions(
+                self.factory.ref_(self).inline_expressions(
                     &/*compact(*/self.maybe_pending_expressions()
                         .clone()
                         .unwrap_or_default()
@@ -741,7 +741,7 @@ impl TransformClassFields {
                     if facts.intersects(ClassFacts::ClassWasDecorated) {
                         return Some(
                             self.factory
-                                .update_binary_expression(
+                                .ref_(self).update_binary_expression(
                                     node,
                                     self.visit_invalid_super_property(
                                         node_as_binary_expression.left,
@@ -777,7 +777,7 @@ impl TransformClassFields {
                                         .name.ref_(self),
                                 ) {
                                     Some(
-                                        self.factory.create_string_literal_from_node(
+                                        self.factory.ref_(self).create_string_literal_from_node(
                                             node_as_binary_expression
                                                 .left
                                                 .ref_(self).as_property_access_expression()
@@ -799,7 +799,7 @@ impl TransformClassFields {
                                 ) {
                                     let mut getter_name = setter_name;
                                     if !is_simple_inlineable_expression(&setter_name.ref_(self)) {
-                                        getter_name = self.factory.create_temp_variable(
+                                        getter_name = self.factory.ref_(self).create_temp_variable(
                                             Some(|node: Id<Node>| {
                                                 self.context.ref_(self).hoist_variable_declaration(node);
                                             }),
@@ -807,11 +807,11 @@ impl TransformClassFields {
                                         );
                                         setter_name = self
                                             .factory
-                                            .create_assignment(getter_name.clone(), setter_name);
+                                            .ref_(self).create_assignment(getter_name.clone(), setter_name);
                                     }
                                     let super_property_get = self
                                         .factory
-                                        .create_reflect_get_call(
+                                        .ref_(self).create_reflect_get_call(
                                             super_class_reference.clone(),
                                             getter_name,
                                             Some(class_constructor.clone()),
@@ -823,7 +823,7 @@ impl TransformClassFields {
 
                                     expression = self
                                         .factory
-                                        .create_binary_expression(
+                                        .ref_(self).create_binary_expression(
                                             super_property_get,
                                             get_non_assignment_operator_for_compound_assignment(
                                                 node_as_binary_expression.operator_token.ref_(self).kind(),
@@ -834,7 +834,7 @@ impl TransformClassFields {
                                 }
 
                                 let temp = (!value_is_discarded).then(|| {
-                                    self.factory.create_temp_variable(
+                                    self.factory.ref_(self).create_temp_variable(
                                         Some(|node: Id<Node>| {
                                             self.context.ref_(self).hoist_variable_declaration(node);
                                         }),
@@ -843,13 +843,13 @@ impl TransformClassFields {
                                 });
                                 if let Some(temp) = temp {
                                     expression =
-                                        self.factory.create_assignment(temp, expression);
+                                        self.factory.ref_(self).create_assignment(temp, expression);
                                     set_text_range(&*temp.ref_(self), Some(&*node.ref_(self)));
                                 }
 
                                 expression = self
                                     .factory
-                                    .create_reflect_set_call(
+                                    .ref_(self).create_reflect_set_call(
                                         super_class_reference.clone(),
                                         setter_name,
                                         expression,
@@ -861,7 +861,7 @@ impl TransformClassFields {
                                 if let Some(temp) = temp {
                                     expression = self
                                         .factory
-                                        .create_comma(expression, temp)
+                                        .ref_(self).create_comma(expression, temp)
                                         .set_text_range(Some(&*node.ref_(self)), self);
                                 }
 
@@ -908,7 +908,7 @@ impl TransformClassFields {
             receiver = initialize_expression
                 .clone()
                 .unwrap_or_else(|| read_expression.clone());
-            right = self.factory.create_binary_expression(
+            right = self.factory.ref_(self).create_binary_expression(
                 self.create_private_identifier_access_helper(info, read_expression),
                 get_non_assignment_operator_for_compound_assignment(operator),
                 right,
@@ -1099,7 +1099,7 @@ impl TransformClassFields {
                 (*current_class_lexical_environment).borrow().facts
             });
         if facts.intersects(ClassFacts::NeedsClassSuperReference) {
-            let temp = self.factory.create_temp_variable(
+            let temp = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 }),
@@ -1110,9 +1110,9 @@ impl TransformClassFields {
                 .super_class_reference = Some(temp.clone());
             return Some(
                 self.factory
-                    .update_expression_with_type_arguments(
+                    .ref_(self).update_expression_with_type_arguments(
                         node,
-                        self.factory.create_assignment(
+                        self.factory.ref_(self).create_assignment(
                             temp,
                             visit_node(
                                 node_as_expression_with_type_arguments.expression,

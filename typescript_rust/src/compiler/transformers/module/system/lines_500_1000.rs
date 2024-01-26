@@ -41,7 +41,7 @@ impl TransformSystemModule {
         if node_as_import_declaration.import_clause.is_some() {
             self.context.ref_(self).hoist_variable_declaration(
                 get_local_name_for_external_import(
-                    &self.factory,
+                    &self.factory.ref_(self),
                     node,
                     self.current_source_file(),
                 )
@@ -81,7 +81,7 @@ impl TransformSystemModule {
 
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         self.context.ref_(self).hoist_variable_declaration(
-            get_local_name_for_external_import(&self.factory, node, self.current_source_file())
+            get_local_name_for_external_import(&self.factory.ref_(self), node, self.current_source_file())
                 .unwrap(),
         );
 
@@ -120,7 +120,7 @@ impl TransformSystemModule {
                 let id = get_original_node_id(node, self);
                 self.append_export_statement(
                     self.deferred_exports_mut().entry(id).or_default(),
-                    self.factory.create_identifier("default"),
+                    self.factory.ref_(self).create_identifier("default"),
                     expression,
                     Some(true),
                 );
@@ -128,7 +128,7 @@ impl TransformSystemModule {
             }
             _ => Some(
                 self.create_export_statement(
-                    self.factory.create_identifier("default"),
+                    self.factory.ref_(self).create_identifier("default"),
                     expression,
                     Some(true),
                 )
@@ -147,7 +147,7 @@ impl TransformSystemModule {
             self.maybe_hoisted_statements_mut()
                 .get_or_insert_default_()
                 .push(
-                    self.factory.update_function_declaration(
+                    self.factory.ref_(self).update_function_declaration(
                         node,
                         node.ref_(self).maybe_decorators(),
                         maybe_visit_nodes(
@@ -161,7 +161,7 @@ impl TransformSystemModule {
                         node_as_function_declaration.maybe_asterisk_token(),
                         Some(
                             self.factory
-                                .get_declaration_name(Some(node), Some(true), Some(true)),
+                                .ref_(self).get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
                         Option::<Gc<NodeArray>>::None,
                         try_visit_nodes(
@@ -216,16 +216,16 @@ impl TransformSystemModule {
         let node_as_class_declaration = node_ref.as_class_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
 
-        let name = self.factory.get_local_name(node, None, None);
+        let name = self.factory.ref_(self).get_local_name(node, None, None);
         self.context.ref_(self).hoist_variable_declaration(name);
 
         statements.get_or_insert_default_().push(
             self.factory
-                .create_expression_statement(
-                    self.factory.create_assignment(
+                .ref_(self).create_expression_statement(
+                    self.factory.ref_(self).create_assignment(
                         name,
                         self.factory
-                            .create_class_expression(
+                            .ref_(self).create_class_expression(
                                 try_maybe_visit_nodes(
                                     node.ref_(self).maybe_decorators().as_deref(),
                                     Some(|node: Id<Node>| self.visitor(node)),
@@ -324,7 +324,7 @@ impl TransformSystemModule {
         if let Some(expressions) = expressions {
             statements.get_or_insert_default_().push(
                 self.factory
-                    .create_expression_statement(self.factory.inline_expressions(&expressions))
+                    .ref_(self).create_expression_statement(self.factory.ref_(self).inline_expressions(&expressions))
                     .set_text_range(Some(&*node.ref_(self)), self),
             );
         }
@@ -358,7 +358,7 @@ impl TransformSystemModule {
             }
         } else {
             self.context
-                .ref_(self).hoist_variable_declaration(self.factory.clone_node(node_name));
+                .ref_(self).hoist_variable_declaration(self.factory.ref_(self).clone_node(node_name));
         }
     }
 
@@ -443,20 +443,20 @@ impl TransformSystemModule {
         is_exported_declaration: bool,
     ) -> Id<Node> {
         self.context
-            .ref_(self).hoist_variable_declaration(self.factory.clone_node(name));
+            .ref_(self).hoist_variable_declaration(self.factory.ref_(self).clone_node(name));
         if is_exported_declaration {
             self.create_export_expression(
                 name,
                 self.prevent_substitution(
                     self.factory
-                        .create_assignment(name, value)
+                        .ref_(self).create_assignment(name, value)
                         .set_text_range(location, self),
                 ),
             )
         } else {
             self.prevent_substitution(
                 self.factory
-                    .create_assignment(name, value)
+                    .ref_(self).create_assignment(name, value)
                     .set_text_range(location, self),
             )
         }
