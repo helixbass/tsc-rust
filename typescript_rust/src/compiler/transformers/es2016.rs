@@ -18,7 +18,7 @@ struct TransformES2016 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 

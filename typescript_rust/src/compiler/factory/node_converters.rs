@@ -14,27 +14,25 @@ use crate::{
     HasArena, AllArenas, InArena, NodeExt,
 };
 
-pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: Gc<NodeFactory<TBaseNodeFactory>>,
-) -> NodeConvertersConcrete<TBaseNodeFactory> {
+pub fn create_node_converters(
+    factory: Gc<NodeFactory>,
+) -> NodeConvertersConcrete {
     NodeConvertersConcrete::new(factory)
 }
 
 #[derive(Trace, Finalize)]
-pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory + 'static + Trace + Finalize> {
-    factory: Gc<NodeFactory<TBaseNodeFactory>>,
+pub struct NodeConvertersConcrete {
+    factory: Gc<NodeFactory>,
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    NodeConvertersConcrete<TBaseNodeFactory>
+impl NodeConvertersConcrete
 {
-    pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
+    pub fn new(factory: Gc<NodeFactory>) -> Self {
         Self { factory }
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    NodeConverters<TBaseNodeFactory> for NodeConvertersConcrete<TBaseNodeFactory>
+impl NodeConverters for NodeConvertersConcrete
 {
     fn convert_to_function_block(
         &self,
@@ -246,26 +244,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    HasArena for NodeConvertersConcrete<TBaseNodeFactory>
+impl HasArena for NodeConvertersConcrete
 {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
 }
 
-pub fn null_node_converters<TBaseNodeFactory: BaseNodeFactory>(
-) -> NullNodeConverters<TBaseNodeFactory> {
-    NullNodeConverters::<TBaseNodeFactory>::new()
+pub fn null_node_converters() -> NullNodeConverters {
+    NullNodeConverters::new()
 }
 
 #[derive(Trace, Finalize)]
-pub struct NullNodeConverters<TBaseNodeFactory: BaseNodeFactory> {
-    #[unsafe_ignore_trace]
-    _base_node_factory: PhantomData<TBaseNodeFactory>,
-}
+pub struct NullNodeConverters;
 
-impl<TBaseNodeFactory: BaseNodeFactory> NullNodeConverters<TBaseNodeFactory> {
+impl NullNodeConverters {
     pub fn new() -> Self {
         Self {
             _base_node_factory: PhantomData,
@@ -273,8 +266,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NullNodeConverters<TBaseNodeFactory> {
     }
 }
 
-impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
-    for NullNodeConverters<TBaseNodeFactory>
+impl NodeConverters for NullNodeConverters
 {
     fn convert_to_function_block(
         &self,

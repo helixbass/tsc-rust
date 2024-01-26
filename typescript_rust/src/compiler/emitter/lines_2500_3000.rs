@@ -1403,7 +1403,7 @@ impl HasArena for EmitBinaryExpressionStateMachine {
 struct MaybeEmitExpressionCurrentParenthesizerRule {
     #[unsafe_ignore_trace]
     side: LeftOrRight,
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
     #[unsafe_ignore_trace]
     parent_operator_token_kind: SyntaxKind,
 }
@@ -1411,7 +1411,7 @@ struct MaybeEmitExpressionCurrentParenthesizerRule {
 impl MaybeEmitExpressionCurrentParenthesizerRule {
     pub fn new(
         side: LeftOrRight,
-        parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+        parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
         parent_operator_token_kind: SyntaxKind,
     ) -> Self {
         Self {
@@ -1439,11 +1439,11 @@ impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1457,11 +1457,11 @@ impl CurrentParenthesizerRule for ParenthesizeOperandOfPrefixUnaryCurrentParenth
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1475,11 +1475,11 @@ impl CurrentParenthesizerRule for ParenthesizeOperandOfPostfixUnaryCurrentParent
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1492,11 +1492,11 @@ impl CurrentParenthesizerRule for ParenthesizeLeftSideOfAccessCurrentParenthesiz
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfNewCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfNewCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1509,11 +1509,11 @@ impl CurrentParenthesizerRule for ParenthesizeExpressionOfNewCurrentParenthesize
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1526,11 +1526,11 @@ impl CurrentParenthesizerRule for ParenthesizeMemberOfElementTypeCurrentParenthe
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1544,11 +1544,11 @@ impl CurrentParenthesizerRule for ParenthesizeMemberOfConditionalTypeCurrentPare
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1562,11 +1562,11 @@ impl CurrentParenthesizerRule for ParenthesizeElementTypeOfArrayTypeCurrentParen
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1582,11 +1582,11 @@ impl CurrentParenthesizerRule
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1600,11 +1600,11 @@ impl CurrentParenthesizerRule for ParenthesizeExpressionForDisallowedCommaCurren
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1618,11 +1618,11 @@ impl CurrentParenthesizerRule for ParenthesizeExpressionOfExportDefaultCurrentPa
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1636,11 +1636,11 @@ impl CurrentParenthesizerRule for ParenthesizeRightSideOfBinaryCurrentParenthesi
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1654,11 +1654,11 @@ impl CurrentParenthesizerRule for ParenthesizeConciseBodyOfArrowFunctionCurrentP
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1674,11 +1674,11 @@ impl CurrentParenthesizerRule
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1694,11 +1694,11 @@ impl CurrentParenthesizerRule
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }

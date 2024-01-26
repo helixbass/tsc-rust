@@ -20,7 +20,7 @@ struct TransformES2020 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
 }
 
 impl TransformES2020 {

@@ -50,7 +50,7 @@ pub(super) struct TransformJsx {
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     compiler_options: Id<CompilerOptions>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
     current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
     current_file_state: GcCell<Option<PerFileState>>,
 }

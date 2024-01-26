@@ -30,7 +30,7 @@ use crate::{
     HasArena, InArena, OptionInArena,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
+impl NodeFactory {
     #[generate_node_factory_method_wrapper]
     pub fn create_property_assignment_raw<'name>(
         &self,

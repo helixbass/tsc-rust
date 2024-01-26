@@ -53,7 +53,7 @@ struct TransformES2017 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
@@ -1495,7 +1495,7 @@ pub fn transform_es2017(arena: &impl HasArena) -> TransformerFactory {
 }
 
 pub fn create_super_access_variable_statement(
-    factory: &NodeFactory<BaseNodeFactorySynthetic>,
+    factory: &NodeFactory,
     resolver: &dyn EmitResolver,
     node: Id<Node>, /*FunctionLikeDeclaration*/
     names: &HashSet<__String>,

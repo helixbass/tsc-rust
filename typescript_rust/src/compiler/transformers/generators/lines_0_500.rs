@@ -383,7 +383,7 @@ pub(super) struct TransformGenerators {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
-    pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    pub(super) factory: Gc<NodeFactory>,
     pub(super) compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,

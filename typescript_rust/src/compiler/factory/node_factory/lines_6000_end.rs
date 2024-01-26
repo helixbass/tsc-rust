@@ -26,7 +26,7 @@ use crate::{
     maybe_append_if_unique_eq,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
+impl NodeFactory {
     pub fn update_modifiers(
         &self,
         node: Id<Node>, /*HasModifiers*/
@@ -639,7 +639,7 @@ pub fn get_synthetic_factory() -> Gc<BaseNodeFactorySynthetic> {
 pub fn with_synthetic_factory_and_factory<TReturn>(
     callback: impl FnOnce(
         &BaseNodeFactorySynthetic,
-        &Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+        &Gc<NodeFactory>,
     ) -> TReturn,
 ) -> TReturn {
     synthetic_factory.with(|synthetic_factory_| {
@@ -647,11 +647,8 @@ pub fn with_synthetic_factory_and_factory<TReturn>(
     })
 }
 
-pub fn with_factory<
-    TReturn,
-    TCallback: FnOnce(&Gc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
->(
-    callback: TCallback,
+pub fn with_factory<TReturn>(
+    callback: impl FnOnce(&Gc<NodeFactory>) -> TReturn,
 ) -> TReturn {
     factory.with(|factory_| callback(factory_))
 }
@@ -708,11 +705,11 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
 }
 
 thread_local! {
-    pub static factory: Gc<NodeFactory<BaseNodeFactorySynthetic>> =
-        create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess, get_synthetic_factory());
+    pub static factory: Gc<NodeFactory> =
+        create_node_factory(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess, get_synthetic_factory());
 }
 
-pub fn get_factory() -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
+pub fn get_factory() -> Gc<NodeFactory> {
     factory.with(|factory_| factory_.clone())
 }
 

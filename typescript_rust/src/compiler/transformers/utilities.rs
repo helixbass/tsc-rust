@@ -467,7 +467,7 @@ pub fn get_non_assignment_operator_for_compound_assignment(
 }
 
 pub fn add_prologue_directives_and_initial_super_call(
-    factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
+    factory: &NodeFactory,
     ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
     mut visitor: impl FnMut(Id<Node>) -> VisitResult, arena: &impl HasArena,
@@ -479,7 +479,7 @@ pub fn add_prologue_directives_and_initial_super_call(
 }
 
 pub fn try_add_prologue_directives_and_initial_super_call(
-    factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
+    factory: &NodeFactory,
     ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,

@@ -20,7 +20,7 @@ struct TransformES5 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
     compiler_options: Id<CompilerOptions>,
     no_substitution: GcCell<Option<HashMap<NodeId, bool>>>,
 }

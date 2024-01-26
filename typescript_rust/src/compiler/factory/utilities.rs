@@ -29,8 +29,8 @@ use crate::{
     HasArena, ModuleKind, InArena,
 };
 
-pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_empty_exports(
+    factory: &NodeFactory,
 ) -> Id<Node> {
     factory.create_export_declaration(
         Option::<Gc<NodeArray>>::None,
@@ -42,10 +42,8 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace 
     )
 }
 
-pub fn create_member_access_for_property_name<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_member_access_for_property_name(
+    factory: &NodeFactory,
     target: Id<Node>,      /*Expression*/
     member_name: Id<Node>, /*PropertyName*/
     location: Option<&impl ReadonlyTextRange>,
@@ -89,10 +87,8 @@ fn create_react_namespace(
         ), &*factory)
 }
 
-fn create_jsx_factory_expression_from_entity_name<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_jsx_factory_expression_from_entity_name(
+    factory: &NodeFactory,
     jsx_factory: Id<Node>, /*EntityName*/
     parent: Id<Node>,      /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
@@ -111,10 +107,8 @@ fn create_jsx_factory_expression_from_entity_name<
     }
 }
 
-pub fn create_jsx_factory_expression<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_jsx_factory_expression(
+    factory: &NodeFactory,
     jsx_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: Option<&str>,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
@@ -132,10 +126,8 @@ pub fn create_jsx_factory_expression<
     )
 }
 
-pub fn create_jsx_fragment_factory_expression<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_jsx_fragment_factory_expression(
+    factory: &NodeFactory,
     jsx_fragment_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: &str,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
@@ -157,10 +149,8 @@ pub fn create_jsx_fragment_factory_expression<
     )
 }
 
-pub fn create_expression_for_jsx_element<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_for_jsx_element(
+    factory: &NodeFactory,
     callee: Id<Node>,   /*Expression*/
     tag_name: Id<Node>, /*Expression*/
     props: Option<Id<Node /*Expression*/>>,
@@ -196,10 +186,8 @@ pub fn create_expression_for_jsx_element<
         .set_text_range(Some(location), factory)
 }
 
-pub fn create_expression_for_jsx_fragment<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_for_jsx_fragment(
+    factory: &NodeFactory,
     jsx_factory_entity: Option<Id<Node /*EntityName*/>>,
     jsx_fragment_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: &str,
@@ -242,10 +230,8 @@ pub fn create_expression_for_jsx_fragment<
         .set_text_range(Some(location), factory)
 }
 
-pub fn create_for_of_binding_statement<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_for_of_binding_statement(
+    factory: &NodeFactory,
     node: Id<Node>,        /*ForInitializer*/
     bound_value: Id<Node>, /*Expression*/
 ) -> Id<Node /*Statement*/> {
@@ -274,10 +260,8 @@ pub fn create_for_of_binding_statement<
     }
 }
 
-pub fn create_expression_from_entity_name<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_from_entity_name(
+    factory: &NodeFactory,
     node: Id<Node>, /*EntityName | Expression*/
 ) -> Id<Node /*Expression*/> {
     if is_qualified_name(&node.ref_(factory)) {
@@ -299,10 +283,8 @@ pub fn create_expression_from_entity_name<
     }
 }
 
-pub fn create_expression_for_property_name<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_for_property_name(
+    factory: &NodeFactory,
     member_name: Id<Node>, /*Exclude<PropertyName, PrivateIdentifier>*/
 ) -> Id<Node /*Expression*/> {
     if is_identifier(&member_name.ref_(factory)) {
@@ -327,10 +309,8 @@ pub fn create_expression_for_property_name<
     }
 }
 
-fn create_expression_for_accessor_declaration<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_expression_for_accessor_declaration(
+    factory: &NodeFactory,
     properties: &NodeArray, /*<Declaration>*/
     property: Id<Node>, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
     receiver: Id<Node>, /*Expression*/
@@ -405,10 +385,8 @@ fn create_expression_for_accessor_declaration<
     None
 }
 
-fn create_expression_for_property_assignment<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_expression_for_property_assignment(
+    factory: &NodeFactory,
     property: Id<Node>, /*PropertyAssignment*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
@@ -428,10 +406,8 @@ fn create_expression_for_property_assignment<
         .set_original_node(Some(property), factory)
 }
 
-fn create_expression_for_shorthand_property_assignment<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_expression_for_shorthand_property_assignment(
+    factory: &NodeFactory,
     property: Id<Node>, /*ShorthandPropertyAssignment*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
@@ -451,10 +427,8 @@ fn create_expression_for_shorthand_property_assignment<
         .set_original_node(Some(property), factory)
 }
 
-fn create_expression_for_method_declaration<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_expression_for_method_declaration(
+    factory: &NodeFactory,
     method: Id<Node>,   /*MethodDeclaration*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
@@ -485,10 +459,8 @@ fn create_expression_for_method_declaration<
         .set_original_node(Some(method), factory)
 }
 
-pub fn create_expression_for_object_literal_element_like<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_for_object_literal_element_like(
+    factory: &NodeFactory,
     node: Id<Node>,     /*ObjectLiteralExpression*/
     property: Id<Node>, /*ObjectLiteralElementLike*/
     receiver: Id<Node>, /*Expression*/
@@ -528,10 +500,8 @@ pub fn create_expression_for_object_literal_element_like<
     }
 }
 
-pub fn expand_pre_or_postfix_increment_or_decrement_expression<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn expand_pre_or_postfix_increment_or_decrement_expression(
+    factory: &NodeFactory,
     node: Id<Node>,       /*PrefixUnaryExpression | PostfixUnaryExpression*/
     expression: Id<Node>, /*Expression*/
     record_temp_variable: impl FnMut(Id<Node> /*Expression*/),
@@ -703,10 +673,8 @@ pub fn has_recorded_external_helpers(source_file: Id<Node> /*SourceFile*/, arena
     )
 }
 
-pub fn create_external_helpers_import_declaration_if_needed<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    node_factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_external_helpers_import_declaration_if_needed(
+    node_factory: &NodeFactory,
     helper_factory: &EmitHelperFactory,
     source_file: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
@@ -806,10 +774,8 @@ pub fn create_external_helpers_import_declaration_if_needed<
     None
 }
 
-pub fn get_or_create_external_helpers_module_name_if_needed<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn get_or_create_external_helpers_module_name_if_needed(
+    factory: &NodeFactory,
     node: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
     has_export_stars_to_export_values: Option<bool>,
@@ -866,10 +832,8 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
     None
 }
 
-pub fn get_local_name_for_external_import<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn get_local_name_for_external_import(
+    factory: &NodeFactory,
     node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
     source_file: Id<Node>, /*SourceFile*/
 ) -> Option<Id<Node /*Identifier*/>> {
@@ -901,10 +865,8 @@ pub fn get_local_name_for_external_import<
     None
 }
 
-pub fn get_external_module_name_literal<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn get_external_module_name_literal(
+    factory: &NodeFactory,
     import_node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration | ImportCall*/
     source_file: Id<Node>, /*SourceFile*/
     host: &dyn EmitHost,
@@ -929,8 +891,8 @@ pub fn get_external_module_name_literal<
     Ok(None)
 }
 
-fn try_rename_external_module<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn try_rename_external_module(
+    factory: &NodeFactory,
     module_name: Id<Node>, /*LiteralExpression*/
     source_file: Id<Node>, /*SourceFile*/
 ) -> Option<Id<Node>> {
@@ -948,10 +910,8 @@ fn try_rename_external_module<TBaseNodeFactory: 'static + BaseNodeFactory + Trac
         .map(|rename| factory.create_string_literal(rename, None, None))
 }
 
-pub fn try_get_module_name_from_file<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn try_get_module_name_from_file(
+    factory: &NodeFactory,
     file: Option<Id<Node /*SourceFile*/>>,
     host: &dyn EmitHost,
     options: &CompilerOptions,
@@ -972,12 +932,10 @@ pub fn try_get_module_name_from_file<
     None
 }
 
-fn try_get_module_name_from_declaration<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
+fn try_get_module_name_from_declaration(
     declaration: Id<Node>, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ImportCall*/
     host: &dyn EmitHost,
-    factory: &NodeFactory<TBaseNodeFactory>,
+    factory: &NodeFactory,
     resolver: &dyn EmitResolver,
     compiler_options: &CompilerOptions,
 ) -> io::Result<Option<Id<Node>>> {

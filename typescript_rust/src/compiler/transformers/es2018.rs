@@ -74,7 +74,7 @@ struct TransformES2018 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Id<CompilerOptions>,

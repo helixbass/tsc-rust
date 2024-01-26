@@ -2336,7 +2336,7 @@ impl Printer {
 
     pub(super) fn parenthesizer(
         &self,
-    ) -> Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>> {
+    ) -> Gc<Box<dyn ParenthesizerRules>> {
         self.parenthesizer.clone()
     }
 

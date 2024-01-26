@@ -53,15 +53,15 @@ bitflags! {
     }
 }
 
-pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
+pub fn create_node_factory(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
-    base_factory: Gc<TBaseNodeFactory>,
-) -> Gc<NodeFactory<TBaseNodeFactory>> {
+    base_factory: Gc<Box<dyn BaseNodeFactory>>,
+) -> Gc<NodeFactory> {
     NodeFactory::new(flags, base_factory)
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
-    pub fn new(flags: NodeFactoryFlags, base_factory: Gc<TBaseNodeFactory>) -> Gc<Self> {
+impl NodeFactory {
+    pub fn new(flags: NodeFactoryFlags, base_factory: Gc<Box<dyn BaseNodeFactory>>) -> Gc<Self> {
         let factory_ = Gc::new(Self {
             base_factory,
             flags,
@@ -97,27 +97,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn set_parenthesizer_rules(
         &self,
-        parenthesizer_rules: Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>,
+        parenthesizer_rules: Gc<Box<dyn ParenthesizerRules>>,
     ) {
         *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
     }
 
-    pub(crate) fn parenthesizer_rules(&self) -> Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
+    pub(crate) fn parenthesizer_rules(&self) -> Gc<Box<dyn ParenthesizerRules>> {
         self.parenthesizer_rules.borrow().clone().unwrap()
     }
 
-    pub fn parenthesizer(&self) -> Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
+    pub fn parenthesizer(&self) -> Gc<Box<dyn ParenthesizerRules>> {
         self.parenthesizer_rules()
     }
 
     pub(crate) fn set_converters(
         &self,
-        node_converters: Box<dyn NodeConverters<TBaseNodeFactory>>,
+        node_converters: Box<dyn NodeConverters>,
     ) {
         *self.converters.borrow_mut() = Some(node_converters);
     }
 
-    pub fn converters(&self) -> GcCellRef<Box<dyn NodeConverters<TBaseNodeFactory>>> {
+    pub fn converters(&self) -> GcCellRef<Box<dyn NodeConverters>> {
         GcCellRef::map(self.converters.borrow(), |option| option.as_ref().unwrap())
     }
 
@@ -1266,7 +1266,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> HasArena for NodeFactory<TBaseNodeFactory> {
+impl HasArena for NodeFactory {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }

@@ -329,7 +329,7 @@ pub fn no_emit_notification(
 pub fn transform_nodes(
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
     options: Id<CompilerOptions>,
     nodes: &[Id<Node>],
@@ -414,7 +414,7 @@ pub struct TransformNodesTransformationResult {
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
     created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
@@ -434,7 +434,7 @@ impl TransformNodesTransformationResult {
         options: Id<CompilerOptions>,
         resolver: Option<Gc<Box<dyn EmitResolver>>>,
         host: Option<Id<Box<dyn EmitHost>>>,
-        factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+        factory: Gc<NodeFactory>,
         base_factory: Gc<BaseNodeFactorySynthetic>,
         arena: *const AllArenas,
     ) -> Id<Self> {
@@ -744,8 +744,8 @@ impl TransformNodesTransformationResult {
     }
 }
 
-impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTransformationResult {
-    fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
+impl CoreTransformationContext for TransformNodesTransformationResult {
+    fn factory(&self) -> Gc<NodeFactory> {
         self.factory.clone()
     }
 
@@ -1367,8 +1367,8 @@ impl TransformationContextNull {
     }
 }
 
-impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContextNull {
-    fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
+impl CoreTransformationContext for TransformationContextNull {
+    fn factory(&self) -> Gc<NodeFactory> {
         get_factory()
     }
 

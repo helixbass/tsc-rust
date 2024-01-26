@@ -15,25 +15,20 @@ use crate::{
     InArena, NodeExt,
 };
 
-pub fn create_parenthesizer_rules<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: Gc<NodeFactory<TBaseNodeFactory>>,
-) -> ParenthesizerRulesConcrete<TBaseNodeFactory> {
+pub fn create_parenthesizer_rules(
+    factory: Gc<NodeFactory>,
+) -> ParenthesizerRulesConcrete {
     ParenthesizerRulesConcrete::new(factory)
 }
 
 #[derive(Trace, Finalize)]
-pub struct ParenthesizerRulesConcrete<
-    TBaseNodeFactory: BaseNodeFactory + 'static + Trace + Finalize,
-> {
-    factory: Gc<NodeFactory<TBaseNodeFactory>>,
+pub struct ParenthesizerRulesConcrete {
+    factory: Gc<NodeFactory>,
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    ParenthesizerRulesConcrete<TBaseNodeFactory>
+impl ParenthesizerRulesConcrete
 {
-    pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
+    pub fn new(factory: Gc<NodeFactory>) -> Self {
         Self { factory }
     }
 
@@ -202,8 +197,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    ParenthesizerRules<TBaseNodeFactory> for ParenthesizerRulesConcrete<TBaseNodeFactory>
+impl ParenthesizerRules for ParenthesizerRulesConcrete
 {
     fn parenthesize_left_side_of_binary(
         &self,
@@ -507,26 +501,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    HasArena for ParenthesizerRulesConcrete<TBaseNodeFactory>
+impl HasArena for ParenthesizerRulesConcrete
 {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
 }
 
-pub fn null_parenthesizer_rules<TBaseNodeFactory: BaseNodeFactory>(
-) -> NullParenthesizerRules<TBaseNodeFactory> {
-    NullParenthesizerRules::<TBaseNodeFactory>::new()
+pub fn null_parenthesizer_rules() -> NullParenthesizerRules {
+    NullParenthesizerRules::new()
 }
 
 #[derive(Trace, Finalize)]
-pub struct NullParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
-    #[unsafe_ignore_trace]
-    _base_node_factory: PhantomData<TBaseNodeFactory>,
-}
+pub struct NullParenthesizerRules;
 
-impl<TBaseNodeFactory: BaseNodeFactory> NullParenthesizerRules<TBaseNodeFactory> {
+impl NullParenthesizerRules {
     pub fn new() -> Self {
         Self {
             _base_node_factory: PhantomData,
@@ -534,8 +523,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NullParenthesizerRules<TBaseNodeFactory>
     }
 }
 
-impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
-    for NullParenthesizerRules<TBaseNodeFactory>
+impl ParenthesizerRules for NullParenthesizerRules
 {
     fn parenthesize_left_side_of_binary(&self, _: SyntaxKind, left_side: Id<Node>) -> Id<Node> {
         left_side

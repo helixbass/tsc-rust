@@ -1257,8 +1257,8 @@ fn ensure_identifier(
     })
 }
 
-fn make_array_binding_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn make_array_binding_pattern(
+    factory: &NodeFactory,
     elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     arena: &impl HasArena,
 ) -> Id<Node> {
@@ -1266,8 +1266,8 @@ fn make_array_binding_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trac
     factory.create_array_binding_pattern(elements.to_owned())
 }
 
-fn make_array_assignment_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn make_array_assignment_pattern(
+    factory: &NodeFactory,
     elements: &[Id<Node /*BindingOrAssignmentElement*/>],
 ) -> Id<Node> {
     factory.create_array_literal_expression(
@@ -1285,8 +1285,8 @@ fn make_array_assignment_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + T
     )
 }
 
-fn make_object_binding_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn make_object_binding_pattern(
+    factory: &NodeFactory,
     elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     arena: &impl HasArena,
 ) -> Id<Node> {
@@ -1294,10 +1294,8 @@ fn make_object_binding_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Tra
     factory.create_object_binding_pattern(elements.to_owned())
 }
 
-fn make_object_assignment_pattern<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn make_object_assignment_pattern(
+    factory: &NodeFactory,
     elements: &[Id<Node /*BindingOrAssignmentElement*/>],
 ) -> Id<Node> {
     factory.create_object_literal_expression(
@@ -1315,8 +1313,8 @@ fn make_object_assignment_pattern<
     )
 }
 
-fn make_binding_element<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn make_binding_element(
+    factory: &NodeFactory,
     name: Id<Node>, /*Identifier*/
 ) -> Id<Node> {
     factory.create_binding_element(None, Option::<Id<Node>>::None, name, None)

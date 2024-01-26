@@ -65,7 +65,7 @@ pub struct CallBinding {
     pub this_arg: Id<Node /*Expression*/>,
 }
 
-pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
+pub trait ParenthesizerRules: Trace + Finalize {
     // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     fn parenthesize_left_side_of_binary(
@@ -149,7 +149,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
     ) -> Option<Gc<NodeArray> /*<TypeNode>*/>;
 }
 
-pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
+pub trait NodeConverters: Trace + Finalize {
     fn convert_to_function_block(
         &self,
         node: Id<Node>, /*ConciseBody*/
@@ -186,12 +186,12 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
 }
 
 #[derive(Trace, Finalize)]
-pub struct NodeFactory<TBaseNodeFactory: Trace + Finalize + 'static> {
-    pub base_factory: Gc<TBaseNodeFactory>,
+pub struct NodeFactory {
+    pub base_factory: Gc<Box<dyn BaseNodeFactory>>,
     #[unsafe_ignore_trace]
     pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: GcCell<Option<Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>>,
-    pub converters: GcCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
+    pub parenthesizer_rules: GcCell<Option<Gc<Box<dyn ParenthesizerRules>>>>,
+    pub converters: GcCell<Option<Box<dyn NodeConverters>>>,
 }
 
 bitflags! {
@@ -202,11 +202,9 @@ bitflags! {
     }
 }
 
-pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + Finalize>:
-    Trace + Finalize
-{
-    fn factory(&self) -> Gc<NodeFactory<TBaseNodeFactory>>;
-    fn base_factory(&self) -> Gc<TBaseNodeFactory>;
+pub trait CoreTransformationContext: Trace + Finalize {
+    fn factory(&self) -> Gc<NodeFactory>;
+    fn base_factory(&self) -> Gc<Box<dyn BaseNodeFactory>>;
 
     fn get_compiler_options(&self) -> Id<CompilerOptions>;
 
@@ -234,7 +232,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + 
     fn add_initialization_statement(&self, node: Id<Node> /*Statement*/);
 }
 
-pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> + HasArena {
+pub trait TransformationContext: CoreTransformationContext + HasArena {
     fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>>;
     fn get_emit_host(&self) -> Id<Box<dyn EmitHost>>;
     fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory>;

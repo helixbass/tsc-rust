@@ -108,18 +108,18 @@ pub fn get_parse_base_node_factory() -> Gc<ParseBaseNodeFactory> {
 }
 
 thread_local! {
-    pub static parse_node_factory: Gc<NodeFactory<ParseBaseNodeFactory>> = create_node_factory::<ParseBaseNodeFactory>(
+    pub static parse_node_factory: Gc<NodeFactory> = create_node_factory(
         NodeFactoryFlags::NoParenthesizerRules,
         get_parse_base_node_factory(),
     );
 }
 
-pub fn get_parse_node_factory() -> Gc<NodeFactory<ParseBaseNodeFactory>> {
+pub fn get_parse_node_factory() -> Gc<NodeFactory> {
     parse_node_factory.with(|parse_node_factory_| parse_node_factory_.clone())
 }
 
 pub fn with_parse_base_node_factory_and_factory<TReturn>(
-    callback: impl FnOnce(&ParseBaseNodeFactory, &Gc<NodeFactory<ParseBaseNodeFactory>>) -> TReturn,
+    callback: impl FnOnce(&ParseBaseNodeFactory, &Gc<NodeFactory>) -> TReturn,
 ) -> TReturn {
     parse_base_node_factory.with(|parse_base_node_factory_| {
         parse_node_factory

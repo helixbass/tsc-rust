@@ -19,7 +19,7 @@ use crate::{
 // needing to be traced
 #[derive(Trace, Finalize)]
 pub struct EmitHelperFactory {
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory>,
     context: Id<TransformNodesTransformationResult>,
     immutable_true: GcCell<Option<Id<Node>>>,
     immutable_false: GcCell<Option<Id<Node>>>,

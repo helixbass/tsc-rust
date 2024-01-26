@@ -23,7 +23,7 @@ use crate::{
     InArena,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
+impl NodeFactory {
     #[generate_node_factory_method_wrapper]
     pub fn create_omitted_expression_raw(&self) -> OmittedExpression {
         let node = self.create_base_expression(SyntaxKind::OmittedExpression);

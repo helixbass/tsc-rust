@@ -191,7 +191,7 @@ pub(super) struct TransformDeclarations {
     #[unsafe_ignore_trace]
     pub(super) suppress_new_diagnostic_contexts: Cell<Option<bool>>,
     pub(super) exported_modules_from_declaration_emit: GcCell<Option<Vec<Id<Symbol>>>>,
-    pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    pub(super) factory: Gc<NodeFactory>,
     pub(super) host: Id<Box<dyn EmitHost>>,
     pub(super) symbol_tracker: GcCell<Option<Id<Box<dyn SymbolTracker>>>>,
     pub(super) error_name_node: GcCell<Option<Id<Node /*DeclarationName*/>>>,

@@ -33,7 +33,7 @@ pub(super) struct TransformSystemModule {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
-    pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    pub(super) factory: Gc<NodeFactory>,
     pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) host: Id<Box<dyn EmitHost>>,
