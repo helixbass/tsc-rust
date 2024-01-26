@@ -1449,13 +1449,13 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
             if self
                 .transform_class_fields()
                 .resolver
-                .get_node_check_flags(node)
+                .ref_(self).get_node_check_flags(node)
                 .intersects(NodeCheckFlags::ConstructorReferenceInClass)
             {
                 let declaration = self
                     .transform_class_fields()
                     .resolver
-                    .get_referenced_value_declaration(node)?;
+                    .ref_(self).get_referenced_value_declaration(node)?;
                 if let Some(declaration) = declaration {
                     let class_alias = self
                         .transform_class_fields()

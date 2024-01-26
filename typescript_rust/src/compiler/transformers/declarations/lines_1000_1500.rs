@@ -129,7 +129,7 @@ impl TransformDeclarations {
                     let var_decl = self.factory.ref_(self).create_variable_declaration(
                         Some(new_id.clone()),
                         None,
-                        self.resolver.create_type_of_expression(
+                        self.resolver.ref_(self).create_type_of_expression(
                             input_as_export_assignment.expression,
                             input,
                             declaration_emit_node_builder_flags(),
@@ -214,7 +214,7 @@ impl TransformDeclarations {
         }
 
         if is_function_like(Some(&input.ref_(self)))
-            && self.resolver.is_implementation_of_overload(input)? == Some(true)
+            && self.resolver.ref_(self).is_implementation_of_overload(input)? == Some(true)
         {
             return Ok(None);
         }
@@ -350,13 +350,13 @@ impl TransformDeclarations {
                     ),
                 );
                 if let Some(clean) = clean.as_ref().try_filter(|_| -> io::Result<_> {
-                    Ok(self.resolver.is_expando_function_declaration(input)?
+                    Ok(self.resolver.ref_(self).is_expando_function_declaration(input)?
                         && self.should_emit_function_properties(input))
                 })? {
                     let clean = clean.as_single_node();
                     let clean_ref = clean.ref_(self);
                     let clean_as_function_declaration = clean_ref.as_function_declaration();
-                    let props = self.resolver.get_properties_of_container_function(input)?;
+                    let props = self.resolver.ref_(self).get_properties_of_container_function(input)?;
                     let fakespace = get_parse_node_factory(self).create_module_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
@@ -389,7 +389,7 @@ impl TransformDeclarations {
                                     self,
                                 ),
                             );
-                            let type_ = self.resolver.create_type_of_declaration(
+                            let type_ = self.resolver.ref_(self).create_type_of_declaration(
                                 p_value_declaration,
                                 fakespace,
                                 declaration_emit_node_builder_flags(),
@@ -759,7 +759,7 @@ impl TransformDeclarations {
                     let var_decl = self.factory.ref_(self).create_variable_declaration(
                         Some(new_id.clone()),
                         None,
-                        self.resolver.create_type_of_expression(
+                        self.resolver.ref_(self).create_type_of_expression(
                             extends_clause
                                 .ref_(self).as_expression_with_type_arguments()
                                 .expression,
@@ -944,7 +944,7 @@ impl TransformDeclarations {
                                         if self.should_strip_internal(m) {
                                             return Ok(None);
                                         }
-                                        let const_value = self.resolver.get_constant_value(m)?;
+                                        let const_value = self.resolver.ref_(self).get_constant_value(m)?;
                                         Ok(Some(self.preserve_js_doc(
                                             self.factory.ref_(self).update_enum_member(
                                                 m,

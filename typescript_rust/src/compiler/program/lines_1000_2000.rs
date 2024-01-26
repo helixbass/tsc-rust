@@ -1174,7 +1174,7 @@ impl Program {
         // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeEmit");
         let emit_result = emit_files(
-            not_implemented_resolver(),
+            not_implemented_resolver(self),
             self.get_emit_host(write_file_callback),
             None,
             no_transformers(),

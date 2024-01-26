@@ -472,7 +472,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<Option<Id<Node>>> {
-        let accessors = self.resolver.get_all_accessor_declarations(node)?;
+        let accessors = self.resolver.ref_(self).get_all_accessor_declarations(node)?;
         Ok(accessors
             .set_accessor
             .and_then(|accessors_set_accessor| {

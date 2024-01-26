@@ -831,13 +831,13 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             if self
                 .transform_type_script()
                 .resolver
-                .get_node_check_flags(node)
+                .ref_(self).get_node_check_flags(node)
                 .intersects(NodeCheckFlags::ConstructorReferenceInClass)
             {
                 let declaration = self
                     .transform_type_script()
                     .resolver
-                    .get_referenced_value_declaration(node)?;
+                    .ref_(self).get_referenced_value_declaration(node)?;
                 if let Some(declaration) = declaration {
                     let transform_type_script_ref = self.transform_type_script();
                     let class_aliases = transform_type_script_ref.class_aliases();
@@ -871,7 +871,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             let container = self
                 .transform_type_script()
                 .resolver
-                .get_referenced_export_container(node, Some(false))?;
+                .ref_(self).get_referenced_export_container(node, Some(false))?;
             if let Some(container) =
                 container.filter(|container| container.ref_(self).kind() != SyntaxKind::SourceFile)
             {
@@ -983,7 +983,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         }
 
         (is_property_access_expression(&node.ref_(self)) || is_element_access_expression(&node.ref_(self)))
-            .try_then_and(|| self.transform_type_script().resolver.get_constant_value(node))
+            .try_then_and(|| self.transform_type_script().resolver.ref_(self).get_constant_value(node))
     }
 }
 

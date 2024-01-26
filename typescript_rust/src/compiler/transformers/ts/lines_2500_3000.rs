@@ -488,7 +488,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         self.resolver
-            .is_value_alias_declaration(node)?
+            .ref_(self).is_value_alias_declaration(node)?
             .try_then_and(|| -> io::Result<_> {
                 Ok(try_maybe_visit_each_child(
                     Some(node),
@@ -602,7 +602,7 @@ impl TransformTypeScript {
         let node_ref = node.ref_(self);
         let node_as_export_specifier = node_ref.as_export_specifier();
         Ok((!node_as_export_specifier.is_type_only
-            && self.resolver.is_value_alias_declaration(node)?)
+            && self.resolver.ref_(self).is_value_alias_declaration(node)?)
         .then(|| node.into()))
     }
 
@@ -614,7 +614,7 @@ impl TransformTypeScript {
             || !is_external_module(&self.current_source_file().ref_(self))
                 && self
                     .resolver
-                    .is_top_level_value_import_equals_with_entity_name(node)?)
+                    .ref_(self).is_top_level_value_import_equals_with_entity_name(node)?)
     }
 
     pub(super) fn visit_import_equals_declaration(

@@ -70,7 +70,7 @@ impl TransformClassFields {
                 let generated_name = self.factory.ref_(self).get_generated_name_for_node(Some(name), None);
                 if self
                     .resolver
-                    .get_node_check_flags(name)
+                    .ref_(self).get_node_check_flags(name)
                     .intersects(NodeCheckFlags::BlockScopedBindingInLoop)
                 {
                     self.context.ref_(self).add_block_scoped_variable(generated_name);
@@ -366,7 +366,7 @@ impl TransformClassFields {
 
         if self
             .resolver
-            .get_node_check_flags(node)
+            .ref_(self).get_node_check_flags(node)
             .intersects(NodeCheckFlags::BlockScopedBindingInLoop)
         {
             self.context.ref_(self).add_block_scoped_variable(identifier);

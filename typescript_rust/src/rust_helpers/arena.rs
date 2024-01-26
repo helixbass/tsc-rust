@@ -8,7 +8,7 @@ use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
-    Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory,
+    Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver,
 };
 
 #[derive(Default)]
@@ -39,6 +39,7 @@ pub struct AllArenas {
     pub diagnostic_reporters: RefCell<Arena<Box<dyn DiagnosticReporter>>>,
     pub node_factories: RefCell<Arena<NodeFactory>>,
     pub base_node_factories: RefCell<Arena<Box<dyn BaseNodeFactory>>>,
+    pub emit_resolvers: RefCell<Arena<Box<dyn EmitResolver>>>,
 }
 
 pub trait HasArena {
@@ -226,6 +227,14 @@ pub trait HasArena {
 
     fn alloc_base_node_factory(&self, base_node_factory: Box<dyn BaseNodeFactory>) -> Id<Box<dyn BaseNodeFactory>> {
         self.arena().alloc_base_node_factory(base_node_factory)
+    }
+
+    fn emit_resolver(&self, emit_resolver: Id<Box<dyn EmitResolver>>) -> Ref<Box<dyn EmitResolver>> {
+        self.arena().emit_resolver(emit_resolver)
+    }
+
+    fn alloc_emit_resolver(&self, emit_resolver: Box<dyn EmitResolver>) -> Id<Box<dyn EmitResolver>> {
+        self.arena().alloc_emit_resolver(emit_resolver)
     }
 }
 
@@ -472,6 +481,16 @@ impl HasArena for AllArenas {
         let id = self.base_node_factories.borrow_mut().alloc(base_node_factory);
         id
     }
+
+    #[track_caller]
+    fn emit_resolver(&self, emit_resolver: Id<Box<dyn EmitResolver>>) -> Ref<Box<dyn EmitResolver>> {
+        Ref::map(self.emit_resolvers.borrow(), |emit_resolvers| &emit_resolvers[emit_resolver])
+    }
+
+    fn alloc_emit_resolver(&self, emit_resolver: Box<dyn EmitResolver>) -> Id<Box<dyn EmitResolver>> {
+        let id = self.emit_resolvers.borrow_mut().alloc(emit_resolver);
+        id
+    }
 }
 
 pub trait InArena {
@@ -662,6 +681,14 @@ impl InArena for Id<Box<dyn BaseNodeFactory>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn BaseNodeFactory>> {
         has_arena.base_node_factory(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn EmitResolver>> {
+    type Item = Box<dyn EmitResolver>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn EmitResolver>> {
+        has_arena.emit_resolver(*self)
     }
 }
 

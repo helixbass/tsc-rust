@@ -116,7 +116,7 @@ impl TransformSystemModule {
             node,
             self.current_source_file(),
             &**self.host.ref_(self),
-            &**self.resolver,
+            &**self.resolver.ref_(self),
             &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
@@ -211,7 +211,7 @@ impl TransformSystemModule {
                 node.ref_(self).as_property_assignment().maybe_initializer().unwrap(),
             )?
         } else if is_identifier(&node.ref_(self)) {
-            let container = self.resolver.get_referenced_export_container(node, None)?;
+            let container = self.resolver.ref_(self).get_referenced_export_container(node, None)?;
             container.matches(|container| container.ref_(self).kind() == SyntaxKind::SourceFile)
         } else {
             false
@@ -311,13 +311,13 @@ impl TransformSystemModule {
         if !is_generated_identifier(&name.ref_(self)) {
             let value_declaration = self
                 .resolver
-                .get_referenced_import_declaration(name)?
-                .try_or_else(|| self.resolver.get_referenced_value_declaration(name))?;
+                .ref_(self).get_referenced_import_declaration(name)?
+                .try_or_else(|| self.resolver.ref_(self).get_referenced_value_declaration(name))?;
 
             if let Some(value_declaration) = value_declaration {
                 let export_container = self
                     .resolver
-                    .get_referenced_export_container(name, Some(false))?;
+                    .ref_(self).get_referenced_export_container(name, Some(false))?;
                 if export_container
                     .matches(|export_container| export_container.ref_(self).kind() == SyntaxKind::SourceFile)
                 {

@@ -1144,7 +1144,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                 let declaration = self
                     .transform_generators()
                     .resolver
-                    .get_referenced_value_declaration(original)?;
+                    .ref_(self).get_referenced_value_declaration(original)?;
                 if let Some(declaration) = declaration {
                     let name = self
                         .transform_generators()

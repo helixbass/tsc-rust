@@ -566,7 +566,7 @@ impl TransformDeclarations {
                 source_file,
             ),
         )));
-        let result = self.resolver.get_declaration_statements_for_source_file(
+        let result = self.resolver.ref_(self).get_declaration_statements_for_source_file(
             source_file,
             declaration_emit_node_builder_flags(),
             self.symbol_tracker(),
@@ -1181,7 +1181,7 @@ impl TransformDeclarations {
             Some(mask_modifiers(p, modifier_mask, None, self)),
             p_as_parameter_declaration.dot_dot_dot_token,
             Some(self.filter_binding_pattern_initializers(p_as_parameter_declaration.name())?),
-            if self.resolver.is_optional_parameter(p)? {
+            if self.resolver.ref_(self).is_optional_parameter(p)? {
                 Some(
                     p_as_parameter_declaration
                         .question_token
@@ -1206,7 +1206,7 @@ impl TransformDeclarations {
 
     pub(super) fn should_print_with_initializer(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(can_have_literal_initializer(node, self)
-            && self.resolver.is_literal_const_declaration(
+            && self.resolver.ref_(self).is_literal_const_declaration(
                 get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
             )?)
     }
@@ -1216,7 +1216,7 @@ impl TransformDeclarations {
         node: Id<Node>, /*CanHaveLiteralInitializer*/
     ) -> io::Result<Option<Id<Node>>> {
         if self.should_print_with_initializer(node)? {
-            return Ok(Some(self.resolver.create_literal_const_value(
+            return Ok(Some(self.resolver.ref_(self).create_literal_const_value(
                 get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
                 self.symbol_tracker(),
             )?));
@@ -1332,7 +1332,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .handle_symbol_accessibility_error(&match self
                 .transform_declarations()
                 .resolver
-                .is_symbol_accessible(
+                .ref_(self).is_symbol_accessible(
                     symbol,
                     // TODO: it sort of looks like maybe the signature for .track_symbol() should take
                     // an Option<Id<Node>> instead?
@@ -1348,7 +1348,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                 match self
                     .transform_declarations()
                     .resolver
-                    .get_type_reference_directives_for_symbol(symbol, Some(meaning))
+                    .ref_(self).get_type_reference_directives_for_symbol(symbol, Some(meaning))
                 {
                     Err(err) => return Some(Err(err)),
                     Ok(value) => value,
@@ -1523,7 +1523,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         let directives = self
             .transform_declarations()
             .resolver
-            .get_type_reference_directives_for_symbol(symbol, Some(SymbolFlags::All))?;
+            .ref_(self).get_type_reference_directives_for_symbol(symbol, Some(SymbolFlags::All))?;
         if let Some(directives) = directives.non_empty() {
             return Ok(self
                 .transform_declarations()

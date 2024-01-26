@@ -71,7 +71,7 @@ impl TransformTypeScript {
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         let node_ref = node.ref_(self);
         let node_as_type_reference_node = node_ref.as_type_reference_node();
-        let kind = self.resolver.get_type_reference_serialization_kind(
+        let kind = self.resolver.ref_(self).get_type_reference_serialization_kind(
             node_as_type_reference_node.type_name,
             self.maybe_current_name_scope()
                 .or_else(|| self.maybe_current_lexical_scope()),

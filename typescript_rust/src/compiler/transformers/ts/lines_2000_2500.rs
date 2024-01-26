@@ -841,7 +841,7 @@ impl TransformTypeScript {
         &self,
         member: Id<Node>, /*EnumMember*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let value = self.resolver.get_constant_value(member)?;
+        let value = self.resolver.ref_(self).get_constant_value(member)?;
         Ok(if let Some(value) = value {
             match value {
                 StringOrNumber::String(value) => {

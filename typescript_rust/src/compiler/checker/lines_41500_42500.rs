@@ -677,7 +677,7 @@ impl TypeChecker {
     }
 
     pub(super) fn create_resolver(&self) -> Id<Box<dyn EmitResolver>> {
-        Gc::new(Box::new(EmitResolverCreateResolver::new(self.rc_wrapper(), self)))
+        self.alloc_emit_resolver(Box::new(EmitResolverCreateResolver::new(self.rc_wrapper(), self)))
     }
 
     pub(super) fn get_external_module_file_from_declaration(

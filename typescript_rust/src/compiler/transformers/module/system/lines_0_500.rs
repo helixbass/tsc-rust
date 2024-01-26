@@ -268,7 +268,7 @@ impl TransformSystemModule {
         let module_info = Gc::new(collect_external_module_info(
             &*self.context.ref_(self),
             node,
-            &**self.resolver,
+            &**self.resolver.ref_(self),
             &self.compiler_options.ref_(self),
             self,
         )?);
@@ -398,7 +398,7 @@ impl TransformSystemModule {
                 external_import,
                 self.current_source_file(),
                 &**self.host.ref_(self),
-                &**self.resolver,
+                &**self.resolver.ref_(self),
                 &self.compiler_options.ref_(self),
             )?;
             if let Some(external_module_name) = external_module_name {
@@ -999,7 +999,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
             let import_declaration = self
                 .transform_system_module()
                 .resolver
-                .get_referenced_import_declaration(name)?;
+                .ref_(self).get_referenced_import_declaration(name)?;
             if let Some(import_declaration) = import_declaration {
                 if is_import_clause(&import_declaration.ref_(self)) {
                     return Ok(self
@@ -1101,7 +1101,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
             let import_declaration = self
                 .transform_system_module()
                 .resolver
-                .get_referenced_import_declaration(node)?;
+                .ref_(self).get_referenced_import_declaration(node)?;
             if let Some(import_declaration) = import_declaration {
                 if is_import_clause(&import_declaration.ref_(self)) {
                     return Ok(self

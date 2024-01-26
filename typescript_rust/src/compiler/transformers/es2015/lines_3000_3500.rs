@@ -606,7 +606,7 @@ impl TransformES2015 {
                 None,
                 None,
             ));
-            let check_flags = self.resolver.get_node_check_flags(decl);
+            let check_flags = self.resolver.ref_(self).get_node_check_flags(decl);
             if check_flags.intersects(NodeCheckFlags::NeedsLoopOutParameter)
                 || has_captured_bindings_in_for_initializer
             {
@@ -623,7 +623,7 @@ impl TransformES2015 {
                         .initializer
                         .try_matches(|container_initializer| {
                             self.resolver
-                                .is_binding_captured_by_node(container_initializer, decl)
+                                .ref_(self).is_binding_captured_by_node(container_initializer, decl)
                         })?
                 {
                     flags |= LoopOutParameterFlags::Initializer;

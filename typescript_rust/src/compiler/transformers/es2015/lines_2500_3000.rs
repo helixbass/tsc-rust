@@ -322,7 +322,7 @@ impl TransformES2015 {
 
     pub(super) fn should_convert_part_of_iteration_statement(&self, node: Id<Node>) -> bool {
         self.resolver
-            .get_node_check_flags(node)
+            .ref_(self).get_node_check_flags(node)
             .intersects(NodeCheckFlags::ContainsCapturedBlockScopedBinding)
     }
 
@@ -378,7 +378,7 @@ impl TransformES2015 {
         node: Id<Node>, /*IterationStatement*/
     ) -> bool {
         self.resolver
-            .get_node_check_flags(node)
+            .ref_(self).get_node_check_flags(node)
             .intersects(NodeCheckFlags::LoopWithCapturedBlockScopedBinding)
     }
 

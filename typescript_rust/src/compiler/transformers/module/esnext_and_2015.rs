@@ -298,7 +298,7 @@ impl TransformEcmascriptModule {
             import_node,
             Debug_.check_defined(self.maybe_current_source_file(), None),
             &**self.host.ref_(self),
-            &**self.resolver,
+            &**self.resolver.ref_(self),
             &self.compiler_options.ref_(self),
         )?;
         let mut args: Vec<Id<Node /*Expression*/>> = _d();

@@ -142,7 +142,7 @@ impl TransformTypeScript {
     ) -> Option<Id<Node>> {
         if self
             .resolver
-            .get_node_check_flags(node)
+            .ref_(self).get_node_check_flags(node)
             .intersects(NodeCheckFlags::ClassWithConstructorReference)
         {
             self.enable_substitution_for_class_aliases();
@@ -230,9 +230,9 @@ impl TransformTypeScript {
     pub(super) fn should_emit_alias_declaration(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(
             if self.compiler_options.ref_(self).preserve_value_imports == Some(true) {
-                self.resolver.is_value_alias_declaration(node)?
+                self.resolver.ref_(self).is_value_alias_declaration(node)?
             } else {
-                self.resolver.is_referenced_alias_declaration(node, None)?
+                self.resolver.ref_(self).is_referenced_alias_declaration(node, None)?
             },
         )
     }

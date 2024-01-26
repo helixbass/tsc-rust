@@ -297,8 +297,8 @@ impl TransformModule {
         if !is_generated_identifier(&name.ref_(self)) {
             let value_declaration = self
                 .resolver
-                .get_referenced_import_declaration(name)?
-                .try_or_else(|| self.resolver.get_referenced_value_declaration(name))?;
+                .ref_(self).get_referenced_import_declaration(name)?
+                .try_or_else(|| self.resolver.ref_(self).get_referenced_value_declaration(name))?;
             if let Some(value_declaration) = value_declaration {
                 return Ok(self
                     .maybe_current_module_info()

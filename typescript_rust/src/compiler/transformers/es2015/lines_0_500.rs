@@ -711,7 +711,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
                     && self
                         .transform_es2015()
                         .resolver
-                        .is_declaration_with_colliding_name(node.ref_(self).parent())?
+                        .ref_(self).is_declaration_with_colliding_name(node.ref_(self).parent())?
             }
             _ => false,
         })
@@ -748,7 +748,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
             let declaration = self
                 .transform_es2015()
                 .resolver
-                .get_referenced_declaration_with_colliding_name(node)?;
+                .ref_(self).get_referenced_declaration_with_colliding_name(node)?;
             if let Some(declaration) = declaration.filter(|&declaration| {
                 !(is_class_like(&declaration.ref_(self)) && self.is_part_of_class_body(declaration, node))
             }) {

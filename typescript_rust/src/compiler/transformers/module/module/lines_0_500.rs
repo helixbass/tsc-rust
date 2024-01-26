@@ -187,7 +187,7 @@ impl TransformModule {
         self.set_current_module_info(Some(Gc::new(collect_external_module_info(
             &*self.context.ref_(self),
             node,
-            &**self.resolver,
+            &**self.resolver.ref_(self),
             &self.compiler_options.ref_(self),
             self,
         )?)));
@@ -684,7 +684,7 @@ impl TransformModule {
                 import_node,
                 self.current_source_file(),
                 &**self.host.ref_(self),
-                &**self.resolver,
+                &**self.resolver.ref_(self),
                 &self.compiler_options.ref_(self),
             )?;
 
@@ -732,7 +732,7 @@ impl TransformModule {
                 node,
                 self.current_source_file(),
                 &**self.host.ref_(self),
-                &**self.resolver,
+                &**self.resolver.ref_(self),
                 &self.compiler_options.ref_(self),
             )?
             .is_none()
@@ -1122,7 +1122,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
             let export_container = self
                 .transform_module()
                 .resolver
-                .get_referenced_export_container(node, Some(is_export_name(&node.ref_(self))))?;
+                .ref_(self).get_referenced_export_container(node, Some(is_export_name(&node.ref_(self))))?;
             if export_container
                 .matches(|export_container| export_container.ref_(self).kind() == SyntaxKind::SourceFile)
             {
@@ -1138,7 +1138,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
             let import_declaration = self
                 .transform_module()
                 .resolver
-                .get_referenced_import_declaration(node)?;
+                .ref_(self).get_referenced_import_declaration(node)?;
             if let Some(import_declaration) = import_declaration {
                 if is_import_clause(&import_declaration.ref_(self)) {
                     return Ok(self

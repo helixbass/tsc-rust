@@ -378,7 +378,7 @@ impl TransformModule {
             node,
             self.current_source_file(),
             &**self.host.ref_(self),
-            &**self.resolver,
+            &**self.resolver.ref_(self),
             &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
@@ -777,7 +777,7 @@ impl TransformModule {
             import_node,
             self.current_source_file(),
             &**self.host.ref_(self),
-            &**self.resolver,
+            &**self.resolver.ref_(self),
             &self.compiler_options.ref_(self),
         )?;
         let mut args: Vec<Id<Node /*Expression*/>> = _d();

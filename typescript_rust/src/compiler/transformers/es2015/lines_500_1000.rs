@@ -228,7 +228,7 @@ impl TransformES2015 {
         if self.maybe_converted_loop_state().is_none() {
             return Ok(node);
         }
-        if self.resolver.is_arguments_local_binding(node)? {
+        if self.resolver.ref_(self).is_arguments_local_binding(node)? {
             return Ok(self
                 .converted_loop_state()
                 .borrow_mut()

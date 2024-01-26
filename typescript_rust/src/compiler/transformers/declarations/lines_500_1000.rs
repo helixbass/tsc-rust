@@ -44,10 +44,10 @@ impl TransformDeclarations {
             return Ok(None);
         }
         let should_use_resolver_type = node.ref_(self).kind() == SyntaxKind::Parameter
-            && (self.resolver.is_required_initialized_parameter(node)?
+            && (self.resolver.ref_(self).is_required_initialized_parameter(node)?
                 || self
                     .resolver
-                    .is_optional_uninitialized_parameter_property(node)?);
+                    .ref_(self).is_optional_uninitialized_parameter_property(node)?);
         if let Some(type_) = type_ {
             if !should_use_resolver_type {
                 return try_maybe_visit_node(
@@ -93,7 +93,7 @@ impl TransformDeclarations {
         ) {
             return Ok(Some(self.ensure_type_cleanup(
                 old_diag,
-                self.resolver.create_type_of_declaration(
+                self.resolver.ref_(self).create_type_of_declaration(
                     node,
                     self.enclosing_declaration(),
                     declaration_emit_node_builder_flags(),
@@ -109,7 +109,7 @@ impl TransformDeclarations {
             if node.ref_(self).as_has_initializer().maybe_initializer().is_none() {
                 return Ok(Some(self.ensure_type_cleanup(
                     old_diag,
-                    self.resolver.create_type_of_declaration(
+                    self.resolver.ref_(self).create_type_of_declaration(
                         node,
                         self.enclosing_declaration(),
                         declaration_emit_node_builder_flags(),
@@ -122,7 +122,7 @@ impl TransformDeclarations {
                 self.ensure_type_cleanup(
                     old_diag,
                     self.resolver
-                        .create_type_of_declaration(
+                        .ref_(self).create_type_of_declaration(
                             node,
                             self.enclosing_declaration(),
                             declaration_emit_node_builder_flags(),
@@ -130,7 +130,7 @@ impl TransformDeclarations {
                             None,
                         )?
                         .try_or_else(|| {
-                            self.resolver.create_type_of_expression(
+                            self.resolver.ref_(self).create_type_of_expression(
                                 node.ref_(self).as_has_initializer().maybe_initializer().unwrap(),
                                 self.enclosing_declaration(),
                                 declaration_emit_node_builder_flags(),
@@ -142,7 +142,7 @@ impl TransformDeclarations {
         }
         Ok(Some(self.ensure_type_cleanup(
             old_diag,
-            self.resolver.create_return_type_of_signature_declaration(
+            self.resolver.ref_(self).create_return_type_of_signature_declaration(
                 node,
                 self.enclosing_declaration(),
                 declaration_emit_node_builder_flags(),
@@ -179,7 +179,7 @@ impl TransformDeclarations {
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::TypeAliasDeclaration
-            | SyntaxKind::EnumDeclaration => !self.resolver.is_declaration_visible(node),
+            | SyntaxKind::EnumDeclaration => !self.resolver.ref_(self).is_declaration_visible(node),
             SyntaxKind::VariableDeclaration => !self.get_binding_name_visible(node),
             SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::ImportDeclaration
@@ -240,7 +240,7 @@ impl TransformDeclarations {
                 Some(|&element: &Id<Node>| self.get_binding_name_visible(element)),
             )
         } else {
-            self.resolver.is_declaration_visible(elem)
+            self.resolver.ref_(self).is_declaration_visible(elem)
         }
     }
 
@@ -282,7 +282,7 @@ impl TransformDeclarations {
                 if let Some(value_parameter) = value_parameter {
                     let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
                         input,
-                        &self.resolver.get_all_accessor_declarations(input)?,
+                        &self.resolver.ref_(self).get_all_accessor_declarations(input)?,
                     );
                     new_value_parameter = Some(self.ensure_parameter(
                         value_parameter,
@@ -345,13 +345,13 @@ impl TransformDeclarations {
     ) -> io::Result<()> {
         let visibility_result = self
             .resolver
-            .is_entity_name_visible(entity_name, enclosing_declaration)?;
+            .ref_(self).is_entity_name_visible(entity_name, enclosing_declaration)?;
         self.handle_symbol_accessibility_error(
             &visibility_result.into_symbol_accessibility_result(),
         );
         self.record_type_reference_directives_if_necessary(
             self.resolver
-                .get_type_reference_directives_for_entity_name(entity_name)?
+                .ref_(self).get_type_reference_directives_for_entity_name(entity_name)?
                 .as_deref(),
         );
 
@@ -386,7 +386,7 @@ impl TransformDeclarations {
             if self.is_bundled_emit() {
                 let new_name = get_external_module_name_from_declaration(
                     &**self.context.ref_(self).get_emit_host().ref_(self),
-                    &**self.resolver,
+                    &**self.resolver.ref_(self),
                     parent,
                     self,
                 )?;
@@ -398,7 +398,7 @@ impl TransformDeclarations {
             } else {
                 let symbol = self
                     .resolver
-                    .get_symbol_of_external_module_specifier(input)?;
+                    .ref_(self).get_symbol_of_external_module_specifier(input)?;
                 if let Some(symbol) = symbol {
                     self.maybe_exported_modules_from_declaration_emit_mut()
                         .get_or_insert_default_()
@@ -413,7 +413,7 @@ impl TransformDeclarations {
         &self,
         decl: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<Option<Id<Node>>> {
-        if !self.resolver.is_declaration_visible(decl) {
+        if !self.resolver.ref_(self).is_declaration_visible(decl) {
             return Ok(None);
         }
         let decl_ref = decl.ref_(self);
@@ -479,7 +479,7 @@ impl TransformDeclarations {
         let decl_import_clause_as_import_clause = decl_import_clause_ref.as_import_clause();
         let visible_default_binding = /*decl.importClause &&*/
             decl_import_clause_as_import_clause.name.clone().filter(|_| {
-                self.resolver.is_declaration_visible(decl_import_clause)
+                self.resolver.ref_(self).is_declaration_visible(decl_import_clause)
             });
         if decl_import_clause_as_import_clause.named_bindings.is_none() {
             return visible_default_binding.try_map(|visible_default_binding| -> io::Result<_> {
@@ -508,7 +508,7 @@ impl TransformDeclarations {
         if decl_import_clause_named_bindings.ref_(self).kind() == SyntaxKind::NamespaceImport {
             let named_bindings = if self
                 .resolver
-                .is_declaration_visible(decl_import_clause_named_bindings)
+                .ref_(self).is_declaration_visible(decl_import_clause_named_bindings)
             {
                 Some(decl_import_clause_named_bindings)
             } else {
@@ -547,7 +547,7 @@ impl TransformDeclarations {
                     .elements,
             ),
             |&b: &Id<Node>, _| {
-                if self.resolver.is_declaration_visible(b) {
+                if self.resolver.ref_(self).is_declaration_visible(b) {
                     Some(b)
                 } else {
                     None
@@ -586,7 +586,7 @@ impl TransformDeclarations {
                 ),
             ));
         }
-        if self.resolver.is_import_required_by_augmentation(decl)? {
+        if self.resolver.ref_(self).is_import_required_by_augmentation(decl)? {
             return Ok(Some(
                 self.factory.ref_(self).update_import_declaration(
                     decl,
@@ -691,7 +691,7 @@ impl TransformDeclarations {
                 return Ok(None);
             }
             if has_dynamic_name(input, self)
-                && !self.resolver.is_late_bound(
+                && !self.resolver.ref_(self).is_late_bound(
                     get_parse_tree_node(Some(input), Option::<fn(Id<Node>) -> bool>::None, self)
                         .unwrap(),
                 )?
@@ -701,7 +701,7 @@ impl TransformDeclarations {
         }
 
         if is_function_like(Some(&input.ref_(self)))
-            && self.resolver.is_implementation_of_overload(input)? == Some(true)
+            && self.resolver.ref_(self).is_implementation_of_overload(input)? == Some(true)
         {
             return Ok(None);
         }
@@ -964,7 +964,7 @@ impl TransformDeclarations {
                     }
                     let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
                         input,
-                        &self.resolver.get_all_accessor_declarations(input)?,
+                        &self.resolver.ref_(self).get_all_accessor_declarations(input)?,
                     );
                     self.visit_declaration_subtree_cleanup(
                         input,

@@ -372,7 +372,7 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<bool> {
-        let flags = self.resolver.get_node_check_flags(node);
+        let flags = self.resolver.ref_(self).get_node_check_flags(node);
         let is_captured_in_function = flags.intersects(NodeCheckFlags::CapturedBlockScopedBinding);
         let is_declared_in_loop = flags.intersects(NodeCheckFlags::BlockScopedBindingInLoop);
         let emitted_as_top_level = self
@@ -391,7 +391,7 @@ impl TransformES2015 {
                 .maybe_hierarchy_facts()
                 .unwrap_or_default()
                 .intersects(HierarchyFacts::ForInOrForOfStatement)
-            && (!self.resolver.is_declaration_with_colliding_name(node)?
+            && (!self.resolver.ref_(self).is_declaration_with_colliding_name(node)?
                 || is_declared_in_loop
                     && !is_captured_in_function
                     && !self.maybe_hierarchy_facts().unwrap_or_default().intersects(

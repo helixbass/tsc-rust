@@ -156,7 +156,7 @@ impl TransformClassFields {
 
         let is_class_with_constructor_reference = self
             .resolver
-            .get_node_check_flags(node)
+            .ref_(self).get_node_check_flags(node)
             .intersects(NodeCheckFlags::ClassWithConstructorReference);
         let mut temp: Option<Id<Node /*Identifier*/>> = _d();
 
@@ -294,7 +294,7 @@ impl TransformClassFields {
     }
 
     pub(super) fn create_class_temp_var(&self, node: Id<Node>) -> Id<Node> {
-        let class_check_flags = self.resolver.get_node_check_flags(node);
+        let class_check_flags = self.resolver.ref_(self).get_node_check_flags(node);
         let is_class_with_constructor_reference =
             class_check_flags.intersects(NodeCheckFlags::ClassWithConstructorReference);
         let requires_block_scoped_var =

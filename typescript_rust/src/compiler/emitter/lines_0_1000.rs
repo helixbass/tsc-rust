@@ -41,6 +41,7 @@ use crate::{
     TransformationResult, TransformerFactory, TypeReferenceSerializationKind,
     InArena, OptionInArena, SymbolTracker,
     get_factory_id,
+    per_arena,
 };
 
 lazy_static! {
@@ -953,7 +954,7 @@ impl EmitJsFileOrBundlePrintHandlers {
 
 impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
     fn has_global_name(&self, name: &str) -> Option<bool> {
-        Some(self.resolver.has_global_name(name))
+        Some(self.resolver.ref_(self).has_global_name(name))
     }
 
     fn is_on_emit_node_supported(&self) -> bool {
@@ -1057,7 +1058,7 @@ fn emit_declaration_file_or_bundle(
         files_for_emit
             .iter()
             .try_for_each(|&file_for_emit| -> io::Result<_> {
-                collect_linked_aliases(&**resolver, file_for_emit, arena)?;
+                collect_linked_aliases(&**resolver.ref_(arena), file_for_emit, arena)?;
 
                 Ok(())
             })?;
@@ -1176,7 +1177,7 @@ impl EmitDeclarationFileOrBundlePrintHandlers {
 
 impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
     fn has_global_name(&self, name: &str) -> Option<bool> {
-        Some(self.resolver.has_global_name(name))
+        Some(self.resolver.ref_(self).has_global_name(name))
     }
 
     fn is_on_emit_node_supported(&self) -> bool {
@@ -1491,12 +1492,12 @@ pub(crate) fn get_build_info(_build_info_text: &str) -> Gc<BuildInfo> {
     unimplemented!()
 }
 
-thread_local! {
-    static not_implemented_resolver_: Id<Box<dyn EmitResolver>> = Gc::new(Box::new(NotImplementedResolver));
-}
-
-pub(crate) fn not_implemented_resolver() -> Id<Box<dyn EmitResolver>> {
-    not_implemented_resolver_.with(|not_implemented_resolver| not_implemented_resolver.clone())
+pub(crate) fn not_implemented_resolver(arena: &impl HasArena) -> Id<Box<dyn EmitResolver>> {
+    per_arena!(
+        Box<dyn EmitResolver>,
+        arena,
+        arena.alloc_emit_resolver(Box::new(NotImplementedResolver))
+    )
 }
 
 #[derive(Trace, Finalize)]

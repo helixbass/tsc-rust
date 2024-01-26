@@ -1980,7 +1980,7 @@ impl TransformES2018 {
         ));
 
         let emit_super_helpers = self.language_version >= ScriptTarget::ES2015
-            && self.resolver.get_node_check_flags(node).intersects(
+            && self.resolver.ref_(self).get_node_check_flags(node).intersects(
                 NodeCheckFlags::AsyncMethodWithSuperBinding | NodeCheckFlags::AsyncMethodWithSuper,
             );
 
@@ -1988,7 +1988,7 @@ impl TransformES2018 {
             self.enable_substitution_for_async_methods_with_super();
             let variable_statement = create_super_access_variable_statement(
                 &self.factory.ref_(self),
-                &**self.resolver,
+                &**self.resolver.ref_(self),
                 node,
                 &self.captured_super_properties(),
             );
@@ -2012,13 +2012,13 @@ impl TransformES2018 {
         if emit_super_helpers && self.has_super_element_access() {
             if self
                 .resolver
-                .get_node_check_flags(node)
+                .ref_(self).get_node_check_flags(node)
                 .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
             {
                 add_emit_helper(block, advanced_async_super_helper(self), self);
             } else if self
                 .resolver
-                .get_node_check_flags(node)
+                .ref_(self).get_node_check_flags(node)
                 .intersects(NodeCheckFlags::AsyncMethodWithSuper)
             {
                 add_emit_helper(block, async_super_helper(self), self);
@@ -2226,7 +2226,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
             .intersects(ESNextSubstitutionFlags::AsyncMethodsWithSuper)
             && self.is_super_container(node)
         {
-            let super_container_flags = self.transform_es2018().resolver.get_node_check_flags(node)
+            let super_container_flags = self.transform_es2018().resolver.ref_(self).get_node_check_flags(node)
                 & (NodeCheckFlags::AsyncMethodWithSuper
                     | NodeCheckFlags::AsyncMethodWithSuperBinding);
             if super_container_flags != self.transform_es2018().enclosing_super_container_flags() {

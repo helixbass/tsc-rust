@@ -677,7 +677,7 @@ impl TransformJsx {
                 &self.factory.ref_(self),
                 self.context
                     .ref_(self).get_emit_resolver()
-                    .get_jsx_factory_entity(self.maybe_current_source_file()),
+                    .ref_(self).get_jsx_factory_entity(self.maybe_current_source_file()),
                 self.compiler_options.ref_(self).react_namespace.as_deref(),
                 node,
             )
@@ -743,10 +743,10 @@ impl TransformJsx {
             &self.factory.ref_(self),
             self.context
                 .ref_(self).get_emit_resolver()
-                .get_jsx_factory_entity(self.maybe_current_source_file()),
+                .ref_(self).get_jsx_factory_entity(self.maybe_current_source_file()),
             self.context
                 .ref_(self).get_emit_resolver()
-                .get_jsx_fragment_factory_entity(self.maybe_current_source_file()),
+                .ref_(self).get_jsx_fragment_factory_entity(self.maybe_current_source_file()),
             self.compiler_options.ref_(self).react_namespace.as_deref().unwrap(),
             &map_defined(Some(children), |&child: &Id<Node>, _| {
                 self.transform_jsx_child_to_expression(child)
