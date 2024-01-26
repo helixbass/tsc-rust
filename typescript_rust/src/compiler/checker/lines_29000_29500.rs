@@ -386,7 +386,7 @@ impl TypeChecker {
                 node,
                 Some(
                     if try_maybe_every(
-                        signature.maybe_type_parameters().as_deref(),
+                        signature.ref_(self).maybe_type_parameters().as_deref(),
                         |&p: &Id<Type>, _| -> io::Result<_> {
                             Ok(self.get_default_from_type_parameter_(p)?.is_some())
                         },
@@ -410,9 +410,8 @@ impl TypeChecker {
                 let contextual_signature = self.get_single_call_signature(instantiated_type)?;
                 let inference_source_type = if let Some(ref contextual_signature_type_parameters) =
                     contextual_signature
-                        .as_ref()
                         .and_then(|contextual_signature| {
-                            contextual_signature.maybe_type_parameters().clone()
+                            contextual_signature.ref_(self).maybe_type_parameters().clone()
                         }) {
                     self.get_or_create_type_from_signature(
                         self.get_signature_instantiation_without_filling_in_type_arguments(
@@ -432,7 +431,7 @@ impl TypeChecker {
                     None,
                 )?;
                 let return_context = self.create_inference_context(
-                    &signature.maybe_type_parameters().clone().unwrap(),
+                    &signature.ref_(self).maybe_type_parameters().clone().unwrap(),
                     Some(signature.clone()),
                     context.flags(),
                     None,
@@ -470,9 +469,9 @@ impl TypeChecker {
             }
         }
 
-        let rest_type = self.get_non_array_rest_type(&signature)?;
+        let rest_type = self.get_non_array_rest_type(&signature.ref_(self))?;
         let arg_count = if rest_type.is_some() {
-            cmp::min(self.get_parameter_count(&signature)? - 1, args.len())
+            cmp::min(self.get_parameter_count(&signature.ref_(self))? - 1, args.len())
         } else {
             args.len()
         };
@@ -503,7 +502,7 @@ impl TypeChecker {
             }
         }
 
-        let this_type = self.get_this_type_of_signature(&signature)?;
+        let this_type = self.get_this_type_of_signature(&signature.ref_(self))?;
         if let Some(this_type) = this_type {
             let this_argument_node = self.get_this_argument_of_call(node);
             self.infer_types(
@@ -518,7 +517,7 @@ impl TypeChecker {
         for i in 0..arg_count {
             let arg = args[i];
             if arg.ref_(self).kind() != SyntaxKind::OmittedExpression {
-                let param_type = self.get_type_at_position(&signature, i)?;
+                let param_type = self.get_type_at_position(&signature.ref_(self), i)?;
                 let arg_type = self.check_expression_with_contextual_type(
                     arg,
                     param_type,
@@ -690,13 +689,13 @@ impl TypeChecker {
 
     pub(super) fn check_type_arguments(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         type_argument_nodes: &[Id<Node /*TypeNode*/>],
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
-        let is_javascript = is_in_js_file(signature.declaration.refed(self).as_deref());
-        let type_parameters = signature.maybe_type_parameters().clone().unwrap();
+        let is_javascript = is_in_js_file(signature.ref_(self).declaration.refed(self).as_deref());
+        let type_parameters = signature.ref_(self).maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
                 Some(try_map(type_argument_nodes, |&node: &Id<Node>, _| {
@@ -872,7 +871,7 @@ impl TypeChecker {
         let mut has_first_param_signatures = false;
         let mut max_param_count = 0;
         for sig in &call_signatures {
-            let firstparam = self.get_type_at_position(sig, 0)?;
+            let firstparam = self.get_type_at_position(&sig.ref_(self), 0)?;
             let signatures_of_param =
                 self.get_signatures_of_type(firstparam, SignatureKind::Call)?;
             if length(Some(&*signatures_of_param)) == 0 {
@@ -880,10 +879,10 @@ impl TypeChecker {
             }
             for param_sig in &signatures_of_param {
                 has_first_param_signatures = true;
-                if self.has_effective_rest_parameter(param_sig)? {
+                if self.has_effective_rest_parameter(&param_sig.ref_(self))? {
                     return Ok(true);
                 }
-                let param_count = self.get_parameter_count(param_sig)?;
+                let param_count = self.get_parameter_count(&param_sig.ref_(self))?;
                 if param_count > max_param_count {
                     max_param_count = param_count;
                 }
@@ -894,7 +893,7 @@ impl TypeChecker {
         }
         let mut absolute_min_arg_count = usize::MAX;
         for tag_sig in &tag_call_signatures {
-            let tag_required_arg_count = self.get_min_argument_count(tag_sig, None)?;
+            let tag_required_arg_count = self.get_min_argument_count(&tag_sig.ref_(self), None)?;
             if tag_required_arg_count < absolute_min_arg_count {
                 absolute_min_arg_count = tag_required_arg_count;
             }
@@ -984,7 +983,7 @@ impl TypeChecker {
             }
             return Ok(None);
         }
-        let this_type = self.get_this_type_of_signature(&signature)?;
+        let this_type = self.get_this_type_of_signature(&signature.ref_(self))?;
         if let Some(this_type) = this_type.filter(|&this_type| {
             this_type != self.void_type() && node.ref_(self).kind() != SyntaxKind::NewExpression
         }) {
@@ -1017,16 +1016,16 @@ impl TypeChecker {
         }
         let head_message =
             &Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
-        let rest_type = self.get_non_array_rest_type(&signature)?;
+        let rest_type = self.get_non_array_rest_type(&signature.ref_(self))?;
         let arg_count = if rest_type.is_some() {
-            cmp::min(self.get_parameter_count(&signature)? - 1, args.len())
+            cmp::min(self.get_parameter_count(&signature.ref_(self))? - 1, args.len())
         } else {
             args.len()
         };
         for i in 0..arg_count {
             let arg = args[i];
             if arg.ref_(self).kind() != SyntaxKind::OmittedExpression {
-                let param_type = self.get_type_at_position(&signature, i)?;
+                let param_type = self.get_type_at_position(&signature.ref_(self), i)?;
                 let arg_type =
                     self.check_expression_with_contextual_type(arg, param_type, None, check_mode)?;
                 let check_arg_type = if check_mode.intersects(CheckMode::SkipContextSensitive) {

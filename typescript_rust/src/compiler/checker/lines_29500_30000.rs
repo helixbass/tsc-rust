@@ -456,8 +456,8 @@ impl TypeChecker {
 
         let mut closest_signature: Option<Id<Signature>> = None;
         for sig in signatures {
-            let min_parameter = self.get_min_argument_count(sig, None)?;
-            let max_parameter = self.get_parameter_count(sig)?;
+            let min_parameter = self.get_min_argument_count(&sig.ref_(self), None)?;
+            let max_parameter = self.get_parameter_count(&sig.ref_(self))?;
             if min_parameter < min {
                 min = min_parameter;
                 closest_signature = Some(sig.clone());
@@ -480,7 +480,7 @@ impl TypeChecker {
         }
         let has_rest_parameter = try_some(
             Some(signatures),
-            Some(|signature: &Id<Signature>| self.has_effective_rest_parameter(signature)),
+            Some(|signature: &Id<Signature>| self.has_effective_rest_parameter(&signature.ref_(self))),
         )?;
         let parameter_range = if has_rest_parameter {
             min.to_string()
@@ -529,8 +529,7 @@ impl TypeChecker {
                     Some(vec![parameter_range, args.len().to_string()]),
                 );
                 let parameter = closest_signature
-                    .as_ref()
-                    .and_then(|closest_signature| closest_signature.declaration)
+                    .and_then(|closest_signature| closest_signature.ref_(self).declaration)
                     .and_then(|closest_signature_declaration| {
                         closest_signature_declaration
                             .ref_(self).as_signature_declaration()
@@ -539,7 +538,7 @@ impl TypeChecker {
                                 if closest_signature
                                     .as_ref()
                                     .unwrap()
-                                    .maybe_this_parameter()
+                                    .ref_(self).maybe_this_parameter()
                                     .is_some()
                                 {
                                     args.len() + 1
@@ -614,8 +613,8 @@ impl TypeChecker {
         let arg_count = type_arguments.len();
         if signatures.len() == 1 {
             let sig = &signatures[0];
-            let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
-            let max = length(sig.maybe_type_parameters().as_deref());
+            let min = self.get_min_type_argument_count(sig.ref_(self).maybe_type_parameters().as_deref());
+            let max = length(sig.ref_(self).maybe_type_parameters().as_deref());
             return self.alloc_diagnostic(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(node, self).ref_(self),
@@ -636,8 +635,8 @@ impl TypeChecker {
         let mut below_arg_count = UsizeOrNegativeInfinity::NegativeInfinity;
         let mut above_arg_count = usize::MAX;
         for sig in signatures {
-            let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
-            let max = length(sig.maybe_type_parameters().as_deref());
+            let min = self.get_min_type_argument_count(sig.ref_(self).maybe_type_parameters().as_deref());
+            let max = length(sig.ref_(self).maybe_type_parameters().as_deref());
             if min > arg_count {
                 above_arg_count = cmp::min(above_arg_count, min);
             } else if max < arg_count {
@@ -734,7 +733,7 @@ impl TypeChecker {
         let args = self.get_effective_call_arguments(node)?;
 
         let is_single_non_generic_candidate =
-            candidates.len() == 1 && candidates[0].maybe_type_parameters().is_none();
+            candidates.len() == 1 && candidates[0].ref_(self).maybe_type_parameters().is_none();
         let mut arg_check_mode = if !is_decorator
             && !is_single_non_generic_candidate
             && try_some(
@@ -825,7 +824,7 @@ impl TypeChecker {
                     )?;
                     if let Some(diags) = diags.as_ref() {
                         for d in diags {
-                            if let Some(last_declaration) = last.declaration {
+                            if let Some(last_declaration) = last.ref_(self).declaration {
                                 if candidates_for_argument_error_present.len() > 3 {
                                     add_related_info(
                                         &d.ref_(self),
@@ -849,7 +848,7 @@ impl TypeChecker {
                                 node,
                                 &args,
                                 &mut arg_check_mode,
-                                &last,
+                                &last.ref_(self),
                                 &d.ref_(self),
                             )?;
                             self.diagnostics().add(d.clone());
@@ -965,7 +964,7 @@ impl TypeChecker {
                         node,
                         &args,
                         &mut arg_check_mode,
-                        &candidates_for_argument_error_present[0],
+                        &candidates_for_argument_error_present[0].ref_(self),
                         &diag.ref_(self),
                     )?;
                     self.diagnostics().add(diag);
@@ -979,7 +978,7 @@ impl TypeChecker {
                     &args,
                 )?);
             } else if let Some(candidate_for_type_argument_error) =
-                candidate_for_type_argument_error.as_ref()
+                candidate_for_type_argument_error
             {
                 self.check_type_arguments(
                     candidate_for_type_argument_error,
@@ -1155,7 +1154,7 @@ impl TypeChecker {
         }
 
         for candidate_index in 0..candidates.len() {
-            let candidate = &candidates[candidate_index];
+            let candidate = candidates[candidate_index];
             if !self.has_correct_type_argument_arity(candidate, type_arguments)
                 || !self.has_correct_arity(
                     node,
