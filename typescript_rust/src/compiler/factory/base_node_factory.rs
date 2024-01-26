@@ -1,8 +1,10 @@
 use std::cell::RefCell;
 
+use gc::{Trace, Finalize};
+
 use crate::{object_allocator, BaseNode, NodeInterface, SyntaxKind};
 
-pub trait BaseNodeFactory {
+pub trait BaseNodeFactory: Trace + Finalize {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode;

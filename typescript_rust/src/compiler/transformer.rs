@@ -26,6 +26,7 @@ use crate::{
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
     HasArena, AllArenas, InArena, static_arena,
+    BaseNodeFactory,
 };
 
 fn get_module_transformer(module_kind: ModuleKind, arena: &impl HasArena) -> TransformerFactory {
@@ -749,7 +750,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
         self.factory.clone()
     }
 
-    fn base_factory(&self) -> Gc<BaseNodeFactorySynthetic> {
+    fn base_factory(&self) -> Gc<Box<dyn BaseNodeFactory>> {
         self.base_factory.clone()
     }
 
@@ -1372,7 +1373,7 @@ impl CoreTransformationContext for TransformationContextNull {
         get_factory()
     }
 
-    fn base_factory(&self) -> Gc<BaseNodeFactorySynthetic> {
+    fn base_factory(&self) -> Gc<Box<dyn BaseNodeFactory>> {
         get_synthetic_factory()
     }
 
