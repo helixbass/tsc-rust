@@ -663,23 +663,24 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
     host: Id<Box<dyn CompilerHost>>,
     to_path: Gc<Box<dyn ToPath>>,
     get_source_file: Option<Gc<Box<dyn GetSourceFile>>>,
+    arena: &impl HasArena,
 ) /*-> */
 {
     let overrider: Gc<Box<dyn ModuleResolutionHostOverrider>> = Gc::new(Box::new(
         ChangeCompilerHostLikeToUseCacheOverrider::new(host.clone(), to_path, get_source_file),
     ));
 
-    host.set_overriding_read_file(Some(overrider.clone()));
+    host.ref_(arena).set_overriding_read_file(Some(overrider.clone()));
 
-    host.set_overriding_file_exists(Some(overrider.clone()));
+    host.ref_(arena).set_overriding_file_exists(Some(overrider.clone()));
 
-    if host.is_write_file_supported() {
-        host.set_overriding_write_file(Some(overrider.clone()));
+    if host.ref_(arena).is_write_file_supported() {
+        host.ref_(arena).set_overriding_write_file(Some(overrider.clone()));
     }
 
-    if host.is_directory_exists_supported() && host.is_create_directory_supported() {
-        host.set_overriding_directory_exists(Some(overrider.clone()));
-        host.set_overriding_create_directory(Some(overrider.clone()));
+    if host.ref_(arena).is_directory_exists_supported() && host.ref_(arena).is_create_directory_supported() {
+        host.ref_(arena).set_overriding_directory_exists(Some(overrider.clone()));
+        host.ref_(arena).set_overriding_create_directory(Some(overrider.clone()));
     }
 
     // return {
@@ -740,7 +741,7 @@ impl ChangeCompilerHostLikeToUseCacheOverrider {
     }
 
     fn set_read_file_cache(&self, key: Path, file_name: &str) -> Option<String> {
-        let new_value = self.host.read_file_non_overridden(file_name).ok().flatten();
+        let new_value = self.host.ref_(self).read_file_non_overridden(file_name).ok().flatten();
         self.read_file_cache
             .borrow_mut()
             .insert(key.to_string(), new_value.clone());
@@ -762,7 +763,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         }
         if !file_extension_is(file_name, Extension::Json.to_str()) && !is_build_info_file(file_name)
         {
-            return self.host.read_file_non_overridden(file_name);
+            return self.host.ref_(self).read_file_non_overridden(file_name);
         }
 
         Ok(self.set_read_file_cache(key, file_name))
@@ -776,7 +777,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
                 return value;
             }
         }
-        let new_value = self.host.file_exists_non_overridden(file_name);
+        let new_value = self.host.ref_(self).file_exists_non_overridden(file_name);
         self.file_exists_cache
             .borrow_mut()
             .insert(key.to_string(), new_value);
@@ -821,7 +822,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
                 self.source_file_cache.borrow_mut().remove(&*key);
             }
         }
-        self.host.write_file_non_overridden(
+        self.host.ref_(self).write_file_non_overridden(
             file_name,
             data,
             write_byte_order_mark,
@@ -842,7 +843,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         }
         let new_value = self
             .host
-            .directory_exists_non_overridden(directory)
+            .ref_(self).directory_exists_non_overridden(directory)
             .unwrap();
         self.directory_exists_cache
             .borrow_mut()
@@ -853,7 +854,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     fn create_directory(&self, directory: &str) -> io::Result<()> {
         let key = self.to_path.call(directory);
         self.directory_exists_cache.borrow_mut().remove(&*key);
-        self.host.create_directory_non_overridden(directory)?;
+        self.host.ref_(self).create_directory_non_overridden(directory)?;
 
         Ok(())
     }

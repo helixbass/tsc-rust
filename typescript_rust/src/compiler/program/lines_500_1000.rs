@@ -89,7 +89,7 @@ impl LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>
             types_ref,
             Some(containing_file),
             self.options.clone(),
-            self.host.as_dyn_module_resolution_host(),
+            self.host.ref_(self).as_dyn_module_resolution_host(),
             redirected_reference,
             self.type_reference_directive_resolution_cache.clone(),
             self,
@@ -249,7 +249,7 @@ impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
             module_name,
             containing_file_name,
             self.options.clone(),
-            self.host.as_dyn_module_resolution_host(),
+            self.host.ref_(self).as_dyn_module_resolution_host(),
             self.module_resolution_cache.clone(),
             redirected_reference,
             resolver_mode,
@@ -957,7 +957,7 @@ impl Program {
         // performance.mark("beforeProgram");
 
         *self.host.borrow_mut() = Some(host.unwrap_or_else(|| {
-            Gc::new(Box::new(create_compiler_host(self.options.clone(), None, self)))
+            self.alloc_compiler_host(Box::new(create_compiler_host(self.options.clone(), None, self)))
         }));
         *self.config_parsing_host.borrow_mut() = Some(Gc::new(Box::new(
             parse_config_host_from_compiler_host_like(
@@ -970,14 +970,14 @@ impl Program {
 
         self.skip_default_lib.set(self.options.ref_(self).no_lib);
         *self.default_library_path.borrow_mut() =
-            Some(self.host().get_default_lib_location()?.try_unwrap_or_else(
+            Some(self.host().ref_(self).get_default_lib_location()?.try_unwrap_or_else(
                 || -> io::Result<_> {
                     Ok(get_directory_path(&self.get_default_library_file_name()?))
                 },
             )?);
         *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection(&*static_arena()));
         *self.current_directory.borrow_mut() =
-            Some(CompilerHost::get_current_directory(&**self.host())?);
+            Some(CompilerHost::get_current_directory(&**self.host().ref_(self))?);
         *self.supported_extensions.borrow_mut() =
             Some(get_supported_extensions(Some(&self.options.ref_(self)), None));
         *self
@@ -989,11 +989,11 @@ impl Program {
 
         *self.has_emit_blocking_diagnostics.borrow_mut() = Some(HashMap::new());
 
-        if self.host().is_resolve_module_names_supported() {
+        if self.host().ref_(self).is_resolve_module_names_supported() {
             *self.actual_resolve_module_names_worker.borrow_mut() = Some(Gc::new(Box::new(
                 ActualResolveModuleNamesWorkerHost::new(self.host(), self.options.clone()),
             )));
-            *self.module_resolution_cache.borrow_mut() = self.host().get_module_resolution_cache();
+            *self.module_resolution_cache.borrow_mut() = self.host().ref_(self).get_module_resolution_cache();
         } else {
             *self.module_resolution_cache.borrow_mut() =
                 Some(Gc::new(create_module_resolution_cache(
@@ -1015,7 +1015,7 @@ impl Program {
             )));
         }
 
-        if self.host().is_resolve_type_reference_directives_supported() {
+        if self.host().ref_(self).is_resolve_type_reference_directives_supported() {
             *self
                 .actual_resolve_type_reference_directive_names_worker
                 .borrow_mut() = Some(Gc::new(Box::new(
@@ -1058,14 +1058,14 @@ impl Program {
 
         *self.files_by_name.borrow_mut() = Some(HashMap::new());
         *self.files_by_name_ignore_case.borrow_mut() =
-            if CompilerHost::use_case_sensitive_file_names(&**self.host()) {
+            if CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)) {
                 Some(HashMap::new())
             } else {
                 None
             };
 
         self.use_source_of_project_reference_redirect.set(Some(
-            self.host().use_source_of_project_reference_redirect() == Some(true)
+            self.host().ref_(self).use_source_of_project_reference_redirect() == Some(true)
                 && self.options.ref_(self).disable_source_of_project_reference_redirect != Some(true),
         ));
         let UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
@@ -1084,6 +1084,7 @@ impl Program {
                 )),
                 for_each_resolved_project_reference: self.for_each_resolved_project_reference_rc(),
             },
+            self,
         );
         *self.file_exists_rc.borrow_mut() = Some(file_exists);
         *self.directory_exists_rc.borrow_mut() = directory_exists;
@@ -1158,12 +1159,12 @@ impl Program {
                                                 &get_output_declaration_file_name(
                                                     file_name,
                                                     &parsed_ref.command_line,
-                                                    !CompilerHost::use_case_sensitive_file_names(&**self.host()),
+                                                    !CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)),
                                                     Some(&mut || {
                                                         got_common_source_directory.get_or_insert_with(|| {
                                                             get_common_source_directory_of_config(
                                                                 &parsed_ref.command_line,
-                                                                !CompilerHost::use_case_sensitive_file_names(&**self.host()),
+                                                                !CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)),
                                                                 self,
                                                             )
                                                         }).clone()
@@ -1208,7 +1209,7 @@ impl Program {
             let type_references = if !self.root_names().is_empty() {
                 get_automatic_type_directive_names(
                     &self.options.ref_(self),
-                    self.host().as_dyn_module_resolution_host(),
+                    self.host().ref_(self).as_dyn_module_resolution_host(),
                     self,
                 )?
             } else {
@@ -1222,7 +1223,7 @@ impl Program {
                 {
                     get_directory_path(options_config_file_path)
                 } else {
-                    CompilerHost::get_current_directory(&**self.host())?
+                    CompilerHost::get_current_directory(&**self.host().ref_(self))?
                 };
                 let containing_filename = combine_paths(
                     &containing_directory,
@@ -1335,13 +1336,13 @@ impl Program {
         Debug_.assert(self.maybe_missing_file_paths().is_some(), None);
 
         if let Some(_old_program) = self.maybe_old_program().as_ref() {
-            if self.host().is_on_release_old_source_file_supported() {
+            if self.host().ref_(self).is_on_release_old_source_file_supported() {
                 unimplemented!()
             }
         }
 
         if let Some(_old_program) = self.maybe_old_program().as_ref() {
-            if self.host().is_on_release_parsed_command_line_supported() {
+            if self.host().ref_(self).is_on_release_parsed_command_line_supported() {
                 unimplemented!()
             }
         }
@@ -1446,7 +1447,7 @@ impl Program {
             .is_none()
         {
             *self.get_default_library_file_name_memoized.borrow_mut() =
-                Some(self.host().get_default_lib_file_name(&self.options.ref_(self))?);
+                Some(self.host().ref_(self).get_default_lib_file_name(&self.options.ref_(self))?);
         }
         Ok(Ref::map(
             self.get_default_library_file_name_memoized.borrow(),
@@ -1898,7 +1899,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
     ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
         Ok(self
             .host
-            .resolve_module_names(
+            .ref_(self).resolve_module_names(
                 /*Debug.checkEachDefined(*/ module_names, /*)*/
                 containing_file_name,
                 reused_names,
@@ -2001,7 +2002,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
     ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         Ok(self
             .host
-            .resolve_type_reference_directives(
+            .ref_(self).resolve_type_reference_directives(
                 /*Debug.checkEachDefined(*/ type_directive_names, /*)*/
                 containing_file,
                 redirected_reference.as_deref(),
@@ -2093,7 +2094,7 @@ impl ModuleSpecifierResolutionHost for Program {
     }
 
     fn read_file(&self, path: &str) -> Option<io::Result<Option<String>>> {
-        Some(self.host().read_file(path))
+        Some(self.host().ref_(self).read_file(path))
     }
 
     fn is_read_file_supported(&self) -> bool {

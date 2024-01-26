@@ -335,15 +335,15 @@ pub(super) fn perform_compilation(
     let file_names = &config.file_names;
     let options = config.options.clone();
     let project_references = &config.project_references;
-    let host: Id<Box<dyn CompilerHost>> = Gc::new(Box::new(create_compiler_host_worker(
+    let host: Id<Box<dyn CompilerHost>> = arena.alloc_compiler_host(Box::new(create_compiler_host_worker(
         options.clone(),
         None,
         Some(sys.clone()),
         arena,
     )));
-    let current_directory = CompilerHost::get_current_directory(&**host)?;
+    let current_directory = CompilerHost::get_current_directory(&**host.ref_(arena))?;
     let get_canonical_file_name =
-        create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&**host));
+        create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&**host.ref_(arena)));
     change_compiler_host_like_to_use_cache(
         host.clone(),
         Gc::new(Box::new(PerformCompilationToPath::new(
@@ -351,6 +351,7 @@ pub(super) fn perform_compilation(
             get_canonical_file_name,
         ))),
         None,
+        arena,
     );
 
     enable_statistics_and_tracing(sys, &options.ref_(arena), false, arena);
@@ -417,7 +418,7 @@ pub(super) fn perform_incremental_compilation(
     let file_names = &config.file_names;
     let project_references = &config.project_references;
     enable_statistics_and_tracing(sys, &options.ref_(arena), false, arena);
-    let host: Gc<Box<dyn CompilerHost>> = Gc::new(Box::new(create_incremental_compiler_host(
+    let host: Id<Box<dyn CompilerHost>> = arena.alloc_compiler_host(Box::new(create_incremental_compiler_host(
         options.clone(),
         Some(sys.clone()),
         arena,

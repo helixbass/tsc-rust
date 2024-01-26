@@ -85,7 +85,7 @@ impl Program {
         reason: Option<&FileIncludeReason>,
     ) -> io::Result<Option<Id<Node>>> {
         Ok(if has_extension(file_name) {
-            let canonical_file_name = self.host().get_canonical_file_name(file_name);
+            let canonical_file_name = self.host().ref_(self).get_canonical_file_name(file_name);
             if self.options.ref_(self).allow_non_ts_extensions != Some(true)
                 && !for_each_bool(
                     &flatten(&self.supported_extensions_with_json_if_resolve_json_module()),
@@ -126,7 +126,7 @@ impl Program {
                     }
                 } else if is_referenced_file(reason)
                     && canonical_file_name
-                        == self.host().get_canonical_file_name(
+                        == self.host().ref_(self).get_canonical_file_name(
                             &self
                                 .get_source_file_by_path(&reason.unwrap().as_referenced_file().file)
                                 .unwrap()
@@ -334,12 +334,12 @@ impl Program {
         if self.use_source_of_project_reference_redirect() {
             let mut source = self.get_source_of_project_reference_redirect(&path);
             if source.is_none()
-                && self.host().is_realpath_supported()
+                && self.host().ref_(self).is_realpath_supported()
                 && self.options.ref_(self).preserve_symlinks == Some(true)
                 && is_declaration_file_name(file_name)
                 && string_contains(file_name, node_modules_path_part)
             {
-                let real_path = self.to_path(&self.host().realpath(file_name).unwrap());
+                let real_path = self.to_path(&self.host().ref_(self).realpath(file_name).unwrap());
                 if real_path != path {
                     source = self.get_source_of_project_reference_redirect(&real_path);
                 }
@@ -453,7 +453,7 @@ impl Program {
             }
         }
 
-        let file = self.host().get_source_file(
+        let file = self.host().ref_(self).get_source_file(
             &file_name,
             get_emit_script_target(&self.options.ref_(self)),
             Some(&mut |host_error_message| {
@@ -522,13 +522,13 @@ impl Program {
                         module_resolution_cache.get_package_json_info_cache()
                     })
                     .as_double_deref(),
-                self.host().as_dyn_module_resolution_host(),
+                self.host().ref_(self).as_dyn_module_resolution_host(),
                 self.options.clone(),
                 self,
             ));
             self.add_file_include_reason(Some(file), reason.clone());
 
-            if CompilerHost::use_case_sensitive_file_names(&**self.host()) {
+            if CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)) {
                 let path_lower_case = to_file_name_lower_case(&path);
                 let existing_file = self
                     .files_by_name_ignore_case()
@@ -659,7 +659,7 @@ impl Program {
                 get_output_declaration_file_name(
                     file_name,
                     &referenced_project.command_line,
-                    !CompilerHost::use_case_sensitive_file_names(&**self.host()),
+                    !CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)),
                     Option::<&mut fn() -> String>::None,
                     self,
                 )
@@ -763,7 +763,7 @@ impl Program {
                                     Some(get_common_source_directory_of_config(
                                         &resolved_ref.command_line,
                                         !CompilerHost::use_case_sensitive_file_names(
-                                            &**self.host(),
+                                            &**self.host().ref_(self),
                                         ),
                                         self,
                                     ));
@@ -779,7 +779,7 @@ impl Program {
                                             file_name,
                                             &resolved_ref.command_line,
                                             !CompilerHost::use_case_sensitive_file_names(
-                                                &**self.host(),
+                                                &**self.host().ref_(self),
                                             ),
                                             Some(&mut get_common_source_directory),
                                             self,
@@ -963,7 +963,7 @@ impl Program {
                     {
                         let other_file_text = self
                             .host()
-                            .read_file(
+                            .ref_(self).read_file(
                                 resolved_type_reference_directive
                                     .ref_(self).resolved_file_name
                                     .as_ref()
@@ -1064,7 +1064,7 @@ impl Program {
                     .build()
                     .unwrap(),
             ),
-            self.host().as_dyn_module_resolution_host(),
+            self.host().ref_(self).as_dyn_module_resolution_host(),
             self.maybe_module_resolution_cache().clone(),
             None,
             None,

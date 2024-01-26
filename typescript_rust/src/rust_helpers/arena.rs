@@ -9,6 +9,7 @@ use crate::{
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
+    CompilerHost,
 };
 
 #[derive(Default)]
@@ -41,6 +42,7 @@ pub struct AllArenas {
     pub base_node_factories: RefCell<Arena<Box<dyn BaseNodeFactory>>>,
     pub emit_resolvers: RefCell<Arena<Box<dyn EmitResolver>>>,
     pub resolved_type_reference_directives: RefCell<Arena<ResolvedTypeReferenceDirective>>,
+    pub compiler_hosts: RefCell<Arena<Box<dyn CompilerHost>>>,
 }
 
 pub trait HasArena {
@@ -244,6 +246,14 @@ pub trait HasArena {
 
     fn alloc_resolved_type_reference_directive(&self, resolved_type_reference_directive: ResolvedTypeReferenceDirective) -> Id<ResolvedTypeReferenceDirective> {
         self.arena().alloc_resolved_type_reference_directive(resolved_type_reference_directive)
+    }
+
+    fn compiler_host(&self, compiler_host: Id<Box<dyn CompilerHost>>) -> Ref<Box<dyn CompilerHost>> {
+        self.arena().compiler_host(compiler_host)
+    }
+
+    fn alloc_compiler_host(&self, compiler_host: Box<dyn CompilerHost>) -> Id<Box<dyn CompilerHost>> {
+        self.arena().alloc_compiler_host(compiler_host)
     }
 }
 
@@ -510,6 +520,16 @@ impl HasArena for AllArenas {
         let id = self.resolved_type_reference_directives.borrow_mut().alloc(resolved_type_reference_directive);
         id
     }
+
+    #[track_caller]
+    fn compiler_host(&self, compiler_host: Id<Box<dyn CompilerHost>>) -> Ref<Box<dyn CompilerHost>> {
+        Ref::map(self.compiler_hosts.borrow(), |compiler_hosts| &compiler_hosts[compiler_host])
+    }
+
+    fn alloc_compiler_host(&self, compiler_host: Box<dyn CompilerHost>) -> Id<Box<dyn CompilerHost>> {
+        let id = self.compiler_hosts.borrow_mut().alloc(compiler_host);
+        id
+    }
 }
 
 pub trait InArena {
@@ -716,6 +736,14 @@ impl InArena for Id<ResolvedTypeReferenceDirective> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ResolvedTypeReferenceDirective> {
         has_arena.resolved_type_reference_directive(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn CompilerHost>> {
+    type Item = Box<dyn CompilerHost>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CompilerHost>> {
+        has_arena.compiler_host(*self)
     }
 }
 

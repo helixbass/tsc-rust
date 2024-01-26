@@ -131,7 +131,7 @@ impl Program {
             return result_from_dts;
         }
 
-        if !self.host().is_realpath_supported()
+        if !self.host().ref_(self).is_realpath_supported()
             || self.options.ref_(self).preserve_symlinks != Some(true)
             || !string_contains(
                 &file_as_source_file.original_file_name(),
@@ -143,7 +143,7 @@ impl Program {
         let real_declaration_path = self.to_path(
             &self
                 .host()
-                .realpath(&file_as_source_file.original_file_name())
+                .ref_(self).realpath(&file_as_source_file.original_file_name())
                 .unwrap(),
         );
         if &real_declaration_path == &*file_as_source_file.path() {
@@ -215,7 +215,7 @@ impl Program {
 
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
         self.host()
-            .has_invalidated_resolution(source_file)
+            .ref_(self).has_invalidated_resolution(source_file)
             .unwrap_or(false)
     }
 
@@ -246,7 +246,7 @@ impl Program {
     }
 
     pub fn use_case_sensitive_file_names(&self) -> bool {
-        CompilerHost::use_case_sensitive_file_names(&**self.host())
+        CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self))
     }
 
     pub fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
@@ -475,10 +475,10 @@ impl Program {
                     if let Some(old_resolved_module) = old_resolved_module.as_ref() {
                         if is_trace_enabled(
                             &self.options.ref_(self),
-                            self.host().as_dyn_module_resolution_host(),
+                            self.host().ref_(self).as_dyn_module_resolution_host(),
                         ) {
                             trace(
-                                self.host().as_dyn_module_resolution_host(),
+                                self.host().ref_(self).as_dyn_module_resolution_host(),
                                 if old_resolved_module.package_id.is_some() {
                                     &*Diagnostics::Reusing_resolution_of_module_0_from_1_of_old_program_it_was_successfully_resolved_to_2_with_Package_ID_3
                                 } else {
@@ -526,9 +526,9 @@ impl Program {
                 module_name,
             ) {
                 resolves_to_ambient_module_in_non_modified_file = true;
-                if is_trace_enabled(&self.options.ref_(self), self.host().as_dyn_module_resolution_host()) {
+                if is_trace_enabled(&self.options.ref_(self), self.host().ref_(self).as_dyn_module_resolution_host()) {
                     trace(
-                        self.host().as_dyn_module_resolution_host(),
+                        self.host().ref_(self).as_dyn_module_resolution_host(),
                         &Diagnostics::Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1,
                         Some(vec![
                             module_name.clone(),
@@ -645,9 +645,9 @@ impl Program {
         }
         let unmodified_file = unmodified_file.unwrap();
 
-        if is_trace_enabled(&self.options.ref_(self), self.host().as_dyn_module_resolution_host()) {
+        if is_trace_enabled(&self.options.ref_(self), self.host().ref_(self).as_dyn_module_resolution_host()) {
             trace(
-                self.host().as_dyn_module_resolution_host(),
+                self.host().ref_(self).as_dyn_module_resolution_host(),
                 &Diagnostics::Module_0_was_resolved_as_ambient_module_declared_in_1_since_this_file_was_not_modified,
                 Some(vec![
                     module_name.to_owned(),
@@ -764,7 +764,7 @@ impl Program {
         if old_program
             .ref_(self).get_missing_file_paths()
             .iter()
-            .any(|missing_file_path| self.host().file_exists(missing_file_path))
+            .any(|missing_file_path| self.host().ref_(self).file_exists(missing_file_path))
         {
             return Ok(StructureIsReused::Not);
         }
@@ -781,8 +781,8 @@ impl Program {
         for &old_source_file in &*old_source_files {
             let old_source_file_ref = old_source_file.ref_(self);
             let old_source_file_as_source_file = old_source_file_ref.as_source_file();
-            let Some(mut new_source_file) = (if self.host().is_get_source_file_by_path_supported() {
-                self.host().get_source_file_by_path(
+            let Some(mut new_source_file) = (if self.host().ref_(self).is_get_source_file_by_path_supported() {
+                self.host().ref_(self).get_source_file_by_path(
                     &old_source_file_as_source_file.file_name(),
                     old_source_file_as_source_file
                         .maybe_resolved_path()
@@ -793,7 +793,7 @@ impl Program {
                     Some(self.should_create_new_source_file()),
                 )
             } else {
-                self.host().get_source_file(
+                self.host().ref_(self).get_source_file(
                     &old_source_file_as_source_file.file_name(),
                     get_emit_script_target(&self.options.ref_(self)),
                     None,
@@ -1093,7 +1093,7 @@ impl Program {
         }
 
         if changes_affecting_program_structure(&old_options.ref_(self), &self.options.ref_(self))
-            || self.host().has_changed_automatic_type_directive_names() == Some(true)
+            || self.host().ref_(self).has_changed_automatic_type_directive_names() == Some(true)
         {
             return Ok(StructureIsReused::SafeModules);
         }
@@ -1420,7 +1420,7 @@ impl ReadFileCallback for GetPrependNodesReadFileCallback {
         } else if self.program.ref_(self).files_by_name().contains_key(&*path) {
             None
         } else {
-            self.program.ref_(self).host().read_file(&path).ok().flatten()
+            self.program.ref_(self).host().ref_(self).read_file(&path).ok().flatten()
         }
     }
 }
@@ -1455,7 +1455,7 @@ impl EmitHost for ProgramEmitHost {
     }
 
     fn get_new_line(&self) -> String {
-        self.program.ref_(self).host().get_new_line()
+        self.program.ref_(self).host().ref_(self).get_new_line()
     }
 
     fn get_source_files(&self) -> Vec<Id<Node /*SourceFile*/>> {
@@ -1483,7 +1483,7 @@ impl EmitHost for ProgramEmitHost {
                 source_files,
             )?;
         } else {
-            self.program.ref_(self).host().write_file(
+            self.program.ref_(self).host().ref_(self).write_file(
                 file_name,
                 data,
                 write_byte_order_mark,
@@ -1499,7 +1499,7 @@ impl EmitHost for ProgramEmitHost {
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
-        CompilerHost::use_case_sensitive_file_names(&**self.program.ref_(self).host())
+        CompilerHost::use_case_sensitive_file_names(&**self.program.ref_(self).host().ref_(self))
     }
 
     fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>> {
@@ -1562,7 +1562,7 @@ impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory for ProgramEmitHos
 impl ModuleSpecifierResolutionHost for ProgramEmitHost {
     fn use_case_sensitive_file_names(&self) -> Option<bool> {
         Some(CompilerHost::use_case_sensitive_file_names(
-            &**self.program.ref_(self).host(),
+            &**self.program.ref_(self).host().ref_(self),
         ))
     }
 
@@ -1584,7 +1584,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
     }
 
     fn read_file(&self, f: &str) -> Option<io::Result<Option<String>>> {
-        Some(self.program.ref_(self).host().read_file(f))
+        Some(self.program.ref_(self).host().ref_(self).read_file(f))
     }
 
     fn file_exists(&self, f: &str) -> bool {
@@ -1595,7 +1595,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
         if contains(self.program.ref_(self).maybe_missing_file_paths().as_deref(), &path) {
             return false;
         }
-        self.program.ref_(self).host().file_exists(f)
+        self.program.ref_(self).host().ref_(self).file_exists(f)
     }
 
     fn get_current_directory(&self) -> String {
