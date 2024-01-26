@@ -2326,13 +2326,13 @@ impl Printer {
 
     pub(super) fn maybe_current_parenthesizer_rule(
         &self,
-    ) -> Option<Gc<Box<dyn CurrentParenthesizerRule>>> {
+    ) -> Option<Id<Box<dyn CurrentParenthesizerRule>>> {
         self.current_parenthesizer_rule.borrow().clone()
     }
 
     pub(super) fn set_current_parenthesizer_rule(
         &self,
-        current_parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        current_parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         *self.current_parenthesizer_rule.borrow_mut() = current_parenthesizer_rule;
     }

@@ -1178,7 +1178,7 @@ impl EmitBinaryExpressionStateMachine {
         parent: Id<Node>, /*BinaryExpression*/
         side: LeftOrRight,
     ) -> io::Result<Option<Id<Node>>> {
-        let parenthesizer_rule: Gc<Box<dyn CurrentParenthesizerRule>> =
+        let parenthesizer_rule: Id<Box<dyn CurrentParenthesizerRule>> =
             Gc::new(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
                 side,
                 self.printer.ref_(self).parenthesizer(),

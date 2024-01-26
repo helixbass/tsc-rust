@@ -275,7 +275,7 @@ impl Printer {
     pub(super) fn emit(
         &self,
         node: Option<Id<Node>>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         if node.is_none() {
             return Ok(());
@@ -304,7 +304,7 @@ impl Printer {
     pub(super) fn emit_expression(
         &self,
         node: Option<Id<Node> /*Expression*/>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         if node.is_none() {
             return Ok(());
@@ -348,7 +348,7 @@ impl Printer {
         &self,
         emit_hint: EmitHint,
         node: Id<Node>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         self.set_current_parenthesizer_rule(parenthesizer_rule);
         let pipeline_phase =

@@ -251,7 +251,7 @@ impl Printer {
         node: Option<Id<Node> /*Expression*/>,
         equal_comment_start_pos: isize,
         container: Id<Node>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
             self.write_space();
@@ -304,7 +304,7 @@ impl Printer {
     pub(super) fn emit_expression_with_leading_space(
         &self,
         node: Option<Id<Node>>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
             self.write_space();
@@ -527,7 +527,7 @@ impl Printer {
         parent_node: Option<Id<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) -> io::Result<()> {
@@ -549,7 +549,7 @@ impl Printer {
         parent_node: Option<Id<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) -> io::Result<()> {
@@ -571,12 +571,12 @@ impl Printer {
         emit: fn(
             &Printer,
             Option<Id<Node>>,
-            Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+            Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         ) -> io::Result<()>,
         parent_node: Option<Id<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) -> io::Result<()> {

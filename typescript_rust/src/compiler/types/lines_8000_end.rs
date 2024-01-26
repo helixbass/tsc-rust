@@ -93,7 +93,7 @@ pub struct Printer {
     #[unsafe_ignore_trace]
     pub comments_disabled: Cell<bool>,
     pub last_substitution: GcCell<Option<Id<Node>>>,
-    pub current_parenthesizer_rule: GcCell<Option<Gc<Box<dyn CurrentParenthesizerRule>>>>,
+    pub current_parenthesizer_rule: GcCell<Option<Id<Box<dyn CurrentParenthesizerRule>>>>,
     pub parenthesizer: Gc<Box<dyn ParenthesizerRules>>,
     pub emit_binary_expression: GcCell<Option<Gc<EmitBinaryExpression>>>,
 }
