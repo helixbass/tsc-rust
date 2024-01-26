@@ -631,7 +631,7 @@ impl TypeChecker {
                 };
                 let inherited_index_infos_filtered = inherited_index_infos
                     .into_iter()
-                    .filter(|info| self.find_index_info(&index_infos, info.key_type).is_none())
+                    .filter(|info| self.find_index_info(&index_infos, info.ref_(self).key_type).is_none())
                     .collect::<Vec<_>>();
                 index_infos.extend(inherited_index_infos_filtered);
             }

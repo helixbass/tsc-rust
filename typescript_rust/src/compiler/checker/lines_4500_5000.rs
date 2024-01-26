@@ -591,7 +591,7 @@ impl NodeBuilder {
 
     pub fn index_info_to_index_signature_declaration(
         &self,
-        index_info: &IndexInfo,
+        index_info: Id<IndexInfo>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
