@@ -1249,7 +1249,8 @@ pub fn format_diagnostics_with_color_and_context(
                 let file = related_information.ref_(arena).maybe_file();
                 let start = related_information.ref_(arena).maybe_start();
                 let length = related_information.ref_(arena).maybe_length();
-                let message_text = related_information.ref_(arena).message_text();
+                let related_information_ref = related_information.ref_(arena);
+                let message_text = related_information_ref.message_text();
                 if let Some(file) = file {
                     output.push_str(&host.get_new_line());
                     output.push_str(&format!(
