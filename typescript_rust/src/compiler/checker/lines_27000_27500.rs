@@ -619,7 +619,7 @@ impl TypeChecker {
                     );
                     add_related_info(
                         &diagnostic.ref_(self),
-                        vec![Gc::new(
+                        vec![self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 spread,
                                 &Diagnostics::This_spread_always_overwrites_this_property,

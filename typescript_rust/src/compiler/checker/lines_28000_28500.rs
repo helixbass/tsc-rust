@@ -408,7 +408,7 @@ impl TypeChecker {
                     add_related_info(
                         &diagnostic.ref_(self),
                         vec![
-                            Gc::new(
+                            self.alloc_diagnostic_related_information(
                                 create_diagnostic_for_node(
                                     lexical_value_decl,
                                     &Diagnostics::The_shadowing_declaration_of_0_is_defined_here,
@@ -418,7 +418,7 @@ impl TypeChecker {
                                     self,
                                 ).into()
                             ),
-                            Gc::new(
+                            self.alloc_diagnostic_related_information(
                                 create_diagnostic_for_node(
                                     type_value_decl,
                                     &Diagnostics::The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here,
@@ -971,7 +971,7 @@ impl TypeChecker {
         if let Some(diagnostic_message) = diagnostic_message {
             add_related_info(
                 &diagnostic_message.ref_(self),
-                vec![Gc::new(
+                vec![self.alloc_diagnostic_related_information(
                     create_diagnostic_for_node(
                         value_declaration,
                         &Diagnostics::_0_is_declared_here,
@@ -1159,7 +1159,7 @@ impl TypeChecker {
                         )?,
                     ]),
                 ));
-                related_info = Some(Gc::new(
+                related_info = Some(self.alloc_diagnostic_related_information(
                     create_diagnostic_for_node(
                         prop_node,
                         &Diagnostics::Did_you_forget_to_use_await,
@@ -1207,7 +1207,7 @@ impl TypeChecker {
                             .ref_(self)
                             .maybe_value_declaration()
                             .map(|suggestion_value_declaration| {
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         suggestion_value_declaration,
                                         &Diagnostics::_0_is_declared_here,

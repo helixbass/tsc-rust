@@ -403,7 +403,7 @@ impl TypeChecker {
                         add_related_info(
                             &diag.ref_(self),
                             vec![
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         container,
                                         &Diagnostics::An_outer_value_of_this_is_shadowed_by_this_container,

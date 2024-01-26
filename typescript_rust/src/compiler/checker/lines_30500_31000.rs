@@ -45,7 +45,7 @@ impl TypeChecker {
         if let Some(related_info) = related_info {
             add_related_info(
                 &diagnostic.ref_(self),
-                vec![Gc::new(
+                vec![self.alloc_diagnostic_related_information(
                     create_diagnostic_for_node(error_target, related_info, None, self).into(),
                 )],
             );
@@ -108,7 +108,7 @@ impl TypeChecker {
             add_related_info(
                 diagnostic,
                 vec![
-                    Gc::new(
+                    self.alloc_diagnostic_related_information(
                         create_diagnostic_for_node(
                             import_node,
                             &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
@@ -271,7 +271,7 @@ impl TypeChecker {
             if let Some(error_details_related_message) = error_details_related_message {
                 add_related_info(
                     &diag.ref_(self),
-                    vec![Gc::new(
+                    vec![self.alloc_diagnostic_related_information(
                         create_diagnostic_for_node(
                             node_as_decorator.expression,
                             error_details_related_message,

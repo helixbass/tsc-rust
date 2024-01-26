@@ -688,7 +688,7 @@ impl TypeChecker {
         if let Some(first_declaration) = first_declaration {
             add_related_info(
                 &err.ref_(self),
-                vec![Gc::new(
+                vec![self.alloc_diagnostic_related_information(
                     create_diagnostic_for_node(
                         first_declaration,
                         &Diagnostics::_0_was_also_declared_here,

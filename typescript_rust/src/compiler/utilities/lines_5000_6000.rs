@@ -883,6 +883,7 @@ fn is_diagnostic_with_detached_location(
 pub fn attach_file_to_diagnostic(
     diagnostic: &DiagnosticWithDetachedLocation,
     file: &Node, /*SourceFile*/
+    arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
     let file_as_source_file = file.as_source_file();
     let file_name = file_as_source_file.file_name();
@@ -906,21 +907,22 @@ pub fn attach_file_to_diagnostic(
             related_information
                 .iter()
                 .map(|related| {
-                    if is_diagnostic_with_detached_location(related)
-                        && &related.as_diagnostic_with_detached_location().file_name == &*file_name
+                    if is_diagnostic_with_detached_location(&related.ref_(arena))
+                        && &related.ref_(arena).as_diagnostic_with_detached_location().file_name == &*file_name
                     {
-                        Debug_.assert_less_than_or_equal(related.start(), length);
+                        Debug_.assert_less_than_or_equal(related.ref_(arena).start(), length);
                         Debug_
-                            .assert_less_than_or_equal(related.start() + related.length(), length);
-                        Gc::new(
+                            .assert_less_than_or_equal(related.ref_(arena).start() + related.ref_(arena).length(), length);
+                        arena.alloc_diagnostic_related_information(
                             attach_file_to_diagnostic(
-                                related.as_diagnostic_with_detached_location(),
+                                related.ref_(arena).as_diagnostic_with_detached_location(),
                                 file,
+                                arena,
                             )
                             .into(),
                         )
                     } else {
-                        related.clone()
+                        related
                     }
                 })
                 .collect(),
@@ -938,7 +940,7 @@ pub fn attach_file_to_diagnostics(
         .iter()
         .map(|diagnostic| {
             arena.alloc_diagnostic(
-                attach_file_to_diagnostic(diagnostic.ref_(arena).as_diagnostic_with_detached_location(), file)
+                attach_file_to_diagnostic(diagnostic.ref_(arena).as_diagnostic_with_detached_location(), file, arena)
                     .into(),
             )
         })

@@ -925,7 +925,7 @@ impl TypeChecker {
             if let Some(tag_name_declaration) = tag_name_declaration {
                 add_related_info(
                     &diag.ref_(self),
-                    vec![Gc::new(
+                    vec![self.alloc_diagnostic_related_information(
                         create_diagnostic_for_node(
                             tag_name_declaration,
                             &Diagnostics::_0_is_declared_here,

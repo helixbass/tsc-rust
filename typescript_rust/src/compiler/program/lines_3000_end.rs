@@ -1349,7 +1349,7 @@ impl Program {
             return if is_reference_file_location(&reference_location) {
                 let reference_location_as_reference_file_location =
                     reference_location.as_reference_file_location();
-                Some(Gc::new(
+                Some(self.alloc_diagnostic_related_information(
                     create_file_diagnostic(
                         reference_location_as_reference_file_location.file,
                         reference_location_as_reference_file_location.pos,
@@ -1467,19 +1467,19 @@ impl Program {
                             > index
                     })
                     .map(|references_syntax| {
-                        Gc::new(
-                        create_diagnostic_for_node_in_source_file(
-                            source_file,
-                            references_syntax.ref_(self).as_array_literal_expression().elements[index],
-                            if reason.kind() == FileIncludeKind::OutputFromProjectReference {
-                                &*Diagnostics::File_is_output_from_referenced_project_specified_here
-                            } else {
-                                &*Diagnostics::File_is_source_from_referenced_project_specified_here
-                            },
-                            None,
-                            self,
-                        ).into()
-                    )
+                        self.alloc_diagnostic_related_information(
+                            create_diagnostic_for_node_in_source_file(
+                                source_file,
+                                references_syntax.ref_(self).as_array_literal_expression().elements[index],
+                                if reason.kind() == FileIncludeKind::OutputFromProjectReference {
+                                    &*Diagnostics::File_is_output_from_referenced_project_specified_here
+                                } else {
+                                    &*Diagnostics::File_is_source_from_referenced_project_specified_here
+                                },
+                                None,
+                                self,
+                            ).into()
+                        )
                     });
             }
             FileIncludeKind::AutomaticTypeDirectiveFile => {
@@ -1525,7 +1525,7 @@ impl Program {
             }
         }
         config_file_node.map(|config_file_node| {
-            Gc::new(
+            self.alloc_diagnostic_related_information(
                 create_diagnostic_for_node_in_source_file(
                     options_config_file,
                     config_file_node,

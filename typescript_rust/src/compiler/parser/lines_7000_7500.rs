@@ -511,7 +511,7 @@ impl ParserType {
                     if last_error.ref_(self).code() == Diagnostics::_0_expected.code {
                         add_related_info(
                             &last_error.ref_(self),
-                            vec![Gc::new(
+                            vec![self.alloc_diagnostic_related_information(
                                 create_detached_diagnostic(
                                     &self.file_name(),
                                     open_brace_position.try_into().unwrap(),

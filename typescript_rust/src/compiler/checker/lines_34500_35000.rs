@@ -1082,7 +1082,7 @@ impl TypeChecker {
                     })
                     .iter()
                     .map(|&d| {
-                        Gc::new(
+                        self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 d,
                                 &Diagnostics::Consider_adding_a_declare_modifier_to_this_class,
@@ -1175,7 +1175,7 @@ impl TypeChecker {
                                 None,
                             ).ref_(self),
                             vec![
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         body_declaration,
                                         &Diagnostics::The_implementation_signature_is_declared_here,

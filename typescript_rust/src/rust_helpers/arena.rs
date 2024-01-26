@@ -10,7 +10,7 @@ use crate::{
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
-    CompilerHost, SymbolLinks, Printer,
+    CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation,
 };
 
 #[derive(Default)]
@@ -46,6 +46,7 @@ pub struct AllArenas {
     pub compiler_hosts: RefCell<Arena<Box<dyn CompilerHost>>>,
     pub symbol_links: RefCell<Arena<GcCell<SymbolLinks>>>,
     pub printers: RefCell<Arena<Printer>>,
+    pub diagnostic_related_informations: RefCell<Arena<DiagnosticRelatedInformation>>,
 }
 
 pub trait HasArena {
@@ -273,6 +274,14 @@ pub trait HasArena {
 
     fn alloc_printer(&self, printer: Printer) -> Id<Printer> {
         self.arena().alloc_printer(printer)
+    }
+
+    fn diagnostic_related_information(&self, diagnostic_related_information: Id<DiagnosticRelatedInformation>) -> Ref<DiagnosticRelatedInformation> {
+        self.arena().diagnostic_related_information(diagnostic_related_information)
+    }
+
+    fn alloc_diagnostic_related_information(&self, diagnostic_related_information: DiagnosticRelatedInformation) -> Id<DiagnosticRelatedInformation> {
+        self.arena().alloc_diagnostic_related_information(diagnostic_related_information)
     }
 }
 
@@ -569,6 +578,16 @@ impl HasArena for AllArenas {
         let id = self.printers.borrow_mut().alloc(printer);
         id
     }
+
+    #[track_caller]
+    fn diagnostic_related_information(&self, diagnostic_related_information: Id<DiagnosticRelatedInformation>) -> Ref<DiagnosticRelatedInformation> {
+        Ref::map(self.diagnostic_related_informations.borrow(), |diagnostic_related_informations| &diagnostic_related_informations[diagnostic_related_information])
+    }
+
+    fn alloc_diagnostic_related_information(&self, diagnostic_related_information: DiagnosticRelatedInformation) -> Id<DiagnosticRelatedInformation> {
+        let id = self.diagnostic_related_informations.borrow_mut().alloc(diagnostic_related_information);
+        id
+    }
 }
 
 pub trait InArena {
@@ -799,6 +818,14 @@ impl InArena for Id<Printer> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Printer> {
         has_arena.printer(*self)
+    }
+}
+
+impl InArena for Id<DiagnosticRelatedInformation> {
+    type Item = DiagnosticRelatedInformation;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, DiagnosticRelatedInformation> {
+        has_arena.diagnostic_related_information(*self)
     }
 }
 

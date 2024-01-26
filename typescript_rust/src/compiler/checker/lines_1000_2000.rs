@@ -334,13 +334,13 @@ impl TypeChecker {
     ) -> Id<Diagnostic> {
         let diagnostic = self.error(Some(location), message, args);
         if maybe_missing_await {
-            let related: Id<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+            let related: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                 location,
                 &Diagnostics::Did_you_forget_to_use_await,
                 None,
                 self,
             )
-            .into();
+            .into());
             add_related_info(&diagnostic.ref_(self), vec![related]);
         }
         diagnostic
@@ -357,13 +357,13 @@ impl TypeChecker {
         if let Some(deprecated_tag) = deprecated_tag {
             add_related_info(
                 &diagnostic.ref_(self),
-                vec![create_diagnostic_for_node(
+                vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                     deprecated_tag,
                     &Diagnostics::The_declaration_was_marked_as_deprecated_here,
                     None,
                     self,
                 )
-                .into()],
+                .into())],
             );
         }
         self.suggestion_diagnostics().add(diagnostic.clone());
@@ -814,21 +814,21 @@ impl TypeChecker {
                         *err_related_information = Some(vec![]);
                     }
                 }
-                let leading_message: Id<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+                let leading_message: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                     adjusted_node,
                     &Diagnostics::_0_was_also_declared_here,
                     Some(vec![symbol_name.to_owned()]),
                     self,
                 )
-                .into();
+                .into());
                 let follow_on_message: Id<DiagnosticRelatedInformation> =
-                    create_diagnostic_for_node(adjusted_node, &Diagnostics::and_here, None, self).into();
+                    self.alloc_diagnostic_related_information(create_diagnostic_for_node(adjusted_node, &Diagnostics::and_here, None, self).into());
                 if length(err.ref_(self).maybe_related_information().as_deref()) >= 5
                     || some(
                         err.ref_(self).maybe_related_information().as_deref(),
                         Some(|r: &Id<DiagnosticRelatedInformation>| {
-                            compare_diagnostics(&**r, &*follow_on_message, self) == Comparison::EqualTo
-                                || compare_diagnostics(&**r, &*leading_message, self)
+                            compare_diagnostics(&*r.ref_(self), &*follow_on_message.ref_(self), self) == Comparison::EqualTo
+                                || compare_diagnostics(&*r.ref_(self), &*leading_message.ref_(self), self)
                                     == Comparison::EqualTo
                         }),
                     )
@@ -2117,13 +2117,13 @@ impl TypeChecker {
                             {
                                 add_related_info(
                                     &diagnostic.ref_(self),
-                                    vec![create_diagnostic_for_node(
+                                    vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                         suggestion_value_declaration,
                                         &Diagnostics::_0_is_declared_here,
                                         Some(vec![suggestion_name]),
                                         self,
                                     )
-                                    .into()],
+                                    .into())],
                                 );
                             }
                         }

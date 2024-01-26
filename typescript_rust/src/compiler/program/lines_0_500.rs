@@ -1246,10 +1246,10 @@ pub fn format_diagnostics_with_color_and_context(
         {
             output.push_str(&host.get_new_line());
             for related_information in diagnostic_related_information {
-                let file = related_information.maybe_file();
-                let start = related_information.maybe_start();
-                let length = related_information.maybe_length();
-                let message_text = related_information.message_text();
+                let file = related_information.ref_(arena).maybe_file();
+                let start = related_information.ref_(arena).maybe_start();
+                let length = related_information.ref_(arena).maybe_length();
+                let message_text = related_information.ref_(arena).message_text();
                 if let Some(file) = file {
                     output.push_str(&host.get_new_line());
                     output.push_str(&format!(

@@ -844,12 +844,12 @@ impl TypeChecker {
                                 add_related_info(
                                     &diagnostic.ref_(self),
                                     vec![
-                                        create_diagnostic_for_node(
+                                        self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                             current_node,
                                             &Diagnostics::Circularity_originates_in_type_at_this_location,
                                             None,
                                             self,
-                                        ).into()
+                                        ).into())
                                     ]
                                 );
                             }

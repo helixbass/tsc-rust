@@ -180,8 +180,8 @@ fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic, arena: &impl Ha
                 return compared;
             }
             let compared_maybe = for_each(d1_related_information, |d1i, index| {
-                let d2i = &d2_related_information[index];
-                let compared = compare_diagnostics(&**d1i, &**d2i, arena);
+                let d2i = d2_related_information[index];
+                let compared = compare_diagnostics(&*d1i.ref_(arena), &*d2i.ref_(arena), arena);
                 match compared {
                     Comparison::EqualTo => None,
                     compared => Some(compared),

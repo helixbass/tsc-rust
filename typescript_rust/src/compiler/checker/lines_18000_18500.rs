@@ -300,12 +300,12 @@ impl CheckTypeRelatedTo {
                                 None,
                             )?;
                             if helpful_retry {
-                                let diag: Id<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+                                let diag: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                     links_originating_import,
                                     &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
                                     None,
                                     self,
-                                ).into();
+                                ).into());
                                 if related_information.is_none() {
                                     related_information = Some(vec![]);
                                     append(related_information.as_mut().unwrap(), Some(diag));
@@ -325,7 +325,7 @@ impl CheckTypeRelatedTo {
                 .into(),
             );
             if let Some(related_info) = self.maybe_related_info().clone() {
-                add_related_info(&diag.ref_(self), related_info.into_iter().map(Gc::new).collect());
+                add_related_info(&diag.ref_(self), related_info.into_iter().map(|related_info| self.alloc_diagnostic_related_information(related_info)).collect());
             }
             if let Some(error_output_container) = self.error_output_container.as_ref() {
                 error_output_container.push_error(diag.clone());

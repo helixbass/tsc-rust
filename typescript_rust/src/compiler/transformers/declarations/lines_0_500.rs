@@ -1585,12 +1585,12 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                             self,
                         ).into()),
                         vec![
-                            create_diagnostic_for_node(
+                            self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                 primary_declaration.unwrap(),
                                 &Diagnostics::This_is_the_declaration_being_augmented_Consider_moving_the_augmenting_declaration_into_the_same_file,
                                 None,
                                 self,
-                            ).into(),
+                            ).into()),
                         ],
                         self
                     )

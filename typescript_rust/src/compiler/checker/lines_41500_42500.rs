@@ -951,7 +951,7 @@ impl TypeChecker {
                         add_related_info(
                             &diagnostic.ref_(self),
                             vec![
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         second_file,
                                         &Diagnostics::Conflicts_are_in_this_file,
@@ -979,7 +979,7 @@ impl TypeChecker {
                         add_related_info(
                             &diagnostic.ref_(self),
                             vec![
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         first_file,
                                         &Diagnostics::Conflicts_are_in_this_file,

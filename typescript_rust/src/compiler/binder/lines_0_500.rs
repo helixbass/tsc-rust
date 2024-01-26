@@ -1123,7 +1123,7 @@ impl BinderType {
                                     SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
                                 )
                             {
-                                related_information.push(Gc::new(
+                                related_information.push(self.alloc_diagnostic_related_information(
                                     self.create_diagnostic_for_node(
                                         node,
                                         &Diagnostics::Did_you_mean_0,
@@ -1167,18 +1167,18 @@ impl BinderType {
                                         if multiple_default_exports {
                                             add_related_info(
                                                 &diag.ref_(self),
-                                                vec![Gc::new(
-                                                self.create_diagnostic_for_node(
-                                                    declaration_name,
-                                                    if index == 0 {
-                                                        &Diagnostics::Another_export_default_is_here
-                                                    } else {
-                                                        &Diagnostics::and_here
-                                                    },
-                                                    None,
-                                                )
-                                                .into(),
-                                            )],
+                                                vec![self.alloc_diagnostic_related_information(
+                                                    self.create_diagnostic_for_node(
+                                                        declaration_name,
+                                                        if index == 0 {
+                                                            &Diagnostics::Another_export_default_is_here
+                                                        } else {
+                                                            &Diagnostics::and_here
+                                                        },
+                                                        None,
+                                                    )
+                                                    .into(),
+                                                )],
                                             );
                                             diag
                                         } else {
@@ -1186,7 +1186,7 @@ impl BinderType {
                                         },
                                     );
                                     if multiple_default_exports {
-                                        related_information.push(Gc::new(
+                                        related_information.push(self.alloc_diagnostic_related_information(
                                             self.create_diagnostic_for_node(
                                                 decl,
                                                 &Diagnostics::The_first_export_default_is_here,

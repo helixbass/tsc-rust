@@ -272,7 +272,7 @@ impl TypeChecker {
                                     None,
                                 ).ref_(self),
                                 vec![
-                                    Gc::new(
+                                    self.alloc_diagnostic_related_information(
                                         create_diagnostic_for_node(
                                             use_strict_directive,
                                             &Diagnostics::use_strict_directive_used_here,
@@ -290,7 +290,7 @@ impl TypeChecker {
                         .iter()
                         .enumerate()
                         .map(|(index, parameter)| {
-                            Gc::new(if index == 0 {
+                            self.alloc_diagnostic_related_information(if index == 0 {
                                 create_diagnostic_for_node(
                                     *parameter,
                                     &Diagnostics::Non_simple_parameter_declared_here,

@@ -902,7 +902,7 @@ impl TypeChecker {
                         add_related_info(
                             &err.ref_(self),
                             vec![
-                                create_diagnostic_for_node(
+                                self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                     base_constructor_type_symbol_declarations[0],
                                     &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1,
                                     Some(vec![
@@ -910,7 +910,7 @@ impl TypeChecker {
                                         self.type_to_string_(ctor_return, Option::<Id<Node>>::None, None, None)?
                                     ]),
                                     self,
-                                ).into()
+                                ).into())
                             ]
                         );
                     }

@@ -253,7 +253,7 @@ impl TypeChecker {
                 let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
                 add_related_info(
                     &diagnostic.ref_(self),
-                    vec![create_diagnostic_for_node(
+                    vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                         node,
                         if
                         /*signatures === constructSignatures*/
@@ -265,7 +265,7 @@ impl TypeChecker {
                         None,
                         self,
                     )
-                    .into()],
+                    .into())],
                 );
                 return Ok(true);
             }
@@ -357,12 +357,12 @@ impl TypeChecker {
                         add_related_info(
                             &result_obj.get_error(result_obj.errors_len() - 1).unwrap().ref_(self),
                             vec![
-                                create_diagnostic_for_node(
+                                self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                     target_symbol_declarations[0],
                                     &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
                                     None,
                                     self,
-                                ).into()
+                                ).into())
                             ]
                         );
                     }
@@ -383,13 +383,13 @@ impl TypeChecker {
                 {
                     add_related_info(
                         &result_obj.get_error(result_obj.errors_len() - 1).unwrap().ref_(self),
-                        vec![create_diagnostic_for_node(
+                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                             node,
                             &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
                             None,
                             self,
                         )
-                        .into()],
+                        .into())],
                     );
                 }
                 return Ok(true);
@@ -621,12 +621,12 @@ impl TypeChecker {
                                     add_related_info(
                                         &reported_diag.ref_(self),
                                         vec![
-                                            create_diagnostic_for_node(
+                                            self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                                 index_info_declaration,
                                                 &Diagnostics::The_expected_type_comes_from_this_index_signature,
                                                 None,
                                                 self,
-                                            ).into()
+                                            ).into())
                                         ]
                                     );
                                 }
@@ -670,7 +670,7 @@ impl TypeChecker {
                                 add_related_info(
                                     &reported_diag.ref_(self),
                                     vec![
-                                        create_diagnostic_for_node(
+                                        self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                             target_node,
                                             &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
                                             Some(vec![
@@ -692,7 +692,7 @@ impl TypeChecker {
                                                 )?
                                             ]),
                                             self,
-                                        ).into()
+                                        ).into())
                                     ]
                                 );
                             }

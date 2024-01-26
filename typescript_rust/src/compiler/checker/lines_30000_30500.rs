@@ -436,7 +436,7 @@ impl TypeChecker {
                         .unwrap()
                             - 1,
                     )) {
-                        related_information = Some(Gc::new(
+                        related_information = Some(self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 node_as_call_expression.expression,
                                 &Diagnostics::Are_you_missing_a_semicolon,

@@ -205,7 +205,7 @@ impl TypeChecker {
                                         .intersects(FunctionFlags::Async),
                                     Some("Enclosing function should never be an async function."),
                                 );
-                                let related_info: Id<DiagnosticRelatedInformation> = Gc::new(
+                                let related_info: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         func,
                                         &Diagnostics::Did_you_mean_to_mark_this_function_as_async,

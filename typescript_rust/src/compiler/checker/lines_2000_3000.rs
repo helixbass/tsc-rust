@@ -77,7 +77,7 @@ impl TypeChecker {
         let type_only_declaration = type_only_declaration.unwrap();
         add_related_info(
             &diagnostic.ref_(self),
-            vec![create_diagnostic_for_node(
+            vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                 type_only_declaration,
                 if type_only_declaration.ref_(self).kind() == SyntaxKind::ExportSpecifier {
                     &Diagnostics::_0_was_exported_here
@@ -87,7 +87,7 @@ impl TypeChecker {
                 Some(vec![unescaped_name.to_owned()]),
                 self,
             )
-            .into()],
+            .into())],
         );
         diagnostic
     }
@@ -662,13 +662,13 @@ impl TypeChecker {
             if let Some(diagnostic_message) = diagnostic_message {
                 add_related_info(
                     &diagnostic_message.ref_(self),
-                    vec![create_diagnostic_for_node(
+                    vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                         declaration,
                         &Diagnostics::_0_is_declared_here,
                         Some(vec![declaration_name]),
                         self,
                     )
-                    .into()],
+                    .into())],
                 );
             }
         }
@@ -866,13 +866,13 @@ impl TypeChecker {
                     message,
                     None,
                 ).ref_(self),
-                vec![create_diagnostic_for_node(
+                vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                     type_only_declaration,
                     related_message,
                     Some(vec![name.to_owned()]),
                     self,
                 )
-                .into()],
+                .into())],
             );
         }
 
@@ -1094,7 +1094,7 @@ impl TypeChecker {
                     add_related_info(
                         &err.ref_(self),
                         vec![
-                            create_diagnostic_for_node(
+                            self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                 export_assignment,
                                 &Diagnostics::This_module_is_declared_with_using_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag,
                                 Some(
@@ -1103,7 +1103,7 @@ impl TypeChecker {
                                     ]
                                 ),
                                 self,
-                            ).into()
+                            ).into())
                         ]
                     );
                 }
@@ -1196,13 +1196,13 @@ impl TypeChecker {
                 if let Some(default_export) = default_export {
                     add_related_info(
                         &diagnostic.ref_(self),
-                        vec![create_diagnostic_for_node(
+                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                             default_export,
                             &Diagnostics::export_Asterisk_does_not_re_export_a_default,
                             None,
                             self,
                         )
-                        .into()],
+                        .into())],
                     );
                 }
             }
@@ -1504,13 +1504,13 @@ impl TypeChecker {
                     {
                         add_related_info(
                             &diagnostic.ref_(self),
-                            vec![create_diagnostic_for_node(
+                            vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                 suggestion_value_declaration,
                                 &Diagnostics::_0_is_declared_here,
                                 Some(vec![suggestion_name]),
                                 self,
                             )
-                            .into()],
+                            .into())],
                         );
                     }
                 } else {
@@ -1634,7 +1634,7 @@ impl TypeChecker {
                     add_related_info(
                         &diagnostic.ref_(self),
                         map(local_symbol_declarations, |&decl: &Id<Node>, index| {
-                            create_diagnostic_for_node(
+                            self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                 decl,
                                 if index == 0 {
                                     &Diagnostics::_0_is_declared_here
@@ -1644,7 +1644,7 @@ impl TypeChecker {
                                 Some(vec![declaration_name.clone()]),
                                 self,
                             )
-                            .into()
+                            .into())
                         }),
                     );
                 }
