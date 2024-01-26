@@ -700,7 +700,7 @@ impl TypeChecker {
         this_parameter: Option<Id<Symbol>>,
         parameters: Vec<Id<Symbol>>,
         resolved_return_type: Option<Id<Type>>,
-        resolved_type_predicate: Option<Gc<TypePredicate>>,
+        resolved_type_predicate: Option<Id<TypePredicate>>,
         min_argument_count: usize,
         flags: SignatureFlags,
     ) -> Signature {

@@ -458,7 +458,7 @@ impl TypeChecker {
     pub(super) fn get_type_predicate_of_signature(
         &self,
         signature: Id<Signature>,
-    ) -> io::Result<Option<Gc<TypePredicate>>> {
+    ) -> io::Result<Option<Id<TypePredicate>>> {
         if signature.ref_(self).maybe_resolved_type_predicate().is_none() {
             if let Some(signature_target) = signature.ref_(self).target {
                 let target_type_predicate =
@@ -486,7 +486,7 @@ impl TypeChecker {
                 let type_ = signature
                     .ref_(self).declaration
                     .and_then(|declaration| get_effective_return_type_node(declaration, self));
-                let mut jsdoc_predicate: Option<Gc<TypePredicate>> = None;
+                let mut jsdoc_predicate: Option<Id<TypePredicate>> = None;
                 if type_.is_none() && is_in_js_file(signature.ref_(self).declaration.refed(self).as_deref()) {
                     let jsdoc_signature =
                         self.get_signature_of_type_tag(signature.ref_(self).declaration.unwrap())?;

@@ -972,7 +972,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_type_predicate(
         &self,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<TypePredicate> {
         Ok(self.create_type_predicate(

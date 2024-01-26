@@ -914,7 +914,7 @@ impl TypeChecker {
         signatures: &[Id<Signature>],
         kind: Option<TypeFlags>,
     ) -> io::Result<Option<TypePredicate>> {
-        let mut first: Option<Gc<TypePredicate>> = None;
+        let mut first: Option<Id<TypePredicate>> = None;
         let mut types: Vec<Id<Type>> = vec![];
         for &sig in signatures {
             let pred = self.get_type_predicate_of_signature(sig)?;
@@ -952,7 +952,7 @@ impl TypeChecker {
         )))
     }
 
-    pub(super) fn type_predicate_kinds_match(&self, a: &TypePredicate, b: &TypePredicate) -> bool {
+    pub(super) fn type_predicate_kinds_match(&self, a: Id<TypePredicate>, b: Id<TypePredicate>) -> bool {
         a.kind == b.kind && a.parameter_index == b.parameter_index
     }
 

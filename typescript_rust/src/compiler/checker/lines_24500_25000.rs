@@ -323,7 +323,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_type_predicate(
         &self,
         mut type_: Id<Type>,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         call_expression: Id<Node>, /*CallExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {

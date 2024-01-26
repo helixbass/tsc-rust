@@ -34,7 +34,7 @@ use crate::{
 impl TypeChecker {
     pub fn type_predicate_to_string_(
         &self,
-        type_predicate: &TypePredicate,
+        type_predicate: Id<TypePredicate>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Id<Box<dyn EmitTextWriter>>>,
@@ -62,7 +62,7 @@ impl TypeChecker {
 
     pub(super) fn type_predicate_to_string_worker(
         &self,
-        type_predicate: &TypePredicate,
+        type_predicate: Id<TypePredicate>,
         enclosing_declaration: Option<Id<Node>>,
         flags: TypeFormatFlags,
         writer: Id<Box<dyn EmitTextWriter>>,

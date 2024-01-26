@@ -25,8 +25,8 @@ use crate::{
 impl TypeChecker {
     pub(super) fn compare_type_predicate_related_to(
         &self,
-        source: &TypePredicate,
-        target: &TypePredicate,
+        source: Id<TypePredicate>,
+        target: Id<TypePredicate>,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
         compare_types: &mut impl FnMut(Id<Type>, Id<Type>, Option<bool>) -> io::Result<Ternary>,

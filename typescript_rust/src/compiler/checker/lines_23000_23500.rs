@@ -1103,7 +1103,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_predicate_argument(
         &self,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         call_expression: Id<Node>, /*CallExpression*/
     ) -> Option<Id<Node>> {
         let call_expression_ref = call_expression.ref_(self);

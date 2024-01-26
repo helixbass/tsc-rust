@@ -117,8 +117,8 @@ impl TypeChecker {
     #[allow(dead_code)]
     pub(super) fn compare_type_predicates_identical(
         &self,
-        source: Option<impl Borrow<TypePredicate>>,
-        target: Option<impl Borrow<TypePredicate>>,
+        source: Option<Id<TypePredicate>>,
+        target: Option<Id<TypePredicate>>,
         compare_types: impl FnOnce(Id<Type>, Id<Type>) -> Ternary,
     ) -> Ternary {
         self.try_compare_type_predicates_identical(source, target, |a: Id<Type>, b: Id<Type>| {
@@ -129,8 +129,8 @@ impl TypeChecker {
 
     pub(super) fn try_compare_type_predicates_identical(
         &self,
-        source: Option<impl Borrow<TypePredicate>>,
-        target: Option<impl Borrow<TypePredicate>>,
+        source: Option<Id<TypePredicate>>,
+        target: Option<Id<TypePredicate>>,
         compare_types: impl FnOnce(Id<Type>, Id<Type>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
         Ok(match (source, target) {

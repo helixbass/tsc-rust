@@ -2173,7 +2173,7 @@ impl TypeChecker {
 
     pub fn type_predicate_to_string(
         &self,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
     ) -> io::Result<String> {
@@ -2236,7 +2236,7 @@ impl TypeChecker {
 
     pub fn write_type_predicate(
         &self,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Id<Box<dyn EmitTextWriter>>>,
@@ -3044,7 +3044,7 @@ impl TypeChecker {
         self.marker_other_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn no_type_predicate(&self) -> Gc<TypePredicate> {
+    pub(super) fn no_type_predicate(&self) -> Id<TypePredicate> {
         self.no_type_predicate.as_ref().unwrap().clone()
     }
 

@@ -303,7 +303,7 @@ pub struct TypeChecker {
     pub(crate) marker_sub_type: Option<Id<Type>>,
     pub(crate) marker_other_type: Option<Id<Type>>,
 
-    pub(crate) no_type_predicate: Option<Gc<TypePredicate>>,
+    pub(crate) no_type_predicate: Option<Id<TypePredicate>>,
 
     pub(crate) any_signature: Option<Id<Signature>>,
     pub(crate) unknown_signature: Option<Id<Signature>>,

@@ -585,7 +585,7 @@ pub struct Signature {
     parameters: Option<Vec<Id<Symbol>>>,
     this_parameter: GcCell<Option<Id<Symbol>>>,
     resolved_return_type: GcCell<Option<Id<Type>>>,
-    resolved_type_predicate: GcCell<Option<Gc<TypePredicate>>>,
+    resolved_type_predicate: GcCell<Option<Id<TypePredicate>>>,
     min_argument_count: Option<usize>,
     #[unsafe_ignore_trace]
     resolved_min_argument_count: Cell<Option<usize>>,
@@ -659,11 +659,11 @@ impl Signature {
         self.resolved_return_type.borrow_mut()
     }
 
-    pub fn maybe_resolved_type_predicate(&self) -> Option<Gc<TypePredicate>> {
+    pub fn maybe_resolved_type_predicate(&self) -> Option<Id<TypePredicate>> {
         self.resolved_type_predicate.borrow().clone()
     }
 
-    pub fn maybe_resolved_type_predicate_mut(&self) -> GcCellRefMut<Option<Gc<TypePredicate>>> {
+    pub fn maybe_resolved_type_predicate_mut(&self) -> GcCellRefMut<Option<Id<TypePredicate>>> {
         self.resolved_type_predicate.borrow_mut()
     }
 
