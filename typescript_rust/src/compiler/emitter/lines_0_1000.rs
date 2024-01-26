@@ -905,6 +905,7 @@ fn emit_js_file_or_bundle(
             resolver.clone(),
             transform.clone(),
         )))),
+        arena,
     );
 
     Debug_.assert(
@@ -1104,6 +1105,7 @@ fn emit_declaration_file_or_bundle(
                 declaration_transform.clone(),
             ),
         ))),
+        arena,
     );
     let decl_blocked = declaration_transform.ref_(arena).diagnostics().is_non_empty()
         || host.ref_(arena).is_emit_blocked(declaration_file_path)
@@ -1825,7 +1827,7 @@ pub fn create_printer(
     *printer.ref_(arena)._arena_id.borrow_mut() = Some(printer.clone());
     printer.ref_(arena).reset();
     *printer.ref_(arena).emit_binary_expression.borrow_mut() =
-        Some(Gc::new(printer.create_emit_binary_expression()));
+        Some(Gc::new(printer.ref_(arena).create_emit_binary_expression()));
     printer
 }
 

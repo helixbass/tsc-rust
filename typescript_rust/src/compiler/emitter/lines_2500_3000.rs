@@ -1216,7 +1216,7 @@ impl EmitBinaryExpressionStateMachine {
 
         self.printer
             .ref_(self).set_current_parenthesizer_rule(Some(parenthesizer_rule));
-        pipeline_phase(&self.printer, EmitHint::Expression, next)?;
+        pipeline_phase(&self.printer.ref_(self), EmitHint::Expression, next)?;
         Ok(None)
     }
 }

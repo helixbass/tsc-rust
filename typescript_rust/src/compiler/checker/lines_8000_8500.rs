@@ -103,6 +103,7 @@ impl TypeChecker {
                 .build()
                 .unwrap(),
             None,
+            self,
         );
         let source_file = enclosing_declaration
             .and_then(|enclosing_declaration| {
