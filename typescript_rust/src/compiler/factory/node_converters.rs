@@ -260,9 +260,7 @@ pub struct NullNodeConverters;
 
 impl NullNodeConverters {
     pub fn new() -> Self {
-        Self {
-            _base_node_factory: PhantomData,
-        }
+        Self
     }
 }
 

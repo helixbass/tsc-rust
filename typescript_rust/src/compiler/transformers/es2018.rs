@@ -34,6 +34,7 @@ use crate::{
     TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
     HasArena, AllArenas, InArena, OptionInArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
+    BaseNodeFactory,
 };
 
 bitflags! {
@@ -75,7 +76,6 @@ struct TransformES2018 {
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory>,
-    base_factory: Gc<BaseNodeFactorySynthetic>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
@@ -106,7 +106,6 @@ impl TransformES2018 {
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
             factory: context_ref.factory(),
-            base_factory: context_ref.base_factory(),
             resolver: context_ref.get_emit_resolver(),
             language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
             compiler_options,

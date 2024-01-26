@@ -19,7 +19,6 @@ struct TransformES2016 {
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Gc<NodeFactory>,
-    base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
 impl TransformES2016 {
@@ -29,7 +28,6 @@ impl TransformES2016 {
         Self {
             _arena: arena,
             factory: context_ref.factory(),
-            base_factory: context_ref.base_factory(),
             context,
         }
     }

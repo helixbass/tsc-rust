@@ -100,10 +100,10 @@ impl BaseNodeFactory for ParseBaseNodeFactory {
 }
 
 thread_local! {
-    pub static parse_base_node_factory: Gc<ParseBaseNodeFactory> = Gc::new(ParseBaseNodeFactory::new());
+    pub static parse_base_node_factory: Gc<Box<dyn BaseNodeFactory>> = Gc::new(Box::new(ParseBaseNodeFactory::new()));
 }
 
-pub fn get_parse_base_node_factory() -> Gc<ParseBaseNodeFactory> {
+pub fn get_parse_base_node_factory() -> Gc<Box<dyn BaseNodeFactory>> {
     parse_base_node_factory.with(|parse_base_node_factory_| parse_base_node_factory_.clone())
 }
 
@@ -116,15 +116,6 @@ thread_local! {
 
 pub fn get_parse_node_factory() -> Gc<NodeFactory> {
     parse_node_factory.with(|parse_node_factory_| parse_node_factory_.clone())
-}
-
-pub fn with_parse_base_node_factory_and_factory<TReturn>(
-    callback: impl FnOnce(&ParseBaseNodeFactory, &Gc<NodeFactory>) -> TReturn,
-) -> TReturn {
-    parse_base_node_factory.with(|parse_base_node_factory_| {
-        parse_node_factory
-            .with(|parse_node_factory_| callback(&**parse_base_node_factory_, parse_node_factory_))
-    })
 }
 
 pub(super) fn visit_node(cb_node: &mut impl FnMut(Id<Node>), node: Option<Id<Node>>) {

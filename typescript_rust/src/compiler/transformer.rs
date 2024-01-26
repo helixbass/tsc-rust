@@ -331,7 +331,6 @@ pub fn transform_nodes(
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
     factory: Gc<NodeFactory>,
-    base_factory: Gc<BaseNodeFactorySynthetic>,
     options: Id<CompilerOptions>,
     nodes: &[Id<Node>],
     transformers: &[TransformerFactory],
@@ -358,7 +357,6 @@ pub fn transform_nodes(
         resolver,
         host,
         factory,
-        base_factory,
         &*static_arena(),
     );
     transformation_result.ref_(arena).call()?;
@@ -416,7 +414,6 @@ pub struct TransformNodesTransformationResult {
     host: Option<Id<Box<dyn EmitHost>>>,
     created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
     factory: Gc<NodeFactory>,
-    base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
 impl TransformNodesTransformationResult {
@@ -436,7 +433,6 @@ impl TransformNodesTransformationResult {
         resolver: Option<Gc<Box<dyn EmitResolver>>>,
         host: Option<Id<Box<dyn EmitHost>>>,
         factory: Gc<NodeFactory>,
-        base_factory: Gc<BaseNodeFactorySynthetic>,
         arena: *const AllArenas,
     ) -> Id<Self> {
         let arena_ref = unsafe { &*arena };
@@ -485,7 +481,6 @@ impl TransformNodesTransformationResult {
             host,
             created_emit_helper_factory: Default::default(),
             factory,
-            base_factory,
         });
         ret.ref_(arena_ref).set_arena_id(ret);
         ret
@@ -748,10 +743,6 @@ impl TransformNodesTransformationResult {
 impl CoreTransformationContext for TransformNodesTransformationResult {
     fn factory(&self) -> Gc<NodeFactory> {
         self.factory.clone()
-    }
-
-    fn base_factory(&self) -> Gc<Box<dyn BaseNodeFactory>> {
-        self.base_factory.clone()
     }
 
     fn get_compiler_options(&self) -> Id<CompilerOptions> {
@@ -1371,10 +1362,6 @@ impl TransformationContextNull {
 impl CoreTransformationContext for TransformationContextNull {
     fn factory(&self) -> Gc<NodeFactory> {
         get_factory()
-    }
-
-    fn base_factory(&self) -> Gc<Box<dyn BaseNodeFactory>> {
-        get_synthetic_factory()
     }
 
     fn get_compiler_options(&self) -> Id<CompilerOptions> {

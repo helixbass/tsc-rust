@@ -392,7 +392,10 @@ impl ParserType {
             NodeFactoryFlags::NoParenthesizerRules
                 | NodeFactoryFlags::NoNodeConverters
                 | NodeFactoryFlags::NoOriginalNode,
-            ret.clone(),
+            // TODO: restore this to be being the parser itself
+            // (as the implementor of BaseNodeFactory)?
+            // ret.clone(),
+            super::get_parse_base_node_factory(),
         ));
         ret
     }

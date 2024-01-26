@@ -17,13 +17,18 @@ pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
     BaseNodeFactoryConcrete::new()
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[allow(non_snake_case)]
 pub struct BaseNodeFactoryConcrete {
+    #[unsafe_ignore_trace]
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
     PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
     TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
     NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
 }
 

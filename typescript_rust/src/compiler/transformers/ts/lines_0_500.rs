@@ -61,7 +61,6 @@ pub(super) struct TransformTypeScript {
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Gc<NodeFactory>,
-    pub(super) base_factory: Gc<BaseNodeFactorySynthetic>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) strict_null_checks: bool,
@@ -94,7 +93,6 @@ impl TransformTypeScript {
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
             factory: context_ref.factory(),
-            base_factory: context_ref.base_factory(),
             resolver: context_ref.get_emit_resolver(),
             strict_null_checks: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictNullChecks"),
             language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),

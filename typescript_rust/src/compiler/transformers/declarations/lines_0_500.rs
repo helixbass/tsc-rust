@@ -54,7 +54,6 @@ pub fn get_declaration_diagnostics(
         Some(resolver),
         Some(host.clone()),
         get_factory(),
-        get_synthetic_factory(),
         compiler_options,
         &if let Some(file) = file {
             vec![file]

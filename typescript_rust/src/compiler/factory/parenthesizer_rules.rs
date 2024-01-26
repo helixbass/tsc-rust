@@ -517,9 +517,7 @@ pub struct NullParenthesizerRules;
 
 impl NullParenthesizerRules {
     pub fn new() -> Self {
-        Self {
-            _base_node_factory: PhantomData,
-        }
+        Self
     }
 }
 

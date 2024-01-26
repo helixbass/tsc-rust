@@ -204,7 +204,6 @@ bitflags! {
 
 pub trait CoreTransformationContext: Trace + Finalize {
     fn factory(&self) -> Gc<NodeFactory>;
-    fn base_factory(&self) -> Gc<Box<dyn BaseNodeFactory>>;
 
     fn get_compiler_options(&self) -> Id<CompilerOptions>;
 
