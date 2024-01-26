@@ -328,7 +328,7 @@ pub fn no_emit_notification(
 }
 
 pub fn transform_nodes(
-    resolver: Option<Gc<Box<dyn EmitResolver>>>,
+    resolver: Option<Id<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
     factory: Id<NodeFactory>,
     options: Id<CompilerOptions>,
@@ -410,7 +410,7 @@ pub struct TransformNodesTransformationResult {
     transformers_with_context: GcCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
     options: Id<CompilerOptions>,
-    resolver: Option<Gc<Box<dyn EmitResolver>>>,
+    resolver: Option<Id<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
     created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
     factory: Id<NodeFactory>,
@@ -430,7 +430,7 @@ impl TransformNodesTransformationResult {
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
         options: Id<CompilerOptions>,
-        resolver: Option<Gc<Box<dyn EmitResolver>>>,
+        resolver: Option<Id<Box<dyn EmitResolver>>>,
         host: Option<Id<Box<dyn EmitHost>>>,
         factory: Id<NodeFactory>,
         arena: *const AllArenas,
@@ -1059,7 +1059,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
 }
 
 impl TransformationContext for TransformNodesTransformationResult {
-    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
+    fn get_emit_resolver(&self) -> Id<Box<dyn EmitResolver>> {
         self.resolver.clone().unwrap()
     }
 
@@ -1400,7 +1400,7 @@ impl CoreTransformationContext for TransformationContextNull {
 }
 
 impl TransformationContext for TransformationContextNull {
-    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
+    fn get_emit_resolver(&self) -> Id<Box<dyn EmitResolver>> {
         not_implemented()
     }
 

@@ -217,7 +217,7 @@ impl TypeChecker {
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> io::Result<Gc<Box<dyn EmitResolver>>> {
+    ) -> io::Result<Id<Box<dyn EmitResolver>>> {
         self.get_diagnostics(source_file, cancellation_token)?;
         Ok(self.emit_resolver())
     }

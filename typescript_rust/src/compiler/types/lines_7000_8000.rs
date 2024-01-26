@@ -232,7 +232,7 @@ pub trait CoreTransformationContext: Trace + Finalize {
 }
 
 pub trait TransformationContext: CoreTransformationContext + HasArena {
-    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>>;
+    fn get_emit_resolver(&self) -> Id<Box<dyn EmitResolver>>;
     fn get_emit_host(&self) -> Id<Box<dyn EmitHost>>;
     fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory>;
 

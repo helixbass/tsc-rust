@@ -676,7 +676,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn create_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
+    pub(super) fn create_resolver(&self) -> Id<Box<dyn EmitResolver>> {
         Gc::new(Box::new(EmitResolverCreateResolver::new(self.rc_wrapper(), self)))
     }
 

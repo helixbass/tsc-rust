@@ -387,7 +387,7 @@ pub(super) struct TransformGenerators {
     pub(super) compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
-    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) renamed_catch_variables: GcCell<Option<HashMap<String, bool>>>,
     pub(super) renamed_catch_variable_declarations:
         GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,

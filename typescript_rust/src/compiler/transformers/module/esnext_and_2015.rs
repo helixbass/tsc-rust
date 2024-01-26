@@ -29,7 +29,7 @@ struct TransformEcmascriptModule {
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
     host: Id<Box<dyn EmitHost>>,
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     language_version: ScriptTarget,

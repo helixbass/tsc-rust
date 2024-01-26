@@ -46,7 +46,7 @@ use crate::{
 
 pub fn get_declaration_diagnostics(
     host: Id<Box<dyn EmitHost>>,
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     file: Option<Id<Node> /*SourceFile*/>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>> {
@@ -200,7 +200,7 @@ pub(super) struct TransformDeclarations {
     pub(super) refs: GcCell<Option<HashMap<NodeId, Id<Node /*SourceFile*/>>>>,
     pub(super) libs: GcCell<Option<HashMap<String, bool>>>,
     pub(super) emitted_imports: GcCell<Option<Vec<Id<Node /*AnyImportSyntax*/>>>>,
-    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) options: Id<CompilerOptions>,
     pub(super) no_resolve: Option<bool>,
     pub(super) strip_internal: Option<bool>,

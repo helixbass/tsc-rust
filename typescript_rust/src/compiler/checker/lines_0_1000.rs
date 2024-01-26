@@ -1684,7 +1684,7 @@ impl TypeChecker {
         vec![VarianceFlags::Covariant]
     }
 
-    pub(super) fn emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
+    pub(super) fn emit_resolver(&self) -> Id<Box<dyn EmitResolver>> {
         self.emit_resolver.borrow().clone().unwrap()
     }
 

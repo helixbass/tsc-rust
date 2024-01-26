@@ -518,7 +518,7 @@ pub(crate) fn get_common_source_directory_of_config(
 }
 
 pub(crate) fn emit_files(
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     host: Id<Box<dyn EmitHost>>,
     target_source_file: Option<Id<Node> /*SourceFile*/>,
     EmitTransformers {
@@ -615,7 +615,7 @@ fn emit_source_file_or_bundle(
     emitter_diagnostics: &mut DiagnosticCollection,
     compiler_options: Id<CompilerOptions>,
     force_dts_emit: Option<bool>,
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     declaration_transformers: &[TransformerFactory],
     exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
     writer: Id<Box<dyn EmitTextWriter>>,
@@ -846,7 +846,7 @@ fn emit_js_file_or_bundle(
     host: Id<Box<dyn EmitHost>>,
     compiler_options: Id<CompilerOptions>,
     emit_skipped: &mut bool,
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     script_transformers: &[TransformerFactory],
     bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
     writer: Id<Box<dyn EmitTextWriter>>,
@@ -935,13 +935,13 @@ fn emit_js_file_or_bundle(
 
 #[derive(Trace, Finalize)]
 struct EmitJsFileOrBundlePrintHandlers {
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     transform: Id<TransformNodesTransformationResult>,
 }
 
 impl EmitJsFileOrBundlePrintHandlers {
     fn new(
-        resolver: Gc<Box<dyn EmitResolver>>,
+        resolver: Id<Box<dyn EmitResolver>>,
         transform: Id<TransformNodesTransformationResult>,
     ) -> Self {
         Self {
@@ -996,7 +996,7 @@ fn emit_declaration_file_or_bundle(
     compiler_options: Id<CompilerOptions>,
     emit_skipped: &mut bool,
     force_dts_emit: Option<bool>,
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     host: Id<Box<dyn EmitHost>>,
     declaration_transformers: &[TransformerFactory],
     emitter_diagnostics: &mut DiagnosticCollection,
@@ -1158,13 +1158,13 @@ fn emit_declaration_file_or_bundle(
 
 #[derive(Trace, Finalize)]
 struct EmitDeclarationFileOrBundlePrintHandlers {
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     declaration_transform: Id<TransformNodesTransformationResult>,
 }
 
 impl EmitDeclarationFileOrBundlePrintHandlers {
     fn new(
-        resolver: Gc<Box<dyn EmitResolver>>,
+        resolver: Id<Box<dyn EmitResolver>>,
         declaration_transform: Id<TransformNodesTransformationResult>,
     ) -> Self {
         Self {
@@ -1492,10 +1492,10 @@ pub(crate) fn get_build_info(_build_info_text: &str) -> Gc<BuildInfo> {
 }
 
 thread_local! {
-    static not_implemented_resolver_: Gc<Box<dyn EmitResolver>> = Gc::new(Box::new(NotImplementedResolver));
+    static not_implemented_resolver_: Id<Box<dyn EmitResolver>> = Gc::new(Box::new(NotImplementedResolver));
 }
 
-pub(crate) fn not_implemented_resolver() -> Gc<Box<dyn EmitResolver>> {
+pub(crate) fn not_implemented_resolver() -> Id<Box<dyn EmitResolver>> {
     not_implemented_resolver_.with(|not_implemented_resolver| not_implemented_resolver.clone())
 }
 

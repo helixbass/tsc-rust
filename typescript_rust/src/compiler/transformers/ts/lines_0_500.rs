@@ -61,7 +61,7 @@ pub(super) struct TransformTypeScript {
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
-    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) strict_null_checks: bool,
     #[unsafe_ignore_trace]

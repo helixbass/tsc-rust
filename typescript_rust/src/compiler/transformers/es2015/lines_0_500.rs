@@ -190,7 +190,7 @@ pub(super) struct TransformES2015 {
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) compiler_options: Id<CompilerOptions>,
-    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
     pub(super) current_text: GcCell<Option<SourceTextAsChars>>,
     #[unsafe_ignore_trace]
