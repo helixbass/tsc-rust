@@ -921,7 +921,7 @@ impl TypeChecker {
             if match pred.as_ref() {
                 None => true,
                 Some(pred) => matches!(
-                    pred.kind,
+                    pred.ref_(self).kind,
                     TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
                 ),
             } {
@@ -933,27 +933,27 @@ impl TypeChecker {
             }
             let pred = pred.unwrap();
 
-            if let Some(first) = first.as_ref() {
-                if !self.type_predicate_kinds_match(first, &pred) {
+            if let Some(first) = first {
+                if !self.type_predicate_kinds_match(first, pred) {
                     return Ok(None);
                 }
             } else {
                 first = Some(pred.clone());
             }
-            types.push(pred.type_.clone().unwrap());
+            types.push(pred.ref_(self).type_.clone().unwrap());
         }
         let first = return_ok_default_if_none!(first);
         let composite_type = self.get_union_or_intersection_type(&types, kind, None)?;
         Ok(Some(self.create_type_predicate(
-            first.kind,
-            first.parameter_name.clone(),
-            first.parameter_index,
+            first.ref_(self).kind,
+            first.ref_(self).parameter_name.clone(),
+            first.ref_(self).parameter_index,
             Some(composite_type),
         )))
     }
 
     pub(super) fn type_predicate_kinds_match(&self, a: Id<TypePredicate>, b: Id<TypePredicate>) -> bool {
-        a.kind == b.kind && a.parameter_index == b.parameter_index
+        a.ref_(self).kind == b.ref_(self).kind && a.ref_(self).parameter_index == b.ref_(self).parameter_index
     }
 
     pub(super) fn get_union_type_from_sorted_list(

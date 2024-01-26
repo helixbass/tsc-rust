@@ -555,9 +555,9 @@ impl GetFlowTypeOfReference {
             let predicate = self
                 .type_checker
                 .get_type_predicate_of_signature(signature)?;
-            if let Some(predicate) = predicate.as_ref().filter(|predicate| {
+            if let Some(predicate) = predicate.filter(|predicate| {
                 matches!(
-                    predicate.kind,
+                    predicate.ref_(self).kind,
                     TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
                 )
             }) {
@@ -565,23 +565,23 @@ impl GetFlowTypeOfReference {
                 let type_ = self.type_checker.finalize_evolving_array_type(
                     self.type_checker.get_type_from_flow_type(&flow_type),
                 )?;
-                let narrowed_type = if predicate.type_.is_some() {
+                let narrowed_type = if predicate.ref_(self).type_.is_some() {
                     self.narrow_type_by_type_predicate(
                         type_,
                         predicate,
                         flow_as_flow_call.node,
                         true,
                     )?
-                } else if predicate.kind == TypePredicateKind::AssertsIdentifier
+                } else if predicate.ref_(self).kind == TypePredicateKind::AssertsIdentifier
                     && matches!(
-                        predicate.parameter_index,
+                        predicate.ref_(self).parameter_index,
                         Some(predicate_parameter_index) if predicate_parameter_index < flow_as_flow_call.node.ref_(self).as_call_expression().arguments.len()
                     )
                 {
                     self.narrow_type_by_assertion(
                         type_,
                         flow_as_flow_call.node.ref_(self).as_call_expression().arguments
-                            [predicate.parameter_index.unwrap()],
+                            [predicate.ref_(self).parameter_index.unwrap()],
                     )?
                 } else {
                     type_.clone()

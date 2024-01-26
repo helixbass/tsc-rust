@@ -337,7 +337,7 @@ impl NodeBuilder {
             .get_type_predicate_of_signature(signature)?;
         if let Some(type_predicate) = type_predicate.as_ref() {
             let asserts_modifier: Option<Id<Node>> = if matches!(
-                type_predicate.kind,
+                type_predicate.ref_(self).kind,
                 TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
             ) {
                 Some(get_factory(self).create_token(SyntaxKind::AssertsKeyword))
@@ -345,19 +345,19 @@ impl NodeBuilder {
                 None
             };
             let parameter_name = if matches!(
-                type_predicate.kind,
+                type_predicate.ref_(self).kind,
                 TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
             ) {
                 set_emit_flags(
                     get_factory(self)
-                        .create_identifier(type_predicate.parameter_name.as_ref().unwrap()),
+                        .create_identifier(type_predicate.ref_(self).parameter_name.as_ref().unwrap()),
                     EmitFlags::NoAsciiEscaping,
                     self,
                 )
             } else {
                 get_factory(self).create_this_type_node()
             };
-            let type_node = type_predicate.type_.try_and_then(|type_predicate_type| {
+            let type_node = type_predicate.ref_(self).type_.try_and_then(|type_predicate_type| {
                 self.type_to_type_node_helper(Some(type_predicate_type), context)
             })?;
             return_type_node = Some(get_factory(self).create_type_predicate_node(

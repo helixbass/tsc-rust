@@ -465,8 +465,8 @@ impl TypeChecker {
                     self.get_type_predicate_of_signature(signature_target)?;
                 *signature.ref_(self).maybe_resolved_type_predicate_mut() =
                     Some(if let Some(target_type_predicate) = target_type_predicate {
-                        Gc::new(self.instantiate_type_predicate(
-                            &target_type_predicate,
+                        self.alloc_type_predicate(self.instantiate_type_predicate(
+                            target_type_predicate,
                             signature.ref_(self).mapper.clone().unwrap(),
                         )?)
                     } else {
@@ -480,7 +480,7 @@ impl TypeChecker {
                         signature_composite_signatures,
                         signature.ref_(self).composite_kind,
                     )?
-                    .map_or_else(|| self.no_type_predicate(), Gc::new),
+                    .map_or_else(|| self.no_type_predicate(), |type_predicate| self.alloc_type_predicate(type_predicate)),
                 );
             } else {
                 let type_ = signature
@@ -498,7 +498,7 @@ impl TypeChecker {
                 }
                 *signature.ref_(self).maybe_resolved_type_predicate_mut() = Some(
                     if let Some(type_) = type_.filter(|type_| is_type_predicate_node(&type_.ref_(self))) {
-                        Gc::new(
+                        self.alloc_type_predicate(
                             self.create_type_predicate_from_type_predicate_node(type_, signature)?,
                         )
                     } else {
@@ -510,8 +510,8 @@ impl TypeChecker {
         }
         Ok(
             if matches!(
-                signature.ref_(self).maybe_resolved_type_predicate().as_ref(),
-                Some(resolved_type_predicate) if Gc::ptr_eq(resolved_type_predicate, &self.no_type_predicate())
+                signature.ref_(self).maybe_resolved_type_predicate(),
+                Some(resolved_type_predicate) if resolved_type_predicate == self.no_type_predicate()
             ) {
                 None
             } else {

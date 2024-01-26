@@ -31,7 +31,7 @@ impl TypeChecker {
         error_reporter: &mut Option<ErrorReporter>,
         compare_types: &mut impl FnMut(Id<Type>, Id<Type>, Option<bool>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
-        if source.kind != target.kind {
+        if source.ref_(self).kind != target.ref_(self).kind {
             if report_errors {
                 (error_reporter.as_mut().unwrap())(
                     Cow::Borrowed(&Diagnostics::A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard),
@@ -59,18 +59,18 @@ impl TypeChecker {
         }
 
         if matches!(
-            source.kind,
+            source.ref_(self).kind,
             TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
         ) {
-            if source.parameter_index != target.parameter_index {
+            if source.ref_(self).parameter_index != target.ref_(self).parameter_index {
                 if report_errors {
                     (error_reporter.as_mut().unwrap())(
                         Cow::Borrowed(
                             &Diagnostics::Parameter_0_is_not_in_the_same_position_as_parameter_1,
                         ),
                         Some(vec![
-                            source.parameter_name.clone().unwrap(),
-                            target.parameter_name.clone().unwrap(),
+                            source.ref_(self).parameter_name.clone().unwrap(),
+                            target.ref_(self).parameter_name.clone().unwrap(),
                         ]),
                     )?;
                     (error_reporter.as_mut().unwrap())(
@@ -95,12 +95,12 @@ impl TypeChecker {
             }
         }
 
-        let related = if source.type_ == target.type_ {
+        let related = if source.ref_(self).type_ == target.ref_(self).type_ {
             Ternary::True
-        } else if source.type_.is_some() && target.type_.is_some() {
+        } else if source.ref_(self).type_.is_some() && target.ref_(self).type_.is_some() {
             compare_types(
-                source.type_.unwrap(),
-                target.type_.unwrap(),
+                source.ref_(self).type_.unwrap(),
+                target.ref_(self).type_.unwrap(),
                 Some(report_errors),
             )?
         } else {

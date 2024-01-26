@@ -1109,11 +1109,11 @@ impl TypeChecker {
         let call_expression_ref = call_expression.ref_(self);
         let call_expression_as_call_expression = call_expression_ref.as_call_expression();
         if matches!(
-            predicate.kind,
+            predicate.ref_(self).kind,
             TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
         ) {
             return Some(
-                call_expression_as_call_expression.arguments[predicate.parameter_index.unwrap()]
+                call_expression_as_call_expression.arguments[predicate.ref_(self).parameter_index.unwrap()]
                     .clone(),
             );
         }
@@ -1216,12 +1216,12 @@ impl TypeChecker {
                 if let Some(signature) = signature {
                     let predicate = self.get_type_predicate_of_signature(signature)?;
                     if let Some(predicate) = predicate.as_ref().filter(|predicate| {
-                        predicate.kind == TypePredicateKind::AssertsIdentifier
-                            && predicate.type_.is_none()
+                        predicate.ref_(self).kind == TypePredicateKind::AssertsIdentifier
+                            && predicate.ref_(self).type_.is_none()
                     }) {
                         let predicate_argument =
                             flow_as_flow_call.node.ref_(self).as_call_expression().arguments
-                                [predicate.parameter_index.unwrap()];
+                                [predicate.ref_(self).parameter_index.unwrap()];
                         if
                         /*predicateArgument &&*/
                         self.is_false_expression(predicate_argument) {

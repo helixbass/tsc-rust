@@ -135,13 +135,11 @@ impl TypeChecker {
     ) -> io::Result<Ternary> {
         Ok(match (source, target) {
             (Some(source), Some(target)) => {
-                let source = source.borrow();
-                let target = target.borrow();
                 if !self.type_predicate_kinds_match(source, target) {
                     Ternary::False
-                } else if source.type_ == target.type_ {
+                } else if source.ref_(self).type_ == target.ref_(self).type_ {
                     Ternary::True
-                } else if let (Some(source_type), Some(target_type)) = (source.type_, target.type_)
+                } else if let (Some(source_type), Some(target_type)) = (source.ref_(self).type_, target.ref_(self).type_)
                 {
                     compare_types(source_type, target_type)?
                 } else {

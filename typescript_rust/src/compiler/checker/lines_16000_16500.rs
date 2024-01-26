@@ -976,10 +976,10 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<TypePredicate> {
         Ok(self.create_type_predicate(
-            predicate.kind,
-            predicate.parameter_name.clone(),
-            predicate.parameter_index,
-            self.maybe_instantiate_type(predicate.type_, Some(mapper))?,
+            predicate.ref_(self).kind,
+            predicate.ref_(self).parameter_name.clone(),
+            predicate.ref_(self).parameter_index,
+            self.maybe_instantiate_type(predicate.ref_(self).type_, Some(mapper))?,
         ))
     }
 

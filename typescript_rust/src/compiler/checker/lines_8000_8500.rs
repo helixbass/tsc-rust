@@ -69,7 +69,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let predicate = get_factory(self).create_type_predicate_node(
             if matches!(
-                type_predicate.kind,
+                type_predicate.ref_(self).kind,
                 TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
             ) {
                 Some(get_factory(self).create_token(SyntaxKind::AssertsKeyword))
@@ -77,14 +77,14 @@ impl TypeChecker {
                 None
             },
             if matches!(
-                type_predicate.kind,
+                type_predicate.ref_(self).kind,
                 TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
             ) {
-                get_factory(self).create_identifier(type_predicate.parameter_name.as_ref().unwrap())
+                get_factory(self).create_identifier(type_predicate.ref_(self).parameter_name.as_ref().unwrap())
             } else {
                 get_factory(self).create_this_type_node()
             },
-            type_predicate.type_.try_and_then(|type_| {
+            type_predicate.ref_(self).type_.try_and_then(|type_| {
                 self.node_builder().type_to_type_node(
                     type_,
                     enclosing_declaration,

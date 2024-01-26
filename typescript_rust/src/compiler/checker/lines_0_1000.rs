@@ -1361,7 +1361,7 @@ pub fn create_type_checker(
         ),
     );
 
-    type_checker.no_type_predicate = Some(Gc::new(type_checker.create_type_predicate(
+    type_checker.no_type_predicate = Some(arena_ref.alloc_type_predicate(type_checker.create_type_predicate(
         TypePredicateKind::Identifier,
         Some("<<unresolved>>".to_owned()),
         Some(0),

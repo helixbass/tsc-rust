@@ -263,9 +263,9 @@ impl GetFlowTypeOfReference {
             let predicate = signature.try_and_then(|signature| {
                 self.type_checker.get_type_predicate_of_signature(signature)
             })?;
-            if let Some(predicate) = predicate.as_ref().filter(|predicate| {
+            if let Some(predicate) = predicate.filter(|predicate| {
                 matches!(
-                    predicate.kind,
+                    predicate.ref_(self).kind,
                     TypePredicateKind::This | TypePredicateKind::Identifier
                 )
             }) {
@@ -327,7 +327,7 @@ impl GetFlowTypeOfReference {
         call_expression: Id<Node>, /*CallExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
-        if let Some(predicate_type) = predicate.type_.filter(|&predicate_type| {
+        if let Some(predicate_type) = predicate.ref_(self).type_.filter(|&predicate_type| {
             !(self.type_checker.is_type_any(Some(type_))
                 && (predicate_type == self.type_checker.global_object_type()
                     || predicate_type == self.type_checker.global_function_type()))

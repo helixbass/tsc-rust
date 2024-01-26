@@ -1494,9 +1494,9 @@ impl TypeChecker {
             };
 
             let target_type_predicate = self.get_type_predicate_of_signature(target)?;
-            if let Some(target_type_predicate) = target_type_predicate.as_ref() {
+            if let Some(target_type_predicate) = target_type_predicate {
                 let source_type_predicate = self.get_type_predicate_of_signature(source)?;
-                if let Some(source_type_predicate) = source_type_predicate.as_ref() {
+                if let Some(source_type_predicate) = source_type_predicate {
                     result &= self.compare_type_predicate_related_to(
                         source_type_predicate,
                         target_type_predicate,
@@ -1506,7 +1506,7 @@ impl TypeChecker {
                             compare_types.call(s, t, report_errors)
                         },
                     )?;
-                } else if is_identifier_type_predicate(target_type_predicate) {
+                } else if is_identifier_type_predicate(&target_type_predicate.ref_(self)) {
                     if report_errors {
                         (error_reporter.as_mut().unwrap())(
                             Cow::Borrowed(&Diagnostics::Signature_0_must_be_a_type_predicate),

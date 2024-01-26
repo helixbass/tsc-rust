@@ -11,7 +11,7 @@ use crate::{
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
-    ParenthesizerRules, IterationTypes,
+    ParenthesizerRules, IterationTypes, TypePredicate,
 };
 
 #[derive(Default)]
@@ -52,6 +52,7 @@ pub struct AllArenas {
     pub current_parenthesizer_rules: RefCell<Arena<Box<dyn CurrentParenthesizerRule>>>,
     pub parenthesizer_rules: RefCell<Arena<Box<dyn ParenthesizerRules>>>,
     pub iteration_types: RefCell<Arena<IterationTypes>>,
+    pub type_predicates: RefCell<Arena<TypePredicate>>,
 }
 
 pub trait HasArena {
@@ -319,6 +320,14 @@ pub trait HasArena {
 
     fn alloc_iteration_types(&self, iteration_types: IterationTypes) -> Id<IterationTypes> {
         self.arena().alloc_iteration_types(iteration_types)
+    }
+
+    fn type_predicate(&self, type_predicate: Id<TypePredicate>) -> Ref<TypePredicate> {
+        self.arena().type_predicate(type_predicate)
+    }
+
+    fn alloc_type_predicate(&self, type_predicate: TypePredicate) -> Id<TypePredicate> {
+        self.arena().alloc_type_predicate(type_predicate)
     }
 }
 
@@ -665,6 +674,16 @@ impl HasArena for AllArenas {
         let id = self.iteration_types.borrow_mut().alloc(iteration_types);
         id
     }
+
+    #[track_caller]
+    fn type_predicate(&self, type_predicate: Id<TypePredicate>) -> Ref<TypePredicate> {
+        Ref::map(self.type_predicates.borrow(), |type_predicates| &type_predicates[type_predicate])
+    }
+
+    fn alloc_type_predicate(&self, type_predicate: TypePredicate) -> Id<TypePredicate> {
+        let id = self.type_predicates.borrow_mut().alloc(type_predicate);
+        id
+    }
 }
 
 pub trait InArena {
@@ -935,6 +954,14 @@ impl InArena for Id<IterationTypes> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, IterationTypes> {
         has_arena.iteration_types(*self)
+    }
+}
+
+impl InArena for Id<TypePredicate> {
+    type Item = TypePredicate;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TypePredicate> {
+        has_arena.type_predicate(*self)
     }
 }
 

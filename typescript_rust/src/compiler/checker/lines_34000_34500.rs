@@ -219,13 +219,13 @@ impl TypeChecker {
 
         let parameter_name = node_as_type_predicate_node.parameter_name;
         if matches!(
-            type_predicate.kind,
+            type_predicate.ref_(self).kind,
             TypePredicateKind::This | TypePredicateKind::AssertsThis
         ) {
             self.get_type_from_this_type_node(parameter_name)?;
         } else {
             #[allow(clippy::suspicious_else_formatting)]
-            if let Some(type_predicate_parameter_index) = type_predicate.parameter_index {
+            if let Some(type_predicate_parameter_index) = type_predicate.ref_(self).parameter_index {
                 if signature_has_rest_parameter(&signature.ref_(self))
                     && type_predicate_parameter_index == signature.ref_(self).parameters().len() - 1
                 {
@@ -235,7 +235,7 @@ impl TypeChecker {
                         None,
                     );
                 } else {
-                    if let Some(type_predicate_type) = type_predicate.type_ {
+                    if let Some(type_predicate_type) = type_predicate.ref_(self).type_ {
                         let leading_error: Gc<Box<dyn CheckTypeContainingMessageChain>> =
                             Gc::new(Box::new(CheckTypePredicateContainingMessageChain));
                         self.check_type_assignable_to(
@@ -260,7 +260,7 @@ impl TypeChecker {
                         && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
                             name,
                             parameter_name,
-                            type_predicate.parameter_name.as_ref().unwrap(),
+                            type_predicate.ref_(self).parameter_name.as_ref().unwrap(),
                         )
                     {
                         has_reported_error = true;
@@ -271,7 +271,7 @@ impl TypeChecker {
                     self.error(
                         Some(node_as_type_predicate_node.parameter_name),
                         &Diagnostics::Cannot_find_parameter_0,
-                        Some(vec![type_predicate.parameter_name.clone().unwrap()]),
+                        Some(vec![type_predicate.ref_(self).parameter_name.clone().unwrap()]),
                     );
                 }
             }

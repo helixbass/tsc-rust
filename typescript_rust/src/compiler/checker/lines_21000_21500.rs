@@ -681,11 +681,11 @@ impl TypeChecker {
         let source_type_predicate = self.get_type_predicate_of_signature(source)?;
         let target_type_predicate = self.get_type_predicate_of_signature(target)?;
         let mut took_if_branch = false;
-        if let Some(source_type_predicate) = source_type_predicate.as_ref() {
-            if let Some(target_type_predicate) = target_type_predicate.as_ref() {
+        if let Some(source_type_predicate) = source_type_predicate {
+            if let Some(target_type_predicate) = target_type_predicate {
                 if self.type_predicate_kinds_match(source_type_predicate, target_type_predicate) {
-                    if let Some(source_type_predicate_type) = source_type_predicate.type_ {
-                        if let Some(target_type_predicate_type) = target_type_predicate.type_ {
+                    if let Some(source_type_predicate_type) = source_type_predicate.ref_(self).type_ {
+                        if let Some(target_type_predicate_type) = target_type_predicate.ref_(self).type_ {
                             callback(source_type_predicate_type, target_type_predicate_type)?;
                             took_if_branch = true;
                         }
