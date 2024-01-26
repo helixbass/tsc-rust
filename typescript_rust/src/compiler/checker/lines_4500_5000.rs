@@ -306,7 +306,7 @@ impl TypeChecker {
                 .and_then(|enclosing_declaration| {
                     maybe_get_source_file_of_node(Some(enclosing_declaration), self)
                 });
-            printer.write_node(
+            printer.ref_(self).write_node(
                 EmitHint::Unspecified,
                 entity,
                 source_file,
@@ -400,7 +400,7 @@ impl TypeChecker {
             .and_then(|enclosing_declaration| {
                 maybe_get_source_file_of_node(Some(enclosing_declaration), self)
             });
-        printer.write_node(
+        printer.ref_(self).write_node(
             EmitHint::Unspecified,
             sig.unwrap(),
             source_file,
@@ -451,7 +451,7 @@ impl TypeChecker {
         let source_file = enclosing_declaration.and_then(|enclosing_declaration| {
             maybe_get_source_file_of_node(Some(enclosing_declaration), self)
         });
-        printer.write_node(
+        printer.ref_(self).write_node(
             EmitHint::Unspecified,
             type_node,
             source_file,

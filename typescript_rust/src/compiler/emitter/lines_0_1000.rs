@@ -921,14 +921,14 @@ fn emit_js_file_or_bundle(
         js_file_path,
         source_map_file_path,
         transform.ref_(arena).transformed()[0],
-        &printer,
+        printer,
         &(&*compiler_options.ref_(arena)).into(),
-        &*printer,
+        arena,
     )?;
 
     transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
-        bundle_build_info.borrow_mut().js = printer.maybe_bundle_file_info().clone();
+        bundle_build_info.borrow_mut().js = printer.ref_(arena).maybe_bundle_file_info().clone();
     }
 
     Ok(())
@@ -1124,7 +1124,7 @@ fn emit_declaration_file_or_bundle(
             declaration_file_path,
             declaration_map_path,
             declaration_transform.ref_(arena).transformed()[0],
-            &declaration_printer,
+            declaration_printer,
             &SourceMapOptions {
                 source_map: if force_dts_emit != Some(true) {
                     compiler_options.ref_(arena).declaration_map
@@ -1151,7 +1151,7 @@ fn emit_declaration_file_or_bundle(
     }
     declaration_transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
-        bundle_build_info.borrow_mut().js = declaration_printer.maybe_bundle_file_info().clone();
+        bundle_build_info.borrow_mut().js = declaration_printer.ref_(arena).maybe_bundle_file_info().clone();
     }
 
     Ok(())
@@ -1257,7 +1257,7 @@ fn print_source_file_or_bundle(
     js_file_path: &str,
     source_map_file_path: Option<&str>,
     source_file_or_bundle: Id<Node>, /*SourceFile | Bundle*/
-    printer: &Printer,
+    printer: Id<Printer>,
     map_options: &SourceMapOptions,
     arena: &impl HasArena,
 ) -> io::Result<()> {
@@ -1295,9 +1295,9 @@ fn print_source_file_or_bundle(
     }
 
     if let Some(bundle) = bundle {
-        printer.write_bundle(bundle, writer.clone(), source_map_generator.clone())?;
+        printer.ref_(arena).write_bundle(bundle, writer.clone(), source_map_generator.clone())?;
     } else {
-        printer.write_file(
+        printer.ref_(arena).write_file(
             source_file.unwrap(),
             writer.clone(),
             source_map_generator.clone(),
@@ -1818,12 +1818,13 @@ impl PipelinePhase {
 pub fn create_printer(
     printer_options: PrinterOptions,
     handlers: Option<Gc<Box<dyn PrintHandlers>>>,
-) -> Gc<Printer> {
+    arena: &impl HasArena,
+) -> Id<Printer> {
     let handlers = handlers.unwrap_or_else(|| Gc::new(Box::new(DummyPrintHandlers)));
-    let printer = Gc::new(Printer::new(&*static_arena(), printer_options, handlers));
-    *printer._rc_wrapper.borrow_mut() = Some(printer.clone());
-    printer.reset();
-    *printer.emit_binary_expression.borrow_mut() =
+    let printer = arena.alloc_printer(Printer::new(&*static_arena(), printer_options, handlers));
+    *printer.ref_(arena)._arena_id.borrow_mut() = Some(printer.clone());
+    printer.ref_(arena).reset();
+    *printer.ref_(arena).emit_binary_expression.borrow_mut() =
         Some(Gc::new(printer.create_emit_binary_expression()));
     printer
 }
@@ -1872,7 +1873,7 @@ impl Printer {
         let record_internal_section = printer_options.record_internal_section;
         Self {
             arena,
-            _rc_wrapper: Default::default(),
+            _arena_id: Default::default(),
             printer_options,
             handlers,
             extended_diagnostics,
@@ -1925,8 +1926,8 @@ impl Printer {
         self.arena().symbol(symbol)
     }
 
-    pub(super) fn rc_wrapper(&self) -> Gc<Printer> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub(super) fn arena_id(&self) -> Id<Printer> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node>> {

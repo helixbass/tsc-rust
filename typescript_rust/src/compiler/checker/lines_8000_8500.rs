@@ -108,7 +108,7 @@ impl TypeChecker {
             .and_then(|enclosing_declaration| {
                 maybe_get_source_file_of_node(Some(enclosing_declaration), self)
             });
-        printer.write_node(
+        printer.ref_(self).write_node(
             EmitHint::Unspecified,
             predicate,
             source_file,

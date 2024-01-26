@@ -10,7 +10,7 @@ use crate::{
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
-    CompilerHost, SymbolLinks,
+    CompilerHost, SymbolLinks, Printer,
 };
 
 #[derive(Default)]
@@ -45,6 +45,7 @@ pub struct AllArenas {
     pub resolved_type_reference_directives: RefCell<Arena<ResolvedTypeReferenceDirective>>,
     pub compiler_hosts: RefCell<Arena<Box<dyn CompilerHost>>>,
     pub symbol_links: RefCell<Arena<GcCell<SymbolLinks>>>,
+    pub printers: RefCell<Arena<Printer>>,
 }
 
 pub trait HasArena {
@@ -264,6 +265,14 @@ pub trait HasArena {
 
     fn alloc_symbol_links(&self, symbol_links: GcCell<SymbolLinks>) -> Id<GcCell<SymbolLinks>> {
         self.arena().alloc_symbol_links(symbol_links)
+    }
+
+    fn printer(&self, printer: Id<Printer>) -> Ref<Printer> {
+        self.arena().printer(printer)
+    }
+
+    fn alloc_printer(&self, printer: Printer) -> Id<Printer> {
+        self.arena().alloc_printer(printer)
     }
 }
 
@@ -550,6 +559,16 @@ impl HasArena for AllArenas {
         let id = self.symbol_links.borrow_mut().alloc(symbol_links);
         id
     }
+
+    #[track_caller]
+    fn printer(&self, printer: Id<Printer>) -> Ref<Printer> {
+        Ref::map(self.printers.borrow(), |printers| &printers[printer])
+    }
+
+    fn alloc_printer(&self, printer: Printer) -> Id<Printer> {
+        let id = self.printers.borrow_mut().alloc(printer);
+        id
+    }
 }
 
 pub trait InArena {
@@ -772,6 +791,14 @@ impl InArena for Id<GcCell<SymbolLinks>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, GcCell<SymbolLinks>> {
         has_arena.symbol_links(*self)
+    }
+}
+
+impl InArena for Id<Printer> {
+    type Item = Printer;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Printer> {
+        has_arena.printer(*self)
     }
 }
 

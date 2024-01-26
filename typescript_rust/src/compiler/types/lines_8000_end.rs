@@ -26,7 +26,7 @@ use crate::{
 pub struct Printer {
     #[unsafe_ignore_trace]
     pub arena: *const AllArenas,
-    pub _rc_wrapper: GcCell<Option<Gc<Printer>>>,
+    pub _arena_id: GcCell<Option<Id<Printer>>>,
     pub printer_options: PrinterOptions,
     pub handlers: Gc<Box<dyn PrintHandlers>>,
     pub extended_diagnostics: bool,

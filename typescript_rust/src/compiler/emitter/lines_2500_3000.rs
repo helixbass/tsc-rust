@@ -383,7 +383,7 @@ impl Printer {
 
     pub(super) fn create_emit_binary_expression(&self) -> EmitBinaryExpression {
         let trampoline = create_binary_expression_trampoline(
-            EmitBinaryExpressionStateMachine::new(self.rc_wrapper()),
+            EmitBinaryExpressionStateMachine::new(self.arena_id()),
         );
         EmitBinaryExpression::new(trampoline)
     }
@@ -1164,11 +1164,11 @@ pub struct WorkArea {
 
 #[derive(Trace, Finalize)]
 pub struct EmitBinaryExpressionStateMachine {
-    printer: Gc<Printer>,
+    printer: Id<Printer>,
 }
 
 impl EmitBinaryExpressionStateMachine {
-    pub fn new(printer: Gc<Printer>) -> Self {
+    pub fn new(printer: Id<Printer>) -> Self {
         Self { printer }
     }
 
@@ -1181,28 +1181,28 @@ impl EmitBinaryExpressionStateMachine {
         let parenthesizer_rule: Gc<Box<dyn CurrentParenthesizerRule>> =
             Gc::new(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
                 side,
-                self.printer.parenthesizer(),
+                self.printer.ref_(self).parenthesizer(),
                 parent.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
             )));
 
-        let mut pipeline_phase = self.printer.get_pipeline_phase(
+        let mut pipeline_phase = self.printer.ref_(self).get_pipeline_phase(
             PipelinePhase::Notification,
             EmitHint::Expression,
             next,
         )?;
         // per https://users.rust-lang.org/t/compare-function-pointers-for-equality/52339/3
         if pipeline_phase as usize == Printer::pipeline_emit_with_substitution as usize {
-            Debug_.assert_is_defined(&self.printer.maybe_last_substitution(), None);
+            Debug_.assert_is_defined(&self.printer.ref_(self).maybe_last_substitution(), None);
             next = parenthesizer_rule.call(cast(
-                self.printer.maybe_last_substitution(),
+                self.printer.ref_(self).maybe_last_substitution(),
                 |&node: &Id<Node>| is_expression(node, self),
             ));
-            pipeline_phase = self.printer.get_next_pipeline_phase(
+            pipeline_phase = self.printer.ref_(self).get_next_pipeline_phase(
                 PipelinePhase::Substitution,
                 EmitHint::Expression,
                 next,
             )?;
-            self.printer.set_last_substitution(None);
+            self.printer.ref_(self).set_last_substitution(None);
         }
 
         if pipeline_phase as usize == Printer::pipeline_emit_with_comments as usize
@@ -1215,7 +1215,7 @@ impl EmitBinaryExpressionStateMachine {
         }
 
         self.printer
-            .set_current_parenthesizer_rule(Some(parenthesizer_rule));
+            .ref_(self).set_current_parenthesizer_rule(Some(parenthesizer_rule));
         pipeline_phase(&self.printer, EmitHint::Expression, next)?;
         Ok(None)
     }
@@ -1237,24 +1237,24 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             state.stack_index += 1;
             state
                 .preserve_source_newlines_stack
-                .push(self.printer.maybe_preserve_source_newlines());
-            state.container_pos_stack.push(self.printer.container_pos());
-            state.container_end_stack.push(self.printer.container_end());
+                .push(self.printer.ref_(self).maybe_preserve_source_newlines());
+            state.container_pos_stack.push(self.printer.ref_(self).container_pos());
+            state.container_end_stack.push(self.printer.ref_(self).container_end());
             state
                 .declaration_list_container_end_stack
-                .push(self.printer.declaration_list_container_end());
-            let emit_comments = self.printer.should_emit_comments(node);
+                .push(self.printer.ref_(self).declaration_list_container_end());
+            let emit_comments = self.printer.ref_(self).should_emit_comments(node);
             state.should_emit_comments_stack.push(emit_comments);
-            let emit_source_maps = self.printer.should_emit_source_maps(node);
+            let emit_source_maps = self.printer.ref_(self).should_emit_source_maps(node);
             state.should_emit_source_maps_stack.push(emit_source_maps);
-            self.printer.on_before_emit_node(Some(node));
+            self.printer.ref_(self).on_before_emit_node(Some(node));
             if emit_comments {
-                self.printer.emit_comments_before_node(node);
+                self.printer.ref_(self).emit_comments_before_node(node);
             }
             if emit_source_maps {
-                self.printer.emit_source_maps_before_node(node);
+                self.printer.ref_(self).emit_source_maps_before_node(node);
             }
-            self.printer.before_emit_node(node);
+            self.printer.ref_(self).before_emit_node(node);
         } else {
             state = Some(Rc::new(RefCell::new(WorkArea {
                 stack_index: 0,
@@ -1288,21 +1288,21 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         let is_comma_operator = operator_token.ref_(self).kind() != SyntaxKind::CommaToken;
         let node_ref = node.ref_(self);
         let node_as_binary_expression = node_ref.as_binary_expression();
-        let lines_before_operator = self.printer.get_lines_between_nodes(
+        let lines_before_operator = self.printer.ref_(self).get_lines_between_nodes(
             node,
             node_as_binary_expression.left,
             operator_token,
         );
-        let lines_after_operator = self.printer.get_lines_between_nodes(
+        let lines_after_operator = self.printer.ref_(self).get_lines_between_nodes(
             node,
             operator_token,
             node_as_binary_expression.right,
         );
         self.printer
-            .write_lines_and_indent(lines_before_operator, is_comma_operator);
+            .ref_(self).write_lines_and_indent(lines_before_operator, is_comma_operator);
         self.printer
-            .emit_leading_comments_of_position(operator_token.ref_(self).pos());
-        self.printer.write_token_node(
+            .ref_(self).emit_leading_comments_of_position(operator_token.ref_(self).pos());
+        self.printer.ref_(self).write_token_node(
             operator_token,
             if operator_token.ref_(self).kind() == SyntaxKind::InKeyword {
                 Printer::write_keyword
@@ -1311,9 +1311,9 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             },
         );
         self.printer
-            .emit_trailing_comments_of_position(operator_token.ref_(self).end(), Some(true), None);
+            .ref_(self).emit_trailing_comments_of_position(operator_token.ref_(self).end(), Some(true), None);
         self.printer
-            .write_lines_and_indent(lines_after_operator, true);
+            .ref_(self).write_lines_and_indent(lines_after_operator, true);
 
         Ok(())
     }
@@ -1334,18 +1334,18 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_binary_expression = node_ref.as_binary_expression();
-        let lines_before_operator = self.printer.get_lines_between_nodes(
+        let lines_before_operator = self.printer.ref_(self).get_lines_between_nodes(
             node,
             node_as_binary_expression.left,
             node_as_binary_expression.operator_token,
         );
-        let lines_after_operator = self.printer.get_lines_between_nodes(
+        let lines_after_operator = self.printer.ref_(self).get_lines_between_nodes(
             node,
             node_as_binary_expression.operator_token,
             node_as_binary_expression.right,
         );
         self.printer
-            .decrease_indent_if(lines_before_operator != 0, Some(lines_after_operator != 0));
+            .ref_(self).decrease_indent_if(lines_before_operator != 0, Some(lines_after_operator != 0));
         {
             let mut state = state.borrow_mut();
             if state.stack_index > 0 {
@@ -1357,19 +1357,19 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
                     state.declaration_list_container_end_stack.pop().unwrap();
                 let should_emit_comments = state.should_emit_comments_stack.pop().unwrap();
                 let should_emit_source_maps = state.should_emit_source_maps_stack.pop().unwrap();
-                self.printer.after_emit_node(saved_preserve_source_newlines);
+                self.printer.ref_(self).after_emit_node(saved_preserve_source_newlines);
                 if should_emit_source_maps {
-                    self.printer.emit_source_maps_after_node(node);
+                    self.printer.ref_(self).emit_source_maps_after_node(node);
                 }
                 if should_emit_comments {
-                    self.printer.emit_comments_after_node(
+                    self.printer.ref_(self).emit_comments_after_node(
                         node,
                         saved_container_pos,
                         saved_container_end,
                         saved_declaration_list_container_end,
                     );
                 }
-                self.printer.on_after_emit_node(Some(node));
+                self.printer.ref_(self).on_after_emit_node(Some(node));
                 state.stack_index -= 1;
             }
         }
