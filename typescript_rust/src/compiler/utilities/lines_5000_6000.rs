@@ -906,7 +906,7 @@ pub fn attach_file_to_diagnostic(
         *diagnostic_with_location.maybe_related_information_mut() = Some(
             related_information
                 .iter()
-                .map(|related| {
+                .map(|&related| {
                     if is_diagnostic_with_detached_location(&related.ref_(arena))
                         && &related.ref_(arena).as_diagnostic_with_detached_location().file_name == &*file_name
                     {
