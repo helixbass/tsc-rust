@@ -62,12 +62,12 @@ impl TypeChecker {
             let symbol = self.get_symbol_of_node(node)?;
             let links = symbol.map(|symbol| self.get_symbol_links(symbol));
             if matches!(
-                links.as_ref(),
-                Some(links) if (**links).borrow().referenced == Some(true)
+                links,
+                Some(links) if (*links.ref_(self)).borrow().referenced == Some(true)
             ) {
                 return Ok(true);
             }
-            let target = (*self.get_symbol_links(symbol.unwrap()))
+            let target = (*self.get_symbol_links(symbol.unwrap()).ref_(self))
                 .borrow()
                 .target
                 .clone();
@@ -814,16 +814,16 @@ impl TypeChecker {
         );
 
         self.get_symbol_links(self.undefined_symbol())
-            .borrow_mut()
+            .ref_(self).borrow_mut()
             .type_ = Some(self.undefined_widening_type());
         self.get_symbol_links(self.arguments_symbol())
-            .borrow_mut()
+            .ref_(self).borrow_mut()
             .type_ = self.get_global_type("IArguments", 0, true)?;
         self.get_symbol_links(self.unknown_symbol())
-            .borrow_mut()
+            .ref_(self).borrow_mut()
             .type_ = Some(self.error_type());
         self.get_symbol_links(self.global_this_symbol())
-            .borrow_mut()
+            .ref_(self).borrow_mut()
             .type_ = Some(
             self.alloc_type(
                 self.create_object_type(ObjectFlags::Anonymous, Some(self.global_this_symbol()))

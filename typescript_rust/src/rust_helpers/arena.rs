@@ -1,6 +1,7 @@
 use std::{any::Any, rc::Rc};
 
 use debug_cell::{Ref, RefCell};
+use gc::GcCell;
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
@@ -9,7 +10,7 @@ use crate::{
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
-    CompilerHost,
+    CompilerHost, SymbolLinks,
 };
 
 #[derive(Default)]
@@ -43,6 +44,7 @@ pub struct AllArenas {
     pub emit_resolvers: RefCell<Arena<Box<dyn EmitResolver>>>,
     pub resolved_type_reference_directives: RefCell<Arena<ResolvedTypeReferenceDirective>>,
     pub compiler_hosts: RefCell<Arena<Box<dyn CompilerHost>>>,
+    pub symbol_links: RefCell<Arena<GcCell<SymbolLinks>>>,
 }
 
 pub trait HasArena {
@@ -254,6 +256,14 @@ pub trait HasArena {
 
     fn alloc_compiler_host(&self, compiler_host: Box<dyn CompilerHost>) -> Id<Box<dyn CompilerHost>> {
         self.arena().alloc_compiler_host(compiler_host)
+    }
+
+    fn symbol_links(&self, symbol_links: Id<GcCell<SymbolLinks>>) -> Ref<GcCell<SymbolLinks>> {
+        self.arena().symbol_links(symbol_links)
+    }
+
+    fn alloc_symbol_links(&self, symbol_links: GcCell<SymbolLinks>) -> Id<GcCell<SymbolLinks>> {
+        self.arena().alloc_symbol_links(symbol_links)
     }
 }
 
@@ -530,6 +540,16 @@ impl HasArena for AllArenas {
         let id = self.compiler_hosts.borrow_mut().alloc(compiler_host);
         id
     }
+
+    #[track_caller]
+    fn symbol_links(&self, symbol_links: Id<GcCell<SymbolLinks>>) -> Ref<GcCell<SymbolLinks>> {
+        Ref::map(self.symbol_links.borrow(), |symbol_links_| &symbol_links_[symbol_links])
+    }
+
+    fn alloc_symbol_links(&self, symbol_links: GcCell<SymbolLinks>) -> Id<GcCell<SymbolLinks>> {
+        let id = self.symbol_links.borrow_mut().alloc(symbol_links);
+        id
+    }
 }
 
 pub trait InArena {
@@ -744,6 +764,14 @@ impl InArena for Id<Box<dyn CompilerHost>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CompilerHost>> {
         has_arena.compiler_host(*self)
+    }
+}
+
+impl InArena for Id<GcCell<SymbolLinks>> {
+    type Item = GcCell<SymbolLinks>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, GcCell<SymbolLinks>> {
+        has_arena.symbol_links(*self)
     }
 }
 

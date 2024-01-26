@@ -1184,7 +1184,8 @@ impl TypeChecker {
             .ref_(self)
             .set_parent(source.ref_(self).maybe_parent());
         let symbol_links = symbol.ref_(self).as_transient_symbol().symbol_links();
-        let mut symbol_links = symbol_links.borrow_mut();
+        let symbol_links_ref = symbol_links.ref_(self);
+        let mut symbol_links = symbol_links_ref.borrow_mut();
         symbol_links.type_ = type_;
         symbol_links.target = Some(source);
         if let Some(source_value_declaration) = source.ref_(self).maybe_value_declaration() {
@@ -1192,7 +1193,7 @@ impl TypeChecker {
                 .ref_(self)
                 .set_value_declaration(source_value_declaration);
         }
-        let name_type = (*self.get_symbol_links(source)).borrow().name_type.clone();
+        let name_type = (*self.get_symbol_links(source).ref_(self)).borrow().name_type.clone();
         if let Some(name_type) = name_type {
             symbol_links.name_type = Some(name_type);
         }

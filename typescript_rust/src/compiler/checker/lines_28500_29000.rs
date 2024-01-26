@@ -459,7 +459,7 @@ impl TypeChecker {
         }
 
         if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Instantiated) {
-            (*self.get_symbol_links(prop))
+            (*self.get_symbol_links(prop).ref_(self))
                 .borrow()
                 .target
                 .clone()

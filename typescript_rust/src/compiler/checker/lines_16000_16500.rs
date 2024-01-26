@@ -66,7 +66,8 @@ impl TypeChecker {
             .into(),
         );
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let mut result_links = result_links.borrow_mut();
+        let result_links_ref = result_links.ref_(self);
+        let mut result_links = result_links_ref.borrow_mut();
         result_links.type_ = Some(if is_setonly_accessor {
             self.undefined_type()
         } else {
@@ -75,7 +76,7 @@ impl TypeChecker {
         if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
             result.ref_(self).set_declarations(prop_declarations);
         }
-        result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
+        result_links.name_type = (*self.get_symbol_links(prop).ref_(self)).borrow().name_type.clone();
         result_links.synthetic_origin = Some(prop);
         Ok(result)
     }
@@ -361,11 +362,11 @@ impl TypeChecker {
         if is_valid_es_symbol_declaration(node, self) {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
             let links = self.get_symbol_links(symbol);
-            if (*links).borrow().unique_es_symbol_type.is_none() {
-                links.borrow_mut().unique_es_symbol_type =
+            if (*links.ref_(self)).borrow().unique_es_symbol_type.is_none() {
+                links.ref_(self).borrow_mut().unique_es_symbol_type =
                     Some(self.create_unique_es_symbol_type(symbol));
             }
-            return Ok((*links).borrow().unique_es_symbol_type.clone().unwrap());
+            return Ok((*links.ref_(self)).borrow().unique_es_symbol_type.clone().unwrap());
         }
         Ok(self.es_symbol_type())
     }
@@ -1037,7 +1038,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Symbol>> {
         let links = self.get_symbol_links(symbol);
         {
-            let links = (*links).borrow();
+            let links_ref = links.ref_(self);
+            let links = (*links_ref).borrow();
             if let Some(type_) = links.type_ {
                 if !self.could_contain_type_variables(type_)? {
                     return Ok(symbol);
@@ -1045,7 +1047,8 @@ impl TypeChecker {
             }
         }
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated) {
-            let links = (*links).borrow();
+            let links_ref = links.ref_(self);
+            let links = (*links_ref).borrow();
             symbol = links.target.clone().unwrap();
             mapper = self.combine_type_mappers(links.mapper.clone(), mapper);
         }
@@ -1066,13 +1069,14 @@ impl TypeChecker {
         }
         result.set_parent(symbol.ref_(self).maybe_parent());
         let result_links = result.symbol_links();
-        let mut result_links = result_links.borrow_mut();
+        let result_links_ref = result_links.ref_(self);
+        let mut result_links = result_links_ref.borrow_mut();
         result_links.target = Some(symbol.clone());
         result_links.mapper = Some(mapper);
         if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
             result.set_value_declaration(symbol_value_declaration);
         }
-        if let Some(links_name_type) = (*links).borrow().name_type.clone() {
+        if let Some(links_name_type) = (*links.ref_(self)).borrow().name_type.clone() {
             result_links.name_type = Some(links_name_type);
         }
         Ok(self.alloc_symbol(result.into()))

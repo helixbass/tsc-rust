@@ -309,7 +309,8 @@ impl TypeChecker {
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links();
-                    let mut attribute_symbol_links = attribute_symbol_links.borrow_mut();
+                    let attribute_symbol_links_ref = attribute_symbol_links.ref_(self);
+                    let mut attribute_symbol_links = attribute_symbol_links_ref.borrow_mut();
                     attribute_symbol_links.type_ = Some(expr_type.clone());
                     attribute_symbol_links.target = Some(member.clone());
                 }
@@ -460,7 +461,7 @@ impl TypeChecker {
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .borrow_mut()
+                        .ref_(self).borrow_mut()
                         .type_ = Some(if children_types.len() == 1 {
                         children_types[0].clone()
                     } else if matches!(

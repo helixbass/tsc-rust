@@ -744,7 +744,7 @@ impl TypeChecker {
             || !get_declaration_modifier_flags_from_symbol(prop, None, self)
                 .intersects(ModifierFlags::NonPublicAccessibilityModifier)
         {
-            let mut type_ = (*self.get_symbol_links(self.get_late_bound_symbol(prop)?))
+            let mut type_ = (*self.get_symbol_links(self.get_late_bound_symbol(prop)?).ref_(self))
                 .borrow()
                 .name_type
                 .clone();

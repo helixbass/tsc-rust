@@ -178,15 +178,15 @@ impl TypeChecker {
         type_: Option<Id<Type>>,
     ) -> io::Result<()> {
         let links = self.get_symbol_links(parameter);
-        if (*links).borrow().type_.is_none() {
+        if (*links.ref_(self)).borrow().type_.is_none() {
             let declaration = parameter.ref_(self).maybe_value_declaration().unwrap();
-            links.borrow_mut().type_ = Some(type_.try_unwrap_or_else(|| {
+            links.ref_(self).borrow_mut().type_ = Some(type_.try_unwrap_or_else(|| {
                 self.get_widened_type_for_variable_like_declaration(declaration, Some(true))
             })?);
             let declaration_name = declaration.ref_(self).as_named_declaration().name();
             if declaration_name.ref_(self).kind() != SyntaxKind::Identifier {
-                if (*links).borrow().type_.unwrap() == self.unknown_type() {
-                    links.borrow_mut().type_ =
+                if (*links.ref_(self)).borrow().type_.unwrap() == self.unknown_type() {
+                    links.ref_(self).borrow_mut().type_ =
                         Some(self.get_type_from_binding_pattern(declaration_name, None, None)?);
                 }
                 self.assign_binding_element_types(declaration_name)?;
@@ -206,7 +206,7 @@ impl TypeChecker {
                 let element_as_binding_element = element_ref.as_binding_element();
                 if element_as_binding_element.name().ref_(self).kind() == SyntaxKind::Identifier {
                     self.get_symbol_links(self.get_symbol_of_node(element)?.unwrap())
-                        .borrow_mut()
+                        .ref_(self).borrow_mut()
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {
                     self.assign_binding_element_types(element_as_binding_element.name())?;
@@ -309,7 +309,7 @@ impl TypeChecker {
             .ref_(self)
             .as_transient_symbol()
             .symbol_links()
-            .borrow_mut()
+            .ref_(self).borrow_mut()
             .type_ = Some(target_type);
 
         let members = Gc::new(GcCell::new(create_symbol_table(

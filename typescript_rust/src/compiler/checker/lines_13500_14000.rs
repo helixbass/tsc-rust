@@ -229,7 +229,7 @@ impl TypeChecker {
         if let Some(symbol) = symbol {
             self.get_declared_type_of_symbol(symbol)?;
             if length(
-                (*self.get_symbol_links(symbol))
+                (*self.get_symbol_links(symbol).ref_(self))
                     .borrow()
                     .type_parameters
                     .as_deref(),
@@ -361,7 +361,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_(self).borrow_mut()
                 .type_ = Some(import_meta_type);
 
             let members = Gc::new(GcCell::new(create_symbol_table(
@@ -1118,7 +1118,8 @@ impl TypeChecker {
                         .into(),
                     );
                     let property_links = property.ref_(self).as_transient_symbol().symbol_links();
-                    let mut property_links = property_links.borrow_mut();
+                    let property_links_ref = property_links.ref_(self);
+                    let mut property_links = property_links_ref.borrow_mut();
                     property_links.tuple_label_declaration =
                         named_member_declarations.and_then(|named_member_declarations| {
                             named_member_declarations.get(i).map(Clone::clone)
@@ -1138,7 +1139,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_(self).borrow_mut()
                 .type_ = Some(self.number_type());
         } else {
             let mut literal_types = vec![];
@@ -1149,7 +1150,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_(self).borrow_mut()
                 .type_ = Some(self.get_union_type(
                 &literal_types,
                 None,

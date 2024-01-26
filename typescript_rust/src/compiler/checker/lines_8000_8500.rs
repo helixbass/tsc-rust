@@ -215,7 +215,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         context: Option<&NodeBuilderContext>,
     ) -> Option<String> {
-        let name_type = (*self.get_symbol_links(symbol))
+        let name_type = (*self.get_symbol_links(symbol).ref_(self))
             .borrow()
             .name_type
             .clone()?;
@@ -310,7 +310,7 @@ impl TypeChecker {
                             && !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late)
                         {
                             let name_type =
-                                (*self.get_symbol_links(symbol)).borrow().name_type.clone();
+                                (*self.get_symbol_links(symbol).ref_(self)).borrow().name_type.clone();
                             if matches!(name_type, Some(name_type) if name_type.ref_(self).flags().intersects(TypeFlags::StringOrNumberLiteral))
                             {
                                 let result =
@@ -619,7 +619,7 @@ impl TypeChecker {
         property_name: TypeSystemPropertyName,
     ) -> bool {
         match property_name {
-            TypeSystemPropertyName::Type => (*self.get_symbol_links(target.as_symbol()))
+            TypeSystemPropertyName::Type => (*self.get_symbol_links(target.as_symbol()).ref_(self))
                 .borrow()
                 .type_
                 .is_some(),
@@ -627,7 +627,7 @@ impl TypeChecker {
                 .borrow()
                 .resolved_enum_type
                 .is_some(),
-            TypeSystemPropertyName::DeclaredType => (*self.get_symbol_links(target.as_symbol()))
+            TypeSystemPropertyName::DeclaredType => (*self.get_symbol_links(target.as_symbol()).ref_(self))
                 .borrow()
                 .declared_type
                 .is_some(),
@@ -751,7 +751,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol = self.get_symbol_of_node(node)?;
         symbol
-            .and_then(|symbol| (*self.get_symbol_links(symbol)).borrow().type_.clone())
+            .and_then(|symbol| (*self.get_symbol_links(symbol).ref_(self)).borrow().type_.clone())
             .try_or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
 

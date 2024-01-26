@@ -278,7 +278,7 @@ impl TypeChecker {
             .ref_(self)
             .as_transient_symbol()
             .symbol_links()
-            .borrow_mut()
+            .ref_(self).borrow_mut()
             .type_ = Some(
             if let Some(last_param_variadic_type) = last_param_variadic_type.as_ref() {
                 self.create_array_type(

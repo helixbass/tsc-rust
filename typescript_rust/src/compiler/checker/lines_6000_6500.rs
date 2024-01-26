@@ -514,7 +514,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         single_quote: Option<bool>,
     ) -> io::Result<Option<Id<Node>>> {
-        let name_type = (*self.type_checker.get_symbol_links(symbol))
+        let name_type = (*self.type_checker.get_symbol_links(symbol).ref_(self))
             .borrow()
             .name_type
             .clone();

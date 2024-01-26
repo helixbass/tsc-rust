@@ -986,7 +986,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_(self).borrow_mut()
                 .type_ = Some(self.any_type());
             if let Some(t_symbol) = t.ref_(self).maybe_symbol() {
                 if let Some(t_symbol_declarations) =
@@ -1170,16 +1170,16 @@ impl TypeChecker {
         symbol: Id<Symbol>, /*ReverseMappedSymbol*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if (*links).borrow().type_.is_none() {
+        if (*links.ref_(self)).borrow().type_.is_none() {
             let symbol_ref = symbol.ref_(self);
             let symbol_as_reverse_mapped_symbol = symbol_ref.as_reverse_mapped_symbol();
-            links.borrow_mut().type_ = Some(self.infer_reverse_mapped_type(
+            links.ref_(self).borrow_mut().type_ = Some(self.infer_reverse_mapped_type(
                 symbol_as_reverse_mapped_symbol.property_type,
                 symbol_as_reverse_mapped_symbol.mapped_type,
                 symbol_as_reverse_mapped_symbol.constraint_type,
             )?);
         }
-        let ret = (*links).borrow().type_.clone().unwrap();
+        let ret = (*links.ref_(self)).borrow().type_.clone().unwrap();
         Ok(ret)
     }
 }

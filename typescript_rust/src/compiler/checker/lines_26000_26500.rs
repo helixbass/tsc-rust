@@ -45,7 +45,7 @@ impl TypeChecker {
                             Some(
                                 self.instantiate_type(
                                     self.get_type_from_type_node_(overall_annotation)?,
-                                    (*self.get_symbol_links(lhs_symbol.unwrap()))
+                                    (*self.get_symbol_links(lhs_symbol.unwrap()).ref_(self))
                                         .borrow()
                                         .mapper
                                         .clone(),
@@ -279,7 +279,7 @@ impl TypeChecker {
 
     pub(super) fn is_circular_mapped_property(&self, symbol: Id<Symbol>) -> bool {
         get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Mapped)
-            && (*symbol.ref_(self).as_mapped_symbol().symbol_links())
+            && (*symbol.ref_(self).as_mapped_symbol().symbol_links().ref_(self))
                 .borrow()
                 .type_
                 .is_none()

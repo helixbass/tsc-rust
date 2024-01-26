@@ -334,7 +334,7 @@ impl TypeChecker {
             if let Some(symbol) = symbol {
                 return Ok(
                     if symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias) {
-                        (*self.get_symbol_links(symbol))
+                        (*self.get_symbol_links(symbol).ref_(self))
                             .borrow()
                             .type_parameters
                             .clone()

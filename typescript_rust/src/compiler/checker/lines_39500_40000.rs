@@ -654,7 +654,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
             Ok(
-                (*self.get_symbol_links(self.get_symbol_of_node(declaration)?.unwrap()))
+                (*self.get_symbol_links(self.get_symbol_of_node(declaration)?.unwrap()).ref_(self))
                     .borrow()
                     .const_enum_referenced
                     == Some(true),
@@ -690,7 +690,7 @@ impl TypeChecker {
                     Some(is_referenced) if is_referenced != SymbolFlags::None
                 )
                 && !self.is_referenced_alias_declaration(statement, Some(false))?
-                && (*self.get_symbol_links(self.get_symbol_of_node(statement)?.unwrap()))
+                && (*self.get_symbol_links(self.get_symbol_of_node(statement)?.unwrap()).ref_(self))
                     .borrow()
                     .const_enum_referenced
                     != Some(true)
@@ -954,7 +954,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let module_symbol = self.get_symbol_of_node(node)?.unwrap();
         let links = self.get_symbol_links(module_symbol);
-        if (*links).borrow().exports_checked != Some(true) {
+        if (*links.ref_(self)).borrow().exports_checked != Some(true) {
             let export_equals_symbol = (*module_symbol.ref_(self).exports())
                 .borrow()
                 .get("export=")
@@ -1017,7 +1017,7 @@ impl TypeChecker {
                 }
             }
             // }
-            links.borrow_mut().exports_checked = Some(true);
+            links.ref_(self).borrow_mut().exports_checked = Some(true);
         }
 
         Ok(())

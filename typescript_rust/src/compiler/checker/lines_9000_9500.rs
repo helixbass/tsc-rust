@@ -173,7 +173,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_(self).borrow_mut()
                     .type_ = Some(self.get_type_from_binding_element(
                     e,
                     Some(include_pattern_in_type),
@@ -183,7 +183,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_(self).borrow_mut()
                     .binding_element = Some(e.clone());
                 members.insert(symbol.ref_(self).escaped_name().to_owned(), symbol);
                 Ok(Option::<()>::None)
@@ -400,15 +400,16 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        let links_type_is_none = { (*links).borrow().type_.is_none() };
+        let links_type_is_none = { (*links.ref_(self)).borrow().type_.is_none() };
         if links_type_is_none {
             let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol)?;
-            let mut links = links.borrow_mut();
+            let links_ref = links.ref_(self);
+            let mut links = links_ref.borrow_mut();
             if links.type_.is_none() {
                 links.type_ = Some(type_);
             }
         }
-        let links = (*links).borrow();
+        let links = (*links.ref_(self)).borrow();
         Ok(links.type_.clone().unwrap())
     }
 
@@ -447,7 +448,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_(self).borrow_mut()
                     .target = Some(file_symbol.clone());
                 if let Some(file_symbol_value_declaration) =
                     file_symbol.ref_(self).maybe_value_declaration()
@@ -691,7 +692,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_accessors(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_type) = (*links).borrow().type_.clone() {
+        if let Some(links_type) = (*links.ref_(self)).borrow().type_.clone() {
             return Ok(links_type);
         }
         let ret = self
@@ -699,7 +700,7 @@ impl TypeChecker {
             .unwrap_or_else(|| {
                 Debug_.fail(Some("Read type of accessor must always produce a type"))
             });
-        links.borrow_mut().type_ = Some(ret.clone());
+        links.ref_(self).borrow_mut().type_ = Some(ret.clone());
         Ok(ret)
     }
 
@@ -708,11 +709,11 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_write_type) = (*links).borrow().write_type.clone() {
+        if let Some(links_write_type) = (*links.ref_(self)).borrow().write_type.clone() {
             return Ok(Some(links_write_type));
         }
         let ret = self.get_type_of_accessors_worker(symbol, Some(true))?;
-        links.borrow_mut().write_type = ret.clone();
+        links.ref_(self).borrow_mut().write_type = ret.clone();
         Ok(ret)
     }
 
@@ -823,7 +824,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
-            return self.instantiate_type(type_, (*links).borrow().mapper.clone());
+            return self.instantiate_type(type_, (*links.ref_(self)).borrow().mapper.clone());
         }
 
         Ok(type_)

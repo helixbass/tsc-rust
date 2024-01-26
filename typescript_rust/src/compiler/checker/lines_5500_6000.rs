@@ -1095,7 +1095,7 @@ impl NodeBuilder {
                     try_maybe_map(params.as_ref(), |&t: &Id<Type>, _| {
                         self.type_checker.get_mapped_type(
                             t,
-                            (*next_symbol.ref_(self).as_transient_symbol().symbol_links())
+                            (*next_symbol.ref_(self).as_transient_symbol().symbol_links().ref_(self))
                                 .borrow()
                                 .mapper
                                 .unwrap(),
@@ -1198,7 +1198,7 @@ impl NodeBuilder {
             get_source_file_of_node(get_original_node(context.enclosing_declaration(), self), self);
         let links = self.type_checker.get_symbol_links(symbol);
         let mut specifier =
-            (*links)
+            (*links.ref_(self))
                 .borrow()
                 .specifier_cache
                 .as_ref()
@@ -1247,7 +1247,7 @@ impl NodeBuilder {
                 .clone(),
             );
             links
-                .borrow_mut()
+                .ref_(self).borrow_mut()
                 .specifier_cache
                 .get_or_insert_default_()
                 .insert(

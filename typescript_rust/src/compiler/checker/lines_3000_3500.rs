@@ -154,16 +154,16 @@ impl TypeChecker {
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
-        if (*links).borrow().target.is_none() {
-            links.borrow_mut().target = Some(self.resolving_symbol());
+        if (*links.ref_(self)).borrow().target.is_none() {
+            links.ref_(self).borrow_mut().target = Some(self.resolving_symbol());
             let node = self.get_declaration_of_alias_symbol(symbol)?;
             if node.is_none() {
                 Debug_.fail(None);
             }
             let node = node.unwrap();
             let target = self.get_target_of_alias_declaration(node, None)?;
-            if (*links).borrow().target.unwrap() == self.resolving_symbol() {
-                links.borrow_mut().target = Some(target.unwrap_or_else(|| self.unknown_symbol()));
+            if (*links.ref_(self)).borrow().target.unwrap() == self.resolving_symbol() {
+                links.ref_(self).borrow_mut().target = Some(target.unwrap_or_else(|| self.unknown_symbol()));
             } else {
                 self.error(
                     Some(node),
@@ -177,17 +177,17 @@ impl TypeChecker {
                     )?]),
                 );
             }
-        } else if (*links).borrow().target.unwrap() == self.resolving_symbol() {
-            links.borrow_mut().target = Some(self.unknown_symbol());
+        } else if (*links.ref_(self)).borrow().target.unwrap() == self.resolving_symbol() {
+            links.ref_(self).borrow_mut().target = Some(self.unknown_symbol());
         }
-        let ret = (*links).borrow().target.clone().unwrap();
+        let ret = (*links.ref_(self)).borrow().target.clone().unwrap();
         Ok(ret)
     }
 
     pub(super) fn try_resolve_alias(&self, symbol: Id<Symbol>) -> io::Result<Option<Id<Symbol>>> {
         let links = self.get_symbol_links(symbol);
         if !matches!(
-            (*links).borrow().target,
+            (*links.ref_(self)).borrow().target,
             Some(target) if target == self.resolving_symbol()
         ) {
             return Ok(Some(self.resolve_alias(symbol)?));
@@ -213,17 +213,17 @@ impl TypeChecker {
         let source_symbol = self.get_symbol_of_node(alias_declaration)?.unwrap();
         if is_type_only_import_or_export_declaration(alias_declaration, self) {
             let links = self.get_symbol_links(source_symbol);
-            links.borrow_mut().type_only_declaration = Some(Some(alias_declaration));
+            links.ref_(self).borrow_mut().type_only_declaration = Some(Some(alias_declaration));
             return Ok(true);
         }
 
         let links = self.get_symbol_links(source_symbol);
         Ok(self.mark_symbol_of_alias_declaration_if_type_only_worker(
-            &links,
+            links,
             immediate_target,
             overwrite_empty,
         ) || self.mark_symbol_of_alias_declaration_if_type_only_worker(
-            &links,
+            links,
             final_target,
             overwrite_empty,
         ))
@@ -231,18 +231,18 @@ impl TypeChecker {
 
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only_worker(
         &self,
-        alias_declaration_links: &GcCell<SymbolLinks>,
+        alias_declaration_links: Id<GcCell<SymbolLinks>>,
         target: Option<Id<Symbol>>,
         overwrite_empty: bool,
     ) -> bool {
         if let Some(target) = target {
-            if alias_declaration_links
+            if (*alias_declaration_links.ref_(self))
                 .borrow()
                 .type_only_declaration
                 .is_none()
                 || overwrite_empty
                     && matches!(
-                        alias_declaration_links.borrow().type_only_declaration,
+                        (*alias_declaration_links.ref_(self)).borrow().type_only_declaration,
                         Some(None)
                     )
             {
@@ -267,7 +267,7 @@ impl TypeChecker {
                         })
                         .map(Clone::clone)
                     });
-                alias_declaration_links.borrow_mut().type_only_declaration =
+                (*alias_declaration_links.ref_(self)).borrow_mut().type_only_declaration =
                     Some(type_only.or_else(|| {
                         match (*self.get_symbol_links(export_symbol))
                             .borrow()
@@ -281,7 +281,7 @@ impl TypeChecker {
             }
         }
         matches!(
-            alias_declaration_links
+            (*alias_declaration_links.ref_(self))
                 .borrow()
                 .type_only_declaration
                 .as_ref(),
@@ -297,8 +297,8 @@ impl TypeChecker {
             return None;
         }
         let links = self.get_symbol_links(symbol);
-        let ret = match (*links).borrow().type_only_declaration.as_ref() {
-            Some(Some(type_only_declaration)) => Some(type_only_declaration.clone()),
+        let ret = match (*links.ref_(self)).borrow().type_only_declaration {
+            Some(Some(type_only_declaration)) => Some(type_only_declaration),
             _ => None,
         };
         ret
@@ -326,8 +326,8 @@ impl TypeChecker {
 
     pub(super) fn mark_alias_symbol_as_referenced(&self, symbol: Id<Symbol>) -> io::Result<()> {
         let links = self.get_symbol_links(symbol);
-        if !matches!((*links).borrow().referenced, Some(true)) {
-            links.borrow_mut().referenced = Some(true);
+        if !matches!((*links.ref_(self)).borrow().referenced, Some(true)) {
+            links.ref_(self).borrow_mut().referenced = Some(true);
             let Some(node) = self.get_declaration_of_alias_symbol(symbol)? else {
                 Debug_.fail(None);
             };
@@ -351,8 +351,8 @@ impl TypeChecker {
 
     pub(super) fn mark_const_enum_alias_as_referenced(&self, symbol: Id<Symbol>) {
         let links = self.get_symbol_links(symbol);
-        if !matches!((*links).borrow().const_enum_referenced, Some(true)) {
-            links.borrow_mut().const_enum_referenced = Some(true);
+        if !matches!((*links.ref_(self)).borrow().const_enum_referenced, Some(true)) {
+            links.ref_(self).borrow_mut().const_enum_referenced = Some(true);
         }
     }
 

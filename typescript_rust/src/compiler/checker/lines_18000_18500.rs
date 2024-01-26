@@ -283,7 +283,7 @@ impl CheckTypeRelatedTo {
                     if let Some(source_symbol) = self.source.ref_(self).maybe_symbol() {
                         let links = self.type_checker.get_symbol_links(source_symbol);
                         if let Some(links_originating_import) =
-                            (*links).borrow().originating_import.clone().filter(
+                            (*links.ref_(self)).borrow().originating_import.clone().filter(
                                 |&links_originating_import| {
                                     !is_import_call(links_originating_import, self)
                                 },
@@ -291,7 +291,7 @@ impl CheckTypeRelatedTo {
                         {
                             let helpful_retry = self.type_checker.check_type_related_to(
                                 self.type_checker
-                                    .get_type_of_symbol((*links).borrow().target.unwrap())?,
+                                    .get_type_of_symbol((*links.ref_(self)).borrow().target.unwrap())?,
                                 self.target,
                                 self.relation.clone(),
                                 Option::<Id<Node>>::None,

@@ -234,7 +234,7 @@ impl TypeChecker {
                     self.create_symbol_with_type(
                         single_prop,
                         single_prop.ref_(self).maybe_as_transient_symbol().and_then(
-                            |single_prop| (*single_prop.symbol_links()).borrow().type_.clone(),
+                            |single_prop| (*single_prop.symbol_links().ref_(self)).borrow().type_.clone(),
                         ),
                     );
                 clone.ref_(self).set_parent(
@@ -245,12 +245,13 @@ impl TypeChecker {
                         .and_then(|symbol| symbol.ref_(self).maybe_parent()),
                 );
                 let clone_symbol_links = clone.ref_(self).as_transient_symbol().symbol_links();
-                let mut clone_symbol_links = clone_symbol_links.borrow_mut();
+                let clone_symbol_links_ref = clone_symbol_links.ref_(self);
+                let mut clone_symbol_links = clone_symbol_links_ref.borrow_mut();
                 clone_symbol_links.containing_type = Some(containing_type);
                 clone_symbol_links.mapper = single_prop
                     .ref_(self)
                     .maybe_as_transient_symbol()
-                    .and_then(|single_prop| (*single_prop.symbol_links()).borrow().mapper.clone());
+                    .and_then(|single_prop| (*single_prop.symbol_links().ref_(self)).borrow().mapper.clone());
                 return Ok(Some(clone));
             } else {
                 return Ok(Some(single_prop));
@@ -292,7 +293,7 @@ impl TypeChecker {
             let type_ = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(type_.clone());
-                name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
+                name_type = (*self.get_symbol_links(prop).ref_(self)).borrow().name_type.clone();
             } else if type_ != first_type.unwrap() {
                 check_flags |= CheckFlags::HasNonUniformType;
             }
@@ -314,7 +315,8 @@ impl TypeChecker {
             .into(),
         );
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let mut result_links = result_links.borrow_mut();
+        let result_links_ref = result_links.ref_(self);
+        let mut result_links = result_links_ref.borrow_mut();
         result_links.containing_type = Some(containing_type);
         if !has_non_uniform_value_declaration {
             if let Some(first_value_declaration) = first_value_declaration {

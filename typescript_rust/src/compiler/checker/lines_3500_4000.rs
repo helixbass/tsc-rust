@@ -140,7 +140,7 @@ impl TypeChecker {
             return Ok(Some(exported));
         }
         let links = self.get_symbol_links(exported);
-        if let Some(links_cjs_export_merged) = (*links)
+        if let Some(links_cjs_export_merged) = (*links.ref_(self))
             .borrow()
             .cjs_export_merged
             .as_ref()
@@ -181,8 +181,8 @@ impl TypeChecker {
             };
             merged_exports.borrow_mut().insert(name.clone(), value);
         }
-        self.get_symbol_links(merged).borrow_mut().cjs_export_merged = Some(merged.clone());
-        links.borrow_mut().cjs_export_merged = Some(merged.clone());
+        self.get_symbol_links(merged).ref_(self).borrow_mut().cjs_export_merged = Some(merged.clone());
+        links.ref_(self).borrow_mut().cjs_export_merged = Some(merged.clone());
         Ok(Some(merged.clone()))
     }
 
@@ -307,7 +307,8 @@ impl TypeChecker {
             .ref_(self)
             .set_parent(symbol.ref_(self).maybe_parent());
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let mut result_links = result_links.borrow_mut();
+        let result_links_ref = result_links.ref_(self);
+        let mut result_links = result_links_ref.borrow_mut();
         result_links.target = Some(symbol);
         result_links.originating_import = Some(reference_parent);
         if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
@@ -489,10 +490,10 @@ impl TypeChecker {
         module_symbol: Id<Symbol>,
     ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         let links = self.get_symbol_links(module_symbol);
-        let resolved_exports = (*links).borrow().resolved_exports.clone();
+        let resolved_exports = (*links.ref_(self)).borrow().resolved_exports.clone();
         resolved_exports.try_unwrap_or_else(|| {
             let resolved_exports = self.get_exports_of_module_worker(module_symbol)?;
-            links.borrow_mut().resolved_exports = Some(resolved_exports.clone());
+            links.ref_(self).borrow_mut().resolved_exports = Some(resolved_exports.clone());
             Ok(resolved_exports)
         })
     }
@@ -694,7 +695,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         let mut results: Option<Vec<Id<Symbol>>> = None;
         if let Some(links_extended_containers_by_file) =
-            (*links).borrow().extended_containers_by_file.as_ref()
+            (*links.ref_(self)).borrow().extended_containers_by_file.as_ref()
         {
             results = links_extended_containers_by_file.get(&id).map(Clone::clone);
             if results.is_some() {
@@ -729,7 +730,8 @@ impl TypeChecker {
                 results.as_mut().unwrap().push(resolved_module);
             }
             if length(results.as_deref()) > 0 {
-                let mut links = links.borrow_mut();
+                let links_ref = links.ref_(self);
+                let mut links = links_ref.borrow_mut();
                 if links.extended_containers_by_file.is_none() {
                     links.extended_containers_by_file = Some(HashMap::new());
                 }
@@ -741,7 +743,7 @@ impl TypeChecker {
                 return Ok(results.unwrap());
             }
         }
-        if let Some(links_extended_containers) = (*links).borrow().extended_containers.as_ref() {
+        if let Some(links_extended_containers) = (*links.ref_(self)).borrow().extended_containers.as_ref() {
             return Ok(links_extended_containers.clone());
         }
         let host_ref = self.host.ref_(self);
@@ -761,7 +763,7 @@ impl TypeChecker {
             results.as_mut().unwrap().push(sym);
         }
         let ret = results.unwrap_or_else(|| vec![]);
-        links.borrow_mut().extended_containers = Some(ret.clone());
+        links.ref_(self).borrow_mut().extended_containers = Some(ret.clone());
         Ok(ret)
     }
 

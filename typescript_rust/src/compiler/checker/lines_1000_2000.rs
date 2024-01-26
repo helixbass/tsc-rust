@@ -1050,7 +1050,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_symbol_links(&self, symbol: Id<Symbol>) -> Gc<GcCell<SymbolLinks>> {
+    pub(super) fn get_symbol_links(&self, symbol: Id<Symbol>) -> Id<GcCell<SymbolLinks>> {
         if let Symbol::TransientSymbol(symbol) = &*symbol.ref_(self) {
             return symbol.symbol_links();
         }
@@ -1059,7 +1059,7 @@ impl TypeChecker {
         if let Some(symbol_links) = symbol_links_table.get(&id) {
             return symbol_links.clone();
         }
-        let symbol_links: Gc<GcCell<SymbolLinks>> = _d();
+        let symbol_links: Id<GcCell<SymbolLinks>> = self.alloc_symbol_links(_d());
         symbol_links_table.insert(id, symbol_links.clone());
         symbol_links
     }

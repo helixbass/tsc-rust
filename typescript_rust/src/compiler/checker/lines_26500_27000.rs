@@ -38,7 +38,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::TypeAlias)
             {
-                let params = (*self.get_symbol_links(managed_sym))
+                let params = (*self.get_symbol_links(managed_sym).ref_(self))
                     .borrow()
                     .type_parameters
                     .clone();
@@ -318,7 +318,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_(self).borrow_mut()
                 .type_ = Some(if is_rest_param {
                 self.create_array_type(union_param_type, None)
             } else {
@@ -337,14 +337,14 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_(self).borrow_mut()
                 .type_ = Some(rest_param_symbol_type.clone());
             if shorter == right {
                 rest_param_symbol
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_(self).borrow_mut()
                     .type_ = Some(self.instantiate_type(rest_param_symbol_type, mapper.clone())?);
             }
             params.push(rest_param_symbol);
@@ -936,13 +936,13 @@ impl TypeChecker {
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
-        if (*links).borrow().immediate_target.is_none() {
+        if (*links.ref_(self)).borrow().immediate_target.is_none() {
             let node = debug_fail_if_none!(self.get_declaration_of_alias_symbol(symbol)?);
-            links.borrow_mut().immediate_target =
+            links.ref_(self).borrow_mut().immediate_target =
                 self.get_target_of_alias_declaration(node, Some(true))?;
         }
 
-        let ret = (*links).borrow().immediate_target.clone();
+        let ret = (*links.ref_(self)).borrow().immediate_target.clone();
         Ok(ret)
     }
 
@@ -1101,7 +1101,7 @@ impl TypeChecker {
                     prop.ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .borrow_mut()
+                        .ref_(self).borrow_mut()
                         .name_type = Some(name_type.clone());
                 }
 
@@ -1176,7 +1176,7 @@ impl TypeChecker {
 
                 {
                     let prop_links = prop.ref_(self).as_transient_symbol().symbol_links();
-                    let mut prop_links = prop_links.borrow_mut();
+                    let mut prop_links = prop_links.ref_(self).borrow_mut();
                     prop_links.type_ = Some(type_);
                     prop_links.target = Some(member_present.clone());
                 }
@@ -1302,7 +1302,7 @@ impl TypeChecker {
                     if !prop.ref_(self).flags().intersects(SymbolFlags::Optional) {
                         self.error(
                             prop.ref_(self).maybe_value_declaration().or_else(|| {
-                                (*prop.ref_(self).as_transient_symbol().symbol_links()).borrow().binding_element.clone()
+                                (*prop.ref_(self).as_transient_symbol().symbol_links().ref_(self)).borrow().binding_element.clone()
                             }),
                             &Diagnostics::Initializer_provides_no_value_for_this_binding_element_and_the_binding_element_has_no_default_value,
                             None,

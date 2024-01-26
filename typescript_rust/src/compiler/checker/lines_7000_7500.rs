@@ -145,7 +145,7 @@ impl SymbolTableToDeclarationStatements {
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
         let alias_type = self.type_checker.get_declared_type_of_type_alias(symbol)?;
-        let type_params = (*self.type_checker.get_symbol_links(symbol))
+        let type_params = (*self.type_checker.get_symbol_links(symbol).ref_(self))
             .borrow()
             .type_parameters
             .clone();

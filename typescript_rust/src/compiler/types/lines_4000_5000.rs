@@ -412,7 +412,7 @@ pub struct TypeChecker {
     pub(crate) suggestion_count: Cell<usize>,
     pub(crate) maximum_suggestion_count: usize,
     pub(crate) merged_symbols: GcCell<HashMap<u32, Id<Symbol>>>,
-    pub(crate) symbol_links: GcCell<HashMap<SymbolId, Gc<GcCell<SymbolLinks>>>>,
+    pub(crate) symbol_links: GcCell<HashMap<SymbolId, Id<GcCell<SymbolLinks>>>>,
     pub(crate) node_links: GcCell<HashMap<NodeId, Gc<GcCell<NodeLinks>>>>,
     pub(crate) flow_loop_caches: GcCell<HashMap<usize, Gc<GcCell<HashMap<String, Id<Type>>>>>>,
     pub(crate) flow_loop_nodes: GcCell<HashMap<usize, Id<FlowNode>>>,
@@ -1332,7 +1332,7 @@ bitflags! {
 }
 
 pub trait TransientSymbolInterface: SymbolInterface {
-    fn symbol_links(&self) -> Gc<GcCell<SymbolLinks>>;
+    fn symbol_links(&self) -> Id<GcCell<SymbolLinks>>;
     fn check_flags(&self) -> CheckFlags;
     fn set_check_flags(&self, check_flags: CheckFlags);
 }
@@ -1382,7 +1382,7 @@ pub use _TransientSymbolTraceDeriveScope::TransientSymbol;
 #[symbol_type(ancestors = "TransientSymbol")]
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
-    _symbol_links: Gc<GcCell<SymbolLinks>>,
+    _symbol_links: Id<GcCell<SymbolLinks>>,
     #[unsafe_ignore_trace]
     check_flags: Cell<CheckFlags>,
 }
@@ -1398,7 +1398,7 @@ impl BaseTransientSymbol {
 }
 
 impl TransientSymbolInterface for BaseTransientSymbol {
-    fn symbol_links(&self) -> Gc<GcCell<SymbolLinks>> {
+    fn symbol_links(&self) -> Id<GcCell<SymbolLinks>> {
         self._symbol_links.clone()
     }
 

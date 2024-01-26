@@ -376,18 +376,18 @@ impl TypeChecker {
                     let prop_ref = prop.ref_(self);
                     let prop_as_transient_symbol = prop_ref.as_transient_symbol();
                     let prop_symbol_links = prop_as_transient_symbol.symbol_links();
-                    if (*prop_symbol_links)
+                    if (*prop_symbol_links.ref_(self))
                         .borrow()
                         .is_discriminant_property
                         .is_none()
                     {
-                        prop_symbol_links.borrow_mut().is_discriminant_property = Some(
+                        prop_symbol_links.ref_(self).borrow_mut().is_discriminant_property = Some(
                             prop_as_transient_symbol.check_flags() & CheckFlags::Discriminant
                                 == CheckFlags::Discriminant
                                 && !self.is_generic_type(self.get_type_of_symbol(prop)?)?,
                         );
                     }
-                    return Ok((*prop_symbol_links)
+                    return Ok((*prop_symbol_links.ref_(self))
                         .borrow()
                         .is_discriminant_property
                         .unwrap());

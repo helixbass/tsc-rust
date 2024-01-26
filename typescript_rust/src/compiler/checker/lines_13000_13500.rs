@@ -729,13 +729,13 @@ impl TypeChecker {
             return self.get_string_mapping_type(symbol, type_arguments.unwrap()[0]);
         }
         let links = self.get_symbol_links(symbol);
-        let type_parameters = (*links).borrow().type_parameters.clone().unwrap();
+        let type_parameters = (*links.ref_(self)).borrow().type_parameters.clone().unwrap();
         let id = format!(
             "{}{}",
             self.get_type_list_id(type_arguments),
             self.get_alias_id(alias_symbol, alias_type_arguments)
         );
-        let mut instantiation = (*links)
+        let mut instantiation = (*links.ref_(self))
             .borrow()
             .instantiations
             .as_ref()
@@ -758,7 +758,7 @@ impl TypeChecker {
                 alias_type_arguments,
             )?);
             links
-                .borrow_mut()
+                .ref_(self).borrow_mut()
                 .instantiations
                 .as_mut()
                 .unwrap()
@@ -791,7 +791,7 @@ impl TypeChecker {
             return Ok(error_type.unwrap());
         }
         let type_ = self.get_declared_type_of_symbol(symbol)?;
-        let type_parameters = (*self.get_symbol_links(symbol))
+        let type_parameters = (*self.get_symbol_links(symbol).ref_(self))
             .borrow()
             .type_parameters
             .clone();
@@ -931,7 +931,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_(self).borrow_mut()
                     .declared_type = Some(self.unresolved_type());
             }
             return result.unwrap();

@@ -2777,7 +2777,7 @@ fn get_symbol_struct_interface_impl(
         "TransientSymbolInterface" => {
             quote! {
                 impl crate::TransientSymbolInterface for #symbol_type_name {
-                    fn symbol_links(&self) -> ::gc::Gc<::gc::GcCell<crate::SymbolLinks>> {
+                    fn symbol_links(&self) -> ::id_arena::Id<::gc::GcCell<crate::SymbolLinks>> {
                         self.#first_field_name.symbol_links()
                     }
 
@@ -3007,7 +3007,7 @@ fn get_symbol_enum_interface_impl(
         "TransientSymbolInterface" => {
             quote! {
                 impl crate::TransientSymbolInterface for #symbol_type_name {
-                    fn symbol_links(&self) -> ::gc::Gc<::gc::GcCell<crate::SymbolLinks>> {
+                    fn symbol_links(&self) -> ::id_arena::Id<::gc::GcCell<crate::SymbolLinks>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.symbol_links()),*
                         }

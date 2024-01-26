@@ -167,7 +167,8 @@ impl TypeChecker {
         new_symbol.ref_(self).set_parent(Some(original_symbol));
         {
             let new_symbol_links = new_symbol.ref_(self).as_transient_symbol().symbol_links();
-            let mut new_symbol_links = new_symbol_links.borrow_mut();
+            let new_symbol_links_ref = new_symbol_links.ref_(self);
+            let mut new_symbol_links = new_symbol_links_ref.borrow_mut();
             new_symbol_links.name_type = Some(self.get_string_literal_type("default"));
             new_symbol_links.target = self.resolve_symbol(Some(symbol), None)?;
         }
@@ -253,7 +254,7 @@ impl TypeChecker {
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .borrow_mut()
+                        .ref_(self).borrow_mut()
                         .type_ = Some(default_containing_object.clone());
                     *synth_type.ref_(self).maybe_synthetic_type() =
                         Some(if self.is_valid_spread_type(type_)? {

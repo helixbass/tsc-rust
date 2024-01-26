@@ -82,7 +82,7 @@ impl TypeChecker {
             return Ok(());
         }
         let apparent_type_symbol = apparent_type_symbol.unwrap();
-        let import_node = (*self.get_symbol_links(apparent_type_symbol))
+        let import_node = (*self.get_symbol_links(apparent_type_symbol).ref_(self))
             .borrow()
             .originating_import
             .clone();
@@ -91,7 +91,7 @@ impl TypeChecker {
         {
             let sigs = self.get_signatures_of_type(
                 self.get_type_of_symbol(
-                    (*self.get_symbol_links(apparent_type_symbol))
+                    (*self.get_symbol_links(apparent_type_symbol).ref_(self))
                         .borrow()
                         .target
                         .clone()
@@ -346,7 +346,7 @@ impl TypeChecker {
             .ref_(self)
             .as_transient_symbol()
             .symbol_links()
-            .borrow_mut()
+            .ref_(self).borrow_mut()
             .type_ = Some(result);
         Ok(self.alloc_signature(self.create_signature(
             Some(declaration),
@@ -579,7 +579,7 @@ impl TypeChecker {
         let source = return_ok_default_if_none!(source);
         let links = self.get_symbol_links(source);
         if !matches!(
-            (*links).borrow().inferred_class_symbol.as_ref(),
+            (*links.ref_(self)).borrow().inferred_class_symbol.as_ref(),
             Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(&target.ref_(self)))
         ) {
             let inferred = if is_transient_symbol(&target.ref_(self)) {
@@ -631,7 +631,8 @@ impl TypeChecker {
                 )?;
             }
             {
-                let mut links = links.borrow_mut();
+                let links_ref = links.ref_(self);
+                let mut links = links_ref.borrow_mut();
                 if links.inferred_class_symbol.is_none() {
                     links.inferred_class_symbol = Some(HashMap::new());
                 }
@@ -643,7 +644,7 @@ impl TypeChecker {
             }
             return Ok(Some(inferred));
         }
-        let ret = (*links)
+        let ret = (*links.ref_(self))
             .borrow()
             .inferred_class_symbol
             .as_ref()

@@ -885,7 +885,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
         {
             if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Mapped) {
-                let origin = (*symbol.ref_(self).as_mapped_symbol().symbol_links())
+                let origin = (*symbol.ref_(self).as_mapped_symbol().symbol_links().ref_(self))
                     .borrow()
                     .synthetic_origin
                     .clone();
