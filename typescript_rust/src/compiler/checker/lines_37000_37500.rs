@@ -673,7 +673,7 @@ impl TypeChecker {
         yield_type: Option<Id<Type>>,
         return_type: Option<Id<Type>>,
         next_type: Option<Id<Type>>,
-    ) -> Gc<IterationTypes> {
+    ) -> Id<IterationTypes> {
         let yield_type = yield_type.unwrap_or_else(|| self.never_type());
         let return_type = return_type.unwrap_or_else(|| self.never_type());
         let next_type = next_type.unwrap_or_else(|| self.unknown_type());
@@ -712,8 +712,8 @@ impl TypeChecker {
 
     pub(super) fn combine_iteration_types(
         &self,
-        array: &[Option<Gc<IterationTypes>>],
-    ) -> io::Result<Gc<IterationTypes>> {
+        array: &[Option<Id<IterationTypes>>],
+    ) -> io::Result<Id<IterationTypes>> {
         let mut yield_types: Option<Vec<Id<Type>>> = None;
         let mut return_types: Option<Vec<Id<Type>>> = None;
         let mut next_types: Option<Vec<Id<Type>>> = None;
@@ -770,7 +770,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         cache_key: IterationTypeCacheKey,
-    ) -> Option<Gc<IterationTypes>> {
+    ) -> Option<Id<IterationTypes>> {
         type_.ref_(self).get_by_iteration_type_cache_key(cache_key)
     }
 
@@ -778,8 +778,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         cache_key: IterationTypeCacheKey,
-        cached_types: Gc<IterationTypes>,
-    ) -> Gc<IterationTypes> {
+        cached_types: Id<IterationTypes>,
+    ) -> Id<IterationTypes> {
         type_
             .ref_(self)
             .set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
@@ -791,7 +791,7 @@ impl TypeChecker {
         type_: Id<Type>,
         use_: IterationUse,
         error_node: Option<Id<Node>>,
-    ) -> io::Result<Option<Gc<IterationTypes>>> {
+    ) -> io::Result<Option<Id<IterationTypes>>> {
         if self.is_type_any(Some(type_)) {
             return Ok(Some(self.any_iteration_types()));
         }
@@ -826,7 +826,7 @@ impl TypeChecker {
             });
         }
 
-        let mut all_iteration_types: Option<Vec<Gc<IterationTypes>>> = None;
+        let mut all_iteration_types: Option<Vec<Id<IterationTypes>>> = None;
         for &constituent in type_.ref_(self).as_union_type().types() {
             let iteration_types = self.get_iteration_types_of_iterable_worker(
                 constituent,

@@ -312,12 +312,12 @@ pub struct TypeChecker {
 
     pub(crate) enum_number_index_info: Option<Id<IndexInfo>>,
 
-    pub(crate) iteration_types_cache: GcCell<HashMap<String, Gc<IterationTypes>>>,
-    pub(crate) no_iteration_types: Gc<IterationTypes>,
+    pub(crate) iteration_types_cache: GcCell<HashMap<String, Id<IterationTypes>>>,
+    pub(crate) no_iteration_types: Id<IterationTypes>,
 
-    pub(crate) any_iteration_types: Option<Gc<IterationTypes>>,
-    pub(crate) any_iteration_types_except_next: Option<Gc<IterationTypes>>,
-    pub(crate) default_iteration_types: Option<Gc<IterationTypes>>,
+    pub(crate) any_iteration_types: Option<Id<IterationTypes>>,
+    pub(crate) any_iteration_types_except_next: Option<Id<IterationTypes>>,
+    pub(crate) default_iteration_types: Option<Id<IterationTypes>>,
 
     #[unsafe_ignore_trace]
     pub(crate) async_iteration_types_resolver: IterationTypesResolver,

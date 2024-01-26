@@ -1414,47 +1414,47 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_awaited_type_of_type()
                     }
 
-                    fn maybe_iteration_types_of_generator_return_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_generator_return_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         self.#first_field_name.maybe_iteration_types_of_generator_return_type()
                     }
 
                     fn maybe_iteration_types_of_async_generator_return_type(
                         &self,
-                    ) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    ) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         self.#first_field_name.maybe_iteration_types_of_async_generator_return_type()
                     }
 
-                    fn maybe_iteration_types_of_iterable(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_iterable(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         self.#first_field_name.maybe_iteration_types_of_iterable()
                     }
 
-                    fn maybe_iteration_types_of_iterator(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_iterator(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         self.#first_field_name.maybe_iteration_types_of_iterator()
                     }
 
-                    fn maybe_iteration_types_of_async_iterable(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_async_iterable(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         self.#first_field_name.maybe_iteration_types_of_async_iterable()
                     }
 
-                    fn maybe_iteration_types_of_async_iterator(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_async_iterator(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         self.#first_field_name.maybe_iteration_types_of_async_iterator()
                     }
 
-                    fn maybe_iteration_types_of_iterator_result(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_iterator_result(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         self.#first_field_name.maybe_iteration_types_of_iterator_result()
                     }
 
                     fn get_by_iteration_type_cache_key(
                         &self,
                         key: crate::IterationTypeCacheKey,
-                    ) -> ::std::option::Option<::gc::Gc<crate::IterationTypes>> {
+                    ) -> ::std::option::Option<::id_arena::Id<crate::IterationTypes>> {
                         self.#first_field_name.get_by_iteration_type_cache_key(key)
                     }
 
                     fn set_by_iteration_type_cache_key(
                         &self,
                         key: crate::IterationTypeCacheKey,
-                        value: ::std::option::Option<::gc::Gc<crate::IterationTypes>>,
+                        value: ::std::option::Option<::id_arena::Id<crate::IterationTypes>>,
                     ) {
                         self.#first_field_name.set_by_iteration_type_cache_key(key, value)
                     }
@@ -1962,7 +1962,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_iteration_types_of_generator_return_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_generator_return_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_iteration_types_of_generator_return_type()),*
                         }
@@ -1970,37 +1970,37 @@ fn get_type_enum_interface_impl(
 
                     fn maybe_iteration_types_of_async_generator_return_type(
                         &self,
-                    ) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    ) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_iteration_types_of_async_generator_return_type()),*
                         }
                     }
 
-                    fn maybe_iteration_types_of_iterable(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_iterable(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_iteration_types_of_iterable()),*
                         }
                     }
 
-                    fn maybe_iteration_types_of_iterator(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_iterator(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_iteration_types_of_iterator()),*
                         }
                     }
 
-                    fn maybe_iteration_types_of_async_iterable(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_async_iterable(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_iteration_types_of_async_iterable()),*
                         }
                     }
 
-                    fn maybe_iteration_types_of_async_iterator(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_async_iterator(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_iteration_types_of_async_iterator()),*
                         }
                     }
 
-                    fn maybe_iteration_types_of_iterator_result(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::IterationTypes>>> {
+                    fn maybe_iteration_types_of_iterator_result(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::IterationTypes>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_iteration_types_of_iterator_result()),*
                         }
@@ -2009,7 +2009,7 @@ fn get_type_enum_interface_impl(
                     fn get_by_iteration_type_cache_key(
                         &self,
                         key: crate::IterationTypeCacheKey,
-                    ) -> ::std::option::Option<::gc::Gc<crate::IterationTypes>> {
+                    ) -> ::std::option::Option<::id_arena::Id<crate::IterationTypes>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.get_by_iteration_type_cache_key(key)),*
                         }
@@ -2018,7 +2018,7 @@ fn get_type_enum_interface_impl(
                     fn set_by_iteration_type_cache_key(
                         &self,
                         key: crate::IterationTypeCacheKey,
-                        value: ::std::option::Option<::gc::Gc<crate::IterationTypes>>,
+                        value: ::std::option::Option<::id_arena::Id<crate::IterationTypes>>,
                     ) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_by_iteration_type_cache_key(key, value)),*

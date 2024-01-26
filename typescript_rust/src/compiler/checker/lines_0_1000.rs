@@ -3070,23 +3070,23 @@ impl TypeChecker {
 
     pub(super) fn iteration_types_cache(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Gc<IterationTypes>>> {
+    ) -> GcCellRefMut<HashMap<String, Id<IterationTypes>>> {
         self.iteration_types_cache.borrow_mut()
     }
 
-    pub(super) fn no_iteration_types(&self) -> Gc<IterationTypes> {
+    pub(super) fn no_iteration_types(&self) -> Id<IterationTypes> {
         self.no_iteration_types.clone()
     }
 
-    pub(super) fn any_iteration_types(&self) -> Gc<IterationTypes> {
+    pub(super) fn any_iteration_types(&self) -> Id<IterationTypes> {
         self.any_iteration_types.clone().unwrap()
     }
 
-    pub(super) fn any_iteration_types_except_next(&self) -> Gc<IterationTypes> {
+    pub(super) fn any_iteration_types_except_next(&self) -> Id<IterationTypes> {
         self.any_iteration_types_except_next.clone().unwrap()
     }
 
-    pub(super) fn default_iteration_types(&self) -> Gc<IterationTypes> {
+    pub(super) fn default_iteration_types(&self) -> Id<IterationTypes> {
         self.default_iteration_types.clone().unwrap()
     }
 
