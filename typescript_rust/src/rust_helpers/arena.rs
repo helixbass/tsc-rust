@@ -604,7 +604,7 @@ impl InArena for Id<Signature> {
 }
 
 impl InArena for Id<Box<dyn DiagnosticReporter>> {
-    type Item = Box<dyn System>;
+    type Item = Box<dyn DiagnosticReporter>;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn DiagnosticReporter>> {
         has_arena.diagnostic_reporter(*self)
