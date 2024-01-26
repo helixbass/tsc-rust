@@ -72,9 +72,9 @@ impl NodeFactory {
         factory_.ref_(arena).set_parenthesizer_rules(
             /*memoize(*/
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
-                Gc::new(Box::new(null_parenthesizer_rules()))
+                arena.alloc_parenthesizer_rules(Box::new(null_parenthesizer_rules()))
             } else {
-                Gc::new(Box::new(create_parenthesizer_rules(factory_)))
+                arena.alloc_parenthesizer_rules(Box::new(create_parenthesizer_rules(factory_)))
             },
         );
         factory_.ref_(arena).set_converters(

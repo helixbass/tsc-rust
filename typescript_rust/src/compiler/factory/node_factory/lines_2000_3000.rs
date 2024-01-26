@@ -114,7 +114,7 @@ impl NodeFactory {
             qualifier,
             type_arguments.and_then(|type_arguments| {
                 self.parenthesizer_rules()
-                    .parenthesize_type_arguments(Some(type_arguments.into()))
+                    .ref_(self).parenthesize_type_arguments(Some(type_arguments.into()))
             }),
             is_type_of,
         );
@@ -195,7 +195,7 @@ impl NodeFactory {
             node,
             operator,
             self.parenthesizer_rules()
-                .parenthesize_member_of_element_type(type_),
+                .ref_(self).parenthesize_member_of_element_type(type_),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
@@ -228,7 +228,7 @@ impl NodeFactory {
         let node = IndexedAccessTypeNode::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_member_of_element_type(object_type),
+                .ref_(self).parenthesize_member_of_element_type(object_type),
             index_type,
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -421,7 +421,7 @@ impl NodeFactory {
             Some(name),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
@@ -499,7 +499,7 @@ impl NodeFactory {
         let node = ArrayLiteralExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expressions_of_comma_delimited_list(elements_array.into()),
+                .ref_(self).parenthesize_expressions_of_comma_delimited_list(elements_array.into()),
             multi_line,
         );
         node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
@@ -574,7 +574,7 @@ impl NodeFactory {
         let node = PropertyAccessExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             None,
             self.as_name(Some(name)).unwrap(),
         );
@@ -636,7 +636,7 @@ impl NodeFactory {
         let node = PropertyAccessExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             question_dot_token,
             self.as_name(Some(name)).unwrap(),
         );
@@ -689,7 +689,7 @@ impl NodeFactory {
         let node = ElementAccessExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             None,
             self.as_expression(index),
         );
@@ -745,7 +745,7 @@ impl NodeFactory {
         let node = ElementAccessExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             question_dot_token,
             self.as_expression(index),
         );
@@ -799,11 +799,11 @@ impl NodeFactory {
         let node = CallExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             None,
             self.as_node_array(type_arguments),
             self.parenthesizer_rules()
-                .parenthesize_expressions_of_comma_delimited_list(
+                .ref_(self).parenthesize_expressions_of_comma_delimited_list(
                     self.create_node_array(arguments_array, None).into(),
                 ),
         );
@@ -878,11 +878,11 @@ impl NodeFactory {
         let node = CallExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             question_dot_token,
             self.as_node_array(type_arguments),
             self.parenthesizer_rules()
-                .parenthesize_expressions_of_comma_delimited_list(
+                .ref_(self).parenthesize_expressions_of_comma_delimited_list(
                     self.create_node_array(arguments_array, None).into(),
                 ),
         );
@@ -961,11 +961,11 @@ impl NodeFactory {
         let node = NewExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_of_new(expression),
+                .ref_(self).parenthesize_expression_of_new(expression),
             self.as_node_array(type_arguments),
             arguments_array.map(|arguments_array| {
                 self.parenthesizer_rules()
-                    .parenthesize_expressions_of_comma_delimited_list(arguments_array.into())
+                    .ref_(self).parenthesize_expressions_of_comma_delimited_list(arguments_array.into())
             }),
         );
         node.add_transform_flags(
@@ -1027,7 +1027,7 @@ impl NodeFactory {
         let node = TaggedTemplateExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(tag),
+                .ref_(self).parenthesize_left_side_of_access(tag),
             self.as_node_array(type_arguments),
             template,
             None,
@@ -1085,7 +1085,7 @@ impl NodeFactory {
         let node = TypeAssertion::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
             type_,
         );
         node.add_transform_flags(
@@ -1245,7 +1245,7 @@ impl NodeFactory {
             type_,
             Some(
                 self.parenthesizer_rules()
-                    .parenthesize_concise_body_of_arrow_function(body),
+                    .ref_(self).parenthesize_concise_body_of_arrow_function(body),
             ),
         );
         let node = ArrowFunction::new(
@@ -1317,7 +1317,7 @@ impl NodeFactory {
         let node = DeleteExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node
@@ -1346,7 +1346,7 @@ impl NodeFactory {
         let node = TypeOfExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node
@@ -1375,7 +1375,7 @@ impl NodeFactory {
         let node = VoidExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node
@@ -1404,7 +1404,7 @@ impl NodeFactory {
         let node = AwaitExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
@@ -1440,7 +1440,7 @@ impl NodeFactory {
             node,
             operator,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(operand),
+                .ref_(self).parenthesize_operand_of_prefix_unary(operand),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.operand), self));
         if matches!(
@@ -1485,7 +1485,7 @@ impl NodeFactory {
         let node = PostfixUnaryExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_postfix_unary(operand),
+                .ref_(self).parenthesize_operand_of_postfix_unary(operand),
             operator,
         );
         node.add_transform_flags(propagate_child_flags(Some(node.operand), self));
@@ -1531,10 +1531,10 @@ impl NodeFactory {
         let node = BinaryExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_binary(operator_kind, left),
+                .ref_(self).parenthesize_left_side_of_binary(operator_kind, left),
             operator_token,
             self.parenthesizer_rules()
-                .parenthesize_right_side_of_binary(operator_kind, Some(left), right),
+                .ref_(self).parenthesize_right_side_of_binary(operator_kind, Some(left), right),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.left), self)
@@ -1639,13 +1639,13 @@ impl NodeFactory {
         let node = ConditionalExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_condition_of_conditional_expression(condition),
+                .ref_(self).parenthesize_condition_of_conditional_expression(condition),
             question_token.unwrap_or_else(|| self.create_token(SyntaxKind::QuestionToken)),
             self.parenthesizer_rules()
-                .parenthesize_branch_of_conditional_expression(when_true),
+                .ref_(self).parenthesize_branch_of_conditional_expression(when_true),
             colon_token.unwrap_or_else(|| self.create_token(SyntaxKind::ColonToken)),
             self.parenthesizer_rules()
-                .parenthesize_branch_of_conditional_expression(when_false),
+                .ref_(self).parenthesize_branch_of_conditional_expression(when_false),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.condition), self)
@@ -1873,7 +1873,7 @@ impl NodeFactory {
             node,
             expression.map(|expression| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(expression)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(expression)
             }),
             asterisk_token,
         );
@@ -1913,7 +1913,7 @@ impl NodeFactory {
         let node = SpreadElement::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)

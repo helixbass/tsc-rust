@@ -214,10 +214,10 @@ impl NodeFactory {
             is_export_equals,
             if matches!(is_export_equals, Some(true)) {
                 self.parenthesizer_rules()
-                    .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, expression)
+                    .ref_(self).parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, expression)
             } else {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_of_export_default(expression)
+                    .ref_(self).parenthesize_expression_of_export_default(expression)
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
@@ -1213,7 +1213,7 @@ impl NodeFactory {
         let node = CaseClause::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
             self.create_node_array(Some(statements), None),
         );
         node.add_transform_flags(

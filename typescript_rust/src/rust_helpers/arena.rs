@@ -11,6 +11,7 @@ use crate::{
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
+    ParenthesizerRules,
 };
 
 #[derive(Default)]
@@ -49,6 +50,7 @@ pub struct AllArenas {
     pub diagnostic_related_informations: RefCell<Arena<DiagnosticRelatedInformation>>,
     pub index_infos: RefCell<Arena<IndexInfo>>,
     pub current_parenthesizer_rules: RefCell<Arena<Box<dyn CurrentParenthesizerRule>>>,
+    pub parenthesizer_rules: RefCell<Arena<Box<dyn ParenthesizerRules>>>,
 }
 
 pub trait HasArena {
@@ -300,6 +302,14 @@ pub trait HasArena {
 
     fn alloc_current_parenthesizer_rule(&self, current_parenthesizer_rule: Box<dyn CurrentParenthesizerRule>) -> Id<Box<dyn CurrentParenthesizerRule>> {
         self.arena().alloc_current_parenthesizer_rule(current_parenthesizer_rule)
+    }
+
+    fn parenthesizer_rules(&self, parenthesizer_rules: Id<Box<dyn ParenthesizerRules>>) -> Ref<Box<dyn ParenthesizerRules>> {
+        self.arena().parenthesizer_rules(parenthesizer_rules)
+    }
+
+    fn alloc_parenthesizer_rules(&self, parenthesizer_rules: Box<dyn ParenthesizerRules>) -> Id<Box<dyn ParenthesizerRules>> {
+        self.arena().alloc_parenthesizer_rules(parenthesizer_rules)
     }
 }
 
@@ -626,6 +636,16 @@ impl HasArena for AllArenas {
         let id = self.current_parenthesizer_rules.borrow_mut().alloc(current_parenthesizer_rule);
         id
     }
+
+    #[track_caller]
+    fn parenthesizer_rules(&self, parenthesizer_rules: Id<Box<dyn ParenthesizerRules>>) -> Ref<Box<dyn ParenthesizerRules>> {
+        Ref::map(self.parenthesizer_rules.borrow(), |parenthesizer_rules_| &parenthesizer_rules_[parenthesizer_rules])
+    }
+
+    fn alloc_parenthesizer_rules(&self, parenthesizer_rules: Box<dyn ParenthesizerRules>) -> Id<Box<dyn ParenthesizerRules>> {
+        let id = self.parenthesizer_rules.borrow_mut().alloc(parenthesizer_rules);
+        id
+    }
 }
 
 pub trait InArena {
@@ -880,6 +900,14 @@ impl InArena for Id<Box<dyn CurrentParenthesizerRule>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CurrentParenthesizerRule>> {
         has_arena.current_parenthesizer_rule(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn ParenthesizerRules>> {
+    type Item = Box<dyn ParenthesizerRules>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ParenthesizerRules>> {
+        has_arena.parenthesizer_rules(*self)
     }
 }
 

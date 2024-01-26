@@ -137,7 +137,7 @@ impl NodeFactory {
         let node = ComputedPropertyName::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_of_computed_property_name(expression),
+                .ref_(self).parenthesize_expression_of_computed_property_name(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
@@ -221,7 +221,7 @@ impl NodeFactory {
             type_,
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         let question_token_is_some = question_token.is_some();
@@ -298,7 +298,7 @@ impl NodeFactory {
         let node = Decorator::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
@@ -1074,7 +1074,7 @@ impl NodeFactory {
             node,
             self.as_name(Some(type_name)).unwrap(),
             type_arguments.and_then(|type_arguments| {
-                self.parenthesizer_rules().parenthesize_type_arguments(Some(
+                self.parenthesizer_rules().ref_(self).parenthesize_type_arguments(Some(
                     self.create_node_array(Some(type_arguments), None).into(),
                 ))
             }),
@@ -1258,7 +1258,7 @@ impl NodeFactory {
         let node = ArrayTypeNode::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_element_type_of_array_type(element_type),
+                .ref_(self).parenthesize_element_type_of_array_type(element_type),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
@@ -1348,7 +1348,7 @@ impl NodeFactory {
         let node = OptionalTypeNode::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_element_type_of_array_type(type_),
+                .ref_(self).parenthesize_element_type_of_array_type(type_),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
@@ -1399,7 +1399,7 @@ impl NodeFactory {
         let node = self.create_base_node(kind);
         let types = self
             .parenthesizer_rules()
-            .parenthesize_constituent_types_of_union_or_intersection_type(types.into());
+            .ref_(self).parenthesize_constituent_types_of_union_or_intersection_type(types.into());
         let node: Node = match kind {
             SyntaxKind::UnionType => UnionTypeNode::new(node, types).into(),
             SyntaxKind::IntersectionType => IntersectionTypeNode::new(node, types).into(),
@@ -1470,9 +1470,9 @@ impl NodeFactory {
         let node = ConditionalTypeNode::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_member_of_conditional_type(check_type),
+                .ref_(self).parenthesize_member_of_conditional_type(check_type),
             self.parenthesizer_rules()
-                .parenthesize_member_of_conditional_type(extends_type),
+                .ref_(self).parenthesize_member_of_conditional_type(extends_type),
             true_type,
             false_type,
         );

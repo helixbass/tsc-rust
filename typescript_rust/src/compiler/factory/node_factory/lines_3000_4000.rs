@@ -40,10 +40,10 @@ impl NodeFactory {
         let node = ExpressionWithTypeArguments::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             type_arguments.and_then(|type_arguments| {
                 self.parenthesizer_rules()
-                    .parenthesize_type_arguments(Some(type_arguments.into()))
+                    .ref_(self).parenthesize_type_arguments(Some(type_arguments.into()))
             }),
         );
         node.add_transform_flags(
@@ -121,7 +121,7 @@ impl NodeFactory {
         let node = NonNullExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self) | TransformFlags::ContainsTypeScript,
@@ -156,7 +156,7 @@ impl NodeFactory {
         let node = NonNullExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self) | TransformFlags::ContainsTypeScript,
@@ -365,7 +365,7 @@ impl NodeFactory {
         let node = ExpressionStatement::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_of_expression_statement(expression),
+                .ref_(self).parenthesize_expression_of_expression_statement(expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node
@@ -609,7 +609,7 @@ impl NodeFactory {
             await_modifier,
             initializer,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
@@ -780,7 +780,7 @@ impl NodeFactory {
         let node = SwitchStatement::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
             case_block,
         );
         node.add_transform_flags(
@@ -929,7 +929,7 @@ impl NodeFactory {
             type_,
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         let exclamation_token_is_some = exclamation_token.is_some();

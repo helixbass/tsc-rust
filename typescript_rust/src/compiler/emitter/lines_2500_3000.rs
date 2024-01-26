@@ -1426,14 +1426,20 @@ impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         if self.side == LeftOrRight::Left {
             self.parenthesizer
-                .parenthesize_left_side_of_binary(self.parent_operator_token_kind, node)
+                .ref_(self).parenthesize_left_side_of_binary(self.parent_operator_token_kind, node)
         } else {
-            self.parenthesizer.parenthesize_right_side_of_binary(
+            self.parenthesizer.ref_(self).parenthesize_right_side_of_binary(
                 self.parent_operator_token_kind,
                 None,
                 node,
             )
         }
+    }
+}
+
+impl HasArena for MaybeEmitExpressionCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1451,7 +1457,13 @@ impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_operand_of_prefix_unary(node)
+            .ref_(self).parenthesize_operand_of_prefix_unary(node)
+    }
+}
+
+impl HasArena for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1469,7 +1481,13 @@ impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_operand_of_postfix_unary(node)
+            .ref_(self).parenthesize_operand_of_postfix_unary(node)
+    }
+}
+
+impl HasArena for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1486,7 +1504,13 @@ impl ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.parenthesize_left_side_of_access(node)
+        self.parenthesizer.ref_(self).parenthesize_left_side_of_access(node)
+    }
+}
+
+impl HasArena for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1503,7 +1527,13 @@ impl ParenthesizeExpressionOfNewCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.parenthesize_expression_of_new(node)
+        self.parenthesizer.ref_(self).parenthesize_expression_of_new(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1520,7 +1550,13 @@ impl ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.parenthesize_member_of_element_type(node)
+        self.parenthesizer.ref_(self).parenthesize_member_of_element_type(node)
+    }
+}
+
+impl HasArena for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1538,7 +1574,13 @@ impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_member_of_conditional_type(node)
+            .ref_(self).parenthesize_member_of_conditional_type(node)
+    }
+}
+
+impl HasArena for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1556,7 +1598,13 @@ impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_element_type_of_array_type(node)
+            .ref_(self).parenthesize_element_type_of_array_type(node)
+    }
+}
+
+impl HasArena for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1576,7 +1624,13 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_expression_of_computed_property_name(node)
+            .ref_(self).parenthesize_expression_of_computed_property_name(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1594,7 +1648,13 @@ impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_expression_for_disallowed_comma(node)
+            .ref_(self).parenthesize_expression_for_disallowed_comma(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1612,7 +1672,13 @@ impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_expression_of_export_default(node)
+            .ref_(self).parenthesize_expression_of_export_default(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1630,7 +1696,13 @@ impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, node)
+            .ref_(self).parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, node)
+    }
+}
+
+impl HasArena for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1648,7 +1720,13 @@ impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_concise_body_of_arrow_function(node)
+            .ref_(self).parenthesize_concise_body_of_arrow_function(node)
+    }
+}
+
+impl HasArena for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1668,7 +1746,13 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_expression_of_expression_statement(node)
+            .ref_(self).parenthesize_expression_of_expression_statement(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1688,7 +1772,13 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_branch_of_conditional_expression(node)
+            .ref_(self).parenthesize_branch_of_conditional_expression(node)
+    }
+}
+
+impl HasArena for ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1708,6 +1798,12 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_condition_of_conditional_expression(node)
+            .ref_(self).parenthesize_condition_of_conditional_expression(node)
+    }
+}
+
+impl HasArena for ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

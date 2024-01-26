@@ -46,7 +46,7 @@ impl NodeFactory {
         let node = PropertyAssignment::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(initializer),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(initializer),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.name()), self)
@@ -117,7 +117,7 @@ impl NodeFactory {
             node,
             object_assignment_initializer.map(|object_assignment_initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(object_assignment_initializer)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(object_assignment_initializer)
             }),
         );
         node.add_transform_flags(
@@ -190,7 +190,7 @@ impl NodeFactory {
         let node = SpreadAssignment::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression.clone()), self)
@@ -226,7 +226,7 @@ impl NodeFactory {
             self.as_name(Some(name)).unwrap(),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         node.add_transform_flags(
@@ -1040,7 +1040,7 @@ impl NodeFactory {
             this_arg = self.create_void_zero();
             target = self
                 .parenthesizer_rules()
-                .parenthesize_left_side_of_access(callee);
+                .ref_(self).parenthesize_left_side_of_access(callee);
         } else if is_property_access_expression(&callee.ref_(self)) {
             let callee_ref = callee.ref_(self);
             let callee_as_property_access_expression = callee_ref.as_property_access_expression();
@@ -1101,7 +1101,7 @@ impl NodeFactory {
             this_arg = self.create_void_zero();
             target = self
                 .parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression);
+                .ref_(self).parenthesize_left_side_of_access(expression);
         }
 
         CallBinding { target, this_arg }
