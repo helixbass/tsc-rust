@@ -330,7 +330,7 @@ impl TypeChecker {
                             &self.get_index_infos_of_structured_type(t)?,
                             self.get_string_literal_type(&unescape_leading_underscores(name)),
                         )?
-                        .map(|index_info| index_info.type_.clone()));
+                        .map(|index_info| index_info.ref_(self).type_.clone()));
                 }
                 Ok(None)
             },
@@ -385,7 +385,7 @@ impl TypeChecker {
                                 &self.get_index_infos_of_structured_type(t)?,
                                 name_type,
                             )?
-                            .map(|index_info| index_info.type_.clone()))
+                            .map(|index_info| index_info.ref_(self).type_.clone()))
                     },
                     Some(true),
                 );

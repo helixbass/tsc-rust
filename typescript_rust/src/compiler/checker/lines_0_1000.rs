@@ -1409,7 +1409,7 @@ pub fn create_type_checker(
         SignatureFlags::None,
     )));
 
-    type_checker.enum_number_index_info = Some(Gc::new(type_checker.create_index_info(
+    type_checker.enum_number_index_info = Some(arena_ref.alloc_index_info(type_checker.create_index_info(
         type_checker.number_type(),
         type_checker.string_type(),
         true,

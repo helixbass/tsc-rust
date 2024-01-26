@@ -49,7 +49,7 @@ impl TypeChecker {
                     try_filter(
                         &*self.get_index_infos_of_type(t)?,
                         |info: &Id<IndexInfo>| {
-                            self.is_applicable_index_type(key_type, info.key_type)
+                            self.is_applicable_index_type(key_type, info.ref_(self).key_type)
                         },
                     )
                 },

@@ -964,7 +964,7 @@ impl TypeChecker {
             .try_or_else(|| {
                 self.include_undefined_in_index_signature(
                     self.get_applicable_index_info_for_name(type_, &text)?
-                        .map(|applicable_index_info| applicable_index_info.type_.clone()),
+                        .map(|applicable_index_info| applicable_index_info.ref_(self).type_.clone()),
                 )
             })?
             .unwrap_or_else(|| self.error_type()))

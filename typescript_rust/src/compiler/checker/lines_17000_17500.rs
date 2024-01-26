@@ -611,7 +611,7 @@ impl TypeChecker {
                             let index_info = self.get_applicable_index_info(target, name_type)?;
                             if let Some(index_info) = index_info.as_ref() {
                                 if let Some(index_info_declaration) =
-                                    index_info.declaration.filter(|&declaration| {
+                                    index_info.ref_(self).declaration.filter(|&declaration| {
                                         !get_source_file_of_node(declaration, self)
                                             .ref_(self).as_source_file()
                                             .has_no_default_lib()

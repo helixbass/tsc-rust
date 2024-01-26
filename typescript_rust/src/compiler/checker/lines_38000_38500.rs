@@ -349,7 +349,7 @@ impl TypeChecker {
             }
         }
         if index_infos.len() > 1 {
-            for info in &index_infos {
+            for &info in &index_infos {
                 self.check_index_constraint_for_index_signature(type_, info)?;
             }
         }
@@ -398,7 +398,7 @@ impl TypeChecker {
         };
         for info in &index_infos {
             let local_index_declaration =
-                info.declaration
+                info.ref_(self).declaration
                     .try_filter(|&info_declaration| -> io::Result<_> {
                         Ok(self.get_parent_of_symbol(
                             self.get_symbol_of_node(info_declaration)?.unwrap(),
@@ -421,21 +421,21 @@ impl TypeChecker {
                                         )?
                                         .is_some()
                                         && self
-                                            .get_index_type_of_type_(base, info.key_type)?
+                                            .get_index_type_of_type_(base, info.ref_(self).key_type)?
                                             .is_some())
                                 }),
                             )?)
                         })
                 })?;
-            if error_node.is_some() && !self.is_type_assignable_to(prop_type, info.type_)? {
+            if error_node.is_some() && !self.is_type_assignable_to(prop_type, info.ref_(self).type_)? {
                 self.error(
                     error_node,
                     &Diagnostics::Property_0_of_type_1_is_not_assignable_to_2_index_type_3,
                     Some(vec![
                         self.symbol_to_string_(prop, Option::<Id<Node>>::None, None, None, None)?,
                         self.type_to_string_(prop_type, Option::<Id<Node>>::None, None, None)?,
-                        self.type_to_string_(info.key_type, Option::<Id<Node>>::None, None, None)?,
-                        self.type_to_string_(info.type_, Option::<Id<Node>>::None, None, None)?,
+                        self.type_to_string_(info.ref_(self).key_type, Option::<Id<Node>>::None, None, None)?,
+                        self.type_to_string_(info.ref_(self).type_, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
             }
@@ -447,10 +447,10 @@ impl TypeChecker {
     pub(super) fn check_index_constraint_for_index_signature(
         &self,
         type_: Id<Type>,
-        check_info: &IndexInfo,
+        check_info: Id<IndexInfo>,
     ) -> io::Result<()> {
-        let declaration = check_info.declaration;
-        let index_infos = self.get_applicable_index_infos(type_, check_info.key_type)?;
+        let declaration = check_info.ref_(self).declaration;
+        let index_infos = self.get_applicable_index_infos(type_, check_info.ref_(self).key_type)?;
         let interface_declaration =
             if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
@@ -468,12 +468,12 @@ impl TypeChecker {
                         == type_.ref_(self).maybe_symbol(),
                 )
             })?;
-        for info in &index_infos {
-            if ptr::eq(&**info, check_info) {
+        for &info in &index_infos {
+            if info == check_info {
                 continue;
             }
             let local_index_declaration =
-                info.declaration
+                info.ref_(self).declaration
                     .try_filter(|&info_declaration| -> io::Result<_> {
                         Ok(self.get_parent_of_symbol(
                             self.get_symbol_of_node(info_declaration)?.unwrap(),
@@ -490,34 +490,34 @@ impl TypeChecker {
                                 Some(&self.get_base_types(type_)?),
                                 Some(|&base: &Id<Type>| -> io::Result<_> {
                                     Ok(self
-                                        .get_index_info_of_type_(base, check_info.key_type)?
+                                        .get_index_info_of_type_(base, check_info.ref_(self).key_type)?
                                         .is_some()
                                         && self
-                                            .get_index_type_of_type_(base, info.key_type)?
+                                            .get_index_type_of_type_(base, info.ref_(self).key_type)?
                                             .is_some())
                                 }),
                             )?)
                         })
                 })?;
-            if error_node.is_some() && !self.is_type_assignable_to(check_info.type_, info.type_)? {
+            if error_node.is_some() && !self.is_type_assignable_to(check_info.ref_(self).type_, info.ref_(self).type_)? {
                 self.error(
                     error_node,
                     &Diagnostics::_0_index_type_1_is_not_assignable_to_2_index_type_3,
                     Some(vec![
                         self.type_to_string_(
-                            check_info.key_type,
+                            check_info.ref_(self).key_type,
                             Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
                         self.type_to_string_(
-                            check_info.type_,
+                            check_info.ref_(self).type_,
                             Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
-                        self.type_to_string_(info.key_type, Option::<Id<Node>>::None, None, None)?,
-                        self.type_to_string_(info.type_, Option::<Id<Node>>::None, None, None)?,
+                        self.type_to_string_(info.ref_(self).key_type, Option::<Id<Node>>::None, None, None)?,
+                        self.type_to_string_(info.ref_(self).type_, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
             }

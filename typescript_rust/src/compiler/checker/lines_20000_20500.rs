@@ -24,24 +24,24 @@ use crate::{
 impl CheckTypeRelatedTo {
     pub(super) fn index_info_related_to(
         &self,
-        source_info: &IndexInfo,
-        target_info: &IndexInfo,
+        source_info: Id<IndexInfo>,
+        target_info: Id<IndexInfo>,
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let related = self.is_related_to(
-            source_info.type_,
-            target_info.type_,
+            source_info.ref_(self).type_,
+            target_info.ref_(self).type_,
             Some(RecursionFlags::Both),
             Some(report_errors),
             None,
             None,
         )?;
         if related == Ternary::False && report_errors {
-            if source_info.key_type == target_info.key_type {
+            if source_info.ref_(self).key_type == target_info.ref_(self).key_type {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::_0_index_signatures_are_incompatible),
                     Some(vec![self.type_checker.type_to_string_(
-                        source_info.key_type,
+                        source_info.ref_(self).key_type,
                         Option::<Id<Node>>::None,
                         None,
                         None,
@@ -52,13 +52,13 @@ impl CheckTypeRelatedTo {
                     Cow::Borrowed(&Diagnostics::_0_and_1_index_signatures_are_incompatible),
                     Some(vec![
                         self.type_checker.type_to_string_(
-                            source_info.key_type,
+                            source_info.ref_(self).key_type,
                             Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
                         self.type_checker.type_to_string_(
-                            target_info.key_type,
+                            target_info.ref_(self).key_type,
                             Option::<Id<Node>>::None,
                             None,
                             None,
@@ -84,14 +84,14 @@ impl CheckTypeRelatedTo {
         let index_infos = self.type_checker.get_index_infos_of_type(target)?;
         let target_has_string_index = some(
             Some(&index_infos),
-            Some(|info: &Id<IndexInfo>| info.key_type == self.type_checker.string_type()),
+            Some(|info: &Id<IndexInfo>| info.ref_(self).key_type == self.type_checker.string_type()),
         );
         let mut result = Ternary::True;
-        for target_info in &index_infos {
+        for &target_info in &index_infos {
             let related = if !source_is_primitive
                 && target_has_string_index
                 && target_info
-                    .type_
+                    .ref_(self).type_
                     .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Any)
@@ -101,7 +101,7 @@ impl CheckTypeRelatedTo {
                 self.is_related_to(
                     self.type_checker
                         .get_template_type_from_mapped_type(source)?,
-                    target_info.type_,
+                    target_info.ref_(self).type_,
                     Some(RecursionFlags::Both),
                     Some(report_errors),
                     None,
@@ -126,14 +126,14 @@ impl CheckTypeRelatedTo {
     pub(super) fn type_related_to_index_info(
         &self,
         source: Id<Type>,
-        target_info: &IndexInfo,
+        target_info: Id<IndexInfo>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         let source_info = self
             .type_checker
-            .get_applicable_index_info(source, target_info.key_type)?;
-        if let Some(source_info) = source_info.as_ref() {
+            .get_applicable_index_info(source, target_info.ref_(self).key_type)?;
+        if let Some(source_info) = source_info {
             return self.index_info_related_to(source_info, target_info, report_errors);
         }
         if !intersection_state.intersects(IntersectionState::Source)
@@ -148,7 +148,7 @@ impl CheckTypeRelatedTo {
                 Cow::Borrowed(&Diagnostics::Index_signature_for_type_0_is_missing_in_type_1),
                 Some(vec![
                     self.type_checker.type_to_string_(
-                        target_info.key_type,
+                        target_info.ref_(self).key_type,
                         Option::<Id<Node>>::None,
                         None,
                         None,
@@ -178,15 +178,15 @@ impl CheckTypeRelatedTo {
         for target_info in &target_infos {
             let source_info = self
                 .type_checker
-                .get_index_info_of_type_(source, target_info.key_type)?;
+                .get_index_info_of_type_(source, target_info.ref_(self).key_type)?;
             if !matches!(
                 source_info.as_ref(),
                 Some(source_info) if self.is_related_to(
-                    source_info.type_,
-                    target_info.type_,
+                    source_info.ref_(self).type_,
+                    target_info.ref_(self).type_,
                     Some(RecursionFlags::Both),
                     None, None, None
-                )? != Ternary::False && source_info.is_readonly == target_info.is_readonly
+                )? != Ternary::False && source_info.ref_(self).is_readonly == target_info.ref_(self).is_readonly
             ) {
                 return Ok(Ternary::False);
             }

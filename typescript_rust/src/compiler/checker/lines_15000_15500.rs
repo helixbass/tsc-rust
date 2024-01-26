@@ -454,9 +454,9 @@ impl TypeChecker {
             let index_info = self
                 .get_applicable_index_info(object_type, index_type)?
                 .try_or_else(|| self.get_index_info_of_type_(object_type, self.string_type()))?;
-            if let Some(index_info) = index_info.as_deref() {
+            if let Some(index_info) = index_info {
                 if access_flags.intersects(AccessFlags::NoIndexSignatures)
-                    && index_info.key_type != self.number_type()
+                    && index_info.ref_(self).key_type != self.number_type()
                 {
                     if access_expression.is_some() {
                         self.error(
@@ -481,7 +481,7 @@ impl TypeChecker {
                     return Ok(None);
                 }
                 if let Some(access_node) = access_node {
-                    if index_info.key_type == self.string_type()
+                    if index_info.ref_(self).key_type == self.string_type()
                         && !self.is_type_assignable_to_kind(
                             index_type,
                             TypeFlags::String | TypeFlags::Number,
@@ -502,14 +502,14 @@ impl TypeChecker {
                         return Ok(Some(
                             if access_flags.intersects(AccessFlags::IncludeUndefined) {
                                 self.get_union_type(
-                                    &[index_info.type_.clone(), self.undefined_type()],
+                                    &[index_info.ref_(self).type_.clone(), self.undefined_type()],
                                     None,
                                     Option::<Id<Symbol>>::None,
                                     None,
                                     None,
                                 )?
                             } else {
-                                index_info.type_.clone()
+                                index_info.ref_(self).type_.clone()
                             },
                         ));
                     }
@@ -522,14 +522,14 @@ impl TypeChecker {
                 return Ok(Some(
                     if access_flags.intersects(AccessFlags::IncludeUndefined) {
                         self.get_union_type(
-                            &[index_info.type_.clone(), self.undefined_type()],
+                            &[index_info.ref_(self).type_.clone(), self.undefined_type()],
                             None,
                             Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?
                     } else {
-                        index_info.type_.clone()
+                        index_info.ref_(self).type_.clone()
                     },
                 ));
             }
@@ -909,11 +909,10 @@ impl TypeChecker {
         &self,
         access_expression: Option<Id<Node>>,
         object_type: Id<Type>,
-        index_info: Option<impl Borrow<IndexInfo>>,
+        index_info: Option<Id<IndexInfo>>,
     ) -> io::Result<()> {
         if let Some(index_info) = index_info {
-            let index_info = index_info.borrow();
-            if index_info.is_readonly {
+            if index_info.ref_(self).is_readonly {
                 if let Some(access_expression) = access_expression {
                     if is_assignment_target(access_expression, self)
                         || is_delete_target(access_expression, self)

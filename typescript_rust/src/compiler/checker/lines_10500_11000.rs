@@ -622,7 +622,7 @@ impl TypeChecker {
                 let inherited_index_infos = if instantiated_base_type != self.any_type() {
                     self.get_index_infos_of_type(instantiated_base_type)?
                 } else {
-                    vec![Gc::new(self.create_index_info(
+                    vec![self.alloc_index_info(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
                         false,

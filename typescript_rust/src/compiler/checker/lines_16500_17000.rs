@@ -940,14 +940,14 @@ impl TypeChecker {
 
     pub(super) fn instantiate_index_info(
         &self,
-        info: &IndexInfo,
+        info: Id<IndexInfo>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<IndexInfo>> {
-        Ok(Gc::new(self.create_index_info(
-            info.key_type.clone(),
-            self.instantiate_type(info.type_, Some(mapper))?,
-            info.is_readonly,
-            info.declaration.clone(),
+        Ok(self.alloc_index_info(self.create_index_info(
+            info.ref_(self).key_type.clone(),
+            self.instantiate_type(info.ref_(self).type_, Some(mapper))?,
+            info.ref_(self).is_readonly,
+            info.ref_(self).declaration.clone(),
         )))
     }
 

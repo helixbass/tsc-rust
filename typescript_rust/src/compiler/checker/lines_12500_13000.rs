@@ -1062,7 +1062,7 @@ impl TypeChecker {
                                 if self.is_valid_index_key_type(key_type)?
                                     && self.find_index_info(&index_infos, key_type).is_none()
                                 {
-                                    index_infos.push(Gc::new(self.create_index_info(
+                                    index_infos.push(self.alloc_index_info(self.create_index_info(
                                         key_type,
                                         if let Some(declaration_type) =
                                             declaration_as_index_signature_declaration.maybe_type()

@@ -10,7 +10,7 @@ use crate::{
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
-    CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation,
+    CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo,
 };
 
 #[derive(Default)]
@@ -47,6 +47,7 @@ pub struct AllArenas {
     pub symbol_links: RefCell<Arena<GcCell<SymbolLinks>>>,
     pub printers: RefCell<Arena<Printer>>,
     pub diagnostic_related_informations: RefCell<Arena<DiagnosticRelatedInformation>>,
+    pub index_infos: RefCell<Arena<IndexInfo>>,
 }
 
 pub trait HasArena {
@@ -282,6 +283,14 @@ pub trait HasArena {
 
     fn alloc_diagnostic_related_information(&self, diagnostic_related_information: DiagnosticRelatedInformation) -> Id<DiagnosticRelatedInformation> {
         self.arena().alloc_diagnostic_related_information(diagnostic_related_information)
+    }
+
+    fn index_info(&self, index_info: Id<IndexInfo>) -> Ref<IndexInfo> {
+        self.arena().index_info(index_info)
+    }
+
+    fn alloc_index_info(&self, index_info: IndexInfo) -> Id<IndexInfo> {
+        self.arena().alloc_index_info(index_info)
     }
 }
 
@@ -588,6 +597,16 @@ impl HasArena for AllArenas {
         let id = self.diagnostic_related_informations.borrow_mut().alloc(diagnostic_related_information);
         id
     }
+
+    #[track_caller]
+    fn index_info(&self, index_info: Id<IndexInfo>) -> Ref<IndexInfo> {
+        Ref::map(self.index_infos.borrow(), |index_infos| &index_infos[index_info])
+    }
+
+    fn alloc_index_info(&self, index_info: IndexInfo) -> Id<IndexInfo> {
+        let id = self.index_infos.borrow_mut().alloc(index_info);
+        id
+    }
 }
 
 pub trait InArena {
@@ -826,6 +845,14 @@ impl InArena for Id<DiagnosticRelatedInformation> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, DiagnosticRelatedInformation> {
         has_arena.diagnostic_related_information(*self)
+    }
+}
+
+impl InArena for Id<IndexInfo> {
+    type Item = IndexInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, IndexInfo> {
+        has_arena.index_info(*self)
     }
 }
 

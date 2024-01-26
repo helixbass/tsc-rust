@@ -1012,7 +1012,7 @@ impl NodeBuilder {
                 Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
             )?);
         }
-        for info in &*resolved_type.ref_(self).as_resolved_type().index_infos() {
+        for &info in &*resolved_type.ref_(self).as_resolved_type().index_infos() {
             type_elements.push(
                 self.index_info_to_index_signature_declaration_helper(
                     info,

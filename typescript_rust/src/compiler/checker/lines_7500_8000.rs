@@ -422,15 +422,15 @@ impl SymbolTableToDeclarationStatements {
         base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Id<Node>>> {
         let mut results: Vec<Id<Node /*IndexSignatureDeclaration*/>> = Default::default();
-        for info in &self.type_checker.get_index_infos_of_type(input)? {
+        for &info in &self.type_checker.get_index_infos_of_type(input)? {
             if let Some(base_type) = base_type {
                 let base_info = self
                     .type_checker
-                    .get_index_info_of_type_(base_type, info.key_type)?;
-                if let Some(base_info) = base_info.as_ref() {
+                    .get_index_info_of_type_(base_type, info.ref_(self).key_type)?;
+                if let Some(base_info) = base_info {
                     if self
                         .type_checker
-                        .is_type_identical_to(info.type_, base_info.type_)?
+                        .is_type_identical_to(info.ref_(self).type_, base_info.ref_(self).type_)?
                     {
                         continue;
                     }

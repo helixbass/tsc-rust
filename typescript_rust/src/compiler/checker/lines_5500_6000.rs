@@ -192,13 +192,13 @@ impl NodeBuilder {
 
     pub(super) fn index_info_to_index_signature_declaration_helper(
         &self,
-        index_info: &IndexInfo,
+        index_info: Id<IndexInfo>,
         context: &NodeBuilderContext,
         type_node: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Id<Node /*IndexSignatureDeclaration*/>> {
         let name = get_name_from_index_info(index_info, self).unwrap_or_else(|| Cow::Borrowed("x"));
         let indexer_type_node =
-            self.type_to_type_node_helper(Some(index_info.key_type), context)?;
+            self.type_to_type_node_helper(Some(index_info.ref_(self).key_type), context)?;
 
         let indexing_parameter = get_factory(self).create_parameter_declaration(
             Option::<Gc<NodeArray>>::None,
@@ -211,7 +211,7 @@ impl NodeBuilder {
         );
         let type_node = type_node
             .try_or_else(|| {
-                self.type_to_type_node_helper(Some(index_info.type_ /*|| anyType*/), context)
+                self.type_to_type_node_helper(Some(index_info.ref_(self).type_ /*|| anyType*/), context)
             })?;
         // if (!indexInfo.type && !(context.flags & NodeBuilderFlags.AllowEmptyIndexInfoType)) {
         //     context.encounteredError = true;
@@ -219,7 +219,7 @@ impl NodeBuilder {
         context.increment_approximate_length_by(name.len() + 4);
         Ok(get_factory(self).create_index_signature(
             Option::<Gc<NodeArray>>::None,
-            if index_info.is_readonly {
+            if index_info.ref_(self).is_readonly {
                 Some(vec![get_factory(self).create_token(SyntaxKind::ReadonlyKeyword)])
             } else {
                 None

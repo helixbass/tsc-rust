@@ -689,7 +689,7 @@ impl TypeChecker {
                     return Ok(self.error_type());
                 }
                 let index_info = index_info.unwrap();
-                if index_info.is_readonly && (is_assignment_target(node, self) || is_delete_target(node, self))
+                if index_info.ref_(self).is_readonly && (is_assignment_target(node, self) || is_delete_target(node, self))
                 {
                     self.error(
                         Some(node),
@@ -707,14 +707,14 @@ impl TypeChecker {
                     && !is_assignment_target(node, self)
                 {
                     self.get_union_type(
-                        &[index_info.type_.clone(), self.undefined_type()],
+                        &[index_info.ref_(self).type_.clone(), self.undefined_type()],
                         None,
                         Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
                 } else {
-                    index_info.type_.clone()
+                    index_info.ref_(self).type_.clone()
                 };
                 if self
                     .compiler_options

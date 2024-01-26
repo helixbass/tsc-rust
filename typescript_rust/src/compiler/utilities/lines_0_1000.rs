@@ -1816,8 +1816,8 @@ pub fn declaration_name_to_string(name: Option<Id<Node>>, arena: &impl HasArena)
     }
 }
 
-pub fn get_name_from_index_info(info: &IndexInfo, arena: &impl HasArena) -> Option<Cow<'static, str>> {
-    info.declaration.as_ref().map(|info_declaration| {
+pub fn get_name_from_index_info(info: Id<IndexInfo>, arena: &impl HasArena) -> Option<Cow<'static, str>> {
+    info.ref_(arena).declaration.map(|info_declaration| {
         declaration_name_to_string(
             info_declaration
                 .ref_(arena).as_index_signature_declaration()

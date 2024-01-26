@@ -229,11 +229,11 @@ impl TypeChecker {
         // if (sourceInfos) {
         let mut result = vec![];
         for info in source_infos {
-            let index_type = info.key_type;
+            let index_type = info.ref_(self).key_type;
             if try_every(types, |&t: &Id<Type>, _| -> io::Result<_> {
                 Ok(self.get_index_info_of_type_(t, index_type)?.is_some())
             })? {
-                result.push(Gc::new(
+                result.push(self.alloc_index_info(
                     self.create_index_info(
                         index_type.clone(),
                         self.get_union_type(
@@ -254,7 +254,7 @@ impl TypeChecker {
                                 Ok(self
                                     .get_index_info_of_type_(t, index_type)?
                                     .unwrap()
-                                    .is_readonly)
+                                    .ref_(self).is_readonly)
                             }),
                         )?,
                         None,
@@ -396,7 +396,7 @@ impl TypeChecker {
             )?;
             index_infos = try_reduce_left(
                 &self.get_index_infos_of_type(t)?,
-                |mut infos: Vec<Id<IndexInfo>>, new_info: &Id<IndexInfo>, _| -> io::Result<_> {
+                |mut infos: Vec<Id<IndexInfo>>, &new_info: &Id<IndexInfo>, _| -> io::Result<_> {
                     self.append_index_info(&mut infos, new_info, false)?;
                     Ok(infos)
                 },
@@ -451,12 +451,12 @@ impl TypeChecker {
         // if (indexInfos) {
         for i in 0..index_infos.len() {
             let info = index_infos[i].clone();
-            if info.key_type == new_info.key_type {
-                index_infos[i] = Gc::new(self.create_index_info(
-                    info.key_type.clone(),
+            if info.ref_(self).key_type == new_info.ref_(self).key_type {
+                index_infos[i] = self.alloc_index_info(self.create_index_info(
+                    info.ref_(self).key_type.clone(),
                     if union {
                         self.get_union_type(
-                            &[info.type_.clone(), new_info.type_.clone()],
+                            &[info.ref_(self).type_.clone(), new_info.ref_(self).type_.clone()],
                             None,
                             Option::<Id<Symbol>>::None,
                             None,
@@ -464,15 +464,15 @@ impl TypeChecker {
                         )?
                     } else {
                         self.get_intersection_type(
-                            &vec![info.type_.clone(), new_info.type_.clone()],
+                            &vec![info.ref_(self).type_.clone(), new_info.ref_(self).type_.clone()],
                             Option::<Id<Symbol>>::None,
                             None,
                         )?
                     },
                     if union {
-                        info.is_readonly || new_info.is_readonly
+                        info.ref_(self).is_readonly || new_info.ref_(self).is_readonly
                     } else {
-                        info.is_readonly && new_info.is_readonly
+                        info.ref_(self).is_readonly && new_info.ref_(self).is_readonly
                     },
                     None,
                 ));
@@ -597,7 +597,7 @@ impl TypeChecker {
                         self.get_properties_of_type(base_constructor_type)?,
                     );
                 } else if base_constructor_type == self.any_type() {
-                    base_constructor_index_info = Some(Gc::new(self.create_index_info(
+                    base_constructor_index_info = Some(self.alloc_index_info(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
                         false,
@@ -755,14 +755,14 @@ impl TypeChecker {
             SymbolFlags::Optional
         };
         let index_infos = if let Some(index_info) = index_info {
-            vec![Gc::new(self.create_index_info(
+            vec![self.alloc_index_info(self.create_index_info(
                 self.string_type(),
                 self.infer_reverse_mapped_type(
-                    index_info.type_,
+                    index_info.ref_(self).type_,
                     type_.ref_(self).as_reverse_mapped_type().mapped_type,
                     type_.ref_(self).as_reverse_mapped_type().constraint_type,
                 )?,
-                readonly_mask && index_info.is_readonly,
+                readonly_mask && index_info.ref_(self).is_readonly,
                 None,
             ))]
         } else {
@@ -952,12 +952,12 @@ impl TypeChecker {
             for info in self.get_index_infos_of_type(type_)? {
                 if !strings_only
                     || info
-                        .key_type
+                        .ref_(self).key_type
                         .ref_(self)
                         .flags()
                         .intersects(TypeFlags::String | TypeFlags::TemplateLiteral)
                 {
-                    cb(info.key_type)?;
+                    cb(info.ref_(self).key_type)?;
                 }
             }
         }
@@ -1246,13 +1246,13 @@ impl TypeChecker {
                     key_type,
                 )),
             )?;
-            let index_info = Gc::new(self.create_index_info(
+            let index_info = self.alloc_index_info(self.create_index_info(
                 index_key_type,
                 prop_type,
                 template_modifiers.intersects(MappedTypeModifiers::IncludeReadonly),
                 None,
             ));
-            self.append_index_info(index_infos, &index_info, true)?;
+            self.append_index_info(index_infos, index_info, true)?;
         }
 
         Ok(())

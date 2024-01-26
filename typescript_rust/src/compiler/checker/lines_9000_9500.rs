@@ -147,7 +147,7 @@ impl TypeChecker {
                     .as_ref()
                     .map_or_else(|| e_as_binding_element.name(), Clone::clone);
                 if e_as_binding_element.dot_dot_dot_token.is_some() {
-                    string_index_info = Some(Gc::new(self.create_index_info(
+                    string_index_info = Some(self.alloc_index_info(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
                         false,

@@ -33,7 +33,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let mut index_infos: Vec<Id<IndexInfo>> = vec![];
         if has_computed_string_property {
-            index_infos.push(Gc::new(self.get_object_literal_index_info(
+            index_infos.push(self.alloc_index_info(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -41,7 +41,7 @@ impl TypeChecker {
             )?));
         }
         if has_computed_number_property {
-            index_infos.push(Gc::new(self.get_object_literal_index_info(
+            index_infos.push(self.alloc_index_info(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -49,7 +49,7 @@ impl TypeChecker {
             )?));
         }
         if has_computed_symbol_property {
-            index_infos.push(Gc::new(self.get_object_literal_index_info(
+            index_infos.push(self.alloc_index_info(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,

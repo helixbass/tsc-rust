@@ -728,7 +728,7 @@ impl TypeChecker {
             .try_or_else(|| -> io::Result<_> {
                 Ok(self
                     .get_applicable_index_info_for_name(type_, name)?
-                    .map(|index_info| index_info.type_.clone()))
+                    .map(|index_info| index_info.ref_(self).type_))
             })?
             .unwrap_or_else(|| self.unknown_type()))
     }

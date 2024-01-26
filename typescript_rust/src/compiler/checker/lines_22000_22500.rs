@@ -233,9 +233,9 @@ impl InferTypes {
                 .map(|property| self.type_checker.get_type_of_symbol(property))
                 .collect::<Result<Vec<_>, _>>()?;
             let index_infos = self.type_checker.get_index_infos_of_type(source)?;
-            let index_types = index_infos.iter().map(|info| {
-                if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
-                    info.type_.clone()
+            let index_types = index_infos.iter().map(|&info| {
+                if info != self.type_checker.enum_number_index_info() {
+                    info.ref_(self).type_.clone()
                 } else {
                     self.type_checker.never_type()
                 }
@@ -709,7 +709,7 @@ impl InferTypes {
                             TypeFlags::StringOrNumberLiteralOrUnique,
                             None,
                         )?,
-                        target_info.key_type,
+                        target_info.ref_(self).key_type,
                     )? {
                         let prop_type = self.type_checker.get_type_of_symbol(prop)?;
                         prop_types.push(
@@ -725,9 +725,9 @@ impl InferTypes {
                 for info in &self.type_checker.get_index_infos_of_type(source)? {
                     if self
                         .type_checker
-                        .is_applicable_index_type(info.key_type, target_info.key_type)?
+                        .is_applicable_index_type(info.ref_(self).key_type, target_info.ref_(self).key_type)?
                     {
-                        prop_types.push(info.type_.clone());
+                        prop_types.push(info.ref_(self).type_.clone());
                     }
                 }
                 if !prop_types.is_empty() {
@@ -739,7 +739,7 @@ impl InferTypes {
                             None,
                             None,
                         )?,
-                        target_info.type_,
+                        target_info.ref_(self).type_,
                         priority,
                     )?;
                 }
@@ -748,9 +748,9 @@ impl InferTypes {
         for target_info in &index_infos {
             let source_info = self
                 .type_checker
-                .get_applicable_index_info(source, target_info.key_type)?;
+                .get_applicable_index_info(source, target_info.ref_(self).key_type)?;
             if let Some(source_info) = source_info.as_ref() {
-                self.infer_with_priority(source_info.type_, target_info.type_, priority)?;
+                self.infer_with_priority(source_info.ref_(self).type_, target_info.ref_(self).type_, priority)?;
             }
         }
 

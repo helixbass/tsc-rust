@@ -1442,7 +1442,7 @@ impl CheckTypeRelatedTo {
                     Ok(self
                         .type_checker
                         .get_applicable_index_info_for_name(type_, name)?
-                        .map(|index_info| index_info.type_.clone()))
+                        .map(|index_info| index_info.ref_(self).type_.clone()))
                 })?
                 .unwrap_or_else(|| self.type_checker.undefined_type());
             if prop_types.is_none() {

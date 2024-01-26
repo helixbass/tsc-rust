@@ -184,7 +184,7 @@ impl TypeChecker {
                     };
                     if let Some(index_info) = index_info {
                         check_flags |= CheckFlags::WritePartial
-                            | if index_info.is_readonly {
+                            | if index_info.ref_(self).is_readonly {
                                 CheckFlags::Readonly
                             } else {
                                 CheckFlags::None
@@ -198,7 +198,7 @@ impl TypeChecker {
                                 self.get_rest_type_of_tuple_type(type_)?
                                     .unwrap_or_else(|| self.undefined_type())
                             } else {
-                                index_info.type_.clone()
+                                index_info.ref_(self).type_.clone()
                             }),
                         );
                     } else if self.is_object_literal_type(type_)
@@ -695,7 +695,7 @@ impl TypeChecker {
         key_type: Id<Type>,
     ) -> Option<Id<IndexInfo>> {
         find(index_infos, |info: &Id<IndexInfo>, _| {
-            info.key_type == key_type
+            info.ref_(self).key_type == key_type
         })
         .map(Clone::clone)
     }
@@ -709,9 +709,9 @@ impl TypeChecker {
         let mut applicable_info: Option<Id<IndexInfo>> = None;
         let mut applicable_infos: Option<Vec<Id<IndexInfo>>> = None;
         for info in index_infos {
-            if info.key_type == self.string_type() {
+            if info.ref_(self).key_type == self.string_type() {
                 string_index_info = Some(info.clone());
-            } else if self.is_applicable_index_type(key_type, info.key_type)? {
+            } else if self.is_applicable_index_type(key_type, info.ref_(self).key_type)? {
                 if applicable_info.is_none() {
                     applicable_info = Some(info.clone());
                 } else {
@@ -723,18 +723,18 @@ impl TypeChecker {
             }
         }
         Ok(if let Some(applicable_infos) = applicable_infos {
-            Some(Gc::new(self.create_index_info(
+            Some(self.alloc_index_info(self.create_index_info(
                 self.unknown_type(),
                 self.get_intersection_type(
                     &map(&applicable_infos, |info: &Id<IndexInfo>, _| {
-                        info.type_.clone()
+                        info.ref_(self).type_.clone()
                     }),
                     Option::<Id<Symbol>>::None,
                     None,
                 )?,
                 reduce_left(
                     &applicable_infos,
-                    |is_readonly, info: &Id<IndexInfo>, _| is_readonly && info.is_readonly,
+                    |is_readonly, info: &Id<IndexInfo>, _| is_readonly && info.ref_(self).is_readonly,
                     true,
                     None,
                     None,
@@ -805,7 +805,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         Ok(self
             .get_index_info_of_type_(type_, key_type)?
-            .map(|index_info| index_info.type_.clone()))
+            .map(|index_info| index_info.ref_(self).type_.clone()))
     }
 
     pub(super) fn get_applicable_index_infos(
@@ -815,7 +815,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<IndexInfo>>> {
         try_filter(
             &self.get_index_infos_of_type(type_)?,
-            |info: &Id<IndexInfo>| self.is_applicable_index_type(key_type, info.key_type),
+            |info: &Id<IndexInfo>| self.is_applicable_index_type(key_type, info.ref_(self).key_type),
         )
     }
 

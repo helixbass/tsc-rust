@@ -221,10 +221,10 @@ impl TypeChecker {
             try_map(
                 &self.get_index_infos_of_type(type_)?,
                 |info: &Id<IndexInfo>, _| -> io::Result<_> {
-                    Ok(Gc::new(self.create_index_info(
-                        info.key_type.clone(),
-                        self.get_widened_type(info.type_)?,
-                        info.is_readonly,
+                    Ok(self.alloc_index_info(self.create_index_info(
+                        info.ref_(self).key_type.clone(),
+                        self.get_widened_type(info.ref_(self).type_)?,
+                        info.ref_(self).is_readonly,
                         None,
                     )))
                 },
@@ -1008,7 +1008,7 @@ impl TypeChecker {
             None
         });
         let index_infos = if type_.ref_(self).flags().intersects(TypeFlags::String) {
-            vec![Gc::new(self.create_index_info(
+            vec![self.alloc_index_info(self.create_index_info(
                 self.string_type(),
                 self.empty_object_type(),
                 false,

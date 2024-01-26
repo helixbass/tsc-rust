@@ -1559,11 +1559,11 @@ impl CheckTypeRelatedTo {
     pub(super) fn members_related_to_index_info(
         &self,
         source: Id<Type>,
-        target_info: &IndexInfo,
+        target_info: Id<IndexInfo>,
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
-        let key_type = target_info.key_type;
+        let key_type = target_info.ref_(self).key_type;
         let props = if source
             .ref_(self)
             .flags()
@@ -1608,7 +1608,7 @@ impl CheckTypeRelatedTo {
                 };
                 let related = self.is_related_to(
                     type_,
-                    target_info.type_,
+                    target_info.ref_(self).type_,
                     Some(RecursionFlags::Both),
                     Some(report_errors),
                     None,
@@ -1634,10 +1634,10 @@ impl CheckTypeRelatedTo {
                 result &= related;
             }
         }
-        for info in &self.type_checker.get_index_infos_of_type(source)? {
+        for &info in &self.type_checker.get_index_infos_of_type(source)? {
             if self
                 .type_checker
-                .is_applicable_index_type(info.key_type, key_type)?
+                .is_applicable_index_type(info.ref_(self).key_type, key_type)?
             {
                 let related = self.index_info_related_to(info, target_info, report_errors)?;
                 if related == Ternary::False {

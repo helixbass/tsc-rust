@@ -1257,7 +1257,7 @@ impl TypeChecker {
                                 let index_info = if indexed == self.string_type()
                                     || indexed == self.number_type()
                                 {
-                                    vec![Gc::new(
+                                    vec![self.alloc_index_info(
                                         self.create_index_info(indexed, target, false, None),
                                     )]
                                 } else {
