@@ -629,9 +629,9 @@ pub(super) fn make_synthetic(node: BaseNode) -> BaseNode {
     node
 }
 
-pub fn get_synthetic_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory>> {
+pub fn get_synthetic_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory + 'static>> {
     per_arena!(
-        Box<dyn BaseNodeFactory>,
+        Box<dyn BaseNodeFactory + 'static>,
         arena,
         arena.alloc_base_node_factory(Box::new(BaseNodeFactorySynthetic::new()))
     )

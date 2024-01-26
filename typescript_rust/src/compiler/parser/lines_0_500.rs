@@ -100,9 +100,9 @@ impl BaseNodeFactory for ParseBaseNodeFactory {
     }
 }
 
-pub fn get_parse_base_node_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory>> {
+pub fn get_parse_base_node_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory + 'static>> {
     per_arena!(
-        Id<Box<dyn BaseNodeFactory>>,
+        Id<Box<dyn BaseNodeFactory + 'static>>,
         arena,
         arena.alloc_base_node_factory(Box::new(ParseBaseNodeFactory::new()))
     )

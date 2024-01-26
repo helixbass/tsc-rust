@@ -263,7 +263,7 @@ impl NodeFactory {
     ) -> SourceFile {
         let node = self
             .base_factory
-            .create_base_source_file_node(SyntaxKind::SourceFile);
+            .ref_(self).create_base_source_file_node(SyntaxKind::SourceFile);
         let node = SourceFile::new(
             node,
             self.create_node_array(Some(statements), None),
@@ -306,7 +306,7 @@ impl NodeFactory {
         node.set_transform_flags(TransformFlags::None);
         node.set_original(None);
         node.set_emit_node(None);
-        self.base_factory.update_cloned_node(node.base_node());
+        self.base_factory.ref_(self).update_cloned_node(node.base_node());
 
         node.set_statements(self.create_node_array(Some(statements), None));
         node.set_end_of_file_token(source_as_source_file.end_of_file_token());
@@ -631,7 +631,7 @@ impl NodeFactory {
         clone.ref_(self).set_id(0);
         clone.ref_(self).set_modifier_flags_cache(ModifierFlags::None);
         clone.ref_(self).set_parent(None);
-        self.base_factory.update_cloned_node(clone.ref_(self).base_node());
+        self.base_factory.ref_(self).update_cloned_node(clone.ref_(self).base_node());
 
         clone.ref_(self).set_flags(clone.ref_(self).flags() | (node.ref_(self).flags() & !NodeFlags::Synthesized));
         clone.ref_(self).set_transform_flags(node.ref_(self).transform_flags());

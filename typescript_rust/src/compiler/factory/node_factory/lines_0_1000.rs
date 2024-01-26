@@ -628,7 +628,7 @@ impl NodeFactory {
     }
 
     pub(crate) fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.base_factory.create_base_node(kind)
+        self.base_factory.ref_(self).create_base_node(kind)
     }
 
     pub(crate) fn create_base_declaration<
@@ -1046,7 +1046,7 @@ impl NodeFactory {
         }
         let node = self
             .base_factory
-            .create_base_identifier_node(SyntaxKind::Identifier);
+            .ref_(self).create_base_identifier_node(SyntaxKind::Identifier);
         let mut node = Identifier::new(node, escape_leading_underscores(text).into_owned());
         node.original_keyword_kind = original_keyword_kind;
         node
@@ -1193,14 +1193,14 @@ impl NodeFactory {
         }
         let node = self
             .base_factory
-            .create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
+            .ref_(self).create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
         let node = PrivateIdentifier::new(node, escape_leading_underscores(text).into_owned());
         node.add_transform_flags(TransformFlags::ContainsClassFields);
         node
     }
 
     pub fn create_base_token(&self, kind: SyntaxKind) -> BaseNode {
-        self.base_factory.create_base_token_node(kind)
+        self.base_factory.ref_(self).create_base_token_node(kind)
     }
 
     #[generate_node_factory_method_wrapper]
