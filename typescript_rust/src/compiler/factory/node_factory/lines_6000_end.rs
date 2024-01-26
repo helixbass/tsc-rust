@@ -702,7 +702,7 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
         make_synthetic(base_factory_static.with(|base_factory| base_factory.create_base_node(kind)))
     }
 
-    fn update_cloned_node<TNode: NodeInterface>(&self, node: &TNode) {
+    fn update_cloned_node(&self, node: &BaseNode) {
         make_synthetic_ref(node);
     }
 }

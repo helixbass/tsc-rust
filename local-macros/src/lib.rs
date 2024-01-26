@@ -100,6 +100,10 @@ fn get_ast_struct_interface_impl(
 
                     #alloc_method
 
+                    fn base_node(&self) -> &crate::BaseNode {
+                        self.#first_field_name.base_node()
+                    }
+
                     fn kind(&self) -> crate::SyntaxKind {
                         self.#first_field_name.kind()
                     }
@@ -562,6 +566,12 @@ fn get_ast_enum_interface_impl(
                     }
 
                     #alloc_method
+
+                    fn base_node(&self) -> &crate::BaseNode {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.base_node()),*
+                        }
+                    }
 
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {

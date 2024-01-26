@@ -8,7 +8,7 @@ pub trait BaseNodeFactory {
     fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode;
-    fn update_cloned_node<TNode: NodeInterface>(&self, _node: &TNode) {}
+    fn update_cloned_node(&self, _node: &BaseNode) {}
 }
 
 pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
