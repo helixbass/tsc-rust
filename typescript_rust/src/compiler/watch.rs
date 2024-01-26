@@ -1066,7 +1066,7 @@ pub struct IncrementalCompilationOptions<'a> {
     pub options: &'a CompilerOptions,
     pub config_file_parsing_diagnostics: Option<&'a [Id<Diagnostic>]>,
     pub project_references: Option<&'a [Rc<ProjectReference>]>,
-    pub host: Option<Gc<Box<dyn CompilerHost>>>,
+    pub host: Option<Id<Box<dyn CompilerHost>>>,
     pub report_diagnostic: Option<Id<Box<dyn DiagnosticReporter>>>,
     pub report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     pub after_program_emit_and_diagnostics:

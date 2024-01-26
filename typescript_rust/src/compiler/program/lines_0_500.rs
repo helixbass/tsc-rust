@@ -660,7 +660,7 @@ impl HasArena for CompilerHostConcrete {
 }
 
 pub(crate) fn change_compiler_host_like_to_use_cache(
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
     to_path: Gc<Box<dyn ToPath>>,
     get_source_file: Option<Gc<Box<dyn GetSourceFile>>>,
 ) /*-> */
@@ -695,7 +695,7 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
 
 #[derive(Trace, Finalize)]
 struct ChangeCompilerHostLikeToUseCacheOverrider {
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
     to_path: Gc<Box<dyn ToPath>>,
     get_source_file: Option<Gc<Box<dyn GetSourceFile>>>,
     #[unsafe_ignore_trace]
@@ -710,7 +710,7 @@ struct ChangeCompilerHostLikeToUseCacheOverrider {
 
 impl ChangeCompilerHostLikeToUseCacheOverrider {
     pub fn new(
-        host: Gc<Box<dyn CompilerHost>>,
+        host: Id<Box<dyn CompilerHost>>,
         to_path: Gc<Box<dyn ToPath>>,
         get_source_file: Option<Gc<Box<dyn GetSourceFile>>>,
     ) -> Self {

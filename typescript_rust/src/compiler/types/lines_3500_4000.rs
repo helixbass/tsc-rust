@@ -1644,7 +1644,7 @@ pub struct Program {
     pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
 
     pub(crate) old_program: GcCell<Option<Id<Program>>>,
-    pub(crate) host: GcCell<Option<Gc<Box<dyn CompilerHost>>>>,
+    pub(crate) host: GcCell<Option<Id<Box<dyn CompilerHost>>>>,
     pub(crate) config_parsing_host: GcCell<Option<Gc<Box<dyn ParseConfigFileHost>>>>,
 
     #[unsafe_ignore_trace]

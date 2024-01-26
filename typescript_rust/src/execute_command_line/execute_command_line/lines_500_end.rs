@@ -335,7 +335,7 @@ pub(super) fn perform_compilation(
     let file_names = &config.file_names;
     let options = config.options.clone();
     let project_references = &config.project_references;
-    let host: Gc<Box<dyn CompilerHost>> = Gc::new(Box::new(create_compiler_host_worker(
+    let host: Id<Box<dyn CompilerHost>> = Gc::new(Box::new(create_compiler_host_worker(
         options.clone(),
         None,
         Some(sys.clone()),

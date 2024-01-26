@@ -56,14 +56,14 @@ pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
 #[derive(Trace, Finalize)]
 pub struct LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
     options: Id<CompilerOptions>,
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
     type_reference_directive_resolution_cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
 }
 
 impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
     pub fn new(
         options: Id<CompilerOptions>,
-        host: Gc<Box<dyn CompilerHost>>,
+        host: Id<Box<dyn CompilerHost>>,
         type_reference_directive_resolution_cache: Option<
             Gc<TypeReferenceDirectiveResolutionCache>,
         >,
@@ -217,14 +217,14 @@ pub trait LoadWithModeAwareCacheLoader<TValue>: Trace + Finalize {
 #[derive(Trace, Finalize)]
 pub struct LoadWithModeAwareCacheLoaderResolveModuleName {
     options: Id<CompilerOptions>,
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
     module_resolution_cache: Option<Gc<ModuleResolutionCache>>,
 }
 
 impl LoadWithModeAwareCacheLoaderResolveModuleName {
     pub fn new(
         options: Id<CompilerOptions>,
-        host: Gc<Box<dyn CompilerHost>>,
+        host: Id<Box<dyn CompilerHost>>,
         module_resolution_cache: Option<Gc<ModuleResolutionCache>>,
     ) -> Self {
         Self {
@@ -1501,7 +1501,7 @@ impl Program {
         *self.old_program.borrow_mut() = old_program;
     }
 
-    pub(super) fn host(&self) -> Gc<Box<dyn CompilerHost>> {
+    pub(super) fn host(&self) -> Id<Box<dyn CompilerHost>> {
         self.host.borrow().clone().unwrap()
     }
 
@@ -1877,12 +1877,12 @@ pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerHost {
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
     options: Id<CompilerOptions>,
 }
 
 impl ActualResolveModuleNamesWorkerHost {
-    pub fn new(host: Gc<Box<dyn CompilerHost>>, options: Id<CompilerOptions>) -> Self {
+    pub fn new(host: Id<Box<dyn CompilerHost>>, options: Id<CompilerOptions>) -> Self {
         Self { host, options }
     }
 }
@@ -1980,12 +1980,12 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerHost {
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
     options: Id<CompilerOptions>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerHost {
-    pub fn new(host: Gc<Box<dyn CompilerHost>>, options: Id<CompilerOptions>) -> Self {
+    pub fn new(host: Id<Box<dyn CompilerHost>>, options: Id<CompilerOptions>) -> Self {
         Self { host, options }
     }
 }

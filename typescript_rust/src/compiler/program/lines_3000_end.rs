@@ -2017,11 +2017,11 @@ impl Program {
 
 #[derive(Trace, Finalize)]
 pub struct HostGetCanonicalFileName {
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
 }
 
 impl HostGetCanonicalFileName {
-    pub fn new(host: Gc<Box<dyn CompilerHost>>) -> Self {
+    pub fn new(host: Id<Box<dyn CompilerHost>>) -> Self {
         Self { host }
     }
 }
@@ -2056,7 +2056,7 @@ impl HasArena for ProgramGetSymlinkCache {
 }
 
 pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
-    pub compiler_host: Gc<Box<dyn CompilerHost>>,
+    pub compiler_host: Id<Box<dyn CompilerHost>>,
     pub get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
     pub use_source_of_project_reference_redirect: bool,
     pub to_path: Gc<Box<dyn ToPath>>,
@@ -2119,7 +2119,7 @@ pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
 
 #[derive(Trace, Finalize)]
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
-    pub host_compiler_host: Gc<Box<dyn CompilerHost>>,
+    pub host_compiler_host: Id<Box<dyn CompilerHost>>,
     pub host_get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
     pub host_to_path: Gc<Box<dyn ToPath>>,
     pub host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
@@ -2130,7 +2130,7 @@ struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
 
 impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub fn new(
-        host_compiler_host: Gc<Box<dyn CompilerHost>>,
+        host_compiler_host: Id<Box<dyn CompilerHost>>,
         host_get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
         host_to_path: Gc<Box<dyn ToPath>>,
         host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
@@ -2415,11 +2415,11 @@ pub trait CompilerHostLike: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 pub struct CompilerHostLikeRcDynCompilerHost {
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
 }
 
 impl CompilerHostLikeRcDynCompilerHost {
-    pub fn new(host: Gc<Box<dyn CompilerHost>>) -> Self {
+    pub fn new(host: Id<Box<dyn CompilerHost>>) -> Self {
         host.into()
     }
 }
@@ -2493,8 +2493,8 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
     }
 }
 
-impl From<Gc<Box<dyn CompilerHost>>> for CompilerHostLikeRcDynCompilerHost {
-    fn from(host: Gc<Box<dyn CompilerHost>>) -> Self {
+impl From<Id<Box<dyn CompilerHost>>> for CompilerHostLikeRcDynCompilerHost {
+    fn from(host: Id<Box<dyn CompilerHost>>) -> Self {
         Self { host }
     }
 }
@@ -2787,11 +2787,11 @@ pub(crate) fn get_module_name_string_literal_at(
 
 #[derive(Trace, Finalize)]
 struct CompilerHostGetCanonicalFileName {
-    host: Gc<Box<dyn CompilerHost>>,
+    host: Id<Box<dyn CompilerHost>>,
 }
 
 impl CompilerHostGetCanonicalFileName {
-    pub fn new(host: Gc<Box<dyn CompilerHost>>) -> Self {
+    pub fn new(host: Id<Box<dyn CompilerHost>>) -> Self {
         Self { host }
     }
 }
