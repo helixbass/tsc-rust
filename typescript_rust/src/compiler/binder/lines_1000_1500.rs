@@ -214,8 +214,8 @@ impl BinderType {
         let mut label = self.maybe_active_label_list();
         while label.is_some() && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::LabeledStatement {
             let label_present = label.unwrap();
-            label_present.set_continue_target(Some(target.clone()));
-            label = label_present.next.clone();
+            label_present.ref_(self).set_continue_target(Some(target.clone()));
+            label = label_present.ref_(self).next.clone();
             node = node.ref_(self).parent();
         }
         target
@@ -356,10 +356,10 @@ impl BinderType {
     ) -> Option<Id<ActiveLabel>> {
         let mut label = self.maybe_active_label_list();
         while let Some(label_present) = label {
-            if &label_present.name == name {
+            if &label_present.ref_(self).name == name {
                 return Some(label_present);
             }
-            label = label_present.next.clone();
+            label = label_present.ref_(self).next.clone();
         }
         None
     }
@@ -390,11 +390,11 @@ impl BinderType {
         if let Some(node_label) = node_as_has_label.maybe_label() {
             let active_label = self.find_active_label(&node_label.ref_(self).as_identifier().escaped_text);
             if let Some(active_label) = active_label {
-                active_label.set_referenced(true);
+                active_label.ref_(self).set_referenced(true);
                 self.bind_break_or_continue_flow(
                     node,
-                    Some(active_label.break_target()),
-                    active_label.maybe_continue_target(),
+                    Some(active_label.ref_(self).break_target()),
+                    active_label.ref_(self).maybe_continue_target(),
                 );
             }
         } else {
@@ -631,7 +631,7 @@ impl BinderType {
         let post_statement_label = self.create_branch_label();
         let node_ref = node.ref_(self);
         let node_as_labeled_statement = node_ref.as_labeled_statement();
-        self.set_active_label_list(Some(Gc::new(ActiveLabel::new(
+        self.set_active_label_list(Some(self.alloc_active_label(ActiveLabel::new(
             self.maybe_active_label_list(),
             node_as_labeled_statement
                 .label
@@ -644,7 +644,7 @@ impl BinderType {
         ))));
         self.bind(Some(node_as_labeled_statement.label));
         self.bind(Some(node_as_labeled_statement.statement));
-        if !self.active_label_list().referenced()
+        if !self.active_label_list().ref_(self).referenced()
             && !matches!(self.options().ref_(self).allow_unused_labels, Some(true))
         {
             self.error_or_suggestion_on_node(
@@ -653,7 +653,7 @@ impl BinderType {
                 &Diagnostics::Unused_label,
             );
         }
-        self.set_active_label_list(self.active_label_list().next());
+        self.set_active_label_list(self.active_label_list().ref_(self).next());
         self.add_antecedent(&post_statement_label.ref_(self), self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_statement_label)));
     }

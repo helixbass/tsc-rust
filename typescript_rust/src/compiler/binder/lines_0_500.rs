@@ -39,7 +39,7 @@ pub enum ModuleInstanceState {
 }
 
 #[derive(Debug, Trace, Finalize)]
-pub(super) struct ActiveLabel {
+pub struct ActiveLabel {
     pub next: Option<Id<ActiveLabel>>,
     pub name: __String,
     break_target: Id<FlowNode /*FlowLabel*/>,

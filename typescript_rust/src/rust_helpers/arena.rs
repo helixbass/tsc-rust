@@ -11,7 +11,7 @@ use crate::{
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
-    ParenthesizerRules, IterationTypes, TypePredicate,
+    ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel,
 };
 
 #[derive(Default)]
@@ -53,6 +53,7 @@ pub struct AllArenas {
     pub parenthesizer_rules: RefCell<Arena<Box<dyn ParenthesizerRules>>>,
     pub iteration_types: RefCell<Arena<IterationTypes>>,
     pub type_predicates: RefCell<Arena<TypePredicate>>,
+    pub active_labels: RefCell<Arena<ActiveLabel>>,
 }
 
 pub trait HasArena {
@@ -328,6 +329,14 @@ pub trait HasArena {
 
     fn alloc_type_predicate(&self, type_predicate: TypePredicate) -> Id<TypePredicate> {
         self.arena().alloc_type_predicate(type_predicate)
+    }
+
+    fn active_label(&self, active_label: Id<ActiveLabel>) -> Ref<ActiveLabel> {
+        self.arena().active_label(active_label)
+    }
+
+    fn alloc_active_label(&self, active_label: ActiveLabel) -> Id<ActiveLabel> {
+        self.arena().alloc_active_label(active_label)
     }
 }
 
@@ -684,6 +693,16 @@ impl HasArena for AllArenas {
         let id = self.type_predicates.borrow_mut().alloc(type_predicate);
         id
     }
+
+    #[track_caller]
+    fn active_label(&self, active_label: Id<ActiveLabel>) -> Ref<ActiveLabel> {
+        Ref::map(self.active_labels.borrow(), |active_labels| &active_labels[active_label])
+    }
+
+    fn alloc_active_label(&self, active_label: ActiveLabel) -> Id<ActiveLabel> {
+        let id = self.active_labels.borrow_mut().alloc(active_label);
+        id
+    }
 }
 
 pub trait InArena {
@@ -962,6 +981,14 @@ impl InArena for Id<TypePredicate> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TypePredicate> {
         has_arena.type_predicate(*self)
+    }
+}
+
+impl InArena for Id<ActiveLabel> {
+    type Item = ActiveLabel;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ActiveLabel> {
+        has_arena.active_label(*self)
     }
 }
 

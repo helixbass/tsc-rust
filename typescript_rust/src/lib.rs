@@ -119,7 +119,7 @@ use compiler::{
     },
 };
 pub use compiler::{
-    binder::{bind_source_file, get_module_instance_state, ModuleInstanceState},
+    binder::{bind_source_file, get_module_instance_state, ModuleInstanceState, ActiveLabel},
     builder::ProgramBuildInfo,
     builder_public::{
         BuilderProgram, EmitAndSemanticDiagnosticsBuilderProgram, SemanticDiagnosticsBuilderProgram,
