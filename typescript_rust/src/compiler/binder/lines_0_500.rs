@@ -40,7 +40,7 @@ pub enum ModuleInstanceState {
 
 #[derive(Debug, Trace, Finalize)]
 pub(super) struct ActiveLabel {
-    pub next: Option<Gc<ActiveLabel>>,
+    pub next: Option<Id<ActiveLabel>>,
     pub name: __String,
     break_target: Id<FlowNode /*FlowLabel*/>,
     continue_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
@@ -50,7 +50,7 @@ pub(super) struct ActiveLabel {
 
 impl ActiveLabel {
     pub fn new(
-        next: Option<Gc<ActiveLabel>>,
+        next: Option<Id<ActiveLabel>>,
         name: __String,
         break_target: Id<FlowNode>,
         continue_target: Option<Id<FlowNode>>,
@@ -65,7 +65,7 @@ impl ActiveLabel {
         }
     }
 
-    pub fn next(&self) -> Option<Gc<ActiveLabel>> {
+    pub fn next(&self) -> Option<Id<ActiveLabel>> {
         self.next.clone()
     }
 
@@ -332,7 +332,7 @@ pub struct BinderType {
     pub(super) current_false_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
     pub(super) current_exception_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
     pub(super) pre_switch_case_flow: GcCell<Option<Id<FlowNode>>>,
-    pub(super) active_label_list: GcCell<Option<Gc<ActiveLabel>>>,
+    pub(super) active_label_list: GcCell<Option<Id<ActiveLabel>>>,
     #[unsafe_ignore_trace]
     pub(super) has_explicit_return: Cell<Option<bool>>,
 
@@ -607,15 +607,15 @@ impl BinderType {
         *self.pre_switch_case_flow.borrow_mut() = pre_switch_case_flow;
     }
 
-    pub(super) fn active_label_list(&self) -> Gc<ActiveLabel> {
+    pub(super) fn active_label_list(&self) -> Id<ActiveLabel> {
         self.active_label_list.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_active_label_list(&self) -> Option<Gc<ActiveLabel>> {
+    pub(super) fn maybe_active_label_list(&self) -> Option<Id<ActiveLabel>> {
         self.active_label_list.borrow().clone()
     }
 
-    pub(super) fn set_active_label_list(&self, active_label_list: Option<Gc<ActiveLabel>>) {
+    pub(super) fn set_active_label_list(&self, active_label_list: Option<Id<ActiveLabel>>) {
         *self.active_label_list.borrow_mut() = active_label_list;
     }
 
