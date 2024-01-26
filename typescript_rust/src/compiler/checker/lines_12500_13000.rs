@@ -808,7 +808,7 @@ impl TypeChecker {
         let id = self.get_type_list_id(type_arguments);
         let mut instantiation = instantiations.get(&id).map(Clone::clone);
         if instantiation.is_none() {
-            instantiation = Some(Gc::new(
+            instantiation = Some(self.alloc_signature(
                 self.create_signature_instantiation(signature.clone(), type_arguments)?,
             ));
             instantiations.insert(id, instantiation.clone().unwrap());

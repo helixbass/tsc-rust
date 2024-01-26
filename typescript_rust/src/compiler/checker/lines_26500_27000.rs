@@ -377,7 +377,7 @@ impl TypeChecker {
         )?;
         let min_arg_count = cmp::max(left.ref_(self).min_argument_count(), right.ref_(self).min_argument_count());
         let mut result = self.create_signature(
-            declaration.cloned(),
+            declaration,
             type_params,
             this_param,
             params,
