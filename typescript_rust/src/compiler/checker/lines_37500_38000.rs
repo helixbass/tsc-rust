@@ -644,10 +644,10 @@ impl TypeChecker {
 
         let mut method_parameter_types: Option<Vec<Id<Type>>> = None;
         let mut method_return_types: Option<Vec<Id<Type>>> = None;
-        for signature in &method_signatures {
+        for &signature in &method_signatures {
             if method_name != "throw"
                 && some(
-                    Some(signature.parameters()),
+                    Some(signature.ref_(self).parameters()),
                     Option::<fn(&Id<Symbol>) -> bool>::None,
                 )
             {

@@ -817,7 +817,7 @@ impl TypeChecker {
         skip_union_expanding: Option<bool>,
     ) -> io::Result<Vec<Vec<Id<Symbol>>>> {
         let skip_union_expanding = skip_union_expanding.unwrap_or(false);
-        if signature_has_rest_parameter(sig) {
+        if signature_has_rest_parameter(&sig.ref_(self)) {
             let rest_index = sig.ref_(self).parameters().len() - 1;
             let rest_type = self.get_type_of_symbol(sig.ref_(self).parameters()[rest_index])?;
             if self.is_tuple_type(rest_type) {

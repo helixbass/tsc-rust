@@ -877,7 +877,7 @@ impl TypeChecker {
             }
             last_symbol = symbol.clone();
 
-            if signature_has_literal_types(signature) {
+            if signature_has_literal_types(&signature.ref_(self)) {
                 specialized_index += 1;
                 splice_index = specialized_index.try_into().unwrap();
                 cutoff_index += 1;

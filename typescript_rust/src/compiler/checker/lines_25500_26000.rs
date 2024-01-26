@@ -626,7 +626,7 @@ impl TypeChecker {
         }
         let rest_index = TryInto::<isize>::try_into(signature.ref_(self).parameters().len()).unwrap() - 1;
         Ok(
-            if signature_has_rest_parameter(signature)
+            if signature_has_rest_parameter(&signature.ref_(self))
                 && TryInto::<isize>::try_into(arg_index).unwrap() >= rest_index
             {
                 let rest_index: usize = rest_index.try_into().unwrap();

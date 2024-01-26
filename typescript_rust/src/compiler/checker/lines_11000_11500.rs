@@ -50,8 +50,8 @@ impl TypeChecker {
         } else {
             right
         };
-        let shorter = if ptr::eq(longest, left) { right } else { left };
-        let longest_count = if ptr::eq(longest, left) {
+        let shorter = if longest == left { right } else { left };
+        let longest_count = if longest == left {
             left_count
         } else {
             right_count
@@ -64,13 +64,13 @@ impl TypeChecker {
             Vec::with_capacity(longest_count + if needs_extra_rest_element { 1 } else { 0 });
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i)?.unwrap();
-            if ptr::eq(longest, right) {
+            if longest == right {
                 longest_param_type = self.instantiate_type(longest_param_type, mapper.clone())?;
             }
             let mut shorter_param_type = self
                 .try_get_type_at_position(shorter, i)?
                 .unwrap_or_else(|| self.unknown_type());
-            if ptr::eq(shorter, right) {
+            if shorter == right {
                 shorter_param_type = self.instantiate_type(shorter_param_type, mapper.clone())?;
             }
             let union_param_type = self.get_intersection_type(
@@ -140,7 +140,7 @@ impl TypeChecker {
                 .type_ = Some(
                 self.create_array_type(self.get_type_at_position(shorter, longest_count)?, None),
             );
-            if ptr::eq(shorter, right) {
+            if shorter == right {
                 let type_ = self.maybe_instantiate_type(
                     (*rest_param_symbol
                         .ref_(self)
@@ -168,24 +168,24 @@ impl TypeChecker {
         right: Id<Signature>,
     ) -> io::Result<Signature> {
         let type_params = left
-            .maybe_type_parameters()
+            .ref_(self).maybe_type_parameters()
             .clone()
-            .or_else(|| right.maybe_type_parameters().clone());
+            .or_else(|| right.ref_(self).maybe_type_parameters().clone());
         let mut param_mapper: Option<Id<TypeMapper>> = None;
-        if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
+        if left.ref_(self).maybe_type_parameters().is_some() && right.ref_(self).maybe_type_parameters().is_some() {
             param_mapper = Some(self.create_type_mapper(
-                right.maybe_type_parameters().clone().unwrap(),
-                left.maybe_type_parameters().clone(),
+                right.ref_(self).maybe_type_parameters().clone().unwrap(),
+                left.ref_(self).maybe_type_parameters().clone(),
             ));
         }
-        let declaration = left.declaration.clone();
-        let params = self.combine_union_parameters(&left, &right, param_mapper.clone())?;
+        let declaration = left.ref_(self).declaration.clone();
+        let params = self.combine_union_parameters(left, right, param_mapper.clone())?;
         let this_param = self.combine_union_this_param(
-            *left.maybe_this_parameter(),
-            *right.maybe_this_parameter(),
+            *left.ref_(self).maybe_this_parameter(),
+            *right.ref_(self).maybe_this_parameter(),
             param_mapper.clone(),
         )?;
-        let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
+        let min_arg_count = cmp::max(left.ref_(self).min_argument_count(), right.ref_(self).min_argument_count());
         let mut result = self.create_signature(
             declaration,
             type_params,
@@ -194,12 +194,12 @@ impl TypeChecker {
             None,
             None,
             min_arg_count,
-            (left.flags | right.flags) & SignatureFlags::PropagatingFlags,
+            (left.ref_(self).flags | right.ref_(self).flags) & SignatureFlags::PropagatingFlags,
         );
         result.composite_kind = Some(TypeFlags::Union);
         result.composite_signatures = Some(concatenate(
-            if !matches!(left.composite_kind, Some(TypeFlags::Intersection)) {
-                left.composite_signatures.clone()
+            if !matches!(left.ref_(self).composite_kind, Some(TypeFlags::Intersection)) {
+                left.ref_(self).composite_signatures.clone()
             } else {
                 None
             }
@@ -208,11 +208,11 @@ impl TypeChecker {
         ));
         if let Some(param_mapper) = param_mapper {
             result.mapper = Some(
-                if !matches!(left.composite_kind, Some(TypeFlags::Intersection))
-                    && left.mapper.is_some()
-                    && left.composite_signatures.is_some()
+                if !matches!(left.ref_(self).composite_kind, Some(TypeFlags::Intersection))
+                    && left.ref_(self).mapper.is_some()
+                    && left.ref_(self).composite_signatures.is_some()
                 {
-                    self.combine_type_mappers(left.mapper.clone(), param_mapper)
+                    self.combine_type_mappers(left.ref_(self).mapper.clone(), param_mapper)
                 } else {
                     param_mapper
                 },
@@ -377,7 +377,7 @@ impl TypeChecker {
             if !mixin_flags[i] {
                 let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct)?;
                 if !signatures.is_empty() && mixin_count > 0 {
-                    signatures = try_map(&signatures, |s: &Id<Signature>, _| -> io::Result<_> {
+                    signatures = try_map(&signatures, |&s: &Id<Signature>, _| -> io::Result<_> {
                         let clone = self.clone_signature(s);
                         *clone.maybe_resolved_return_type_mut() = Some(self.include_mixin_type(
                             self.get_return_type_of_signature(s.clone())?,
@@ -385,7 +385,7 @@ impl TypeChecker {
                             mixin_flags.as_ref(),
                             i,
                         )?);
-                        Ok(Gc::new(clone))
+                        Ok(self.alloc_signature(clone))
                     })?;
                 }
                 self.append_signatures(&mut construct_signatures, &signatures)?;
@@ -680,16 +680,16 @@ impl TypeChecker {
                                 .maybe_call_signatures()
                                 .as_deref(),
                             |sig: &Id<Signature>, _| -> io::Result<_> {
-                                Ok(if self.is_js_constructor(sig.declaration)? {
-                                    Some(Gc::new(self.create_signature(
-                                        sig.declaration.clone(),
-                                        sig.maybe_type_parameters().clone(),
-                                        sig.maybe_this_parameter().clone(),
-                                        sig.parameters().to_owned(),
+                                Ok(if self.is_js_constructor(sig.ref_(self).declaration)? {
+                                    Some(self.alloc_signature(self.create_signature(
+                                        sig.ref_(self).declaration.clone(),
+                                        sig.ref_(self).maybe_type_parameters().clone(),
+                                        sig.ref_(self).maybe_this_parameter().clone(),
+                                        sig.ref_(self).parameters().to_owned(),
                                         Some(class_type.clone()),
                                         None,
-                                        sig.min_argument_count(),
-                                        sig.flags & SignatureFlags::PropagatingFlags,
+                                        sig.ref_(self).min_argument_count(),
+                                        sig.ref_(self).flags & SignatureFlags::PropagatingFlags,
                                     )))
                                 } else {
                                     None

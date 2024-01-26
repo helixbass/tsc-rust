@@ -637,7 +637,7 @@ impl TypeChecker {
         override_rest_type: Option<Id<Type>>,
     ) -> io::Result<__String> {
         let param_count = signature.ref_(self).parameters().len()
-            - if signature_has_rest_parameter(signature) {
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
@@ -677,7 +677,7 @@ impl TypeChecker {
         pos: usize,
     ) -> io::Result<Option<(__String, bool)>> {
         let param_count = signature.ref_(self).parameters().len()
-            - if signature_has_rest_parameter(signature) {
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
@@ -759,7 +759,7 @@ impl TypeChecker {
         pos: usize,
     ) -> io::Result<Option<Id<Node>>> {
         let param_count = signature.ref_(self).parameters().len()
-            - if signature_has_rest_parameter(signature) {
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
@@ -810,7 +810,7 @@ impl TypeChecker {
         pos: usize,
     ) -> io::Result<Option<Id<Type>>> {
         let param_count = signature.ref_(self).parameters().len()
-            - if signature_has_rest_parameter(signature) {
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0

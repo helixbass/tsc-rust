@@ -88,7 +88,7 @@ impl TypeChecker {
         let forced_lookup_location = self.get_jsx_element_properties_name(ns)?;
         let attributes_type = match forced_lookup_location.as_ref() {
             None => Some(self.get_type_of_first_parameter_of_signature_with_fallback(
-                &sig,
+                sig,
                 self.unknown_type(),
             )?),
             Some(forced_lookup_location) => {
@@ -181,16 +181,16 @@ impl TypeChecker {
             if get_strict_option_value(&self.compiler_options.ref_(self), "noImplicitAny") {
                 try_reduce_left_no_initial_value_optional(
                     signatures,
-                    |left: Option<Id<Signature>>, right: &Id<Signature>, _| -> io::Result<_> {
+                    |left: Option<Id<Signature>>, &right: &Id<Signature>, _| -> io::Result<_> {
                         Ok(
-                            if match left.as_ref() {
+                            if match left {
                                 None => true,
-                                Some(left) => Gc::ptr_eq(left, right),
+                                Some(left) => left == right,
                             } {
                                 left
                             } else if self.compare_type_parameters_identical(
-                                left.as_ref().unwrap().maybe_type_parameters().as_deref(),
-                                right.maybe_type_parameters().as_deref(),
+                                left.unwrap().ref_(self).maybe_type_parameters().as_deref(),
+                                right.ref_(self).maybe_type_parameters().as_deref(),
                             )? {
                                 Some(self.combine_signatures_of_intersection_members(
                                     left.clone().unwrap(),
@@ -247,8 +247,8 @@ impl TypeChecker {
         } else {
             right
         };
-        let shorter = if ptr::eq(longest, left) { right } else { left };
-        let longest_count = if ptr::eq(longest, left) {
+        let shorter = if longest == left { right } else { left };
+        let longest_count = if longest == left {
             left_count
         } else {
             right_count
@@ -261,13 +261,13 @@ impl TypeChecker {
             Vec::with_capacity(longest_count + if needs_extra_rest_element { 1 } else { 0 });
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i)?.unwrap();
-            if ptr::eq(longest, right) {
+            if longest == right {
                 longest_param_type = self.instantiate_type(longest_param_type, mapper.clone())?;
             }
             let mut shorter_param_type = self
                 .try_get_type_at_position(shorter, i)?
                 .unwrap_or_else(|| self.unknown_type());
-            if ptr::eq(shorter, right) {
+            if shorter == right {
                 shorter_param_type = self.instantiate_type(shorter_param_type, mapper.clone())?;
             }
             let union_param_type = self.get_union_type(
@@ -339,7 +339,7 @@ impl TypeChecker {
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(rest_param_symbol_type.clone());
-            if ptr::eq(shorter, right) {
+            if shorter == right {
                 rest_param_symbol
                     .ref_(self)
                     .as_transient_symbol()
@@ -358,24 +358,24 @@ impl TypeChecker {
         right: Id<Signature>,
     ) -> io::Result<Id<Signature>> {
         let type_params = left
-            .maybe_type_parameters()
+            .ref_(self).maybe_type_parameters()
             .clone()
-            .or_else(|| right.maybe_type_parameters().clone());
+            .or_else(|| right.ref_(self).maybe_type_parameters().clone());
         let mut param_mapper: Option<Id<TypeMapper>> = None;
-        if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
+        if left.ref_(self).maybe_type_parameters().is_some() && right.ref_(self).maybe_type_parameters().is_some() {
             param_mapper = Some(self.create_type_mapper(
-                right.maybe_type_parameters().clone().unwrap(),
-                left.maybe_type_parameters().clone(),
+                right.ref_(self).maybe_type_parameters().clone().unwrap(),
+                left.ref_(self).maybe_type_parameters().clone(),
             ));
         }
-        let declaration = left.declaration.as_ref();
-        let params = self.combine_intersection_parameters(&left, &right, param_mapper.clone())?;
+        let declaration = left.ref_(self).declaration;
+        let params = self.combine_intersection_parameters(left, right, param_mapper.clone())?;
         let this_param = self.combine_intersection_this_param(
-            *left.maybe_this_parameter(),
-            *right.maybe_this_parameter(),
+            *left.ref_(self).maybe_this_parameter(),
+            *right.ref_(self).maybe_this_parameter(),
             param_mapper.clone(),
         )?;
-        let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
+        let min_arg_count = cmp::max(left.ref_(self).min_argument_count(), right.ref_(self).min_argument_count());
         let mut result = self.create_signature(
             declaration.cloned(),
             type_params,
@@ -384,12 +384,12 @@ impl TypeChecker {
             None,
             None,
             min_arg_count,
-            (left.flags | right.flags) & SignatureFlags::PropagatingFlags,
+            (left.ref_(self).flags | right.ref_(self).flags) & SignatureFlags::PropagatingFlags,
         );
         result.composite_kind = Some(TypeFlags::Intersection);
         result.composite_signatures = Some(concatenate(
-            if left.composite_kind == Some(TypeFlags::Intersection) {
-                left.composite_signatures.clone()
+            if left.ref_(self).composite_kind == Some(TypeFlags::Intersection) {
+                left.ref_(self).composite_signatures.clone()
             } else {
                 None
             }
@@ -398,17 +398,17 @@ impl TypeChecker {
         ));
         if let Some(param_mapper) = param_mapper {
             result.mapper = Some(
-                if left.composite_kind == Some(TypeFlags::Intersection)
-                    && left.mapper.is_some()
-                    && left.composite_signatures.is_some()
+                if left.ref_(self).composite_kind == Some(TypeFlags::Intersection)
+                    && left.ref_(self).mapper.is_some()
+                    && left.ref_(self).composite_signatures.is_some()
                 {
-                    self.combine_type_mappers(left.mapper.clone(), param_mapper)
+                    self.combine_type_mappers(left.ref_(self).mapper.clone(), param_mapper)
                 } else {
                     param_mapper
                 },
             );
         }
-        Ok(Gc::new(result))
+        Ok(self.alloc_signature(result))
     }
 
     pub(super) fn get_contextual_call_signature(
@@ -417,7 +417,7 @@ impl TypeChecker {
         node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Signature>>> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
-        let applicable_by_arity = try_filter(&signatures, |s| -> io::Result<_> {
+        let applicable_by_arity = try_filter(&signatures, |&s| -> io::Result<_> {
             Ok(!self.is_arity_smaller(s, node)?)
         })?;
         Ok(if applicable_by_arity.len() == 1 {
@@ -524,7 +524,7 @@ impl TypeChecker {
             if signature_list.len() == 1 {
                 signature_list[0].clone()
             } else {
-                Gc::new(self.create_union_signature(&signature_list[0].clone(), signature_list))
+                self.alloc_signature(self.create_union_signature(signature_list[0].clone(), signature_list))
             }
         }))
     }

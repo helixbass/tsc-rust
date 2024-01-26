@@ -72,7 +72,7 @@ impl TypeChecker {
         let mut parameters: Vec<Id<Symbol>> = vec![];
         for i in 0..max_non_rest_param {
             let symbols = map_defined(Some(candidates), |&s: &Id<Signature>, _| {
-                if signature_has_rest_parameter(s) {
+                if signature_has_rest_parameter(&s.ref_(self)) {
                     if i < s.ref_(self).parameters().len() - 1 {
                         Some(s.ref_(self).parameters()[i].clone())
                     } else {

@@ -201,8 +201,8 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
     ) -> io::Result<bool> {
         let (Some(source_signature_declaration), Some(target_signature_declaration)) = (
-            source_signature.declaration,
-            target_signature.declaration
+            source_signature.ref_(self).declaration,
+            target_signature.ref_(self).declaration
         ) else {
             return Ok(true);
         };

@@ -39,7 +39,7 @@ impl TypeChecker {
         inference_context: &InferenceContext,
     ) -> io::Result<()> {
         let len = signature.ref_(self).parameters().len()
-            - if signature_has_rest_parameter(signature) {
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
@@ -124,7 +124,7 @@ impl TypeChecker {
             }
         }
         let len = signature.ref_(self).parameters().len()
-            - if signature_has_rest_parameter(signature) {
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0

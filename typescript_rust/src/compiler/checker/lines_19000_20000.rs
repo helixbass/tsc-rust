@@ -1301,8 +1301,8 @@ impl CheckTypeRelatedTo {
                     self.type_checker.compiler_options.ref_(self).no_strict_generic_checks,
                     Some(true)
                 );
-            let source_signature = &source_signatures[0];
-            let target_signature = &target_signatures[0];
+            let source_signature = source_signatures[0];
+            let target_signature = target_signatures[0];
             result = self.signature_related_to(
                 source_signature.clone(),
                 target_signature.clone(),
@@ -1346,9 +1346,9 @@ impl CheckTypeRelatedTo {
                 return Ok(result);
             }
         } else {
-            'outer: for t in &target_signatures {
+            'outer: for &t in &target_signatures {
                 let mut should_elaborate_errors = report_errors;
-                for s in &source_signatures {
+                for &s in &source_signatures {
                     let related = self.signature_related_to(
                         s.clone(),
                         t.clone(),

@@ -156,7 +156,7 @@ impl TypeChecker {
                             };
                         self.assign_contextual_parameter_types(
                             signature,
-                            &instantiated_contextual_signature,
+                            instantiated_contextual_signature,
                         )?;
                     } else {
                         self.assign_non_contextual_parameter_types(signature)?;

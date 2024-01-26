@@ -1223,7 +1223,7 @@ impl TypeChecker {
                 }
             }
             && s.ref_(self).parameters().len() == 1
-            && signature_has_rest_parameter(s)
+            && signature_has_rest_parameter(&s.ref_(self))
             && (self.get_type_of_parameter(s.ref_(self).parameters()[0])? == self.any_array_type()
                 || self.is_type_any(Some(self.get_type_of_parameter(s.ref_(self).parameters()[0])?)))
             && self.is_type_any(Some(self.get_return_type_of_signature(s)?)))
